@@ -70,6 +70,7 @@ fn parse<'s>(
         LineEntry::InLine,
         fence,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     )
     .unwrap();
     output.finish_node();
@@ -434,6 +435,7 @@ fn colon_disabled_ml_entry_keeps_seed_and_pending_colon_effect_free() {
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     )
     .unwrap();
     output.finish_node();
@@ -489,6 +491,7 @@ fn inline_recovery_allocates_after_seeded_and_frozen_records() {
                 LineEntry::InLine,
                 None,
                 Some(AmbientClaimView::root_statement(0)).into(),
+                None,
             )
             .unwrap();
             assert_eq!(input, "");

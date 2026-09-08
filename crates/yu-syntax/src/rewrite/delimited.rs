@@ -60,6 +60,7 @@ pub(super) fn parenthesized_nud_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::ParenthesizedExpression.into());
@@ -90,6 +91,7 @@ pub(super) fn parenthesized_nud_normalized(
         item_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -107,6 +109,13 @@ pub(super) fn delimited_items_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let inherited_closes = inherited_stops & STOP_CLOSES;
+    let sequence = Some(match owner {
+        DelimitedOwner::Parenthesized => super::sequence::SequenceOwner::Parenthesized,
+        DelimitedOwner::Call => super::sequence::SequenceOwner::Call,
+        DelimitedOwner::Index => super::sequence::SequenceOwner::Index,
+        DelimitedOwner::ProjectionTuple => super::sequence::SequenceOwner::ProjectionTuple,
+        DelimitedOwner::ProjectionRecord => super::sequence::SequenceOwner::ProjectionRecord,
+    });
     // Nested delimiters shield contextual and separator stops, but retain every
     // enclosing close capability. The local close is checked first below.
     let stops = stops_for(owner.close())
@@ -250,6 +259,7 @@ pub(super) fn delimited_items_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         } else {
             if matches!(owner, DelimitedOwner::Index) {
@@ -267,6 +277,7 @@ pub(super) fn delimited_items_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             if matches!(owner, DelimitedOwner::Index) {
                 i.state.finish_node();
@@ -388,6 +399,7 @@ fn record_spread_item_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state
         .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
@@ -434,6 +446,7 @@ fn record_spread_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     } else {
         if !recovered {

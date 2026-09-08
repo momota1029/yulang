@@ -859,6 +859,7 @@ fn record_default_after_equals(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     emit_token_item(&mut i, equals);
+    let sequence = Some(super::super::sequence::SequenceOwner::RecordPattern);
     let expression_stops = stops_for(TokenKind::RBrace);
     let (mut rhs, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -887,6 +888,7 @@ fn record_default_after_equals(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if !protected {

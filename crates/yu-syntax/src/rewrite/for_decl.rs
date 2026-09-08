@@ -51,6 +51,7 @@ pub(super) fn for_statement_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     debug_assert!(for_statement_selected(&keyword));
     i.state.start_node(SyntaxKind::ForStatement.into());
@@ -72,6 +73,7 @@ pub(super) fn for_statement_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -159,6 +161,7 @@ fn pattern_slot_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let stops = pattern_stops_from_owner(outer_stops)
         | PATTERN_STOP_PRIMARY_COLON
@@ -222,6 +225,7 @@ fn pattern_slot_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             ),
             PatternCompletion::Incomplete if missing_at_in => in_slot_normalized(
                 i,
@@ -233,6 +237,7 @@ fn pattern_slot_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             ),
             PatternCompletion::Incomplete if missing_at_body => body_normalized(
                 i,
@@ -244,6 +249,7 @@ fn pattern_slot_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             ),
             PatternCompletion::Incomplete => complete(handoff(item), line_entry),
         },
@@ -267,6 +273,7 @@ fn in_slot_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary()
         || implicit_delimited_newline(baseline, item.leading_view())
@@ -285,6 +292,7 @@ fn in_slot_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -311,6 +319,7 @@ fn in_slot_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if outer_boundary(i.rb(), &item, baseline, outer_stops) {
@@ -327,6 +336,7 @@ fn in_slot_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -340,6 +350,7 @@ fn iterable_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (mut item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -368,6 +379,7 @@ fn iterable_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -383,6 +395,7 @@ fn iterable_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if !item.payload_view().is_boundary()
         && !implicit_delimited_newline(baseline, item.leading_view())
@@ -418,6 +431,7 @@ fn iterable_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     };
     let item_origin = advanced_origin(item_origin, child_entry, i.rb());
@@ -443,6 +457,7 @@ fn iterable_from_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) if missing => {
@@ -458,6 +473,7 @@ fn iterable_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) if missing => {
             complete(Err(Either::Right(end)), line_entry)
@@ -483,6 +499,7 @@ fn body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary()
         || implicit_delimited_newline(baseline, item.leading_view())
@@ -502,6 +519,7 @@ fn body_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         Some(TokenKind::LBrace) => {
@@ -530,6 +548,7 @@ fn body_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
     }
 }
@@ -544,6 +563,7 @@ fn colon_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
@@ -577,6 +597,7 @@ fn colon_body_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
     }
 }
@@ -591,6 +612,7 @@ fn inline_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let stops = outer_stops | STOP_COMMA | STOP_SEMICOLON;
     let (mut item, item_origin, line_entry) = expression_item(
@@ -619,6 +641,7 @@ fn inline_body_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -635,6 +658,7 @@ fn recover_body_introducer_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -667,6 +691,7 @@ fn recover_body_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if implicit_delimited_newline(baseline, item.leading_view())

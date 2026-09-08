@@ -206,11 +206,23 @@ caller/owner/output set: 227 (with the recorded baseline visibility-collision
 test excluded); actual For: 12; package/format/diff pass. Specification/recovery
 and regression audits passed. No benchmark process was used.
 
-Next, design the current-depth Colon layout outer-sequence correction, then
-continue literal/Statement/declaration dependencies. Braced/root recovery and
-caller body-introducer bypasses remain separate. Extend the same ledger; retain
-the current acceptance contracts, effect-free optional entry and the atomic
-public cutover boundary. No benchmark sample/process has been used.
+The current-depth Colon layout outer-sequence correction in
+`2026-09-08-successor-expression-colon-layout-sequence-context.md` is
+implemented. A private by-value owner context replaces comma-stop inference;
+it covers the finite Expression/Statement, Virtual, RecordPattern-default and
+Rule-list bridges. Ownerless Colon owns comma/qualifying newline arguments;
+outer-owned Colon returns the whole boundary. Focused Colon: 12; Rule: 1;
+literal/Yumark/Yumark-cell: 35/14/5; package/format/diff pass. The related
+cone has 511 passes and the separately reproduced `(a +\nb)` baseline operator
+mismatch. Spec/recovery and regression delta audits passed. No benchmark process
+was used.
+
+Next, continue literal/Statement/declaration typed-recovery dependencies.
+Braced/root raw recovery, caller body-introducer bypasses, Type/other-Pattern/
+Yumark production context ingress and aggregate/public certification remain
+separate. Extend the same ledger; retain the current acceptance contracts,
+effect-free optional entry and the atomic public cutover boundary. No benchmark
+sample/process has been used.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
 

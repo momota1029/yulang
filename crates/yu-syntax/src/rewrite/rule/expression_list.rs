@@ -39,6 +39,7 @@ pub(super) fn expression_list(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> ExpressionListExit {
+    let sequence = Some(super::super::sequence::SequenceOwner::RuleExpressionList);
     let stops = stops_for(close) | STOP_LINE_BREAK;
     let mut needs_expression = true;
     let mut recovery_requires_expression = false;
@@ -115,6 +116,7 @@ pub(super) fn expression_list(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             *origin = advanced_origin(*origin, entry, i.rb());
             (current, line_entry) = match exit {

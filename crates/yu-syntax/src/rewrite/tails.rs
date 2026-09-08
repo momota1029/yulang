@@ -28,7 +28,7 @@ use super::{
     },
     item::{Item, LeadingTrivia, TokenKind},
     lexer::{introduced_body_indentation_normalized, scan_path_segment_payload},
-    operator::{STOP_COMMA, lone_colon_after_fenced_trivia},
+    operator::{STOP_COMMA, STOP_LINE_BREAK, lone_colon_after_fenced_trivia},
     output::RecoveryDraft,
     statement::{
         StatementAdmission, StatementLineHandoff, canonical_statement_from_admission_normalized,
@@ -54,19 +54,20 @@ pub(super) fn colon_tail_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if matches!(ml_mode, MlMode::None) || !chain_continuation(colon.leading_view(), baseline) {
         return complete(handoff(colon), line_entry);
     }
-    let indented = introduced_body_indentation_normalized(i.rb(), item_origin, fence)
-        .is_some_and(|indentation| indentation > baseline);
+    let indentation = introduced_body_indentation_normalized(i.rb(), item_origin, fence);
+    let indented = indentation.is_some_and(|indentation| indentation > baseline);
 
     colon.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::ColonApplicationTail.into());
     emit_token_item(&mut i, colon);
 
     let exit = if !indented {
-        let (item, item_origin, line_entry) = expression_item(
+        let (mut item, item_origin, line_entry) = expression_item(
             i.rb(),
             OperatorSite::Nud,
             item_origin,
@@ -75,19 +76,32 @@ pub(super) fn colon_tail_normalized(
             baseline,
             stops | STOP_COMMA,
         );
-        inline_colon_argument_normalized(
-            i.rb(),
-            item,
-            baseline,
-            stops,
-            ml_mode,
-            ColonApplicationRole::Rhs,
-            line_handoff,
-            item_origin,
-            line_entry,
-            fence,
-            ambient,
-        )
+        if indentation.is_some() {
+            emit_inline_slot_missing(
+                i.rb(),
+                &mut item,
+                item_origin,
+                GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
+                ExpectedSyntax::Expression,
+                stops | STOP_LINE_BREAK,
+            );
+            complete(handoff(item), line_entry)
+        } else {
+            inline_colon_argument_normalized(
+                i.rb(),
+                item,
+                baseline,
+                stops,
+                ml_mode,
+                ColonApplicationRole::Rhs,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+                sequence,
+            )
+        }
     } else {
         indented_statement_block_normalized(
             i.rb(),
@@ -117,6 +131,7 @@ fn inline_colon_argument_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_inline_slot_missing(
@@ -129,7 +144,7 @@ fn inline_colon_argument_normalized(
         );
         return complete(handoff(item), line_entry);
     }
-    if is_colon_owned_comma(&item, stops) {
+    if is_colon_owned_boundary(i.rb(), &item, baseline, stops, sequence) {
         emit_inline_slot_missing(
             i.rb(),
             &mut item,
@@ -148,6 +163,7 @@ fn inline_colon_argument_normalized(
             item_origin,
             fence,
             ambient,
+            sequence,
         );
     }
     if inline_colon_boundary(i.rb(), &item, baseline, stops) {
@@ -174,7 +190,7 @@ fn inline_colon_argument_normalized(
             line_entry,
             fence,
         );
-        if is_colon_owned_comma(&item, stops) {
+        if is_colon_owned_boundary(i.rb(), &item, baseline, stops, sequence) {
             return inline_colon_successor_normalized(
                 i,
                 complete(handoff(item), line_entry),
@@ -185,6 +201,7 @@ fn inline_colon_argument_normalized(
                 item_origin,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if inline_colon_boundary(i.rb(), &item, baseline, stops) {
@@ -209,6 +226,7 @@ fn inline_colon_argument_normalized(
         line_entry,
         fence,
         ambient,
+        sequence.or(Some(super::sequence::SequenceOwner::Colon)),
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     inline_colon_successor_normalized(
@@ -221,6 +239,7 @@ fn inline_colon_argument_normalized(
         item_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -235,26 +254,49 @@ fn inline_colon_successor_normalized(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match exit {
+        NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry)
+            if is_colon_owned_boundary(i.rb(), &end.item, baseline, stops, sequence) =>
+        {
+            end.item.emit_all_remaining_leading(&mut *i.state);
+            complete(Err(Either::Right(end)), line_entry)
+        }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry)
             if item.payload_view().is_boundary() =>
         {
             complete(handoff(item), line_entry)
         }
-        NormalizedExit::Complete(Err(Either::Left(comma)), line_entry)
-            if token_kind(&comma) == Some(TokenKind::Comma) && stops & STOP_COMMA == 0 =>
+        NormalizedExit::Complete(Err(Either::Left(mut item)), line_entry)
+            if is_colon_owned_boundary(i.rb(), &item, baseline, stops, sequence) =>
         {
-            emit_token_item(&mut i, comma);
-            let (item, item_origin, line_entry) = expression_item(
-                i.rb(),
-                OperatorSite::Nud,
-                item_origin,
-                line_entry,
-                fence,
-                baseline,
-                stops | STOP_COMMA,
-            );
+            let (mut item, item_origin, line_entry) = if token_kind(&item) == Some(TokenKind::Comma)
+            {
+                emit_token_item(&mut i, item);
+                expression_item(
+                    i.rb(),
+                    OperatorSite::Nud,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    baseline,
+                    stops | STOP_COMMA,
+                )
+            } else {
+                item.emit_all_remaining_leading(&mut *i.state);
+                (item, item_origin, line_entry)
+            };
+            // A comma and its following qualifying newline form one boundary.
+            // Protected Items retain their leading for the enclosing owner.
+            if !item.payload_view().is_boundary()
+                && !is_close(&item)
+                && !is_active_stop(i.rb(), &item, stops)
+                && !is_line_stop(&item, stops)
+                && implicit_delimited_newline(baseline, item.leading_view())
+            {
+                item.emit_all_remaining_leading(&mut *i.state);
+            }
             inline_colon_argument_normalized(
                 i,
                 item,
@@ -267,6 +309,7 @@ fn inline_colon_successor_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         exit => exit,
@@ -330,10 +373,20 @@ fn retry_inline_colon_argument_normalized(
     )
 }
 
-fn is_colon_owned_comma(item: &Item, stops: Stops) -> bool {
-    !item.payload_view().is_boundary()
-        && token_kind(item) == Some(TokenKind::Comma)
-        && stops & STOP_COMMA == 0
+fn is_colon_owned_boundary(
+    mut i: RewriteIn,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+    sequence: super::sequence::SequenceContext,
+) -> bool {
+    sequence.is_none()
+        && !item.payload_view().is_boundary()
+        && !is_close(item)
+        && !is_active_stop(i.rb(), item, stops)
+        && !is_line_stop(item, stops)
+        && (token_kind(item) == Some(TokenKind::Comma)
+            || implicit_delimited_newline(baseline, item.leading_view()))
 }
 
 fn inline_colon_boundary(i: RewriteIn, item: &Item, baseline: usize, stops: Stops) -> bool {
@@ -421,6 +474,7 @@ pub(super) fn with_tail_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::WithBodyTail.into());
@@ -478,6 +532,7 @@ pub(super) fn with_tail_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             let item_origin = advanced_origin(item_origin, entry, i.rb());
             with_inline_terminal_normalized(i.rb(), exit, baseline, stops, item_origin, fence)
@@ -505,6 +560,7 @@ pub(super) fn with_tail_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     };
 
@@ -524,6 +580,7 @@ fn with_inline_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
@@ -539,6 +596,7 @@ fn with_inline_body_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -555,6 +613,7 @@ fn with_inline_item_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
@@ -606,6 +665,7 @@ fn with_inline_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
     }
@@ -648,6 +708,7 @@ fn with_inline_item_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -771,6 +832,7 @@ pub(super) fn call_tail_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::CallTail.into());
     emit_token_item(&mut i, open);
@@ -800,6 +862,7 @@ pub(super) fn call_tail_normalized(
         item_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -816,6 +879,7 @@ pub(super) fn index_tail_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::IndexTail.into());
     emit_token_item(&mut i, open);
@@ -845,6 +909,7 @@ pub(super) fn index_tail_normalized(
         item_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -861,6 +926,7 @@ pub(super) fn dot_tail_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (next, item_origin, line_entry) = super::driver::expression_item(
         i.rb(),
@@ -889,6 +955,7 @@ pub(super) fn dot_tail_normalized(
                     line_entry,
                     fence,
                     ambient,
+                    sequence,
                 );
             }
             Some(TokenKind::LBrace) => {
@@ -907,6 +974,7 @@ pub(super) fn dot_tail_normalized(
                     line_entry,
                     fence,
                     ambient,
+                    sequence,
                 );
             }
             _ => {}
@@ -925,6 +993,7 @@ pub(super) fn dot_tail_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -942,6 +1011,7 @@ fn field_tail_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::FieldTail.into());
     emit_token_item(&mut i, dot);
@@ -965,6 +1035,7 @@ fn field_tail_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if boundary || !name.leading_view().is_grammar_empty() {
@@ -1001,6 +1072,7 @@ fn field_tail_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -1020,6 +1092,7 @@ fn projection_tail_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(node.into());
     emit_token_item(&mut i, dot);
@@ -1054,6 +1127,7 @@ fn projection_tail_normalized(
         item_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -1070,6 +1144,7 @@ pub(super) fn path_tail_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::PathTail.into());
     emit_token_item(&mut i, separator);
@@ -1099,6 +1174,7 @@ pub(super) fn path_tail_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if boundary {
@@ -1136,6 +1212,7 @@ pub(super) fn path_tail_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 

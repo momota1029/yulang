@@ -84,6 +84,7 @@ pub(super) fn cast_declaration_witness(
             line_entry,
             fence,
             Some(AmbientClaimView::root_statement(baseline)).into(),
+            Some(super::sequence::SequenceOwner::RootStatement),
         )
     })
 }
@@ -198,6 +199,7 @@ pub(super) fn cast_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::CastDeclaration.into());
     if item_word(&intro) == Some("cast") {
@@ -240,6 +242,7 @@ pub(super) fn cast_declaration_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -256,6 +259,7 @@ fn cast_pattern_introducer_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
         item.emit_all_remaining_leading(&mut *i.state);
@@ -270,6 +274,7 @@ fn cast_pattern_introducer_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if cast_token_kind(&item) == Some(TokenKind::Colon) && cast_gap_allowed(&item, baseline) {
@@ -285,6 +290,7 @@ fn cast_pattern_introducer_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if cast_token_kind(&item) == Some(TokenKind::RParen) {
@@ -319,6 +325,7 @@ fn cast_pattern_introducer_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if is_pattern_nud(&item, 0) {
@@ -335,6 +342,7 @@ fn cast_pattern_introducer_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     i.state.start_node(SyntaxKind::Error.into());
@@ -361,6 +369,7 @@ fn cast_pattern_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
@@ -375,6 +384,7 @@ fn cast_pattern_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if slot_outer_boundary(i.rb(), &item, baseline, stops)
@@ -416,6 +426,7 @@ fn cast_pattern_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
     }
@@ -433,6 +444,7 @@ fn cast_pattern_value_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if slot_outer_boundary(i.rb(), &item, baseline, stops)
         && !(has_local_close && cast_token_kind(&item) == Some(TokenKind::RParen))
@@ -474,6 +486,7 @@ fn cast_pattern_value_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     cast_pattern_close_normalized(
@@ -487,6 +500,7 @@ fn cast_pattern_value_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -502,6 +516,7 @@ fn cast_after_incomplete_pattern_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match cast_transition(i.rb(), &item, baseline, stops, has_local_close) {
         CastTransition::LocalClose => {
@@ -517,6 +532,7 @@ fn cast_after_incomplete_pattern_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         CastTransition::Target => {
@@ -531,6 +547,7 @@ fn cast_after_incomplete_pattern_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         CastTransition::Form => {
@@ -545,6 +562,7 @@ fn cast_after_incomplete_pattern_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         CastTransition::OuterBoundary | CastTransition::Other => {
@@ -566,6 +584,7 @@ fn cast_pattern_close_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let transition = cast_transition(i.rb(), &item, baseline, stops, has_local_close);
     if !has_local_close {
@@ -581,6 +600,7 @@ fn cast_pattern_close_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             ),
             CastTransition::Form => cast_form_normalized(
                 i,
@@ -592,6 +612,7 @@ fn cast_pattern_close_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             ),
             CastTransition::OuterBoundary | CastTransition::LocalClose => {
                 complete(handoff(item), line_entry)
@@ -606,6 +627,7 @@ fn cast_pattern_close_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             ),
         };
     }
@@ -622,6 +644,7 @@ fn cast_pattern_close_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if matches!(transition, CastTransition::Target | CastTransition::Form) {
@@ -639,6 +662,7 @@ fn cast_pattern_close_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         } else {
             cast_form_normalized(
@@ -651,6 +675,7 @@ fn cast_pattern_close_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         };
     }
@@ -688,6 +713,7 @@ fn cast_pattern_close_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if matches!(transition, CastTransition::Target | CastTransition::Form) {
@@ -705,6 +731,7 @@ fn cast_pattern_close_normalized(
                     line_entry,
                     fence,
                     ambient,
+                    sequence,
                 )
             } else {
                 cast_form_normalized(
@@ -717,6 +744,7 @@ fn cast_pattern_close_normalized(
                     line_entry,
                     fence,
                     ambient,
+                    sequence,
                 )
             };
         }
@@ -742,6 +770,7 @@ fn target_after_local_close_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = cast_item_normalized(
         i.rb(),
@@ -762,6 +791,7 @@ fn target_after_local_close_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -776,6 +806,7 @@ fn cast_target_introducer_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let transition = cast_transition(i.rb(), &item, baseline, stops, false);
     if transition == CastTransition::Form {
@@ -791,6 +822,7 @@ fn cast_target_introducer_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if transition == CastTransition::OuterBoundary {
@@ -820,6 +852,7 @@ fn cast_target_introducer_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if is_type_nud(&item) {
@@ -835,6 +868,7 @@ fn cast_target_introducer_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -863,6 +897,7 @@ fn cast_target_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if transition == CastTransition::OuterBoundary {
@@ -901,6 +936,7 @@ fn cast_target_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
     }
@@ -917,6 +953,7 @@ fn cast_target_type_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let transition = cast_transition(i.rb(), &item, baseline, stops, false);
     if transition != CastTransition::OuterBoundary {
@@ -955,6 +992,7 @@ fn cast_target_type_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     } else {
         complete(handoff(item), line_entry)
@@ -972,6 +1010,7 @@ fn cast_form_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
         item.emit_all_remaining_leading(&mut *i.state);
@@ -999,6 +1038,7 @@ fn cast_form_normalized(
                     line_entry,
                     fence,
                     ambient,
+                    sequence,
                 );
                 i.state.finish_node();
                 return exit;
@@ -1038,6 +1078,7 @@ fn cast_form_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if slot_outer_boundary(i.rb(), &item, baseline, stops)
@@ -1063,6 +1104,7 @@ fn cast_definition_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
@@ -1099,6 +1141,7 @@ fn cast_definition_body_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
     }
 }
@@ -1113,6 +1156,7 @@ fn cast_inline_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (mut item, mut item_origin, mut line_entry) = expression_item(
         i.rb(),
@@ -1150,6 +1194,7 @@ fn cast_inline_body_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -1190,6 +1235,7 @@ fn cast_inline_body_normalized(
                 next_line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         item_origin = next_origin;

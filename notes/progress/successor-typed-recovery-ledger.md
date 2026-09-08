@@ -253,15 +253,27 @@ body-introducer bypasses.
 | `statement::indented_statement_block_normalized` block entry and `indented_statement_slot_normalized` | explicit Colon/With/If/For/declaration caller role; Case/Catch default Colon role | M | abstract/fence coordinate, EOF after block-owned leading, protected separator/stop/dedent/close at remaining start | `[]` / `Statement` | full protected Item/leading stays unread; nested admitted Statement owns itself | `indented_recovery::*`, direct owner controls | C |
 | `statement::retry_indented_statement_normalized` | same explicit transported role | E | maximal nonempty lexical non-Statement run until admitted Statement or protected retry boundary | `other(Rng)` / `Statement` | retry admitted canonical Statement outside Error; no second Missing at boundary | `indented_recovery::*`, owner/output controls | C |
 
+Current-depth Colon layout-sequence ownership is now constructed. The private
+`SequenceContext` carries only the finite current owner and is independent of
+ambient claims; its entries/replacements are the authoritative ingress map,
+not stop-derived inference.
+
+| source / owner | sequence action | Colon boundary result | local evidence | state |
+| --- | --- | --- | --- | --- |
+| standalone Expression / same-depth ordinary recursion | `None` / forward | standalone Colon owns comma and qualifying newline; final implicit boundary terminates validly | `colon_sequence::*`, grammar controls | C |
+| Expression delimiters; root/braced/indented Statement; If and Case/Catch arms | replace explicit owner | Colon returns outer comma/newline/close whole | `colon_sequence::*`, normalized/owner controls | C |
+| Virtual Statement, RecordPattern default, Rule ExpressionList | replace their narrow direct bridge owner | Colon returns their existing comma/newline/close boundary; ambient policy unchanged | `colon_sequence::*`, `rule::*`, literal/Yumark controls | C |
+| Binding/Cast/For inline routes; projection-record spread | forward recorded owner | outer sequence authority remains visible | `colon_sequence::*`, caller controls | C |
+
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
 their construction proceeds: Pattern's literal/Expression callees; Expression
-Colon layout outer-sequence correction, if/case/Rule/string; canonical Statement
-and braced/root/colon/with owners and caller bypasses;
-declarations/derives/companions; VirtualStatementBlock; all remaining RB-E/P/S/
+if/case/Rule/string typed-recovery; canonical Statement and braced/root/colon/
+with raw owners and caller bypasses; declarations/derives/companions; raw
+VirtualStatementBlock recovery; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type
 helper's role transport. No unbounded test suite or fresh benchmark was run

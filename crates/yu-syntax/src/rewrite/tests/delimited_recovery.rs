@@ -420,6 +420,7 @@ fn full(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     );
     assert!(exit.is_some());
     output.finish_node();

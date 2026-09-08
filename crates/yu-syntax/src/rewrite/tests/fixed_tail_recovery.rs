@@ -69,6 +69,7 @@ fn parse<'s>(
         LineEntry::InLine,
         fence,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     )
     .unwrap();
     output.finish_node();
@@ -289,6 +290,7 @@ fn fixed_tail_recovery_keeps_threshold_ml_and_seeded_output() {
             LineEntry::InLine,
             None,
             Some(AmbientClaimView::root_statement(0)).into(),
+            None,
         )
         .unwrap();
         output.finish_node();
@@ -367,6 +369,7 @@ fn fixed_tail_recovery_allocates_after_committed_and_frozen_records() {
                     LineEntry::InLine,
                     None,
                     Some(AmbientClaimView::root_statement(0)).into(),
+                    None,
                 )
                 .unwrap();
                 assert_eq!(input, "");
@@ -452,6 +455,7 @@ fn rejected_or_line_deferred_fixed_tail_preserves_seeded_output_and_cursor() {
                     line,
                     None,
                     Some(AmbientClaimView::root_statement(0)).into(),
+                    None,
                 );
                 let NormalizedExit::Complete(Err(Either::Left(item)), returned_line) = exit else {
                     panic!("fixed-tail entry must remain unread")
@@ -476,6 +480,7 @@ fn rejected_or_line_deferred_fixed_tail_preserves_seeded_output_and_cursor() {
                 LineEntry::InLine,
                 None,
                 Some(AmbientClaimView::root_statement(0)).into(),
+                None,
             )
             .unwrap();
             assert_eq!(output.diagnostic_position(), (Some(20), 2));

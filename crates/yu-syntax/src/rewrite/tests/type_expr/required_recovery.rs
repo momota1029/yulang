@@ -275,6 +275,7 @@ pub(super) fn run_statement_records<'source>(
         LineEntry::InLine,
         None,
         Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+        Some(crate::rewrite::sequence::SequenceOwner::RootStatement),
     );
     if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
         emit_end(&mut output, end);

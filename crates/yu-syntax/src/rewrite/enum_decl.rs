@@ -65,6 +65,7 @@ pub(super) fn enum_declaration_witness(
             line_entry,
             fence,
             Some(AmbientClaimView::root_statement(baseline)).into(),
+            Some(super::sequence::SequenceOwner::RootStatement),
         )
     })
 }
@@ -206,6 +207,7 @@ pub(super) fn enum_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::EnumDeclaration.into());
     if item_word(&intro) == Some("enum") {
@@ -273,6 +275,7 @@ pub(super) fn enum_declaration_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         Ok(Some(body)) => parse_body_item_normalized(
@@ -285,6 +288,7 @@ pub(super) fn enum_declaration_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         Err(boundary) => complete(handoff(boundary), line_entry),
     };
@@ -410,6 +414,7 @@ fn header_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if stops & STOP_WITH != 0 && is_word(&item, "with") {
         return complete(handoff(item), line_entry);
@@ -437,6 +442,7 @@ fn header_from_item_normalized(
             next_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
@@ -449,6 +455,7 @@ fn header_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     parse_body_item_normalized(
@@ -461,6 +468,7 @@ fn header_from_item_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -475,6 +483,7 @@ fn parse_body_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if implicit_bodyless_boundary(i.rb(), &item, baseline, stops) {
         return complete(handoff(item), line_entry);
@@ -497,6 +506,7 @@ fn parse_body_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         Some(TokenKind::Colon) => parse_variant_body_normalized(
             i,
@@ -510,6 +520,7 @@ fn parse_body_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         Some(TokenKind::Equals) => {
             let form =
@@ -530,6 +541,7 @@ fn parse_body_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         _ => recover_body_introducer_normalized(
@@ -542,6 +554,7 @@ fn parse_body_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
     }
 }
@@ -559,6 +572,7 @@ fn parse_variant_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = declaration_variant_sequence_normalized(
@@ -586,6 +600,7 @@ fn parse_variant_body_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         (
@@ -601,6 +616,7 @@ fn parse_variant_body_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         (
@@ -616,6 +632,7 @@ fn parse_variant_body_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         (_, exit) => exit,
@@ -633,6 +650,7 @@ fn recover_body_introducer_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -666,6 +684,7 @@ fn recover_body_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
     }
@@ -681,6 +700,7 @@ fn trailing_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = enum_item_normalized(
         i.rb(),
@@ -702,6 +722,7 @@ fn trailing_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -716,6 +737,7 @@ fn trailing_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff) {
         let (next, next_origin, next_entry) = derives_clause_normalized(
@@ -740,6 +762,7 @@ fn trailing_from_item_normalized(
             next_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
@@ -752,6 +775,7 @@ fn trailing_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     complete(handoff(item), line_entry)

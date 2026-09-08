@@ -28,6 +28,7 @@ fn statement_with_ambient<'source, 'frame>(
         LineEntry::InLine,
         fence,
         ambient.into(),
+        Some(crate::rewrite::sequence::SequenceOwner::RootStatement),
     );
     let mut exit = crate::rewrite::driver::ordinary_exit(exit);
     if let Err(Either::Right(end)) = &mut exit {

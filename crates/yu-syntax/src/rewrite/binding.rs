@@ -197,6 +197,7 @@ pub(super) fn binding_statement_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::BindingStatement.into());
     i.state.start_node(SyntaxKind::BindingHeader.into());
@@ -252,6 +253,7 @@ pub(super) fn binding_statement_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     i.state.finish_node();
@@ -326,6 +328,7 @@ fn binding_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
@@ -361,6 +364,7 @@ fn binding_body_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
     }
 }
@@ -375,6 +379,7 @@ fn inline_binding_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (mut item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -407,6 +412,7 @@ fn inline_binding_body_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -441,6 +447,7 @@ fn inline_binding_body_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 

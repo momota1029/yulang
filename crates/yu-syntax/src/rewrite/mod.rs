@@ -31,6 +31,7 @@ mod output;
 mod pattern;
 mod role_decl;
 mod rule;
+mod sequence;
 mod state;
 mod statement;
 mod struct_decl;

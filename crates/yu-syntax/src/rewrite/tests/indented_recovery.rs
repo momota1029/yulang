@@ -55,6 +55,7 @@ fn parse<'s>(
         LineEntry::InLine,
         fence,
         Some(AmbientClaimView::root_statement(0)).into(),
+        Some(crate::rewrite::sequence::SequenceOwner::RootStatement),
     );
     output.finish_node();
     let (green, records) = output.finish_with_recoveries();

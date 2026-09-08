@@ -38,6 +38,7 @@ mod ambient_claim;
 mod binding;
 mod case_like;
 mod cast_decl;
+mod colon_sequence;
 mod colon_with_recovery;
 mod declaration_companion;
 mod declaration_variant;
@@ -141,6 +142,7 @@ fn run_normalized<'source>(
         line_entry,
         fence,
         Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+        None,
     );
     builder.finish_node();
     (finish_with_discarded_recoveries(builder), exit, input)
@@ -195,6 +197,7 @@ fn run_statement_normalized<'source>(
         line_entry,
         fence,
         Some(crate::rewrite::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+        Some(crate::rewrite::sequence::SequenceOwner::RootStatement),
     );
     builder.finish_node();
     (finish_with_discarded_recoveries(builder), exit, input)

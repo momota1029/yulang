@@ -51,6 +51,7 @@ fn direct_required_expr_with_recoveries<'source, 'frozen>(
         line,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     );
     output.finish_node();
     output.finish_node();
@@ -117,6 +118,7 @@ fn expression_with_recoveries(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     );
     if let Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) = &mut exit {
         emit_end(&mut output, end);
@@ -142,6 +144,7 @@ fn statement_with_recoveries(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
+        Some(crate::rewrite::sequence::SequenceOwner::RootStatement),
     );
     if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
         emit_end(&mut output, end);
@@ -173,6 +176,7 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     );
     assert!(rejected.is_none());
     assert_eq!(input, "? ]");
@@ -202,6 +206,7 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
         line,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     );
     output.finish_node();
     output.finish_node();

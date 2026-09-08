@@ -45,6 +45,7 @@ pub(super) fn yulang_code_cell_witness(
             LineEntry::InLine,
             None,
             None.into(),
+            None,
         ));
         match exit {
             Ok(()) => {

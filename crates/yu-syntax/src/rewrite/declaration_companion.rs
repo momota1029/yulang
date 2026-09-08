@@ -66,6 +66,7 @@ pub(super) fn declaration_companion_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     debug_assert!(is_contextual_word(i.rb(), &with_keyword, "with"));
 
@@ -89,6 +90,7 @@ pub(super) fn declaration_companion_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -104,6 +106,7 @@ fn companion_after_keyword(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if introducer_boundary(i.rb(), &item, baseline, caller_stops) {
         if !item.payload_view().is_boundary() && !item.leading_view().has_ordinary_newline() {
@@ -126,6 +129,7 @@ fn companion_after_keyword(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         Some(TokenKind::LBrace) => {
@@ -138,6 +142,7 @@ fn companion_after_keyword(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         _ if !matches!(admission, CompanionItemAdmission::Rejected) => {
@@ -152,6 +157,7 @@ fn companion_after_keyword(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         _ => retry_introducer(
@@ -163,6 +169,7 @@ fn companion_after_keyword(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
     }
 }
@@ -177,6 +184,7 @@ fn retry_introducer(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     emit_token_item(&mut i, item);
@@ -221,6 +229,7 @@ fn retry_introducer(
                         line_entry,
                         fence,
                         ambient,
+                        sequence,
                     )
                 }
                 Some(TokenKind::LBrace) => {
@@ -233,6 +242,7 @@ fn retry_introducer(
                         line_entry,
                         fence,
                         ambient,
+                        sequence,
                     )
                 }
                 _ => inline_form_from_item(
@@ -245,6 +255,7 @@ fn retry_introducer(
                     line_entry,
                     fence,
                     ambient,
+                    sequence,
                 ),
             };
         }
@@ -261,6 +272,7 @@ fn colon_form(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (mut item, item_origin, line_entry) = statement_item_normalized(
         i.rb(),
@@ -287,6 +299,7 @@ fn colon_form(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if companion_body_boundary(i.rb(), &item, baseline, caller_stops) {
@@ -307,6 +320,7 @@ fn colon_form(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -321,6 +335,7 @@ fn inline_form_from_item(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let slot = companion_item_slot(
         i.rb(),
@@ -333,6 +348,7 @@ fn inline_form_from_item(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     if !slot.complete {
         return slot.exit;
@@ -370,6 +386,7 @@ fn indented_form_from_item(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let ambient = ambient.map(|view| view.statement(block_indent));
     i.state
@@ -417,6 +434,7 @@ fn indented_form_from_item(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
         item_origin = slot.item_origin;
         if !slot.complete {
@@ -464,6 +482,7 @@ fn braced_form(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let ambient = ambient.map(AmbientClaimView::braced);
     let local_stops = caller_stops | stops_for(TokenKind::RBrace);
@@ -572,6 +591,7 @@ fn braced_form(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
         item_origin = parsed.item_origin;
         let (next, next_origin, next_entry, carried_admission) = successor_item(
@@ -609,6 +629,7 @@ fn companion_item_slot(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> SlotExit {
     if matches!(admission, CompanionItemAdmission::Derives) {
         return derives_run_slot(
@@ -637,6 +658,7 @@ fn companion_item_slot(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -710,6 +732,7 @@ fn statement_slot(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> SlotExit {
     i.state.start_node(SyntaxKind::Statement.into());
     if let Some(admission) = admission {
@@ -725,6 +748,7 @@ fn statement_slot(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         i.state.finish_node();
@@ -790,6 +814,7 @@ fn statement_slot(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             item_origin = advanced_origin(item_origin, entry, i.rb());
             i.state.finish_node();
@@ -1125,5 +1150,6 @@ pub(super) fn declaration_companion_witness(
         next_line_entry,
         fence,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        Some(super::sequence::SequenceOwner::RootStatement),
     ))
 }

@@ -49,6 +49,7 @@ pub(super) fn if_nud(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        None,
     ))
 }
 
@@ -65,6 +66,7 @@ pub(super) fn if_nud_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     keyword.emit_all_remaining_leading(&mut *i.state);
     let companion = ambient.view.map(|view| view.if_companion(baseline));
@@ -109,6 +111,7 @@ pub(super) fn if_nud_normalized(
         item_origin,
         fence,
         ambient.if_outer_tail(),
+        sequence,
     )
 }
 
@@ -217,6 +220,7 @@ fn if_arm_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let sequence = Some(super::sequence::SequenceOwner::If);
     i.state.start_node(SyntaxKind::IfArm.into());
     emit_contextual_keyword(&mut i, keyword, keyword_kind);
 
@@ -231,6 +235,7 @@ fn if_arm_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
 
@@ -257,6 +262,7 @@ fn if_arm_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         exit => missing_if_arm_normalized(i.rb(), exit, condition_missing),
@@ -275,6 +281,7 @@ fn condition_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> (NormalizedExit, bool) {
     let (mut item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -304,6 +311,7 @@ fn condition_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     i.state.finish_node();
@@ -350,6 +358,7 @@ fn else_arm_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let sequence = Some(super::sequence::SequenceOwner::If);
     #[cfg(test)]
     ambient.observe(super::ambient_claim::ProofSite::ElseBody);
     i.state.start_node(SyntaxKind::ElseArm.into());
@@ -380,6 +389,7 @@ fn else_arm_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     } else {
         inline_body_item_normalized(
@@ -392,6 +402,7 @@ fn else_arm_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     };
     i.state.finish_node();
@@ -408,6 +419,7 @@ fn colon_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if introduced_body_indentation_normalized(i.rb(), item_origin, fence)
         .is_some_and(|indentation| indentation > baseline)
@@ -432,6 +444,7 @@ fn colon_body_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     }
 }
@@ -446,6 +459,7 @@ fn inline_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -466,6 +480,7 @@ fn inline_body_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -480,6 +495,7 @@ fn inline_body_item_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -504,6 +520,7 @@ fn inline_body_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -539,6 +556,7 @@ fn inline_body_item_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 

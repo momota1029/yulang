@@ -79,6 +79,7 @@ pub(super) fn case_like_nud(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        None,
     ))
 }
 
@@ -96,6 +97,7 @@ pub(super) fn case_like_nud_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(family.expression_node().into());
@@ -111,6 +113,7 @@ pub(super) fn case_like_nud_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -125,6 +128,7 @@ pub(super) fn case_like_nud_normalized(
         item_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -139,6 +143,7 @@ fn case_like_head_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let scrutinee_stops = outer_stops | STOP_COLON | family.scrutinee_extra_stops();
     let (mut item, next_origin, next_line_entry) = case_head_item(
@@ -183,6 +188,7 @@ fn case_like_head_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -399,6 +405,19 @@ fn arm_sequence_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let first_stops = policy.first_pattern_stops(outer_stops);
+    let sequence = Some(match policy {
+        ArmSequencePolicy::CaseInline => super::sequence::SequenceOwner::CaseInline,
+        ArmSequencePolicy::CatchInline => super::sequence::SequenceOwner::CatchInline,
+        ArmSequencePolicy::Indented {
+            family: CaseLikeFamily::Case,
+            ..
+        } => super::sequence::SequenceOwner::CaseIndented,
+        ArmSequencePolicy::Indented {
+            family: CaseLikeFamily::Catch,
+            ..
+        } => super::sequence::SequenceOwner::CatchIndented,
+        ArmSequencePolicy::CatchBraced { .. } => super::sequence::SequenceOwner::CatchBraced,
+    });
     let (mut item, next_origin, next_line_entry) =
         pattern_item_normalized(i.rb(), item_origin, line_entry, fence, first_stops);
     item_origin = next_origin;
@@ -421,6 +440,7 @@ fn arm_sequence_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
         item_origin = advanced_origin(item_origin, entry, i.rb());
         let next = match exit {
@@ -471,6 +491,7 @@ fn arm_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(family.arm_node().into());
     let entry = suffix_marker(i.rb());
@@ -548,6 +569,7 @@ fn arm_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     } else {
         Ok((item, item_origin, line_entry))
@@ -573,6 +595,7 @@ fn arm_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     } else if token_kind(&item) == Some(TokenKind::Arrow) {
         let mut arrow = item;
@@ -589,6 +612,7 @@ fn arm_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     } else {
         missing_arrow_then_body_normalized(
@@ -601,6 +625,7 @@ fn arm_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     };
     item_origin = advanced_origin(item_origin, entry, i.rb());
@@ -659,6 +684,7 @@ fn guard_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     keyword.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(family.guard_node().into());
@@ -690,6 +716,7 @@ fn guard_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     let item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
@@ -708,6 +735,7 @@ fn missing_arrow_then_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if !implicit_delimited_newline(arm_baseline, item.leading_view()) {
         item.emit_all_remaining_leading(&mut *i.state);
@@ -723,6 +751,7 @@ fn missing_arrow_then_body_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -736,6 +765,7 @@ fn arm_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if introduced_body_indentation_normalized(i.rb(), item_origin, fence)
         .is_some_and(|indentation| indentation > arrow_baseline)
@@ -772,6 +802,7 @@ fn arm_body_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     }
 }
@@ -787,6 +818,7 @@ fn arm_inline_body_item_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -813,6 +845,7 @@ fn arm_inline_body_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -849,6 +882,7 @@ fn arm_inline_body_item_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 

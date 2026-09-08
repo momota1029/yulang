@@ -100,6 +100,7 @@ pub(super) fn struct_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::StructDeclaration.into());
     if item_word(&intro) == Some("struct") {
@@ -177,6 +178,7 @@ pub(super) fn struct_declaration_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -193,6 +195,7 @@ fn header_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if stops & STOP_WITH != 0 && is_word(&item, "with") {
         return complete(handoff(item), line_entry);
@@ -220,6 +223,7 @@ fn header_from_item_normalized(
             next_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
@@ -232,6 +236,7 @@ fn header_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     parse_body_item_normalized(
@@ -244,6 +249,7 @@ fn header_from_item_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -345,6 +351,7 @@ fn parse_body_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         emit_missing(&mut i, LeadingTrivia::default());
@@ -376,6 +383,7 @@ fn parse_body_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         Some(TokenKind::LParen) => parse_delimited_fields_normalized(
             i,
@@ -388,6 +396,7 @@ fn parse_body_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         Some(TokenKind::Colon) => {
             emit_token_item(&mut i, item);
@@ -415,6 +424,7 @@ fn parse_body_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
     }
 }
@@ -430,6 +440,7 @@ fn recover_body_introducer_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -470,6 +481,7 @@ fn recover_body_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if body_boundary(i.rb(), &item, baseline, stops) || type_starter(&item) {
@@ -524,6 +536,7 @@ fn parse_delimited_fields_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let result = declaration_fields_normalized(
         i.rb(),
@@ -549,6 +562,7 @@ fn parse_delimited_fields_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         exit => exit,
     }
@@ -1433,6 +1447,7 @@ fn trailing_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = struct_item_normalized(
         i.rb(),
@@ -1454,6 +1469,7 @@ fn trailing_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -1468,6 +1484,7 @@ fn trailing_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if derives_attachment_start(i.rb(), &item, baseline, stops, line_handoff) {
         let (next, next_origin, next_entry) = derives_clause_normalized(
@@ -1492,6 +1509,7 @@ fn trailing_from_item_normalized(
             next_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if declaration_companion_start(i.rb(), &item, baseline, stops, line_handoff) {
@@ -1504,6 +1522,7 @@ fn trailing_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     complete(handoff(item), line_entry)

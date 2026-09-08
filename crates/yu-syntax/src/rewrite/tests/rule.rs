@@ -15,6 +15,42 @@ fn run_rule_body<'source>(source: &'source str) -> (GreenNode, RuleWitnessExit, 
     run_rule_body_with_fence(source, 0, None)
 }
 
+#[test]
+fn rule_expression_lists_keep_colon_comma_and_newline_with_the_list_owner() {
+    for source in [
+        "{[f: a, b]}",
+        "{g(f: a, b)}",
+        "{g[f: a, b]}",
+        "{[f: a\nb]}",
+        "{g(f: a\nb)}",
+        "{g[f: a\nb]}",
+        "{g((f: a, b), c)}",
+    ] {
+        let (green, _, remaining) = run_rule_body(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(remaining, "");
+        let root = SyntaxNode::new_root(green);
+        let tails: Vec<_> = root
+            .descendants()
+            .filter(|n| n.kind() == SyntaxKind::ColonApplicationTail)
+            .collect();
+        assert_eq!(tails.len(), 1, "{source:?}");
+        assert_eq!(
+            tails[0]
+                .children()
+                .filter(|n| n.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            1
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|n| matches!(n.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            "{source:?}"
+        );
+    }
+}
+
 fn run_rule_body_fenced<'source>(
     source: &'source str,
     source_origin: usize,

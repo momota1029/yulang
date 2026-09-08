@@ -56,6 +56,7 @@ pub(super) fn virtual_statement_block_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> VirtualStatementBlockExit {
+    let sequence = Some(super::sequence::SequenceOwner::VirtualStatement);
     let baseline = 0;
     let stops: Stops = stops_for(TokenKind::RBrace) | STOP_COMMA | STOP_SEMICOLON;
     let (mut item, mut item_origin, mut line_entry) =
@@ -156,6 +157,7 @@ pub(super) fn virtual_statement_block_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             item_origin = advanced_origin(item_origin, entry, i.rb());
             (item, item_origin, line_entry) =

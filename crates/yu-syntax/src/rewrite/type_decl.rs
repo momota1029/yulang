@@ -100,6 +100,7 @@ pub(super) fn type_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeDeclaration.into());
     if item_word(&intro) == Some("type") {
@@ -141,6 +142,7 @@ pub(super) fn type_declaration_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         Ok(Some(equals)) => definition_normalized(
@@ -153,6 +155,7 @@ pub(super) fn type_declaration_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         Err(boundary) => complete(handoff(boundary), line_entry),
     };
@@ -271,6 +274,7 @@ fn definition_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let name_was_incomplete = pending.is_some();
     let item = match pending {
@@ -294,6 +298,7 @@ fn definition_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -309,6 +314,7 @@ fn definition_from_item_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -339,6 +345,7 @@ fn definition_from_item_normalized(
             next_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if !name_was_incomplete
@@ -359,6 +366,7 @@ fn definition_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     let companion = (!name_was_incomplete)
@@ -384,6 +392,7 @@ fn definition_from_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         TypeDeclarationForm::Nominal(boundary) => {
@@ -418,6 +427,7 @@ fn definition_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -457,6 +467,7 @@ fn definition_from_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if type_starter(&item) {
@@ -472,6 +483,7 @@ fn definition_from_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
     }
@@ -487,6 +499,7 @@ fn rhs_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (primary, item_origin, line_entry) =
         type_item_normalized(i.rb(), item_origin, line_entry, fence, false);
@@ -500,6 +513,7 @@ fn rhs_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -514,6 +528,7 @@ fn rhs_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let caller_stops = stops | STOP_SEMICOLON;
     if !primary.payload_view().is_boundary()
@@ -545,6 +560,7 @@ fn rhs_item_normalized(
         item_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -558,6 +574,7 @@ fn trailing_after_type_normalized(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match exit {
         NormalizedExit::Complete(Ok(()), line_entry) => {
@@ -573,6 +590,7 @@ fn trailing_after_type_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
@@ -586,6 +604,7 @@ fn trailing_after_type_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
@@ -599,6 +618,7 @@ fn trailing_after_type_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         NormalizedExit::Deferred(_, _) => {
@@ -618,6 +638,7 @@ fn trailing_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -632,6 +653,7 @@ fn trailing_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if !derives_attachment_start(i.rb(), &item, baseline, caller_stops, line_handoff) {
@@ -659,6 +681,7 @@ fn trailing_from_item_normalized(
         next_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 

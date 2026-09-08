@@ -86,6 +86,7 @@ pub(super) fn expr(i: RewriteIn) -> Option<TailExit> {
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(0)).into(),
+        None,
     )
     .map(ordinary_exit)
 }
@@ -101,6 +102,7 @@ pub(super) fn expr_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> Option<NormalizedExit> {
     let (nud, item_origin, line_entry) =
         optional_nud_item(i.rb(), item_origin, line_entry, fence, baseline, stops)?;
@@ -116,6 +118,7 @@ pub(super) fn expr_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     ))
 }
 
@@ -140,6 +143,7 @@ pub(super) fn expr_from_nud(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        None,
     ))
 }
 
@@ -155,6 +159,7 @@ pub(super) fn expr_from_nud_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::OperatorChain.into());
     let exit = append_nud(
@@ -169,6 +174,7 @@ pub(super) fn expr_from_nud_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -187,6 +193,7 @@ fn append_nud(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if is_expression_rule_literal_opener(&nud) {
         return append_rule_literal_nud(
@@ -201,6 +208,7 @@ fn append_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if let Some(mode) = string_mode_from_opener(&nud) {
@@ -217,6 +225,7 @@ fn append_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if is_contextual_word(i.rb(), &nud, "case") {
@@ -233,6 +242,7 @@ fn append_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if is_contextual_word(i.rb(), &nud, "catch") {
@@ -249,6 +259,7 @@ fn append_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if is_contextual_word(i.rb(), &nud, "if") {
@@ -264,6 +275,7 @@ fn append_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     match token_kind(&nud) {
@@ -280,6 +292,7 @@ fn append_nud(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         Some(TokenKind::Integer) => {
@@ -295,6 +308,7 @@ fn append_nud(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         Some(TokenKind::LParen) => parenthesized_nud_normalized(
@@ -309,6 +323,7 @@ fn append_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         Some(TokenKind::LBrace) => braced_nud_normalized(
             i,
@@ -322,6 +337,7 @@ fn append_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         Some(TokenKind::Operator) => operator_nud(
             i,
@@ -335,6 +351,7 @@ fn append_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         _ => unreachable!("the NUD scanner accepts only normal core items and `(`"),
     }
@@ -354,6 +371,7 @@ fn append_string_literal_nud(
     _line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = string_literal_with_virtual_statements_normalized(
@@ -377,6 +395,7 @@ fn append_string_literal_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         NormalizedStringLiteralExit::Boundary(item, line_entry) => {
             complete(handoff(item), line_entry)
@@ -397,6 +416,7 @@ fn append_rule_literal_nud(
     _line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = rule_literal_normalized(
@@ -420,6 +440,7 @@ fn append_rule_literal_nud(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         NormalizedRuleLiteralExit::Boundary(item, line_entry) => {
             complete(handoff(item), line_entry)
@@ -449,6 +470,7 @@ pub(super) fn required_expr_after_accept(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        None,
     ))
 }
 
@@ -464,6 +486,7 @@ fn required_expr_after_accept_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -487,6 +510,7 @@ fn required_expr_after_accept_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -512,6 +536,7 @@ pub(super) fn required_expr_item(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        None,
     ))
 }
 
@@ -529,6 +554,7 @@ pub(super) fn required_expr_item_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if is_required_operand_boundary(i.rb(), &item, stops) {
         emit_required_expression_missing(&mut i, &mut item, item_origin, stops, initial_role);
@@ -547,6 +573,7 @@ pub(super) fn required_expr_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -576,6 +603,7 @@ pub(super) fn required_expr_item_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -732,6 +760,7 @@ pub(super) fn scan_tail_after_accept(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        None,
     ))
 }
 
@@ -747,6 +776,7 @@ pub(super) fn scan_tail_after_accept_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let (item, item_origin, line_entry) = expression_item(
         i.rb(),
@@ -769,6 +799,7 @@ pub(super) fn scan_tail_after_accept_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -800,6 +831,7 @@ pub(super) fn continue_normalized_tail(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match exit {
         NormalizedExit::Complete(Ok(()), line_entry) => scan_tail_after_accept_normalized(
@@ -813,6 +845,7 @@ pub(super) fn continue_normalized_tail(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => tail_normalized(
             i,
@@ -826,6 +859,7 @@ pub(super) fn continue_normalized_tail(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
             complete(Err(Either::Right(end)), line_entry)
@@ -855,6 +889,7 @@ pub(super) fn tail(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        None,
     ))
 }
 
@@ -871,6 +906,7 @@ pub(super) fn tail_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
@@ -889,6 +925,7 @@ pub(super) fn tail_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if item.leading_view().is_grammar_empty() {
@@ -906,6 +943,7 @@ pub(super) fn tail_normalized(
                     line_entry,
                     fence,
                     ambient,
+                    sequence,
                 );
             }
             Some(TokenKind::LBracket) => {
@@ -921,6 +959,7 @@ pub(super) fn tail_normalized(
                     line_entry,
                     fence,
                     ambient,
+                    sequence,
                 );
             }
             _ => {}
@@ -940,6 +979,7 @@ pub(super) fn tail_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         Some(TokenKind::PathSeparator) => {
@@ -955,6 +995,7 @@ pub(super) fn tail_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         Some(TokenKind::Operator) if is_led_operator(&item) => {
@@ -970,6 +1011,7 @@ pub(super) fn tail_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         _ => {}
@@ -986,6 +1028,7 @@ pub(super) fn tail_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     if token_kind(&item) == Some(TokenKind::Colon) {
@@ -1000,6 +1043,7 @@ pub(super) fn tail_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     complete(handoff(item), line_entry)
@@ -1047,6 +1091,7 @@ fn ml_argument(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::MlArgument.into());
     let entry = suffix_marker(i.rb());
@@ -1062,6 +1107,7 @@ fn ml_argument(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     let child_origin = advanced_origin(item_origin, entry, i.rb());
@@ -1076,6 +1122,7 @@ fn ml_argument(
         child_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -1092,6 +1139,7 @@ fn operator_nud(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match operator_use(&operator) {
         Some(OperatorUse::Prefix(right)) => {
@@ -1109,6 +1157,7 @@ fn operator_nud(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             let item_origin = advanced_origin(item_origin, entry, i.rb());
             continue_normalized_tail(
@@ -1122,6 +1171,7 @@ fn operator_nud(
                 item_origin,
                 fence,
                 ambient,
+                sequence,
             )
         }
         Some(OperatorUse::Nullfix) => {
@@ -1137,6 +1187,7 @@ fn operator_nud(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         _ => unreachable!("the NUD scanner accepts only prefix and nullfix operators"),
@@ -1156,6 +1207,7 @@ fn operator_tail(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match operator_use(&operator) {
         Some(OperatorUse::Infix { left, right }) => {
@@ -1176,6 +1228,7 @@ fn operator_tail(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             let item_origin = advanced_origin(item_origin, entry, i.rb());
             continue_normalized_tail(
@@ -1189,6 +1242,7 @@ fn operator_tail(
                 item_origin,
                 fence,
                 ambient,
+                sequence,
             )
         }
         Some(OperatorUse::Suffix(left)) => {
@@ -1207,6 +1261,7 @@ fn operator_tail(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         _ => unreachable!("the LED scanner accepts only infix and suffix operators"),

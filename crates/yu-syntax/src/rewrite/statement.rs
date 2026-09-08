@@ -73,6 +73,7 @@ pub(super) fn statement(i: RewriteIn, baseline: usize, stops: Stops) -> TailExit
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        Some(super::sequence::SequenceOwner::RootStatement),
     ))
 }
 
@@ -84,6 +85,7 @@ pub(super) fn statement_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let ambient = ambient.map(|view| view.statement(baseline));
     let (item, item_origin, line_entry) =
@@ -97,6 +99,7 @@ pub(super) fn statement_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -115,6 +118,7 @@ pub(super) fn statement_from_item(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        Some(super::sequence::SequenceOwner::RootStatement),
     ))
 }
 
@@ -128,6 +132,7 @@ pub(super) fn statement_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let ambient = ambient.map(|view| view.statement(baseline));
     let Some(admission) =
@@ -146,6 +151,7 @@ pub(super) fn statement_from_item_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -166,6 +172,7 @@ pub(super) fn canonical_statement(
         LineEntry::InLine,
         None,
         Some(AmbientClaimView::root_statement(baseline)).into(),
+        Some(super::sequence::SequenceOwner::RootStatement),
     ))
 }
 
@@ -180,6 +187,7 @@ pub(super) fn canonical_statement_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
         .expect("canonical Statement wrapper requires an admitted Item");
@@ -194,6 +202,7 @@ pub(super) fn canonical_statement_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -209,6 +218,7 @@ pub(super) fn canonical_statement_from_admission_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Statement.into());
     let exit = canonical_statement_contents_from_admission_normalized(
@@ -222,6 +232,7 @@ pub(super) fn canonical_statement_from_admission_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -241,6 +252,7 @@ pub(super) fn canonical_statement_contents_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let admission = classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence)
         .expect("canonical Statement contents require an admitted Item");
@@ -255,6 +267,7 @@ pub(super) fn canonical_statement_contents_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -270,6 +283,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match admission.0 {
         StatementFamily::Struct => {
@@ -283,6 +297,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             return exit;
         }
@@ -297,6 +312,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::Error => {
@@ -310,6 +326,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::Mod => {
@@ -323,6 +340,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
             return exit;
         }
@@ -337,6 +355,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::Role => {
@@ -350,6 +369,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::Impl => {
@@ -363,6 +383,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::Cast => {
@@ -376,6 +397,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::Act => {
@@ -389,6 +411,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::For => {
@@ -402,6 +425,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::Binding => {
@@ -415,6 +439,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         StatementFamily::Use => {
@@ -441,6 +466,7 @@ pub(super) fn canonical_statement_contents_from_admission_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
     }
@@ -581,6 +607,7 @@ pub(super) fn indented_statement_block_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let sequence = Some(super::sequence::SequenceOwner::IndentedStatement);
     let (mut item, item_origin, line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, base_indent, stops);
     i.state
@@ -609,6 +636,7 @@ pub(super) fn indented_statement_block_normalized(
         fence,
         true,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -630,6 +658,7 @@ pub(super) fn braced_nud_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let entry = suffix_marker(i.rb());
     let exit = braced_statement_block_normalized(
@@ -653,6 +682,7 @@ pub(super) fn braced_nud_normalized(
         item_origin,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -683,6 +713,7 @@ pub(super) fn braced_statement_block_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    let sequence = Some(super::sequence::SequenceOwner::BracedStatement);
     let ambient = ambient.map(AmbientClaimView::braced);
     i.state
         .start_node(SyntaxKind::BracedStatementBlockExpression.into());
@@ -714,6 +745,7 @@ pub(super) fn braced_statement_block_normalized(
         fence,
         true,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -731,6 +763,7 @@ fn statement_sequence_normalized(
     fence: Option<&FenceBoundary>,
     mut first: bool,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let mut known_admission = None;
     loop {
@@ -751,6 +784,7 @@ fn statement_sequence_normalized(
                     first,
                     known_admission,
                     ambient,
+                    sequence,
                 );
                 item_origin = advanced_origin(item_origin, entry, i.rb());
                 (item, line_entry) = match indented_statement_successor_normalized(
@@ -788,6 +822,7 @@ fn statement_sequence_normalized(
                     first,
                     known_admission,
                     ambient,
+                    sequence,
                 );
                 item_origin = advanced_origin(item_origin, entry, i.rb());
                 (item, line_entry, item_origin, known_admission) =
@@ -840,6 +875,7 @@ fn indented_statement_slot_normalized(
     first: bool,
     known_admission: Option<Option<StatementAdmission>>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
@@ -871,6 +907,7 @@ fn indented_statement_slot_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -904,6 +941,7 @@ fn indented_statement_slot_normalized(
         next_line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -1080,6 +1118,7 @@ fn braced_statement_slot_normalized(
     first: bool,
     known_admission: Option<Option<StatementAdmission>>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         return braced_terminal_normalized(i, item, line_entry);
@@ -1102,6 +1141,7 @@ fn braced_statement_slot_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
 
@@ -1132,6 +1172,7 @@ fn braced_statement_slot_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         )
     } else {
         complete(handoff(item), line_entry)

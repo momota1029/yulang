@@ -67,6 +67,7 @@ pub(super) fn role_declaration_witness(
             line_entry,
             fence,
             Some(AmbientClaimView::root_statement(baseline)).into(),
+            Some(super::sequence::SequenceOwner::RootStatement),
         )
     })
 }
@@ -181,6 +182,7 @@ pub(super) fn role_declaration_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::RoleDeclaration.into());
     if item_word(&intro) == Some("role") {
@@ -252,6 +254,7 @@ pub(super) fn role_declaration_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     i.state.finish_node();
     exit
@@ -302,6 +305,7 @@ fn body_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if !role_gap_allowed(&item, baseline)
         || (!body_starter(&item) && body_boundary(i.rb(), &item, baseline, stops))
@@ -350,6 +354,7 @@ fn body_from_item_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
         _ if head_complete => recover_body_introducer_normalized(
@@ -362,6 +367,7 @@ fn body_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         ),
         _ => complete(handoff(item), line_entry),
     }
@@ -378,6 +384,7 @@ fn recover_body_introducer_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -419,6 +426,7 @@ fn recover_body_introducer_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
         if body_boundary(i.rb(), &item, baseline, stops) {
@@ -439,6 +447,7 @@ fn colon_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
@@ -488,6 +497,7 @@ fn colon_body_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             )
         }
     }
@@ -504,6 +514,7 @@ fn inline_body_from_item_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     if inline_body_boundary(i.rb(), &item, baseline, stops) {
         if colon_body_gap_is_local(i.rb(), &item, baseline, stops) {
@@ -530,6 +541,7 @@ fn inline_body_from_item_normalized(
             line_entry,
             fence,
             ambient,
+            sequence,
         );
     }
     recover_inline_body_normalized(
@@ -542,6 +554,7 @@ fn inline_body_from_item_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     )
 }
 
@@ -556,6 +569,7 @@ fn recover_inline_body_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::Error.into());
     loop {
@@ -599,6 +613,7 @@ fn recover_inline_body_normalized(
                 line_entry,
                 fence,
                 ambient,
+                sequence,
             );
         }
     }
@@ -616,6 +631,7 @@ fn inline_statement_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
+    sequence: super::sequence::SequenceContext,
 ) -> NormalizedExit {
     let child_entry = suffix_marker(i.rb());
     let exit = canonical_statement_from_admission_normalized(
@@ -629,6 +645,7 @@ fn inline_statement_normalized(
         line_entry,
         fence,
         ambient,
+        sequence,
     );
     let item_origin = advanced_origin(item_origin, child_entry, i.rb());
     match exit {
