@@ -2,8 +2,9 @@
 
 Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
 primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`,
-default-Expression checkpoint `7832ab2f`; required Expression operands and
-their explicit caller roles are privately constructed.
+default-Expression checkpoint `7832ab2f`; required Expression operands, their
+explicit caller roles, and shared Expression delimiters are privately
+constructed.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
@@ -212,12 +213,25 @@ Expression tails, literal/Statement callers, RB-E, O4 or public adoption.
 | `case_like::guard_normalized` | `CaseLike(Guard)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Expression` | existing arrow handoff | `expression_recovery::*`, `case_like::*` | C |
 | `for_decl::iterable_from_item_normalized`, including newline/fence bypass | `ForStatement(Iterable)` | M/E | same predicate plus existing implicit newline bypass; protected Item remains whole | `[]` or `other(Rng)` / `Expression` | body only when iterable is not missing | `expression_recovery::*`, `for_statement::*` | C |
 | `for_decl::inline_body_normalized` | `ForStatement(Body)` | M/E | same shared predicate/run | `[]` or `other(Rng)` / `Statement` | existing statement-owner handoff | `expression_recovery::*`, `for_statement::*` | C |
+
+Shared Expression delimiters are now mapped below. The descriptor is the only
+role source; a close-only inherited mask protects `)`, `]` and `}` through
+nested delimiter scans without exporting ordinary caller stops. This remains
+private construction, not RB-E/O4 certification.
+
+| source / owner | slot role | M/E | trigger and extent | facts / expected | continuation | local evidence | state |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `delimited::delimited_items_normalized` Parenthesized / Call / Index / Projection tuple / record | descriptor Item role | M/E | leading/repeated separator absence / maximal lexical item run | `[]` or `other(Rng)` / `Expression` | consume local separator or retry NUD; newline boundary stays pending | `delimited_recovery::*`, `owners::*` | C |
+| same common loop | descriptor Separator role | M/E | next Item without boundary, Parenthesized `;`, or maximal malformed separator run | `[]`, native `;`, or `other(Rng)` / `DelimitedSequenceSeparator` | same Item retry or fresh Item after recovered separator | `delimited_recovery::*`, `owners::*` | C |
+| same common loop | matching `ClosingDelimiter` role | M/E | absent/protected close or unclaimed wrong close | `[]` or native close / matching punctuation | protected full Item returns; local close Error retries its phase | `delimited_recovery::*`, `owners::*` | C |
+| `record_spread_item_normalized` | `Expression(ProjectionRecordSpreadRhs)` | M/E | absent/malformed RHS after exact DotDot | `[]` or `other(Rng)` / `Expression` | protected separator/close/fence pending; no duplicate RHS Missing after Error | `delimited_recovery::*`, `owners::*` | C |
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
 The following groups remain **Open**, to be expanded in this same ledger as
-their construction proceeds: Pattern's literal/Expression callees; Expression tails/delimiters,
+their construction proceeds: Pattern's literal/Expression callees; Expression
+`Field`/`Path` and `Colon`/`With` tails,
 if/case/Rule/string; canonical Statement and braced/indented/colon/with owners;
 declarations/derives/companions; VirtualStatementBlock; all remaining RB-E/P/S/
 D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/

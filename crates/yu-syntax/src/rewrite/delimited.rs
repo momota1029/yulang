@@ -1,28 +1,51 @@
 //! Shared direct-delimited owner and local item recovery.
 
-use super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
+use std::{ops::Range, sync::Arc};
 
-use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::SyntaxKind};
+use crate::{
+    operator::BindingPower,
+    scan::operator::OperatorSite,
+    session::{
+        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+        UnexpectedSyntax,
+    },
+    syntax_kind::SyntaxKind,
+};
 
 use super::{
     RewriteIn, Stops,
+    ambient_claim::AmbientClaimContext,
     current_item::LineEntry,
     driver::{
         Either, MlMode, NormalizedExit, advanced_origin, complete, continue_normalized_tail,
         expr_from_nud_normalized, expression_item, handoff, implicit_delimited_newline, is_close,
-        is_nud_item, is_separator, suffix_marker, token_kind,
+        is_nud_item, is_separator, scan_expression_item_lexical, suffix_marker, token_kind,
     },
-    emit::{emit_error_item, emit_missing, emit_token_item},
+    emit::{
+        emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+        token_syntax_kind,
+    },
     item::{Item, LeadingTrivia, Payload, TokenKind},
     lexer::{is_operator_shaped_unknown, scan_operator_shaped_unknown},
     operator::{
-        STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR,
+        STOP_CLOSES, STOP_RECORD_SPREAD, STOP_RECORD_SPREAD_AFTER_OPERATOR, active_stop_item,
         newline_indentation_after_fenced_trivia, stops_for,
     },
+    output::RecoveryDraft,
     statement::StatementLineHandoff,
     yumark::FenceBoundary,
 };
+
+#[derive(Clone, Copy)]
+pub(super) enum DelimitedOwner {
+    Parenthesized,
+    Call,
+    Index,
+    ProjectionTuple,
+    ProjectionRecord,
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn parenthesized_nud_normalized(
@@ -44,9 +67,8 @@ pub(super) fn parenthesized_nud_normalized(
     let entry = suffix_marker(i.rb());
     let exit = delimited_items_normalized(
         i.rb(),
-        TokenKind::RParen,
-        None,
-        false,
+        DelimitedOwner::Parenthesized,
+        stops,
         baseline,
         MlMode::LayoutOnly,
         line_handoff,
@@ -74,9 +96,8 @@ pub(super) fn parenthesized_nud_normalized(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn delimited_items_normalized(
     mut i: RewriteIn,
-    close: TokenKind,
-    item_node: Option<SyntaxKind>,
-    record_spread: bool,
+    owner: DelimitedOwner,
+    inherited_stops: Stops,
     incoming_baseline: usize,
     item_ml_mode: MlMode,
     line_handoff: StatementLineHandoff,
@@ -85,13 +106,19 @@ pub(super) fn delimited_items_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let mut stops = stops_for(close);
-    if record_spread {
-        stops |= STOP_RECORD_SPREAD;
-    }
+    let inherited_closes = inherited_stops & STOP_CLOSES;
+    // Nested delimiters shield contextual and separator stops, but retain every
+    // enclosing close capability. The local close is checked first below.
+    let stops = stops_for(owner.close())
+        | inherited_closes
+        | if owner.is_record() {
+            STOP_RECORD_SPREAD
+        } else {
+            0
+        };
     let baseline =
         delimited_baseline_from_source(i.rb(), incoming_baseline, item_origin, line_entry, fence);
-    let (mut item, next_origin, next_line_entry) = expression_item(
+    let (mut item, next_origin, next_line) = expression_item(
         i.rb(),
         OperatorSite::Nud,
         item_origin,
@@ -101,21 +128,28 @@ pub(super) fn delimited_items_normalized(
         stops,
     );
     item_origin = next_origin;
-    line_entry = next_line_entry;
+    line_entry = next_line;
+    let mut phase = Phase::Item;
     loop {
-        if item.payload_view().is_boundary() {
-            return missing_close_normalized(i, item, line_entry);
+        if item.payload_view().is_boundary() || item.payload_view().is_eof() {
+            return missing_close(i, item, owner, item_origin, line_entry);
         }
-        if token_kind(&item) == Some(close) {
+        if token_kind(&item) == Some(owner.close()) {
             emit_token_item(&mut i, item);
             return complete(Ok(()), line_entry);
         }
-        if item.payload_view().is_eof() {
-            return missing_close_normalized(i, item, line_entry);
-        }
-        if is_separator(&item) {
-            item = missing_item(i.rb(), item);
-            emit_token_item(&mut i, item);
+        if is_close(&item) {
+            if active_stop_item(token_kind(&item).unwrap(), inherited_closes) {
+                return missing_close(i, item, owner, item_origin, line_entry);
+            }
+            let actual = delimiter_for_close(token_kind(&item).unwrap());
+            error_item(
+                i.rb(),
+                item,
+                item_origin,
+                owner.close_role(),
+                UnexpectedCategory::Punctuation(PunctuationEvidence::Close(actual)),
+            );
             (item, item_origin, line_entry) = expression_item(
                 i.rb(),
                 OperatorSite::Nud,
@@ -127,21 +161,86 @@ pub(super) fn delimited_items_normalized(
             );
             continue;
         }
-        if is_close(&item) {
-            (item, item_origin, line_entry) = wrong_close_item_normalized(
+        if matches!(owner, DelimitedOwner::Parenthesized)
+            && token_kind(&item) == Some(TokenKind::Semicolon)
+        {
+            error_item(
                 i.rb(),
                 item,
+                item_origin,
+                owner.separator_role(),
+                UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
+            );
+            phase = Phase::Item;
+            (item, item_origin, line_entry) = expression_item(
+                i.rb(),
+                OperatorSite::Nud,
+                item_origin,
+                line_entry,
+                fence,
+                baseline,
+                stops,
+            );
+            continue;
+        }
+        if is_separator(&item) {
+            if matches!(phase, Phase::Item) {
+                emit_missing(i.rb(), &mut item, item_origin, owner.item_role(), false);
+            }
+            emit_token_item(&mut i, item);
+            phase = Phase::Item;
+            (item, item_origin, line_entry) = expression_item(
+                i.rb(),
+                OperatorSite::Nud,
+                item_origin,
+                line_entry,
+                fence,
+                baseline,
+                stops,
+            );
+            continue;
+        }
+        // A returned newline-bearing malformed Item must change phase once;
+        // the fresh Item phase consumes it, preventing a same-Item retry loop.
+        if !matches!(phase, Phase::Item)
+            && implicit_delimited_newline(baseline, item.leading_view())
+        {
+            phase = Phase::Item;
+        }
+        let spread = owner.is_record() && is_record_spread_item(&item);
+        if !is_nud_item(&item) && !spread {
+            let role = if matches!(phase, Phase::Separator) {
+                owner.separator_role()
+            } else {
+                owner.item_role()
+            };
+            item.emit_all_remaining_leading(&mut *i.state);
+            (item, item_origin, line_entry) = error_run(
+                i.rb(),
+                item,
+                role,
                 baseline,
                 stops,
                 item_origin,
                 line_entry,
                 fence,
+                owner.is_record(),
             );
+            phase = Phase::Recovered;
             continue;
         }
-        if is_record_spread_item(&item) {
-            let entry = suffix_marker(i.rb());
-            let exit = record_spread_item_normalized(
+        if matches!(phase, Phase::Separator) {
+            emit_missing(
+                i.rb(),
+                &mut item,
+                item_origin,
+                owner.separator_role(),
+                false,
+            );
+        }
+        let entry = suffix_marker(i.rb());
+        let exit = if spread {
+            record_spread_item_normalized(
                 i.rb(),
                 item,
                 baseline,
@@ -151,69 +250,110 @@ pub(super) fn delimited_items_normalized(
                 line_entry,
                 fence,
                 ambient,
-            );
-            item_origin = advanced_origin(item_origin, entry, i.rb());
-            match delimited_successor_normalized(
+            )
+        } else {
+            if matches!(owner, DelimitedOwner::Index) {
+                i.state.start_node(SyntaxKind::IndexItem.into());
+            }
+            let exit = expr_from_nud_normalized(
                 i.rb(),
-                exit,
-                close,
+                item,
+                None,
                 baseline,
                 stops,
                 item_ml_mode,
-                item_origin,
-                fence,
-            ) {
-                Ok(next) => (item, item_origin, line_entry) = next,
-                Err(exit) => return exit,
-            }
-            continue;
-        }
-        if !is_nud_item(&item) {
-            (item, item_origin, line_entry) = retry_nud_item_normalized(
-                i.rb(),
-                item,
-                baseline,
-                stops,
+                line_handoff,
                 item_origin,
                 line_entry,
                 fence,
+                ambient,
             );
-            continue;
-        }
-        if let Some(kind) = item_node {
-            i.state.start_node(kind.into());
-        }
-        let entry = suffix_marker(i.rb());
-        let exit = expr_from_nud_normalized(
-            i.rb(),
-            item,
-            None,
-            baseline,
-            stops,
-            item_ml_mode,
-            line_handoff,
-            item_origin,
-            line_entry,
-            fence,
-            ambient,
-        );
+            if matches!(owner, DelimitedOwner::Index) {
+                i.state.finish_node();
+            }
+            exit
+        };
         item_origin = advanced_origin(item_origin, entry, i.rb());
-        if item_node.is_some() {
-            i.state.finish_node();
+        phase = Phase::Separator;
+        match exit {
+            NormalizedExit::Complete(Err(Either::Left(next)), line) => {
+                item = next;
+                line_entry = line;
+            }
+            NormalizedExit::Complete(Err(Either::Right(end)), line) => {
+                item = end.item;
+                line_entry = line;
+            }
+            NormalizedExit::Complete(Ok(()), line) => {
+                (item, item_origin, line_entry) = expression_item(
+                    i.rb(),
+                    OperatorSite::Nud,
+                    item_origin,
+                    line,
+                    fence,
+                    baseline,
+                    stops,
+                );
+            }
+            exit @ NormalizedExit::Deferred(_, _) => return exit,
         }
-        match delimited_successor_normalized(
-            i.rb(),
-            exit,
-            close,
-            baseline,
-            stops,
-            item_ml_mode,
-            item_origin,
-            fence,
-        ) {
-            Ok(next) => (item, item_origin, line_entry) = next,
-            Err(exit) => return exit,
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Phase {
+    Item,
+    Separator,
+    Recovered,
+}
+
+impl DelimitedOwner {
+    fn close(self) -> TokenKind {
+        match self {
+            Self::Index => TokenKind::RBracket,
+            Self::ProjectionRecord => TokenKind::RBrace,
+            _ => TokenKind::RParen,
         }
+    }
+    fn is_record(self) -> bool {
+        matches!(self, Self::ProjectionRecord)
+    }
+    fn item_role(self) -> GrammarRole {
+        GrammarRole::Expression(match self {
+            Self::Parenthesized => ExpressionRole::Nud,
+            Self::Call => ExpressionRole::CallArgument,
+            Self::Index => ExpressionRole::IndexItem,
+            Self::ProjectionTuple => ExpressionRole::ProjectionTupleItem,
+            Self::ProjectionRecord => ExpressionRole::ProjectionRecordItem,
+        })
+    }
+    fn separator_role(self) -> GrammarRole {
+        GrammarRole::Expression(match self {
+            Self::Parenthesized => ExpressionRole::ParenthesizedSeparator,
+            Self::Call => ExpressionRole::CallArgumentSeparator,
+            Self::Index => ExpressionRole::IndexSeparator,
+            Self::ProjectionTuple => ExpressionRole::ProjectionTupleSeparator,
+            Self::ProjectionRecord => ExpressionRole::ProjectionRecordSeparator,
+        })
+    }
+    fn close_role(self) -> GrammarRole {
+        let (owner, delimiter) = match self {
+            Self::Parenthesized => (ConstructRole::ExpressionGroup, Delimiter::Parenthesis),
+            Self::Call => (ConstructRole::ArgumentList, Delimiter::Parenthesis),
+            Self::Index => (ConstructRole::IndexTail, Delimiter::Bracket),
+            Self::ProjectionTuple => (ConstructRole::ProjectionTupleTail, Delimiter::Parenthesis),
+            Self::ProjectionRecord => (ConstructRole::ProjectionRecordTail, Delimiter::Brace),
+        };
+        GrammarRole::ClosingDelimiter { owner, delimiter }
+    }
+}
+
+fn delimiter_for_close(close: TokenKind) -> Delimiter {
+    match close {
+        TokenKind::RParen => Delimiter::Parenthesis,
+        TokenKind::RBracket => Delimiter::Bracket,
+        TokenKind::RBrace => Delimiter::Brace,
+        _ => unreachable!("only close tokens have a close delimiter"),
     }
 }
 
@@ -224,79 +364,17 @@ fn delimited_baseline_from_source(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> usize {
-    let indentation = i
-        .token(|lex| {
-            Some(newline_indentation_after_fenced_trivia(
-                lex.remainder(),
-                item_origin,
-                line_entry,
-                fence,
-            ))
-        })
-        .expect("the direct delimiter layout probe is total");
-    indentation
-        .filter(|&indentation| indentation > incoming)
-        .unwrap_or(incoming)
-}
-
-#[allow(clippy::too_many_arguments)]
-fn delimited_successor_normalized(
-    mut i: RewriteIn,
-    exit: NormalizedExit,
-    close: TokenKind,
-    baseline: usize,
-    stops: Stops,
-    item_ml_mode: MlMode,
-    item_origin: usize,
-    fence: Option<&FenceBoundary>,
-) -> Result<(Item, usize, LineEntry), NormalizedExit> {
-    match exit {
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if next.payload_view().is_boundary() =>
-        {
-            Err(missing_close_normalized(i, next, line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry) if is_separator(&next) => {
-            emit_token_item(&mut i, next);
-            Ok(expression_item(
-                i,
-                OperatorSite::Nud,
-                item_origin,
-                line_entry,
-                fence,
-                baseline,
-                stops,
-            ))
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if token_kind(&next) == Some(close) =>
-        {
-            emit_token_item(&mut i, next);
-            Err(complete(Ok(()), line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry) if is_close(&next) => Ok(
-            wrong_close_item_normalized(i, next, baseline, stops, item_origin, line_entry, fence),
-        ),
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if stops & STOP_RECORD_SPREAD != 0 && is_record_spread_item(&next) =>
-        {
-            Ok((missing_item(i, next), item_origin, line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if is_nud_item(&next) && implicit_delimited_newline(baseline, next.leading_view()) =>
-        {
-            Ok((next, item_origin, line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Left(next)), line_entry)
-            if matches!(item_ml_mode, MlMode::LayoutOnly) && is_nud_item(&next) =>
-        {
-            Ok((missing_item(i, next), item_origin, line_entry))
-        }
-        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
-            Err(missing_close_normalized(i, end.item, line_entry))
-        }
-        exit => Err(exit),
-    }
+    i.token(|lex| {
+        Some(newline_indentation_after_fenced_trivia(
+            lex.remainder(),
+            item_origin,
+            line_entry,
+            fence,
+        ))
+    })
+    .expect("the direct delimiter layout probe is total")
+    .filter(|&indentation| indentation > incoming)
+    .unwrap_or(incoming)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -314,8 +392,9 @@ fn record_spread_item_normalized(
     i.state
         .start_node(SyntaxKind::ProjectionRecordSpreadItem.into());
     emit_token_item(&mut i, marker);
+    let role = GrammarRole::Expression(ExpressionRole::ProjectionRecordSpreadRhs);
     let rhs_stops = (stops & !STOP_RECORD_SPREAD) | STOP_RECORD_SPREAD_AFTER_OPERATOR;
-    let (mut rhs, next_origin, next_line_entry) = expression_item(
+    let (mut rhs, origin, line) = expression_item(
         i.rb(),
         OperatorSite::Nud,
         item_origin,
@@ -324,23 +403,25 @@ fn record_spread_item_normalized(
         baseline,
         rhs_stops,
     );
-    item_origin = next_origin;
-    line_entry = next_line_entry;
-    if !rhs.payload_view().is_boundary() && !is_nud_item(&rhs) && !is_spread_boundary(&rhs) {
-        (rhs, item_origin, line_entry) = retry_nud_item_normalized(
+    item_origin = origin;
+    line_entry = line;
+    let mut recovered = false;
+    if !is_run_boundary(&rhs, baseline, true, false) && !is_nud_item(&rhs) {
+        rhs.emit_all_remaining_leading(&mut *i.state);
+        (rhs, item_origin, line_entry) = error_run(
             i.rb(),
             rhs,
+            role,
             baseline,
             rhs_stops,
             item_origin,
             line_entry,
             fence,
+            true,
         );
+        recovered = true;
     }
-    let exit = if rhs.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        complete(handoff(rhs), line_entry)
-    } else if is_nud_item(&rhs) {
+    let exit = if !rhs.payload_view().is_boundary() && is_nud_item(&rhs) {
         expr_from_nud_normalized(
             i.rb(),
             rhs,
@@ -355,113 +436,180 @@ fn record_spread_item_normalized(
             ambient,
         )
     } else {
-        rhs.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        if !recovered {
+            emit_missing(i.rb(), &mut rhs, item_origin, role, true);
+        }
         complete(handoff(rhs), line_entry)
     };
     i.state.finish_node();
     exit
 }
 
-fn is_spread_boundary(item: &Item) -> bool {
-    item.payload_view().is_eof()
-        || item.payload_view().is_boundary()
-        || is_separator(item)
-        || is_close(item)
-        || is_record_spread_item(item)
-}
-
-fn missing_close_normalized(
-    mut i: RewriteIn,
-    mut end: Item,
-    line_entry: LineEntry,
-) -> NormalizedExit {
-    if !end.payload_view().is_boundary() {
-        end.emit_all_remaining_leading(&mut *i.state);
-    }
-    emit_missing(&mut i, LeadingTrivia::default());
-    complete(handoff(end), line_entry)
-}
-
-fn missing_item(mut i: RewriteIn, mut item: Item) -> Item {
-    debug_assert!(!item.payload_view().is_boundary());
-    item.emit_all_remaining_leading(&mut *i.state);
-    emit_missing(&mut i, LeadingTrivia::default());
-    item
-}
-
-#[allow(clippy::too_many_arguments)]
-fn wrong_close_item_normalized(
-    mut i: RewriteIn,
-    item: Item,
-    baseline: usize,
-    stops: Stops,
-    item_origin: usize,
-    line_entry: LineEntry,
-    fence: Option<&FenceBoundary>,
-) -> (Item, usize, LineEntry) {
-    debug_assert!(!item.payload_view().is_boundary());
-    emit_error_item(&mut i, item);
-    expression_item(
-        i,
-        OperatorSite::Nud,
-        item_origin,
-        line_entry,
-        fence,
-        baseline,
-        stops,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-fn retry_nud_item_normalized(
+fn missing_close(
     mut i: RewriteIn,
     mut item: Item,
+    owner: DelimitedOwner,
+    item_origin: usize,
+    line_entry: LineEntry,
+) -> NormalizedExit {
+    emit_missing(i.rb(), &mut item, item_origin, owner.close_role(), true);
+    complete(handoff(item), line_entry)
+}
+
+fn emit_missing(
+    i: RewriteIn,
+    item: &mut Item,
+    item_origin: usize,
+    role: GrammarRole,
+    eof_leading: bool,
+) {
+    let at = if item.payload_view().is_boundary() {
+        item.payload_view()
+            .pending_boundary()
+            .expect("a boundary retains its coordinate")
+            .coordinate()
+    } else {
+        if eof_leading && item.payload_view().is_eof() {
+            item.emit_eof_leading(&mut *i.state);
+        }
+        item.extent(item_origin).recovery_range().start
+    };
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn error_item(
+    i: RewriteIn,
+    item: Item,
+    item_origin: usize,
+    role: GrammarRole,
+    category: UnexpectedCategory,
+) {
+    let kind = token_syntax_kind(token_kind(&item).expect("one-Item Errors have a token"));
+    let range = item.extent(item_origin).recovery_range();
+    emit_recovery_error_item(
+        i,
+        item,
+        item_origin,
+        kind,
+        UnexpectedSyntax::Token { range, category },
+        |range, unexpected| recovery_draft(role, RecoveryKind::Error, range, unexpected),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn error_run(
+    i: RewriteIn,
+    mut item: Item,
+    role: GrammarRole,
     baseline: usize,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
+    record_spread: bool,
 ) -> (Item, usize, LineEntry) {
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        debug_assert!(!item.payload_view().is_boundary());
-        let continues_operator_spelling =
-            stops & (STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR) != 0
-                && is_operator_shaped_unknown(&item);
-        emit_token_item(&mut i, item);
-        if continues_operator_spelling {
-            let entry = suffix_marker(i.rb());
-            while let Some(token) = i.token(scan_operator_shaped_unknown) {
-                emit_token_item(
-                    &mut i,
-                    Item::plain(LeadingTrivia::default(), Payload::Token(token)),
-                );
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(item_origin).recovery_range().start;
+            loop {
+                let continues_operator_spelling =
+                    record_spread && is_operator_shaped_unknown(&item);
+                let kind =
+                    token_syntax_kind(token_kind(&item).expect("a lexical Error emits a token"));
+                let mut end = run
+                    .emit_item_as(item, item_origin, kind)
+                    .recovery_range()
+                    .end;
+                if continues_operator_spelling {
+                    while let Some(token) =
+                        run.lexical(|mut lex| lex.token(scan_operator_shaped_unknown))
+                    {
+                        item_origin = item_origin
+                            .checked_add(token.text.len())
+                            .expect("a lexical successor coordinate fits usize");
+                        end = run
+                            .emit_item_as(
+                                Item::plain(LeadingTrivia::default(), Payload::Token(token)),
+                                item_origin,
+                                SyntaxKind::Unknown,
+                            )
+                            .recovery_range()
+                            .end;
+                    }
+                }
+                (item, item_origin, line_entry) = run.lexical(|lex| {
+                    scan_expression_item_lexical(
+                        lex,
+                        OperatorSite::Nud,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        baseline,
+                        stops,
+                    )
+                });
+                if is_run_boundary(&item, baseline, record_spread, true) || is_nud_item(&item) {
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, item_origin, line_entry);
+                }
             }
-            item_origin = advanced_origin(item_origin, entry, i.rb());
-        }
-        (item, item_origin, line_entry) = expression_item(
-            i.rb(),
-            OperatorSite::Nud,
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-        );
-        if item.payload_view().is_boundary()
-            || is_nud_item(&item)
-            || is_separator(&item)
-            || is_close(&item)
-            || is_record_spread_item(&item)
-            || item.payload_view().is_eof()
-        {
-            i.state.finish_node();
-            return (item, item_origin, line_entry);
-        }
-    }
+        },
+        |range, unexpected| recovery_draft(role, RecoveryKind::Error, range, unexpected),
+    )
+}
+
+fn is_run_boundary(item: &Item, baseline: usize, record_spread: bool, newline: bool) -> bool {
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || is_separator(item)
+        || is_close(item)
+        || (record_spread && is_record_spread_item(item))
+        || (newline && implicit_delimited_newline(baseline, item.leading_view()))
 }
 
 fn is_record_spread_item(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::DotDot)
+}
+
+fn recovery_draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        GrammarRole::ClosingDelimiter { delimiter, .. } => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
+        }
+        GrammarRole::Expression(
+            ExpressionRole::ParenthesizedSeparator
+            | ExpressionRole::CallArgumentSeparator
+            | ExpressionRole::IndexSeparator
+            | ExpressionRole::ProjectionTupleSeparator
+            | ExpressionRole::ProjectionRecordSeparator,
+        ) => ExpectedSyntax::DelimitedSequenceSeparator,
+        GrammarRole::Expression(_) => ExpectedSyntax::Expression,
+        _ => unreachable!("a delimited owner selects its finite slot roles"),
+    };
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
 }

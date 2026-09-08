@@ -8,7 +8,7 @@ use crate::{operator::BindingPower, scan::operator::OperatorSite, syntax_kind::S
 use super::{
     RewriteIn, Stops,
     current_item::{CurrentItem, LineEntry, current_item},
-    delimited::delimited_items_normalized,
+    delimited::{DelimitedOwner, delimited_items_normalized},
     driver::{
         Either, MlMode, NormalizedExit, advanced_origin, chain_continuation, complete,
         continue_normalized_tail, expr_from_nud_normalized, expression_item, handoff,
@@ -675,9 +675,8 @@ pub(super) fn call_tail_normalized(
     let entry = suffix_marker(i.rb());
     let exit = delimited_items_normalized(
         i.rb(),
-        TokenKind::RParen,
-        None,
-        false,
+        DelimitedOwner::Call,
+        stops,
         baseline,
         MlMode::All,
         line_handoff,
@@ -721,9 +720,8 @@ pub(super) fn index_tail_normalized(
     let entry = suffix_marker(i.rb());
     let exit = delimited_items_normalized(
         i.rb(),
-        TokenKind::RBracket,
-        Some(SyntaxKind::IndexItem),
-        false,
+        DelimitedOwner::Index,
+        stops,
         baseline,
         MlMode::All,
         line_handoff,
@@ -779,7 +777,6 @@ pub(super) fn dot_tail_normalized(
                     dot,
                     next,
                     SyntaxKind::ProjectionTupleTail,
-                    TokenKind::RParen,
                     false,
                     threshold,
                     baseline,
@@ -798,7 +795,6 @@ pub(super) fn dot_tail_normalized(
                     dot,
                     next,
                     SyntaxKind::ProjectionRecordTail,
-                    TokenKind::RBrace,
                     true,
                     threshold,
                     baseline,
@@ -904,7 +900,6 @@ fn projection_tail_normalized(
     dot: Item,
     open: Item,
     node: SyntaxKind,
-    close: TokenKind,
     record_spread: bool,
     threshold: Option<&BindingPower>,
     baseline: usize,
@@ -922,9 +917,12 @@ fn projection_tail_normalized(
     let entry = suffix_marker(i.rb());
     let exit = delimited_items_normalized(
         i.rb(),
-        close,
-        None,
-        record_spread,
+        if record_spread {
+            DelimitedOwner::ProjectionRecord
+        } else {
+            DelimitedOwner::ProjectionTuple
+        },
+        stops,
         baseline,
         MlMode::All,
         line_handoff,

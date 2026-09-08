@@ -40,6 +40,7 @@ mod case_like;
 mod cast_decl;
 mod declaration_companion;
 mod declaration_variant;
+mod delimited_recovery;
 mod derives;
 mod enum_decl;
 mod error_decl;

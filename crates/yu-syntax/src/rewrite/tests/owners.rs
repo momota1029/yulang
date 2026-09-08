@@ -47,10 +47,19 @@ fn parenthesized_primary_owns_its_sequence_and_outer_ml_tail() {
             SyntaxKind::Identifier,
         ]
     );
+    // Parenthesized expressions accept comma but not semicolon.  The sequence
+    // and outer ML ownership stay unchanged while the local separator recovers.
+    assert_eq!(
+        group
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
     assert!(
         !root
             .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            .any(|node| node.kind() == SyntaxKind::Missing)
     );
 }
 
@@ -671,7 +680,9 @@ fn record_projection_spread_yields_to_an_accepted_dynamic_led() {
 
 #[test]
 fn record_projection_spread_rhs_keeps_a_rejected_marker_for_the_owner() {
-    for (source, expected_error) in [("a.{.. ..rest}", 0), ("a.{..@ ..rest}", 1)] {
+    for (source, expected_missing, expected_error) in
+        [("a.{.. ..rest}", 2, 0), ("a.{..@ ..rest}", 1, 1)]
+    {
         let (green, exit) = run(source);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
@@ -694,7 +705,7 @@ fn record_projection_spread_rhs_keeps_a_rejected_marker_for_the_owner() {
                 .descendants()
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
-            2,
+            expected_missing,
             "{source:?}"
         );
         assert_eq!(

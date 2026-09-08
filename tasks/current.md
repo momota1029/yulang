@@ -17,9 +17,10 @@ existing atomic public/root cutover. Private construction is not that cutover.
 - The user authorizes recovery simplification and recommended design changes,
   documentation/environment maintenance, frequent coherent commits, and
   consideration of generally useful `chasa-recover` shorthand.
-- The latest user instruction is direct primary-agent work without subagents.
-  Do not restart agent panels merely to continue this task. Deterministic
-  verification and honest reporting of review scope remain required.
+- The later user instruction explicitly requests subagents. Use only the
+  lightest scoped read-only reviewers or one owned implementation worker needed
+  for a bounded gate; deterministic verification and honest reporting of review
+  scope remain required.
 
 ## Current gate and immediate next action
 
@@ -167,7 +168,18 @@ uses the same helper. Ordinary and sealed Error paths share one total lexical
 Item scan. The focused expression-recovery, operator, If, CaseLike and For
 filters plus `cargo check -p yu-syntax` pass; joint certification is still open.
 
-Next, continue Expression tails/delimiters and literal/Statement/declaration
+The shared Expression delimiter gate in
+`2026-09-08-successor-expression-delimited-current-item-recovery.md` is also
+implemented. Parenthesized, Call, Index and Projection owners now select typed
+Item/Separator/close roles through one finite descriptor. Close-only inherited
+capabilities preserve nested caller closes without leaking ordinary caller
+stops. The phase loop publishes maximal lexical Errors, records record-spread
+RHS recovery, and makes Parenthesized semicolon a local Separator Error. New
+fresh/frozen tests: 9; owners 23; tails 14; normalized 83; recovery output 25;
+package check/format/diff pass. Specification and delta-regression audits found
+no blocker. Field/Path and Colon/With are still separate owners.
+
+Next, continue Expression Field/Path, then Colon/With, and literal/Statement/declaration
 dependencies. Extend the same ledger; retain the current acceptance contracts,
 effect-free optional entry and the atomic public cutover boundary. No benchmark
 sample/process has been used.

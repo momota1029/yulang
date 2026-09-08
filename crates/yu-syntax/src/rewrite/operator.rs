@@ -19,6 +19,7 @@ pub(super) const STOP_SEMICOLON: Stops = 1 << 1;
 const STOP_RPAREN: Stops = 1 << 2;
 const STOP_RBRACKET: Stops = 1 << 3;
 const STOP_RBRACE: Stops = 1 << 4;
+pub(super) const STOP_CLOSES: Stops = STOP_RPAREN | STOP_RBRACKET | STOP_RBRACE;
 pub(super) const STOP_RECORD_SPREAD: Stops = 1 << 5;
 pub(super) const STOP_RECORD_SPREAD_AFTER_OPERATOR: Stops = 1 << 6;
 pub(super) const STOP_COLON: Stops = 1 << 7;

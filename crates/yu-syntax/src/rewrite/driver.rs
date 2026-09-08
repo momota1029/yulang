@@ -1271,7 +1271,7 @@ pub(super) fn expression_item(
 
 /// One total lexical operation shared by ordinary and sealed Error-run paths.
 #[allow(clippy::too_many_arguments)]
-fn scan_expression_item_lexical(
+pub(super) fn scan_expression_item_lexical(
     i: LexIn,
     site: OperatorSite,
     item_origin: usize,
