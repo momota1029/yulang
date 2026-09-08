@@ -57,6 +57,7 @@ enum CastVocabulary {
     RawIdentifier,
     Pattern,
     Type,
+    Form,
     Statement,
 }
 
@@ -1007,8 +1008,8 @@ fn cast_form_normalized(
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
-    mut item_origin: usize,
-    mut line_entry: LineEntry,
+    item_origin: usize,
+    line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
@@ -1050,25 +1051,22 @@ fn cast_form_normalized(
     if slot_outer_boundary(i.rb(), &item, baseline, stops)
         || cast_token_kind(&item) == Some(TokenKind::RParen)
     {
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_body_introducer_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
 
     item.emit_all_remaining_leading(&mut *i.state);
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = cast_item_normalized(
-            i.rb(),
-            item_origin,
-            line_entry,
-            fence,
-            baseline,
-            stops,
-            CastVocabulary::Statement,
-        );
-        if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
-            i.state.finish_node();
+    let (item, item_origin, line_entry, exit) = cast_body_introducer_error_run(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    match exit {
+        CastBodyIntroducerErrorExit::Form => {
             return cast_form_normalized(
                 i,
                 item,
@@ -1082,16 +1080,9 @@ fn cast_form_normalized(
                 sequence,
             );
         }
-        if slot_outer_boundary(i.rb(), &item, baseline, stops)
-            || cast_token_kind(&item) == Some(TokenKind::RParen)
-        {
-            if item.payload_view().is_eof() && cast_gap_allowed(&item, baseline) {
-                item.emit_eof_leading(&mut *i.state);
-            }
-            i.state.finish_node();
+        CastBodyIntroducerErrorExit::Boundary => {
             return complete(handoff(item), line_entry);
         }
-        item.emit_all_remaining_leading(&mut *i.state);
     }
 }
 
@@ -1354,6 +1345,12 @@ enum CastTargetIntroducerErrorExit {
     Boundary,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CastBodyIntroducerErrorExit {
+    Form,
+    Boundary,
+}
+
 fn cast_pattern_introducer_role() -> GrammarRole {
     GrammarRole::Declaration(DeclarationRole::Cast(CastRole::PatternIntroducer))
 }
@@ -1452,6 +1449,43 @@ fn cast_target_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) 
     );
     emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
         cast_target_introducer_draft(RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn cast_body_introducer_role() -> GrammarRole {
+    GrammarRole::Declaration(DeclarationRole::Cast(CastRole::BodyIntroducer))
+}
+
+fn cast_body_introducer_draft(
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = cast_body_introducer_role();
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+fn cast_body_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        cast_body_introducer_draft(RecoveryKind::Missing, range, Arc::from([]))
     });
 }
 
@@ -1590,6 +1624,62 @@ fn cast_transition_lex(
     } else {
         CastTransition::Other
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cast_body_introducer_error_run(
+    i: SyntaxIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry, CastBodyIntroducerErrorExit) {
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(origin).recovery_range().start;
+            loop {
+                let kind = cast_error_syntax_kind(&item);
+                let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+                (item, origin, line) = run.lexical(|lex| {
+                    scan_cast_item_lexical(
+                        lex,
+                        origin,
+                        line,
+                        fence,
+                        baseline,
+                        stops,
+                        CastVocabulary::Form,
+                    )
+                });
+                let exit = if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
+                    Some(CastBodyIntroducerErrorExit::Form)
+                } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
+                    Some(CastBodyIntroducerErrorExit::Boundary)
+                } else {
+                    None
+                };
+                if let Some(exit) = exit {
+                    let error_end = if exit == CastBodyIntroducerErrorExit::Boundary
+                        && cast_error_owns_eof_leading(&item)
+                        && !item.extent(origin).remaining().is_empty()
+                    {
+                        run.emit_same_line_eof_leading(&mut item, origin).end
+                    } else {
+                        end
+                    };
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..error_end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, origin, line, exit);
+                }
+            }
+        },
+        |range, unexpected| cast_body_introducer_draft(RecoveryKind::Error, range, unexpected),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1828,6 +1918,10 @@ fn scan_cast_item_lexical(
                 }
                 CastVocabulary::Pattern => scan_pattern_nud_payload(lex, leading, origin, fence, 0),
                 CastVocabulary::Type => scan_type_nud_payload(lex, leading, origin, fence),
+                // This is lexical-only form punctuation acquisition. The existing
+                // Type token vocabulary keeps exact `=` distinct from malformed
+                // Statement operators so the form owner can retry it unchanged.
+                CastVocabulary::Form => scan_type_nud_payload(lex, leading, origin, fence),
                 CastVocabulary::Statement => {
                     scan_statement_payload(lex, leading, origin, fence, baseline, stops)
                 }

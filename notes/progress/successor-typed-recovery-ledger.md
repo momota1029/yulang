@@ -1,6 +1,6 @@
 # Successor typed recovery callsite ledger
 
-Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
+Updated: 2026-09-09, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
 primary/tail checkpoint `afaa3b24`, sequence checkpoint `5de04545`,
 default-Expression checkpoint `7832ab2f`; required Expression operands, their
 explicit caller roles, shared Expression delimiters, and fixed Field/Path tails
@@ -419,6 +419,21 @@ root and declaration-local owners open.
   remains pending. M2 preflight plus delta review found no concrete defect.
   Cast 16; Pattern/Type/normalized/recovery-output 358; package, format and
   diff passed. Benchmark use: zero.
+
+## Cast BodyIntroducer current-Item recovery
+
+- Completed `2026-09-09-successor-cast-body-introducer-current-item-recovery.md`.
+  The raw outer Missing and malformed Error run in `cast_form_normalized` now
+  publish `Declaration(Cast(BodyIntroducer))` with a semicolon expectation.
+  TargetType and post-equals Body remain their separate existing owners.
+- The form-punctuation lexical scan is token acquisition only: exact `;` and
+  `=` stay outside Error and retry their existing form paths, while `==`
+  remains malformed. Boundaries retain their whole pending Items, Error does
+  not cascade a Body record, and the selected same-line EOF-leading suffix
+  extends Error node/record/fact together.
+- M2 preflight and delta review found no concrete defect. Cast 19;
+  Pattern/Type/normalized/recovery-output 358; package check, format and diff
+  passed. Benchmark use: zero samples/processes.
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
