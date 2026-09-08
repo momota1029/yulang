@@ -3,7 +3,15 @@
 use super::super::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
 
-use crate::{scan::operator::OperatorSite, session::PatternRole, syntax_kind::SyntaxKind};
+use crate::{
+    scan::operator::OperatorSite,
+    session::{
+        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
+    },
+    syntax_kind::SyntaxKind,
+};
+use std::sync::Arc;
 
 use super::{
     super::{
@@ -13,17 +21,19 @@ use super::{
             expression_item, handoff, implicit_delimited_newline, is_nud_item, suffix_marker,
             token_kind,
         },
-        emit::{emit_error_item, emit_missing, emit_token_item},
+        emit::{emit_error_item, emit_missing, emit_recovery_missing, emit_token_item},
         item::{Item, LeadingTrivia, LeadingView, TokenKind},
         operator::stops_for,
+        output::RecoveryDraft,
         statement::StatementLineHandoff,
         yumark::FenceBoundary,
     },
     PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET,
     PATTERN_STOP_RPAREN, PatternCallerCloses, PatternCompletion, PatternMandatorySlotPolicy,
-    PatternPrecedence, PatternStops, RewriteIn, pattern_from_item_recording_with_policy_normalized,
-    pattern_item_normalized, pattern_nud_item_normalized, pattern_primary_stop_token,
-    pattern_tail_normalized, scan_pattern_tail_normalized,
+    PatternPrecedence, PatternStops, RewriteIn, emit_pattern_missing,
+    pattern_from_item_recording_with_policy_normalized, pattern_item_normalized,
+    pattern_nud_item_normalized, pattern_primary_stop_token, pattern_tail_normalized,
+    scan_pattern_tail_normalized,
 };
 
 #[derive(Clone, Copy)]
@@ -47,6 +57,22 @@ impl Owner {
             Self::Parenthesized => TokenKind::RParen,
             Self::List => TokenKind::RBracket,
             Self::Record => TokenKind::RBrace,
+        }
+    }
+
+    fn separator_role(self) -> PatternRole {
+        match self {
+            Self::Parenthesized => PatternRole::ParenthesizedSeparator,
+            Self::List => PatternRole::ListSeparator,
+            Self::Record => PatternRole::RecordSeparator,
+        }
+    }
+
+    fn closing_owner(self) -> (ConstructRole, Delimiter) {
+        match self {
+            Self::Parenthesized => (ConstructRole::ParenthesizedPattern, Delimiter::Parenthesis),
+            Self::List => (ConstructRole::ListPattern, Delimiter::Bracket),
+            Self::Record => (ConstructRole::RecordPattern, Delimiter::Brace),
         }
     }
 
@@ -198,7 +224,7 @@ fn pattern_delimited(
     loop {
         if item.payload_view().is_boundary() {
             *completion = PatternCompletion::Incomplete;
-            return missing_close(i, item, line_entry);
+            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
         }
 
         if expect_item {
@@ -224,11 +250,11 @@ fn pattern_delimited(
             }
             if is_carried_caller_close(caller_closes, &item) {
                 *completion = PatternCompletion::Incomplete;
-                return missing_close_before_caller(i, item, line_entry);
+                return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
             }
             if matches!(owner, Owner::Record) && token_kind(&item) == Some(TokenKind::Comma) {
                 item.emit_all_remaining_leading(&mut *i.state);
-                emit_missing(&mut i, LeadingTrivia::default());
+                emit_pattern_missing(&mut i, PatternRole::RecordItem, &item, item_origin);
                 contents_completion = PatternCompletion::Incomplete;
                 emit_token_item(&mut i, item);
                 (item, item_origin, line_entry) = pattern_nud_item_normalized(
@@ -242,7 +268,7 @@ fn pattern_delimited(
             }
             if token_kind(&item).is_none() {
                 *completion = PatternCompletion::Incomplete;
-                return missing_close(i, item, line_entry);
+                return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
             }
             if is_other_close(owner, &item) {
                 own_recovery_consumed_error = true;
@@ -282,7 +308,7 @@ fn pattern_delimited(
                     line_handoff,
                     PatternMandatorySlotPolicy::default(),
                     descendant_caller_closes,
-                    PatternRole::Primary,
+                    PatternRole::ParenthesizedElement,
                     &mut item_completion,
                     item_origin,
                     line_entry,
@@ -334,7 +360,14 @@ fn pattern_delimited(
                 }
                 NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
                     *completion = PatternCompletion::Incomplete;
-                    return missing_close(i, end.item, next_line_entry);
+                    return missing_close(
+                        i,
+                        end.item,
+                        owner,
+                        caller_closes,
+                        item_origin,
+                        next_line_entry,
+                    );
                 }
                 deferred @ NormalizedExit::Deferred(_, _) => {
                     i.state.finish_node();
@@ -367,7 +400,7 @@ fn pattern_delimited(
         }
         if is_carried_caller_close(caller_closes, &item) {
             *completion = PatternCompletion::Incomplete;
-            return missing_close_before_caller(i, item, line_entry);
+            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
         }
         if token_kind(&item) == Some(TokenKind::Comma) {
             emit_token_item(&mut i, item);
@@ -378,7 +411,7 @@ fn pattern_delimited(
         }
         if token_kind(&item).is_none() {
             *completion = PatternCompletion::Incomplete;
-            return missing_close(i, item, line_entry);
+            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
         }
         if is_other_close(owner, &item) {
             own_recovery_consumed_error = true;
@@ -391,7 +424,7 @@ fn pattern_delimited(
             let separated_by_layout = implicit_delimited_newline(baseline, item.leading_view());
             item.emit_all_remaining_leading(&mut *i.state);
             if !separated_by_layout {
-                emit_missing(&mut i, LeadingTrivia::default());
+                emit_pattern_missing(&mut i, owner.separator_role(), &item, item_origin);
             }
             expect_item = true;
             continue;
@@ -498,7 +531,7 @@ fn list_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
-            PatternRole::Primary,
+            PatternRole::ListItem,
             completion,
             item_origin,
             line_entry,
@@ -523,7 +556,7 @@ fn list_item(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         caller_closes,
-        PatternRole::Primary,
+        PatternRole::ListSpreadRhs,
         completion,
         item_origin,
         line_entry,
@@ -567,7 +600,7 @@ fn record_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
-            PatternRole::Primary,
+            PatternRole::RecordSpreadRhs,
             completion,
             item_origin,
             line_entry,
@@ -577,13 +610,8 @@ fn record_item(
         i.state.finish_node();
         return exit;
     }
-    if !is_pattern_name(&item) {
-        *completion = PatternCompletion::Incomplete;
-        let mut item = item;
-        item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-        return complete(handoff(item), line_entry);
-    }
+    // The sequence admits only a name or DotDot; the spread branch returned.
+    debug_assert!(is_pattern_name(&item));
 
     *completion = PatternCompletion::Complete;
     i.state.start_node(SyntaxKind::RecordPatternField.into());
@@ -613,7 +641,7 @@ fn record_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
-            PatternRole::Primary,
+            PatternRole::RecordNestedPattern,
             completion,
             nested_origin,
             nested_line_entry,
@@ -742,21 +770,40 @@ fn record_default_after_equals(
     complete(handoff(rhs), line_entry)
 }
 
-fn missing_close(mut i: RewriteIn, mut item: Item, line_entry: LineEntry) -> NormalizedExit {
-    if !item.payload_view().is_boundary() {
-        item.emit_all_remaining_leading(&mut *i.state);
-    }
-    emit_missing(&mut i, LeadingTrivia::default());
-    i.state.finish_node();
-    complete(handoff(item), line_entry)
-}
-
-fn missing_close_before_caller(
+fn missing_close(
     mut i: RewriteIn,
-    item: Item,
+    mut item: Item,
+    owner: Owner,
+    caller_closes: PatternCallerCloses,
+    item_origin: usize,
     line_entry: LineEntry,
 ) -> NormalizedExit {
-    emit_missing(&mut i, LeadingTrivia::default());
+    if !item.payload_view().is_boundary() && !is_carried_caller_close(caller_closes, &item) {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(item_origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    let (owner, delimiter) = owner.closing_owner();
+    let role = GrammarRole::ClosingDelimiter { owner, delimiter };
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        RecoveryDraft::new(
+            RecoverySiteKey {
+                role,
+                range: range.clone(),
+            },
+            RecoveryKind::Missing,
+            Arc::from([]),
+            Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
+                range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            0,
+        )
+    });
     i.state.finish_node();
     complete(handoff(item), line_entry)
 }

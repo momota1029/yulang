@@ -1209,9 +1209,20 @@ fn pattern_recovery_draft(
     unexpected: Arc<[UnexpectedSyntax]>,
 ) -> RecoveryDraft {
     let expected = match role {
-        PatternRole::Primary | PatternRole::AlternationRhs => ExpectedSyntax::Pattern,
-        PatternRole::SymbolName | PatternRole::AliasBinding => ExpectedSyntax::Identifier,
-        _ => unreachable!("Pattern primary and tail-slot recovery role"),
+        PatternRole::Primary
+        | PatternRole::AlternationRhs
+        | PatternRole::ParenthesizedElement
+        | PatternRole::ListItem
+        | PatternRole::ListSpreadRhs
+        | PatternRole::RecordNestedPattern
+        | PatternRole::RecordSpreadRhs => ExpectedSyntax::Pattern,
+        PatternRole::SymbolName | PatternRole::AliasBinding | PatternRole::RecordItem => {
+            ExpectedSyntax::Identifier
+        }
+        PatternRole::ParenthesizedSeparator
+        | PatternRole::ListSeparator
+        | PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
+        _ => unreachable!("Pattern-owned recovery role"),
     };
     let role = GrammarRole::Pattern(role);
     RecoveryDraft::new(

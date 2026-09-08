@@ -16,6 +16,8 @@ use crate::{
 use chasa_recover::Recoverable as _;
 use std::{ops::Range, sync::Arc};
 
+mod delimited;
+
 #[derive(Clone, Copy)]
 struct Context<'fence> {
     origin: usize,
@@ -54,8 +56,19 @@ struct PatternRun<'source> {
 
 fn record(id: u32, role: PatternRole, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
     let expected = match role {
-        PatternRole::Primary | PatternRole::AlternationRhs => ExpectedSyntax::Pattern,
-        PatternRole::SymbolName | PatternRole::AliasBinding => ExpectedSyntax::Identifier,
+        PatternRole::Primary
+        | PatternRole::AlternationRhs
+        | PatternRole::ParenthesizedElement
+        | PatternRole::ListItem
+        | PatternRole::ListSpreadRhs
+        | PatternRole::RecordNestedPattern
+        | PatternRole::RecordSpreadRhs => ExpectedSyntax::Pattern,
+        PatternRole::SymbolName | PatternRole::AliasBinding | PatternRole::RecordItem => {
+            ExpectedSyntax::Identifier
+        }
+        PatternRole::ParenthesizedSeparator
+        | PatternRole::ListSeparator
+        | PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
         PatternRole::TypeAnnotation => ExpectedSyntax::TypeExpression,
         _ => panic!("explicit primary/tail-slot test role"),
     };

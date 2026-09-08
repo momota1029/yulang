@@ -168,3 +168,8 @@ behavioral repair or unapproved expected-output change was made. Primary
 delta reread checked all callers and Error capability boundaries, not an
 independent review. Benchmark usage: zero samples/processes. Task, design
 index, ledger and daily record are synchronized. Next: Pattern delimiters.
+
+Follow-up: `2026-09-08-successor-pattern-delimited-slot-publication.md` now
+replaces the five temporary delimiter Primary arguments with their explicit
+element/spread/nested roles. The checkpoint description above records this
+substep's original boundary, not the current delimiter-role inventory.

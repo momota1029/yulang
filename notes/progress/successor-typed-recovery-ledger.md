@@ -1,7 +1,7 @@
 # Successor typed recovery callsite ledger
 
-Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, followed
-by the Pattern primary/tail-slot construction described below.
+Updated: 2026-09-08, branch `yulang3`; Type/PV checkpoint `634d5b46`, Pattern
+primary/tail checkpoint `afaa3b24`, followed by delimiter slot publication.
 
 Status: construction inventory, not independent or aggregate certification.
 Authority: typed-output amendment §8 and the current recovery-authority and
@@ -23,6 +23,8 @@ Source aliases are relative to `crates/yu-syntax/src/rewrite/`:
 - `P` = `pattern.rs`. Its table's test prefixes are under
   `rewrite::tests::pattern::recovery::`; P's retained caller/policy controls
   are in the parent `rewrite::tests::pattern::` module.
+- `PD` = `pattern/delimited.rs`; the delimiter table's test prefixes are
+  under `rewrite::tests::pattern::recovery::delimited::`.
 - Test names/prefixes are under `rewrite::tests::type_expr::`. `Q` denotes
   its parent test module; a named child such as `pe_recovery` is its module.
   Prefixes denote the existing finite test family, not tests to invent later.
@@ -125,6 +127,26 @@ and recovery attempts are total committed procedures, not speculative
 Option-returning owners; their NUD/stop predicates are effect-free borrowed
 Item queries. Literal entry probes remain assigned to later SCC/RB work.
 
+## Pattern delimiter child/Missing publication
+
+The delimiter-slot publication amendment governs this internal substep. All
+entries are construction-only; the raw rows below prevent a whole-owner
+completion claim. Five child roles pass directly into P's typed kernel.
+
+| source location | matrix/addendum row | owner/slot | kind | sentinel/run | range formula | unexpected array | ordered expectations/source flags | primary | continuation/pending Item | recovery-order predecessor | focused test | ordinary control | RB row | migration state |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| PD::pattern_delimited -> P kernel | P5 | ParenthesizedElement | M/E | absent element / malformed primary | B..B / Rng excluding retry gap | [] / other(Rng) | Pat / committed | 0 | same element retry or local/caller Item | prior, before close | delimited_missing_slots_*; delimited_child_error_roles_* | `(,a)`, `(@ x)` / `(a,)` | RB-P | C |
+| PD::list_item -> P kernel | P6 | ListItem | M/E | absent ordinary element / malformed primary | B..B / Rng | [] / other(Rng) | Pat / committed | 0 | same element or sequence Item | prior, before close | delimited_missing_slots_*; delimited_child_error_roles_* | `[,a]`, `[@ x]` / `[a,]` | RB-P | C |
+| PD::list_item spread -> P kernel | P6 | ListSpreadRhs | M/E | absent/malformed RHS after exact DotDot | B..B / Rng | [] / other(Rng) | Pat / committed | 0 | same full Pattern or pending comma/close/fence | prior spread head, before close | delimited_missing_slots_*; delimited_child_error_roles_*; delimited_quoted_fence_* | `[..]`, `[..@ x]` / `[..x]` | RB-P | C |
+| PD::record_item colon -> P kernel | P7b/g | RecordNestedPattern | M/E | absent/malformed colon RHS | B..B / Rng | [] / other(Rng) | Pat / committed | 0 | same Pattern or caller Equal/comma/close/fence | prior field colon; before default/close | delimited_missing_slots_*; delimited_child_error_roles_*; delimited_missing_close_order_* | `{a:}`, `{a:@ x}` / `{a:x}` | RB-P | C |
+| PD::record_item spread -> P kernel | P7d | RecordSpreadRhs | M/E | absent/malformed spread RHS | B..B / Rng | [] / other(Rng) | Pat / committed | 0 | full Pattern or pending comma/close | prior DotDot, before close | delimited_missing_slots_*; delimited_child_error_roles_* | `{..}`, `{..@ x}` / `{..x}` | RB-P | C |
+| PD::pattern_delimited via P::emit_pattern_missing | P7a | RecordItem | M | fresh/repeated comma | B..B after sequence leading emission | [] | Id / committed | 0 | consume same comma, next record item | prior, before next item/close | delimited_missing_slots_* | `{,a}` / `{a,}` | RB-P | C; Error still open |
+| PD::pattern_delimited via Owner::separator_role | P5/P6/P7e; layout correction | ParenthesizedSeparator / ListSeparator / RecordSeparator | M | same-line next item without boundary | B..B after owner emits retry leading | [] | Sep / committed | 0 | same Item enters item phase; qualifying layout has no record | prior item records | delimited_missing_slots_*; delimited_accepted_layout_* | `(a b)`, `[a b]`, `{a b}` / qualifying newlines | RB-P | C; Error still open |
+| PD::missing_close via Owner::closing_owner | P5/P6/P7f | close(ParenthesizedPattern, Parenthesis) / close(ListPattern, Bracket) / close(RecordPattern, Brace) | M | protected caller/fence or EOF | B..B after only permitted EOF leading emission | [] | matching close punctuation / committed | 0 | complete same Item/End, caller leading untouched | all child records, innermost first | delimited_missing_close_order_*; delimited_missing_closes_*; delimited_eof_missing_*; delimited_quoted_fence_* | `(a`, `[a`, `{a` / actual local close | RB-P | C; Error still open |
+| PD::pattern_delimited -> PD::record_item | P7 name admission | RecordFieldName | none | only name or DotDot admitted; spread returns first | none | none | none | n/a | name is committed; malformed heads stay with sequence | none of its own | guarded sole callsite; delimited_accepted_layout_* | `{a}`, `{..a}` | RB-P | exact non-recovery proof |
+| PD::pattern_delimited, four emit_error_item calls | P5/P6/P7 | local wrong close / record item / separator | raw E | current native Item | not yet typed | not yet typed | named owner still requires publication | n/a | existing sequence retry | current node order only | parent Pattern malformed controls | existing accepted companions | RB-P | Open; next bounded gate |
+| PD::record_default_after_equals, two emit_missing calls | P7c | RecordDefaultExpression | raw M | absent/non-NUD default RHS | not yet typed | not yet typed | Expression slot/wrapper remains to certify | n/a | existing Expression/field continuation | preceding field/Pattern records | parent Pattern default controls | `{a=1}` | RB-P / RB-E | Open with Expression SCC |
+
 ## Local rollback and output evidence
 
 All names below are existing tests in the 470-test run at `634d5b46`.
@@ -155,7 +177,10 @@ No public/root/header dispatch has changed.
 Pattern primary, symbol, alias and alternation sites in `pattern.rs` now have
 zero raw Missing/Error constructors. Its two Error-run producers and shared
 Missing producer map above; the existing annotation Type callee is typed.
-Next O3b substep: Pattern delimiter slots. Pattern literal ownership reaches the mutually
+Pattern delimiter child/Missing publication is mapped above; its four raw
+sequence/close Error calls and two default-Expression Missing calls remain.
+Next O3b substep: sequence/close Error, then RecordDefaultExpression and
+literal dependencies. Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
 independently migrated Pattern owner.
 
@@ -167,5 +192,5 @@ D/DRV/CMP assignments and post-L7 literal deltas. Existing raw field separator/
 close and declaration Missing sites are included, not exempted by the Type
 helper's role transport. No unbounded test suite or fresh benchmark was run
 for the initial inventory. Pattern construction verification now passes the
-expanded 477-test owner/output run, including 33 Pattern tests; benchmark
+expanded 484-test owner/output run, including 40 Pattern tests; benchmark
 usage remains zero samples/processes.

@@ -136,9 +136,17 @@ owner/output tests and package/format/diff checks pass; the same accumulating
 ledger includes its sites/RB controls. This is an O3b substep, not an
 independently completed Pattern owner.
 
-Current gate: O3b SCC construction. Continue with Pattern delimiter slots,
-then its literal/Expression/Statement/declaration dependencies. Extend the
-same ledger and retain the existing joint construction/certification boundary.
+Pattern delimiter Missing/child-role publication is also complete under
+`2026-09-08-successor-pattern-delimited-slot-publication.md`: five explicit
+element/spread/nested roles, separator Missing, three close-Missing owners
+and one guarded RecordFieldName non-recovery proof. Existing CST expectations
+are unchanged. Pattern 40 and expanded owner/output 484 pass, along with
+package/format/diff checks.
+
+Current gate: O3b SCC construction. Continue with Pattern's four raw sequence/
+close Error callsites, then its two RecordDefaultExpression Missing sites and
+literal/Expression/Statement/declaration dependencies. Extend the same ledger
+and retain the existing joint construction/certification boundary.
 The old eighth-terminal proposal is not a required prerequisite.
 No public dispatch has been switched yet.
 
