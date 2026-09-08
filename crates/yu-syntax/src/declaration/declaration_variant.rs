@@ -24,7 +24,9 @@ use crate::{
         },
     },
     cursor::{LexIn, SyntaxIn},
-    declaration::struct_decl::{FieldList, FieldOuterClose, declaration_fields_normalized},
+    declaration::struct_decl::{
+        DeclarationFieldRoles, FieldList, FieldOuterClose, declaration_fields_normalized,
+    },
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
         current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
@@ -484,11 +486,16 @@ fn parse_variant(
         };
         let fields = declaration_fields_normalized(
             i.rb(),
-            owner.role(if list == FieldList::Tuple {
-                VariantDeclarationRole::TupleFieldType
-            } else {
-                VariantDeclarationRole::NamedFieldType
-            }),
+            DeclarationFieldRoles {
+                field: owner.role(VariantDeclarationRole::NamedField),
+                field_name: owner.role(VariantDeclarationRole::NamedFieldName),
+                field_colon: owner.role(VariantDeclarationRole::NamedFieldColon),
+                field_type: owner.role(if list == FieldList::Tuple {
+                    VariantDeclarationRole::TupleFieldType
+                } else {
+                    VariantDeclarationRole::NamedFieldType
+                }),
+            },
             item,
             sequence_baseline,
             stops,

@@ -206,20 +206,8 @@ pub(crate) enum ModRole {
 pub(crate) enum StructRole {
     Name,
     BodyIntroducer,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Field,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     FieldName,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     FieldColon,
     FieldType,
     #[allow(
@@ -231,30 +219,14 @@ pub(crate) enum StructRole {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum EnumDeclarationRole {
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Name,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     BodyIntroducer,
     Variant(VariantDeclarationRole),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ErrorDeclarationRole {
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Name,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     BodyIntroducer,
     Variant(VariantDeclarationRole),
 }
@@ -266,20 +238,8 @@ pub(crate) enum VariantDeclarationRole {
     Separator,
     FromType,
     PositionalPayload,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     NamedField,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     NamedFieldName,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     NamedFieldColon,
     NamedFieldType,
     #[allow(

@@ -212,6 +212,48 @@ fn typed_variant_child_records_keep_their_role_and_order_without_duplicate_varia
 }
 
 #[test]
+fn typed_variant_named_field_records_keep_each_outer_owner() {
+    let source = "{V{@ : T}}";
+    let at = 700 + source.find('@').expect("malformed field name");
+    for owner in [VariantOwner::Enum, VariantOwner::Error] {
+        let (green, records, _, _) = typed_variant(
+            source,
+            owner,
+            VariantSequenceForm::Braced,
+            false,
+            0,
+            700,
+            None,
+            None,
+            false,
+        );
+        assert_eq!(green.to_string(), source);
+        let expected = vec![record(
+            variant_role(owner, VariantDeclarationRole::NamedFieldName),
+            RecoveryKind::Error,
+            at..at + 1,
+            0,
+        )];
+        assert_eq!(records, expected, "{owner:?}");
+        let mut frozen = expected.clone();
+        frozen[0].id = DiagnosticId(71);
+        let (again, reconciled, _, _) = typed_variant(
+            source,
+            owner,
+            VariantSequenceForm::Braced,
+            false,
+            0,
+            700,
+            None,
+            Some(&frozen),
+            false,
+        );
+        assert_eq!(again, green, "{owner:?}");
+        assert_eq!(reconciled, frozen, "{owner:?}");
+    }
+}
+
+#[test]
 fn typed_variant_optional_shell_rejection_is_effect_free_for_both_owners() {
     // Evidence and execution in the variant recovery design requires optional
     // shell rejection to preserve input, output, and the diagnostic cursor.

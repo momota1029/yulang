@@ -597,8 +597,8 @@ fn struct_c11_malformed_recovery_owns_trailing_eof_trivia() {
     for (source, error_parent, error_text) in [
         ("struct @ ", SyntaxKind::StructDeclaration, "@"),
         ("struct S @ ", SyntaxKind::StructDeclaration, "@"),
-        ("struct S{x @ ", SyntaxKind::StructField, " @ "),
-        ("struct S{@ ", SyntaxKind::StructField, "@ "),
+        ("struct S{x @ ", SyntaxKind::StructField, "@"),
+        ("struct S{@ ", SyntaxKind::StructField, "@"),
     ] {
         let (green, _) = run_statement(source);
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -624,6 +624,158 @@ fn struct_c11_malformed_recovery_owns_trailing_eof_trivia() {
             error.parent().map(|node| node.kind()),
             Some(error_parent),
             "{source:?}",
+        );
+    }
+}
+
+#[test]
+fn struct_named_field_records_are_exact_and_frozen() {
+    use crate::recovery_record::{
+        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StructRole, SyntaxExpectation,
+        UnexpectedCategory, UnexpectedSyntax,
+    };
+    use std::sync::Arc;
+
+    for (source, slot, kind, range, expected) in [
+        (
+            "struct S{: T}",
+            StructRole::FieldName,
+            RecoveryKind::Missing,
+            9..9,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "struct S{x T}",
+            StructRole::FieldColon,
+            RecoveryKind::Missing,
+            11..11,
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+        ),
+        (
+            "struct S{@ : T}",
+            StructRole::FieldName,
+            RecoveryKind::Error,
+            9..10,
+            ExpectedSyntax::Identifier,
+        ),
+        (
+            "struct S{x @ : T}",
+            StructRole::FieldColon,
+            RecoveryKind::Error,
+            11..12,
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
+        ),
+        (
+            "struct S{@ x: T}",
+            StructRole::Field,
+            RecoveryKind::Error,
+            9..10,
+            ExpectedSyntax::Identifier,
+        ),
+    ] {
+        let (green, _, records) = typed_struct(source, 100, None, 0, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        let range = range.start + 100..range.end + 100;
+        let role = GrammarRole::Declaration(DeclarationRole::Struct(slot));
+        assert_eq!(
+            records,
+            [CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                kind,
+                unexpected: if kind == RecoveryKind::Error {
+                    Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }])
+                } else {
+                    Arc::from([])
+                },
+                expectations: Arc::from([SyntaxExpectation {
+                    role,
+                    expected,
+                    range: range.clone(),
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            }],
+            "{source:?}",
+        );
+        let mut seeded = records.clone();
+        seeded[0].id = DiagnosticId(71);
+        let (again, _, frozen) = typed_struct(source, 100, Some(&seeded), 0, None);
+        assert_eq!(again, green, "{source:?}");
+        assert_eq!(frozen, seeded, "{source:?}");
+    }
+}
+
+#[test]
+fn struct_named_field_runs_keep_per_item_facts_and_active_stops_pending() {
+    use crate::{
+        lexical::stops::STOP_COLON,
+        recovery_record::{
+            DeclarationRole, GrammarRole, StructRole, UnexpectedCategory, UnexpectedSyntax,
+        },
+    };
+
+    let (green, _, records) = typed_struct("struct S{@ # : T}", 100, None, 0, None);
+    assert_eq!(green.to_string(), "struct S{@ # : T}");
+    assert_eq!(records.len(), 1);
+    assert_eq!(
+        records[0].site.role,
+        GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldName))
+    );
+    assert_eq!(records[0].site.range, 109..112);
+    assert_eq!(
+        records[0].unexpected,
+        [
+            UnexpectedSyntax::Token {
+                range: 109..110,
+                category: UnexpectedCategory::OtherCharacter,
+            },
+            UnexpectedSyntax::Token {
+                range: 110..112,
+                category: UnexpectedCategory::OtherCharacter,
+            }
+        ]
+        .into()
+    );
+
+    for (source, stops, text, slot, pending) in [
+        (
+            "struct S{x : T}",
+            STOP_COLON,
+            "struct S{x ",
+            StructRole::FieldColon,
+            TokenKind::Colon,
+        ),
+        (
+            "struct S{x @ : T}",
+            STOP_COLON,
+            "struct S{x @",
+            StructRole::FieldColon,
+            TokenKind::Colon,
+        ),
+    ] {
+        let (green, exit, records) = typed_struct(source, 100, None, stops, None);
+        assert_eq!(green.to_string(), text, "{source:?}");
+        assert_eq!(records.len(), 1, "{source:?}");
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Struct(slot)),
+            "{source:?}",
+        );
+        let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+            panic!("active field boundary must stay pending: {source:?}")
+        };
+        assert_eq!(
+            item.payload_view().token_kind(),
+            Some(pending),
+            "{source:?}"
         );
     }
 }

@@ -551,6 +551,11 @@ recovery-equality prerequisite.
    typed RHS remains a separate existing owner.
    Enum/Error Name and BodyIntroducer are complete owner-locally; Variant and
    companion/derives owners remain distinct.
+   The shared named-field internal owner is complete: it transports finite
+   Struct/Enum/Error roles and publishes Field, FieldName and FieldColon
+   without reopening field sequence, separator or close policy. Next is the
+   remaining shared sequence/separator/close owner; only then move its coherent
+   implementation from the Struct host to `declaration/fields.rs`.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption

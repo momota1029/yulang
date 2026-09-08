@@ -4,7 +4,9 @@ use crate::tests::type_expr::required_recovery::{
 use crate::tests::type_expr::*;
 use crate::{
     ambient_claim::AmbientClaimView,
-    declaration::struct_decl::{FieldList, FieldOuterClose, declaration_fields_normalized},
+    declaration::struct_decl::{
+        DeclarationFieldRoles, FieldList, FieldOuterClose, declaration_fields_normalized,
+    },
     recovery_record::{DeclarationRole, StructRole},
     type_expr::{TypeOuterBoundary, type_nud_item_normalized},
 };
@@ -246,7 +248,12 @@ fn run_tuple<'source>(
     );
     let result = declaration_fields_normalized(
         In::new(&mut input, &mut recover, &mut output),
-        GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldType)),
+        DeclarationFieldRoles {
+            field: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::Field)),
+            field_name: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldName)),
+            field_colon: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldColon)),
+            field_type: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldType)),
+        },
         open,
         0,
         0,
