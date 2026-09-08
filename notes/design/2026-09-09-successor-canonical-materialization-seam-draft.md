@@ -264,6 +264,38 @@ Until this finite inventory is completed and independently reviewed, this
 Draft cannot become Reviewed or authorize a shared-output or materialization
 pilot.
 
+### Inventory outcome (2026-09-09)
+
+The inventory established a larger authority gap than a field locator alone.
+The Yumark/doc-comment addenda authoritatively define the outer document and
+selected-fence products, including `YumarkYulangCodeCell`'s actual
+`Vec<Recovered<Statement>>`. They do not define canonical `Statement` fields.
+The current successor source has no semantic product types at all.
+
+For canonical expressions, Patterns, Types, blocks, controls, and declarations,
+the detailed candidate shapes are primarily evidence in the historical chasa
+architecture Proposal. Later Authoritative current-Item records select recovery
+roles, expectations, extents, and handoff; they do not adopt a product field or
+map a record to `Recovered::Complete` versus `Incomplete`. A product amendment
+must therefore expressly select a closed Statement sum and every
+statement-reachable field/recovery mapping, with the literal companion schema,
+rather than silently treating historical prose as approved output authority.
+
+The inventory also retains these product invariants for that amendment:
+
+- an admitted statement with a recovered child remains a complete statement;
+  only a failed required Statement sequence position is an incomplete sequence
+  entry;
+- an unread `Complete(Err(Item))` successor never changes product success;
+- separator records remain recovery-ledger facts unless the selected product
+  explicitly retains their syntax; and
+- root malformed entries, virtual interpolation sequences, braced/indented
+  blocks, and ExpressionList need their own explicit product homes.
+
+This is a scope expansion from a materialization seam to a canonical syntax
+product design. No code pilot or outer Yumark production construction is
+authorized by this Draft.
+
 ## Required supersession ledger
 
 Any successor amendment adopting this candidate must explicitly supersede only

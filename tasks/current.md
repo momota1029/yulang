@@ -119,9 +119,14 @@ literal-product authority inventory. The inventory now proves that the
 Authoritative literal cone deliberately excludes AST/HIR products; a companion
 M3 literal syntax-product Draft now records the candidate String/Rule fields
 and immediate recovery-slot mapping. It is not a range/CST handle/placeholder
-substitute. Complete the combined field-level product inventory and M3
-compiler/recovery and specification review, then record user approval before
-its shared-output pilot.
+substitute. The completed authority inventory also proves that Yumark's
+authoritative `Vec<Recovered<Statement>>` does not define the canonical
+Statement sum or its field/recovery mappings: historical candidate AST prose
+cannot be adopted implicitly from current-item record roles. A combined M3
+canonical syntax-product amendment must select that full closure together with
+the seam and literal schema. Complete its compiler/recovery, specification and
+static performance review, then record user approval before its shared-output
+pilot.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be
