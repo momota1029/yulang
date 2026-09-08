@@ -3,19 +3,28 @@
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-#[cfg(test)]
-use crate::cursor::LexIn;
-use crate::recovery_record::{CastRole, DeclarationRole, GrammarRole};
+use crate::recovery_record::{
+    CastRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
+    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+    UnexpectedSyntax,
+};
 use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::{
-    cst_output::emit::{emit_missing, emit_token_item},
-    cursor::SyntaxIn,
+    cst_output::{
+        RecoveryDraft,
+        emit::{
+            emit_missing, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
+            token_syntax_kind,
+        },
+    },
+    cursor::{LexIn, SyntaxIn},
     expression::{expr_from_nud_normalized, if_expr::active_statement_companion, is_nud_item},
     handoff::{Either, MlMode, NormalizedExit, complete, handoff},
     lexical::{
-        current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
+        current_item::{AcceptedPayload, CurrentPayload, LineEntry, current_item},
         expression_item::expression_item,
         item::{Item, LeadingTrivia, TokenKind},
         lexer::{
@@ -23,7 +32,8 @@ use crate::{
             scan_statement_payload, scan_type_nud_payload, source_identifier,
         },
         observation::{
-            implicit_delimited_newline, is_active_stop, is_line_stop, is_separator, token_kind,
+            implicit_delimited_newline, is_active_stop, is_active_stop_lex, is_line_stop,
+            is_separator, token_kind,
         },
         position::{advanced_origin, suffix_marker},
         stops::{Stops, active_stop_item},
@@ -274,7 +284,7 @@ fn cast_pattern_introducer_normalized(
 ) -> NormalizedExit {
     if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
         item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_pattern_introducer_missing(&mut i, &item, item_origin);
         return cast_form_normalized(
             i,
             item,
@@ -290,7 +300,7 @@ fn cast_pattern_introducer_normalized(
     }
     if cast_token_kind(&item) == Some(TokenKind::Colon) && cast_gap_allowed(&item, baseline) {
         item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_pattern_introducer_missing(&mut i, &item, item_origin);
         return cast_target_introducer_normalized(
             i,
             item,
@@ -305,11 +315,11 @@ fn cast_pattern_introducer_normalized(
         );
     }
     if cast_token_kind(&item) == Some(TokenKind::RParen) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_pattern_introducer_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if slot_outer_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_pattern_introducer_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -341,7 +351,7 @@ fn cast_pattern_introducer_normalized(
     }
     if is_pattern_nud(&item, 0) {
         i.state.start_node(SyntaxKind::CastPattern.into());
-        emit_missing(&mut i, LeadingTrivia::default());
+        cast_pattern_introducer_missing(&mut i, &item, item_origin);
         return cast_pattern_value_normalized(
             i,
             item,
@@ -356,59 +366,45 @@ fn cast_pattern_introducer_normalized(
             sequence,
         );
     }
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        (item, item_origin, line_entry) = cast_item_normalized(
-            i.rb(),
+    let (next, next_origin, next_line, exit) = cast_pattern_introducer_error_run(
+        i.rb(),
+        item,
+        baseline,
+        stops,
+        item_origin,
+        line_entry,
+        fence,
+    );
+    item = next;
+    item_origin = next_origin;
+    line_entry = next_line;
+    match exit {
+        CastPatternIntroducerErrorExit::Target => cast_target_introducer_normalized(
+            i,
+            item,
+            baseline,
+            stops,
+            line_handoff,
             item_origin,
             line_entry,
             fence,
+            ambient,
+            sequence,
+        ),
+        CastPatternIntroducerErrorExit::Form => cast_form_normalized(
+            i,
+            item,
             baseline,
             stops,
-            CastVocabulary::Pattern,
-        );
-        if cast_token_kind(&item) == Some(TokenKind::Colon) && cast_gap_allowed(&item, baseline) {
-            i.state.finish_node();
-            return cast_target_introducer_normalized(
-                i,
-                item,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
-        if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
-            i.state.finish_node();
-            return cast_form_normalized(
-                i,
-                item,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
-        if slot_outer_boundary(i.rb(), &item, baseline, stops)
-            || cast_token_kind(&item) == Some(TokenKind::RParen)
-        {
-            if cast_error_owns_eof_leading(&item) {
-                item.emit_eof_leading(&mut *i.state);
-            }
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if cast_token_kind(&item) == Some(TokenKind::LParen) || is_pattern_nud(&item, 0) {
-            i.state.finish_node();
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        ),
+        CastPatternIntroducerErrorExit::Boundary => complete(handoff(item), line_entry),
+        CastPatternIntroducerErrorExit::Pattern => {
             item.emit_all_remaining_leading(&mut *i.state);
             i.state.start_node(SyntaxKind::CastPattern.into());
             let has_local_close = cast_token_kind(&item) == Some(TokenKind::LParen);
@@ -423,8 +419,6 @@ fn cast_pattern_introducer_normalized(
                     stops,
                     CastVocabulary::Pattern,
                 );
-            } else {
-                emit_missing(&mut i, LeadingTrivia::default());
             }
             return cast_pattern_value_normalized(
                 i,
@@ -1348,6 +1342,141 @@ fn cast_error_owns_eof_leading(item: &Item) -> bool {
     item.payload_view().is_eof() && !item.leading_view().contains_line_break()
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CastPatternIntroducerErrorExit {
+    Pattern,
+    Target,
+    Form,
+    Boundary,
+}
+
+fn cast_pattern_introducer_role() -> GrammarRole {
+    GrammarRole::Declaration(DeclarationRole::Cast(CastRole::PatternIntroducer))
+}
+
+fn cast_pattern_introducer_draft(
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let role = cast_pattern_introducer_role();
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
+                Delimiter::Parenthesis,
+            )),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+fn cast_pattern_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
+        cast_pattern_introducer_draft(RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+#[allow(clippy::too_many_arguments)]
+fn cast_pattern_introducer_error_run(
+    i: SyntaxIn,
+    mut item: Item,
+    baseline: usize,
+    stops: Stops,
+    mut origin: usize,
+    mut line: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry, CastPatternIntroducerErrorExit) {
+    emit_recovery_error_run(
+        i,
+        |run| {
+            let start = item.extent(origin).recovery_range().start;
+            loop {
+                let kind = cast_error_syntax_kind(&item);
+                let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+                (item, origin, line) = run.lexical(|lex| {
+                    scan_cast_item_lexical(
+                        lex,
+                        origin,
+                        line,
+                        fence,
+                        baseline,
+                        stops,
+                        CastVocabulary::Pattern,
+                    )
+                });
+                let exit = if cast_token_kind(&item) == Some(TokenKind::Colon)
+                    && cast_gap_allowed(&item, baseline)
+                {
+                    Some(CastPatternIntroducerErrorExit::Target)
+                } else if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
+                    Some(CastPatternIntroducerErrorExit::Form)
+                } else if cast_pattern_introducer_boundary_lex(run, &item, baseline, stops) {
+                    Some(CastPatternIntroducerErrorExit::Boundary)
+                } else if cast_token_kind(&item) == Some(TokenKind::LParen)
+                    || is_pattern_nud(&item, 0)
+                {
+                    Some(CastPatternIntroducerErrorExit::Pattern)
+                } else {
+                    None
+                };
+                if let Some(exit) = exit {
+                    let error_end = if exit == CastPatternIntroducerErrorExit::Boundary
+                        && cast_error_owns_eof_leading(&item)
+                        && !item.extent(origin).remaining().is_empty()
+                    {
+                        run.emit_same_line_eof_leading(&mut item, origin).end
+                    } else {
+                        end
+                    };
+                    run.append_unexpected(UnexpectedSyntax::Token {
+                        range: start..error_end,
+                        category: UnexpectedCategory::OtherCharacter,
+                    });
+                    return (item, origin, line, exit);
+                }
+            }
+        },
+        |range, unexpected| cast_pattern_introducer_draft(RecoveryKind::Error, range, unexpected),
+    )
+}
+
+fn cast_pattern_introducer_boundary_lex(
+    run: &mut crate::cst_output::emit::ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    item: &Item,
+    baseline: usize,
+    stops: Stops,
+) -> bool {
+    item.payload_view().is_boundary()
+        || item.payload_view().is_eof()
+        || !cast_gap_allowed(item, baseline)
+        || run.lexical(|lex| is_active_stop_lex(lex, item, stops))
+        || is_line_stop(item, stops)
+        || is_separator(item)
+        || matches!(
+            cast_token_kind(item),
+            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+        )
+}
+
+fn cast_error_syntax_kind(item: &Item) -> SyntaxKind {
+    token_kind(item)
+        .map(token_syntax_kind)
+        .unwrap_or(SyntaxKind::Operator)
+}
+
 fn cast_gap_allowed(item: &Item, baseline: usize) -> bool {
     crate::lexical::observation::indentation_after_newline(item.leading_view())
         .is_none_or(|indentation| indentation > baseline)
@@ -1389,38 +1518,64 @@ fn cast_item_normalized(
     vocabulary: CastVocabulary,
 ) -> (Item, usize, LineEntry) {
     let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
+    let (item, _, next_line_entry) = i
         .token(|lex| {
-            current_item(
+            Some(scan_cast_item_lexical(
                 lex,
                 item_origin,
                 line_entry,
                 fence,
-                |lex, leading, origin, fence, _| match vocabulary {
-                    CastVocabulary::RawIdentifier => {
-                        scan_identifier(lex).map(|identifier| AcceptedPayload {
-                            payload: CurrentPayload::Token(identifier),
-                            next_line_entry: LineEntry::InLine,
-                        })
-                    }
-                    CastVocabulary::Pattern => {
-                        scan_pattern_nud_payload(lex, leading, origin, fence, 0)
-                    }
-                    CastVocabulary::Type => scan_type_nud_payload(lex, leading, origin, fence),
-                    CastVocabulary::Statement => {
-                        scan_statement_payload(lex, leading, origin, fence, baseline, stops)
-                    }
-                },
-            )
+                baseline,
+                stops,
+                vocabulary,
+            ))
         })
         .expect("Cast declaration payload scanning is total");
     (
         item,
         advanced_origin(item_origin, entry, i),
         next_line_entry,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_cast_item_lexical(
+    i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    baseline: usize,
+    stops: Stops,
+    vocabulary: CastVocabulary,
+) -> (Item, usize, LineEntry) {
+    let (current, consumed) = i.with_str(|lex| {
+        current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |lex, leading, origin, fence, _| match vocabulary {
+                CastVocabulary::RawIdentifier => {
+                    scan_identifier(lex).map(|identifier| AcceptedPayload {
+                        payload: CurrentPayload::Token(identifier),
+                        next_line_entry: LineEntry::InLine,
+                    })
+                }
+                CastVocabulary::Pattern => scan_pattern_nud_payload(lex, leading, origin, fence, 0),
+                CastVocabulary::Type => scan_type_nud_payload(lex, leading, origin, fence),
+                CastVocabulary::Statement => {
+                    scan_statement_payload(lex, leading, origin, fence, baseline, stops)
+                }
+            },
+        )
+        .expect("Cast declaration payload scanning is total")
+    });
+    (
+        current.item,
+        item_origin
+            .checked_add(consumed.len())
+            .expect("Cast declaration coordinate fits usize"),
+        current.next_line_entry,
     )
 }
 

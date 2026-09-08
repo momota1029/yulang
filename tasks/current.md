@@ -1,6 +1,6 @@
 # Current task: complete and adopt the successor syntax phase
 
-Updated: 2026-09-08. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-09. Branch: `yulang3`; do not modify frozen `main`.
 
 ## Objective and current authority
 
@@ -34,6 +34,16 @@ The user-authorized topology cleanup has no generic internal umbrella.
 output boundaries. Public exports, syntax behavior and test contracts are
 unchanged. Dated design and daily records retain their historical paths;
 current source links and test commands name their direct owners.
+
+The Cast PatternIntroducer gate is complete under
+`2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
+Its Missing/Error sites now publish the existing Cast role with the required
+open-parenthesis expectation; malformed retry to a bare Pattern no longer
+duplicates Missing after Error. The sealed Error capability keeps nonempty
+same-line EOF leading in the Error and extends its record/fact extent with it;
+empty/newline EOF leading remains outside. Pattern value/close, target and
+body remain separate open Cast owners. Cast: 12; direct Pattern/required-Type/
+recovery-output: 84; package/format/diff passed. Benchmark use: zero.
 
 The shared Call/Parenthesized/EffectRow ordinary-horizontal correction is
 complete under the recovery authority amendment §4 and the retained P/E

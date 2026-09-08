@@ -1,3 +1,4 @@
+use crate::recovery_record::{CastRole, RecoveryKind};
 use crate::tests::support::*;
 
 fn declaration(green: &GreenNode) -> SyntaxNode {
@@ -25,6 +26,137 @@ fn pending_item(exit: Option<NormalizedExit>) -> Item {
         Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
         Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) => end.item,
         _ => panic!("Cast witness must return one pending Item"),
+    }
+}
+
+fn typed_cast<'s, 'frozen>(
+    source: &'s str,
+    origin: usize,
+    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+) -> (
+    GreenNode,
+    Option<NormalizedExit>,
+    Vec<CommittedRecoveryRecord>,
+    &'s str,
+) {
+    typed_cast_at(source, origin, frozen, stops, LineEntry::InLine, fence)
+}
+
+fn typed_cast_at<'s, 'frozen>(
+    source: &'s str,
+    origin: usize,
+    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
+    stops: Stops,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (
+    GreenNode,
+    Option<NormalizedExit>,
+    Vec<CommittedRecoveryRecord>,
+    &'s str,
+) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = cast_declaration_witness(
+        In::new(&mut input, &mut recover, &mut builder),
+        0,
+        stops,
+        crate::statement::StatementLineHandoff::OrdinaryLayout,
+        origin,
+        line_entry,
+        fence,
+    );
+    builder.finish_node();
+    let (green, records) = builder.finish_with_recoveries();
+    (green, exit, records, input)
+}
+
+fn pattern_introducer_record(
+    id: u32,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+) -> CommittedRecoveryRecord {
+    use crate::recovery_record::{
+        DeclarationRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        PunctuationEvidence, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
+        UnexpectedSyntax,
+    };
+    use std::sync::Arc;
+
+    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::PatternIntroducer));
+    let unexpected = if kind == RecoveryKind::Error {
+        Arc::from([UnexpectedSyntax::Token {
+            range: range.clone(),
+            category: UnexpectedCategory::OtherCharacter,
+        }])
+    } else {
+        Arc::from([])
+    };
+    CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
+                Delimiter::Parenthesis,
+            )),
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }
+}
+
+#[test]
+fn cast_pattern_introducer_records_are_exact_shifted_and_reconciled() {
+    for origin in [100, 12_000] {
+        for (source, stops, kind, relative_range) in [
+            ("cast", 0, RecoveryKind::Missing, 4..4),
+            ("cast x", 0, RecoveryKind::Missing, 5..5),
+            ("cast;", 0, RecoveryKind::Missing, 4..4),
+            ("cast: T;", 0, RecoveryKind::Missing, 4..4),
+            ("cast= x", 0, RecoveryKind::Missing, 4..4),
+            ("cast )", 0, RecoveryKind::Missing, 4..4),
+            ("cast else tail", STOP_ELSE, RecoveryKind::Missing, 4..4),
+            ("cast @", 0, RecoveryKind::Error, 5..6),
+            ("cast @ x", 0, RecoveryKind::Error, 5..6),
+            ("cast @ # x", 0, RecoveryKind::Error, 5..8),
+            ("cast @ (x): T;", 0, RecoveryKind::Error, 5..6),
+            ("cast @ : T;", 0, RecoveryKind::Error, 5..6),
+            ("cast @ = x", 0, RecoveryKind::Error, 5..6),
+            ("cast @ )", 0, RecoveryKind::Error, 5..6),
+            ("cast @   ", 0, RecoveryKind::Error, 5..9),
+            ("cast @\r\n", 0, RecoveryKind::Error, 5..6),
+            ("cast @ あ x", 0, RecoveryKind::Error, 5..6),
+        ] {
+            let range = origin + relative_range.start..origin + relative_range.end;
+            let expected = [pattern_introducer_record(0, kind, range)];
+            let (green, _, records, remainder) = typed_cast(source, origin, None, stops, None);
+            assert_eq!(records, expected, "{source:?} at {origin}");
+            let (again, _, frozen, frozen_remainder) =
+                typed_cast(source, origin, Some(&records), stops, None);
+            assert_eq!(again, green, "{source:?} at {origin}");
+            assert_eq!(frozen, records, "{source:?} at {origin}");
+            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
+
+            let mut seeded = records.clone();
+            seeded[0].id = crate::recovery_record::DiagnosticId(71);
+            let (seeded_green, _, seeded_records, seeded_remainder) =
+                typed_cast(source, origin, Some(&seeded), stops, None);
+            assert_eq!(seeded_green, green, "{source:?} at {origin}");
+            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
+            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+        }
     }
 }
 
@@ -563,4 +695,22 @@ fn cast_fence_and_origin_boundary_remain_outer_owned() {
         pending.into_kind(),
         Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
     ));
+
+    let (_, _, records, typed_remainder) = typed_cast_at(
+        &source,
+        origin,
+        None,
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    assert_eq!(typed_remainder, "> > ```\r\nouter");
+    assert_eq!(
+        records,
+        [pattern_introducer_record(
+            0,
+            RecoveryKind::Error,
+            origin + "> > cast ".len()..origin + accepted.len(),
+        )]
+    );
 }

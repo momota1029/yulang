@@ -91,6 +91,29 @@ impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
         self.unexpected.push(unexpected);
     }
 
+    /// Emits a contiguous same-line EOF-leading suffix while the Error node is
+    /// still open. The suffix is physical Error content, so it extends the
+    /// Error and record extents even though EOF itself is not a token.
+    pub(crate) fn emit_same_line_eof_leading(
+        &mut self,
+        item: &mut Item,
+        successor_origin: usize,
+    ) -> Range<usize> {
+        self.assert_unsealed();
+        assert!(item.payload_view().is_eof(), "only EOF has EOF leading");
+        assert!(
+            !item.leading_view().contains_line_break(),
+            "an Error never consumes newline EOF leading"
+        );
+        let extent = item.extent(successor_origin).remaining();
+        assert!(!extent.is_empty(), "EOF Error leading is nonempty");
+        self.include_extent(extent);
+        item.emit_eof_leading(&mut *self.input.state);
+        self.error_node_extent
+            .clone()
+            .expect("EOF leading extends a nonempty Error")
+    }
+
     /// Extends only the committed diagnostic record through one unchanged
     /// retry Item's contiguous same-line leading. Success makes this
     /// capability terminal; ineligible Items leave it open and unchanged.
