@@ -1,14 +1,24 @@
 //! Direct canonical equality-form `type` declaration construction.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::recovery_record::{DeclarationRole, GrammarRole, TypeDeclarationRole};
+use crate::recovery_record::{
+    DeclarationRole, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
+    RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeDeclarationRole, UnexpectedCategory,
+    UnexpectedSyntax,
+};
 use reborrow_generic::Reborrow as _;
+use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cst_output::emit::{emit_missing, emit_token_item},
-    cursor::SyntaxIn,
+    cst_output::{
+        RecoveryDraft,
+        emit::{
+            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
+        },
+    },
+    cursor::{LexIn, SyntaxIn},
     declaration::{
         declaration_companion::declaration_companion_normalized,
         derives::{derives_clause_normalized, is_word},
@@ -23,7 +33,8 @@ use crate::{
             scan_type_nud_payload, source_identifier,
         },
         observation::{
-            implicit_delimited_newline, indentation_after_newline, is_active_stop, token_kind,
+            implicit_delimited_newline, indentation_after_newline, is_active_stop,
+            is_active_stop_lex, token_kind,
         },
         position::{advanced_origin, suffix_marker},
         stops::{STOP_SEMICOLON, Stops},
@@ -159,66 +170,46 @@ fn required_name_normalized(
     line_entry: &mut LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> NameResult {
-    if item.payload_view().is_boundary() {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(item);
-    }
-    if item.payload_view().is_eof() {
-        item.emit_eof_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(item);
-    }
-    if item.leading_view().is_grammar_empty() || !gtype_item_allowed(&item, baseline) {
-        emit_missing(&mut i, LeadingTrivia::default());
+    if header_boundary(i.rb(), &item, baseline, stops)
+        || item.leading_view().is_grammar_empty()
+        || !gtype_item_allowed(&item, baseline)
+    {
+        emit_header_missing(i.rb(), &mut item, *item_origin, TypeDeclarationRole::Name);
         return Err(item);
     }
     item.emit_all_remaining_leading(&mut *i.state);
     if token_kind(&item) == Some(TokenKind::Equals) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_header_missing(i.rb(), &mut item, *item_origin, TypeDeclarationRole::Name);
         return Ok(Some(item));
-    }
-    if header_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
-        return Err(item);
     }
     if raw_name(&item) {
         emit_token_item(&mut i, item);
         return Ok(None);
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let (next, next_origin, next_entry) =
-            type_item_normalized(i.rb(), *item_origin, *line_entry, fence, true);
-        *item_origin = next_origin;
-        *line_entry = next_entry;
-        item = next;
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return Err(item);
-        }
-        if item.payload_view().is_eof() {
+    (item, *item_origin, *line_entry) = retry_header(
+        i.rb(),
+        item,
+        *item_origin,
+        *line_entry,
+        baseline,
+        stops,
+        fence,
+        TypeDeclarationRole::Name,
+    );
+    if header_boundary(i.rb(), &item, baseline, stops) || !gtype_item_allowed(&item, baseline) {
+        if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
             item.emit_eof_leading(&mut *i.state);
-            i.state.finish_node();
-            return Err(item);
         }
-        if !gtype_item_allowed(&item, baseline) || header_boundary(i.rb(), &item, baseline, stops) {
-            i.state.finish_node();
-            return Err(item);
-        }
-        if token_kind(&item) == Some(TokenKind::Equals) {
-            emit_item_leading(&mut i, &mut item);
-            i.state.finish_node();
-            return Ok(Some(item));
-        }
-        if raw_name(&item) {
-            emit_item_leading(&mut i, &mut item);
-            i.state.finish_node();
-            emit_token_item(&mut i, item);
-            return Ok(None);
-        }
+        return Err(item);
     }
+    emit_item_leading(&mut i, &mut item);
+    if token_kind(&item) == Some(TokenKind::Equals) {
+        return Ok(Some(item));
+    }
+    debug_assert!(raw_name(&item));
+    emit_token_item(&mut i, item);
+    Ok(None)
 }
 
 fn parameters_normalized(
@@ -387,20 +378,32 @@ fn definition_from_item_normalized(
         }
         TypeDeclarationForm::EqualityRecovery => {}
     }
-    if !name_was_incomplete && gtype_item_allowed(&item, baseline) {
-        emit_item_leading(&mut i, &mut item);
-    }
     if !name_was_incomplete && !gtype_item_allowed(&item, baseline) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_header_missing(
+            i.rb(),
+            &mut item,
+            item_origin,
+            TypeDeclarationRole::DefinitionIntroducer,
+        );
         return complete(handoff(item), line_entry);
     }
     if definition_boundary(i.rb(), &item, baseline, stops) {
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_header_missing(
+            i.rb(),
+            &mut item,
+            item_origin,
+            TypeDeclarationRole::DefinitionIntroducer,
+        );
         return complete(handoff(item), line_entry);
     }
+    item.emit_all_remaining_leading(&mut *i.state);
     if type_starter(&item) {
-        item.emit_all_remaining_leading(&mut *i.state);
-        emit_missing(&mut i, LeadingTrivia::default());
+        emit_header_missing(
+            i.rb(),
+            &mut item,
+            item_origin,
+            TypeDeclarationRole::DefinitionIntroducer,
+        );
         return rhs_item_normalized(
             i,
             item,
@@ -415,62 +418,50 @@ fn definition_from_item_normalized(
         );
     }
 
-    i.state.start_node(SyntaxKind::Error.into());
-    loop {
-        emit_token_item(&mut i, item);
-        let (next, next_origin, next_entry) =
-            type_item_normalized(i.rb(), item_origin, line_entry, fence, false);
-        item = next;
-        item_origin = next_origin;
-        line_entry = next_entry;
-        if item.payload_view().is_boundary() {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if item.payload_view().is_eof() {
+    (item, item_origin, line_entry) = retry_header(
+        i.rb(),
+        item,
+        item_origin,
+        line_entry,
+        baseline,
+        stops,
+        fence,
+        TypeDeclarationRole::DefinitionIntroducer,
+    );
+    if !gtype_item_allowed(&item, baseline) || definition_boundary(i.rb(), &item, baseline, stops) {
+        if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
             item.emit_eof_leading(&mut *i.state);
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
         }
-        if !gtype_item_allowed(&item, baseline)
-            || definition_boundary(i.rb(), &item, baseline, stops)
-        {
-            i.state.finish_node();
-            return complete(handoff(item), line_entry);
-        }
-        if token_kind(&item) == Some(TokenKind::Equals) {
-            emit_item_leading(&mut i, &mut item);
-            i.state.finish_node();
-            emit_token_item(&mut i, item);
-            return rhs_normalized(
-                i,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
-        if type_starter(&item) {
-            emit_item_leading(&mut i, &mut item);
-            i.state.finish_node();
-            return rhs_item_normalized(
-                i,
-                item,
-                baseline,
-                stops,
-                line_handoff,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-                sequence,
-            );
-        }
+        return complete(handoff(item), line_entry);
     }
+    emit_item_leading(&mut i, &mut item);
+    if token_kind(&item) == Some(TokenKind::Equals) {
+        emit_token_item(&mut i, item);
+        return rhs_normalized(
+            i,
+            baseline,
+            stops,
+            line_handoff,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+            sequence,
+        );
+    }
+    debug_assert!(type_starter(&item));
+    rhs_item_normalized(
+        i,
+        item,
+        baseline,
+        stops,
+        line_handoff,
+        item_origin,
+        line_entry,
+        fence,
+        ambient,
+        sequence,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -816,10 +807,15 @@ fn trailing_role_boundary() -> TypeOuterBoundary {
 }
 
 fn header_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {
+    i.token(|lex| Some(header_boundary_lex(lex, item, baseline, stops)))
+        .expect("header observation is total")
+}
+
+fn header_boundary_lex(i: LexIn, item: &Item, baseline: usize, stops: Stops) -> bool {
     item.payload_view().is_boundary()
         || item.payload_view().is_eof()
         || implicit_delimited_newline(baseline, item.leading_view())
-        || is_active_stop(i.rb(), item, stops)
+        || is_active_stop_lex(i, item, stops)
         || matches!(
             token_kind(item),
             Some(TokenKind::Comma | TokenKind::Semicolon)
@@ -940,33 +936,144 @@ fn type_item_normalized(
     fence: Option<&FenceBoundary>,
     raw_identifier: bool,
 ) -> (Item, usize, LineEntry) {
-    let entry = suffix_marker(i.rb());
-    let CurrentItem {
-        item,
-        next_line_entry,
-    } = i
-        .token(|lex| {
-            current_item(
-                lex,
-                item_origin,
-                line_entry,
-                fence,
-                |mut lex, leading, origin, fence, _| {
-                    if raw_identifier && let Some(identifier) = lex.token(scan_identifier) {
-                        return Some(AcceptedPayload {
-                            payload: CurrentPayload::Token(identifier),
-                            next_line_entry: LineEntry::InLine,
-                        });
-                    }
-                    scan_type_nud_payload(lex, leading, origin, fence)
-                },
-            )
-        })
-        .expect("Type declaration payload scanning is total");
+    i.token(|lex| {
+        Some(type_item_lexical(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            raw_identifier,
+        ))
+    })
+    .expect("header scanner is total")
+}
+
+fn type_item_lexical(
+    i: LexIn,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    raw_identifier: bool,
+) -> (Item, usize, LineEntry) {
+    let (
+        CurrentItem {
+            item,
+            next_line_entry,
+        },
+        consumed,
+    ) = i.with_str(|lex| {
+        current_item(
+            lex,
+            item_origin,
+            line_entry,
+            fence,
+            |mut lex, leading, origin, fence, _| {
+                if raw_identifier && let Some(identifier) = lex.token(scan_identifier) {
+                    return Some(AcceptedPayload {
+                        payload: CurrentPayload::Token(identifier),
+                        next_line_entry: LineEntry::InLine,
+                    });
+                }
+                scan_type_nud_payload(lex, leading, origin, fence)
+            },
+        )
+        .expect("Type declaration payload scanning is total")
+    });
     (
         item,
-        advanced_origin(item_origin, entry, i),
+        item_origin
+            .checked_add(consumed.len())
+            .expect("header coordinate fits usize"),
         next_line_entry,
+    )
+}
+
+fn emit_header_missing(i: SyntaxIn, item: &mut Item, origin: usize, role: TypeDeclarationRole) {
+    if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
+        item.emit_eof_leading(&mut *i.state);
+    }
+    let at = item.payload_view().pending_boundary().map_or_else(
+        || item.extent(origin).recovery_range().start,
+        |boundary| boundary.coordinate(),
+    );
+    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
+        header_draft(role, RecoveryKind::Missing, range, Arc::from([]))
+    });
+}
+
+fn header_draft(
+    role: TypeDeclarationRole,
+    kind: RecoveryKind,
+    range: std::ops::Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+) -> RecoveryDraft {
+    let expected = match role {
+        TypeDeclarationRole::Name => ExpectedSyntax::Identifier,
+        TypeDeclarationRole::DefinitionIntroducer => {
+            ExpectedSyntax::Punctuation(PunctuationEvidence::Equals)
+        }
+        _ => unreachable!("header recovery has two roles"),
+    };
+    let role = GrammarRole::Declaration(DeclarationRole::Type(role));
+    RecoveryDraft::new(
+        RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind,
+        unexpected,
+        Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        0,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn retry_header(
+    i: SyntaxIn,
+    mut item: Item,
+    mut origin: usize,
+    mut line: LineEntry,
+    baseline: usize,
+    stops: Stops,
+    fence: Option<&FenceBoundary>,
+    role: TypeDeclarationRole,
+) -> (Item, usize, LineEntry) {
+    let name = role == TypeDeclarationRole::Name;
+    emit_recovery_error_run(
+        i,
+        |run| loop {
+            let kind = match token_kind(&item).expect("header Error owns lexical Items") {
+                TokenKind::Operator => SyntaxKind::Operator,
+                kind => token_syntax_kind(kind),
+            };
+            let range = run.emit_item_as(item, origin, kind).recovery_range();
+            run.append_unexpected(UnexpectedSyntax::Token {
+                range,
+                category: UnexpectedCategory::OtherCharacter,
+            });
+            (item, origin, line) =
+                run.lexical(|lex| type_item_lexical(lex, origin, line, fence, name));
+            if run.lexical(|lex| header_boundary_lex(lex, &item, baseline, stops))
+                || (!name
+                    && item_word(&item).is_some_and(|word| {
+                        matches!(word, "with" | "derives") || is_declaration_starter_word(word)
+                    }))
+                || token_kind(&item) == Some(TokenKind::Equals)
+                || if name {
+                    raw_name(&item)
+                } else {
+                    type_starter(&item)
+                }
+            {
+                return (item, origin, line);
+            }
+        },
+        |range, unexpected| header_draft(role, RecoveryKind::Error, range, unexpected),
     )
 }
 

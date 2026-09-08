@@ -292,15 +292,7 @@ pub(crate) enum VariantDeclarationRole {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum TypeDeclarationRole {
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     Name,
-    #[allow(
-        dead_code,
-        reason = "typed recovery vocabulary retained for deferred owner migration"
-    )]
     DefinitionIntroducer,
     Rhs,
     #[allow(

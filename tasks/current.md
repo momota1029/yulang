@@ -547,6 +547,8 @@ recovery-equality prerequisite.
    Separator and Catch-close slots are complete; continue with a distinct
    remaining owner rather than reopening that family wholesale. For Pattern,
    `in`, body-introducer and shallow Body slots are also complete.
+   TypeDeclaration Name and equality DefinitionIntroducer are complete; its
+   typed RHS remains a separate existing owner.
 2. Complete the typed-output owner ledger, actual embedded/header-full proof,
    and remaining public integration gates. T2/T3/T4 local evidence does not
    close aggregate O6 rows. Production Yumark and virtual-context adoption
