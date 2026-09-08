@@ -323,8 +323,8 @@ Public-cutover foundations are implemented under
 `2026-09-08-successor-public-cutover-priority-amendment.md`. HeaderInfo retains
 private source identity and `parse_file` rejects a distinct source before
 construction; scoped header reconciliation prevents full-only records from
-consuming later frozen header IDs. Header/root rewrite entries, public
-integration and legacy removal remain the immediate gate.
+consuming later frozen header IDs. The rewrite public entry, public integration
+and atomic legacy removal are complete.
 
 The private rewrite Header/Root entry is implemented. Header discovery shares
 Use and OperatorHeader construction, projects imports atomically, preserves
@@ -345,7 +345,7 @@ provenance and fence recovery/continuation. A public fence fixture exposed and
 repaired raw rejected-operator emission in Root Error. The accepted Yumark NUD
 owner remains open; its current public proof is recovery/continuation only.
 Final `yu-syntax`/workspace validation and atomic legacy parser deletion are
-now the immediate gate.
+complete.
 
 The first full successor-only lib run after removing the legacy tree passed
 1057 tests with 3 failures and 1 ignored. Two are the recorded `my role =
@@ -353,17 +353,15 @@ value` and `(a +\nb)` baselines. The third,
 `virtual_colon_errors_keep_close_eof_and_quoted_fence_records_frozen`, was
 reproduced unchanged on detached pre-deletion `62e77291` (3 records versus
 its stale expected 1); it is an unrelated pre-cutover baseline, not a deletion
-regression. Expectations remain untouched. Syntax-reference path correction
-and final deletion review remain before committing removal.
+regression. Expectations remain untouched. Syntax-reference paths were
+historicalized and the final deletion review passed before `dfa481c4`.
 
-Next, continue root Statement and declaration typed-recovery dependencies.
-Root raw recovery, caller body-introducer bypasses,
-Type/other-Pattern/Yumark production context ingress and aggregate/public
-certification remain separate. Extend the same ledger; retain the current
-acceptance contracts, effect-free optional entry and the atomic public cutover
-boundary. No benchmark sample/process has been used.
-The old eighth-terminal proposal is not a required prerequisite.
-No public dispatch has been switched yet.
+Next, continue deferred Statement/declaration typed-recovery dependencies and
+the accepted Yumark NUD/frame-pop owner. Those remain separate from the
+completed public cutover; retain the current acceptance contracts and
+effect-free optional entry. No benchmark sample/process has been used.
+The old eighth-terminal proposal is not a required prerequisite. Public
+dispatch is rewrite-only; the legacy parser tree has been removed.
 
 The pre-Item scalar-frontier evidence plan and reverted primary-completion
 proposal are superseded. Their historical evidence does not create a remaining

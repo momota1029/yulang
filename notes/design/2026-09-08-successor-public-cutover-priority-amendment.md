@@ -1,7 +1,6 @@
 # Successor public cutover priority
 
-Status: Authoritative; public entry construction complete, validation and
-legacy removal pending
+Status: Authoritative; public cutover complete; deferred owner work remains
 
 Date: 2026-09-08
 
@@ -115,12 +114,15 @@ Root never invokes a grammar parser inside Error.
 
 ## Current fact and next gate
 
-Rewrite now owns the public `scan_header` and `parse_file` entries without a
-fallback. `HeaderInfo` retains the discovery records privately and full Root
+Rewrite owns the public `scan_header` and `parse_file` entries without a
+fallback. `HeaderInfo` retains discovery records privately and full Root
 consumes them only through shared header scopes; public pair controls cover
 source identity, recovery/conflict order, imported/local conflict provenance,
-UTF-8/CRLF and fence recovery/continuation. The accepted Yumark NUD owner is
-not yet public; the fence control is recovery/continuation evidence only.
-The immediate gate is final `yu-syntax`/workspace validation followed by
-atomic removal of the now-unrouted legacy parser tree, not further isolated
-declaration-tail migration.
+UTF-8/CRLF and fence recovery/continuation. The final `yu-syntax` lib target
+was run (1057 passed, three pre-existing unrelated failures and one ignored),
+its zero doctests passed, and workspace/check-graph validation passed. The
+now-unrouted legacy parser tree was removed atomically.
+
+The accepted Yumark NUD/frame-pop owner is not public; the fence control is
+recovery/continuation evidence only. That deferred owner work does not reopen
+the completed public cutover or legacy-removal decision.

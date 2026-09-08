@@ -190,8 +190,9 @@ rewrite; the admitted-argument-only callsite is the exact non-recovery proof,
 not an omitted mandatory slot. EffectRow delegates its slots to D.
 
 The Type/PV private construction inventory is complete. Do not mark O4, O5,
-O6, the overall matrix, or the parser replacement complete from this record.
-No public/root/header dispatch has changed.
+O6 or the overall matrix complete from this record. The limited public parser
+replacement is separately complete under the cutover-priority amendment;
+deferred Yumark and typed-owner rows remain open.
 
 Pattern primary, symbol, alias and alternation sites in `pattern.rs` now have
 zero raw Missing/Error constructors. Its two Error-run producers and shared
@@ -315,7 +316,7 @@ root and declaration-local owners open.
 | `operator_header` shared header signature slots | `OperatorHeader(Name/Fixity/LeftBindingPower/RightBindingPower/DefinitionIntroducer)` | M/E | mandatory signature slot or maximal lexical run | fact commits at exact Equals; body Item stays root-owned | `operator_header::*` | C-private-entry |
 | `header` shared Use/operator discovery | Import slots and OperatorHeader slots | M/E | source-leading shared owner only; opaque body is lexical | all-or-none import facts; scoped frozen IDs only | `header::*`, `use_decl::*`, `operator_header::*` | C-private-entry |
 | `root` top-level sequence/body recovery | `Statement(Starter/Separator/TrailingInput/OperatorDefinitionBody)` and Layout InlineTrivia | M/E | root-start/layout boundary, lexical delimiter-aware Error, or operator body slot | exact pending/End handoff; header scope is leading-only; full records remain fresh | `root::*` | C-private-entry |
-| public `scan_header -> parse_file` | retained header records plus full Root records | scoped frozen / fresh | one rewrite authority; public source identity precedes table build | recovery encounter order precedes conflicts; records are not replayed | `parse::tests::public_rewrite_pair_*` | C-adapter; final/deletion pending |
+| public `scan_header -> parse_file` | retained header records plus full Root records | scoped frozen / fresh | one rewrite authority; public source identity precedes table build | recovery encounter order precedes conflicts; records are not replayed | `parse::tests::public_rewrite_pair_*` | C-cutover; legacy removed at `dfa481c4` |
 
 Pattern literal ownership reaches the mutually
 recursive literal/Expression/Statement graph; it remains O3b work, not an
