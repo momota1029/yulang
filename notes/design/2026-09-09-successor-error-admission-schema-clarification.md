@@ -379,6 +379,43 @@ listed form, including terminal Capture structure and retry ownership, with
 specification and compiler/recovery delta reviews closed. This does not promote
 the slice or cover its delegated child schemas.
 
+## Proposed schema slice: StringInterpolationBody statement sequence
+
+This proposed slice covers only the root-style statement sequence directly in
+`StringInterpolationBody`. It does not define a global `BlockStatementSeparator`
+schema: other block constructors own different successor-leading rules.
+
+```text
+StringInterpolationBody := (Statement | SeparatorMissing | Error+ | BlockStatementSeparator)*
+BlockStatementSeparator := ExplicitSeparator | NewlineSeparator
+```
+
+An accepted explicit separator is a `BlockStatementSeparator` node containing
+its leading, comma/semicolon and successor leading unless that successor is
+EOF, a fence, comma, semicolon or borrowed `}`; malformed successors qualify
+for absorption. An accepted newline separator occurs only after a Statement or
+recovery phase and after those terminal checks. It contains successor remaining
+leading only, so newline before borrowed `}` remains interpolation-owned. A
+required Statement after leading/repeated comma or semicolon is a `Statement`
+wrapper containing `Missing` before that separator. A `SeparatorMissing` is
+instead a direct `Missing` child of `StringInterpolationBody`. Likewise,
+two admitted Statements without a separator receive a direct body Missing for
+the separator position before retrying the second Statement.
+
+A malformed statement run is one maximal adjacent direct Error-token group in
+the body, expected Statement. Its initial and internal remaining leading belong
+to Error; retry/boundary leading remains outside it. An Error run stops at an
+admitted Statement, comma, semicolon, ordinary newline, EOF, borrowed `}` or
+fence. It may retry the admitted Statement without an invented separator
+Missing. Nested statements retain their own slots. `StringInterpolationBody`
+has no close node: interpolation owns the borrowed `}`, then its own close and
+outer terminator recovery follow in preorder.
+
+This is a Draft proposal. Direct CST evidence must cover explicit/newline and
+leading/repeated/trailing separators, direct Missing versus nested child
+Missing, Error retry/newline behavior, UTF-8/fence and public Root source
+conservation before review or promotion.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`
