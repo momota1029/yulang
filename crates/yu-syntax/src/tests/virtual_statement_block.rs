@@ -263,11 +263,13 @@ fn virtual_error_extent_includes_owned_foreign_prefix() {
 }
 
 use crate::{
+    SourceText, SyntaxEnvironment,
     lexical::yumark::{FenceOpener, FencePrefixPolicy},
     literal::{
         StringLiteralExit, scan_string_opener_witness,
         string_literal_with_virtual_statements_witness,
     },
+    parse_file, scan_header,
     virtual_statement_block::{VirtualStatementBlockExit, virtual_statement_block_normalized},
 };
 
@@ -542,6 +544,13 @@ fn virtual_statement_block_returns_exact_fence_boundary_origin_and_line_entry() 
     assert_eq!(input, "> > ```\r\nouter");
     assert_eq!(count(&green, SyntaxKind::Statement), 1);
     assert_eq!(count(&green, SyntaxKind::Missing), 0);
+    let root = SyntaxNode::new_root(green);
+    let body = interpolation_body(&root);
+    assert_eq!(
+        direct_shape(&body),
+        [(SyntaxKind::Statement, 0..accepted.len(), accepted.into())]
+    );
+    assert_eq!(body.parent(), Some(root));
 }
 
 #[test]
@@ -586,4 +595,280 @@ fn virtual_statement_block_resumes_literal_text_after_the_outer_close() {
     );
     assert_eq!(count(&green, SyntaxKind::Missing), 0);
     assert_eq!(count(&green, SyntaxKind::Error), 0);
+}
+
+fn range_of(element: &rowan::NodeOrToken<SyntaxNode, crate::SyntaxToken>) -> Range<usize> {
+    usize::from(element.text_range().start())..usize::from(element.text_range().end())
+}
+
+fn direct_shape(node: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>, String)> {
+    node.children_with_tokens()
+        .map(|element| (element.kind(), range_of(&element), element.to_string()))
+        .collect()
+}
+
+fn interpolation_body(root: &SyntaxNode) -> SyntaxNode {
+    root.descendants()
+        .find(|node| node.kind() == SyntaxKind::StringInterpolationBody)
+        .expect("StringInterpolationBody")
+}
+
+#[test]
+fn interpolation_body_cst_distinguishes_statement_and_separator_missing_slots() {
+    // Leading and repeated explicit separators require a Statement wrapper;
+    // the zero-width Missing belongs to that wrapper, never directly to Body.
+    let source = "\"%{,;x,,y}後\"";
+    let (green, exit, remainder) = run_virtual_string(source, 0, &plain_fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let body = interpolation_body(&root);
+    assert_eq!(
+        direct_shape(&body),
+        [
+            (SyntaxKind::Statement, 3..3, "".into()),
+            (SyntaxKind::BlockStatementSeparator, 3..4, ",".into()),
+            (SyntaxKind::Statement, 4..4, "".into()),
+            (SyntaxKind::BlockStatementSeparator, 4..5, ";".into()),
+            (SyntaxKind::Statement, 5..6, "x".into()),
+            (SyntaxKind::BlockStatementSeparator, 6..7, ",".into()),
+            (SyntaxKind::Statement, 7..7, "".into()),
+            (SyntaxKind::BlockStatementSeparator, 7..8, ",".into()),
+            (SyntaxKind::Statement, 8..9, "y".into()),
+        ]
+    );
+    for statement in body
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Statement)
+    {
+        if statement.text_range().is_empty() {
+            let missing = statement.first_child().expect("required Statement Missing");
+            assert_eq!(missing.kind(), SyntaxKind::Missing);
+            assert_eq!(missing.parent(), Some(statement));
+        }
+    }
+    assert!(
+        body.children()
+            .all(|node| node.kind() != SyntaxKind::Missing)
+    );
+
+    // A declaration-owned semicolon is not a body separator.  Two admitted
+    // statements consequently create the distinct direct body separator slot.
+    let source = "\"%{role R; value}後\"";
+    let (green, exit, remainder) = run_virtual_string(source, 0, &plain_fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let body = interpolation_body(&root);
+    assert_eq!(
+        direct_shape(&body),
+        [
+            (SyntaxKind::Statement, 3..10, "role R;".into()),
+            (SyntaxKind::Missing, 10..10, "".into()),
+            (SyntaxKind::Statement, 10..16, " value".into()),
+        ]
+    );
+    let separator_missing = body
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .expect("direct body separator Missing");
+    assert_eq!(separator_missing.parent(), Some(body));
+
+    // A trailing explicit separator terminates at the borrowed close and does
+    // not manufacture another required Statement.
+    let (green, exit, remainder) = run_virtual_string("\"%{x,}後\"", 0, &plain_fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let body = interpolation_body(&root);
+    assert_eq!(
+        direct_shape(&body),
+        [
+            (SyntaxKind::Statement, 3..4, "x".into()),
+            (SyntaxKind::BlockStatementSeparator, 4..5, ",".into()),
+        ]
+    );
+}
+
+#[test]
+fn interpolation_body_cst_owns_error_groups_separators_and_terminal_leading() {
+    // Error stops at an ordinary newline.  The newline separator, rather than
+    // Error, owns the successor leading before the retried Statement.
+    let source = "\"%{@\n x}後\"";
+    let (green, exit, remainder) = run_virtual_string(source, 0, &plain_fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let body = interpolation_body(&root);
+    assert_eq!(
+        direct_shape(&body),
+        [
+            (SyntaxKind::Error, 3..4, "@".into()),
+            (SyntaxKind::BlockStatementSeparator, 4..6, "\n ".into()),
+            (SyntaxKind::Statement, 6..7, "x".into()),
+        ]
+    );
+    let separator = body
+        .children()
+        .find(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+        .expect("newline separator");
+    assert_eq!(
+        direct_shape(&separator),
+        [
+            (SyntaxKind::Newline, 4..5, "\n".into()),
+            (SyntaxKind::Whitespace, 5..6, " ".into()),
+        ]
+    );
+
+    // Explicit separators absorb their successor leading, but a raw retry is
+    // still a direct body Error leaf and never a wrapper node.
+    let source = "\"%{x,  @,y}後\"";
+    let (green, exit, remainder) = run_virtual_string(source, 0, &plain_fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let body = interpolation_body(&root);
+    assert_eq!(
+        direct_shape(&body),
+        [
+            (SyntaxKind::Statement, 3..4, "x".into()),
+            (SyntaxKind::BlockStatementSeparator, 4..7, ",  ".into()),
+            (SyntaxKind::Error, 7..8, "@".into()),
+            (SyntaxKind::BlockStatementSeparator, 8..9, ",".into()),
+            (SyntaxKind::Statement, 9..10, "y".into()),
+        ]
+    );
+    let explicit = body
+        .children()
+        .find(|node| node.kind() == SyntaxKind::BlockStatementSeparator)
+        .expect("explicit separator");
+    assert_eq!(
+        direct_shape(&explicit),
+        [
+            (SyntaxKind::Comma, 4..5, ",".into()),
+            (SyntaxKind::Whitespace, 5..7, "  ".into()),
+        ]
+    );
+
+    // An admitted Statement may retry immediately after Error.  That retry
+    // does not invent a body separator Missing, and its leading stays with
+    // the Statement rather than being absorbed by the raw Error leaf.
+    let source = "\"%{@ role R;}後\"";
+    let (green, exit, remainder) = run_virtual_string(source, 0, &plain_fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let body = interpolation_body(&root);
+    assert_eq!(
+        direct_shape(&body),
+        [
+            (SyntaxKind::Error, 3..4, "@".into()),
+            (SyntaxKind::Statement, 4..12, " role R;".into()),
+        ]
+    );
+    assert!(
+        body.children()
+            .all(|node| node.kind() != SyntaxKind::Missing)
+    );
+    let retry = body
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Statement)
+        .expect("admitted Statement retry");
+    assert_eq!(
+        direct_shape(&retry),
+        [(SyntaxKind::RoleDeclaration, 4..12, " role R;".into())]
+    );
+
+    // UTF-8 and Yumark quote fragments are consecutive physical Error leaves
+    // under one body parent; the retry begins only after the comma.
+    let source = "\"%{\r\n> > 💥,α}後\"";
+    let (green, exit, remainder) = run_virtual_string(source, 0, &active_fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let body = interpolation_body(&root);
+    assert_eq!(
+        direct_shape(&body),
+        [
+            (SyntaxKind::Error, 3..5, "\r\n".into()),
+            (SyntaxKind::Error, 5..9, "> > ".into()),
+            (SyntaxKind::Error, 9..13, "💥".into()),
+            (SyntaxKind::BlockStatementSeparator, 13..14, ",".into()),
+            (SyntaxKind::Statement, 14..16, "α".into()),
+        ]
+    );
+    assert!(
+        body.children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Error)
+            .all(|token| token.parent() == Some(body.clone()))
+    );
+
+    // Newline immediately before the borrowed close is terminal body leading:
+    // it remains an interpolation child, not a newline separator node.
+    let (green, exit, remainder) = run_virtual_string("\"%{x\n}後\"", 0, &plain_fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let interpolation = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::StringInterpolation)
+        .expect("interpolation");
+    assert_eq!(
+        direct_shape(&interpolation),
+        [
+            (SyntaxKind::StringInterpolationPercent, 1..2, "%".into()),
+            (SyntaxKind::StringInterpolationOpenBrace, 2..3, "{".into()),
+            (SyntaxKind::StringInterpolationBody, 3..4, "x".into()),
+            (SyntaxKind::Newline, 4..5, "\n".into()),
+            (SyntaxKind::StringInterpolationCloseBrace, 5..6, "}".into()),
+        ]
+    );
+}
+
+#[test]
+fn interpolation_body_cst_orders_nested_missing_and_preserves_public_root_text() {
+    // The Virtual required Statement, interpolation close and StringLiteral
+    // terminator can share offsets.  Their parent paths, not recovery records,
+    // distinguish the three slots.
+    let source = "\"%{,";
+    let (green, exit, remainder) = run_virtual_string(source, 0, &plain_fence());
+    assert!(matches!(exit, StringLiteralExit::Boundary(_)));
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let literal = root.first_child().expect("StringLiteral");
+    let interpolation = literal
+        .children()
+        .find(|node| node.kind() == SyntaxKind::StringInterpolation)
+        .expect("interpolation");
+    let body = interpolation_body(&root);
+    let missing = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(missing.len(), 3);
+    assert_eq!(
+        missing
+            .iter()
+            .map(|node| range_of(&node.clone().into()))
+            .collect::<Vec<_>>(),
+        [3..3, 4..4, 4..4]
+    );
+    assert_eq!(missing[0].parent().unwrap().kind(), SyntaxKind::Statement);
+    assert_eq!(missing[0].parent().unwrap().parent(), Some(body));
+    assert_eq!(missing[1].parent(), Some(interpolation));
+    assert_eq!(missing[2].parent(), Some(literal));
+
+    // The public parse completes terminal ownership: the direct Rowan Root
+    // retains every byte, including interpolation separators and EOF leading.
+    for source in ["\"%{@\n x}後\" // tail", "\"%{x\r\ny}後\"\r\n", "\"%{  "] {
+        let source: Arc<SourceText> = Arc::from(source);
+        let header = Arc::new(scan_header(Arc::clone(&source)));
+        let parsed = parse_file(
+            Arc::clone(&source),
+            header,
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+    }
 }
