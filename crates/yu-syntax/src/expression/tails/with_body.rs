@@ -5,10 +5,10 @@ use super::inline_slot::{
     is_inline_slot_boundary,
 };
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cst_output::emit::{
+use crate::cursor::SyntaxIn;
+use crate::cursor::recovery::emit::{
     emit_recovery_error_run, emit_token_item, emit_with_keyword, token_syntax_kind,
 };
-use crate::cursor::SyntaxIn;
 use crate::handoff::{Either, NormalizedExit, complete, handoff};
 use crate::lexical::current_item::LineEntry;
 use crate::lexical::expression_item::expression_item;
@@ -30,7 +30,6 @@ use crate::statement::{
     indented_statement_block_normalized, scan_statement_item_lexical, statement_item_normalized,
 };
 use crate::syntax_kind::SyntaxKind;
-use reborrow_generic::Reborrow as _;
 
 /// The terminal generic `with:` continuation. Its body is an existing direct
 /// Statement callee, never a target-owning or replayed expression parser.

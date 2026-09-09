@@ -226,19 +226,22 @@ fn header_recovery_records_are_exact_shifted_and_frozen() {
                 } else {
                     vec![reused]
                 };
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = if mode != 0 {
-                    GreenNodeBuilder::reconcile(&records)
+                    {
+                        recover = Recover::reconcile_for_test(recover.operators(), &records);
+                        GreenNodeBuilder::new()
+                    }
                 } else {
                     GreenNodeBuilder::new()
                 };
-                let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
                 let mut input = source.as_str();
                 output.start_node(SyntaxKind::Root.into());
                 if mode == 2 {
                     output.start_node(SyntaxKind::Missing.into());
                     output.finish_node();
-                    output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+                    recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
                         seed.site,
                         seed.kind,
                         seed.unexpected,
@@ -247,7 +250,7 @@ fn header_recovery_records_are_exact_shifted_and_frozen() {
                     ));
                 }
                 let exit = crate::declaration::enum_decl::enum_declaration_witness(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     0,
                     if source.ends_with(']') {
                         stops_for(TokenKind::RBracket)
@@ -260,7 +263,7 @@ fn header_recovery_records_are_exact_shifted_and_frozen() {
                     source.contains("\r\n>").then_some(&fence),
                 );
                 output.finish_node();
-                let (green, actual) = output.finish_with_recoveries();
+                let (green, actual) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(actual, records, "{source:?}");
                 if source.contains("@ \t@") {
                     let node = declaration(&green);
@@ -337,14 +340,17 @@ fn clean_header_keeps_foreign_prefix_without_body_introducer_recovery() {
             let source = "enum 名\r\n> foreign";
             let mut input = source;
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
+            let mut recover = Recover::new_for_test(&operators);
             let expected = if mode == 2 {
                 vec![seed.clone()]
             } else {
                 vec![]
             };
             let mut output = if mode != 0 {
-                GreenNodeBuilder::reconcile(&expected)
+                {
+                    recover = Recover::reconcile_for_test(recover.operators(), &expected);
+                    GreenNodeBuilder::new()
+                }
             } else {
                 GreenNodeBuilder::new()
             };
@@ -352,7 +358,7 @@ fn clean_header_keeps_foreign_prefix_without_body_introducer_recovery() {
             if mode == 2 {
                 output.start_node(SyntaxKind::Missing.into());
                 output.finish_node();
-                output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+                recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
                     seed.site.clone(),
                     seed.kind,
                     seed.unexpected.clone(),
@@ -361,7 +367,7 @@ fn clean_header_keeps_foreign_prefix_without_body_introducer_recovery() {
                 ));
             }
             let exit = crate::declaration::enum_decl::enum_declaration_witness(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 0,
                 0,
                 crate::statement::StatementLineHandoff::OrdinaryLayout,
@@ -370,7 +376,7 @@ fn clean_header_keeps_foreign_prefix_without_body_introducer_recovery() {
                 Some(&fence),
             );
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(records, expected);
             assert_eq!(green.to_string(), "enum 名");
             assert_eq!(input, "> foreign");

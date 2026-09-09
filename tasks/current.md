@@ -30,9 +30,14 @@ deferred rows stay open. Private construction is not itself public cutover.
 ## Current gate and immediate next action
 
 The user-authorized topology cleanup has no generic internal umbrella.
-`SyntaxIn` in `cursor.rs` and `CstOutput` in `cst_output/` name the input and
-output boundaries. Public exports, syntax behavior and test contracts are
-unchanged. Dated design and daily records retain their historical paths;
+The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing
+recovery owner and direct Rowan `GreenNodeBuilder`; lexical transactions receive
+only an operator-table `LexRecover` view. No mutable diagnostic-owner borrow
+escapes to `LexIn`.
+`cursor::recovery` owns committed recovery publication and reconciliation.
+The former `CstOutput` wrapper and `cst_output/` module are removed under the
+Rowan CST-only amendment. Public exports and syntax behavior remain unchanged
+in this migration phase. Dated design and daily records retain historical paths;
 current source links and test commands name their direct owners.
 
 The standalone `impl` declaration now has the same responsibility boundary as
@@ -164,7 +169,16 @@ fragments, including its interior trivia and quote-prefix fragments, become
 adjacent `Error` leaves; already-emitted and retry/boundary leading remain with
 their owner. `Invalid` is limited to the two reviewed structured recovery
 owners. The reviewed supersession and notation are user-approved;
-direct-builder construction is the active implementation gate.
+direct-builder construction has passed its focused implementation controls and
+independent delta review. The sealed cursor removes the generic-input
+reconstruction route: `Recover` has no `Recoverable` implementation, production
+construction/finalization is cursor-private, and header reconciliation requires
+the concrete committed cursor. The final focused cursor/recovery/header/root/
+lexical/literal/slot set passed 175 tests. Full-package behavior certification
+ran once: 1,067 tests passed and the only failure was the pre-existing
+`SyntaxKind::Unknown` discriminant assertion (`231` actual, `229` expected) in
+an unmodified file. Its fix is outside this direct-Rowan gate. The Error-token/
+Invalid schema migration remains open.
 `syntax-reference` is rebuilt around
 the same XML-like Rowan node notation, grammar and recovery placement; parser
 internals, commits, fixtures and AST/direct parity leave that public reference.
@@ -718,8 +732,9 @@ tries and table construction. Its separate lexical consumer becomes
 `lexical/operator_scan.rs`; `lexical/stops.rs` owns finite stop masks and
 `lexical/trivia.rs` owns source-only trivia observation. The remaining lexical
 Item/current/scan/fence/position owners stay under `lexical/`. `cursor.rs`
-owns live syntax/lex cursors and recovery state; `cst_output/` owns committed
-green output and recovery reconciliation; `recovery_record.rs` owns the typed
+owns live syntax/lex cursors and recovery state; grammar owners emit directly
+into Rowan, while `cursor::recovery` owns committed diagnostic publication and
+recovery reconciliation; `recovery_record.rs` owns the typed
 recovery vocabulary. `ambient_claim.rs`, `sequence.rs` and `handoff.rs` are
 direct narrowly named shared owners.
 

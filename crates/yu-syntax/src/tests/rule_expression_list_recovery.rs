@@ -24,22 +24,34 @@ fn parse_with_fence(
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
-    let opener = scan_rule_item_witness(In::new(&mut input, &mut recover, ())).unwrap();
+    let opener = scan_rule_item_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .unwrap();
     let current = scan_rule_current_item_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         origin + 1,
         LineEntry::InLine,
         fence,
     );
     let end = origin + source.len() - input.len();
     rule_body_witness(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         opener,
         current.item,
         current.next_line_entry,
@@ -47,7 +59,7 @@ fn parse_with_fence(
         fence,
     );
     output.finish_node();
-    output.finish_with_recoveries()
+    (output.finish(), recover.finish_recoveries_for_test())
 }
 
 fn record(id: u32, role: GrammarRole, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
@@ -210,12 +222,12 @@ fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
         ("\r\n> ```\nouter", true, 102),
     ] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (item, origin, _) = expression_item(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             OperatorSite::Nud,
             100,
             LineEntry::InLine,
@@ -225,7 +237,7 @@ fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
         );
         let mut expected_input = source;
         let (original, _, _) = expression_item(
-            In::new(&mut expected_input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut expected_input, &mut recover, &mut output),
             OperatorSite::Nud,
             100,
             LineEntry::InLine,
@@ -235,7 +247,7 @@ fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
         );
         let suffix = input.to_owned();
         let exit = expression_list_handoff_witness(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             item,
             TokenKind::RParen,
             origin,
@@ -246,7 +258,7 @@ fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
         assert_eq!(pending, original);
         assert_eq!(input, suffix);
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), "");
         assert_eq!(
             records,

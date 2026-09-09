@@ -4,20 +4,19 @@
 //! root-style Statement sequence and its separators, then returns the exact
 //! borrowed close or boundary Item.
 
-use reborrow_generic::Reborrow as _;
 use std::{ops::Range, sync::Arc};
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
     ambient_claim::AmbientClaimContext,
-    cst_output::{
+    cursor::SyntaxIn,
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
         },
     },
-    cursor::SyntaxIn,
     handoff::{Either, NormalizedExit},
     lexical::{
         current_item::LineEntry,

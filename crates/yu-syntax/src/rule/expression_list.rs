@@ -1,7 +1,6 @@
 //! Rule-owned ordinary expression lists for bracket atoms, calls, and indices.
 
 use crate::ambient_claim::AmbientClaimContext;
-use reborrow_generic::Reborrow as _;
 use std::{ops::Range, sync::Arc};
 
 use crate::{
@@ -15,17 +14,17 @@ use crate::{
 };
 
 use crate::{
-    cst_output::{
+    cursor::SyntaxIn,
+    cursor::recovery::{
         RecoveryDraft,
         emit::{emit_recovery_error_item, emit_recovery_missing, token_syntax_kind},
     },
-    cursor::SyntaxIn,
     expression::{expr_from_nud_normalized, is_nud_item},
     handoff::{Either, MlMode, NormalizedExit},
     lexical::{
         current_item::LineEntry,
         expression_item::expression_item,
-        item::{Item, LeadingTrivia, TokenKind, TriviaKind},
+        item::{Item, LeadingTrivia, TokenKind},
         observation::is_close,
         position::{advanced_origin, suffix_marker},
         stops::{STOP_LINE_BREAK, stops_for},
@@ -204,25 +203,20 @@ fn emit_leading_newline_separators(
     let Some(end_part) = item.leading_view().cut_after_last_ordinary_newline() else {
         return false;
     };
-    item.emit_leading_prefix_with_coordinate(
-        &mut *i.state,
+    crate::cursor::recovery::emit::emit_required_slots_before_newlines(
+        i,
+        item,
         end_part,
         origin,
-        |kind, at, output| {
-            if kind == TriviaKind::Newline {
-                if *needs_expression {
-                    output.start_node(SyntaxKind::Missing.into());
-                    output.finish_node();
-                    output.commit_recovery(draft(
-                        GrammarRole::ExpressionList(ExpressionListRole::Item),
-                        RecoveryKind::Missing,
-                        at..at,
-                        Arc::from([]),
-                    ));
-                }
-                *needs_expression = true;
-                *recovery_requires_expression = false;
-            }
+        needs_expression,
+        recovery_requires_expression,
+        |at| {
+            draft(
+                GrammarRole::ExpressionList(ExpressionListRole::Item),
+                RecoveryKind::Missing,
+                at..at,
+                Arc::from([]),
+            )
         },
     );
     true

@@ -2,16 +2,14 @@
 
 use std::{ops::Range, sync::Arc};
 
-use chasa_recover::In;
 use reborrow_generic::Reborrow as _;
 
 use crate::{
-    HeaderCoverage, HeaderImport, HeaderInfo, HeaderOperator, HeaderStop, OperatorTable,
-    SourceText, recovery_record::CommittedRecoveryRecord, syntax_kind::SyntaxKind,
+    HeaderCoverage, HeaderImport, HeaderInfo, HeaderOperator, HeaderStop, SourceText,
+    recovery_record::CommittedRecoveryRecord, syntax_kind::SyntaxKind,
 };
 
 use crate::{
-    cst_output::CstOutput,
     cursor::{LexIn, Recover},
     handoff::{Either, NormalizedExit},
     lexical::{current_item::LineEntry, item::Item},
@@ -48,9 +46,14 @@ pub(super) fn discover_header_with_frozen(
     source: &str,
     frozen: Option<&[CommittedRecoveryRecord]>,
 ) -> HeaderDiscovery {
-    let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
-    let mut output = frozen.map_or_else(CstOutput::new, CstOutput::reconcile_scoped);
+    crate::cursor::discover_header(source, frozen)
+}
+
+pub(crate) fn discover_header_with_cursor(
+    source: &str,
+    recover: &mut Recover,
+    output: &mut rowan::GreenNodeBuilder,
+) -> HeaderDiscovery {
     output.start_node(SyntaxKind::Root.into());
     let mut remaining = source;
     let mut origin = 0;
@@ -60,7 +63,8 @@ pub(super) fn discover_header_with_frozen(
     let mut facts = Vec::new();
     let (coverage_end, stop) = loop {
         let entered_at_start = line == LineEntry::PhysicalStart;
-        let mut i: crate::cursor::SyntaxIn = In::new(&mut remaining, &mut recover, &mut output);
+        let mut i: crate::cursor::SyntaxIn =
+            crate::cursor::SyntaxIn::new(&mut remaining, &mut *recover, &mut *output);
         let mut item = pending.take().unwrap_or_else(|| {
             i.token(|lex| {
                 Some(crate::declaration::next_use_item_lex(
@@ -101,18 +105,14 @@ pub(super) fn discover_header_with_frozen(
         }
         drop(i);
         if is_use {
-            let (exit, batch) = {
-                let mut scope = output.header_reconciliation_scope();
-                crate::declaration::use_declaration_header_normalized(
-                    In::new(&mut remaining, &mut recover, &mut *scope),
-                    item,
-                    0,
-                    0,
-                    origin,
-                    line,
-                    None,
-                )
-            };
+            let (exit, batch) = crate::cursor::recovery::with_header_reconciliation(
+                crate::cursor::SyntaxIn::new(&mut remaining, &mut *recover, &mut *output),
+                |i| {
+                    crate::declaration::use_declaration_header_normalized(
+                        i, item, 0, 0, origin, line, None,
+                    )
+                },
+            );
             imports.extend(batch);
             origin = source.len() - remaining.len();
             let (item, next_line) = match exit {
@@ -124,16 +124,11 @@ pub(super) fn discover_header_with_frozen(
             pending = item;
             line = next_line;
         } else {
-            let (item, next_origin, next_line, fact) = {
-                let mut scope = output.header_reconciliation_scope();
-                crate::declaration::operator_header_normalized(
-                    In::new(&mut remaining, &mut recover, &mut *scope),
-                    item,
-                    origin,
-                    line,
-                    None,
-                )
-            };
+            let (item, next_origin, next_line, fact) =
+                crate::cursor::recovery::with_header_reconciliation(
+                    crate::cursor::SyntaxIn::new(&mut remaining, &mut *recover, &mut *output),
+                    |i| crate::declaration::operator_header_normalized(i, item, origin, line, None),
+                );
             origin = next_origin;
             line = next_line;
             if let Some(fact) = fact {
@@ -142,7 +137,7 @@ pub(super) fn discover_header_with_frozen(
             pending = item;
             if pending.is_none() {
                 let mut i: crate::cursor::SyntaxIn =
-                    In::new(&mut remaining, &mut recover, &mut output);
+                    crate::cursor::SyntaxIn::new(&mut remaining, &mut *recover, &mut *output);
                 let ((), text) = i
                     .token(|mut lex| {
                         let ((), text) = lex.rb().with_str(|lex| skip_opaque_body(lex));
@@ -156,13 +151,12 @@ pub(super) fn discover_header_with_frozen(
         }
     };
     output.finish_node();
-    let (_, recoveries) = output.finish_with_recoveries();
     HeaderDiscovery {
         coverage: 0..coverage_end,
         stop,
         imports,
         operators: facts,
-        recoveries,
+        recoveries: Vec::new(),
     }
 }
 

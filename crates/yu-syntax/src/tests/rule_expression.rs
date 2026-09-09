@@ -32,14 +32,14 @@ fn parse_with<'s>(
     NormalizedExit,
     &'s str,
 ) {
-    let mut recover = Recover::new(operators);
+    let mut recover = Recover::new_for_test(operators);
     let mut input = source;
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let ambient = Some(AmbientClaimView::root_statement(0)).into();
     let exit = if pattern {
         pattern_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             0,
             LineEntry::InLine,
             fence,
@@ -48,7 +48,7 @@ fn parse_with<'s>(
         )
     } else {
         expr_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             None,
             0,
             0,
@@ -63,7 +63,7 @@ fn parse_with<'s>(
         .expect("ordinary identifier or RuleExpression NUD")
     };
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 

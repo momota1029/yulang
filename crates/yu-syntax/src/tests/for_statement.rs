@@ -197,17 +197,20 @@ fn for_structural_records_are_exact_shifted_and_frozen() {
                 (Some(expected.as_slice()), false),
                 (Some(seeded.as_slice()), true),
             ] {
-                let mut output = frozen
-                    .map(GreenNodeBuilder::reconcile)
-                    .unwrap_or_else(GreenNodeBuilder::new);
                 let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = frozen
+                    .map(|records| {
+                        recover = Recover::reconcile_for_test(recover.operators(), records);
+                        GreenNodeBuilder::new()
+                    })
+                    .unwrap_or_else(GreenNodeBuilder::new);
                 let mut input = source;
                 output.start_node(SyntaxKind::Root.into());
                 if seed_first {
                     output.start_node(SyntaxKind::Missing.into());
                     output.finish_node();
-                    output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+                    recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
                         seed.site.clone(),
                         seed.kind,
                         seed.unexpected.clone(),
@@ -216,7 +219,7 @@ fn for_structural_records_are_exact_shifted_and_frozen() {
                     ));
                 }
                 let exit = statement_normalized(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     0,
                     0,
                     origin,
@@ -226,7 +229,7 @@ fn for_structural_records_are_exact_shifted_and_frozen() {
                     Some(crate::sequence::SequenceOwner::RootStatement),
                 );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(
                     records.as_slice(),
                     if seed_first {
@@ -281,13 +284,13 @@ fn for_structural_records_are_exact_shifted_and_frozen() {
 fn for_pattern_nested_recovery_keeps_its_native_role_without_slot_cascades() {
     use crate::recovery_record::*;
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let source = "for x as @";
     let mut input = source;
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let _ = statement_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         0,
         0,
         0,
@@ -297,7 +300,7 @@ fn for_pattern_nested_recovery_keeps_its_native_role_without_slot_cascades() {
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), source);
     assert_eq!(input, "");
     assert_eq!(

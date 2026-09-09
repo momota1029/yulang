@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 use crate::handoff::End;
+use rowan::GreenNodeBuilder;
 use std::{ops::Range, sync::Arc};
 
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
 };
 
 use crate::{
-    cst_output::{CstOutput, RecoveryDraft},
+    cursor::recovery::RecoveryDraft,
     cursor::{LexIn, SyntaxIn},
     lexical::item::{Item, ItemExtent, LeadingTrivia, TokenKind},
 };
@@ -21,8 +22,8 @@ use crate::{
 /// lexical work, emit already-owned run bytes, append explicit unexpected
 /// evidence, or terminally seal one record through eligible retry leading;
 /// node and diagnostic operations remain owned by the helper.
-pub(crate) struct ErrorRunOutput<'a, 'source, 'recover, 'operators, 'output, 'frozen> {
-    input: SyntaxIn<'a, 'source, 'recover, 'operators, 'output, 'frozen>,
+pub(crate) struct ErrorRunOutput<'a, 'source, 'operators, 'cache> {
+    input: SyntaxIn<'a, 'source, 'operators, 'cache>,
     error_node_extent: Option<Range<usize>>,
     record_extent: Option<Range<usize>>,
     unexpected: Vec<UnexpectedSyntax>,
@@ -48,7 +49,7 @@ pub(crate) enum CallArgumentRetryLeadingSeal {
     Sealed,
 }
 
-impl ErrorRunOutput<'_, '_, '_, '_, '_, '_> {
+impl ErrorRunOutput<'_, '_, '_, '_> {
     pub(crate) fn lexical<O>(&mut self, operation: impl FnOnce(LexIn) -> O) -> O {
         self.assert_unsealed();
         self.input
@@ -245,7 +246,34 @@ pub(crate) fn emit_recovery_missing(
     let range = at..at;
     let draft = make_draft(range.clone());
     draft.assert_emission(RecoveryKind::Missing, &range, &[]);
-    i.state.commit_recovery(draft);
+    i.recover.commit_recovery(draft);
+}
+
+/// Publish required list slots immediately before their already-owned newline.
+pub(crate) fn emit_required_slots_before_newlines(
+    i: &mut SyntaxIn,
+    item: &mut Item,
+    end_part: usize,
+    origin: usize,
+    needs_expression: &mut bool,
+    recovery_requires_expression: &mut bool,
+    make_draft: impl Fn(usize) -> RecoveryDraft,
+) {
+    {
+        let recover = &mut *i.recover;
+        let output = &mut *i.state;
+        item.emit_leading_prefix_with_coordinate(output, end_part, origin, |kind, at, output| {
+            if kind == crate::lexical::item::TriviaKind::Newline {
+                if *needs_expression {
+                    output.start_node(SyntaxKind::Missing.into());
+                    output.finish_node();
+                    recover.commit_recovery(make_draft(at));
+                }
+                *needs_expression = true;
+                *recovery_requires_expression = false;
+            }
+        });
+    }
 }
 
 pub(crate) fn emit_recovery_error_item(
@@ -273,12 +301,12 @@ pub(crate) fn emit_recovery_error_item(
 
 pub(crate) fn emit_recovery_error_run<R>(
     i: SyntaxIn,
-    body: impl FnOnce(&mut ErrorRunOutput<'_, '_, '_, '_, '_, '_>) -> R,
+    body: impl FnOnce(&mut ErrorRunOutput<'_, '_, '_, '_>) -> R,
     make_draft: impl FnOnce(Range<usize>, Arc<[UnexpectedSyntax]>) -> RecoveryDraft,
 ) -> R {
     // This is atomic for normal parser returns: the one node and one record are
     // paired before the helper returns. `body` and `make_draft` are total
-    // post-commit contracts; unwinding invalidates this CstOutput.
+    // post-commit contracts; unwinding invalidates this GreenNodeBuilder.
     i.state.start_node(SyntaxKind::Error.into());
     let mut run = ErrorRunOutput {
         input: i,
@@ -332,7 +360,7 @@ pub(crate) fn emit_recovery_error_run<R>(
     };
     let draft = make_draft(range.clone(), unexpected.clone());
     draft.assert_emission(RecoveryKind::Error, &range, &unexpected);
-    input.state.commit_recovery(draft);
+    input.recover.commit_recovery(draft);
     result
 }
 
@@ -416,7 +444,7 @@ pub(crate) fn emit_fragmented_item(i: &mut SyntaxIn, item: Item) {
 
 /// The enclosing owner emits accepted EOF trivia after receiving `End`.
 #[cfg(test)]
-pub(crate) fn emit_end(output: &mut CstOutput, end: &mut End) {
+pub(crate) fn emit_end(output: &mut GreenNodeBuilder, end: &mut End) {
     end.item.emit_eof_leading(output);
 }
 
@@ -424,7 +452,7 @@ fn emit_trivia(i: &mut SyntaxIn, trivia: &LeadingTrivia) {
     emit_trivia_builder(&mut *i.state, trivia);
 }
 
-fn emit_trivia_builder(output: &mut CstOutput, trivia: &LeadingTrivia) {
+fn emit_trivia_builder(output: &mut GreenNodeBuilder, trivia: &LeadingTrivia) {
     trivia.emit(output);
 }
 

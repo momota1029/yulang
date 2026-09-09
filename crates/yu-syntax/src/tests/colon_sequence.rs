@@ -34,14 +34,17 @@ fn parse_fenced<'s>(
     &'s str,
 ) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         None,
         0,
         0,
@@ -55,7 +58,7 @@ fn parse_fenced<'s>(
     )
     .unwrap();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 

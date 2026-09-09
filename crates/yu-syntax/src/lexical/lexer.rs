@@ -1,14 +1,9 @@
 //! Lexical item construction and ordinary trivia ownership for the parser.
 
 #[cfg(test)]
-use crate::{
-    cursor::Recover,
-    lexical::item::{LeadingTrivia, Payload},
-};
-#[cfg(test)]
-use chasa_recover::In;
+use crate::lexical::item::{LeadingTrivia, Payload};
 use chasa_recover::parser::{choice, token};
-use reborrow_generic::short::Rb;
+use reborrow_generic::Reborrow as _;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::lexical::operator_scan::OperatorSite;
@@ -422,10 +417,7 @@ pub(crate) fn is_operator_shaped_unknown(item: &Item) -> bool {
 }
 
 #[cfg(test)]
-pub(crate) fn scan_trivia<S>(mut i: In<'_, &str, &mut Recover<'_>, S>) -> LeadingTrivia
-where
-    S: Rb,
-{
+pub(crate) fn scan_trivia(mut i: LexIn) -> LeadingTrivia {
     let mut parts = Vec::new();
     while let Some(part) = i.token(scan_trivia_part) {
         parts.push(part);

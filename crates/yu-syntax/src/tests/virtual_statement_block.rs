@@ -85,21 +85,24 @@ fn virtual_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
             let mut fresh = None;
             for frozen in [None, Some(expected.as_slice())] {
                 let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
+                let mut recover = Recover::new_for_test(&operators);
                 let mut input = source;
                 let mut output = frozen
-                    .map(GreenNodeBuilder::reconcile)
+                    .map(|records| {
+                        recover = Recover::reconcile_for_test(recover.operators(), records);
+                        GreenNodeBuilder::new()
+                    })
                     .unwrap_or_else(GreenNodeBuilder::new);
                 output.start_node(SyntaxKind::Root.into());
                 let exit = virtual_statement_block_normalized(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     origin,
                     LineEntry::InLine,
                     None,
                     None.into(),
                 );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(records, expected, "{source:?} at {origin}");
                 let VirtualStatementBlockExit::Close(item, _) = exit else {
                     panic!("pending close for {source:?}")
@@ -131,19 +134,19 @@ fn virtual_error_keeps_terminal_leading_and_source_suffix() {
         ),
     ] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let exit = virtual_statement_block_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             300,
             LineEntry::InLine,
             fence.as_ref(),
             None.into(),
         );
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), " @");
         assert_eq!(
             records,
@@ -184,12 +187,15 @@ fn virtual_slots_preserve_seeded_and_frozen_ids_then_allocate_above_them() {
         let reused = virtual_record(19, role, kind, 100 + range.start..100 + range.end);
         let frozen = [seed.clone(), reused.clone()];
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
-        let mut output = GreenNodeBuilder::reconcile(&frozen);
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = {
+            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+            GreenNodeBuilder::new()
+        };
         output.start_node(SyntaxKind::Root.into());
         output.start_node(SyntaxKind::Missing.into());
         output.finish_node();
-        output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
             seed.site.clone(),
             seed.kind,
             seed.unexpected.clone(),
@@ -199,7 +205,7 @@ fn virtual_slots_preserve_seeded_and_frozen_ids_then_allocate_above_them() {
         for origin in [100, 200] {
             let mut input = source;
             let exit = virtual_statement_block_normalized(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 origin,
                 LineEntry::InLine,
                 None,
@@ -208,7 +214,7 @@ fn virtual_slots_preserve_seeded_and_frozen_ids_then_allocate_above_them() {
             assert!(matches!(exit, VirtualStatementBlockExit::Close(_, _)));
         }
         output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(
             records,
             [
@@ -231,21 +237,24 @@ fn virtual_error_extent_includes_owned_foreign_prefix() {
     )];
     for frozen in [None, Some(expected.as_slice())] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = "> > @ 💥 α}";
         let mut output = frozen
-            .map(GreenNodeBuilder::reconcile)
+            .map(|records| {
+                recover = Recover::reconcile_for_test(recover.operators(), records);
+                GreenNodeBuilder::new()
+            })
             .unwrap_or_else(GreenNodeBuilder::new);
         output.start_node(SyntaxKind::Root.into());
         let exit = virtual_statement_block_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             400,
             LineEntry::PhysicalStart,
             Some(&fence),
             None.into(),
         );
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(records, expected);
         assert_eq!(green.to_string(), "> > @ 💥 α");
         assert!(matches!(exit, VirtualStatementBlockExit::Close(_, _)));
@@ -292,24 +301,32 @@ fn run_virtual_string<'source>(
     fence: &FenceBoundary,
 ) -> (GreenNode, StringLiteralExit, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let (opener, mode) =
-        scan_string_opener_witness(In::new(&mut input, &mut recover, ())).expect("string opener");
+    let (opener, mode) = scan_string_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .expect("string opener");
     let interior_origin = origin
         .checked_add(opener.payload_view().spelling().expect("opener text").len())
         .expect("literal origin");
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = string_literal_with_virtual_statements_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         opener,
         mode,
         interior_origin,
         fence,
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        input,
+    )
 }
 
 fn count(green: &GreenNode, kind: SyntaxKind) -> usize {
@@ -365,19 +382,19 @@ fn virtual_statement_block_accepts_empty_and_leaves_close_leading_to_the_interpo
 #[test]
 fn virtual_statement_block_returns_the_exact_unmodified_close_item() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = " \t}tail";
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = virtual_statement_block_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         400,
         LineEntry::InLine,
         Some(&plain_fence()),
         None.into(),
     );
     builder.finish_node();
-    let green = builder.finish();
+    let green = finish_without_recoveries(builder, recover);
     let VirtualStatementBlockExit::Close(mut item, LineEntry::InLine) = exit else {
         panic!("empty virtual block must borrow its close")
     };
@@ -488,13 +505,13 @@ fn virtual_statement_block_returns_exact_fence_boundary_origin_and_line_entry() 
     let accepted = "α";
     let source = format!("{accepted}\r\n> > ```\r\nouter");
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source.as_str();
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     builder.start_node(SyntaxKind::StringInterpolationBody.into());
     let exit = virtual_statement_block_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         origin,
         LineEntry::InLine,
         Some(&fence),
@@ -502,7 +519,7 @@ fn virtual_statement_block_returns_exact_fence_boundary_origin_and_line_entry() 
     );
     builder.finish_node();
     builder.finish_node();
-    let green = builder.finish();
+    let green = finish_without_recoveries(builder, recover);
     let VirtualStatementBlockExit::Boundary(item, LineEntry::PhysicalStart) = exit else {
         panic!("virtual block must return the exact fence boundary")
     };

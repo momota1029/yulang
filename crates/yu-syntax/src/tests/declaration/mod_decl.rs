@@ -27,11 +27,14 @@ fn typed_mod_fenced<'s>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    let mut recover = Recover::new_for_test(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+        recover = Recover::reconcile_for_test(recover.operators(), records);
+        GreenNodeBuilder::new()
+    });
     builder.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         stops,
         100,
@@ -41,7 +44,7 @@ fn typed_mod_fenced<'s>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     builder.finish_node();
-    let (green, records) = builder.finish_with_recoveries();
+    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
     (green, exit, records, input)
 }
 

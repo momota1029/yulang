@@ -17,11 +17,11 @@ fn statement_with_ambient<'source, 'frame>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         0,
         0,
         0,
@@ -35,7 +35,7 @@ fn statement_with_ambient<'source, 'frame>(
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 

@@ -1,7 +1,6 @@
 //! Direct owners for Pattern's three comma-or-layout delimited primaries.
 
 use crate::ambient_claim::AmbientClaimContext;
-use reborrow_generic::Reborrow as _;
 
 use crate::{
     lexical::operator_scan::OperatorSite,
@@ -15,7 +14,7 @@ use crate::{
 use std::sync::Arc;
 
 use crate::{
-    cst_output::{
+    cursor::recovery::{
         RecoveryDraft, StructuredRecoverySpec,
         emit::{
             emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,

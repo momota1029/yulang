@@ -55,13 +55,16 @@ fn parse<'s>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         None,
         0,
         stops,
@@ -75,7 +78,7 @@ fn parse<'s>(
     )
     .unwrap();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 
@@ -276,13 +279,13 @@ fn fixed_tail_recovery_keeps_threshold_ml_and_seeded_output() {
         ("x::123 name", 0, MlMode::All, "x::123 name", None, 3..6),
     ] {
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         output.token(SyntaxKind::Identifier.into(), "seed");
         let threshold = BindingPower::scalar(threshold);
         let exit = expr_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             Some(&threshold),
             0,
             0,
@@ -296,7 +299,7 @@ fn fixed_tail_recovery_keeps_threshold_ml_and_seeded_output() {
         )
         .unwrap();
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), format!("seed{expected_text}"));
         assert_eq!(
             records,
@@ -322,12 +325,12 @@ fn fixed_tail_recovery_keeps_threshold_ml_and_seeded_output() {
     }
 }
 
-fn commit_seed(output: &mut GreenNodeBuilder<'_>) {
-    use crate::cst_output::RecoveryDraft;
+fn commit_seed(output: &mut GreenNodeBuilder<'_>, recover: &mut Recover) {
+    use crate::cursor::recovery::RecoveryDraft;
     let seed = record(ExpressionRole::FieldName, RecoveryKind::Missing, 0..0);
     output.start_node(SyntaxKind::Missing.into());
     output.finish_node();
-    output.commit_recovery(RecoveryDraft::new(
+    recover.commit_recovery_for_test(RecoveryDraft::new(
         seed.site,
         seed.kind,
         seed.unexpected,
@@ -349,19 +352,22 @@ fn fixed_tail_recovery_allocates_after_committed_and_frozen_records() {
         let frozen = [seed, reused];
         for reconcile in [false, true] {
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
+            let mut recover = Recover::new_for_test(&operators);
             let mut output = if reconcile {
-                GreenNodeBuilder::reconcile(&frozen)
+                {
+                    recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+                    GreenNodeBuilder::new()
+                }
             } else {
                 GreenNodeBuilder::new()
             };
             output.start_node(SyntaxKind::Root.into());
-            commit_seed(&mut output);
-            assert_eq!(output.recovery_slot_count(), 1);
+            commit_seed(&mut output, &mut recover);
+            assert_eq!(recover.recovery_slot_count(), 1);
             for origin in [10, 20] {
                 let mut input = source;
                 let exit = expr_normalized(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     None,
                     0,
                     0,
@@ -381,7 +387,7 @@ fn fixed_tail_recovery_allocates_after_committed_and_frozen_records() {
                 ));
             }
             assert_eq!(
-                output.diagnostic_position(),
+                recover.diagnostic_position(),
                 if reconcile {
                     (Some(21), 2)
                 } else {
@@ -389,7 +395,7 @@ fn fixed_tail_recovery_allocates_after_committed_and_frozen_records() {
                 }
             );
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(green.to_string(), source.repeat(2));
             let mut expected = [
                 record(ExpressionRole::FieldName, RecoveryKind::Missing, 0..0),
@@ -426,14 +432,17 @@ fn rejected_or_line_deferred_fixed_tail_preserves_seeded_output_and_cursor() {
         let mut control_item = None;
         for attempt in [false, true] {
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
-            let mut output = GreenNodeBuilder::reconcile(&frozen);
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = {
+                recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+                GreenNodeBuilder::new()
+            };
             output.start_node(SyntaxKind::Root.into());
             output.token(SyntaxKind::Identifier.into(), "seed");
-            commit_seed(&mut output);
+            commit_seed(&mut output, &mut recover);
             let mut input = source;
             let (item, origin, line) = expression_item(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 OperatorSite::Led,
                 0,
                 LineEntry::InLine,
@@ -443,10 +452,10 @@ fn rejected_or_line_deferred_fixed_tail_preserves_seeded_output_and_cursor() {
             );
             assert_eq!(token_kind(&item), Some(kind));
             let remainder = input;
-            let position = output.diagnostic_position();
+            let position = recover.diagnostic_position();
             if attempt {
                 let exit = tail_normalized(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     item,
                     None,
                     0,
@@ -468,11 +477,11 @@ fn rejected_or_line_deferred_fixed_tail_preserves_seeded_output_and_cursor() {
                 control_item = Some(item);
             }
             assert_eq!(input, remainder);
-            assert_eq!(output.diagnostic_position(), position);
-            assert_eq!(output.recovery_slot_count(), 1);
+            assert_eq!(recover.diagnostic_position(), position);
+            assert_eq!(recover.recovery_slot_count(), 1);
             let mut input = "x.";
             expr_normalized(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 None,
                 0,
                 0,
@@ -485,9 +494,9 @@ fn rejected_or_line_deferred_fixed_tail_preserves_seeded_output_and_cursor() {
                 None,
             )
             .unwrap();
-            assert_eq!(output.diagnostic_position(), (Some(20), 2));
+            assert_eq!(recover.diagnostic_position(), (Some(20), 2));
             output.finish_node();
-            let product = output.finish_with_recoveries();
+            let product = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(product.0.to_string(), "seedx.");
             assert_eq!(product.1, frozen);
             if let Some(control) = &control {

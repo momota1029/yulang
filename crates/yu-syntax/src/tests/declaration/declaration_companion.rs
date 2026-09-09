@@ -21,10 +21,13 @@ fn typed_companion<'a>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+        recover = Recover::reconcile_for_test(recover.operators(), records);
+        GreenNodeBuilder::new()
+    });
     output.start_node(SyntaxKind::Root.into());
-    let i = In::new(&mut input, &mut recover, &mut output);
+    let i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
     let exit = if caller {
         statement_normalized(
             i,
@@ -48,7 +51,7 @@ fn typed_companion<'a>(
         .expect("selected companion")
     };
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, exit, input, records)
 }
 
@@ -351,15 +354,18 @@ fn companion_seeded_reconciliation_keeps_nonpositional_ids_and_nested_roles() {
     for pass in 0..2 {
         let operators = OperatorTable::empty();
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut builder = frozen
             .as_deref()
-            .map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+            .map_or_else(GreenNodeBuilder::new, |records| {
+                recover = Recover::reconcile_for_test(recover.operators(), records);
+                GreenNodeBuilder::new()
+            });
         builder.start_node(SyntaxKind::Root.into());
         let seed = companion_record(role, RecoveryKind::Missing, 0..0, None);
         builder.start_node(SyntaxKind::Missing.into());
         builder.finish_node();
-        builder.commit_recovery(crate::cst_output::RecoveryDraft::new(
+        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
             seed.site,
             seed.kind,
             seed.unexpected,
@@ -367,7 +373,7 @@ fn companion_seeded_reconciliation_keeps_nonpositional_ids_and_nested_roles() {
             seed.primary_expectation,
         ));
         crate::declaration::declaration_companion::declaration_companion_witness(
-            In::new(&mut input, &mut recover, &mut builder),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
             0,
             0,
             100,
@@ -376,7 +382,7 @@ fn companion_seeded_reconciliation_keeps_nonpositional_ids_and_nested_roles() {
         )
         .unwrap();
         builder.finish_node();
-        let (green, mut records) = builder.finish_with_recoveries();
+        let (green, mut records) = (builder.finish(), recover.finish_recoveries_for_test());
         if pass == 0 {
             let mut expected = vec![companion_record(role, RecoveryKind::Missing, 0..0, None)];
             expected.extend(nested.clone());

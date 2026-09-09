@@ -3,7 +3,6 @@
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-use reborrow_generic::Reborrow as _;
 
 use crate::syntax_kind::SyntaxKind;
 

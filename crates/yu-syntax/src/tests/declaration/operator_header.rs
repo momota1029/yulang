@@ -30,10 +30,10 @@ fn complete_operator_header_projects_without_reading_its_body() {
         ),
     ] {
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let mut i = In::new(&mut input, &mut recover, &mut output);
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
         let (item, origin, line) = i
             .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
             .unwrap();
@@ -47,7 +47,7 @@ fn complete_operator_header_projects_without_reading_its_body() {
         assert_eq!(origin, end);
         assert_eq!(input, &source[end..]);
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source[..end]);
         assert!(records.is_empty());
         let root = SyntaxNode::new_root(green);
@@ -236,22 +236,26 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
     ] {
         for replay in [false, true] {
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
+            let mut recover = Recover::new_for_test(&operators);
             let mut input = source;
             let mut output = if replay {
-                GreenNodeBuilder::reconcile_scoped(&expected)
+                {
+                    recover = Recover::reconcile_scoped_for_test(recover.operators(), &expected);
+                    GreenNodeBuilder::new()
+                }
             } else {
                 GreenNodeBuilder::new()
             };
             output.start_node(SyntaxKind::Root.into());
-            let (pending, origin, line, fact) = {
-                let mut scope = output.header_reconciliation_scope();
-                let mut i = In::new(&mut input, &mut recover, &mut *scope);
-                let (item, origin, line) = i
-                    .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, None)))
-                    .unwrap();
-                operator_header_normalized(i, item, origin, line, None)
-            };
+            let (pending, origin, line, fact) = crate::cursor::recovery::with_header_reconciliation(
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+                |mut i| {
+                    let (item, origin, line) = i
+                        .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, None)))
+                        .unwrap();
+                    operator_header_normalized(i, item, origin, line, None)
+                },
+            );
             assert!(fact.is_none(), "{source}");
             assert_eq!(
                 pending
@@ -270,7 +274,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             assert_eq!(line, LineEntry::InLine);
             assert_eq!(input, rest, "{source}");
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(green.to_string(), owned, "{source}");
             assert_eq!(records, expected, "{source}");
         }
@@ -284,25 +288,29 @@ fn malformed_fixity_retry_keeps_typed_record_and_frozen_identity() {
     let mut frozen = Vec::new();
     for replay in [false, true] {
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = if replay {
-            GreenNodeBuilder::reconcile_scoped(&frozen)
+            {
+                recover = Recover::reconcile_scoped_for_test(recover.operators(), &frozen);
+                GreenNodeBuilder::new()
+            }
         } else {
             GreenNodeBuilder::new()
         };
         output.start_node(SyntaxKind::Root.into());
-        let result = {
-            let mut scope = output.header_reconciliation_scope();
-            let mut i = In::new(&mut input, &mut recover, &mut *scope);
-            let (item, origin, line) = i
-                .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
-                .unwrap();
-            operator_header_normalized(i, item, origin, line, None)
-        };
+        let result = crate::cursor::recovery::with_header_reconciliation(
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+            |mut i| {
+                let (item, origin, line) = i
+                    .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
+                    .unwrap();
+                operator_header_normalized(i, item, origin, line, None)
+            },
+        );
         assert!(result.3.is_some());
         assert_eq!(input, " body");
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), "lazy @ infix (<+>) 50 51 =");
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].site.range, 5..6);
@@ -336,10 +344,10 @@ fn missing_header_slots_preserve_the_next_crlf_statement() {
     let operators = OperatorTable::empty();
     let source = "prefix (!)\r\nuse std::io";
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
-    let mut i = In::new(&mut input, &mut recover, &mut output);
+    let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
     let (item, origin, line) = i
         .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
         .unwrap();
@@ -350,7 +358,7 @@ fn missing_header_slots_preserve_the_next_crlf_statement() {
     assert_eq!(pending.extent(origin).recovery_range(), 10..15);
     assert_eq!(input, " std::io");
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "prefix (!)");
     assert_eq!(records.len(), 2);
     assert!(records.iter().all(|record| record.site.range == (10..10)));
@@ -388,22 +396,26 @@ fn quoted_fence_keeps_pending_crlf_and_anchors_at_abstract_coordinate() {
         let source = format!("{owned}\r\n> > ```\r\nouter");
         for replay in [false, true] {
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
+            let mut recover = Recover::new_for_test(&operators);
             let mut input = source.as_str();
             let mut output = if replay {
-                GreenNodeBuilder::reconcile_scoped(&expected)
+                {
+                    recover = Recover::reconcile_scoped_for_test(recover.operators(), &expected);
+                    GreenNodeBuilder::new()
+                }
             } else {
                 GreenNodeBuilder::new()
             };
             output.start_node(SyntaxKind::Root.into());
-            let (pending, _, line, fact) = {
-                let mut scope = output.header_reconciliation_scope();
-                let mut i = In::new(&mut input, &mut recover, &mut *scope);
-                let (item, origin, line) = i
-                    .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, Some(&fence))))
-                    .unwrap();
-                operator_header_normalized(i, item, origin, line, Some(&fence))
-            };
+            let (pending, _, line, fact) = crate::cursor::recovery::with_header_reconciliation(
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+                |mut i| {
+                    let (item, origin, line) = i
+                        .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, Some(&fence))))
+                        .unwrap();
+                    operator_header_normalized(i, item, origin, line, Some(&fence))
+                },
+            );
             assert!(fact.is_none());
             assert_eq!(line, LineEntry::PhysicalStart);
             assert_eq!(input, "> > ```\r\nouter");
@@ -411,7 +423,7 @@ fn quoted_fence_keeps_pending_crlf_and_anchors_at_abstract_coordinate() {
             assert_eq!(leading, "\r\n");
             assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(green.to_string(), owned);
             assert_eq!(records, expected);
         }

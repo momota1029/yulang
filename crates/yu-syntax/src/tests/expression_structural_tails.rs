@@ -58,13 +58,16 @@ fn parse_at<'s>(
 ) {
     let operators = operators();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         threshold,
         0,
         stops,
@@ -78,7 +81,7 @@ fn parse_at<'s>(
     )
     .unwrap();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 
@@ -378,11 +381,13 @@ fn assignment_newline_eof_is_protected_before_and_after_error() {
             pending_range
         );
         let mut pending = GreenNodeBuilder::new();
+        let operators = OperatorTable::empty();
+        let recover = Recover::new_for_test(&operators);
         pending.start_node(SyntaxKind::Root.into());
         let mut item = end.item;
         item.emit_eof_leading(&mut pending);
         pending.finish_node();
-        let (pending, pending_records) = pending.finish_with_recoveries();
+        let (pending, pending_records) = (pending.finish(), recover.finish_recoveries_for_test());
         assert_eq!(pending.to_string(), &source[emitted.len()..]);
         assert!(pending_records.is_empty());
     }

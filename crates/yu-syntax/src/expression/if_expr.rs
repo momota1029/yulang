@@ -1,7 +1,6 @@
 //! Direct ownership for NUD `if` expressions and their arm boundaries.
 
 use crate::ambient_claim::AmbientClaimContext;
-use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
 use crate::{
@@ -15,7 +14,7 @@ use crate::{
 };
 
 use crate::{
-    cst_output::{
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,

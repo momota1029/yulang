@@ -13,7 +13,6 @@ use crate::{
         type_nud_item_normalized_with_ambient,
     },
 };
-use reborrow_generic::Reborrow as _;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn type_annotation_tail_normalized(

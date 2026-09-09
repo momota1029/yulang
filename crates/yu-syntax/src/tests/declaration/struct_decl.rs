@@ -25,11 +25,14 @@ fn typed_struct_continuation<'a>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    let mut recover = Recover::new_for_test(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+        recover = Recover::reconcile_for_test(recover.operators(), records);
+        GreenNodeBuilder::new()
+    });
     builder.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         stops,
         origin,
@@ -39,7 +42,7 @@ fn typed_struct_continuation<'a>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     builder.finish_node();
-    let (green, records) = builder.finish_with_recoveries();
+    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
     (green, exit, records, input)
 }
 
@@ -93,7 +96,7 @@ fn struct_header_frozen_preserves_exact_close_and_newline_continuation() {
 #[test]
 fn struct_header_visibility_rejection_preserves_seeded_output_and_cursor() {
     use crate::{
-        cst_output::RecoveryDraft,
+        cursor::recovery::RecoveryDraft,
         declaration::struct_decl::struct_declaration_selected_normalized,
         lexical::item::{LeadingTrivia, Payload, Token},
     };
@@ -102,21 +105,24 @@ fn struct_header_visibility_rejection_preserves_seeded_output_and_cursor() {
     for visibility in ["my", "our", "pub"] {
         for source in [" structure S;", "\r\nstruct S;"] {
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
+            let mut recover = Recover::new_for_test(&operators);
             let mut input = source;
-            let mut builder = GreenNodeBuilder::reconcile(&seed);
+            let mut builder = {
+                recover = Recover::reconcile_for_test(recover.operators(), &seed);
+                GreenNodeBuilder::new()
+            };
             builder.start_node(SyntaxKind::Root.into());
             builder.token(SyntaxKind::Identifier.into(), "seed");
             builder.start_node(SyntaxKind::Missing.into());
             builder.finish_node();
-            builder.commit_recovery(RecoveryDraft::new(
+            recover.commit_recovery_for_test(RecoveryDraft::new(
                 seed[0].site.clone(),
                 seed[0].kind,
                 seed[0].unexpected.clone(),
                 seed[0].expectations.clone(),
                 0,
             ));
-            let before = builder.diagnostic_position();
+            let before = recover.diagnostic_position();
             let make_item = || {
                 Item::plain(
                     LeadingTrivia::default(),
@@ -128,7 +134,7 @@ fn struct_header_visibility_rejection_preserves_seeded_output_and_cursor() {
             };
             let item = make_item();
             assert!(!struct_declaration_selected_normalized(
-                In::new(&mut input, &mut recover, &mut builder),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
                 &item,
                 0,
                 100,
@@ -136,10 +142,10 @@ fn struct_header_visibility_rejection_preserves_seeded_output_and_cursor() {
             ));
             assert_eq!(item, make_item());
             assert_eq!(input, source);
-            assert_eq!(builder.diagnostic_position(), before);
-            assert_eq!(builder.recovery_slot_count(), 1);
+            assert_eq!(recover.diagnostic_position(), before);
+            assert_eq!(recover.recovery_slot_count(), 1);
             builder.finish_node();
-            let (green, records) = builder.finish_with_recoveries();
+            let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
             assert_eq!(green.to_string(), "seed");
             assert_eq!(
                 SyntaxNode::new_root(green).children_with_tokens().count(),

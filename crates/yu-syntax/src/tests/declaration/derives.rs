@@ -1,4 +1,3 @@
-use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
 use crate::recovery_record::{
@@ -90,10 +89,11 @@ fn run_derives_with_stops<'source>(
     Vec<CommittedRecoveryRecord>,
 ) {
     let mut input = source;
-    let mut recover = Recover::new(operators);
+    let mut recover = Recover::new_for_test(operators);
     let mut builder = match recovery_handling {
         RecoveryHandling::Frozen(records) | RecoveryHandling::Seeded(Some(records)) => {
-            GreenNodeBuilder::reconcile(records)
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
         }
         _ => GreenNodeBuilder::new(),
     };
@@ -102,7 +102,7 @@ fn run_derives_with_stops<'source>(
         let seed = derives_record(DerivesRole::ViaTarget, RecoveryKind::Missing, 0..0, 0);
         builder.start_node(SyntaxKind::Missing.into());
         builder.finish_node();
-        builder.commit_recovery(crate::cst_output::RecoveryDraft::new(
+        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
             seed.site,
             seed.kind,
             seed.unexpected,
@@ -111,7 +111,7 @@ fn run_derives_with_stops<'source>(
         ));
     }
     let (pending, item_origin, line_entry) = {
-        let mut i = In::new(&mut input, &mut recover, &mut builder);
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder);
         let entry = suffix_marker(i.rb());
         let CurrentItem {
             item: keyword,
@@ -146,8 +146,8 @@ fn run_derives_with_stops<'source>(
     };
     builder.finish_node();
     let (green, recoveries) = match recovery_handling {
-        RecoveryHandling::Reject => (builder.finish(), Vec::new()),
-        _ => builder.finish_with_recoveries(),
+        RecoveryHandling::Reject => (finish_without_recoveries(builder, recover), Vec::new()),
+        _ => (builder.finish(), recover.finish_recoveries_for_test()),
     };
     (green, pending, item_origin, line_entry, input, recoveries)
 }

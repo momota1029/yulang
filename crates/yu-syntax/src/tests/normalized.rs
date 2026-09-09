@@ -2792,16 +2792,20 @@ fn normalized_type_balanced_head_retry_resynchronizes_before_boundary() {
 fn ordinary_type_unmatched_balanced_head_consumes_its_safe_prefix() {
     let operators = OperatorTable::empty();
     let mut input = "[e][bad";
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let exit = type_expr(In::new(&mut input, &mut recover, &mut builder));
+    let exit = type_expr(crate::cursor::SyntaxIn::new(
+        &mut input,
+        &mut recover,
+        &mut builder,
+    ));
     builder.finish_node();
     let Some(Err(Either::Right(_))) = exit else {
         panic!("the unmatched ordinary head must reach EOF")
     };
 
-    let (green, records) = builder.finish_with_recoveries();
+    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "[e][bad");
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].site.range, 3..7);

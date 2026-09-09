@@ -14,14 +14,17 @@ fn parse<'s>(
     &'s str,
 ) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         0,
         0,
         origin,
@@ -31,7 +34,7 @@ fn parse<'s>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 

@@ -1,19 +1,18 @@
 //! Direct canonical `mod` declaration construction.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cst_output::RecoveryDraft;
+use crate::cursor::recovery::RecoveryDraft;
 use crate::recovery_record::{
     DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, ModRole,
     PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
     UnexpectedSyntax,
 };
-use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cst_output::emit::{
+    cursor::recovery::emit::{
         emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
     },
     cursor::{LexIn, SyntaxIn},

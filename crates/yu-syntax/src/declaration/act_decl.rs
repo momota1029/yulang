@@ -3,19 +3,18 @@
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-use crate::cst_output::RecoveryDraft;
+use crate::cursor::recovery::RecoveryDraft;
 use crate::recovery_record::{
     ActDeclarationRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax,
     GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
     UnexpectedCategory, UnexpectedSyntax,
 };
-use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cst_output::emit::{
+    cursor::recovery::emit::{
         emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
     },
     cursor::{LexIn, SyntaxIn},

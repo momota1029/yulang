@@ -42,13 +42,16 @@ fn parse<'s>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         0,
         stops,
         origin,
@@ -58,7 +61,7 @@ fn parse<'s>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 
@@ -345,14 +348,17 @@ fn indented_quoted_fence_and_utf8_crlf_use_physical_shifted_extents() {
         for _ in 0..2 {
             let operators = OperatorTable::empty();
             let mut input = source;
-            let mut recover = Recover::new(&operators);
+            let mut recover = Recover::new_for_test(&operators);
             let mut output = frozen_records
                 .as_deref()
-                .map(GreenNodeBuilder::reconcile)
+                .map(|records| {
+                    recover = Recover::reconcile_for_test(recover.operators(), records);
+                    GreenNodeBuilder::new()
+                })
                 .unwrap_or_else(GreenNodeBuilder::new);
             output.start_node(SyntaxKind::Root.into());
             let exit = crate::statement::indented_statement_block_normalized(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 0,
                 role,
                 STOP_ELSE,
@@ -362,7 +368,7 @@ fn indented_quoted_fence_and_utf8_crlf_use_physical_shifted_extents() {
                 Some(AmbientClaimView::root_statement(0)).into(),
             );
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(records, [expected.clone()], "{source:?}");
             assert_eq!(green.to_string(), emitted);
             assert_eq!(input, "> > ```\nouter");

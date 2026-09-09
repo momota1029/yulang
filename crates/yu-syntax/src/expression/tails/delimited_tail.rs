@@ -1,8 +1,8 @@
 //! Call, index and projection wrappers around the shared delimiter owner.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cst_output::emit::emit_token_item;
 use crate::cursor::SyntaxIn;
+use crate::cursor::recovery::emit::emit_token_item;
 use crate::expression::continue_normalized_tail;
 use crate::expression::delimited::{DelimitedOwner, delimited_items_normalized};
 use crate::handoff::{MlMode, NormalizedExit};
@@ -14,7 +14,6 @@ use crate::lexical::yumark::FenceBoundary;
 use crate::operator_table::BindingPower;
 use crate::statement::StatementLineHandoff;
 use crate::syntax_kind::SyntaxKind;
-use reborrow_generic::Reborrow as _;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn call_tail_normalized(

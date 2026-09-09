@@ -1,5 +1,5 @@
-use chasa_recover::In;
 use rowan::GreenNode;
+use rowan::GreenNodeBuilder;
 
 use crate::{SyntaxKind, SyntaxNode, operator_table::OperatorTable};
 
@@ -10,7 +10,6 @@ use crate::tests::support::{
     run_role_declaration, run_type_normalized,
 };
 use crate::{
-    cst_output::CstOutput,
     cursor::Recover,
     declaration::declaration_variant::VariantSequenceForm,
     expression::expr,
@@ -155,14 +154,14 @@ const OPTION_SYNTAX_IN_AUDIT: [OptionEntryAudit; 23] = [
 ];
 
 fn empty_root() -> GreenNode {
-    let mut output = CstOutput::new();
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     output.finish_node();
     output.finish()
 }
 
 fn seeded_root() -> GreenNode {
-    let mut output = CstOutput::new();
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     output.start_node(SyntaxKind::IdentifierExpression.into());
     output.token(SyntaxKind::Identifier.into(), "sentinel");
@@ -173,7 +172,7 @@ fn seeded_root() -> GreenNode {
 
 #[test]
 fn parser_output_forwards_the_complete_o1_builder_surface() {
-    let mut output = CstOutput::new();
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let checkpoint = output.checkpoint();
     output.token(SyntaxKind::Identifier.into(), "value");
@@ -195,18 +194,33 @@ fn parser_output_forwards_the_complete_o1_builder_surface() {
 fn rejected_expression_and_type_entries_are_output_effect_free() {
     let operators = OperatorTable::empty();
     let mut input = ")";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
 
-    assert!(expr(In::new(&mut input, &mut recover, &mut output)).is_none());
-    assert!(type_expr(In::new(&mut input, &mut recover, &mut output)).is_none());
+    assert!(
+        expr(crate::cursor::SyntaxIn::new(
+            &mut input,
+            &mut recover,
+            &mut output
+        ))
+        .is_none()
+    );
+    assert!(
+        type_expr(crate::cursor::SyntaxIn::new(
+            &mut input,
+            &mut recover,
+            &mut output
+        ))
+        .is_none()
+    );
     assert_eq!(input, ")");
 
     output.start_node(SyntaxKind::IdentifierExpression.into());
     output.token(SyntaxKind::Identifier.into(), "sentinel");
     output.finish_node();
     output.finish_node();
+    assert!(recover.finish_recoveries_for_test().is_empty());
     let candidate = output.finish();
     let control = seeded_root();
     assert_eq!(candidate, control);
@@ -285,8 +299,8 @@ fn nontrivial_option_entries_reject_without_output_effects() {
 
     let operators = OperatorTable::empty();
     let mut input = "@";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let fence = FenceBoundary {
         opener: FenceOpener {
@@ -298,16 +312,21 @@ fn nontrivial_option_entries_reject_without_output_effects() {
         close_column: 0,
     };
     assert!(
-        pattern_literal_witness(In::new(&mut input, &mut recover, &mut output), 0, &fence,)
-            .is_none()
+        pattern_literal_witness(
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+            0,
+            &fence,
+        )
+        .is_none()
     );
     output.finish_node();
     assert_eq!(input, "@");
+    assert!(recover.finish_recoveries_for_test().is_empty());
     assert_eq!(output.finish(), control);
 
     let mut input = "@";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let rejected = Item::plain(
         LeadingTrivia::default(),
@@ -317,7 +336,7 @@ fn nontrivial_option_entries_reject_without_output_effects() {
         }),
     );
     let admission = classify_statement_item_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         &rejected,
         0,
         0,
@@ -325,5 +344,6 @@ fn nontrivial_option_entries_reject_without_output_effects() {
     );
     assert!(admission.is_none());
     output.finish_node();
+    assert!(recover.finish_recoveries_for_test().is_empty());
     assert_eq!(output.finish(), control);
 }

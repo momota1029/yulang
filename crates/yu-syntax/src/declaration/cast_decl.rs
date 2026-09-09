@@ -9,11 +9,10 @@ use crate::recovery_record::{
     UnexpectedSyntax,
 };
 use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
-use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
 use crate::{
-    cst_output::{
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
@@ -1623,7 +1622,7 @@ fn cast_pattern_close_error_run(
 }
 
 fn cast_transition_lex(
-    run: &mut crate::cst_output::emit::ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    run: &mut crate::cursor::recovery::emit::ErrorRunOutput<'_, '_, '_, '_>,
     item: &Item,
     baseline: usize,
     stops: Stops,
@@ -1889,7 +1888,7 @@ fn cast_pattern_introducer_error_run(
 }
 
 fn cast_prefix_boundary_lex(
-    run: &mut crate::cst_output::emit::ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    run: &mut crate::cursor::recovery::emit::ErrorRunOutput<'_, '_, '_, '_>,
     item: &Item,
     baseline: usize,
     stops: Stops,

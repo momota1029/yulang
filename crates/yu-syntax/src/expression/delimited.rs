@@ -1,6 +1,5 @@
 //! Shared direct-delimited owner and local item recovery.
 
-use reborrow_generic::Reborrow as _;
 use std::{ops::Range, sync::Arc};
 
 use crate::{
@@ -16,14 +15,14 @@ use crate::{
 
 use crate::{
     ambient_claim::AmbientClaimContext,
-    cst_output::{
+    cursor::SyntaxIn,
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
             emit_token_item, token_syntax_kind,
         },
     },
-    cursor::SyntaxIn,
     expression::{continue_normalized_tail, expr_from_nud_normalized, is_nud_item},
     handoff::{Either, MlMode, NormalizedExit, complete, handoff},
     lexical::{

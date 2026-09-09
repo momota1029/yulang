@@ -71,13 +71,16 @@ fn parse<'s>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let exit = crate::expression::delimited::delimited_items_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         match form {
             Form::Group => crate::expression::delimited::DelimitedOwner::Parenthesized,
             Form::Call => crate::expression::delimited::DelimitedOwner::Call,
@@ -99,7 +102,7 @@ fn parse<'s>(
         Some(AmbientClaimView::root_statement(0)).into(),
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, exit, input, records)
 }
 
@@ -406,13 +409,16 @@ fn full(
 ) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         None,
         0,
         0,
@@ -426,7 +432,7 @@ fn full(
     );
     assert!(exit.is_some());
     output.finish_node();
-    output.finish_with_recoveries()
+    (output.finish(), recover.finish_recoveries_for_test())
 }
 
 #[test]

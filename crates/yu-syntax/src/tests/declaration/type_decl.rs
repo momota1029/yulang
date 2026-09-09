@@ -1,5 +1,4 @@
 use crate::tests::support::*;
-use reborrow_generic::Reborrow as _;
 
 #[test]
 fn type_header_records_are_exact_shifted_frozen_and_seeded() {
@@ -197,19 +196,22 @@ fn type_header_records_are_exact_shifted_frozen_and_seeded() {
                 } else {
                     vec![expected.clone()]
                 };
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = if mode == 0 {
                     GreenNodeBuilder::new()
                 } else {
-                    GreenNodeBuilder::reconcile(&records)
+                    {
+                        recover = Recover::reconcile_for_test(recover.operators(), &records);
+                        GreenNodeBuilder::new()
+                    }
                 };
-                let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
                 let mut input = source;
                 output.start_node(SyntaxKind::Root.into());
                 if mode == 2 {
                     output.start_node(SyntaxKind::Missing.into());
                     output.finish_node();
-                    output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+                    recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
                         seed.site,
                         seed.kind,
                         seed.unexpected,
@@ -218,7 +220,7 @@ fn type_header_records_are_exact_shifted_frozen_and_seeded() {
                     ));
                 }
                 let exit = statement_normalized(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     0,
                     if source.ends_with(']') {
                         stops_for(TokenKind::RBracket)
@@ -232,7 +234,7 @@ fn type_header_records_are_exact_shifted_frozen_and_seeded() {
                     Some(crate::sequence::SequenceOwner::RootStatement),
                 );
                 output.finish_node();
-                let (green, actual) = output.finish_with_recoveries();
+                let (green, actual) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(actual, records, "{source:?}, origin {origin}, mode {mode}");
                 if let Some((head, tail)) = source.split_once("\r\n>") {
                     let NormalizedExit::Complete(
@@ -289,12 +291,12 @@ fn type_header_preserves_nominal_raw_names_and_nested_rhs_roles() {
         "type T =",
     ] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         statement_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             0,
             0,
             0,
@@ -304,7 +306,7 @@ fn type_header_preserves_nominal_raw_names_and_nested_rhs_roles() {
             Some(crate::sequence::SequenceOwner::RootStatement),
         );
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         if source == "type T =" {
             assert_eq!(records.len(), 1);
@@ -333,12 +335,12 @@ fn type_header_error_run_keeps_internal_trivia_and_native_tokens() {
         ),
     ] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         statement_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             0,
             0,
             0,
@@ -348,7 +350,7 @@ fn type_header_error_run_keeps_internal_trivia_and_native_tokens() {
             Some(crate::sequence::SequenceOwner::RootStatement),
         );
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         let role = GrammarRole::Declaration(DeclarationRole::Type(slot));
         let range = start..start + 3;
         assert_eq!(
@@ -462,11 +464,13 @@ fn run_type_declaration_with_handoff(
 ) -> (GreenNode, Option<TailExit>) {
     let operators = OperatorTable::empty();
     let mut source_input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let mut i = In::new(&mut source_input, &mut recover, &mut builder);
-    let leading = crate::lexical::lexer::scan_trivia(i.rb());
+    let mut i = crate::cursor::SyntaxIn::new(&mut source_input, &mut recover, &mut builder);
+    let leading = i
+        .token(|lex| Some(crate::lexical::lexer::scan_trivia(lex)))
+        .unwrap();
     let intro = crate::lexical::lexer::statement_item_after_trivia(i.rb(), leading, 0, 0);
     let mut exit =
         crate::handoff::ordinary_exit(crate::declaration::type_decl::type_declaration_normalized(
@@ -485,7 +489,10 @@ fn run_type_declaration_with_handoff(
         emit_end(&mut builder, end);
     }
     builder.finish_node();
-    (builder.finish_with_recoveries().0, Some(exit))
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        Some(exit),
+    )
 }
 
 #[test]

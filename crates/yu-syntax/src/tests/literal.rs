@@ -1,6 +1,6 @@
 use crate::tests::support::*;
 use crate::{
-    cst_output::emit::emit_literal_item,
+    cursor::recovery::emit::emit_literal_item,
     lexical::{
         item::{BorrowedTarget, Boundary, Item, LeadingTrivia, Payload, StopKind, Token},
         yumark::{
@@ -37,18 +37,29 @@ fn active_fence(depth: usize) -> FenceBoundary {
 
 fn scan_opener(source: &str) -> ((Item, StringMode), &str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let opener =
-        scan_string_opener_witness(In::new(&mut input, &mut recover, ())).expect("literal opener");
+    let opener = scan_string_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .expect("literal opener");
     (opener, input)
 }
 
 fn scan_close(source: &str, mode: StringMode) -> (Option<Item>, &str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let close = scan_string_close_witness(In::new(&mut input, &mut recover, ()), mode);
+    let close = scan_string_close_witness(
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
+        mode,
+    );
     (close, input)
 }
 
@@ -59,10 +70,14 @@ fn scan_text<'source>(
     mode: StringMode,
 ) -> (LiteralPiece, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
     let piece = scan_string_text_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         origin,
         boundary,
         mode,
@@ -86,14 +101,14 @@ fn expected_pending(source: &str, coordinate: usize, boundary: &FenceBoundary) -
 
 fn emit_literal(item: Item, kind: SyntaxKind) -> GreenNode {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = "";
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let mut i = In::new(&mut input, &mut recover, &mut builder);
+    let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder);
     emit_literal_item(&mut i, item, kind);
     builder.finish_node();
-    builder.finish()
+    finish_without_recoveries(builder, recover)
 }
 
 fn run_string<'source>(
@@ -102,15 +117,19 @@ fn run_string<'source>(
     boundary: &FenceBoundary,
 ) -> (GreenNode, StringLiteralExit, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let (opener, mode) =
-        scan_string_opener_witness(In::new(&mut input, &mut recover, ())).expect("string opener");
+    let (opener, mode) = scan_string_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .expect("string opener");
     let interior_origin = origin + token_text(&opener).len();
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = string_literal_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         opener,
         mode,
         interior_origin,
@@ -118,7 +137,11 @@ fn run_string<'source>(
         injected_empty_interpolation_body,
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        input,
+    )
 }
 
 fn run_rule_literal<'source>(
@@ -127,20 +150,28 @@ fn run_rule_literal<'source>(
     boundary: &FenceBoundary,
 ) -> (GreenNode, RuleLiteralExit, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let opener = scan_expression_rule_literal_opener_witness(In::new(&mut input, &mut recover, ()))
-        .expect("expression RuleLiteral opener");
+    let opener = scan_expression_rule_literal_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .expect("expression RuleLiteral opener");
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = rule_literal_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         opener,
         origin + 2,
         boundary,
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        input,
+    )
 }
 
 fn run_rule_literal_normalized<'source>(
@@ -149,14 +180,18 @@ fn run_rule_literal_normalized<'source>(
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, NormalizedRuleLiteralExit, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let opener = scan_expression_rule_literal_opener_witness(In::new(&mut input, &mut recover, ()))
-        .expect("expression RuleLiteral opener");
+    let opener = scan_expression_rule_literal_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .expect("expression RuleLiteral opener");
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = rule_literal_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         opener,
         origin + 2,
         LineEntry::InLine,
@@ -164,7 +199,11 @@ fn run_rule_literal_normalized<'source>(
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        input,
+    )
 }
 
 fn injected_empty_interpolation_body(mut i: SyntaxIn) -> Item {
@@ -1254,15 +1293,19 @@ fn raw_backslash_line_in_format_uses_the_shared_fence_transition() {
 fn source_rbrace_after_open_is_raw_text_unless_the_child_returns_it() {
     let source = "\"%{}raw\"tail";
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let (opener, mode) =
-        scan_string_opener_witness(In::new(&mut input, &mut recover, ())).expect("string opener");
+    let (opener, mode) = scan_string_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .expect("string opener");
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let mut child_called = false;
     let exit = string_literal_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         opener,
         mode,
         1,
@@ -1284,7 +1327,7 @@ fn source_rbrace_after_open_is_raw_text_unless_the_child_returns_it() {
         },
     );
     builder.finish_node();
-    let green = builder.finish();
+    let green = finish_without_recoveries(builder, recover);
     assert!(child_called);
     assert_eq!(exit, StringLiteralExit::Complete);
     assert_eq!(input, "tail");

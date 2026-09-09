@@ -2,8 +2,8 @@
 
 use super::delimited_tail::projection_tail_normalized;
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cst_output::RecoveryDraft;
-use crate::cst_output::emit::{
+use crate::cursor::recovery::RecoveryDraft;
+use crate::cursor::recovery::emit::{
     emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
 };
 use crate::cursor::{LexIn, SyntaxIn};
@@ -26,7 +26,6 @@ use crate::recovery_record::{
 };
 use crate::statement::StatementLineHandoff;
 use crate::syntax_kind::SyntaxKind;
-use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
 pub(crate) fn dot_tail_normalized(

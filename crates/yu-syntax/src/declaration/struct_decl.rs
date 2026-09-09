@@ -1,8 +1,7 @@
 //! Direct canonical `struct` declaration construction.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cst_output::RecoveryDraft;
-use reborrow_generic::Reborrow as _;
+use crate::cursor::recovery::RecoveryDraft;
 use std::sync::Arc;
 
 use crate::{
@@ -15,10 +14,10 @@ use crate::{
 };
 
 use crate::{
-    cst_output::emit::{
+    cursor::SyntaxIn,
+    cursor::recovery::emit::{
         emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
     },
-    cursor::SyntaxIn,
     declaration::{
         declaration_companion::declaration_companion_normalized,
         derives::{derives_clause_normalized, is_word},

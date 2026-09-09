@@ -9,19 +9,18 @@ use crate::recovery_record::{
     PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
     UnexpectedSyntax,
 };
-use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cst_output::{
+    cursor::SyntaxIn,
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
         },
     },
-    cursor::SyntaxIn,
     declaration::{
         declaration_companion::declaration_companion_normalized,
         declaration_variant::{VariantSequenceForm, declaration_variant_sequence_normalized},

@@ -69,6 +69,24 @@ capability. This is a migration detail still requiring review: optional
 rejection must remain effect-free despite `Recoverable::Mark = ()`, and header
 reconciliation restoration must remain scoped.
 
+### Cursor-capability clarification
+
+`SyntaxIn` is a concrete committed syntax cursor, not a type alias for a
+generic parser input. It borrows the live source suffix, the existing `Recover`
+and the direct `GreenNodeBuilder`; it owns none of them and is not an output
+wrapper. Its recovery borrow is private to the cursor and its committed
+recovery helpers. It does not dereference to a generic input or export mutable
+`Recover`.
+
+Lexical parsing continues to use the generic chasa input, but its recovery
+capability is an operator-only `LexRecover` view. That view observes the
+immutable operator table and cannot construct, replace, reconcile, finalize or
+publish diagnostic state. A `SyntaxIn` lexical operation creates this temporary
+view over its live source cursor. A successful operation returns to committed
+syntax construction; rejection remains effect-free. This enforces the
+previously selected lexical/probe boundary without a second state, a rollback
+snapshot, an event tape or a builder facade.
+
 The global emitted-token byte counter is removed with `CstOutput`. It is not a
 source-coordinate authority: recovery sites remain derived from Item/source
 coordinates. The runtime structured Error counter check is replaced by focused

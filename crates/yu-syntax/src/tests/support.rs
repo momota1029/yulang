@@ -1,8 +1,7 @@
 //! Shared test runners, builders and source fixtures.
-pub(super) use chasa_recover::In;
 pub(super) use rowan::GreenNode;
 
-pub(super) use crate::cst_output::CstOutput as GreenNodeBuilder;
+pub(super) use rowan::GreenNodeBuilder;
 
 pub(super) use crate::{
     SyntaxKind, SyntaxNode,
@@ -12,7 +11,7 @@ pub(super) use crate::{
 };
 
 pub(super) use crate::{
-    cst_output::emit::emit_end,
+    cursor::recovery::emit::emit_end,
     cursor::{Recover, SyntaxIn},
     declaration::{
         act_decl::act_declaration_witness,
@@ -68,8 +67,22 @@ pub(super) fn physical_leading(
     leading
 }
 
-pub(super) fn finish_with_discarded_recoveries(builder: GreenNodeBuilder<'_>) -> GreenNode {
-    builder.finish_with_recoveries().0
+pub(super) fn finish_with_discarded_recoveries(
+    builder: GreenNodeBuilder<'_>,
+    recover: Recover,
+) -> GreenNode {
+    (builder.finish(), recover.finish_recoveries_for_test()).0
+}
+
+pub(super) fn finish_without_recoveries(
+    builder: GreenNodeBuilder<'_>,
+    recover: Recover,
+) -> GreenNode {
+    assert!(
+        recover.finish_recoveries_for_test().is_empty(),
+        "typed recovery output must be retained by its harness"
+    );
+    builder.finish()
 }
 
 pub(super) fn run(source: &str) -> (GreenNode, Option<TailExit>) {
@@ -79,15 +92,19 @@ pub(super) fn run(source: &str) -> (GreenNode, Option<TailExit>) {
 
 pub(super) fn run_with(source: &str, operators: &OperatorTable) -> (GreenNode, Option<TailExit>) {
     let mut input = source;
-    let mut recover = Recover::new(operators);
+    let mut recover = Recover::new_for_test(operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let mut exit = expr(In::new(&mut input, &mut recover, &mut builder));
+    let mut exit = expr(crate::cursor::SyntaxIn::new(
+        &mut input,
+        &mut recover,
+        &mut builder,
+    ));
     if let Some(Err(Either::Right(end))) = &mut exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit)
+    (finish_with_discarded_recoveries(builder, recover), exit)
 }
 
 pub(super) fn run_normalized<'source>(
@@ -98,11 +115,11 @@ pub(super) fn run_normalized<'source>(
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let mut input = source;
-    let mut recover = Recover::new(operators);
+    let mut recover = Recover::new_for_test(operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         None,
         0,
         0,
@@ -115,7 +132,11 @@ pub(super) fn run_normalized<'source>(
         None,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_statement(source: &str) -> (GreenNode, Option<TailExit>) {
@@ -136,11 +157,11 @@ pub(super) fn run_statement_with_stops(
     stops: Stops,
 ) -> (GreenNode, Option<TailExit>) {
     let mut input = source;
-    let mut recover = Recover::new(operators);
+    let mut recover = Recover::new_for_test(operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let mut exit = Some(statement(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         stops,
     ));
@@ -148,7 +169,7 @@ pub(super) fn run_statement_with_stops(
         emit_end(&mut builder, end);
     }
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit)
+    (finish_with_discarded_recoveries(builder, recover), exit)
 }
 
 pub(super) fn run_statement_normalized<'source>(
@@ -159,11 +180,11 @@ pub(super) fn run_statement_normalized<'source>(
 ) -> (GreenNode, NormalizedExit, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         0,
         item_origin,
@@ -173,7 +194,11 @@ pub(super) fn run_statement_normalized<'source>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_declaration_variant<'source>(
@@ -185,11 +210,11 @@ pub(super) fn run_declaration_variant<'source>(
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = declaration_variant_sequence_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         form,
         0,
         item_origin,
@@ -197,7 +222,11 @@ pub(super) fn run_declaration_variant<'source>(
         fence,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_declaration_companion<'source>(
@@ -229,11 +258,11 @@ pub(super) fn run_enum_declaration<'source>(
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = enum_declaration_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,
         crate::statement::StatementLineHandoff::OrdinaryLayout,
@@ -242,7 +271,11 @@ pub(super) fn run_enum_declaration<'source>(
         fence,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_act_declaration<'source>(
@@ -254,11 +287,11 @@ pub(super) fn run_act_declaration<'source>(
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = act_declaration_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,
         crate::statement::StatementLineHandoff::OrdinaryLayout,
@@ -267,7 +300,11 @@ pub(super) fn run_act_declaration<'source>(
         fence,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_role_declaration<'source>(
@@ -279,11 +316,11 @@ pub(super) fn run_role_declaration<'source>(
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = role_declaration_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,
         crate::statement::StatementLineHandoff::OrdinaryLayout,
@@ -292,7 +329,11 @@ pub(super) fn run_role_declaration<'source>(
         fence,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_impl_declaration<'source>(
@@ -304,11 +345,11 @@ pub(super) fn run_impl_declaration<'source>(
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = impl_declaration_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,
         crate::statement::StatementLineHandoff::OrdinaryLayout,
@@ -317,7 +358,11 @@ pub(super) fn run_impl_declaration<'source>(
         fence,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_cast_declaration<'source>(
@@ -329,11 +374,11 @@ pub(super) fn run_cast_declaration<'source>(
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = cast_declaration_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,
         crate::statement::StatementLineHandoff::OrdinaryLayout,
@@ -342,7 +387,11 @@ pub(super) fn run_cast_declaration<'source>(
         fence,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_error_declaration<'source>(
@@ -354,11 +403,11 @@ pub(super) fn run_error_declaration<'source>(
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = error_declaration_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         caller_stops,
         crate::statement::StatementLineHandoff::OrdinaryLayout,
@@ -367,7 +416,11 @@ pub(super) fn run_error_declaration<'source>(
         fence,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -381,11 +434,11 @@ pub(super) fn run_declaration_companion_with<'source>(
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let mut input = source;
-    let mut recover = Recover::new(operators);
+    let mut recover = Recover::new_for_test(operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = declaration_companion_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         baseline,
         caller_stops,
         item_origin,
@@ -393,7 +446,11 @@ pub(super) fn run_declaration_companion_with<'source>(
         fence,
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_yumark_cell<'source>(
@@ -406,12 +463,19 @@ pub(super) fn run_yumark_cell<'source>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let exit = yulang_code_cell_witness(In::new(&mut input, &mut recover, &mut builder), terminal);
+    let exit = yulang_code_cell_witness(
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
+        terminal,
+    );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn run_fragmented_statement_successor(
@@ -423,16 +487,16 @@ pub(super) fn run_fragmented_statement_successor(
 ) {
     let operators = OperatorTable::empty();
     let mut input = "";
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = accepted_identifier_statement_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         item,
         successor,
     );
     builder.finish_node();
-    (builder.finish(), exit)
+    (finish_without_recoveries(builder, recover), exit)
 }
 
 pub(super) fn emit_pending_leading_text(item: &mut Item) -> String {
@@ -476,18 +540,25 @@ pub(super) fn run_type_with_recoveries<'frozen>(
 ) -> (GreenNode, Option<TailExit>, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     builder.start_node(SyntaxKind::Root.into());
-    let mut exit = type_expr(In::new(&mut input, &mut recover, &mut builder));
+    let mut exit = type_expr(crate::cursor::SyntaxIn::new(
+        &mut input,
+        &mut recover,
+        &mut builder,
+    ));
     if let Some(Err(Either::Right(end))) = &mut exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();
-    let (green, recoveries) = builder.finish_with_recoveries();
+    let (green, recoveries) = (builder.finish(), recover.finish_recoveries_for_test());
     (green, exit, recoveries)
 }
 
@@ -516,21 +587,24 @@ pub(super) fn run_type_normalized_with_recoveries<'source, 'frozen>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     builder.start_node(SyntaxKind::Root.into());
     let exit = type_expr_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         item_origin,
         line_entry,
         fence,
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    let (green, recoveries) = builder.finish_with_recoveries();
+    let (green, recoveries) = (builder.finish(), recover.finish_recoveries_for_test());
     (green, exit, input, recoveries)
 }
 
@@ -541,16 +615,19 @@ pub(super) fn run_pattern(source: &str) -> (GreenNode, TailExit) {
 pub(super) fn run_pattern_with_colon_stop(source: &str, colon_stop: bool) -> (GreenNode, TailExit) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let stops = PATTERN_DEFAULT_STOPS | colon_stop.then_some(PATTERN_STOP_COLON).unwrap_or(0);
-    let mut exit = pattern_with_stops(In::new(&mut input, &mut recover, &mut builder), stops);
+    let mut exit = pattern_with_stops(
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
+        stops,
+    );
     if let Err(Either::Right(end)) = &mut exit {
         emit_end(&mut builder, end);
     }
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit)
+    (finish_with_discarded_recoveries(builder, recover), exit)
 }
 
 pub(super) fn run_pattern_normalized<'source>(
@@ -562,11 +639,11 @@ pub(super) fn run_pattern_normalized<'source>(
 ) -> (GreenNode, NormalizedExit, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = pattern_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         item_origin,
         line_entry,
         fence,
@@ -574,7 +651,11 @@ pub(super) fn run_pattern_normalized<'source>(
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    (finish_with_discarded_recoveries(builder), exit, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 pub(super) fn dynamic_operator_table() -> OperatorTable {
@@ -612,9 +693,13 @@ pub(super) fn scan_dynamic_operator_with_stops<'source>(
     stops: Stops,
 ) -> (Option<OperatorUse>, &'source str) {
     let mut remaining = source;
-    let mut recover = Recover::new(operators);
+    let recover = Recover::new_for_test(operators);
     let operator = scan_operator(
-        In::new(&mut remaining, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut remaining,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         site,
         false,
         0,

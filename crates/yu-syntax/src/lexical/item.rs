@@ -1,6 +1,6 @@
 use crate::{operator_table::BindingPower, syntax_kind::SyntaxKind};
 
-use crate::cst_output::CstOutput;
+use rowan::GreenNodeBuilder;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct LeadingTrivia(Box<[Trivia]>);
@@ -18,7 +18,7 @@ impl LeadingTrivia {
         }
     }
 
-    pub(crate) fn emit(&self, output: &mut CstOutput) {
+    pub(crate) fn emit(&self, output: &mut GreenNodeBuilder) {
         for part in &self.0 {
             output.token(trivia_syntax_kind(part.kind).into(), &part.text);
         }
@@ -791,7 +791,7 @@ impl Item {
 
     pub(crate) fn emit_path_segment_retry_leading_prefix(
         &mut self,
-        output: &mut CstOutput,
+        output: &mut GreenNodeBuilder,
         prefix: PathSegmentRetryLeadingPrefix,
     ) {
         debug_assert_eq!(self.first_unemitted_leading, 0);
@@ -830,7 +830,7 @@ impl Item {
 
     pub(crate) fn emit_call_argument_retry_leading_prefix(
         &mut self,
-        output: &mut CstOutput,
+        output: &mut GreenNodeBuilder,
         prefix: CallArgumentRetryLeadingPrefix,
     ) {
         debug_assert_eq!(self.first_unemitted_leading, 0);
@@ -838,16 +838,16 @@ impl Item {
         self.emit_leading_prefix_with(output, prefix.end_part, |_, _| {});
     }
 
-    pub(crate) fn emit_all_remaining_leading(&mut self, output: &mut CstOutput) {
+    pub(crate) fn emit_all_remaining_leading(&mut self, output: &mut GreenNodeBuilder) {
         assert!(!self.payload_view().is_boundary());
         self.emit_leading_range(output, self.physical_leading.len(), |_, _| {});
     }
 
     pub(crate) fn emit_leading_prefix_with(
         &mut self,
-        output: &mut CstOutput,
+        output: &mut GreenNodeBuilder,
         end_part: usize,
-        before_part: impl FnMut(TriviaKind, &mut CstOutput),
+        before_part: impl FnMut(TriviaKind, &mut GreenNodeBuilder),
     ) {
         assert!(!self.payload_view().is_boundary());
         self.emit_leading_range(output, end_part, before_part);
@@ -857,10 +857,10 @@ impl Item {
     /// The extent and fragment cursor are initialized once for the whole prefix.
     pub(crate) fn emit_leading_prefix_with_coordinate(
         &mut self,
-        output: &mut CstOutput,
+        output: &mut GreenNodeBuilder,
         end_part: usize,
         successor_origin: usize,
-        mut before_part: impl FnMut(TriviaKind, usize, &mut CstOutput),
+        mut before_part: impl FnMut(TriviaKind, usize, &mut GreenNodeBuilder),
     ) {
         assert!(!self.payload_view().is_boundary());
         assert!(end_part >= self.first_unemitted_leading);
@@ -884,13 +884,17 @@ impl Item {
         }
     }
 
-    pub(crate) fn emit_payload(self, output: &mut CstOutput, kind: SyntaxKind) {
+    pub(crate) fn emit_payload(self, output: &mut GreenNodeBuilder, kind: SyntaxKind) {
         assert_eq!(self.first_unemitted_leading, self.physical_leading.len());
         let mut cursor = self.payload_fragment_cursor();
         self.emit_payload_with_cursor(output, kind, &mut cursor);
     }
 
-    pub(crate) fn emit_remaining(mut self, output: &mut CstOutput, payload_kind: SyntaxKind) {
+    pub(crate) fn emit_remaining(
+        mut self,
+        output: &mut GreenNodeBuilder,
+        payload_kind: SyntaxKind,
+    ) {
         assert!(payload_text(&self.payload).is_some());
         let mut cursor = self.fragment_cursor();
         self.emit_leading_range_with_cursor(
@@ -902,13 +906,16 @@ impl Item {
         self.emit_payload_with_cursor(output, payload_kind, &mut cursor);
     }
 
-    pub(crate) fn emit_eof_leading(&mut self, output: &mut CstOutput) {
+    pub(crate) fn emit_eof_leading(&mut self, output: &mut GreenNodeBuilder) {
         assert!(self.payload_view().is_eof());
         self.emit_leading_range(output, self.physical_leading.len(), |_, _| {});
     }
 
     #[cfg(test)]
-    pub(crate) fn emit_terminal_boundary(mut self, output: &mut CstOutput) -> PendingBoundary {
+    pub(crate) fn emit_terminal_boundary(
+        mut self,
+        output: &mut GreenNodeBuilder,
+    ) -> PendingBoundary {
         assert_eq!(self.first_unemitted_leading, 0);
         assert!(self.payload_view().is_boundary());
         self.emit_leading_range_unchecked(output, self.physical_leading.len(), |_, _| {});
@@ -920,9 +927,9 @@ impl Item {
 
     fn emit_leading_range(
         &mut self,
-        output: &mut CstOutput,
+        output: &mut GreenNodeBuilder,
         end_part: usize,
-        before_part: impl FnMut(TriviaKind, &mut CstOutput),
+        before_part: impl FnMut(TriviaKind, &mut GreenNodeBuilder),
     ) {
         assert!(!self.payload_view().is_boundary());
         self.emit_leading_range_unchecked(output, end_part, before_part);
@@ -930,9 +937,9 @@ impl Item {
 
     fn emit_leading_range_unchecked(
         &mut self,
-        output: &mut CstOutput,
+        output: &mut GreenNodeBuilder,
         end_part: usize,
-        before_part: impl FnMut(TriviaKind, &mut CstOutput),
+        before_part: impl FnMut(TriviaKind, &mut GreenNodeBuilder),
     ) {
         let mut cursor = self.fragment_cursor();
         self.emit_leading_range_with_cursor(output, end_part, before_part, &mut cursor);
@@ -940,9 +947,9 @@ impl Item {
 
     fn emit_leading_range_with_cursor(
         &mut self,
-        output: &mut CstOutput,
+        output: &mut GreenNodeBuilder,
         end_part: usize,
-        mut before_part: impl FnMut(TriviaKind, &mut CstOutput),
+        mut before_part: impl FnMut(TriviaKind, &mut GreenNodeBuilder),
         cursor: &mut Option<FragmentCursor>,
     ) {
         assert!(end_part >= self.first_unemitted_leading);
@@ -963,7 +970,7 @@ impl Item {
 
     fn emit_payload_with_cursor(
         &self,
-        output: &mut CstOutput,
+        output: &mut GreenNodeBuilder,
         kind: SyntaxKind,
         cursor: &mut Option<FragmentCursor>,
     ) {
@@ -1128,7 +1135,7 @@ struct FragmentCursor {
 }
 
 fn emit_physical_text(
-    output: &mut CstOutput,
+    output: &mut GreenNodeBuilder,
     fragments: Option<&PendingFragments>,
     cursor: &mut Option<FragmentCursor>,
     ordinary: SyntaxKind,
@@ -1163,7 +1170,7 @@ fn emit_physical_text(
 }
 
 fn emit_fragmented_part(
-    output: &mut CstOutput,
+    output: &mut GreenNodeBuilder,
     ordinary: SyntaxKind,
     physical_start: usize,
     text: &str,

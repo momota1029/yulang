@@ -1,12 +1,10 @@
 //! Isolated one-builder Yulang-cell construction witness.
 
-use reborrow_generic::Reborrow as _;
-
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cst_output::emit::{emit_end, emit_fragmented_item, emit_token_item},
     cursor::SyntaxIn,
+    cursor::recovery::emit::{emit_end, emit_fragmented_item, emit_token_item},
     handoff::{Either, TailExit, handoff, ordinary_exit},
     lexical::{
         current_item::LineEntry,
@@ -24,7 +22,7 @@ pub(super) fn yulang_code_cell_witness(
     terminal: Item,
 ) -> Result<PendingBoundary, TailExit> {
     i.state.start_node(SyntaxKind::YmYulangCodeCell.into());
-    let leading = scan_trivia(i.rb());
+    let leading = i.token(|lex| Some(scan_trivia(lex))).unwrap();
     let mut item = statement_item_after_trivia(i.rb(), leading, 0, 0);
 
     loop {
@@ -51,7 +49,7 @@ pub(super) fn yulang_code_cell_witness(
         ));
         match exit {
             Ok(()) => {
-                let leading = scan_trivia(i.rb());
+                let leading = i.token(|lex| Some(scan_trivia(lex))).unwrap();
                 item = statement_item_after_trivia(i.rb(), leading, 0, 0);
             }
             Err(Either::Right(mut end)) => {
@@ -63,7 +61,7 @@ pub(super) fn yulang_code_cell_witness(
             }
             Err(Either::Left(next)) => match cell_successor(&mut i, next) {
                 Ok(()) => {
-                    let leading = scan_trivia(i.rb());
+                    let leading = i.token(|lex| Some(scan_trivia(lex))).unwrap();
                     item = statement_item_after_trivia(i.rb(), leading, 0, 0);
                 }
                 Err(exit) => return Err(exit),

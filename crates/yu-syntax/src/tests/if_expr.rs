@@ -52,17 +52,12 @@ fn parse_if_into<'s>(
     origin: usize,
     stops: Stops,
     fence: Option<&FenceBoundary>,
+    recover: &mut Recover,
     output: &mut GreenNodeBuilder,
 ) -> (NormalizedExit, &'s str) {
-    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
-        "-",
-        OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
-    )])
-    .unwrap();
-    let mut recover = Recover::new(&operators);
     let mut input = source;
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, output),
+        crate::cursor::SyntaxIn::new(&mut input, recover, output),
         None,
         0,
         stops,
@@ -145,18 +140,28 @@ fn if_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
                 .collect();
             let mut fresh = None;
             for frozen in [None, Some(expected.as_slice())] {
+                let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+                    "-",
+                    OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+                )])
+                .unwrap();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = frozen
-                    .map(GreenNodeBuilder::reconcile)
+                    .map(|records| {
+                        recover = Recover::reconcile_for_test(recover.operators(), records);
+                        GreenNodeBuilder::new()
+                    })
                     .unwrap_or_else(GreenNodeBuilder::new);
                 output.start_node(SyntaxKind::Root.into());
-                let (mut exit, remainder) = parse_if_into(source, origin, 0, None, &mut output);
+                let (mut exit, remainder) =
+                    parse_if_into(source, origin, 0, None, &mut recover, &mut output);
                 if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
                     emit_end(&mut output, end);
                 } else {
                     panic!("EOF for {source:?}");
                 }
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(records, expected, "{source:?} at {origin}");
                 assert_eq!(green.to_string(), source);
                 assert_eq!(remainder, "");
@@ -177,11 +182,17 @@ fn if_completed_condition_missing_introducer_owns_ordinary_gap_only() {
         ("if x\nnext", "if x\n", 5, ""),
         ("if α\r\nnext", "if α\r\n", 7, ""),
     ] {
+        let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+            "-",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        )])
+        .unwrap();
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let (exit, suffix) = parse_if_into(source, 400, 0, None, &mut output);
+        let (exit, suffix) = parse_if_into(source, 400, 0, None, &mut recover, &mut output);
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), emitted);
         assert_eq!(
             records,
@@ -252,11 +263,11 @@ fn if_root_and_statement_callers_publish_the_same_immediate_owner() {
         assert_eq!(root.green.to_string(), source);
         assert_eq!(root.committed_recoveries.as_slice(), expected);
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let mut exit = statement_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             0,
             0,
             0,
@@ -269,7 +280,7 @@ fn if_root_and_statement_callers_publish_the_same_immediate_owner() {
             emit_end(&mut output, end);
         }
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         assert_eq!(records, expected);
         assert_eq!(input, "");
@@ -293,13 +304,23 @@ fn if_nested_indented_body_recovery_preserves_the_dedented_item() {
                 origin + relative_range.start..origin + relative_range.end,
             )];
             for frozen in [None, Some(expected.as_slice())] {
+                let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+                    "-",
+                    OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+                )])
+                .unwrap();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = frozen
-                    .map(GreenNodeBuilder::reconcile)
+                    .map(|records| {
+                        recover = Recover::reconcile_for_test(recover.operators(), records);
+                        GreenNodeBuilder::new()
+                    })
                     .unwrap_or_else(GreenNodeBuilder::new);
                 output.start_node(SyntaxKind::Root.into());
-                let (exit, suffix) = parse_if_into(&source, origin, 0, None, &mut output);
+                let (exit, suffix) =
+                    parse_if_into(&source, origin, 0, None, &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(records, expected);
                 assert_eq!(green.to_string(), format!("{prefix}{body}"));
                 let root = SyntaxNode::new_root(green);
@@ -369,11 +390,20 @@ fn if_slots_reuse_seeded_and_frozen_ids_and_allocate_above_them() {
         let seed = if_record(7, IfExpressionRole::Condition, RecoveryKind::Missing, 0..0);
         let reused = if_record(19, role, kind, 100 + range.start..100 + range.end);
         let frozen = [seed.clone(), reused.clone()];
-        let mut output = GreenNodeBuilder::reconcile(&frozen);
+        let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+            "-",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        )])
+        .unwrap();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = {
+            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+            GreenNodeBuilder::new()
+        };
         output.start_node(SyntaxKind::Root.into());
         output.start_node(SyntaxKind::Missing.into());
         output.finish_node();
-        output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
             seed.site.clone(),
             seed.kind,
             seed.unexpected.clone(),
@@ -381,10 +411,10 @@ fn if_slots_reuse_seeded_and_frozen_ids_and_allocate_above_them() {
             0,
         ));
         for origin in [100, 200] {
-            let _ = parse_if_into(source, origin, 0, None, &mut output);
+            let _ = parse_if_into(source, origin, 0, None, &mut recover, &mut output);
         }
         output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(
             records,
             [
@@ -415,11 +445,18 @@ fn if_inline_boundaries_preserve_pending_payload_leading_and_successor() {
         for head in ["if x:", "if x: a else", "if x: a else:"] {
             for error in ["", " @ @"] {
                 let source = format!("{head}{error}{suffix}");
+                let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+                    "-",
+                    OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+                )])
+                .unwrap();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
-                let (exit, remainder) = parse_if_into(&source, 300, stops, None, &mut output);
+                let (exit, remainder) =
+                    parse_if_into(&source, 300, stops, None, &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(
                     green.to_string(),
                     format!("{head}{error}{consumed_leading}")
@@ -485,11 +522,18 @@ fn if_quoted_fences_remain_wholly_pending_before_and_after_errors() {
             for newline in ["\n", "\r\n"] {
                 let accepted = format!("{head}{error}");
                 let source = format!("{accepted}{newline}> > ```{newline}outer");
+                let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+                    "-",
+                    OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+                )])
+                .unwrap();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
-                let (exit, remainder) = parse_if_into(&source, 700, 0, Some(&fence), &mut output);
+                let (exit, remainder) =
+                    parse_if_into(&source, 700, 0, Some(&fence), &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(green.to_string(), accepted);
                 let coordinate = 700 + accepted.len() + newline.len();
                 let (kind, range) = if error.is_empty() {

@@ -3,8 +3,8 @@
 use super::inline_slot::{emit_inline_slot_missing, inline_boundary, inline_slot_draft};
 use crate::{
     ambient_claim::AmbientClaimContext,
-    cst_output::emit::{emit_recovery_error_run, emit_token_item, token_syntax_kind},
     cursor::SyntaxIn,
+    cursor::recovery::emit::{emit_recovery_error_run, emit_token_item, token_syntax_kind},
     expression::{expr_from_nud_normalized, is_nud_item},
     handoff::{MlMode, NormalizedExit, complete, handoff},
     lexical::{
@@ -24,7 +24,6 @@ use crate::{
     statement::{StatementLineHandoff, indented_statement_block_normalized},
     syntax_kind::SyntaxKind,
 };
-use reborrow_generic::Reborrow as _;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn assignment_tail_normalized(

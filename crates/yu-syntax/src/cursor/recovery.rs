@@ -1,11 +1,8 @@
-//! Single committed Rowan and typed-recovery output owned by the direct parser.
+//! Committed recovery publication and frozen-header reconciliation.
 
 use std::sync::Arc;
 
-use reborrow_generic::Reborrow as _;
-#[cfg(test)]
-use rowan::Checkpoint;
-use rowan::{GreenNode, GreenNodeBuilder, SyntaxKind as RowanSyntaxKind};
+use super::Recover;
 
 use crate::{
     recovery_record::{
@@ -17,11 +14,11 @@ use crate::{
 
 use crate::{cursor::SyntaxIn, lexical::item::Item};
 
-pub(super) mod emit;
+pub(crate) mod emit;
 
 /// Complete recovery evidence before its diagnostic identity is assigned.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct RecoveryDraft {
+pub(crate) struct RecoveryDraft {
     site: RecoverySiteKey,
     kind: RecoveryKind,
     unexpected: Arc<[UnexpectedSyntax]>,
@@ -30,7 +27,7 @@ pub(super) struct RecoveryDraft {
 }
 
 impl RecoveryDraft {
-    pub(super) fn new(
+    pub(crate) fn new(
         site: RecoverySiteKey,
         kind: RecoveryKind,
         unexpected: Arc<[UnexpectedSyntax]>,
@@ -58,7 +55,7 @@ impl RecoveryDraft {
         }
     }
 
-    pub(super) fn assert_emission(
+    pub(crate) fn assert_emission(
         &self,
         kind: RecoveryKind,
         range: &std::ops::Range<usize>,
@@ -72,7 +69,7 @@ impl RecoveryDraft {
 
 /// Fields known before a structured Error enters its total nested body.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) struct StructuredRecoverySpec {
+pub(crate) struct StructuredRecoverySpec {
     role: GrammarRole,
     unexpected: UnexpectedCategory,
     expected: ExpectedSyntax,
@@ -81,7 +78,7 @@ pub(super) struct StructuredRecoverySpec {
 }
 
 impl StructuredRecoverySpec {
-    pub(super) fn new(
+    pub(crate) fn new(
         role: GrammarRole,
         unexpected: UnexpectedCategory,
         expected: ExpectedSyntax,
@@ -169,17 +166,16 @@ impl StructuredRecoverySpec {
     }
 }
 
-enum RecoverySlot<'frozen> {
+pub(super) enum RecoverySlot<'frozen> {
     Reserved(StructuredReservation<'frozen>),
     Complete(CommittedRecoveryRecord),
 }
 
-struct StructuredReservation<'frozen> {
+pub(super) struct StructuredReservation<'frozen> {
     id: DiagnosticId,
     frozen: Option<&'frozen CommittedRecoveryRecord>,
     spec: StructuredRecoverySpec,
     start: usize,
-    emitted_token_bytes: usize,
     previous_active: Option<usize>,
 }
 
@@ -188,7 +184,7 @@ struct StructuredReservationToken {
     slot: usize,
 }
 
-enum DiagnosticSequence<'frozen> {
+pub(super) enum DiagnosticSequence<'frozen> {
     Fresh {
         next_id: Option<u32>,
     },
@@ -201,7 +197,7 @@ enum DiagnosticSequence<'frozen> {
 }
 
 impl DiagnosticSequence<'_> {
-    fn fresh() -> Self {
+    pub(super) fn fresh() -> Self {
         Self::Fresh { next_id: Some(0) }
     }
 
@@ -298,76 +294,18 @@ impl<'frozen> DiagnosticSequence<'frozen> {
     }
 }
 
-/// The sole mutable CST and committed-recovery output carried by `SyntaxIn`.
-///
-/// Grammar owners receive only this forwarding surface. Construction and
-/// finalization remain responsibilities of the enclosing parser harness.
-pub(super) struct CstOutput<'frozen> {
-    builder: GreenNodeBuilder<'static>,
-    recoveries: Vec<RecoverySlot<'frozen>>,
-    diagnostics: DiagnosticSequence<'frozen>,
-    active_structured: Option<usize>,
-    emitted_token_bytes: usize,
-}
-
-impl CstOutput<'_> {
-    pub(super) fn new() -> Self {
-        Self {
-            builder: GreenNodeBuilder::new(),
-            recoveries: Vec::new(),
-            diagnostics: DiagnosticSequence::fresh(),
-            active_structured: None,
-            emitted_token_bytes: 0,
-        }
-    }
-
-    #[inline]
-    #[cfg(test)]
-    pub(super) fn checkpoint(&self) -> Checkpoint {
-        self.builder.checkpoint()
-    }
-
-    #[inline]
-    pub(super) fn start_node(&mut self, kind: RowanSyntaxKind) {
-        self.builder.start_node(kind);
-    }
-
-    #[inline]
-    #[cfg(test)]
-    pub(super) fn start_node_at(&mut self, checkpoint: Checkpoint, kind: RowanSyntaxKind) {
-        self.builder.start_node_at(checkpoint, kind);
-    }
-
-    #[inline]
-    pub(super) fn token(&mut self, kind: RowanSyntaxKind, text: &str) {
-        self.emitted_token_bytes = self
-            .emitted_token_bytes
-            .checked_add(text.len())
-            .expect("emitted token byte count overflow");
-        self.builder.token(kind, text);
-    }
-
-    #[inline]
-    pub(super) fn finish_node(&mut self) {
-        self.builder.finish_node();
-    }
-
-    pub(super) fn commit_recovery(&mut self, draft: RecoveryDraft) {
+impl Recover<'_> {
+    fn commit_recovery(&mut self, draft: RecoveryDraft) {
         let record = self.diagnostics.publish(draft);
         self.recoveries.push(RecoverySlot::Complete(record));
     }
 
     #[cfg(test)]
-    pub(super) fn finish(self) -> GreenNode {
-        let (green, recoveries) = self.finish_with_recoveries();
-        assert!(
-            recoveries.is_empty(),
-            "typed recovery output must be retained by its harness"
-        );
-        green
+    pub(crate) fn commit_recovery_for_test(&mut self, draft: RecoveryDraft) {
+        self.commit_recovery(draft);
     }
 
-    pub(super) fn finish_with_recoveries(self) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
+    pub(super) fn finish_recoveries(self) -> Vec<CommittedRecoveryRecord> {
         self.diagnostics.finish();
         assert!(
             self.active_structured.is_none(),
@@ -384,91 +322,105 @@ impl CstOutput<'_> {
             };
             records.push(record);
         }
-        (self.builder.finish(), records)
+        records
     }
 
     #[cfg(test)]
-    pub(super) fn recovery_slot_count(&self) -> usize {
+    pub(crate) fn finish_recoveries_for_test(self) -> Vec<CommittedRecoveryRecord> {
+        self.finish_recoveries()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn recovery_slot_count(&self) -> usize {
         self.recoveries.len()
     }
 
     #[cfg(test)]
-    pub(super) fn recovery_capacity(&self) -> usize {
+    pub(crate) fn recovery_capacity(&self) -> usize {
         self.recoveries.capacity()
     }
 
     #[cfg(test)]
-    pub(super) fn diagnostic_position(&self) -> (Option<u32>, usize) {
+    pub(crate) fn diagnostic_position(&self) -> (Option<u32>, usize) {
         self.diagnostics.position()
     }
 }
 
-impl<'frozen> CstOutput<'frozen> {
+impl<'frozen> Recover<'frozen> {
     /// Full-root records are fresh unless publication enters the shared header scope.
-    pub(super) fn reconcile_scoped(frozen: &'frozen [CommittedRecoveryRecord]) -> Self {
-        let mut output = Self::reconcile(frozen);
-        if let DiagnosticSequence::Reconcile { consume_frozen, .. } = &mut output.diagnostics {
+    pub(super) fn reconcile_scoped(
+        operators: &'frozen crate::OperatorTable,
+        frozen: &'frozen [CommittedRecoveryRecord],
+    ) -> Self {
+        let mut recover = Self::reconcile(operators, frozen);
+        if let DiagnosticSequence::Reconcile { consume_frozen, .. } = &mut recover.diagnostics {
             *consume_frozen = false;
         }
-        output
+        recover
     }
 
-    pub(super) fn header_reconciliation_scope(&mut self) -> HeaderReconciliationScope<'_, 'frozen> {
-        let previous = match &mut self.diagnostics {
-            DiagnosticSequence::Fresh { .. } => None,
-            DiagnosticSequence::Reconcile { consume_frozen, .. } => {
-                Some(std::mem::replace(consume_frozen, true))
-            }
-        };
-        HeaderReconciliationScope {
-            output: self,
-            previous,
-        }
+    #[cfg(test)]
+    pub(crate) fn reconcile_scoped_for_test(
+        operators: &'frozen crate::OperatorTable,
+        frozen: &'frozen [CommittedRecoveryRecord],
+    ) -> Self {
+        Self::reconcile_scoped(operators, frozen)
     }
 
-    pub(super) fn reconcile(frozen: &'frozen [CommittedRecoveryRecord]) -> Self {
+    pub(super) fn reconcile(
+        operators: &'frozen crate::OperatorTable,
+        frozen: &'frozen [CommittedRecoveryRecord],
+    ) -> Self {
         Self {
-            builder: GreenNodeBuilder::new(),
+            operators,
             recoveries: Vec::new(),
             diagnostics: DiagnosticSequence::reconcile(frozen),
             active_structured: None,
-            emitted_token_bytes: 0,
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reconcile_for_test(
+        operators: &'frozen crate::OperatorTable,
+        frozen: &'frozen [CommittedRecoveryRecord],
+    ) -> Self {
+        Self::reconcile(operators, frozen)
     }
 }
 
 /// Restores publication mode on normal return, early return and unwinding.
-pub(super) struct HeaderReconciliationScope<'output, 'frozen> {
-    output: &'output mut CstOutput<'frozen>,
+struct HeaderReconciliationScope<'a, 'source, 'operators, 'cache> {
+    input: SyntaxIn<'a, 'source, 'operators, 'cache>,
     previous: Option<bool>,
 }
 
-impl<'frozen> std::ops::Deref for HeaderReconciliationScope<'_, 'frozen> {
-    type Target = CstOutput<'frozen>;
-
-    fn deref(&self) -> &Self::Target {
-        self.output
-    }
-}
-
-impl std::ops::DerefMut for HeaderReconciliationScope<'_, '_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.output
-    }
-}
-
-impl Drop for HeaderReconciliationScope<'_, '_> {
+impl Drop for HeaderReconciliationScope<'_, '_, '_, '_> {
     fn drop(&mut self) {
         if let Some(previous) = self.previous
             && let DiagnosticSequence::Reconcile { consume_frozen, .. } =
-                &mut self.output.diagnostics
+                &mut self.input.recover.diagnostics
         {
             *consume_frozen = previous;
         }
     }
 }
 
-impl<'frozen> CstOutput<'frozen> {
+/// Reconciliation is available only while running a committed syntax owner.
+pub(crate) fn with_header_reconciliation<O>(
+    i: SyntaxIn,
+    operation: impl FnOnce(SyntaxIn) -> O,
+) -> O {
+    let previous = match &mut i.recover.diagnostics {
+        DiagnosticSequence::Fresh { .. } => None,
+        DiagnosticSequence::Reconcile { consume_frozen, .. } => {
+            Some(std::mem::replace(consume_frozen, true))
+        }
+    };
+    let mut scope = HeaderReconciliationScope { input: i, previous };
+    operation(scope.input.rb())
+}
+
+impl<'frozen> Recover<'frozen> {
     fn begin_structured_recovery(
         &mut self,
         start: usize,
@@ -482,7 +434,6 @@ impl<'frozen> CstOutput<'frozen> {
                 frozen,
                 spec,
                 start,
-                emitted_token_bytes: self.emitted_token_bytes,
                 previous_active: self.active_structured,
             }));
         self.active_structured = Some(slot);
@@ -498,18 +449,6 @@ impl<'frozen> CstOutput<'frozen> {
         let RecoverySlot::Reserved(reservation) = &self.recoveries[token.slot] else {
             panic!("a structured recovery reservation completes exactly once")
         };
-        let range_bytes = end
-            .checked_sub(reservation.start)
-            .filter(|bytes| *bytes > 0)
-            .expect("a structured Error range is nonempty");
-        let emitted_bytes = self
-            .emitted_token_bytes
-            .checked_sub(reservation.emitted_token_bytes)
-            .expect("structured Error token byte count moved backwards");
-        assert_eq!(
-            emitted_bytes, range_bytes,
-            "structured Error range must equal its emitted token bytes"
-        );
         let draft = reservation.spec.draft(reservation.start, end);
         if let Some(frozen) = reservation.frozen {
             assert_draft_matches_record(&draft, frozen);
@@ -521,7 +460,7 @@ impl<'frozen> CstOutput<'frozen> {
     }
 
     #[cfg(test)]
-    pub(super) fn leave_structured_unfinished_for_test(
+    pub(crate) fn leave_structured_unfinished_for_test(
         &mut self,
         primary: Item,
         successor_origin: usize,
@@ -532,7 +471,7 @@ impl<'frozen> CstOutput<'frozen> {
     }
 
     #[cfg(test)]
-    pub(super) fn violate_structured_lifo_for_test(
+    pub(crate) fn violate_structured_lifo_for_test(
         &mut self,
         outer_primary: Item,
         outer_successor_origin: usize,
@@ -555,7 +494,7 @@ impl<'frozen> CstOutput<'frozen> {
 /// The affine reservation token never leaves this output-owning helper. A
 /// panic invalidates the output; a normal return pairs exactly one Error node
 /// with the completed record in its original reserved slot.
-pub(super) fn emit_structured_recovery_error_from_item<R>(
+pub(crate) fn emit_structured_recovery_error_from_item<R>(
     mut i: SyntaxIn,
     primary: Item,
     successor_origin: usize,
@@ -563,11 +502,11 @@ pub(super) fn emit_structured_recovery_error_from_item<R>(
     body: impl FnOnce(SyntaxIn, Item) -> (R, usize),
 ) -> R {
     let start = structured_start_from_item(&primary, successor_origin);
-    let reservation = i.state.begin_structured_recovery(start, spec);
+    let reservation = i.recover.begin_structured_recovery(start, spec);
     i.state.start_node(SyntaxKind::Error.into());
     let (result, end) = body(i.rb(), primary);
     i.state.finish_node();
-    i.state.complete_structured_recovery(reservation, end);
+    i.recover.complete_structured_recovery(reservation, end);
     result
 }
 
@@ -638,6 +577,15 @@ mod scoped_tests {
     use super::*;
     use crate::recovery_record::ExpressionRole;
 
+    fn scoped<O>(recover: &mut Recover, operation: impl FnOnce(&mut Recover) -> O) -> O {
+        let mut source = "";
+        let mut builder = rowan::GreenNodeBuilder::new();
+        with_header_reconciliation(
+            crate::cursor::SyntaxIn::new(&mut source, recover, &mut builder),
+            |i| operation(i.recover),
+        )
+    }
+
     fn missing(at: usize) -> RecoveryDraft {
         let role = GrammarRole::Expression(ExpressionRole::Nud);
         RecoveryDraft::new(
@@ -663,19 +611,14 @@ mod scoped_tests {
             missing(2).into_record(DiagnosticId(4)),
             missing(6).into_record(DiagnosticId(8)),
         ];
-        let mut output = CstOutput::reconcile_scoped(&frozen);
-        output.start_node(SyntaxKind::Root.into());
-        output.commit_recovery(missing(0));
-        output
-            .header_reconciliation_scope()
-            .commit_recovery(missing(2));
-        output.commit_recovery(missing(4));
-        output
-            .header_reconciliation_scope()
-            .commit_recovery(missing(6));
-        output.commit_recovery(missing(8));
-        output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let operators = crate::OperatorTable::empty();
+        let mut recover = Recover::reconcile_scoped(&operators, &frozen);
+        recover.commit_recovery(missing(0));
+        scoped(&mut recover, |recover| recover.commit_recovery(missing(2)));
+        recover.commit_recovery(missing(4));
+        scoped(&mut recover, |recover| recover.commit_recovery(missing(6)));
+        recover.commit_recovery(missing(8));
+        let records = recover.finish_recoveries();
         assert_eq!(
             records.iter().map(|r| r.id.0).collect::<Vec<_>>(),
             [9, 4, 10, 8, 11]
@@ -690,25 +633,21 @@ mod scoped_tests {
             missing(2).into_record(DiagnosticId(4)),
             missing(4).into_record(DiagnosticId(6)),
         ];
-        let mut output = CstOutput::reconcile_scoped(&frozen);
-        output.start_node(SyntaxKind::Root.into());
+        let operators = crate::OperatorTable::empty();
+        let mut recover = Recover::reconcile_scoped(&operators, &frozen);
         assert!(
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let mut scope = output.header_reconciliation_scope();
-                {
-                    let _nested = scope.header_reconciliation_scope();
-                }
-                scope.commit_recovery(missing(2));
-                panic!("leave scope");
+                scoped(&mut recover, |recover| {
+                    scoped(recover, |_| ());
+                    recover.commit_recovery(missing(2));
+                    panic!("leave scope");
+                });
             }))
             .is_err()
         );
-        output.commit_recovery(missing(3));
-        output
-            .header_reconciliation_scope()
-            .commit_recovery(missing(4));
-        output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        recover.commit_recovery(missing(3));
+        scoped(&mut recover, |recover| recover.commit_recovery(missing(4)));
+        let records = recover.finish_recoveries();
         assert_eq!(
             records.iter().map(|r| r.id.0).collect::<Vec<_>>(),
             [4, 7, 6]
@@ -725,20 +664,58 @@ mod scoped_tests {
             0,
         );
         let frozen = [spec.draft(1, 2).into_record(DiagnosticId(5))];
-        let mut output = CstOutput::reconcile_scoped(&frozen);
-        output.start_node(SyntaxKind::Root.into());
-        let first = output.begin_structured_recovery(0, spec);
-        output.token(SyntaxKind::Error.into(), "@");
-        output.complete_structured_recovery(first, 1);
-        {
-            let mut scope = output.header_reconciliation_scope();
-            let shared = scope.begin_structured_recovery(1, spec);
-            scope.token(SyntaxKind::Error.into(), "@");
-            scope.complete_structured_recovery(shared, 2);
-        }
-        output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let operators = crate::OperatorTable::empty();
+        let mut recover = Recover::reconcile_scoped(&operators, &frozen);
+        let first = recover.begin_structured_recovery(0, spec);
+        recover.complete_structured_recovery(first, 1);
+        scoped(&mut recover, |recover| {
+            let shared = recover.begin_structured_recovery(1, spec);
+            recover.complete_structured_recovery(shared, 2);
+        });
+        let records = recover.finish_recoveries();
         assert_eq!(records[0].id, DiagnosticId(6));
         assert_eq!(records[1], frozen[0]);
+    }
+
+    #[test]
+    fn rejected_lexical_token_preserves_seeded_records_and_frozen_scope() {
+        let frozen = [missing(2).into_record(DiagnosticId(4))];
+        let operators = crate::OperatorTable::empty();
+        let mut recover = Recover::reconcile_scoped(&operators, &frozen);
+        recover.commit_recovery(missing(0));
+        let before = recover.diagnostic_position();
+        let mut source = "tail";
+        let mut builder = rowan::GreenNodeBuilder::new();
+        builder.start_node(SyntaxKind::Root.into());
+        let mut i: SyntaxIn = crate::cursor::SyntaxIn::new(&mut source, &mut recover, &mut builder);
+        assert_eq!(
+            i.token(|mut lex| {
+                // This annotation is a compile-time capability control: the
+                // lexical view cannot satisfy SyntaxIn::new's Recover borrow.
+                // SyntaxIn's recovery field is private and has no accessor.
+                let view: &mut crate::cursor::LexRecover = lex.recovery();
+                assert!(std::ptr::eq(view.operators(), &operators));
+                lex.next();
+                None::<()>
+            }),
+            None
+        );
+        drop(i);
+        assert_eq!(source, "tail");
+        assert_eq!(recover.diagnostic_position(), before);
+        assert_eq!(recover.recovery_slot_count(), 1);
+        recover.commit_recovery(missing(1));
+        scoped(&mut recover, |recover| recover.commit_recovery(missing(2)));
+        builder.finish_node();
+        assert_eq!(builder.finish().to_string(), "");
+        let records = recover.finish_recoveries();
+        assert_eq!(
+            records,
+            [
+                missing(0).into_record(DiagnosticId(5)),
+                missing(1).into_record(DiagnosticId(6)),
+                frozen[0].clone()
+            ]
+        );
     }
 }

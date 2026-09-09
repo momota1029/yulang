@@ -1,7 +1,7 @@
 //! Shared Colon/With inline-slot boundary and recovery publication.
 
-use crate::cst_output::RecoveryDraft;
-use crate::cst_output::emit::emit_recovery_missing;
+use crate::cursor::recovery::RecoveryDraft;
+use crate::cursor::recovery::emit::emit_recovery_missing;
 use crate::cursor::{LexIn, SyntaxIn};
 use crate::lexical::item::{Item, LeadingTrivia};
 use crate::lexical::observation::{

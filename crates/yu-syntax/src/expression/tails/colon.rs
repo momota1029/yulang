@@ -5,8 +5,8 @@ use super::inline_slot::{
     is_inline_slot_boundary,
 };
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cst_output::emit::{emit_recovery_error_run, emit_token_item, token_syntax_kind};
 use crate::cursor::SyntaxIn;
+use crate::cursor::recovery::emit::{emit_recovery_error_run, emit_token_item, token_syntax_kind};
 use crate::expression::{chain_continuation, expr_from_nud_normalized, is_nud_item};
 use crate::handoff::{Either, MlMode, NormalizedExit, complete, handoff};
 use crate::lexical::current_item::LineEntry;
@@ -27,7 +27,6 @@ use crate::recovery_record::{
 };
 use crate::statement::{StatementLineHandoff, indented_statement_block_normalized};
 use crate::syntax_kind::SyntaxKind;
-use reborrow_generic::Reborrow as _;
 
 /// A lone eligible colon is terminal and owns its mandatory RHS, including
 /// recovery. Inline RHSs use the direct expression vocabulary; indented RHSs

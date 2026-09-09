@@ -24,7 +24,7 @@ use crate::type_expr::{
     with_type_outer_close,
 };
 use crate::{
-    cst_output::{
+    cursor::recovery::{
         RecoveryDraft,
         emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     },

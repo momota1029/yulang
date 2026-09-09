@@ -297,14 +297,19 @@ fn record_default_exact_equals_rejection_preserves_the_original_literal_controls
     use crate::lexical::lexer::scan_exact_equals;
     let operators = OperatorTable::empty();
     for source in ["{a=\"x\"}", "{a=~\"r\"}"] {
-        let mut recover = Recover::new(&operators);
-        let mark = recover.mark();
+        let recover = Recover::new_for_test(&operators);
+        let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
         let original = source.strip_prefix("{a").unwrap();
         let mut suffix = original;
-        let mut lex: crate::cursor::LexIn = In::new(&mut suffix, &mut recover, ());
+        let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+        let mut lex: crate::cursor::LexIn =
+            chasa_recover::In::new(&mut suffix, &mut lexical_view, ());
         assert!(lex.token(scan_exact_equals).is_none());
         assert!(std::ptr::eq(suffix, original));
-        assert_eq!(recover.mark(), mark);
+        assert_eq!(
+            crate::cursor::LexRecover::new_for_test(recover.operators()).mark(),
+            mark
+        );
         assert!(std::ptr::eq(recover.operators(), &operators));
 
         // The complete malformed source stays covered; no default owner is

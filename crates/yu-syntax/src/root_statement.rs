@@ -2,8 +2,7 @@
 
 use std::{ops::Range, sync::Arc};
 
-use chasa_recover::In;
-use reborrow_generic::Reborrow as _;
+use rowan::GreenNodeBuilder;
 
 use crate::{
     recovery_record::{
@@ -16,8 +15,8 @@ use crate::{
 
 use crate::{
     ambient_claim::AmbientClaimView,
-    cst_output::{
-        CstOutput, RecoveryDraft,
+    cursor::recovery::{
+        RecoveryDraft,
         emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
     },
     cursor::{Recover, SyntaxIn},
@@ -41,7 +40,7 @@ pub(crate) fn parse_root_statements(
     source_len: usize,
     remaining: &mut &str,
     recover: &mut Recover<'_>,
-    output: &mut CstOutput,
+    output: &mut GreenNodeBuilder,
 ) {
     let (mut terminal, _, _) = root_statement_sequence(
         source_len,
@@ -72,7 +71,7 @@ pub(crate) fn parse_yulang_code_cell(
     source_len: usize,
     remaining: &mut &str,
     recover: &mut Recover<'_>,
-    output: &mut CstOutput,
+    output: &mut GreenNodeBuilder,
     origin: usize,
     line: LineEntry,
     fence: &FenceBoundary,
@@ -120,7 +119,7 @@ fn root_statement_sequence(
     source_len: usize,
     remaining: &mut &str,
     recover: &mut Recover<'_>,
-    output: &mut CstOutput,
+    output: &mut GreenNodeBuilder,
     state: RootStatementState,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
@@ -135,7 +134,8 @@ fn root_statement_sequence(
     } = state;
     loop {
         let entered_at_start = line == LineEntry::PhysicalStart;
-        let mut i: SyntaxIn = In::new(&mut *remaining, &mut *recover, &mut *output);
+        let mut i: SyntaxIn =
+            crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output);
         let mut item = match pending.take() {
             Some(item) => item,
             None => {
@@ -195,17 +195,13 @@ fn root_statement_sequence(
         let exit = if is_operator {
             drop(i);
             let (next, next_origin, next_line, _) = if shared {
-                let mut scope = output.header_reconciliation_scope();
-                operator_header::operator_header_normalized(
-                    In::new(&mut *remaining, &mut *recover, &mut *scope),
-                    item,
-                    origin,
-                    line,
-                    fence,
+                crate::cursor::recovery::with_header_reconciliation(
+                    crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output),
+                    |i| operator_header::operator_header_normalized(i, item, origin, line, fence),
                 )
             } else {
                 operator_header::operator_header_normalized(
-                    In::new(&mut *remaining, &mut *recover, &mut *output),
+                    crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output),
                     item,
                     origin,
                     line,
@@ -214,7 +210,8 @@ fn root_statement_sequence(
             };
             origin = next_origin;
             line = next_line;
-            let mut i: SyntaxIn = In::new(&mut *remaining, &mut *recover, &mut *output);
+            let mut i: SyntaxIn =
+                crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output);
             let exit = match next {
                 Some(item) => NormalizedExit::Complete(Err(Either::Left(item)), line),
                 None => operator_body(i.rb(), origin, line, fence, ambient),
@@ -225,18 +222,20 @@ fn root_statement_sequence(
             exit
         } else if shared && is_use {
             drop(i);
-            let (exit, _) = {
-                let mut scope = output.header_reconciliation_scope();
-                use_decl::use_declaration_header_normalized(
-                    In::new(&mut *remaining, &mut *recover, &mut *scope),
-                    item,
-                    0,
-                    STOP_SEMICOLON,
-                    origin,
-                    line,
-                    fence,
-                )
-            };
+            let (exit, _) = crate::cursor::recovery::with_header_reconciliation(
+                crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output),
+                |i| {
+                    use_decl::use_declaration_header_normalized(
+                        i,
+                        item,
+                        0,
+                        STOP_SEMICOLON,
+                        origin,
+                        line,
+                        fence,
+                    )
+                },
+            );
             previous = StatementRole::TrailingInput {
                 owner: StatementKind::UseDeclaration,
             };
@@ -628,8 +627,8 @@ mod cell_tests {
                         let source = format!("{host}{body}{suffix}");
                         let mut remaining = &source[host.len()..];
                         let operators = OperatorTable::empty();
-                        let mut recover = Recover::new(&operators);
-                        let mut output = CstOutput::new();
+                        let mut recover = Recover::new_for_test(&operators);
+                        let mut output = GreenNodeBuilder::new();
                         output.start_node(SyntaxKind::Root.into());
                         output.token(SyntaxKind::Unknown.into(), &host);
                         output.start_node(SyntaxKind::YmCodeFence.into());
@@ -669,7 +668,8 @@ mod cell_tests {
                         }
                         output.finish_node();
                         output.finish_node();
-                        let (green, records) = output.finish_with_recoveries();
+                        let (green, records) =
+                            (output.finish(), recover.finish_recoveries_for_test());
                         assert!(records.is_empty(), "{source:?}: {records:?}");
                         assert_eq!(green.to_string(), format!("{host}{body}"));
                         let syntax = SyntaxNode::new_root(green);
@@ -702,8 +702,8 @@ mod cell_tests {
                 let source = format!("{body}{suffix}");
                 let mut remaining = source.as_str();
                 let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
-                let mut output = CstOutput::new();
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let fence = FenceBoundary {
                     opener: FenceOpener {
@@ -724,7 +724,7 @@ mod cell_tests {
                     &fence,
                 );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(remaining, suffix);
                 assert_eq!(origin, body.len());
                 assert_eq!(boundary.coordinate(), origin);
@@ -780,8 +780,8 @@ mod cell_tests {
             "prefix (?) 70 = 値\n? value\n```",
         ] {
             let mut remaining = source;
-            let mut recover = Recover::new(&operators);
-            let mut output = CstOutput::new();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = GreenNodeBuilder::new();
             output.start_node(SyntaxKind::Root.into());
             let fence = FenceBoundary {
                 opener: FenceOpener {
@@ -802,7 +802,7 @@ mod cell_tests {
                 &fence,
             );
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(remaining, "```");
             assert_eq!(green.to_string(), source.strip_suffix("```").unwrap());
             let syntax = SyntaxNode::new_root(green);
@@ -859,8 +859,8 @@ mod sequence_fence_tests {
                     let source = format!("{host}{leading}{suffix}");
                     let mut remaining = &source[start..];
                     let operators = OperatorTable::empty();
-                    let mut recover = Recover::new(&operators);
-                    let mut output = CstOutput::new();
+                    let mut recover = Recover::new_for_test(&operators);
+                    let mut output = GreenNodeBuilder::new();
                     output.start_node(SyntaxKind::Root.into());
                     let fence = fence();
                     let mut state = RootStatementState::fenced(start, LineEntry::InLine);
@@ -868,7 +868,7 @@ mod sequence_fence_tests {
                     state.separated = true;
                     let before = if preacquired {
                         let (item, origin, line) = statement::statement_item_normalized(
-                            In::new(&mut remaining, &mut recover, &mut output),
+                            crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
                             start,
                             LineEntry::InLine,
                             Some(&fence),
@@ -920,7 +920,7 @@ mod sequence_fence_tests {
                         )),
                     }
                     output.finish_node();
-                    let (green, records) = output.finish_with_recoveries();
+                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                     assert_eq!(green.to_string(), "");
                     assert!(records.is_empty());
                 }
@@ -957,8 +957,8 @@ mod sequence_fence_tests {
                     let source = format!("{emitted}{terminal_leading}{suffix}");
                     let mut remaining = source.as_str();
                     let operators = OperatorTable::empty();
-                    let mut recover = Recover::new(&operators);
-                    let mut output = CstOutput::new();
+                    let mut recover = Recover::new_for_test(&operators);
+                    let mut output = GreenNodeBuilder::new();
                     output.start_node(SyntaxKind::Root.into());
                     let fence = fence();
                     let (item, origin, _) = root_statement_sequence(
@@ -989,7 +989,7 @@ mod sequence_fence_tests {
                         origin
                     );
                     output.finish_node();
-                    let (green, records) = output.finish_with_recoveries();
+                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                     assert_eq!(green.to_string(), emitted, "{source:?}");
                     assert!(records.is_empty(), "{source:?}: {records:?}");
                     let syntax = crate::syntax_kind::SyntaxNode::new_root(green);
@@ -1017,8 +1017,8 @@ mod sequence_fence_tests {
                 let source = format!("{emitted}{newline}{suffix}");
                 let mut remaining = source.as_str();
                 let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
-                let mut output = CstOutput::new();
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let fence = fence();
                 let (item, origin, _) = root_statement_sequence(
@@ -1042,7 +1042,7 @@ mod sequence_fence_tests {
                     "{source:?}"
                 );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(green.to_string(), emitted);
                 assert_eq!(records.len(), 1);
                 assert_eq!(records[0].kind, RecoveryKind::Missing);
@@ -1063,8 +1063,8 @@ mod sequence_fence_tests {
                 let source = format!("{emitted}{suffix}");
                 let mut remaining = source.as_str();
                 let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
-                let mut output = CstOutput::new();
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let fence = fence();
                 let (item, origin, _) = root_statement_sequence(
@@ -1094,7 +1094,7 @@ mod sequence_fence_tests {
                     origin
                 );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(green.to_string(), emitted);
                 assert_eq!(records.len(), 1);
                 assert_eq!(records[0].kind, RecoveryKind::Error);
@@ -1115,12 +1115,12 @@ mod sequence_fence_tests {
                     let source = format!("{head} /* é{newline}{suffix}");
                     let mut remaining = source.as_str();
                     let operators = OperatorTable::empty();
-                    let mut recover = Recover::new(&operators);
-                    let mut output = CstOutput::new();
+                    let mut recover = Recover::new_for_test(&operators);
+                    let mut output = GreenNodeBuilder::new();
                     output.start_node(SyntaxKind::Root.into());
                     let fence = fence();
                     let (item, origin, _) = statement::statement_item_normalized(
-                        In::new(&mut remaining, &mut recover, &mut output),
+                        crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
                         0,
                         LineEntry::InLine,
                         Some(&fence),
@@ -1128,7 +1128,8 @@ mod sequence_fence_tests {
                         STOP_SEMICOLON,
                     );
                     let before = remaining;
-                    let i: SyntaxIn = In::new(&mut remaining, &mut recover, &mut output);
+                    let i: SyntaxIn =
+                        crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output);
                     let selected = i
                         .map(
                             |lex: crate::cursor::LexIn| {
@@ -1141,7 +1142,7 @@ mod sequence_fence_tests {
                     assert_eq!(remaining, before);
                     assert_eq!(item.extent(origin).physical(), 0..origin);
                     output.finish_node();
-                    let (green, records) = output.finish_with_recoveries();
+                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                     assert_eq!(green.to_string(), "");
                     assert!(records.is_empty());
                 }
@@ -1156,8 +1157,8 @@ mod sequence_fence_tests {
                 let source = format!("値 {newline}{suffix}");
                 let mut remaining = source.as_str();
                 let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
-                let mut output = CstOutput::new();
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let mut fence = fence();
                 fence.prefix_policy = FencePrefixPolicy::None;
@@ -1186,7 +1187,7 @@ mod sequence_fence_tests {
                     item.extent(origin).remaining()
                 );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(green.to_string(), "値");
                 assert!(records.is_empty());
             }
@@ -1262,8 +1263,8 @@ mod opaque_fence_tests {
             let source = format!("{body}{closing}");
             let mut remaining = source.as_str();
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
-            let mut output = CstOutput::new();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = GreenNodeBuilder::new();
             output.start_node(SyntaxKind::Root.into());
             let fence = FenceBoundary {
                 opener: FenceOpener {
@@ -1275,7 +1276,7 @@ mod opaque_fence_tests {
                 close_column: 0,
             };
             let (item, origin, line) = statement::statement_item_normalized(
-                In::new(&mut remaining, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
                 0,
                 LineEntry::InLine,
                 Some(&fence),
@@ -1283,7 +1284,7 @@ mod opaque_fence_tests {
                 STOP_SEMICOLON,
             );
             let (pending, origin, _) = root_error(
-                In::new(&mut remaining, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
                 item,
                 origin,
                 line,
@@ -1291,7 +1292,7 @@ mod opaque_fence_tests {
                 Some(&fence),
             );
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(green.to_string(), body);
             assert_eq!(records, [starter_error(body.len())]);
             assert_eq!(remaining, closing);
@@ -1341,11 +1342,11 @@ mod opaque_fence_tests {
         let source = "] \"é\r\n> 💥";
         let mut remaining = source;
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
-        let mut output = CstOutput::new();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (item, origin, line) = statement::statement_item_normalized(
-            In::new(&mut remaining, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
             0,
             LineEntry::InLine,
             None,
@@ -1353,7 +1354,7 @@ mod opaque_fence_tests {
             STOP_SEMICOLON,
         );
         let (pending, origin, line) = root_error(
-            In::new(&mut remaining, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
             item,
             origin,
             line,
@@ -1361,7 +1362,7 @@ mod opaque_fence_tests {
             None,
         );
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         assert_eq!(records, [starter_error(source.len())]);
         assert_eq!(remaining, "");
@@ -1394,8 +1395,8 @@ mod opaque_fence_tests {
                     let source = format!("{body}{closing}");
                     let mut remaining = source.as_str();
                     let operators = OperatorTable::empty();
-                    let mut recover = Recover::new(&operators);
-                    let mut output = CstOutput::new();
+                    let mut recover = Recover::new_for_test(&operators);
+                    let mut output = GreenNodeBuilder::new();
                     output.start_node(SyntaxKind::Root.into());
                     let fence = FenceBoundary {
                         opener: FenceOpener {
@@ -1408,7 +1409,7 @@ mod opaque_fence_tests {
                     };
                     // The opener and first body line were already admitted by the containing owner.
                     let (item, origin, line) = statement::statement_item_normalized(
-                        In::new(&mut remaining, &mut recover, &mut output),
+                        crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
                         0,
                         LineEntry::InLine,
                         Some(&fence),
@@ -1416,7 +1417,7 @@ mod opaque_fence_tests {
                         STOP_SEMICOLON,
                     );
                     let (pending, origin, line) = root_error(
-                        In::new(&mut remaining, &mut recover, &mut output),
+                        crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
                         item,
                         origin,
                         line,
@@ -1424,7 +1425,7 @@ mod opaque_fence_tests {
                         Some(&fence),
                     );
                     output.finish_node();
-                    let (green, records) = output.finish_with_recoveries();
+                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                     // A newline inside the nested-fence opener itself can expose a transition first.
                     let accepted = if opener == "'{\n```text" {
                         "] '{\n"
@@ -1498,8 +1499,8 @@ mod opaque_fence_tests {
                 let source = format!("{body}{closing}");
                 let mut remaining = source.as_str();
                 let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
-                let mut output = CstOutput::new();
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let fence = FenceBoundary {
                     opener: FenceOpener {
@@ -1511,7 +1512,7 @@ mod opaque_fence_tests {
                     close_column: 0,
                 };
                 let (item, origin, line) = statement::statement_item_normalized(
-                    In::new(&mut remaining, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
                     0,
                     LineEntry::InLine,
                     Some(&fence),
@@ -1519,7 +1520,7 @@ mod opaque_fence_tests {
                     STOP_SEMICOLON,
                 );
                 let (pending, origin, line) = root_error(
-                    In::new(&mut remaining, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut remaining, &mut recover, &mut output),
                     item,
                     origin,
                     line,
@@ -1527,7 +1528,7 @@ mod opaque_fence_tests {
                     Some(&fence),
                 );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(green.to_string(), body, "{source:?}");
                 assert_eq!(remaining, closing);
                 assert_eq!(origin, body.len());

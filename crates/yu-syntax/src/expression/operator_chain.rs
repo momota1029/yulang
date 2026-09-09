@@ -14,8 +14,8 @@ use crate::{
 };
 
 use crate::{
-    cst_output::emit::{emit_identifier_core, emit_integer_core, emit_operator_use},
     cursor::SyntaxIn,
+    cursor::recovery::emit::{emit_identifier_core, emit_integer_core, emit_operator_use},
     expression::{
         case_like::{CaseLikeFamily, case_like_nud_normalized},
         delimited::parenthesized_nud_normalized,

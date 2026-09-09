@@ -1,6 +1,6 @@
 use crate::tests::support::*;
 use crate::{
-    cst_output::emit::{emit_identifier_core, emit_literal_item, emit_token_item},
+    cursor::recovery::emit::{emit_identifier_core, emit_literal_item, emit_token_item},
     handoff::handoff,
     lexical::{
         current_item::{LineEntry, current_item, scan_identifier_item_witness},
@@ -52,10 +52,11 @@ fn fenced_boundary_item<'source>(
     fence: &FenceBoundary,
 ) -> (Item, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = &root[item_start..];
     let item_origin = checked_source_coordinate(root, input);
-    let mut i: crate::cursor::LexIn = In::new(&mut input, &mut recover, ());
+    let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+    let mut i: crate::cursor::LexIn = chasa_recover::In::new(&mut input, &mut lexical_view, ());
     let mut leading = Vec::new();
     while let Some(part) = i.token(scan_fenced_prior_trivia_part) {
         leading.push(part);
@@ -96,38 +97,38 @@ fn checked_source_coordinate(root: &str, suffix: &str) -> usize {
 
 fn emit_accepted_literal_item(item: Item, kind: SyntaxKind) -> GreenNode {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = "";
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let mut i = In::new(&mut input, &mut recover, &mut builder);
+    let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder);
     emit_literal_item(&mut i, item, kind);
     builder.finish_node();
-    builder.finish()
+    finish_without_recoveries(builder, recover)
 }
 
 fn emit_accepted_token_item(item: Item) -> GreenNode {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = "";
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let mut i = In::new(&mut input, &mut recover, &mut builder);
+    let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder);
     emit_token_item(&mut i, item);
     builder.finish_node();
-    builder.finish()
+    finish_without_recoveries(builder, recover)
 }
 
 fn emit_accepted_identifier(item: Item) -> GreenNode {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = "";
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    let mut i = In::new(&mut input, &mut recover, &mut builder);
+    let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder);
     emit_identifier_core(&mut i, item);
     builder.finish_node();
-    builder.finish()
+    finish_without_recoveries(builder, recover)
 }
 
 fn emit_accepted_end(item: Item) -> GreenNode {
@@ -161,10 +162,18 @@ fn literal_item(text: &str) -> Item {
 fn ordinary_block_comment_scanner_remains_unsplit() {
     let source = "/* outer\n> > inner */name";
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let mut item = scan_statement_item(In::new(&mut input, &mut recover, ()), 0, 0)
-        .expect("ordinary statement item");
+    let mut item = scan_statement_item(
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
+        0,
+        0,
+    )
+    .expect("ordinary statement item");
 
     assert_eq!(input, "");
     assert_eq!(
@@ -185,12 +194,16 @@ fn ordinary_block_comment_scanner_remains_unsplit() {
 fn current_item_applies_prefix_only_at_a_judged_physical_line() {
     let fence = active_fence(2);
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
 
     let source = "> > name";
     let mut input = source;
     let mut item = scan_identifier_item_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         40,
         LineEntry::PhysicalStart,
         Some(&fence),
@@ -207,7 +220,11 @@ fn current_item_applies_prefix_only_at_a_judged_physical_line() {
     let mut input = source;
     assert!(
         scan_identifier_item_witness(
-            In::new(&mut input, &mut recover, ()),
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                ()
+            ),
             40,
             LineEntry::InLine,
             Some(&fence),
@@ -220,7 +237,11 @@ fn current_item_applies_prefix_only_at_a_judged_physical_line() {
     let source = "> > first\r\n> > second";
     let mut input = source;
     let first = scan_identifier_item_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         40,
         LineEntry::PhysicalStart,
         Some(&fence),
@@ -229,7 +250,11 @@ fn current_item_applies_prefix_only_at_a_judged_physical_line() {
     assert_eq!(first.next_line_entry, LineEntry::InLine);
     assert_eq!(input, "\r\n> > second");
     let mut second = scan_identifier_item_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         40 + "> > first".len(),
         first.next_line_entry,
         Some(&fence),
@@ -252,10 +277,14 @@ fn current_item_leaves_trailing_prefix_horizontal_bytes_as_yulang_whitespace() {
 
     for (source, prefix, whitespace) in [("> >   name", "> > ", "  "), ("> >\t name", "> >\t", " ")]
     {
-        let mut recover = Recover::new(&operators);
+        let recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut current = scan_identifier_item_witness(
-            In::new(&mut input, &mut recover, ()),
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ),
             40,
             LineEntry::PhysicalStart,
             Some(&fence),
@@ -279,11 +308,15 @@ fn current_item_leaves_trailing_prefix_horizontal_bytes_as_yulang_whitespace() {
 fn current_item_owns_one_fenced_block_comment_carrier() {
     let fence = active_fence(2);
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let source = "> > /*x\r\n> > y*/ name";
     let mut input = source;
     let current = scan_identifier_item_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         200,
         LineEntry::PhysicalStart,
         Some(&fence),
@@ -311,19 +344,27 @@ fn current_item_owns_one_fenced_block_comment_carrier() {
 fn ordinary_current_item_keeps_the_existing_plain_scanner_result() {
     let operators = OperatorTable::empty();
     let source = " /* ordinary */\nname";
-    let mut ordinary_recover = Recover::new(&operators);
+    let ordinary_recover = Recover::new_for_test(&operators);
     let mut ordinary_input = source;
     let ordinary = scan_statement_item(
-        In::new(&mut ordinary_input, &mut ordinary_recover, ()),
+        chasa_recover::In::new(
+            &mut ordinary_input,
+            &mut crate::cursor::LexRecover::new_for_test(ordinary_recover.operators()),
+            (),
+        ),
         0,
         0,
     )
     .expect("ordinary statement scanner item");
 
-    let mut normalized_recover = Recover::new(&operators);
+    let normalized_recover = Recover::new_for_test(&operators);
     let mut normalized_input = source;
     let normalized = scan_identifier_item_witness(
-        In::new(&mut normalized_input, &mut normalized_recover, ()),
+        chasa_recover::In::new(
+            &mut normalized_input,
+            &mut crate::cursor::LexRecover::new_for_test(normalized_recover.operators()),
+            (),
+        ),
         0,
         LineEntry::InLine,
         None,
@@ -338,13 +379,17 @@ fn ordinary_current_item_keeps_the_existing_plain_scanner_result() {
 fn current_item_stops_at_boundary_without_calling_payload_or_consuming_it() {
     let fence = active_fence(2);
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let source = "> > \n> > ```\nouter";
     let start = source.as_ptr();
     let mut input = source;
     let called = std::cell::Cell::new(false);
     let current = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         80,
         LineEntry::PhysicalStart,
         Some(&fence),
@@ -366,10 +411,14 @@ fn current_item_stops_at_boundary_without_calling_payload_or_consuming_it() {
 fn current_item_reports_fenced_eof_as_an_inline_terminal_fact() {
     let fence = active_fence(2);
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = "";
     let current = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         80,
         LineEntry::InLine,
         Some(&fence),
@@ -386,10 +435,14 @@ fn current_item_reports_fenced_eof_as_an_inline_terminal_fact() {
 #[test]
 fn ordinary_current_item_materializes_eof_without_calling_its_payload_owner() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = " \n";
     let current = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         20,
         LineEntry::InLine,
         None,
@@ -417,11 +470,15 @@ fn normalized_nud_operator_observes_a_fence_without_consuming_its_boundary() {
         OperatorDeclaration::new("?", OperatorFixities::new().with_nullfix()),
     ])
     .expect("distinct dynamic operator declarations");
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let source = "> > ? \n> > ```\nouter";
     let mut input = source;
     let mut current = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         400,
         LineEntry::PhysicalStart,
         Some(&fence),
@@ -446,10 +503,14 @@ fn normalized_type_and_pattern_payloads_reuse_their_exact_raw_vocabularies() {
     let fence = active_fence(2);
     let operators = OperatorTable::empty();
 
-    let mut type_recover = Recover::new(&operators);
+    let type_recover = Recover::new_for_test(&operators);
     let mut type_input = "> > for 'a";
     let mut type_item = current_item(
-        In::new(&mut type_input, &mut type_recover, ()),
+        chasa_recover::In::new(
+            &mut type_input,
+            &mut crate::cursor::LexRecover::new_for_test(type_recover.operators()),
+            (),
+        ),
         500,
         LineEntry::PhysicalStart,
         Some(&fence),
@@ -467,10 +528,14 @@ fn normalized_type_and_pattern_payloads_reuse_their_exact_raw_vocabularies() {
         [(SyntaxKind::YmQuotePrefix, "> > ".to_owned())]
     );
 
-    let mut pattern_recover = Recover::new(&operators);
+    let pattern_recover = Recover::new_for_test(&operators);
     let mut pattern_input = "> > :tag";
     let mut pattern_item = current_item(
-        In::new(&mut pattern_input, &mut pattern_recover, ()),
+        chasa_recover::In::new(
+            &mut pattern_input,
+            &mut crate::cursor::LexRecover::new_for_test(pattern_recover.operators()),
+            (),
+        ),
         700,
         LineEntry::PhysicalStart,
         Some(&fence),
@@ -500,12 +565,16 @@ fn normalized_type_and_pattern_payloads_reuse_their_exact_raw_vocabularies() {
 #[test]
 fn current_item_rolls_back_an_optional_payload_after_tentative_leading_scan() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let source = "  name";
     let pointer = source.as_ptr();
     let mut input = source;
     let result = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         0,
         LineEntry::InLine,
         None,
@@ -610,9 +679,13 @@ fn fenced_operator_observation_uses_visible_value_or_boundary_eof_facts() {
         ("@ \n> > ```\nouter", OperatorSite::Led, "suffix"),
     ] {
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let recover = Recover::new_for_test(&operators);
         let operator = scan_operator_fenced(
-            In::new(&mut input, &mut recover, ()),
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ),
             site,
             false,
             0,
@@ -1038,10 +1111,11 @@ fn fenced_comment_borrows_close_before_consuming_its_prefix() {
 fn fenced_comment_segments_only_one_post_marker_horizontal_byte_as_prefix() {
     let source = "/* outer\n> >   body */tail";
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut foreign = None;
-    let mut i: crate::cursor::LexIn = In::new(&mut input, &mut recover, ());
+    let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+    let mut i: crate::cursor::LexIn = chasa_recover::In::new(&mut input, &mut lexical_view, ());
     let outcome = i
         .token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign))
         .expect("complete fenced block comment");
@@ -1188,11 +1262,12 @@ fn fenced_comment_nonmatch_restores_source_and_preserves_sentinel_splits() {
     let source = "/x";
     let pointer = source.as_ptr();
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
     let sentinel = ForeignSplit::quote_prefix(900, 1);
     let mut foreign = Some(vec![sentinel]);
-    let mut i: crate::cursor::LexIn = In::new(&mut input, &mut recover, ());
+    let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+    let mut i: crate::cursor::LexIn = chasa_recover::In::new(&mut input, &mut lexical_view, ());
     let result =
         i.token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign));
 
@@ -1206,10 +1281,11 @@ fn fenced_comment_nonmatch_restores_source_and_preserves_sentinel_splits() {
 fn fenced_comment_can_complete_only_at_zero_nested_depth() {
     let source = "/* outer\n> > /* inner */ outer */tail";
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut foreign = None;
-    let mut i: crate::cursor::LexIn = In::new(&mut input, &mut recover, ());
+    let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+    let mut i: crate::cursor::LexIn = chasa_recover::In::new(&mut input, &mut lexical_view, ());
     let outcome = i
         .token(|comment| scan_block_comment_fenced(comment, 0, &active_fence(2), &mut foreign))
         .expect("complete fenced block comment");
@@ -1243,20 +1319,24 @@ fn fenced_comment_can_complete_only_at_zero_nested_depth() {
 #[test]
 fn caller_owned_builder_finishes_after_source_drops() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let mut exit = {
         let source = String::from("  αβ  ");
         let mut input = source.as_str();
-        expr(In::new(&mut input, &mut recover, &mut builder))
+        expr(crate::cursor::SyntaxIn::new(
+            &mut input,
+            &mut recover,
+            &mut builder,
+        ))
     };
     let Some(Err(Either::Right(end))) = &mut exit else {
         panic!("the core expression must return EOF trivia to its outer owner")
     };
     emit_end(&mut builder, end);
     builder.finish_node();
-    let green = builder.finish();
+    let green = finish_without_recoveries(builder, recover);
     assert_eq!(green.to_string(), "  αβ  ");
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.kind(), SyntaxKind::Root);

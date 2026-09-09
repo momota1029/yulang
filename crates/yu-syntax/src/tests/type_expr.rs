@@ -292,21 +292,24 @@ fn run_pattern_with_recoveries<'frozen>(
 ) -> (GreenNode, TailExit, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     output.start_node(SyntaxKind::Root.into());
     let mut exit = pattern_with_stops(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         PATTERN_DEFAULT_STOPS,
     );
     if let Err(Either::Right(end)) = &mut exit {
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, exit, records)
 }
 
@@ -325,21 +328,24 @@ fn run_required_type_with_recoveries<'source, 'frozen>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     output.start_node(SyntaxKind::Root.into());
     let (primary, successor_origin, next_line_entry) = crate::type_expr::type_nud_item_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         item_origin,
         line_entry,
         fence,
     );
     let (mut exit, primary_found) =
         crate::type_expr::required_type_expr_with_caller_stops_and_completion_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             primary,
             0,
             0,
@@ -351,7 +357,7 @@ fn run_required_type_with_recoveries<'source, 'frozen>(
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, exit, primary_found, input, records)
 }
 
@@ -362,14 +368,17 @@ fn run_type_with_context_and_recoveries<'frozen>(
 ) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     output.start_node(SyntaxKind::Root.into());
     let (mut exit, _) = crate::type_expr::type_expr_with_context_for_test(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         type_ml,
         0,
     )
@@ -378,7 +387,7 @@ fn run_type_with_context_and_recoveries<'frozen>(
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, exit, records)
 }
 
@@ -407,18 +416,21 @@ fn run_contextual_type_snapshot<'source, 'frozen>(
 ) -> ContextualTypeRun<'source> {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
-    let mark = recover.mark();
+    let mut recover = Recover::new_for_test(&operators);
+    let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
     let same_operators = std::ptr::eq(recover.operators(), &operators);
     let mut output = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut output);
     let (mut exit, successor_origin) =
         crate::type_expr::type_expr_with_context_and_boundaries_for_test(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             type_ml,
             caller_stops,
             outer_closes,
@@ -430,10 +442,10 @@ fn run_contextual_type_snapshot<'source, 'frozen>(
     if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
         emit_end(&mut output, end);
     }
-    let slots = output.recovery_slot_count();
-    let diagnostics = output.diagnostic_position();
+    let slots = recover.recovery_slot_count();
+    let diagnostics = recover.diagnostic_position();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     ContextualTypeRun {
         green,
         exit,
@@ -566,23 +578,29 @@ fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     output.start_node(SyntaxKind::Root.into());
     let (primary, primary_successor, line_entry) = crate::type_expr::type_nud_item_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         0,
         LineEntry::InLine,
         None,
     );
-    let continuation_entry =
-        crate::lexical::position::suffix_marker(In::new(&mut input, &mut recover, &mut output));
+    let continuation_entry = crate::lexical::position::suffix_marker(crate::cursor::SyntaxIn::new(
+        &mut input,
+        &mut recover,
+        &mut output,
+    ));
     let (exit, primary_found) = if pipe_lexical {
         crate::type_expr::required_variant_payload_type_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             primary,
             0,
             crate::type_expr::TypeMlContext::INACTIVE,
@@ -593,7 +611,7 @@ fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
         )
     } else {
         crate::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             primary,
             0,
             0,
@@ -606,12 +624,12 @@ fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
     let successor_origin = crate::lexical::position::advanced_origin(
         primary_successor,
         continuation_entry,
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
     );
-    let slots = output.recovery_slot_count();
-    let diagnostics = output.diagnostic_position();
+    let slots = recover.recovery_slot_count();
+    let diagnostics = recover.diagnostic_position();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (
         green,
         exit,
@@ -624,8 +642,8 @@ fn run_required_type_with_outer_boundary_and_recoveries<'source, 'frozen>(
     )
 }
 
-fn commit_record_draft(output: &mut GreenNodeBuilder<'_>, record: &CommittedRecoveryRecord) {
-    output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+fn commit_record_draft(recover: &mut Recover, record: &CommittedRecoveryRecord) {
+    recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
         record.site.clone(),
         record.kind,
         record.unexpected.clone(),
@@ -655,14 +673,18 @@ fn scan_type_item_control_with_pipe_lexical<'source>(
     pipe_lexical: bool,
 ) -> (Item, usize, LineEntry, &'source str, (), bool) {
     let mut input = source;
-    let mut recover = Recover::new(operators);
-    let mark = recover.mark();
+    let recover = Recover::new_for_test(operators);
+    let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
     let same_operators = std::ptr::eq(recover.operators(), operators);
     let crate::lexical::current_item::CurrentItem {
         item,
         next_line_entry,
     } = crate::lexical::current_item::current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         item_origin,
         LineEntry::InLine,
         None,
@@ -1115,42 +1137,53 @@ fn rb_t_required_type_probe_rejection_preserves_output_and_input() {
     let frozen = [expected_parenthesized_close(7, 0)];
 
     let mut candidate_input = "@A";
-    let mut candidate_recover = Recover::new(&operators);
-    let candidate_mark = candidate_recover.mark();
+    let mut candidate_recover = Recover::new_for_test(&operators);
+    let candidate_mark =
+        crate::cursor::LexRecover::new_for_test(candidate_recover.operators()).mark();
     let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
-    let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+    let mut candidate_output = {
+        candidate_recover = Recover::reconcile_for_test(candidate_recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     candidate_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut candidate_output);
     candidate_output.start_node(SyntaxKind::Missing.into());
     candidate_output.finish_node();
-    commit_record_draft(&mut candidate_output, &frozen[0]);
-    let before_slots = candidate_output.recovery_slot_count();
-    let before_diagnostics = candidate_output.diagnostic_position();
-    let exit = crate::type_expr::type_expr(In::new(
+    commit_record_draft(&mut candidate_recover, &frozen[0]);
+    let before_slots = candidate_recover.recovery_slot_count();
+    let before_diagnostics = candidate_recover.diagnostic_position();
+    let exit = crate::type_expr::type_expr(crate::cursor::SyntaxIn::new(
         &mut candidate_input,
         &mut candidate_recover,
         &mut candidate_output,
     ));
     assert!(exit.is_none());
-    let candidate_slots = candidate_output.recovery_slot_count();
-    let candidate_diagnostics = candidate_output.diagnostic_position();
+    let candidate_slots = candidate_recover.recovery_slot_count();
+    let candidate_diagnostics = candidate_recover.diagnostic_position();
     candidate_output.finish_node();
-    let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+    let (candidate_green, candidate_records) = (
+        candidate_output.finish(),
+        candidate_recover.finish_recoveries_for_test(),
+    );
 
     let control_input = "@A";
-    let control_recover = Recover::new(&operators);
-    let control_mark = control_recover.mark();
+    let control_recover = Recover::new_for_test(&operators);
+    let control_mark = crate::cursor::LexRecover::new_for_test(control_recover.operators()).mark();
     let control_operators = std::ptr::eq(control_recover.operators(), &operators);
-    let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+    let mut control_recover = Recover::reconcile_for_test(&operators, &frozen);
+    let mut control_output = GreenNodeBuilder::new();
     control_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut control_output);
     control_output.start_node(SyntaxKind::Missing.into());
     control_output.finish_node();
-    commit_record_draft(&mut control_output, &frozen[0]);
-    let control_slots = control_output.recovery_slot_count();
-    let control_diagnostics = control_output.diagnostic_position();
+    commit_record_draft(&mut control_recover, &frozen[0]);
+    let control_slots = control_recover.recovery_slot_count();
+    let control_diagnostics = control_recover.diagnostic_position();
     control_output.finish_node();
-    let (control_green, control_records) = control_output.finish_with_recoveries();
+    let (control_green, control_records) = (
+        control_output.finish(),
+        control_recover.finish_recoveries_for_test(),
+    );
 
     assert_eq!(candidate_green, control_green);
     assert_eq!(candidate_records, control_records);
@@ -1180,14 +1213,18 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
     )];
 
     let mut candidate_input = "A ->@ with";
-    let mut candidate_recover = Recover::new(&operators);
-    let candidate_mark = candidate_recover.mark();
+    let mut candidate_recover = Recover::new_for_test(&operators);
+    let candidate_mark =
+        crate::cursor::LexRecover::new_for_test(candidate_recover.operators()).mark();
     let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
-    let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+    let mut candidate_output = {
+        candidate_recover = Recover::reconcile_for_test(candidate_recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     candidate_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut candidate_output);
     let (primary, primary_origin, primary_line) = crate::type_expr::type_nud_item_normalized(
-        In::new(
+        crate::cursor::SyntaxIn::new(
             &mut candidate_input,
             &mut candidate_recover,
             &mut candidate_output,
@@ -1196,14 +1233,14 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
         LineEntry::InLine,
         None,
     );
-    let continuation_entry = crate::lexical::position::suffix_marker(In::new(
+    let continuation_entry = crate::lexical::position::suffix_marker(crate::cursor::SyntaxIn::new(
         &mut candidate_input,
         &mut candidate_recover,
         &mut candidate_output,
     ));
     let (candidate_exit, primary_found) =
         crate::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
-            In::new(
+            crate::cursor::SyntaxIn::new(
                 &mut candidate_input,
                 &mut candidate_recover,
                 &mut candidate_output,
@@ -1219,7 +1256,7 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
     let candidate_origin = crate::lexical::position::advanced_origin(
         primary_origin,
         continuation_entry,
-        In::new(
+        crate::cursor::SyntaxIn::new(
             &mut candidate_input,
             &mut candidate_recover,
             &mut candidate_output,
@@ -1231,10 +1268,13 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
         panic!("outer-owned Arrow retry must remain pending")
     };
     assert!(primary_found);
-    let candidate_slots = candidate_output.recovery_slot_count();
-    let candidate_diagnostics = candidate_output.diagnostic_position();
+    let candidate_slots = candidate_recover.recovery_slot_count();
+    let candidate_diagnostics = candidate_recover.diagnostic_position();
     candidate_output.finish_node();
-    let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+    let (candidate_green, candidate_records) = (
+        candidate_output.finish(),
+        candidate_recover.finish_recoveries_for_test(),
+    );
 
     let (
         control_item,
@@ -1244,7 +1284,8 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
         control_mark,
         control_operators,
     ) = scan_type_item_control(" with", 5, &operators);
-    let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+    let mut control_recover = Recover::reconcile_for_test(&operators, &frozen);
+    let mut control_output = GreenNodeBuilder::new();
     control_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut control_output);
     control_output.start_node(SyntaxKind::TypeExpression.into());
@@ -1255,13 +1296,16 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
     control_output.start_node(SyntaxKind::Error.into());
     control_output.token(SyntaxKind::Unknown.into(), "@");
     control_output.finish_node();
-    commit_record_draft(&mut control_output, &frozen[0]);
+    commit_record_draft(&mut control_recover, &frozen[0]);
     control_output.finish_node();
     control_output.finish_node();
-    let control_slots = control_output.recovery_slot_count();
-    let control_diagnostics = control_output.diagnostic_position();
+    let control_slots = control_recover.recovery_slot_count();
+    let control_diagnostics = control_recover.diagnostic_position();
     control_output.finish_node();
-    let (control_green, control_records) = control_output.finish_with_recoveries();
+    let (control_green, control_records) = (
+        control_output.finish(),
+        control_recover.finish_recoveries_for_test(),
+    );
 
     assert_eq!(candidate_green, control_green);
     assert_eq!(candidate_records, control_records);
@@ -2185,11 +2229,11 @@ fn type_path_segment_boundaries_outrank_retry_leading_and_remain_pending() {
     let operators = OperatorTable::empty();
     for (source, leading_text) in [("A::@ )", " "), ("A::@/*x*/ )", "/*x*/ ")] {
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (exit, _) = crate::type_expr::type_expr_with_caller_stops_for_test(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             crate::lexical::stops::stops_for(TokenKind::RParen),
             0,
             0,
@@ -2200,7 +2244,7 @@ fn type_path_segment_boundaries_outrank_retry_leading_and_remain_pending() {
             panic!("close remains pending: {source:?}")
         };
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), "A::@", "{source:?}");
         assert_eq!(
             records,
@@ -2269,20 +2313,27 @@ fn type_path_segment_frozen_mismatch_preserves_the_diagnostic_cursor_and_slot() 
     Arc::make_mut(&mut mismatched.expectations)[0].range = 3..5;
     let operators = OperatorTable::empty();
     let mut input = "A::@";
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let frozen = [mismatched];
-    let mut output = GreenNodeBuilder::reconcile(&frozen);
+    let mut output = {
+        recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     output.start_node(SyntaxKind::Root.into());
-    let before_slots = output.recovery_slot_count();
-    let before_diagnostics = output.diagnostic_position();
+    let before_slots = recover.recovery_slot_count();
+    let before_diagnostics = recover.diagnostic_position();
     assert_eq!(before_slots, 0);
     assert_eq!(before_diagnostics, (Some(8), 0));
     let mismatch = catch_unwind(AssertUnwindSafe(|| {
-        let _ = crate::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+        let _ = crate::type_expr::type_expr(crate::cursor::SyntaxIn::new(
+            &mut input,
+            &mut recover,
+            &mut output,
+        ));
     }));
     assert!(mismatch.is_err());
-    assert_eq!(output.recovery_slot_count(), before_slots);
-    assert_eq!(output.diagnostic_position(), before_diagnostics);
+    assert_eq!(recover.recovery_slot_count(), before_slots);
+    assert_eq!(recover.diagnostic_position(), before_diagnostics);
     drop(output);
 }
 
@@ -2297,14 +2348,18 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
 
     for source in ["A::@ with", "A::@/*x*/ with"] {
         let mut candidate_input = source;
-        let mut candidate_recover = Recover::new(&operators);
-        let candidate_mark = candidate_recover.mark();
+        let mut candidate_recover = Recover::new_for_test(&operators);
+        let candidate_mark =
+            crate::cursor::LexRecover::new_for_test(candidate_recover.operators()).mark();
         let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
-        let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+        let mut candidate_output = {
+            candidate_recover = Recover::reconcile_for_test(candidate_recover.operators(), &frozen);
+            GreenNodeBuilder::new()
+        };
         candidate_output.start_node(SyntaxKind::Root.into());
         seed_identifier(&mut candidate_output);
         let (primary, primary_origin, primary_line) = crate::type_expr::type_nud_item_normalized(
-            In::new(
+            crate::cursor::SyntaxIn::new(
                 &mut candidate_input,
                 &mut candidate_recover,
                 &mut candidate_output,
@@ -2313,14 +2368,15 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
             LineEntry::InLine,
             None,
         );
-        let continuation_entry = crate::lexical::position::suffix_marker(In::new(
-            &mut candidate_input,
-            &mut candidate_recover,
-            &mut candidate_output,
-        ));
+        let continuation_entry =
+            crate::lexical::position::suffix_marker(crate::cursor::SyntaxIn::new(
+                &mut candidate_input,
+                &mut candidate_recover,
+                &mut candidate_output,
+            ));
         let (candidate_exit, primary_found) =
             crate::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
-                In::new(
+                crate::cursor::SyntaxIn::new(
                     &mut candidate_input,
                     &mut candidate_recover,
                     &mut candidate_output,
@@ -2336,7 +2392,7 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
         let candidate_origin = crate::lexical::position::advanced_origin(
             primary_origin,
             continuation_entry,
-            In::new(
+            crate::cursor::SyntaxIn::new(
                 &mut candidate_input,
                 &mut candidate_recover,
                 &mut candidate_output,
@@ -2348,15 +2404,19 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
             panic!("outer WITH remains pending: {source:?}")
         };
         assert!(primary_found, "{source:?}");
-        let candidate_slots = candidate_output.recovery_slot_count();
-        let candidate_diagnostics = candidate_output.diagnostic_position();
+        let candidate_slots = candidate_recover.recovery_slot_count();
+        let candidate_diagnostics = candidate_recover.diagnostic_position();
         candidate_output.finish_node();
-        let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+        let (candidate_green, candidate_records) = (
+            candidate_output.finish(),
+            candidate_recover.finish_recoveries_for_test(),
+        );
 
         let pending_source = &source[4..];
         let (control_item, control_origin, control_line, control_input, control_mark, control_ops) =
             scan_type_item_control(pending_source, 4, &operators);
-        let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+        let mut control_recover = Recover::reconcile_for_test(&operators, &frozen);
+        let mut control_output = GreenNodeBuilder::new();
         control_output.start_node(SyntaxKind::Root.into());
         seed_identifier(&mut control_output);
         control_output.start_node(SyntaxKind::TypeExpression.into());
@@ -2366,13 +2426,16 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
         control_output.start_node(SyntaxKind::Error.into());
         control_output.token(SyntaxKind::Unknown.into(), "@");
         control_output.finish_node();
-        commit_record_draft(&mut control_output, &frozen[0]);
+        commit_record_draft(&mut control_recover, &frozen[0]);
         control_output.finish_node();
         control_output.finish_node();
-        let control_slots = control_output.recovery_slot_count();
-        let control_diagnostics = control_output.diagnostic_position();
+        let control_slots = control_recover.recovery_slot_count();
+        let control_diagnostics = control_recover.diagnostic_position();
         control_output.finish_node();
-        let (control_green, control_records) = control_output.finish_with_recoveries();
+        let (control_green, control_records) = (
+            control_output.finish(),
+            control_recover.finish_recoveries_for_test(),
+        );
 
         assert_eq!(candidate_green, control_green, "{source:?}");
         assert_eq!(candidate_records, control_records, "{source:?}");
@@ -2623,20 +2686,27 @@ fn type_arrow_rhs_frozen_mismatch_preserves_the_diagnostic_cursor_and_slot() {
     Arc::make_mut(&mut mismatched.expectations)[0].range = 4..5;
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let frozen = [mismatched];
-    let mut output = GreenNodeBuilder::reconcile(&frozen);
+    let mut output = {
+        recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     output.start_node(SyntaxKind::Root.into());
-    let before_diagnostics = output.diagnostic_position();
-    let before_slots = output.recovery_slot_count();
+    let before_diagnostics = recover.diagnostic_position();
+    let before_slots = recover.recovery_slot_count();
     assert_eq!(before_diagnostics, (Some(8), 0));
     assert_eq!(before_slots, 0);
     let mismatch = catch_unwind(AssertUnwindSafe(|| {
-        let _ = crate::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+        let _ = crate::type_expr::type_expr(crate::cursor::SyntaxIn::new(
+            &mut input,
+            &mut recover,
+            &mut output,
+        ));
     }));
     assert!(mismatch.is_err());
-    assert_eq!(output.diagnostic_position(), before_diagnostics);
-    assert_eq!(output.recovery_slot_count(), before_slots);
+    assert_eq!(recover.diagnostic_position(), before_diagnostics);
+    assert_eq!(recover.recovery_slot_count(), before_slots);
     drop(output);
 }
 
@@ -2719,11 +2789,11 @@ fn type_arrow_rhs_preserves_pending_boundaries_after_error() {
             }]),
         );
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (exit, successor_origin) = crate::type_expr::type_expr_with_caller_stops_for_test(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             crate::lexical::stops::stops_for(TokenKind::RParen),
             0,
             0,
@@ -2732,10 +2802,10 @@ fn type_arrow_rhs_preserves_pending_boundaries_after_error() {
         let NormalizedExit::Complete(Err(Either::Left(item)), line_entry) = exit else {
             panic!("right parenthesis must remain pending: {source:?}")
         };
-        let slots = output.recovery_slot_count();
-        let diagnostics = output.diagnostic_position();
+        let slots = recover.recovery_slot_count();
+        let diagnostics = recover.diagnostic_position();
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
 
         let pending_source = &source[error_range.end..];
         let (control, control_origin, control_line, control_input, mark, same_operators) =
@@ -3594,39 +3664,42 @@ fn type_parenthesized_t4p_rejected_probe_preserves_seeded_output_and_context() {
         for reconciled in [false, true] {
             let frozen = [];
             let mut input = "@";
-            let mut recover = Recover::new(&operators);
-            let mark = recover.mark();
+            let mut recover = Recover::new_for_test(&operators);
+            let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
             let same_operators = std::ptr::eq(recover.operators(), &operators);
             let mut output = if reconciled {
-                GreenNodeBuilder::reconcile(&frozen)
+                {
+                    recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+                    GreenNodeBuilder::new()
+                }
             } else {
                 GreenNodeBuilder::new()
             };
             output.start_node(SyntaxKind::Root.into());
             seed_identifier(&mut output);
-            let before_slots = output.recovery_slot_count();
-            let before_diagnostics = output.diagnostic_position();
+            let before_slots = recover.recovery_slot_count();
+            let before_diagnostics = recover.diagnostic_position();
             let exit = crate::type_expr::type_expr_with_context_for_test(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 context,
                 0,
             );
             assert!(exit.is_none(), "{label}, reconciled={reconciled}");
             assert_eq!(input, "@", "{label}, reconciled={reconciled}");
             assert_eq!(
-                output.recovery_slot_count(),
+                recover.recovery_slot_count(),
                 before_slots,
                 "{label}, reconciled={reconciled}",
             );
             assert_eq!(
-                output.diagnostic_position(),
+                recover.diagnostic_position(),
                 before_diagnostics,
                 "{label}, reconciled={reconciled}",
             );
             assert_eq!(mark, (), "{label}, reconciled={reconciled}");
             assert!(same_operators, "{label}, reconciled={reconciled}");
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(green.to_string(), "sentinel", "{label}");
             assert!(records.is_empty(), "{label}: {records:#?}");
         }
@@ -3639,19 +3712,22 @@ fn type_parenthesized_t4p_frozen_rejection_preserves_all_seeded_cursors() {
     let mismatched = [expected_parenthesized_separator(7, 2)];
     for (label, context) in t4p_seeded_contexts() {
         let mut input = "(F";
-        let mut recover = Recover::new(&operators);
-        let mark = recover.mark();
+        let mut recover = Recover::new_for_test(&operators);
+        let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
         let same_operators = std::ptr::eq(recover.operators(), &operators);
-        let mut output = GreenNodeBuilder::reconcile(&mismatched);
+        let mut output = {
+            recover = Recover::reconcile_for_test(recover.operators(), &mismatched);
+            GreenNodeBuilder::new()
+        };
         output.start_node(SyntaxKind::Root.into());
         seed_identifier(&mut output);
-        let before_slots = output.recovery_slot_count();
-        let before_diagnostics = output.diagnostic_position();
+        let before_slots = recover.recovery_slot_count();
+        let before_diagnostics = recover.diagnostic_position();
         assert_eq!(before_slots, 0, "{label}");
         assert_eq!(before_diagnostics, (Some(8), 0), "{label}");
         let mismatch = catch_unwind(AssertUnwindSafe(|| {
             let _ = crate::type_expr::type_expr_with_context_for_test(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 context,
                 0,
             )
@@ -3659,8 +3735,8 @@ fn type_parenthesized_t4p_frozen_rejection_preserves_all_seeded_cursors() {
         }));
         assert!(mismatch.is_err(), "{label}");
         assert_eq!(input, "", "{label}");
-        assert_eq!(output.recovery_slot_count(), before_slots, "{label}");
-        assert_eq!(output.diagnostic_position(), before_diagnostics, "{label}");
+        assert_eq!(recover.recovery_slot_count(), before_slots, "{label}");
+        assert_eq!(recover.diagnostic_position(), before_diagnostics, "{label}");
         assert_eq!(mark, (), "{label}");
         assert!(same_operators, "{label}");
         drop(output);
@@ -4124,13 +4200,13 @@ fn type_parenthesized_t4p_dormant_provenance_crosses_forall_without_sibling_reco
 #[test]
 fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
 
     let mut rejected_input = "G @";
     let (rejected_exit, rejected_origin) = crate::type_expr::type_expr_with_context_for_test(
-        In::new(&mut rejected_input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut rejected_input, &mut recover, &mut output),
         crate::type_expr::TypeMlContext::INACTIVE,
         0,
     )
@@ -4144,13 +4220,13 @@ fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts
     assert_eq!(emit_pending_leading_text(&mut rejected), " ");
     assert_eq!(rejected_input, "");
     assert_eq!(rejected_origin, 3);
-    assert_eq!(output.recovery_slot_count(), 0);
-    assert_eq!(output.diagnostic_position(), (Some(0), 0));
+    assert_eq!(recover.recovery_slot_count(), 0);
+    assert_eq!(recover.diagnostic_position(), (Some(0), 0));
 
     let mut standalone_input = "(F A)";
     let (mut standalone_exit, standalone_origin) =
         crate::type_expr::type_expr_with_context_for_test(
-            In::new(&mut standalone_input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut standalone_input, &mut recover, &mut output),
             crate::type_expr::TypeMlContext::INACTIVE,
             3,
         )
@@ -4160,20 +4236,20 @@ fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts
     }
     assert_eq!(standalone_origin, 8);
     assert_eq!(standalone_input, "");
-    assert_eq!(output.recovery_slot_count(), 0);
-    assert_eq!(output.diagnostic_position(), (Some(0), 0));
+    assert_eq!(recover.recovery_slot_count(), 0);
+    assert_eq!(recover.diagnostic_position(), (Some(0), 0));
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "G(F A)");
     assert!(records.is_empty());
 
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let outer = crate::type_expr::TypeMlContext::outer_active_for_test();
     let mut affected_input = "(F A)";
     let (mut affected_exit, affected_origin) = crate::type_expr::type_expr_with_context_for_test(
-        In::new(&mut affected_input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut affected_input, &mut recover, &mut output),
         outer,
         0,
     )
@@ -4183,12 +4259,12 @@ fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts
     }
     assert_eq!(affected_origin, 5);
     assert_eq!(affected_input, "");
-    assert_eq!(output.recovery_slot_count(), 1);
-    assert_eq!(output.diagnostic_position(), (Some(1), 0));
+    assert_eq!(recover.recovery_slot_count(), 1);
+    assert_eq!(recover.diagnostic_position(), (Some(1), 0));
 
     let mut second_standalone_input = "(F A)";
     let (mut second_exit, second_origin) = crate::type_expr::type_expr_with_context_for_test(
-        In::new(&mut second_standalone_input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut second_standalone_input, &mut recover, &mut output),
         crate::type_expr::TypeMlContext::INACTIVE,
         5,
     )
@@ -4198,10 +4274,10 @@ fn type_parenthesized_t4p_lexical_sequences_do_not_leak_context_between_attempts
     }
     assert_eq!(second_origin, 10);
     assert_eq!(second_standalone_input, "");
-    assert_eq!(output.recovery_slot_count(), 1);
-    assert_eq!(output.diagnostic_position(), (Some(1), 0));
+    assert_eq!(recover.recovery_slot_count(), 1);
+    assert_eq!(recover.diagnostic_position(), (Some(1), 0));
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "(F A)(F A)");
     assert_eq!(records, [expected_parenthesized_separator(0, 3)]);
 }
@@ -4289,11 +4365,11 @@ fn type_call_t3a_missing_phase_suspends_contextual_but_preserves_caller_boundari
         ),
     ] {
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (exit, _) = crate::type_expr::type_expr_with_caller_stops_for_test(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             active_close_stops,
             0,
             0,
@@ -4304,7 +4380,7 @@ fn type_call_t3a_missing_phase_suspends_contextual_but_preserves_caller_boundari
             panic!("caller close remains pending: {source:?}")
         };
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), emitted, "{source:?}");
         assert_eq!(
             pending.payload_view().token_kind(),
@@ -4414,11 +4490,11 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
         ("T(A,@ ] tail", "T(A,@", 4..5, 5),
     ] {
         let mut input = source;
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (exit, _) = crate::type_expr::type_expr_with_caller_stops_for_test(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             active_close_stops,
             0,
             0,
@@ -4429,7 +4505,7 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
             panic!("caller close remains pending after Call error: {source:?}")
         };
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), emitted, "{source:?}");
         assert_eq!(
             pending.payload_view().token_kind(),
@@ -4766,20 +4842,27 @@ fn type_call_t3b_frozen_error_mismatch_preserves_diagnostic_cursor_and_slot() {
     Arc::make_mut(&mut mismatched.expectations)[0].range = 2..3;
     let operators = OperatorTable::empty();
     let mut input = "T(@ A)";
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let frozen = [mismatched];
-    let mut output = GreenNodeBuilder::reconcile(&frozen);
+    let mut output = {
+        recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     output.start_node(SyntaxKind::Root.into());
-    let before_diagnostics = output.diagnostic_position();
-    let before_slots = output.recovery_slot_count();
+    let before_diagnostics = recover.diagnostic_position();
+    let before_slots = recover.recovery_slot_count();
     assert_eq!(before_diagnostics, (Some(8), 0));
     assert_eq!(before_slots, 0);
     let mismatch = catch_unwind(AssertUnwindSafe(|| {
-        let _ = crate::type_expr::type_expr(In::new(&mut input, &mut recover, &mut output));
+        let _ = crate::type_expr::type_expr(crate::cursor::SyntaxIn::new(
+            &mut input,
+            &mut recover,
+            &mut output,
+        ));
     }));
     assert!(mismatch.is_err());
-    assert_eq!(output.diagnostic_position(), before_diagnostics);
-    assert_eq!(output.recovery_slot_count(), before_slots);
+    assert_eq!(recover.diagnostic_position(), before_diagnostics);
+    assert_eq!(recover.recovery_slot_count(), before_slots);
     drop(output);
 }
 
@@ -4897,11 +4980,11 @@ fn type_call_t3b_close_recovery_suspends_contextual_but_preserves_caller_boundar
         & !crate::lexical::stops::STOP_SEMICOLON;
     let source = "T(A} ] tail";
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let (exit, _) = crate::type_expr::type_expr_with_caller_stops_for_test(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         active_close_stops,
         0,
         0,
@@ -4911,7 +4994,7 @@ fn type_call_t3b_close_recovery_suspends_contextual_but_preserves_caller_boundar
         panic!("caller close remains pending after local Call mismatch")
     };
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "T(A}");
     assert_eq!(
         records,
@@ -6878,19 +6961,22 @@ fn polymorphic_variant_structured_frozen_mismatches_reject_each_position() {
             ExpectedSyntax::TypeExpression;
         let operators = OperatorTable::empty();
         let mut input = mismatch_source;
-        let mut recover = Recover::new(&operators);
-        let mut output = GreenNodeBuilder::reconcile(&mismatched);
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = {
+            recover = Recover::reconcile_for_test(recover.operators(), &mismatched);
+            GreenNodeBuilder::new()
+        };
         output.start_node(SyntaxKind::Root.into());
         for record in records.iter().take(index) {
-            commit_record_draft(&mut output, record);
+            commit_record_draft(&mut recover, record);
         }
-        let before_diagnostics = output.diagnostic_position();
-        let before_slots = output.recovery_slot_count();
+        let before_diagnostics = recover.diagnostic_position();
+        let before_slots = recover.recovery_slot_count();
         assert_eq!(before_diagnostics, (Some(3), index));
         assert_eq!(before_slots, index);
         let mismatch = catch_unwind(AssertUnwindSafe(|| {
             let _ = crate::type_expr::type_expr_with_caller_stops_for_test(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 0,
                 outer_closes,
                 item_origin,
@@ -6898,8 +6984,8 @@ fn polymorphic_variant_structured_frozen_mismatches_reject_each_position() {
             .expect("focused mismatch source is a Type candidate");
         }));
         assert!(mismatch.is_err(), "frozen recovery position {index}");
-        assert_eq!(output.diagnostic_position(), before_diagnostics);
-        assert_eq!(output.recovery_slot_count(), before_slots);
+        assert_eq!(recover.diagnostic_position(), before_diagnostics);
+        assert_eq!(recover.recovery_slot_count(), before_slots);
         // The panic invalidates this partially emitted builder. Only the
         // pre-mismatch cursor/slot surface is inspected; it is then discarded.
         drop(output);
@@ -6997,18 +7083,18 @@ fn parenthesized_close_abstract_boundary() {
 fn parenthesized_close_nonclose_caller_boundary() {
     let operators = OperatorTable::empty();
     let mut input = "(A with";
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let (exit, successor_origin) = crate::type_expr::type_expr_with_caller_stops_for_test(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         crate::lexical::stops::STOP_WITH,
         0,
         0,
     )
     .expect("accepted parenthesized Type");
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "(A ");
     let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
         panic!("active non-close caller boundary must remain pending")
@@ -7062,22 +7148,25 @@ fn parenthesized_close_active_caller_close_is_typed_and_preserves_successor() {
         ),
     ] {
         let mut input = source;
-        let mut recover = Recover::new(&operators);
-        assert_eq!(recover.mark(), ());
+        let mut recover = Recover::new_for_test(&operators);
+        assert_eq!(
+            crate::cursor::LexRecover::new_for_test(recover.operators()).mark(),
+            ()
+        );
         assert!(std::ptr::eq(recover.operators(), &operators));
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let (exit, successor_origin) = crate::type_expr::type_expr_with_caller_stops_for_test(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             active_close_stops,
             0,
             0,
         )
         .expect("accepted parenthesized Type");
-        let diagnostics = output.diagnostic_position();
-        let slots = output.recovery_slot_count();
+        let diagnostics = recover.diagnostic_position();
+        let slots = recover.recovery_slot_count();
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         let NormalizedExit::Complete(Err(Either::Left(item)), line_entry) = exit else {
             panic!("active caller-owned close must remain pending: {source:?}")
         };
@@ -7677,36 +7766,47 @@ fn rb_pv_rejected_candidate_preservation() {
     let frozen = [];
 
     let mut candidate_input = ":x";
-    let mut candidate_recover = Recover::new(&operators);
-    let candidate_mark = candidate_recover.mark();
+    let mut candidate_recover = Recover::new_for_test(&operators);
+    let candidate_mark =
+        crate::cursor::LexRecover::new_for_test(candidate_recover.operators()).mark();
     let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
-    let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+    let mut candidate_output = {
+        candidate_recover = Recover::reconcile_for_test(candidate_recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     candidate_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut candidate_output);
-    let before_slots = candidate_output.recovery_slot_count();
-    let before_diagnostics = candidate_output.diagnostic_position();
-    let exit = crate::type_expr::type_expr(In::new(
+    let before_slots = candidate_recover.recovery_slot_count();
+    let before_diagnostics = candidate_recover.diagnostic_position();
+    let exit = crate::type_expr::type_expr(crate::cursor::SyntaxIn::new(
         &mut candidate_input,
         &mut candidate_recover,
         &mut candidate_output,
     ));
     assert!(exit.is_none());
-    let candidate_slots = candidate_output.recovery_slot_count();
-    let candidate_diagnostics = candidate_output.diagnostic_position();
+    let candidate_slots = candidate_recover.recovery_slot_count();
+    let candidate_diagnostics = candidate_recover.diagnostic_position();
     candidate_output.finish_node();
-    let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+    let (candidate_green, candidate_records) = (
+        candidate_output.finish(),
+        candidate_recover.finish_recoveries_for_test(),
+    );
 
     let control_input = ":x";
-    let control_recover = Recover::new(&operators);
-    let control_mark = control_recover.mark();
+    let control_recover = Recover::new_for_test(&operators);
+    let control_mark = crate::cursor::LexRecover::new_for_test(control_recover.operators()).mark();
     let control_operators = std::ptr::eq(control_recover.operators(), &operators);
-    let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+    let control_recover = Recover::reconcile_for_test(&operators, &frozen);
+    let mut control_output = GreenNodeBuilder::new();
     control_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut control_output);
-    let control_slots = control_output.recovery_slot_count();
-    let control_diagnostics = control_output.diagnostic_position();
+    let control_slots = control_recover.recovery_slot_count();
+    let control_diagnostics = control_recover.diagnostic_position();
     control_output.finish_node();
-    let (control_green, control_records) = control_output.finish_with_recoveries();
+    let (control_green, control_records) = (
+        control_output.finish(),
+        control_recover.finish_recoveries_for_test(),
+    );
 
     let candidate_pending: Option<Item> = None;
     let control_pending: Option<Item> = None;
@@ -7738,15 +7838,19 @@ fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
     let frozen = [expected_parenthesized_close(0, 3)];
 
     let mut candidate_input: &'static str = "(A with";
-    let mut candidate_recover = Recover::new(&operators);
-    let candidate_mark = candidate_recover.mark();
+    let mut candidate_recover = Recover::new_for_test(&operators);
+    let candidate_mark =
+        crate::cursor::LexRecover::new_for_test(candidate_recover.operators()).mark();
     let candidate_operators = std::ptr::eq(candidate_recover.operators(), &operators);
-    let mut candidate_output = GreenNodeBuilder::reconcile(&frozen);
+    let mut candidate_output = {
+        candidate_recover = Recover::reconcile_for_test(candidate_recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     candidate_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut candidate_output);
     let (candidate_exit, candidate_origin) =
         crate::type_expr::type_expr_with_caller_stops_for_test(
-            In::new(
+            crate::cursor::SyntaxIn::new(
                 &mut candidate_input,
                 &mut candidate_recover,
                 &mut candidate_output,
@@ -7761,10 +7865,13 @@ fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
     else {
         panic!("active caller boundary must remain pending")
     };
-    let candidate_diagnostics = candidate_output.diagnostic_position();
-    let candidate_slots = candidate_output.recovery_slot_count();
+    let candidate_diagnostics = candidate_recover.diagnostic_position();
+    let candidate_slots = candidate_recover.recovery_slot_count();
     candidate_output.finish_node();
-    let (candidate_green, candidate_records) = candidate_output.finish_with_recoveries();
+    let (candidate_green, candidate_records) = (
+        candidate_output.finish(),
+        candidate_recover.finish_recoveries_for_test(),
+    );
 
     let (
         mut control_item,
@@ -7774,7 +7881,8 @@ fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
         control_mark,
         control_operators,
     ) = scan_type_item_control(" with", 2, &operators);
-    let mut control_output = GreenNodeBuilder::reconcile(&frozen);
+    let mut control_recover = Recover::reconcile_for_test(&operators, &frozen);
+    let mut control_output = GreenNodeBuilder::new();
     control_output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut control_output);
     control_output.start_node(SyntaxKind::TypeExpression.into());
@@ -7786,13 +7894,16 @@ fn rb_t_parenthesized_close_preserves_pending_state_and_sequence() {
     control_item.emit_all_remaining_leading(&mut control_output);
     control_output.start_node(SyntaxKind::Missing.into());
     control_output.finish_node();
-    commit_record_draft(&mut control_output, &frozen[0]);
+    commit_record_draft(&mut control_recover, &frozen[0]);
     control_output.finish_node();
     control_output.finish_node();
-    let control_diagnostics = control_output.diagnostic_position();
-    let control_slots = control_output.recovery_slot_count();
+    let control_diagnostics = control_recover.diagnostic_position();
+    let control_slots = control_recover.recovery_slot_count();
     control_output.finish_node();
-    let (control_green, control_records) = control_output.finish_with_recoveries();
+    let (control_green, control_records) = (
+        control_output.finish(),
+        control_recover.finish_recoveries_for_test(),
+    );
 
     assert_eq!(candidate_green, control_green);
     assert_eq!(candidate_records, control_records);

@@ -6,7 +6,7 @@
 //! separators/brace close.
 
 use crate::ambient_claim::{AmbientClaimContext, AmbientClaimView};
-use crate::cst_output::RecoveryDraft;
+use crate::cursor::recovery::RecoveryDraft;
 use crate::recovery_record::{
     ConstructRole, DeclarationCompanionRole as CompanionRole, DeclarationRole, Delimiter,
     ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
@@ -21,7 +21,7 @@ use crate::syntax_kind::SyntaxKind;
 use crate::lexical::current_item::CurrentItem;
 
 use crate::{
-    cst_output::emit::{
+    cursor::recovery::emit::{
         emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
         emit_with_keyword, token_syntax_kind,
     },

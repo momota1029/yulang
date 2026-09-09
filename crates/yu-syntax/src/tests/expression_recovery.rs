@@ -24,15 +24,18 @@ fn direct_required_expr_with_recoveries<'source, 'frozen>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     output.start_node(SyntaxKind::Root.into());
     output.start_node(SyntaxKind::OperatorChain.into());
     let (item, origin, line) = crate::lexical::expression_item::expression_item(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         OperatorSite::Nud,
         0,
         LineEntry::InLine,
@@ -41,7 +44,7 @@ fn direct_required_expr_with_recoveries<'source, 'frozen>(
         stops,
     );
     let exit = crate::expression::required_expr_item_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         item,
         role,
         None,
@@ -57,7 +60,7 @@ fn direct_required_expr_with_recoveries<'source, 'frozen>(
     );
     output.finish_node();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, exit, input, records)
 }
 
@@ -109,11 +112,11 @@ fn expression_with_recoveries(
     Vec<CommittedRecoveryRecord>,
 ) {
     let mut input = source;
-    let mut recover = Recover::new(operators);
+    let mut recover = Recover::new_for_test(operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let mut exit = expr_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         None,
         0,
         0,
@@ -129,7 +132,7 @@ fn expression_with_recoveries(
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, exit, records)
 }
 
@@ -145,14 +148,17 @@ fn statement_with_frozen_recoveries(
 ) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = match frozen {
-        Some(frozen) => GreenNodeBuilder::reconcile(frozen),
+        Some(frozen) => {
+            recover = Recover::reconcile_for_test(recover.operators(), frozen);
+            GreenNodeBuilder::new()
+        }
         None => GreenNodeBuilder::new(),
     };
     output.start_node(SyntaxKind::Root.into());
     let mut exit = crate::statement::statement_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         0,
         0,
         0,
@@ -165,7 +171,7 @@ fn statement_with_frozen_recoveries(
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, exit, records)
 }
 
@@ -176,12 +182,12 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
         OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
     )])
     .unwrap();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = "? ]";
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let rejected = expr_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         None,
         0,
         0,
@@ -195,12 +201,12 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
     );
     assert!(rejected.is_none());
     assert_eq!(input, "? ]");
-    assert_eq!(output.recovery_slot_count(), 0);
+    assert_eq!(recover.recovery_slot_count(), 0);
 
     let mut input = " ]";
     output.start_node(SyntaxKind::OperatorChain.into());
     let (item, origin, line) = crate::lexical::expression_item::expression_item(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         OperatorSite::Nud,
         0,
         LineEntry::InLine,
@@ -209,7 +215,7 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
         0,
     );
     let exit = crate::expression::required_expr_item_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         item,
         GrammarRole::Expression(ExpressionRole::Nud),
         None,
@@ -225,7 +231,7 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
     );
     output.finish_node();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "");
     let role = GrammarRole::Expression(ExpressionRole::Nud);
     assert_eq!(

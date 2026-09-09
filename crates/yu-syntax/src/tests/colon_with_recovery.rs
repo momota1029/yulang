@@ -56,13 +56,16 @@ fn parse<'s>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         None,
         0,
         stops,
@@ -76,7 +79,7 @@ fn parse<'s>(
     )
     .unwrap();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 
@@ -421,13 +424,13 @@ fn with_false_prefixed_declaration_candidate_keeps_canonical_fallback() {
 #[test]
 fn colon_disabled_ml_entry_keeps_seed_and_pending_colon_effect_free() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = "f: @";
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     output.token(SyntaxKind::Identifier.into(), "seed");
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         None,
         0,
         0,
@@ -441,7 +444,7 @@ fn colon_disabled_ml_entry_keeps_seed_and_pending_colon_effect_free() {
     )
     .unwrap();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "seedf");
     assert!(records.is_empty());
     assert_eq!(input, " @");
@@ -454,7 +457,7 @@ fn colon_disabled_ml_entry_keeps_seed_and_pending_colon_effect_free() {
 
 #[test]
 fn inline_recovery_allocates_after_seeded_and_frozen_records() {
-    use crate::cst_output::RecoveryDraft;
+    use crate::cursor::recovery::RecoveryDraft;
     let role = GrammarRole::WithBody(WithBodyRole::Body);
     let mut seed = record(role, ExpectedSyntax::Statement, RecoveryKind::Missing, 0..0);
     seed.id = DiagnosticId(7);
@@ -463,9 +466,12 @@ fn inline_recovery_allocates_after_seeded_and_frozen_records() {
     let frozen = [seed.clone(), reused.clone()];
     for reconcile in [false, true] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = if reconcile {
-            GreenNodeBuilder::reconcile(&frozen)
+            {
+                recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+                GreenNodeBuilder::new()
+            }
         } else {
             GreenNodeBuilder::new()
         };
@@ -473,7 +479,7 @@ fn inline_recovery_allocates_after_seeded_and_frozen_records() {
         output.token(SyntaxKind::Identifier.into(), "seed");
         output.start_node(SyntaxKind::Missing.into());
         output.finish_node();
-        output.commit_recovery(RecoveryDraft::new(
+        recover.commit_recovery_for_test(RecoveryDraft::new(
             seed.site.clone(),
             seed.kind,
             seed.unexpected.clone(),
@@ -483,7 +489,7 @@ fn inline_recovery_allocates_after_seeded_and_frozen_records() {
         for origin in [10, 20] {
             let mut input = "f with: @";
             expr_normalized(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 None,
                 0,
                 0,
@@ -499,7 +505,7 @@ fn inline_recovery_allocates_after_seeded_and_frozen_records() {
             assert_eq!(input, "");
         }
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), "seedf with: @f with: @");
         let mut expected_seed = seed.clone();
         expected_seed.id = DiagnosticId(if reconcile { 7 } else { 0 });

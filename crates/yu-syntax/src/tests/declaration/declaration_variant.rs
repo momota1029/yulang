@@ -152,8 +152,11 @@ fn typed_variant<'a>(
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    let mut recover = Recover::new_for_test(&operators);
+    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+        recover = Recover::reconcile_for_test(recover.operators(), records);
+        GreenNodeBuilder::new()
+    });
     builder.start_node(SyntaxKind::Root.into());
     if seeded {
         let seed = record(
@@ -164,7 +167,7 @@ fn typed_variant<'a>(
         );
         builder.start_node(SyntaxKind::Missing.into());
         builder.finish_node();
-        builder.commit_recovery(crate::cst_output::RecoveryDraft::new(
+        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
             seed.site,
             seed.kind,
             seed.unexpected,
@@ -173,7 +176,7 @@ fn typed_variant<'a>(
         ));
     }
     let exit = declaration_variant_owner_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         owner,
         form,
         yield_with,
@@ -188,7 +191,7 @@ fn typed_variant<'a>(
         fence,
     );
     builder.finish_node();
-    let (green, records) = builder.finish_with_recoveries();
+    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
 }
 
@@ -296,17 +299,17 @@ fn typed_variant_optional_shell_rejection_is_effect_free_for_both_owners() {
     // shell rejection to preserve input, output, and the diagnostic cursor.
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = "  @ rest";
         let mut builder = GreenNodeBuilder::new();
         builder.start_node(SyntaxKind::Root.into());
-        let before = builder.diagnostic_position();
+        let before = recover.diagnostic_position();
         let entry = match owner {
             VariantOwner::Enum => enum_declaration_witness,
             VariantOwner::Error => error_declaration_witness,
         };
         let exit = entry(
-            In::new(&mut input, &mut recover, &mut builder),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
             0,
             0,
             crate::statement::StatementLineHandoff::OrdinaryLayout,
@@ -316,10 +319,10 @@ fn typed_variant_optional_shell_rejection_is_effect_free_for_both_owners() {
         );
         assert!(exit.is_none());
         assert_eq!(input, "  @ rest");
-        assert_eq!(builder.diagnostic_position(), before);
-        assert_eq!(builder.recovery_slot_count(), 0);
+        assert_eq!(recover.diagnostic_position(), before);
+        assert_eq!(recover.recovery_slot_count(), 0);
         builder.finish_node();
-        let (green, records) = builder.finish_with_recoveries();
+        let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), "");
         assert_eq!(syntax_root(green).children_with_tokens().count(), 0);
         assert!(records.is_empty());

@@ -4,8 +4,7 @@ use std::{
     sync::Arc,
 };
 
-use chasa_recover::In;
-use reborrow_generic::Reborrow as _;
+use rowan::GreenNodeBuilder;
 
 use crate::{
     SyntaxKind, SyntaxNode,
@@ -18,15 +17,15 @@ use crate::{
 };
 
 use crate::{
-    cst_output::{
-        CstOutput, RecoveryDraft, StructuredRecoverySpec,
+    cursor::Recover,
+    cursor::recovery::{
+        RecoveryDraft, StructuredRecoverySpec,
         emit::{
             CallArgumentRetryLeadingSeal, PathSegmentRetryLeadingSeal, emit_recovery_error_item,
             emit_recovery_error_run, emit_recovery_missing,
         },
         emit_structured_recovery_error_from_item,
     },
-    cursor::Recover,
     lexical::item::{
         Boundary, ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary,
         PhysicalLeadingTrivia, StopKind, Token, TokenKind, Trivia,
@@ -153,11 +152,12 @@ fn structured_record(id: u32, slot: LiteralRole, range: Range<usize>) -> Committ
 }
 
 fn finish_empty_root(
-    mut output: CstOutput<'_>,
+    mut output: GreenNodeBuilder<'_>,
+    recover: Recover,
 ) -> (rowan::GreenNode, Vec<CommittedRecoveryRecord>) {
     output.start_node(SyntaxKind::Root.into());
     output.finish_node();
-    output.finish_with_recoveries()
+    (output.finish(), recover.finish_recoveries_for_test())
 }
 
 fn unknown_item(text: &str) -> Item {
@@ -181,7 +181,7 @@ fn token_item(kind: TokenKind, text: &str) -> Item {
 }
 
 fn seeded_root() -> rowan::GreenNode {
-    let mut output = CstOutput::new();
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     output.start_node(SyntaxKind::IdentifierExpression.into());
     output.token(SyntaxKind::Identifier.into(), "sentinel");
@@ -192,10 +192,12 @@ fn seeded_root() -> rowan::GreenNode {
 
 #[test]
 fn fresh_sequence_assigns_zero_one_and_preserves_same_offset_order_and_all_fields() {
-    let mut output = CstOutput::new();
-    assert_eq!(output.recovery_capacity(), 0);
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let output = GreenNodeBuilder::new();
+    assert_eq!(recover.recovery_capacity(), 0);
     let range = 7..7;
-    output.commit_recovery(singleton_draft(
+    recover.commit_recovery_for_test(singleton_draft(
         LiteralRole::StringTerminator,
         RecoveryKind::Missing,
         range.clone(),
@@ -217,7 +219,7 @@ fn fresh_sequence_assigns_zero_one_and_preserves_same_offset_order_and_all_field
             ExpectationSources::SPECULATIVE.union(ExpectationSources::COMMITTED_RECOVERY_RULE),
         ),
     ]);
-    output.commit_recovery(RecoveryDraft::new(
+    recover.commit_recovery_for_test(RecoveryDraft::new(
         RecoverySiteKey {
             role: role(LiteralRole::RuleUnexpectedItem),
             range: range.clone(),
@@ -228,7 +230,7 @@ fn fresh_sequence_assigns_zero_one_and_preserves_same_offset_order_and_all_field
         1,
     ));
 
-    let (_, records) = finish_empty_root(output);
+    let (_, records) = finish_empty_root(output, recover);
     assert_eq!(records.len(), 2);
     assert_eq!(records[0].id, DiagnosticId(0));
     assert_eq!(records[1].id, DiagnosticId(1));
@@ -362,8 +364,13 @@ fn reconciliation_is_sequential_exact_and_allocates_after_the_highest_id_without
         ExpectationSources::COMMITTED_RECOVERY_RULE,
     )]);
     let retained = reused_expectations.clone();
-    let mut output = CstOutput::reconcile(&frozen);
-    output.commit_recovery(RecoveryDraft::new(
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let output = {
+        recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
+    recover.commit_recovery_for_test(RecoveryDraft::new(
         RecoverySiteKey {
             role: role(LiteralRole::StringTerminator),
             range: 3..3,
@@ -373,21 +380,21 @@ fn reconciliation_is_sequential_exact_and_allocates_after_the_highest_id_without
         reused_expectations,
         0,
     ));
-    output.commit_recovery(singleton_draft(
+    recover.commit_recovery_for_test(singleton_draft(
         LiteralRole::RuleLiteralTerminator,
         RecoveryKind::Missing,
         9..9,
         Arc::from([]),
         ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
     ));
-    output.commit_recovery(singleton_draft(
+    recover.commit_recovery_for_test(singleton_draft(
         LiteralRole::RuleLazyCaptureName,
         RecoveryKind::Missing,
         12..12,
         Arc::from([]),
         ExpectedSyntax::Identifier,
     ));
-    let (_, records) = finish_empty_root(output);
+    let (_, records) = finish_empty_root(output, recover);
     assert_eq!(
         records.iter().map(|record| record.id).collect::<Vec<_>>(),
         [DiagnosticId(9), DiagnosticId(4), DiagnosticId(10)]
@@ -416,9 +423,14 @@ fn reconciliation_mismatch_and_overflow_do_not_advance_or_publish() {
         expectations,
         0,
     )];
-    let mut output = CstOutput::reconcile(&frozen);
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let output = {
+        recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     let mismatch = catch_unwind(AssertUnwindSafe(|| {
-        output.commit_recovery(singleton_draft(
+        recover.commit_recovery_for_test(singleton_draft(
             LiteralRole::StringTerminator,
             RecoveryKind::Missing,
             1..1,
@@ -427,19 +439,19 @@ fn reconciliation_mismatch_and_overflow_do_not_advance_or_publish() {
         ));
     }));
     assert!(mismatch.is_err());
-    assert_eq!(output.diagnostic_position(), (None, 0));
-    assert_eq!(output.recovery_slot_count(), 0);
+    assert_eq!(recover.diagnostic_position(), (None, 0));
+    assert_eq!(recover.recovery_slot_count(), 0);
 
-    output.commit_recovery(singleton_draft(
+    recover.commit_recovery_for_test(singleton_draft(
         LiteralRole::StringTerminator,
         RecoveryKind::Missing,
         1..1,
         Arc::from([]),
         ExpectedSyntax::Literal(LiteralExpected::StringTerminator),
     ));
-    assert_eq!(output.diagnostic_position(), (None, 1));
+    assert_eq!(recover.diagnostic_position(), (None, 1));
     let overflow = catch_unwind(AssertUnwindSafe(|| {
-        output.commit_recovery(singleton_draft(
+        recover.commit_recovery_for_test(singleton_draft(
             LiteralRole::RuleLiteralTerminator,
             RecoveryKind::Missing,
             2..2,
@@ -448,9 +460,9 @@ fn reconciliation_mismatch_and_overflow_do_not_advance_or_publish() {
         ));
     }));
     assert!(overflow.is_err());
-    assert_eq!(output.diagnostic_position(), (None, 1));
-    assert_eq!(output.recovery_slot_count(), 1);
-    let (_, records) = finish_empty_root(output);
+    assert_eq!(recover.diagnostic_position(), (None, 1));
+    assert_eq!(recover.recovery_slot_count(), 1);
+    let (_, records) = finish_empty_root(output, recover);
     assert_eq!(records[0].id, DiagnosticId(u32::MAX));
 }
 
@@ -472,7 +484,8 @@ fn reconciliation_rejects_unused_or_invalid_frozen_records() {
     );
     assert!(
         catch_unwind(AssertUnwindSafe(|| finish_empty_root(
-            CstOutput::reconcile(std::slice::from_ref(&valid))
+            GreenNodeBuilder::new(),
+            Recover::reconcile_for_test(&OperatorTable::empty(), std::slice::from_ref(&valid))
         )))
         .is_err()
     );
@@ -487,20 +500,19 @@ fn reconciliation_rejects_unused_or_invalid_frozen_records() {
         0,
     );
     assert!(
-        catch_unwind(AssertUnwindSafe(|| CstOutput::reconcile(
-            std::slice::from_ref(&invalid)
-        )))
+        catch_unwind(AssertUnwindSafe(|| {
+            let operators = OperatorTable::empty();
+            let _ = Recover::reconcile_for_test(&operators, std::slice::from_ref(&invalid));
+        }))
         .is_err()
     );
 }
 
-fn emit_nested_structured_recoveries(output: &mut CstOutput<'_>) {
-    let operators = OperatorTable::empty();
+fn emit_nested_structured_recoveries(output: &mut GreenNodeBuilder<'_>, recover: &mut Recover) {
     let mut input = "";
-    let mut recover = Recover::new(&operators);
     output.start_node(SyntaxKind::Root.into());
     emit_structured_recovery_error_from_item(
-        In::new(&mut input, &mut recover, &mut *output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut *recover, &mut *output),
         unknown_item("a"),
         1,
         structured_spec(LiteralRole::RuleFieldName),
@@ -534,10 +546,12 @@ fn emit_nested_structured_recoveries(output: &mut CstOutput<'_>) {
 
 #[test]
 fn structured_reservations_preserve_fresh_and_frozen_order_through_nested_publication() {
-    let mut fresh = CstOutput::new();
-    assert_eq!(fresh.recovery_capacity(), 0);
-    emit_nested_structured_recoveries(&mut fresh);
-    let (green, records) = fresh.finish_with_recoveries();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut fresh = GreenNodeBuilder::new();
+    assert_eq!(recover.recovery_capacity(), 0);
+    emit_nested_structured_recoveries(&mut fresh, &mut recover);
+    let (green, records) = (fresh.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "abc");
     let root = SyntaxNode::new_root(green);
     assert_eq!(
@@ -592,26 +606,36 @@ fn structured_reservations_preserve_fresh_and_frozen_order_through_nested_public
         ),
         structured_record(12, LiteralRole::RulePathName, 1..2),
     ];
-    let mut reconciled = CstOutput::reconcile(&frozen);
-    emit_nested_structured_recoveries(&mut reconciled);
-    let (_, records) = reconciled.finish_with_recoveries();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut reconciled = {
+        recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
+    emit_nested_structured_recoveries(&mut reconciled, &mut recover);
+    let (_, records) = (reconciled.finish(), recover.finish_recoveries_for_test());
     assert_eq!(records, frozen);
 }
 
 #[test]
 fn structured_reservation_allocates_after_empty_and_exhausted_frozen_sequences() {
-    let (_, valid_records) = finish_empty_root(CstOutput::new());
+    let (_, valid_records) = finish_empty_root(
+        GreenNodeBuilder::new(),
+        Recover::new_for_test(&OperatorTable::empty()),
+    );
     assert!(valid_records.is_empty());
     assert_eq!(valid_records.capacity(), 0);
 
     let empty: [CommittedRecoveryRecord; 0] = [];
-    let mut output = CstOutput::reconcile(&empty);
     let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = {
+        recover = Recover::reconcile_for_test(recover.operators(), &empty);
+        GreenNodeBuilder::new()
+    };
     let mut input = "";
-    let mut recover = Recover::new(&operators);
     output.start_node(SyntaxKind::Root.into());
     emit_structured_recovery_error_from_item(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         unknown_item("x"),
         1,
         structured_spec(LiteralRole::RuleFieldName),
@@ -621,7 +645,7 @@ fn structured_reservation_allocates_after_empty_and_exhausted_frozen_sequences()
         },
     );
     output.finish_node();
-    let (_, records) = output.finish_with_recoveries();
+    let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(
         records,
         [structured_record(0, LiteralRole::RuleFieldName, 0..1)]
@@ -641,12 +665,16 @@ fn structured_reservation_allocates_after_empty_and_exhausted_frozen_sequences()
         )]),
         0,
     )];
-    let mut output = CstOutput::reconcile(&frozen);
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = {
+        recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     let mut input = "";
-    let mut recover = Recover::new(&operators);
     output.start_node(SyntaxKind::Root.into());
     emit_recovery_missing(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         LeadingTrivia::default(),
         0,
         |range| {
@@ -660,7 +688,7 @@ fn structured_reservation_allocates_after_empty_and_exhausted_frozen_sequences()
         },
     );
     emit_structured_recovery_error_from_item(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         unknown_item("a"),
         2,
         structured_spec(LiteralRole::RuleFieldName),
@@ -690,7 +718,7 @@ fn structured_reservation_allocates_after_empty_and_exhausted_frozen_sequences()
         },
     );
     output.finish_node();
-    let (_, records) = output.finish_with_recoveries();
+    let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(
         records.iter().map(|record| record.id).collect::<Vec<_>>(),
         [
@@ -706,15 +734,15 @@ fn structured_reservation_allocates_after_empty_and_exhausted_frozen_sequences()
 }
 
 #[test]
-fn structured_item_start_and_token_delta_exclude_prior_and_preemitted_bytes() {
-    let operators = OperatorTable::empty();
+fn structured_source_range_and_cst_anchor_exclude_prior_and_preemitted_bytes() {
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     output.token(SyntaxKind::Identifier.into(), "seed");
     emit_structured_recovery_error_from_item(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         unknown_item("x"),
         11,
         structured_spec(LiteralRole::RuleFieldName),
@@ -724,7 +752,7 @@ fn structured_item_start_and_token_delta_exclude_prior_and_preemitted_bytes() {
         },
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "seedx");
     assert_eq!(
         records,
@@ -756,12 +784,13 @@ fn structured_item_start_and_token_delta_exclude_prior_and_preemitted_bytes() {
     )
     .unwrap();
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     primary.emit_all_remaining_leading(&mut output);
     emit_structured_recovery_error_from_item(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         primary,
         successor,
         structured_spec(LiteralRole::RulePathName),
@@ -771,7 +800,7 @@ fn structured_item_start_and_token_delta_exclude_prior_and_preemitted_bytes() {
         },
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), format!("{comment} {payload}"));
     let root = SyntaxNode::new_root(green);
     let error = root
@@ -806,12 +835,15 @@ fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_fail
     let wrong_role = [structured_record(3, LiteralRole::RuleFieldName, 0..1)];
     assert!(
         catch_unwind(AssertUnwindSafe(|| {
-            let mut output = CstOutput::reconcile(&wrong_role);
             let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = {
+                recover = Recover::reconcile_for_test(recover.operators(), &wrong_role);
+                GreenNodeBuilder::new()
+            };
             let mut input = "";
-            let mut recover = Recover::new(&operators);
             emit_structured_recovery_error_from_item(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 unknown_item("x"),
                 1,
                 structured_spec(LiteralRole::RulePathName),
@@ -823,43 +855,63 @@ fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_fail
 
     for frozen in [
         None,
-        Some(structured_record(5, LiteralRole::RuleFieldName, 0..2)),
+        Some(structured_record(5, LiteralRole::RuleFieldName, 0..1)),
     ] {
-        assert!(
-            catch_unwind(AssertUnwindSafe(|| {
-                let frozen_storage = frozen.into_iter().collect::<Vec<_>>();
-                let mut output = if frozen_storage.is_empty() {
-                    CstOutput::new()
-                } else {
-                    CstOutput::reconcile(&frozen_storage)
-                };
-                let operators = OperatorTable::empty();
-                let mut input = "";
-                let mut recover = Recover::new(&operators);
-                emit_structured_recovery_error_from_item(
-                    In::new(&mut input, &mut recover, &mut output),
-                    unknown_item("x"),
-                    1,
-                    structured_spec(LiteralRole::RuleFieldName),
-                    |nested, primary| {
-                        primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
-                        ((), 2)
-                    },
-                );
-            }))
-            .is_err()
+        let frozen_storage = frozen.into_iter().collect::<Vec<_>>();
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = if frozen_storage.is_empty() {
+            GreenNodeBuilder::new()
+        } else {
+            {
+                recover = Recover::reconcile_for_test(recover.operators(), &frozen_storage);
+                GreenNodeBuilder::new()
+            }
+        };
+        let mut input = "";
+        output.start_node(SyntaxKind::Root.into());
+        emit_structured_recovery_error_from_item(
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+            unknown_item("x"),
+            1,
+            structured_spec(LiteralRole::RuleFieldName),
+            |nested, primary| {
+                primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
+                ((), 1)
+            },
+        );
+        output.finish_node();
+        let root = SyntaxNode::new_root(output.finish());
+        let records = recover.finish_recoveries_for_test();
+        assert_eq!(root.text(), "x");
+        let error = root.children().next().unwrap();
+        assert_eq!(error.kind(), SyntaxKind::Error);
+        assert_eq!(
+            error.text_range(),
+            rowan::TextRange::new(0.into(), 1.into())
+        );
+        assert_eq!(
+            records,
+            [structured_record(
+                if frozen_storage.is_empty() { 0 } else { 5 },
+                LiteralRole::RuleFieldName,
+                0..1
+            )]
         );
     }
 
     let wrong_end = [structured_record(5, LiteralRole::RuleFieldName, 0..2)];
     assert!(
         catch_unwind(AssertUnwindSafe(|| {
-            let mut output = CstOutput::reconcile(&wrong_end);
             let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = {
+                recover = Recover::reconcile_for_test(recover.operators(), &wrong_end);
+                GreenNodeBuilder::new()
+            };
             let mut input = "";
-            let mut recover = Recover::new(&operators);
             emit_structured_recovery_error_from_item(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 unknown_item("x"),
                 1,
                 structured_spec(LiteralRole::RuleFieldName),
@@ -874,10 +926,10 @@ fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_fail
 
     assert!(
         catch_unwind(AssertUnwindSafe(|| {
-            let mut output = CstOutput::new();
             let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = GreenNodeBuilder::new();
             let mut input = "";
-            let mut recover = Recover::new(&operators);
             let primary = Item::plain(
                 LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
                 Payload::Token(Token {
@@ -886,7 +938,7 @@ fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_fail
                 }),
             );
             emit_structured_recovery_error_from_item(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 primary,
                 2,
                 structured_spec(LiteralRole::RuleFieldName),
@@ -898,8 +950,9 @@ fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_fail
 
     assert!(
         catch_unwind(AssertUnwindSafe(|| {
-            let mut output = CstOutput::new();
-            output.violate_structured_lifo_for_test(
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            recover.violate_structured_lifo_for_test(
                 unknown_item("a"),
                 1,
                 structured_spec(LiteralRole::RuleFieldName),
@@ -914,27 +967,29 @@ fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_fail
 
     assert!(
         catch_unwind(AssertUnwindSafe(|| {
-            let mut output = CstOutput::new();
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = GreenNodeBuilder::new();
             output.start_node(SyntaxKind::Root.into());
             output.finish_node();
-            output.leave_structured_unfinished_for_test(
+            recover.leave_structured_unfinished_for_test(
                 unknown_item("x"),
                 1,
                 structured_spec(LiteralRole::RuleFieldName),
             );
-            output.finish_with_recoveries();
+            (output.finish(), recover.finish_recoveries_for_test());
         }))
         .is_err()
     );
 
     assert!(
         catch_unwind(AssertUnwindSafe(|| {
-            let mut output = CstOutput::new();
             let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = GreenNodeBuilder::new();
             let mut input = "";
-            let mut recover = Recover::new(&operators);
             emit_structured_recovery_error_from_item(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 unknown_item("x"),
                 1,
                 structured_spec(LiteralRole::RuleFieldName),
@@ -960,19 +1015,22 @@ fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_fail
     )];
     assert!(
         catch_unwind(AssertUnwindSafe(|| {
-            let mut output = CstOutput::reconcile(&maximum);
-            output.commit_recovery(singleton_draft(
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = {
+                recover = Recover::reconcile_for_test(recover.operators(), &maximum);
+                GreenNodeBuilder::new()
+            };
+            recover.commit_recovery_for_test(singleton_draft(
                 LiteralRole::RuleCaptureRightItem,
                 RecoveryKind::Missing,
                 0..0,
                 Arc::from([]),
                 ExpectedSyntax::Literal(LiteralExpected::RuleItem),
             ));
-            let operators = OperatorTable::empty();
             let mut input = "";
-            let mut recover = Recover::new(&operators);
             emit_structured_recovery_error_from_item(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 unknown_item("x"),
                 2,
                 structured_spec(LiteralRole::RuleFieldName),
@@ -1020,7 +1078,7 @@ fn item_extent_uses_only_owned_bytes_for_utf8_crlf_partial_and_fragmented_items(
             text: "δ".into(),
         }),
     );
-    let mut output = CstOutput::new();
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     partial.emit_leading_prefix_with(&mut output, 2, |_, _| {});
     let extent = partial.extent(40);
@@ -1085,13 +1143,13 @@ fn item_extent_anchors_eof_and_inspected_boundaries_without_consuming_them() {
 
 #[test]
 fn typed_missing_and_one_item_error_publish_exact_records_and_nodes() {
-    let operators = OperatorTable::empty();
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     emit_recovery_missing(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
         5,
         |range| {
@@ -1112,7 +1170,7 @@ fn typed_missing_and_one_item_error_publish_exact_records_and_nodes() {
         }),
     );
     let extent = emit_recovery_error_item(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         item,
         9,
         SyntaxKind::Unknown,
@@ -1132,7 +1190,7 @@ fn typed_missing_and_one_item_error_publish_exact_records_and_nodes() {
     );
     assert_eq!(extent.recovery_range(), 5..9);
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), " \r\nα");
     let root = SyntaxNode::new_root(green);
     assert_eq!(
@@ -1160,10 +1218,10 @@ fn typed_missing_and_one_item_error_publish_exact_records_and_nodes() {
 
 #[test]
 fn one_item_error_uses_owner_selected_kind_and_preserves_leading_fragments() {
-    let operators = OperatorTable::empty();
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
 
     let origin = 20;
@@ -1188,7 +1246,7 @@ fn one_item_error_uses_owner_selected_kind_and_preserves_leading_fragments() {
     .unwrap();
     let successor = origin + physical_len;
     let extent = emit_recovery_error_item(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         item,
         successor,
         SyntaxKind::Unknown,
@@ -1207,7 +1265,7 @@ fn one_item_error_uses_owner_selected_kind_and_preserves_leading_fragments() {
         },
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     let root = SyntaxNode::new_root(green);
     let tokens = root
         .descendants_with_tokens()
@@ -1231,13 +1289,13 @@ fn one_item_error_uses_owner_selected_kind_and_preserves_leading_fragments() {
 
 #[test]
 fn total_error_run_exposes_only_forward_lexical_and_emission_capabilities() {
-    let operators = OperatorTable::empty();
     let mut input = "@β";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     emit_recovery_error_run(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         |run| {
             let first = run.lexical(|mut lex| lex.next().unwrap());
             assert_eq!(first, '@');
@@ -1265,7 +1323,7 @@ fn total_error_run_exposes_only_forward_lexical_and_emission_capabilities() {
         },
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(input, "");
     assert_eq!(green.to_string(), "@β");
     assert_eq!(
@@ -1293,10 +1351,10 @@ fn total_error_run_exposes_only_forward_lexical_and_emission_capabilities() {
 
 #[test]
 fn call_argument_retry_leading_seal_emits_the_complete_native_prefix() {
-    let operators = OperatorTable::empty();
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let mut retry = Item::plain(
         LeadingTrivia::ordinary(
@@ -1313,7 +1371,7 @@ fn call_argument_retry_leading_seal_emits_the_complete_native_prefix() {
         }),
     );
     let sealed = emit_recovery_error_run(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         |run| {
             run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
             let sealed = run.seal_call_argument_retry_leading_prefix(
@@ -1399,7 +1457,7 @@ fn call_argument_retry_leading_seal_emits_the_complete_native_prefix() {
     assert_eq!(retry.leading_view().remaining_physical_parts(), 0);
     retry.emit_payload(&mut output, SyntaxKind::Identifier);
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "@ /*a*/ A");
     assert_eq!(records[0].site.range, 0..8);
     assert_eq!(
@@ -1442,13 +1500,13 @@ fn call_argument_retry_leading_ineligibility_is_atomic_and_keeps_the_run_open() 
 
     fn reject(mut retry: Item, successor_origin: usize) {
         let control = format!("{retry:?}");
-        let operators = OperatorTable::empty();
         let mut input = "";
-        let mut recover = Recover::new(&operators);
-        let mut output = CstOutput::new();
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let result = emit_recovery_error_run(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             |run| {
                 run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
                 let result = run.seal_call_argument_retry_leading_prefix(
@@ -1475,7 +1533,7 @@ fn call_argument_retry_leading_ineligibility_is_atomic_and_keeps_the_run_open() 
             },
         );
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(result, CallArgumentRetryLeadingSeal::Ineligible);
         assert_eq!(green.to_string(), "@");
         assert_eq!(records[0].site.range, 0..1);
@@ -1532,17 +1590,17 @@ fn call_argument_retry_leading_ineligibility_is_atomic_and_keeps_the_run_open() 
     reject(carrier, 7);
 
     let mut partial = token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice());
-    let mut prefix_output = CstOutput::new();
+    let mut prefix_output = GreenNodeBuilder::new();
     partial.emit_leading_prefix_with(&mut prefix_output, 1, |_, _| {});
     reject(partial, 2);
 }
 
 #[test]
 fn path_segment_retry_leading_seal_emits_only_block_comments_and_returns_the_same_item() {
-    let operators = OperatorTable::empty();
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let mut retry = Item::plain(
         LeadingTrivia::ordinary(
@@ -1559,7 +1617,7 @@ fn path_segment_retry_leading_seal_emits_only_block_comments_and_returns_the_sam
         }),
     );
     let sealed = emit_recovery_error_run(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         |run| {
             run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
             run.seal_path_segment_retry_leading_prefix(
@@ -1574,7 +1632,7 @@ fn path_segment_retry_leading_seal_emits_only_block_comments_and_returns_the_sam
     assert_eq!(retry.leading_view().remaining_physical_parts(), 1);
     retry.emit_remaining(&mut output, SyntaxKind::Identifier);
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "@/*a*//*b*/ B");
     assert_eq!(
         records[0].site.role,
@@ -1635,13 +1693,13 @@ fn path_segment_retry_leading_ineligibility_is_atomic_and_leaves_the_run_open() 
 
     fn reject(mut retry: Item, successor_origin: usize) {
         let control = format!("{retry:?}");
-        let operators = OperatorTable::empty();
         let mut input = "";
-        let mut recover = Recover::new(&operators);
-        let mut output = CstOutput::new();
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let result = emit_recovery_error_run(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             |run| {
                 run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
                 let result = run.seal_path_segment_retry_leading_prefix(
@@ -1668,7 +1726,7 @@ fn path_segment_retry_leading_ineligibility_is_atomic_and_leaves_the_run_open() 
             },
         );
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(result, PathSegmentRetryLeadingSeal::Ineligible);
         assert_eq!(green.to_string(), "@");
         assert_eq!(records[0].site.range, 0..1);
@@ -1757,17 +1815,17 @@ fn path_segment_retry_leading_ineligibility_is_atomic_and_leaves_the_run_open() 
     reject(carrier, 7);
 
     let mut partial = token_retry(vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice());
-    let mut prefix_output = CstOutput::new();
+    let mut prefix_output = GreenNodeBuilder::new();
     partial.emit_leading_prefix_with(&mut prefix_output, 1, |_, _| {});
     reject(partial, 7);
 }
 
 #[test]
 fn path_segment_retry_leading_seal_is_terminal_for_every_operation() {
-    let operators = OperatorTable::empty();
     let mut input = "x";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let mut retry = Item::plain(
         LeadingTrivia::ordinary(vec![Trivia::block_comment("/*x*/".into())].into_boxed_slice()),
@@ -1777,7 +1835,7 @@ fn path_segment_retry_leading_seal_is_terminal_for_every_operation() {
         }),
     );
     emit_recovery_error_run(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         |run| {
             run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
             assert_eq!(
@@ -1834,7 +1892,7 @@ fn path_segment_retry_leading_seal_is_terminal_for_every_operation() {
         |range, unexpected| path_segment_draft(RecoveryKind::Error, range, unexpected),
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "@/*x*/");
     assert_eq!(
         records[0].site.role,
@@ -1850,10 +1908,10 @@ fn path_segment_retry_leading_seal_is_terminal_for_every_operation() {
 
 #[test]
 fn retry_leading_seal_extends_only_the_record_and_preserves_the_borrowed_item() {
-    let operators = OperatorTable::empty();
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let retry = Item::plain(
         LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
@@ -1870,7 +1928,7 @@ fn retry_leading_seal_extends_only_the_record_and_preserves_the_borrowed_item() 
         }),
     );
     let sealed = emit_recovery_error_run(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         |run| {
             run.emit_literal_segment("@", 4..5, SyntaxKind::Unknown);
             run.seal_record_through_retry_leading(&retry, 7, UnexpectedCategory::OtherCharacter)
@@ -1886,7 +1944,7 @@ fn retry_leading_seal_extends_only_the_record_and_preserves_the_borrowed_item() 
         },
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert!(sealed);
     assert_eq!(retry, control);
     assert_eq!(green.to_string(), "@");
@@ -1914,13 +1972,13 @@ fn retry_leading_seal_rejects_ineligible_items_without_changing_normal_runs() {
     }
 
     fn reject(text: &str, error_range: Range<usize>, retry: Item, successor_origin: usize) {
-        let operators = OperatorTable::empty();
         let mut input = "";
-        let mut recover = Recover::new(&operators);
-        let mut output = CstOutput::new();
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let sealed = emit_recovery_error_run(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             |run| {
                 run.emit_literal_segment(text, error_range.clone(), SyntaxKind::Unknown);
                 let sealed = run.seal_record_through_retry_leading(
@@ -1946,7 +2004,7 @@ fn retry_leading_seal_rejects_ineligible_items_without_changing_normal_runs() {
             },
         );
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert!(!sealed);
         assert_eq!(green.to_string(), text);
         assert_eq!(records[0].site.range, error_range);
@@ -2048,15 +2106,15 @@ fn retry_leading_seal_rejects_ineligible_items_without_changing_normal_runs() {
     .expect("quote-prefix retry Item");
     reject("@", 0..1, quote, 4);
 
-    let operators = OperatorTable::empty();
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let mut partial = token_retry(vec![Trivia::whitespace(" ".into())].into_boxed_slice());
     partial.emit_leading_prefix_with(&mut output, 1, |_, _| {});
     emit_recovery_error_run(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         |run| {
             run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
             assert!(!run.seal_record_through_retry_leading(
@@ -2080,17 +2138,17 @@ fn retry_leading_seal_rejects_ineligible_items_without_changing_normal_runs() {
         },
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), " @");
     assert_eq!(records[0].site.range, 0..1);
 }
 
 #[test]
 fn retry_leading_seal_requires_empty_evidence_and_is_terminal_for_every_operation() {
-    let operators = OperatorTable::empty();
     let mut input = "x";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let mut retry = Item::plain(
         LeadingTrivia::ordinary(vec![Trivia::whitespace(" ".into())].into_boxed_slice()),
@@ -2100,7 +2158,7 @@ fn retry_leading_seal_requires_empty_evidence_and_is_terminal_for_every_operatio
         }),
     );
     emit_recovery_error_run(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         |run| {
             assert!(
                 catch_unwind(AssertUnwindSafe(|| run.seal_record_through_retry_leading(
@@ -2168,17 +2226,18 @@ fn retry_leading_seal_requires_empty_evidence_and_is_terminal_for_every_operatio
         },
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), "@");
     assert_eq!(input, "x");
     assert_eq!(records[0].site.range, 0..2);
 
     let mut input = "";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::new();
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     emit_recovery_error_run(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         |run| {
             run.emit_literal_segment("@", 0..1, SyntaxKind::Unknown);
             run.append_unexpected(UnexpectedSyntax::Token {
@@ -2205,7 +2264,7 @@ fn retry_leading_seal_requires_empty_evidence_and_is_terminal_for_every_operatio
         },
     );
     output.finish_node();
-    let (_, records) = output.finish_with_recoveries();
+    let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(records[0].site.range, 0..1);
 }
 
@@ -2225,27 +2284,30 @@ fn rejected_branch_preserves_tree_records_id_cursor_input_and_item() {
         )]),
         0,
     )];
-    let operators = OperatorTable::empty();
     let mut input = "tail";
-    let mut recover = Recover::new(&operators);
-    let mut output = CstOutput::reconcile(&frozen);
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = {
+        recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+        GreenNodeBuilder::new()
+    };
     output.start_node(SyntaxKind::Root.into());
     output.start_node(SyntaxKind::IdentifierExpression.into());
     output.token(SyntaxKind::Identifier.into(), "sentinel");
     output.finish_node();
-    output.commit_recovery(singleton_draft(
+    recover.commit_recovery_for_test(singleton_draft(
         LiteralRole::StringTerminator,
         RecoveryKind::Missing,
         0..0,
         Arc::from([]),
         ExpectedSyntax::Literal(LiteralExpected::StringTerminator),
     ));
-    let before = output.diagnostic_position();
+    let before = recover.diagnostic_position();
     let item = unknown_item("@");
     let control_item = unknown_item("@");
     assert!(
         classify_statement_item_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             &item,
             0,
             0,
@@ -2255,10 +2317,10 @@ fn rejected_branch_preserves_tree_records_id_cursor_input_and_item() {
     );
     assert_eq!(input, "tail");
     assert_eq!(item, control_item);
-    assert_eq!(output.diagnostic_position(), before);
-    assert_eq!(output.recovery_slot_count(), 1);
+    assert_eq!(recover.diagnostic_position(), before);
+    assert_eq!(recover.recovery_slot_count(), 1);
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green, seeded_root());
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].id, DiagnosticId(7));

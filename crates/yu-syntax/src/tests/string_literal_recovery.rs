@@ -69,16 +69,24 @@ fn parse<'s>(
     frozen: Option<&[CommittedRecoveryRecord]>,
 ) -> (GreenNode, Vec<CommittedRecoveryRecord>, &'s str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let (opener, mode) = scan_string_opener_witness(In::new(&mut input, &mut recover, ())).unwrap();
+    let (opener, mode) = scan_string_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .unwrap();
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     let part_origin = origin + source.len() - input.len();
     string_literal_with_virtual_statements_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         opener,
         mode,
         part_origin,
@@ -86,7 +94,7 @@ fn parse<'s>(
         Some(AmbientClaimView::root_statement(0)).into(),
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, input)
 }
 
@@ -297,13 +305,13 @@ fn actual_expression_pattern_and_rule_string_callers_publish_literal_roles() {
         ("~\"{a=\"\\u{}\"}\"", false, 9),
     ] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         if pattern {
             pattern_normalized(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 0,
                 LineEntry::InLine,
                 None,
@@ -313,7 +321,7 @@ fn actual_expression_pattern_and_rule_string_callers_publish_literal_roles() {
         } else {
             assert!(
                 expr_normalized(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     None,
                     0,
                     0,
@@ -329,7 +337,7 @@ fn actual_expression_pattern_and_rule_string_callers_publish_literal_roles() {
             );
         }
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         assert_eq!(input, "");
         assert_eq!(
@@ -347,16 +355,28 @@ fn actual_expression_pattern_and_rule_string_callers_publish_literal_roles() {
 #[test]
 fn rejected_opener_is_effect_free() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = "α";
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     output.token(SyntaxKind::Identifier.into(), "seed");
-    assert!(scan_string_opener_witness(In::new(&mut input, &mut recover, ())).is_none());
+    assert!(
+        scan_string_opener_witness(chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            ()
+        ))
+        .is_none()
+    );
     assert_eq!(input, "α");
-    assert_eq!(output.recovery_slot_count(), 0);
+    assert_eq!(recover.recovery_slot_count(), 0);
     output.finish_node();
-    assert_eq!(output.finish_with_recoveries().0.to_string(), "seed");
+    assert_eq!(
+        (output.finish(), recover.finish_recoveries_for_test())
+            .0
+            .to_string(),
+        "seed"
+    );
 }
 
 #[test]
@@ -367,13 +387,13 @@ fn actual_expression_pattern_and_rule_strings_keep_virtual_child_before_literal_
         ("~\"{a=\"%{,", false, 8),
     ] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         if pattern {
             pattern_normalized(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 0,
                 LineEntry::InLine,
                 None,
@@ -383,7 +403,7 @@ fn actual_expression_pattern_and_rule_strings_keep_virtual_child_before_literal_
         } else {
             assert!(
                 expr_normalized(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     None,
                     0,
                     0,
@@ -399,7 +419,7 @@ fn actual_expression_pattern_and_rule_strings_keep_virtual_child_before_literal_
             );
         }
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         assert_eq!(input, "");
         // Any enclosing Rule recovery follows this complete Virtual/String cone.
@@ -446,7 +466,7 @@ fn actual_expression_pattern_and_rule_strings_keep_virtual_child_before_literal_
 
 #[test]
 fn literal_recovery_preserves_seeded_ids_and_allocates_after_frozen_records() {
-    use crate::cst_output::RecoveryDraft;
+    use crate::cursor::recovery::RecoveryDraft;
     let seed = record(
         7,
         LiteralRole::StringTerminator,
@@ -462,9 +482,12 @@ fn literal_recovery_preserves_seeded_ids_and_allocates_after_frozen_records() {
     let frozen = [seed.clone(), reused.clone()];
     for reconcile in [false, true] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = if reconcile {
-            GreenNodeBuilder::reconcile(&frozen)
+            {
+                recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+                GreenNodeBuilder::new()
+            }
         } else {
             GreenNodeBuilder::new()
         };
@@ -472,7 +495,7 @@ fn literal_recovery_preserves_seeded_ids_and_allocates_after_frozen_records() {
         output.token(SyntaxKind::Identifier.into(), "seed");
         output.start_node(SyntaxKind::Missing.into());
         output.finish_node();
-        output.commit_recovery(RecoveryDraft::new(
+        recover.commit_recovery_for_test(RecoveryDraft::new(
             seed.site.clone(),
             seed.kind,
             seed.unexpected.clone(),
@@ -481,10 +504,14 @@ fn literal_recovery_preserves_seeded_ids_and_allocates_after_frozen_records() {
         ));
         for origin in [10, 20] {
             let mut input = "\"\\u{}\"";
-            let (opener, mode) =
-                scan_string_opener_witness(In::new(&mut input, &mut recover, ())).unwrap();
+            let (opener, mode) = scan_string_opener_witness(chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ))
+            .unwrap();
             string_literal_with_virtual_statements_normalized(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 opener,
                 mode,
                 origin + 1,
@@ -494,7 +521,7 @@ fn literal_recovery_preserves_seeded_ids_and_allocates_after_frozen_records() {
             assert_eq!(input, "");
         }
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), "seed\"\\u{}\"\"\\u{}\"");
         assert_eq!(
             records,

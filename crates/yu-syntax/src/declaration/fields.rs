@@ -3,12 +3,11 @@
 //! Struct, Enum, and Error select their recovery identities at this boundary;
 //! nested Type recovery stays with the Type owner.
 
-use reborrow_generic::Reborrow as _;
 use std::{cell::Cell, sync::Arc};
 
 use crate::{
     ambient_claim::AmbientClaimContext,
-    cst_output::{
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,

@@ -295,25 +295,28 @@ fn run_tuple<'source>(
 ) -> ContextualTypeRun<'source> {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
-    let mark = recover.mark();
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    let mut recover = Recover::new_for_test(&operators);
+    let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
+    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+        recover = Recover::reconcile_for_test(recover.operators(), records);
+        GreenNodeBuilder::new()
+    });
     output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut output);
     output.start_node(SyntaxKind::Missing.into());
     output.finish_node();
     commit_record_draft(
-        &mut output,
+        &mut recover,
         &missing(0, GrammarRole::Type(TypeRole::ArrowRhs), origin),
     );
     let (open, next, line) = type_nud_item_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         origin,
         LineEntry::InLine,
         fence,
     );
     let result = declaration_fields_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         DeclarationFieldRoles {
             field: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::Field)),
             field_name: GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldName)),
@@ -338,10 +341,11 @@ fn run_tuple<'source>(
         fence,
         Some(AmbientClaimView::root_statement(0)).into(),
     );
-    let slots = output.recovery_slot_count();
-    let diagnostics = output.diagnostic_position();
+    let slots = recover.recovery_slot_count();
+    let diagnostics = recover.diagnostic_position();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let same_operators = std::ptr::eq(recover.operators(), &operators);
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(result.item_origin, origin + source.len() - input.len());
     ContextualTypeRun {
         green,
@@ -352,7 +356,7 @@ fn run_tuple<'source>(
         slots,
         diagnostics,
         mark,
-        same_operators: std::ptr::eq(recover.operators(), &operators),
+        same_operators,
     }
 }
 
@@ -429,10 +433,10 @@ fn tuple_equals_recovery_preserves_seeded_output_and_complete_close_or_fence_ite
             } else {
                 let mut control_input = &source[2..];
                 let operators = OperatorTable::empty();
-                let mut recover = Recover::new(&operators);
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = GreenNodeBuilder::new();
                 let (control, control_next, control_line) = type_nud_item_normalized(
-                    In::new(&mut control_input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut control_input, &mut recover, &mut output),
                     origin + 2,
                     LineEntry::InLine,
                     fence,

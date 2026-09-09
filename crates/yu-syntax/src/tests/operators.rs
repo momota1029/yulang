@@ -164,11 +164,12 @@ fn dynamic_operator_raw_rejection_keeps_outer_input_and_builder_unchanged() {
     .expect("call-sensitive operator declaration");
     let mut input = "?(a)";
     let start = input.as_ptr();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let scanned = {
-        let mut outer: SyntaxIn = In::new(&mut input, &mut recover, &mut builder);
+        let mut outer: SyntaxIn =
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder);
         outer.token(|lex| scan_operator(lex, OperatorSite::Nud, false, 0, 0))
     };
     assert!(scanned.is_none());
@@ -176,6 +177,7 @@ fn dynamic_operator_raw_rejection_keeps_outer_input_and_builder_unchanged() {
     assert_eq!(input, "?(a)");
     assert!(std::ptr::eq(recover.operators(), &operators));
     builder.finish_node();
+    assert!(recover.finish_recoveries_for_test().is_empty());
     assert_eq!(builder.finish().to_string(), "");
 }
 
@@ -281,15 +283,19 @@ fn dynamic_operator_uses_delimited_baseline_and_matching_stop() {
         use std::sync::Arc;
 
         let mut input = source;
-        let mut recover = Recover::new(&infix);
+        let mut recover = Recover::new_for_test(&infix);
         let mut builder = GreenNodeBuilder::new();
         builder.start_node(SyntaxKind::Root.into());
-        let mut exit = expr(In::new(&mut input, &mut recover, &mut builder));
+        let mut exit = expr(crate::cursor::SyntaxIn::new(
+            &mut input,
+            &mut recover,
+            &mut builder,
+        ));
         if let Some(Err(Either::Right(end))) = &mut exit {
             emit_end(&mut builder, end);
         }
         builder.finish_node();
-        let (green, records) = builder.finish_with_recoveries();
+        let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         assert!(matches!(exit, Some(Err(Either::Right(_)))));
         assert_eq!(input, "");

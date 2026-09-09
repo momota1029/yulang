@@ -88,7 +88,7 @@ fn run_required_pattern_with_context<'source>(
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, NormalizedExit, PatternCompletion, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
@@ -96,7 +96,11 @@ fn run_required_pattern_with_context<'source>(
         item,
         next_line_entry,
     } = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         item_origin,
         line_entry,
         fence,
@@ -109,7 +113,7 @@ fn run_required_pattern_with_context<'source>(
         .checked_add(source.len() - input.len())
         .expect("test Pattern origin");
     let (exit, completion) = required_pattern_from_entry_item_with_policy_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         item,
         0,
         stops,
@@ -122,7 +126,12 @@ fn run_required_pattern_with_context<'source>(
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, completion, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        completion,
+        input,
+    )
 }
 
 fn policy(fresh: PatternStops, recovered_tail: PatternStops) -> PatternMandatorySlotPolicy {
@@ -143,12 +152,12 @@ fn run_pattern_literal<'source>(
     source: &'source str,
 ) -> (GreenNode, PatternLiteralWitnessExit, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = pattern_literal_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         0,
         &FenceBoundary {
             opener: FenceOpener {
@@ -162,7 +171,7 @@ fn run_pattern_literal<'source>(
     )
     .expect("Pattern quote witness");
     builder.finish_node();
-    (builder.finish(), exit, input)
+    (finish_without_recoveries(builder, recover), exit, input)
 }
 
 fn run_l7_pattern<'source>(source: &'source str) -> (GreenNode, NormalizedExit, &'source str) {
@@ -176,12 +185,12 @@ fn run_l7_pattern_with_context<'source>(
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, NormalizedExit, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = pattern_normalized(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         origin,
         line_entry,
         fence,
@@ -189,7 +198,11 @@ fn run_l7_pattern_with_context<'source>(
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        input,
+    )
 }
 
 fn pattern_node(green: GreenNode) -> SyntaxNode {
@@ -2293,10 +2306,14 @@ fn l7_pattern_primary_routes_literals_without_an_expression_wrapper() {
     assert_eq!(recovery_count(&green, SyntaxKind::Error), 1);
 
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = "\"\"tail";
     let CurrentItem { item, .. } = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         0,
         LineEntry::InLine,
         None,

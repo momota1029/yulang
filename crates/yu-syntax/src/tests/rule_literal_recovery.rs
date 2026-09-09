@@ -69,23 +69,35 @@ fn parse(
     frozen: Option<&[CommittedRecoveryRecord]>,
 ) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut output = frozen
-        .map(GreenNodeBuilder::reconcile)
+        .map(|records| {
+            recover = Recover::reconcile_for_test(recover.operators(), records);
+            GreenNodeBuilder::new()
+        })
         .unwrap_or_else(GreenNodeBuilder::new);
     output.start_node(SyntaxKind::Root.into());
     if source.starts_with('{') {
-        let opener = scan_rule_item_witness(In::new(&mut input, &mut recover, ())).unwrap();
+        let opener = scan_rule_item_witness(chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ))
+        .unwrap();
         let current = scan_rule_current_item_witness(
-            In::new(&mut input, &mut recover, ()),
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ),
             origin + 1,
             LineEntry::InLine,
             None,
         );
         let end = origin + source.len() - input.len();
         rule_body_witness(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             opener,
             current.item,
             current.next_line_entry,
@@ -93,11 +105,14 @@ fn parse(
             None,
         );
     } else {
-        let opener =
-            scan_expression_rule_literal_opener_witness(In::new(&mut input, &mut recover, ()))
-                .unwrap();
+        let opener = scan_expression_rule_literal_opener_witness(chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ))
+        .unwrap();
         rule_literal_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             opener,
             origin + 2,
             LineEntry::InLine,
@@ -106,7 +121,7 @@ fn parse(
         );
     }
     output.finish_node();
-    output.finish_with_recoveries()
+    (output.finish(), recover.finish_recoveries_for_test())
 }
 
 #[test]
@@ -306,13 +321,13 @@ fn actual_expression_and_pattern_routes_publish_rule_records() {
         ("\"{a::}\"", true, LiteralRole::RulePathName, 5),
     ] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         if pattern {
             pattern_normalized(
-                In::new(&mut input, &mut recover, &mut output),
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 0,
                 LineEntry::InLine,
                 None,
@@ -322,7 +337,7 @@ fn actual_expression_and_pattern_routes_publish_rule_records() {
         } else {
             assert!(
                 expr_normalized(
-                    In::new(&mut input, &mut recover, &mut output),
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                     None,
                     0,
                     0,
@@ -338,7 +353,7 @@ fn actual_expression_and_pattern_routes_publish_rule_records() {
             );
         }
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         assert_eq!(input, "");
         assert_eq!(records, [record(0, role, at..at, None)]);
@@ -376,15 +391,18 @@ fn fenced_literal_slots_keep_the_pending_fence_and_exact_coordinates() {
     ] {
         let source = format!("{body}> ```\nouter");
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source.as_str();
-        let opener =
-            scan_expression_rule_literal_opener_witness(In::new(&mut input, &mut recover, ()))
-                .unwrap();
+        let opener = scan_expression_rule_literal_opener_witness(chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ))
+        .unwrap();
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         rule_literal_normalized(
-            In::new(&mut input, &mut recover, &mut output),
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
             opener,
             202,
             LineEntry::InLine,
@@ -392,7 +410,7 @@ fn fenced_literal_slots_keep_the_pending_fence_and_exact_coordinates() {
             Some(AmbientClaimView::root_statement(0)).into(),
         );
         output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
         let at = 200 + body.len();
         let expected: Vec<_> = roles
             .into_iter()
@@ -407,11 +425,15 @@ fn fenced_literal_slots_keep_the_pending_fence_and_exact_coordinates() {
 #[test]
 fn rejected_rule_literal_opener_is_effect_free() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = "~ name";
     assert!(
-        scan_expression_rule_literal_opener_witness(In::new(&mut input, &mut recover, ()))
-            .is_none()
+        scan_expression_rule_literal_opener_witness(chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            ()
+        ))
+        .is_none()
     );
     assert_eq!(input, "~ name");
 }
@@ -430,14 +452,18 @@ fn one_item_error_range_includes_crlf_and_foreign_prefix() {
     };
     let source = "~\"{\r\n> ;}\"";
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let opener =
-        scan_expression_rule_literal_opener_witness(In::new(&mut input, &mut recover, ())).unwrap();
+    let opener = scan_expression_rule_literal_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .unwrap();
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     rule_literal_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         opener,
         102,
         LineEntry::InLine,
@@ -445,7 +471,7 @@ fn one_item_error_range_includes_crlf_and_foreign_prefix() {
         Some(AmbientClaimView::root_statement(0)).into(),
     );
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(green.to_string(), source);
     assert_eq!(input, "");
     assert_eq!(

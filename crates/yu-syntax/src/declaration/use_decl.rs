@@ -3,7 +3,7 @@
 use reborrow_generic::Reborrow as _;
 use unicode_ident::is_xid_continue;
 
-use crate::cst_output::RecoveryDraft;
+use crate::cursor::recovery::RecoveryDraft;
 use crate::recovery_record::{
     ConstructRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
     ImportRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
@@ -16,7 +16,7 @@ use crate::{
 use std::{ops::Range, sync::Arc};
 
 use crate::{
-    cst_output::emit::{emit_recovery_error_run, emit_recovery_missing},
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing},
     cursor::{LexIn, SyntaxIn},
     handoff::{NormalizedExit, complete, handoff},
     lexical::{

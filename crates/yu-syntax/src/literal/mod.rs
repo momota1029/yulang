@@ -12,7 +12,7 @@ use reborrow_generic::Reborrow as _;
 use std::{ops::Range, sync::Arc};
 
 use crate::{
-    cst_output::{
+    cursor::recovery::{
         RecoveryDraft,
         emit::{emit_literal_item, emit_recovery_error_run, emit_recovery_missing},
     },
@@ -169,19 +169,14 @@ pub(super) fn scan_string_text_witness(
 /// this callback surface remains the preserved L3 primitive, while the L6
 /// adapter below supplies full virtual-statement construction.
 #[cfg(test)]
-pub(super) fn string_literal_witness<'source, 'recover, 'operators, 'output, 'frozen>(
-    i: SyntaxIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
+pub(super) fn string_literal_witness<'source, 'operators, 'frozen>(
+    i: SyntaxIn<'_, 'source, 'operators, 'frozen>,
     opener: Item,
     mode: StringMode,
     part_origin: usize,
     fence: &FenceBoundary,
-    mut interpolation_body: impl for<'a> FnMut(
-        SyntaxIn<'a, 'source, 'recover, 'operators, 'output, 'frozen>,
-    ) -> Item,
-) -> StringLiteralExit
-where
-    'operators: 'recover,
-{
+    mut interpolation_body: impl for<'a> FnMut(SyntaxIn<'a, 'source, 'operators, 'frozen>) -> Item,
+) -> StringLiteralExit {
     match string_literal_with_interpolation_body(
         i,
         opener,
@@ -201,22 +196,13 @@ where
 /// L6 isolated StringLiteral construction using the canonical virtual
 /// Statement sequence for every interpolation body.
 #[cfg(test)]
-pub(super) fn string_literal_with_virtual_statements_witness<
-    'source,
-    'recover,
-    'operators,
-    'output,
-    'frozen,
->(
-    i: SyntaxIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
+pub(super) fn string_literal_with_virtual_statements_witness<'source, 'operators, 'frozen>(
+    i: SyntaxIn<'_, 'source, 'operators, 'frozen>,
     opener: Item,
     mode: StringMode,
     part_origin: usize,
     fence: &FenceBoundary,
-) -> StringLiteralExit
-where
-    'operators: 'recover,
-{
+) -> StringLiteralExit {
     match string_literal_with_virtual_statements_normalized(
         i,
         opener,
@@ -261,21 +247,18 @@ pub(super) fn string_literal_with_virtual_statements_normalized(
     )
 }
 
-fn string_literal_with_interpolation_body<'source, 'recover, 'operators, 'output, 'frozen>(
-    mut i: SyntaxIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
+fn string_literal_with_interpolation_body<'source, 'operators, 'frozen>(
+    mut i: SyntaxIn<'_, 'source, 'operators, 'frozen>,
     opener: Item,
     mode: StringMode,
     mut part_origin: usize,
     fence: Option<&FenceBoundary>,
     mut interpolation_body: impl for<'a> FnMut(
-        SyntaxIn<'a, 'source, 'recover, 'operators, 'output, 'frozen>,
+        SyntaxIn<'a, 'source, 'operators, 'frozen>,
         usize,
         LineEntry,
     ) -> InterpolationBodyExit,
-) -> NormalizedStringLiteralExit
-where
-    'operators: 'recover,
-{
+) -> NormalizedStringLiteralExit {
     i.state.start_node(SyntaxKind::StringLiteral.into());
     let mut opener = opener;
     opener.emit_all_remaining_leading(&mut *i.state);
@@ -405,20 +388,17 @@ fn pending_line_entry(item: &Item) -> LineEntry {
     }
 }
 
-fn emit_string_interpolation<'source, 'recover, 'operators, 'output, 'frozen>(
-    mut i: SyntaxIn<'_, 'source, 'recover, 'operators, 'output, 'frozen>,
+fn emit_string_interpolation<'source, 'operators, 'frozen>(
+    mut i: SyntaxIn<'_, 'source, 'operators, 'frozen>,
     prefix: Option<AcceptedQuotePrefix>,
     part_origin: &mut usize,
     fence: Option<&FenceBoundary>,
     interpolation_body: &mut impl for<'a> FnMut(
-        SyntaxIn<'a, 'source, 'recover, 'operators, 'output, 'frozen>,
+        SyntaxIn<'a, 'source, 'operators, 'frozen>,
         usize,
         LineEntry,
     ) -> InterpolationBodyExit,
-) -> Result<(), Item>
-where
-    'operators: 'recover,
-{
+) -> Result<(), Item> {
     i.state.start_node(SyntaxKind::StringInterpolation.into());
 
     let percent = if let Some(prefix) = prefix {

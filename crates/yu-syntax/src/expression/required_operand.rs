@@ -2,16 +2,14 @@
 
 use std::sync::Arc;
 
-use reborrow_generic::Reborrow as _;
-
 use super::operator_chain::{append_nud, is_nud_item};
 use crate::{
     ambient_claim::AmbientClaimContext,
-    cst_output::{
+    cursor::SyntaxIn,
+    cursor::recovery::{
         RecoveryDraft,
         emit::{ErrorRunOutput, emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
     },
-    cursor::SyntaxIn,
     handoff::{MlMode, NormalizedExit, complete, handoff},
     lexical::{
         current_item::LineEntry,
@@ -155,7 +153,7 @@ fn is_unread_operand_boundary(item: &Item) -> bool {
 }
 
 fn is_required_operand_boundary_in_error_run(
-    run: &mut ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    run: &mut ErrorRunOutput<'_, '_, '_, '_>,
     item: &Item,
     stops: Stops,
 ) -> bool {

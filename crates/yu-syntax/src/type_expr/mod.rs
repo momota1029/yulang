@@ -24,14 +24,14 @@ mod record;
 mod variants;
 
 use crate::{
-    cst_output::{
+    cursor::SyntaxIn,
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             ErrorRunOutput, PathSegmentRetryLeadingSeal, emit_recovery_error_run,
             emit_recovery_missing, emit_token_item,
         },
     },
-    cursor::SyntaxIn,
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
         current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
@@ -1195,7 +1195,7 @@ fn type_nud_item_with_pipe_lexical_normalized(
 /// `advanced_origin`; the sealed Error-run capability deliberately cannot
 /// expose a general `SyntaxIn` to its body.
 fn type_nud_item_with_pipe_lexical_normalized_in_error_run(
-    run: &mut ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    run: &mut ErrorRunOutput<'_, '_, '_, '_>,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -1242,7 +1242,7 @@ fn type_nud_item_with_pipe_lexical_normalized_in_error_run(
 }
 
 fn type_item_with_pipe_lexical_normalized_in_error_run(
-    run: &mut ErrorRunOutput<'_, '_, '_, '_, '_, '_>,
+    run: &mut ErrorRunOutput<'_, '_, '_, '_>,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,

@@ -36,20 +36,23 @@ fn run_required<'source>(
 ) -> (ContextualTypeRun<'source>, bool) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
-    let mark = recover.mark();
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    let mut recover = Recover::new_for_test(&operators);
+    let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
+    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+        recover = Recover::reconcile_for_test(recover.operators(), records);
+        GreenNodeBuilder::new()
+    });
     output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut output);
     // A prior committed slot and CST sibling must survive this total attempt.
     output.start_node(SyntaxKind::Missing.into());
     output.finish_node();
     commit_record_draft(
-        &mut output,
+        &mut recover,
         &missing(0, GrammarRole::Type(TypeRole::ArrowRhs), origin),
     );
     let (mut primary, next_origin, next_line) = crate::type_expr::type_nud_item_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         origin,
         line,
         fence,
@@ -58,14 +61,15 @@ fn run_required<'source>(
         primary.emit_all_remaining_leading(&mut output);
     }
     let (exit, found) = crate::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
-        In::new(&mut input, &mut recover, &mut output), primary, role, 0,
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output), primary, role, 0,
         crate::lexical::stops::STOP_WITH, crate::type_expr::TypeOuterBoundary::WITH,
         next_origin, next_line, fence,
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into());
-    let slots = output.recovery_slot_count();
-    let diagnostics = output.diagnostic_position();
+    let slots = recover.recovery_slot_count();
+    let diagnostics = recover.diagnostic_position();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let same_operators = std::ptr::eq(recover.operators(), &operators);
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (
         ContextualTypeRun {
             green,
@@ -76,7 +80,7 @@ fn run_required<'source>(
             slots,
             diagnostics,
             mark,
-            same_operators: std::ptr::eq(recover.operators(), &operators),
+            same_operators,
         },
         found,
     )
@@ -149,10 +153,7 @@ fn required_missing_uses_the_explicit_role_and_remaining_extent_with_seeded_froz
                     leading_output.start_node(SyntaxKind::Root.into());
                     control.emit_all_remaining_leading(&mut leading_output);
                     leading_output.finish_node();
-                    assert_eq!(
-                        leading_output.finish_with_recoveries().0.to_string(),
-                        emitted
-                    );
+                    assert_eq!(leading_output.finish().to_string(), emitted);
                 }
                 match &fresh.exit {
                     NormalizedExit::Complete(Err(Either::Left(pending)), actual_line) => {
@@ -262,13 +263,16 @@ pub(super) fn run_statement_records<'source>(
 ) -> ContextualTypeRun<'source> {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = Recover::new(&operators);
-    let mark = recover.mark();
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    let mut recover = Recover::new_for_test(&operators);
+    let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
+    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+        recover = Recover::reconcile_for_test(recover.operators(), records);
+        GreenNodeBuilder::new()
+    });
     output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut output);
     let mut exit = statement_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         0,
         0,
         origin,
@@ -280,10 +284,11 @@ pub(super) fn run_statement_records<'source>(
     if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
         emit_end(&mut output, end);
     }
-    let slots = output.recovery_slot_count();
-    let diagnostics = output.diagnostic_position();
+    let slots = recover.recovery_slot_count();
+    let diagnostics = recover.diagnostic_position();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let same_operators = std::ptr::eq(recover.operators(), &operators);
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     ContextualTypeRun {
         green,
         exit,
@@ -293,7 +298,7 @@ pub(super) fn run_statement_records<'source>(
         slots,
         diagnostics,
         mark,
-        same_operators: std::ptr::eq(recover.operators(), &operators),
+        same_operators,
     }
 }
 

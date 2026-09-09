@@ -1,7 +1,7 @@
 use crate::tests::pattern::*;
 use crate::{
     ambient_claim::AmbientClaimView,
-    cst_output::{RecoveryDraft, emit::emit_recovery_missing},
+    cursor::recovery::{RecoveryDraft, emit::emit_recovery_missing},
     lexical::{
         item::LeadingTrivia,
         lexer::{scan_identifier, scan_pattern_payload},
@@ -111,13 +111,11 @@ fn seed_record(origin: usize) -> CommittedRecoveryRecord {
     seed
 }
 
-fn publish_seed(output: &mut GreenNodeBuilder, origin: usize) {
-    let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+fn publish_seed(output: &mut GreenNodeBuilder, recover: &mut Recover, origin: usize) {
     let mut input = "";
     let seed = seed_record(origin);
     emit_recovery_missing(
-        In::new(&mut input, &mut recover, output),
+        crate::cursor::SyntaxIn::new(&mut input, recover, output),
         LeadingTrivia::default(),
         origin,
         |range| {
@@ -141,18 +139,25 @@ fn run<'source>(
     frozen: Option<&[CommittedRecoveryRecord]>,
 ) -> PatternRun<'source> {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
-    let mark = recover.mark();
+    let mut recover = Recover::new_for_test(&operators);
+    let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
     let mut input = source;
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+        recover = Recover::reconcile_for_test(recover.operators(), records);
+        GreenNodeBuilder::new()
+    });
     output.start_node(SyntaxKind::Root.into());
     output.token(SyntaxKind::Identifier.into(), "sentinel");
-    publish_seed(&mut output, context.origin);
+    publish_seed(&mut output, &mut recover, context.origin);
     let CurrentItem {
         mut item,
         next_line_entry,
     } = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         context.origin,
         context.line,
         context.fence,
@@ -167,7 +172,7 @@ fn run<'source>(
     }
     let next = context.origin + source.len() - input.len();
     let (exit, completion) = required_pattern_from_entry_item_with_policy_normalized(
-        In::new(&mut input, &mut recover, &mut output),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         item,
         0,
         context.stops,
@@ -179,12 +184,15 @@ fn run<'source>(
         context.fence,
         Some(AmbientClaimView::root_statement(0)).into(),
     );
-    assert_eq!(recover.mark(), mark);
+    assert_eq!(
+        crate::cursor::LexRecover::new_for_test(recover.operators()).mark(),
+        mark
+    );
     assert!(std::ptr::eq(recover.operators(), &operators));
-    let slots = output.recovery_slot_count();
-    let diagnostics = output.diagnostic_position();
+    let slots = recover.recovery_slot_count();
+    let diagnostics = recover.diagnostic_position();
     output.finish_node();
-    let (green, records) = output.finish_with_recoveries();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     PatternRun {
         green,
         exit,
@@ -416,10 +424,14 @@ fn primary_error_runs_exclude_retry_leading_and_keep_native_payloads() {
 
 fn assert_pending_control(run: &PatternRun<'_>, suffix: &str, origin: usize, context: Context<'_>) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = suffix;
     let current = current_item(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         origin,
         LineEntry::InLine,
         context.fence,
@@ -604,37 +616,41 @@ fn symbol_name_probe_rejection_preserves_seeded_frozen_output_and_cursor() {
             let mut frozen = [seed_record(41)];
             frozen[0].id = DiagnosticId(7);
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
+            let mut recover = Recover::new_for_test(&operators);
             let mut input = source;
             let mut output = if frozen_mode {
-                GreenNodeBuilder::reconcile(&frozen)
+                {
+                    recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+                    GreenNodeBuilder::new()
+                }
             } else {
                 GreenNodeBuilder::new()
             };
             output.start_node(SyntaxKind::Root.into());
             output.token(SyntaxKind::Identifier.into(), "sentinel");
-            publish_seed(&mut output, 41);
+            publish_seed(&mut output, &mut recover, 41);
             let before = (
-                output.recovery_slot_count(),
-                output.diagnostic_position(),
-                recover.mark(),
+                recover.recovery_slot_count(),
+                recover.diagnostic_position(),
+                crate::cursor::LexRecover::new_for_test(recover.operators()).mark(),
             );
-            let mut probe: SyntaxIn = In::new(&mut input, &mut recover, &mut output);
+            let mut probe: SyntaxIn =
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
             let name = probe.token(scan_identifier);
             assert!(name.is_none(), "{source:?}");
             assert_eq!(input.as_ptr(), source.as_ptr());
             assert_eq!(input, source);
             assert_eq!(
                 (
-                    output.recovery_slot_count(),
-                    output.diagnostic_position(),
-                    recover.mark()
+                    recover.recovery_slot_count(),
+                    recover.diagnostic_position(),
+                    crate::cursor::LexRecover::new_for_test(recover.operators()).mark()
                 ),
                 before
             );
             assert!(std::ptr::eq(recover.operators(), &operators));
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(green.to_string(), "sentinel");
             assert_eq!(
                 records,

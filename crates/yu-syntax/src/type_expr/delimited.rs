@@ -3,8 +3,6 @@
 use crate::ambient_claim::AmbientClaimContext;
 use std::sync::Arc;
 
-use reborrow_generic::Reborrow as _;
-
 use crate::{
     recovery_record::{
         ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
@@ -21,14 +19,14 @@ use crate::type_expr::{
     type_nud_item_with_pipe_lexical_normalized, with_type_outer_close,
 };
 use crate::{
-    cst_output::{
+    cursor::SyntaxIn,
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             CallArgumentRetryLeadingSeal, emit_recovery_error_item, emit_recovery_error_run,
             emit_recovery_missing, emit_token_item,
         },
     },
-    cursor::SyntaxIn,
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
         current_item::LineEntry,

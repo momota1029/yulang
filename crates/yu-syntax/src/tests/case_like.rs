@@ -49,12 +49,16 @@ fn case_sequence_missing_records_are_exact_shifted_frozen_and_seeded() {
                 vec![sequence_record(0, false, origin + at)]
             };
             for frozen in [None, Some(expected.as_slice())] {
-                let mut output =
-                    frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+                    recover = Recover::reconcile_for_test(recover.operators(), records);
+                    GreenNodeBuilder::new()
+                });
                 output.start_node(SyntaxKind::Root.into());
-                let (_, suffix) = parse_case_into(source, origin, None, &mut output);
+                let (_, suffix) = parse_case_into(source, origin, None, &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(suffix, "", "{source:?}");
                 assert_eq!(green.to_string(), source, "{source:?}");
                 assert_eq!(records, expected, "{source:?}");
@@ -73,11 +77,16 @@ fn case_sequence_missing_records_are_exact_shifted_frozen_and_seeded() {
         };
         let mut frozen = vec![seed.clone()];
         frozen.extend(expected_at(100, 19));
-        let mut output = GreenNodeBuilder::reconcile(&frozen);
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = {
+            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+            GreenNodeBuilder::new()
+        };
         output.start_node(SyntaxKind::Root.into());
         output.start_node(SyntaxKind::Missing.into());
         output.finish_node();
-        output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
             seed.site.clone(),
             seed.kind,
             seed.unexpected.clone(),
@@ -85,10 +94,10 @@ fn case_sequence_missing_records_are_exact_shifted_frozen_and_seeded() {
             0,
         ));
         for origin in [100, 200] {
-            let _ = parse_case_into(source, origin, None, &mut output);
+            let _ = parse_case_into(source, origin, None, &mut recover, &mut output);
         }
         output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
         frozen.extend(expected_at(200, if separator { 21 } else { 20 }));
         assert_eq!(records, frozen);
     }
@@ -105,11 +114,13 @@ fn catch_sequence_matching_close_after_trailing_comma_is_owned_by_block() {
         "case x:\n  n -> a\n  _ -> b",
         "catch x: n -> a",
     ] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let (_, suffix) = parse_case_into(source, 0, None, &mut output);
+        let (_, suffix) = parse_case_into(source, 0, None, &mut recover, &mut output);
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         assert_eq!(suffix, "");
         assert!(records.is_empty(), "{source:?}: {records:?}");
@@ -149,12 +160,16 @@ fn empty_catch_keeps_required_arm_recovery_before_local_close_completion() {
                 expected.push(sequence_record(2, false, origin + 15));
             }
             for frozen in [None, Some(expected.as_slice())] {
-                let mut output =
-                    frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+                    recover = Recover::reconcile_for_test(recover.operators(), records);
+                    GreenNodeBuilder::new()
+                });
                 output.start_node(SyntaxKind::Root.into());
-                let (_, suffix) = parse_case_into(source, origin, None, &mut output);
+                let (_, suffix) = parse_case_into(source, origin, None, &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(records, expected, "{source:?}");
                 let root = SyntaxNode::new_root(green);
                 assert_eq!(root.to_string(), source);
@@ -201,11 +216,13 @@ fn empty_catch_keeps_required_arm_recovery_before_local_close_completion() {
 #[test]
 fn case_e12i_literal_retains_current_ml_and_operator_judgment() {
     let source = "case x: 1 -> a 2 -> b";
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
     let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
-    let (_, suffix) = parse_case_into(source, 0, None, &mut output);
+    let (_, suffix) = parse_case_into(source, 0, None, &mut recover, &mut output);
     output.finish_node();
-    let (_, records) = output.finish_with_recoveries();
+    let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(suffix, "> b");
     assert!(
         !records
@@ -252,13 +269,22 @@ fn catch_local_close_keeps_protected_item_and_follows_child_records() {
             }
             expected.push(sequence_record(expected.len() as u32, false, at));
             for frozen in [None, Some(expected.as_slice())] {
-                let mut output =
-                    frozen.map_or_else(GreenNodeBuilder::new, GreenNodeBuilder::reconcile);
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
+                let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
+                    recover = Recover::reconcile_for_test(recover.operators(), records);
+                    GreenNodeBuilder::new()
+                });
                 output.start_node(SyntaxKind::Root.into());
-                let (exit, remainder) =
-                    parse_case_into(&source, origin, fenced.then_some(&fence), &mut output);
+                let (exit, remainder) = parse_case_into(
+                    &source,
+                    origin,
+                    fenced.then_some(&fence),
+                    &mut recover,
+                    &mut output,
+                );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(records, expected, "{source:?}");
                 assert_eq!(green.to_string(), head, "{source:?}");
                 let NormalizedExit::Complete(Err(Either::Left(mut item)), line) = exit else {
@@ -384,13 +410,12 @@ fn parse_case_into<'s>(
     source: &'s str,
     origin: usize,
     fence: Option<&FenceBoundary>,
+    recover: &mut Recover,
     output: &mut GreenNodeBuilder,
 ) -> (NormalizedExit, &'s str) {
-    let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
     let mut input = source;
     let exit = expr_normalized(
-        In::new(&mut input, &mut recover, output),
+        crate::cursor::SyntaxIn::new(&mut input, recover, output),
         None,
         0,
         0,
@@ -439,16 +464,22 @@ fn case_structural_slots_have_exact_fresh_shifted_frozen_and_seeded_records() {
             )];
             let mut fresh = None;
             for frozen in [None, Some(expected.as_slice())] {
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = frozen
-                    .map(GreenNodeBuilder::reconcile)
+                    .map(|records| {
+                        recover = Recover::reconcile_for_test(recover.operators(), records);
+                        GreenNodeBuilder::new()
+                    })
                     .unwrap_or_else(GreenNodeBuilder::new);
                 output.start_node(SyntaxKind::Root.into());
-                let (mut exit, remainder) = parse_case_into(source, origin, None, &mut output);
+                let (mut exit, remainder) =
+                    parse_case_into(source, origin, None, &mut recover, &mut output);
                 if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
                     emit_end(&mut output, end);
                 }
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(without_arm_records(&records), expected, "{source:?}");
                 assert_eq!(
                     green.to_string(),
@@ -470,11 +501,16 @@ fn case_structural_slots_have_exact_fresh_shifted_frozen_and_seeded_records() {
         let seed = structural_record(7, Block, Missing, 0..0);
         let reused = structural_record(19, role, kind, 100 + range.start..100 + range.end);
         let frozen = [seed.clone(), reused.clone()];
-        let mut output = GreenNodeBuilder::reconcile(&frozen);
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = {
+            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+            GreenNodeBuilder::new()
+        };
         output.start_node(SyntaxKind::Root.into());
         output.start_node(SyntaxKind::Missing.into());
         output.finish_node();
-        output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
             seed.site.clone(),
             seed.kind,
             seed.unexpected.clone(),
@@ -482,10 +518,10 @@ fn case_structural_slots_have_exact_fresh_shifted_frozen_and_seeded_records() {
             0,
         ));
         for origin in [100, 200] {
-            let _ = parse_case_into(source, origin, None, &mut output);
+            let _ = parse_case_into(source, origin, None, &mut recover, &mut output);
         }
         output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
         let next_id = if matches!(source, "case x:" | "catch x: err," | "case x: @") {
             21
         } else {
@@ -577,16 +613,22 @@ fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
             let expected = expected_at(origin, 0);
             let mut fresh = None;
             for frozen in [None, Some(expected.as_slice())] {
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = frozen
-                    .map(GreenNodeBuilder::reconcile)
+                    .map(|records| {
+                        recover = Recover::reconcile_for_test(recover.operators(), records);
+                        GreenNodeBuilder::new()
+                    })
                     .unwrap_or_else(GreenNodeBuilder::new);
                 output.start_node(SyntaxKind::Root.into());
-                let (mut exit, remainder) = parse_case_into(source, origin, None, &mut output);
+                let (mut exit, remainder) =
+                    parse_case_into(source, origin, None, &mut recover, &mut output);
                 if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
                     emit_end(&mut output, end);
                 }
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(records, expected, "{source:?}");
                 assert_eq!(green.to_string(), source, "{source:?}");
                 assert_eq!(remainder, "");
@@ -600,11 +642,16 @@ fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
         let seed = structural_record(7, CaseLikeRole::Block, RecoveryKind::Missing, 0..0);
         let mut frozen = vec![seed.clone()];
         frozen.extend(expected_at(100, 19));
-        let mut output = GreenNodeBuilder::reconcile(&frozen);
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = {
+            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
+            GreenNodeBuilder::new()
+        };
         output.start_node(SyntaxKind::Root.into());
         output.start_node(SyntaxKind::Missing.into());
         output.finish_node();
-        output.commit_recovery(crate::cst_output::RecoveryDraft::new(
+        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
             seed.site.clone(),
             seed.kind,
             seed.unexpected.clone(),
@@ -612,10 +659,10 @@ fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
             0,
         ));
         for origin in [100, 200] {
-            let _ = parse_case_into(source, origin, None, &mut output);
+            let _ = parse_case_into(source, origin, None, &mut recover, &mut output);
         }
         output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
         frozen.extend(expected_at(200, 19 + specifications.len() as u32));
         assert_eq!(records, frozen, "{source:?}");
     }
@@ -659,13 +706,18 @@ fn case_arrow_body_combined_absence_keeps_prior_owner_records_in_order() {
         }
         let expected = [prior, arm_record(1, CaseLikeRole::Arrow, at..at, true, &[])];
         for frozen in [None, Some(expected.as_slice())] {
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
             let mut output = frozen
-                .map(GreenNodeBuilder::reconcile)
+                .map(|records| {
+                    recover = Recover::reconcile_for_test(recover.operators(), records);
+                    GreenNodeBuilder::new()
+                })
                 .unwrap_or_else(GreenNodeBuilder::new);
             output.start_node(SyntaxKind::Root.into());
-            let _ = parse_case_into(source, 0, None, &mut output);
+            let _ = parse_case_into(source, 0, None, &mut recover, &mut output);
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(records, expected, "{source:?}");
             assert_eq!(
                 SyntaxNode::new_root(green)
@@ -737,14 +789,24 @@ fn case_arrow_body_keeps_protected_boundaries_before_and_after_error() {
                 )
             };
             for frozen in [None, Some(std::slice::from_ref(&expected))] {
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = frozen
-                    .map(GreenNodeBuilder::reconcile)
+                    .map(|records| {
+                        recover = Recover::reconcile_for_test(recover.operators(), records);
+                        GreenNodeBuilder::new()
+                    })
                     .unwrap_or_else(GreenNodeBuilder::new);
                 output.start_node(SyntaxKind::Root.into());
-                let (exit, remainder) =
-                    parse_case_into(&source, origin, fenced.then_some(&fence), &mut output);
+                let (exit, remainder) = parse_case_into(
+                    &source,
+                    origin,
+                    fenced.then_some(&fence),
+                    &mut recover,
+                    &mut output,
+                );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(records, [expected.clone()], "{source:?}");
                 assert_eq!(green.to_string(), head, "{source:?}");
                 let NormalizedExit::Complete(Err(Either::Left(mut item)), line) = exit else {
@@ -839,11 +901,13 @@ fn case_body_lexical_retry_keeps_native_tokens_and_prefix_admission() {
 fn case_body_unread_opener_reaches_the_existing_next_pattern_owner() {
     for head in ["case x: n", "case x: n ->", "case x: n -> @"] {
         let source = format!("{head} [tail] -> yes");
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let _ = parse_case_into(&source, 0, None, &mut output);
+        let _ = parse_case_into(&source, 0, None, &mut recover, &mut output);
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         let root = SyntaxNode::new_root(green);
         let arms: Vec<_> = root
             .descendants()
@@ -902,11 +966,13 @@ fn case_structural_nested_owners_and_following_statements_keep_their_roles() {
             GrammarRole::Type(TypeRole::PathSegment),
         ),
     ] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let _ = parse_case_into(source, 0, None, &mut output);
+        let _ = parse_case_into(source, 0, None, &mut recover, &mut output);
         output.finish_node();
-        let (_, records) = output.finish_with_recoveries();
+        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
         let records = without_arm_records(&records);
         assert_eq!(records.len(), 1, "{source:?}: {records:?}");
         assert_eq!(records[0].site.role, nested_role, "{source:?}");
@@ -963,14 +1029,16 @@ fn case_structural_accepted_arm_families_remain_recovery_free() {
         "case x:\n  n -> a\n  _ -> b",
         "catch x:\n  err, handler -> a",
     ] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let (mut exit, remainder) = parse_case_into(source, 0, None, &mut output);
+        let (mut exit, remainder) = parse_case_into(source, 0, None, &mut recover, &mut output);
         if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
             emit_end(&mut output, end);
         }
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), source);
         assert!(records.is_empty(), "{source:?}: {records:?}");
         assert_eq!(remainder, "");
@@ -985,11 +1053,13 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
         ("case x  ]", "case x", 6, TokenKind::RBracket),
         ("catch x  }", "catch x", 7, TokenKind::RBrace),
     ] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let (exit, remainder) = parse_case_into(source, 200, None, &mut output);
+        let (exit, remainder) = parse_case_into(source, 200, None, &mut recover, &mut output);
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         assert_eq!(green.to_string(), emitted);
         assert_eq!(
             records,
@@ -1043,13 +1113,19 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
             7000 + range.start..7000 + range.end,
         )];
         for frozen in [None, Some(expected.as_slice())] {
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
             let mut output = frozen
-                .map(GreenNodeBuilder::reconcile)
+                .map(|records| {
+                    recover = Recover::reconcile_for_test(recover.operators(), records);
+                    GreenNodeBuilder::new()
+                })
                 .unwrap_or_else(GreenNodeBuilder::new);
             output.start_node(SyntaxKind::Root.into());
-            let (exit, remainder) = parse_case_into(&source, 7000, Some(&fence), &mut output);
+            let (exit, remainder) =
+                parse_case_into(&source, 7000, Some(&fence), &mut recover, &mut output);
             output.finish_node();
-            let (green, records) = output.finish_with_recoveries();
+            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
             assert_eq!(without_arm_records(&records), expected, "{source:?}");
             assert_eq!(green.to_string(), head);
             let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
@@ -1085,14 +1161,24 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
             let at = origin + head.len() + if fenced { 2 } else { 0 };
             let expected = [structural_record(0, role, RecoveryKind::Missing, at..at)];
             for frozen in [None, Some(expected.as_slice())] {
+                let operators = OperatorTable::empty();
+                let mut recover = Recover::new_for_test(&operators);
                 let mut output = frozen
-                    .map(GreenNodeBuilder::reconcile)
+                    .map(|records| {
+                        recover = Recover::reconcile_for_test(recover.operators(), records);
+                        GreenNodeBuilder::new()
+                    })
                     .unwrap_or_else(GreenNodeBuilder::new);
                 output.start_node(SyntaxKind::Root.into());
-                let (exit, remainder) =
-                    parse_case_into(&source, origin, fenced.then_some(&fence), &mut output);
+                let (exit, remainder) = parse_case_into(
+                    &source,
+                    origin,
+                    fenced.then_some(&fence),
+                    &mut recover,
+                    &mut output,
+                );
                 output.finish_node();
-                let (green, records) = output.finish_with_recoveries();
+                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
                 assert_eq!(without_arm_records(&records), expected, "{source:?}");
                 assert_eq!(green.to_string(), head, "{source:?}");
                 let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
@@ -1121,16 +1207,18 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
         }
     }
     for source in ["(case α  )", "(catch α  )"] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
-        let (mut exit, remainder) = parse_case_into(source, 0, None, &mut output);
+        let (mut exit, remainder) = parse_case_into(source, 0, None, &mut recover, &mut output);
         if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
             emit_end(&mut output, end);
         } else {
             panic!("outer close consumed");
         }
         output.finish_node();
-        let (green, records) = output.finish_with_recoveries();
+        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
         let at = source.find("  )").unwrap();
         assert_eq!(
             records,

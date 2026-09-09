@@ -12,7 +12,7 @@ use std::{ops::Range, sync::Arc};
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cst_output::{
+    cursor::recovery::{
         RecoveryDraft,
         emit::{
             emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,

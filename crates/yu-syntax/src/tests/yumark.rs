@@ -1,11 +1,10 @@
-use chasa_recover::In;
+use rowan::GreenNodeBuilder;
 
 use crate::{SyntaxKind, SyntaxNode, operator_table::OperatorTable};
 
 use crate::tests::support::{ordinary_trivia, physical_leading};
 
 use crate::{
-    cst_output::CstOutput as GreenNodeBuilder,
     cursor::Recover,
     lexical::{
         item::{
@@ -441,10 +440,18 @@ fn fragment_validation_rejects_empty_overflow_order_overlap_and_bad_extent() {
 #[test]
 fn ordinary_scanner_items_have_no_fragment_carrier() {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut remaining = "α";
-    let item = scan_statement_item(In::new(&mut remaining, &mut recover, ()), 0, 0)
-        .expect("ordinary scanned item");
+    let item = scan_statement_item(
+        chasa_recover::In::new(
+            &mut remaining,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
+        0,
+        0,
+    )
+    .expect("ordinary scanned item");
     assert_eq!(
         emit_item(item, SyntaxKind::Identifier),
         [(SyntaxKind::Identifier, "α".to_owned())]

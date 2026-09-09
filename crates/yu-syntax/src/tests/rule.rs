@@ -76,9 +76,10 @@ fn run_rule_body_with_fence_and_operators<'source>(
     fence: Option<&FenceBoundary>,
     operators: &OperatorTable,
 ) -> (GreenNode, RuleWitnessExit, &'source str) {
-    let mut recover = Recover::new(operators);
+    let mut recover = Recover::new_for_test(operators);
     let mut input = source;
-    let mut lex = In::new(&mut input, &mut recover, ());
+    let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+    let mut lex = chasa_recover::In::new(&mut input, &mut lexical_view, ());
     let opener = scan_rule_item_witness(lex.rb()).expect("RuleBody opener");
     let current_origin = source_origin + source.len() - lex.remainder().len();
     let current = scan_rule_current_item_witness(lex, current_origin, LineEntry::InLine, fence);
@@ -87,7 +88,7 @@ fn run_rule_body_with_fence_and_operators<'source>(
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = rule_body_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         opener,
         current.item,
         current.next_line_entry,
@@ -95,7 +96,11 @@ fn run_rule_body_with_fence_and_operators<'source>(
         fence,
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        input,
+    )
 }
 
 fn run_rule_body_normalized<'source>(
@@ -104,9 +109,10 @@ fn run_rule_body_normalized<'source>(
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, RuleWitnessExit, LineEntry, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let mut lex = In::new(&mut input, &mut recover, ());
+    let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+    let mut lex = chasa_recover::In::new(&mut input, &mut lexical_view, ());
     let opener = scan_rule_item_witness(lex.rb()).expect("RuleBody opener");
     let current_origin = source_origin + source.len() - lex.remainder().len();
     let current = scan_rule_current_item_witness(lex, current_origin, LineEntry::InLine, fence);
@@ -115,7 +121,7 @@ fn run_rule_body_normalized<'source>(
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let (exit, line_entry) = rule_body_normalized_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         opener,
         current.item,
         current.next_line_entry,
@@ -123,7 +129,12 @@ fn run_rule_body_normalized<'source>(
         fence,
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, line_entry, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        line_entry,
+        input,
+    )
 }
 
 fn run_rule_body_with<'source>(
@@ -132,12 +143,12 @@ fn run_rule_body_with<'source>(
     origin: usize,
 ) -> (GreenNode, RuleWitnessExit, &'source str) {
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = rule_body_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         token_item(TokenKind::LBrace, "{"),
         current,
         LineEntry::InLine,
@@ -145,7 +156,11 @@ fn run_rule_body_with<'source>(
         None,
     );
     builder.finish_node();
-    (builder.finish_with_recoveries().0, exit, input)
+    (
+        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        exit,
+        input,
+    )
 }
 
 fn token_item(kind: TokenKind, text: &str) -> Item {
@@ -840,18 +855,18 @@ fn expression_list_fence_handoff_keeps_the_exact_item_and_leading_trivia() {
         )),
     );
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = "";
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = expression_list_handoff_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         boundary,
         TokenKind::RParen,
         70,
     );
     builder.finish_node();
-    let (green, records) = builder.finish_with_recoveries();
+    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
     assert_eq!(records.len(), 1);
     assert_eq!(
         records[0].site.role,
@@ -930,10 +945,14 @@ fn capture_and_body_missing_preserve_eof_or_boundary_trivia() {
 fn introducer_trivia_is_one_fence_aware_successor_item() {
     for source in ["\n{}", " /*comment*/ {}"] {
         let operators = OperatorTable::empty();
-        let mut recover = Recover::new(&operators);
+        let recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut item = scan_rule_introducer_successor_witness(
-            In::new(&mut input, &mut recover, ()),
+            chasa_recover::In::new(
+                &mut input,
+                &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                (),
+            ),
             4,
             &plain_fence(),
         );
@@ -948,10 +967,14 @@ fn introducer_trivia_is_one_fence_aware_successor_item() {
     let source = "\n> > {}";
     let start = source.as_ptr();
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut item = scan_rule_introducer_successor_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         4,
         &active_fence(2),
     );
@@ -970,7 +993,11 @@ fn introducer_trivia_is_one_fence_aware_successor_item() {
     let start = source.as_ptr();
     let mut input = source;
     let item = scan_rule_introducer_successor_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         4,
         &active_fence(2),
     );
@@ -984,9 +1011,10 @@ fn segmented_introducer_opener_enters_rule_body_once_in_physical_order() {
     let source = "\n> > {}tail";
     let start = source.as_ptr();
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let mut lex = In::new(&mut input, &mut recover, ());
+    let mut lexical_view = crate::cursor::LexRecover::new_for_test(recover.operators());
+    let mut lex = chasa_recover::In::new(&mut input, &mut lexical_view, ());
     let opener = scan_rule_introducer_successor_witness(lex.rb(), 4, &active_fence(2));
     let current = scan_rule_item_witness(lex).expect("RuleBody current Item");
     let suffix_before_body = input;
@@ -996,7 +1024,7 @@ fn segmented_introducer_opener_enters_rule_body_once_in_physical_order() {
     builder.start_node(SyntaxKind::Root.into());
     let origin = 4 + source.len() - input.len();
     let exit = rule_body_witness(
-        In::new(&mut input, &mut recover, &mut builder),
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         opener,
         current,
         LineEntry::InLine,
@@ -1004,7 +1032,7 @@ fn segmented_introducer_opener_enters_rule_body_once_in_physical_order() {
         Some(&active_fence(2)),
     );
     builder.finish_node();
-    let green = builder.finish();
+    let green = finish_without_recoveries(builder, recover);
 
     assert_eq!(exit, RuleWitnessExit::Complete);
     assert_eq!(input, suffix_before_body);
@@ -1029,10 +1057,14 @@ fn segmented_introducer_opener_enters_rule_body_once_in_physical_order() {
 fn introducer_block_comment_reuses_fence_scanner_and_carrier() {
     let source = " /*x\r\n> > y*/ {}";
     let operators = OperatorTable::empty();
-    let mut recover = Recover::new(&operators);
+    let recover = Recover::new_for_test(&operators);
     let mut input = source;
     let mut item = scan_rule_introducer_successor_witness(
-        In::new(&mut input, &mut recover, ()),
+        chasa_recover::In::new(
+            &mut input,
+            &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+            (),
+        ),
         20,
         &active_fence(2),
     );

@@ -401,13 +401,17 @@ fn delimited_eof_missing_anchors_follow_only_owned_leading() {
                 PatternCompletion::Incomplete,
             );
             let operators = OperatorTable::empty();
-            let mut recover = Recover::new(&operators);
+            let recover = Recover::new_for_test(&operators);
             let mut input = suffix;
             let CurrentItem {
                 mut item,
                 next_line_entry,
             } = current_item(
-                In::new(&mut input, &mut recover, ()),
+                chasa_recover::In::new(
+                    &mut input,
+                    &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+                    (),
+                ),
                 origin + prefix.len(),
                 LineEntry::InLine,
                 None,
@@ -418,7 +422,8 @@ fn delimited_eof_missing_anchors_follow_only_owned_leading() {
             owner_output.start_node(SyntaxKind::Root.into());
             item.emit_all_remaining_leading(&mut owner_output);
             owner_output.finish_node();
-            assert_eq!(owner_output.finish_with_recoveries().0.to_string(), suffix);
+            assert_eq!(owner_output.finish().to_string(), suffix);
+            assert!(recover.finish_recoveries_for_test().is_empty());
             let control = crate::handoff::complete(crate::handoff::handoff(item), next_line_entry);
             assert_same_exit(&fresh.exit, &control);
             assert_eq!(fresh.remainder, input);
