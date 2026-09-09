@@ -199,8 +199,9 @@ candidate: ranges use the selected owner's actual publication, retain emitted
 recovery/owner-leading, exclude caller-emitted or unread-boundary leading, and
 never derive an endpoint from `Incomplete`, Missing or diagnostics. Type record
 fields, declaration field positions and Apply/Forall/PV boundary leaves remain
-open. This new durable candidate still requires repaired independent review,
-range controls and user approval before any API or implementation.
+open. Repair-focused specification and compiler/recovery review is clean. The
+candidate still requires exact range controls and user approval before any API
+or implementation.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be
