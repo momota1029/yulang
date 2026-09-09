@@ -702,15 +702,17 @@ Its nested recovery is not an outer RHS occurrence. `Invalid` is not admitted.
 At initial ordinary EOF, a close/separator, caller stop, or a
 non-continuation indentation, the tail emits the RHS Item's owned leading
 before its direct Missing and returns the Item. An abstract fence boundary and
-an outer contextual boundary retain the complete Item and its leading while
-publishing the zero-width Missing at the inspected coordinate. A nonempty
-Error group that reaches any boundary returns it with its pending leading and
-without a second Missing. After Error, an equal-or-shallower physical newline
-also terminates the RHS: the entire remaining leading and Item stay pending;
-only a deeper continuation may retry a Type primary, subject to active caller,
-outer and abstract boundaries. A Missing or maximal direct Error group projects
-one `Type(ArrowRhs)` occurrence with expected `TypeExpression` and primary
-zero.
+an outer contextual boundary retain the complete Item and its leading. The
+inspected pending-boundary coordinate is a temporary parser-record/handoff
+fact only. In the later CST-derived diagnostic migration, the Missing projects
+from its direct zero-width Rowan range, which may precede that pending
+coordinate at a fence. A nonempty Error group that reaches any boundary
+returns it with its pending leading and without a second Missing. After Error,
+an equal-or-shallower physical newline also terminates the RHS: the entire
+remaining leading and Item stay pending; only a deeper continuation may retry
+a Type primary, subject to active caller, outer and abstract boundaries. A
+Missing or maximal direct Error group projects one `Type(ArrowRhs)` occurrence
+with expected `TypeExpression` and primary zero.
 
 Draft evidence is complete as of 2026-09-10. Focused Rowan tests cover
 accepted right association, Missing/native leading, initial/internal Error

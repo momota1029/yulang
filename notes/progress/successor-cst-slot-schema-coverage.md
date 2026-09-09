@@ -157,6 +157,27 @@ then arrow-Missing preorder and a recovered actual Arrow's separate nested RHS
 occurrence. Every other `type_expr/mod.rs` emission remains `untriaged` and
 unmapped unless separately linked below.
 
+#### TypeArrowTail actual-arrow RHS row links
+
+Only the following source functions are linked to the Draft catalog row
+`(TypeArrowTail, required RHS suffix after a direct accepted Arrow)`. Status:
+`linked`; they establish the actual-arrow wrapper and RHS owner, plus the
+separate BracketRowArrow path that selects this suffix only after accepting an
+Arrow. They do not assign the pre-arrow BracketRowArrow slot, BracketRow
+internals, or a nested RHS slot.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/type_expr/mod.rs:2430` | `linked` | actual-arrow `TypeArrowTail` wrapper support |
+| `crates/yu-syntax/src/type_expr/mod.rs:2466` | `linked` | direct accepted Arrow, RHS Missing/Error/retry/boundary publication and handoff owner |
+| `crates/yu-syntax/src/type_expr/mod.rs:1832` | `linked` | direct accepted Arrow selected from the separate BracketRowArrow phase before entering this RHS owner |
+
+The inspected pending-boundary coordinate is temporary parser-record/handoff
+evidence only. Future CST-derived projection uses the direct zero-width Rowan
+Missing range, which may precede that coordinate at a fence. Every other
+`type_expr/mod.rs` emission remains `untriaged` and unmapped unless separately
+linked below.
+
 #### TypePathTail required-segment row links
 
 Only the following concrete `type_expr/mod.rs` emissions are linked to the

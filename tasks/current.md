@@ -296,6 +296,10 @@ The BracketRow required-arrow continuation is mapped separately: an incomplete
 row emits its Arrow Missing unconditionally and returns its existing Item
 unchanged, while a completed row alone proceeds to Arrow/RHS classification.
 Actual-arrow RHS and BracketRow internals remain delegated.
+The actual-arrow RHS itself is now mapped as its own Draft suffix. Its
+diagnostic range is always the direct Rowan Missing/Error range, not a pending
+fence coordinate; post-Error retry admits same-line and deeper-newline RHS
+primaries, while shallow/equal newline and protected boundaries hand off.
 The actual-arrow TypeArrowTail RHS Draft is preflighted and has direct CST
 proof. Its post-Error shallow-newline admission now follows the existing
 authority; user promotion remains open.
