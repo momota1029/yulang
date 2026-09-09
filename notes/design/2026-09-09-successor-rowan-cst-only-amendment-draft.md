@@ -1,6 +1,10 @@
-# Draft: Rowan CST-only successor amendment
+# Rowan CST-only successor amendment
 
-Status: Reviewed; user direction recorded
+Status: Authoritative
+
+Approved-by: user
+
+Approved-at: 2026-09-09
 
 Drafted-by: primary from the user's CST-only direction
 
@@ -11,9 +15,9 @@ Date: 2026-09-09
 
 Scope: successor parser output, recovery-node CST shape, direct Rowan
 construction, the replacement of `CstOutput`, and the public
-`syntax-reference` direction. This Draft does not alter accepted syntax,
+`syntax-reference` direction. This amendment does not alter accepted syntax,
 selected recovery ownership, current-Item/fence handoff, public diagnostics, or
-the public parser entrypoint until its construction gates are reviewed.
+the public parser entrypoint except through its approved construction gates.
 
 User direction: the parser produces no AST, semantic syntax product,
 materializer, event tape, second tree, or CST-derived reconstruction. Rowan is

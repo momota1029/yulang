@@ -163,8 +163,9 @@ makes `Error` token-only and adds node-only `Invalid`: all raw-recovery Item
 fragments, including its interior trivia and quote-prefix fragments, become
 adjacent `Error` leaves; already-emitted and retry/boundary leading remain with
 their owner. `Invalid` is limited to the two reviewed structured recovery
-owners. Recorded approval of the reviewed supersession and notation remains
-required before either construction step. `syntax-reference` is rebuilt around
+owners. The reviewed supersession and notation are user-approved;
+direct-builder construction is the active implementation gate.
+`syntax-reference` is rebuilt around
 the same XML-like Rowan node notation, grammar and recovery placement; parser
 internals, commits, fixtures and AST/direct parity leave that public reference.
 

@@ -1,6 +1,8 @@
 # Draft: canonical successor syntax products
 
-Status: Draft; not implementation authority
+Status: Superseded by `2026-09-09-successor-rowan-cst-only-amendment-draft.md`
+
+Superseded-at: 2026-09-09
 
 Date: 2026-09-09
 
