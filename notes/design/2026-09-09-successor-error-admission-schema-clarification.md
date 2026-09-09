@@ -374,6 +374,11 @@ field/path outer siblings, consecutive Error grouping, newline/quoted-fence
 stops, UTF-8/CRLF and public Root leading conservation before review or
 promotion.
 
+Draft evidence is complete as of 2026-09-10. Focused Rowan tests cover each
+listed form, including terminal Capture structure and retry ownership, with
+specification and compiler/recovery delta reviews closed. This does not promote
+the slice or cover its delegated child schemas.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`

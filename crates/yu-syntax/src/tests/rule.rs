@@ -691,6 +691,38 @@ fn fenced_expression_list_keeps_prefixes_and_returns_boundary_leading_untouched(
 }
 
 #[test]
+fn dedicated_rule_name_slot_stops_before_a_quoted_fence() {
+    let source_origin = 70;
+    let fence = active_fence(2);
+    let source = "{a.\r\n> stop\r\n";
+    let boundary_offset = source.find("> stop").expect("fence line");
+    let (green, exit, remainder) = run_rule_body_fenced(source, source_origin, &fence);
+    assert_eq!(remainder, &source[boundary_offset..]);
+    assert_eq!(root(&green).to_string(), &source[..boundary_offset - 2]);
+    let field = root(&green)
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::RuleField)
+        .expect("RuleField");
+    let children = field
+        .children_with_tokens()
+        .map(|child| child.kind())
+        .collect::<Vec<_>>();
+    assert_eq!(children, [SyntaxKind::Dot, SyntaxKind::Missing]);
+    let missing = field.children().last().expect("field Missing");
+    assert_eq!(missing.text_range(), rowan::TextRange::empty(3.into()));
+    assert_eq!(missing.parent(), Some(field));
+    assert_eq!(
+        returned(exit),
+        expected_boundary_item(
+            remainder,
+            source_origin + boundary_offset,
+            &fence,
+            &[("\r\n", TriviaKind::Newline)],
+        )
+    );
+}
+
+#[test]
 fn expression_list_partial_leading_repeats_missing_newline_order_and_finishes_cleanly() {
     let source = "{a(1\n\n2)}";
     let (green, exit, remainder) = run_rule_body(source);

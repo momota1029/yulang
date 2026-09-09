@@ -1,13 +1,16 @@
 use crate::tests::support::*;
 use crate::{
+    SourceText, SyntaxEnvironment,
     ambient_claim::AmbientClaimView,
     literal::{rule_literal_normalized, scan_expression_rule_literal_opener_witness},
+    parse_file,
     recovery_record::{
         Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, LiteralExpected,
         LiteralRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
         UnexpectedCategory, UnexpectedSyntax,
     },
     rule::{rule_body_witness, scan_rule_current_item_witness, scan_rule_item_witness},
+    scan_header,
 };
 use std::{ops::Range, sync::Arc};
 
@@ -357,6 +360,353 @@ fn actual_expression_and_pattern_routes_publish_rule_records() {
         assert_eq!(green.to_string(), source);
         assert_eq!(input, "");
         assert_eq!(records, [record(0, role, at..at, None)]);
+    }
+}
+
+fn range(node: &SyntaxNode) -> Range<usize> {
+    let range = node.text_range();
+    usize::from(range.start())..usize::from(range.end())
+}
+
+fn child_kinds(node: &SyntaxNode) -> Vec<SyntaxKind> {
+    node.children_with_tokens()
+        .map(|child| child.kind())
+        .collect()
+}
+
+#[test]
+fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
+    // The body and a parenthesized item each own a distinct close slot.  The
+    // equal insertion coordinate is deliberately insufficient without the
+    // parent path.
+    let (green, _) = parse("{(a", 0, None);
+    let root = SyntaxNode::new_root(green);
+    let body = root.children().next().expect("RuleBody");
+    assert_eq!(body.kind(), SyntaxKind::RuleBody);
+    assert_eq!(
+        child_kinds(&body),
+        [
+            SyntaxKind::LBrace,
+            SyntaxKind::RuleAlternation,
+            SyntaxKind::Missing
+        ]
+    );
+    let item = body
+        .descendants()
+        .find(|node| {
+            node.kind() == SyntaxKind::RuleItem
+                && node
+                    .first_token()
+                    .is_some_and(|token| token.kind() == SyntaxKind::LParen)
+        })
+        .expect("parenthesized RuleItem");
+    assert_eq!(
+        child_kinds(&item),
+        [
+            SyntaxKind::LParen,
+            SyntaxKind::RuleAlternation,
+            SyntaxKind::Missing
+        ]
+    );
+    let mut missing = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(missing.len(), 2);
+    missing.sort_by_key(|node| match node.parent().expect("Missing parent").kind() {
+        SyntaxKind::RuleItem => 0,
+        SyntaxKind::RuleBody => 1,
+        other => panic!("unexpected close-slot parent: {other:?}"),
+    });
+    assert_eq!(range(&missing[0]), 3..3);
+    assert_eq!(missing[0].parent(), Some(item));
+    assert_eq!(range(&missing[1]), 3..3);
+    assert_eq!(missing[1].parent(), Some(body));
+
+    // A capture is terminal in its outer item.  The Error is direct capture
+    // content; the following Missing or admitted RuleItem selects the RHS.
+    for (source, expected, rhs) in [
+        (
+            "{a=;}",
+            vec![SyntaxKind::Equals, SyntaxKind::Error, SyntaxKind::Missing],
+            None,
+        ),
+        (
+            "{a=; b?}",
+            vec![SyntaxKind::Equals, SyntaxKind::Error, SyntaxKind::RuleItem],
+            Some(" b?"),
+        ),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let root = SyntaxNode::new_root(green);
+        let capture = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::RuleCapture)
+            .expect("RuleCapture");
+        assert_eq!(child_kinds(&capture), expected, "{source:?}");
+        let equals = capture
+            .children_with_tokens()
+            .next()
+            .and_then(|child| child.into_token())
+            .expect("capture Equals");
+        assert_eq!(equals.kind(), SyntaxKind::Equals);
+        assert_eq!(equals.text(), "=");
+        let error = capture
+            .children_with_tokens()
+            .find_map(|child| {
+                child
+                    .into_token()
+                    .filter(|token| token.kind() == SyntaxKind::Error)
+            })
+            .expect("capture Error leaf");
+        assert_eq!(error.text(), ";");
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            3..4
+        );
+        assert_eq!(error.parent(), Some(capture.clone()));
+        match rhs {
+            None => {
+                let missing = capture.children().last().expect("terminal RHS Missing");
+                assert_eq!(missing.kind(), SyntaxKind::Missing);
+                assert_eq!(range(&missing), 4..4);
+                assert_eq!(missing.parent(), Some(capture.clone()));
+                assert_eq!(capture.to_string(), "=;");
+            }
+            Some(rhs) => {
+                let rhs_item = capture.children().last().expect("admitted RHS RuleItem");
+                assert_eq!(rhs_item.kind(), SyntaxKind::RuleItem);
+                assert_eq!(rhs_item.to_string(), rhs);
+                assert_eq!(
+                    child_kinds(&rhs_item),
+                    [
+                        SyntaxKind::Whitespace,
+                        SyntaxKind::Identifier,
+                        SyntaxKind::RuleQuantifier
+                    ]
+                );
+                assert_eq!(range(&rhs_item), 4..7);
+                assert_eq!(rhs_item.parent(), Some(capture.clone()));
+            }
+        }
+        let outer = capture.parent().expect("capturing RuleItem");
+        assert_eq!(outer.kind(), SyntaxKind::RuleItem);
+        assert_eq!(
+            child_kinds(&outer),
+            [SyntaxKind::Identifier, SyntaxKind::RuleCapture],
+            "capture owns the terminal RHS rather than leaving an outer postfix"
+        );
+        assert_eq!(
+            outer
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::RuleItem)
+                .count(),
+            0
+        );
+    }
+
+    // Name failure consumes exactly one lexical item.  The subsequent item is
+    // owned by the outer sequence, rather than retried inside RuleField/Path.
+    for (source, tail, opener_kind, opener_text, error_text, expected_range) in [
+        (
+            "{a.12 b}",
+            SyntaxKind::RuleField,
+            SyntaxKind::Dot,
+            ".",
+            "12",
+            3..5,
+        ),
+        (
+            "{a::💥 b}",
+            SyntaxKind::RulePath,
+            SyntaxKind::ColonColon,
+            "::",
+            "💥",
+            4..8,
+        ),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let root = SyntaxNode::new_root(green);
+        let failed = root
+            .descendants()
+            .find(|node| node.kind() == tail)
+            .expect("failed name tail");
+        assert_eq!(
+            child_kinds(&failed),
+            [opener_kind, SyntaxKind::Error],
+            "{source:?}"
+        );
+        let opener_token = failed
+            .children_with_tokens()
+            .next()
+            .and_then(|child| child.into_token())
+            .expect("tail opener");
+        assert_eq!(opener_token.text(), opener_text);
+        let error = failed
+            .children_with_tokens()
+            .nth(1)
+            .and_then(|child| child.into_token())
+            .expect("name Error leaf");
+        assert_eq!(error.text(), error_text);
+        assert_eq!(
+            usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+            expected_range
+        );
+        let sequence = failed
+            .ancestors()
+            .find(|node| node.kind() == SyntaxKind::RuleSequence)
+            .expect("outer RuleSequence");
+        let items = sequence
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::RuleItem)
+            .collect::<Vec<_>>();
+        assert_eq!(items.len(), 2, "{source:?}");
+        assert_eq!(items[1].to_string(), " b", "{source:?}");
+        assert_eq!(
+            items[1].first_token().unwrap().kind(),
+            SyntaxKind::Whitespace
+        );
+    }
+
+    // A non-capture postfix remains a sibling of the failed name owner.
+    let (green, _) = parse("{a.12?}", 0, None);
+    let root = SyntaxNode::new_root(green);
+    let item = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::RuleItem && node.to_string() == "a.12?")
+        .expect("outer RuleItem");
+    assert_eq!(
+        child_kinds(&item),
+        [
+            SyntaxKind::Identifier,
+            SyntaxKind::RuleField,
+            SyntaxKind::RuleQuantifier
+        ]
+    );
+    let field = item.children().next().expect("failed RuleField");
+    assert_eq!(child_kinds(&field), [SyntaxKind::Dot, SyntaxKind::Error]);
+    let quantifier = item.children().nth(1).expect("outer RuleQuantifier");
+    assert_eq!(quantifier.to_string(), "?");
+    assert_eq!(quantifier.parent(), Some(item));
+
+    // Consecutive raw leaves are one same-parent RuleSequence occurrence, not
+    // a synthetic wrapper or one occurrence per token.
+    let (green, _) = parse("{;💥}", 0, None);
+    let root = SyntaxNode::new_root(green);
+    let groups = crate::tests::recovery_output::recovery_groups(&root);
+    assert_eq!(groups.len(), 1);
+    let group = &groups[0];
+    let crate::tests::recovery_output::RecoveryGroup::Raw(tokens) = group else {
+        panic!("RuleSequence recovery must be raw Error leaves");
+    };
+    assert_eq!(
+        tokens
+            .iter()
+            .map(|token| (token.kind(), token.text()))
+            .collect::<Vec<_>>(),
+        [(SyntaxKind::Error, ";"), (SyntaxKind::Error, "💥")]
+    );
+    assert_eq!(
+        tokens[0].next_sibling_or_token(),
+        Some(tokens[1].clone().into())
+    );
+    assert_eq!(group.text(), ";💥");
+    assert_eq!(
+        usize::from(group.text_range().start())..usize::from(group.text_range().end()),
+        1..6
+    );
+    assert_eq!(
+        group.parent().expect("raw group parent").kind(),
+        SyntaxKind::RuleSequence
+    );
+
+    // A physical line boundary belongs to RuleAlternation, after the failed
+    // slot; it is not swallowed by name/RHS recovery.
+    for (source, tail) in [
+        ("{a.\nnext}", SyntaxKind::RuleField),
+        ("{a=\r\nnext}", SyntaxKind::RuleCapture),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let root = SyntaxNode::new_root(green);
+        let alternation = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::RuleAlternation)
+            .expect("outer RuleAlternation");
+        assert_eq!(
+            child_kinds(&alternation),
+            [
+                SyntaxKind::RuleSequence,
+                SyntaxKind::Newline,
+                SyntaxKind::RuleSequence
+            ]
+        );
+        let failed = alternation
+            .descendants()
+            .find(|node| node.kind() == tail)
+            .expect("failed dedicated slot");
+        let missing = failed.children().last().expect("slot Missing");
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(range(&missing), 3..3);
+        assert_eq!(missing.parent(), Some(failed));
+        assert!(alternation.to_string().ends_with("next"), "{source:?}");
+    }
+}
+
+#[test]
+fn public_root_preserves_rule_eof_leading_outside_the_terminal_slots() {
+    for (source, trailing) in [
+        ("~\"{a=  ", vec![(SyntaxKind::Whitespace, "  ")]),
+        ("~\"{a=\r\n", vec![(SyntaxKind::Newline, "\r\n")]),
+        (
+            "~\"{a= // trailing",
+            vec![
+                (SyntaxKind::Whitespace, " "),
+                (SyntaxKind::LineComment, "// trailing"),
+            ],
+        ),
+    ] {
+        let source: Arc<SourceText> = Arc::from(source);
+        let header = Arc::new(scan_header(Arc::clone(&source)));
+        let parsed = parse_file(
+            Arc::clone(&source),
+            header,
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let literal = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::RuleLiteral)
+            .expect("RuleLiteral");
+        let capture = literal
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::RuleCapture)
+            .expect("terminal RuleCapture");
+        assert_eq!(
+            child_kinds(&capture),
+            [SyntaxKind::Equals, SyntaxKind::Missing]
+        );
+        let missing = capture.children().last().expect("capture RHS Missing");
+        assert_eq!(range(&missing), 5..5);
+        assert_eq!(missing.parent(), Some(capture));
+
+        let root_elements = root.children_with_tokens().collect::<Vec<_>>();
+        let trailing_tokens = root_elements
+            .iter()
+            .skip_while(|element| element.as_node().is_some())
+            .map(|element| {
+                let token = element.as_token().expect("native Root leading token");
+                (token.kind(), token.text().to_owned())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            trailing_tokens,
+            trailing
+                .into_iter()
+                .map(|(kind, text)| (kind, text.to_owned()))
+                .collect::<Vec<_>>(),
+            "{source:?}"
+        );
     }
 }
 
