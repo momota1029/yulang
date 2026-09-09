@@ -494,12 +494,13 @@ outer and abstract boundaries. A Missing or maximal direct Error group projects
 one `Type(ArrowRhs)` occurrence with expected `TypeExpression` and primary
 zero.
 
-This is a Draft proposal. Direct CST evidence must cover accepted
-right-associative RHS, Missing and native leading, initial/internal Error
+Draft evidence is complete as of 2026-09-10. Focused Rowan tests cover
+accepted right association, Missing/native leading, initial/internal Error
 leading, retry ownership, Error-only EOF/close/context/fence exits, initial and
 post-Error LF/CRLF shallow/equal/deeper behavior, UTF-8/comment/foreign-prefix
 runs, actual BracketRowArrow discrimination, nested RHS recovery and public
-Root source conservation before review or promotion.
+Root source conservation. Specification and regression delta reviews are
+closed. This does not promote the slice or cover its delegated Type children.
 
 ## Construction and proof gates
 
