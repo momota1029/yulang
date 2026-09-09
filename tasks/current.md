@@ -210,6 +210,12 @@ Record wrong close keeps its pending entry rather than fabricating a sibling.
 Specification and compiler/recovery review is clean after that repair. Exact
 controls, unresolved trailing-comma-after-recovery behavior and user approval
 remain required before any API or implementation.
+Declaration parameters, fields, variants and derives now also have unselected
+sequence candidates that retain their owner-specific separator and close-borrow
+rules. Review corrected Variant/Derives introducer-only physical endpoints;
+tuple availability, empty entered sequences, interior separator retention and
+some malformed-field/parameter branches remain open. Exact controls and user
+approval remain required before any API or implementation.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be

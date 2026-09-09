@@ -611,6 +611,45 @@ actual-only Impl/Role/Act/For colons, and Struct's accepted
 CompanionIntroduced variant without fabricating a semicolon. The exact range
 row for each body branch remains a review obligation.
 
+### Candidate declaration sequences; not yet selected
+
+Declaration parameters are actual `Identifier`/`SigilIdentifier` leaves only:
+each spans its spelling and excludes preceding gap. Their empty vector means no
+parameter was admitted, with no synthetic wrapper or unavailable slot. Admission
+requires the current nonempty same-line grammar gap and accepted spelling;
+rejection preserves input. Parameters alone have no aggregate named range.
+
+| product | candidate availability | candidate physical envelope |
+| --- | --- | --- |
+| NamedField | actual name or colon commits a field skeleton; malformed input reaching colon commits its colon-bearing skeleton with unavailable name; terminal malformed start is an unavailable list position | first field-owner byte through last owned name/colon/Type/recovery byte |
+| TupleField | an admitted Type commits its skeleton; unavailable Type is an unavailable list position, never both an incomplete list entry and a complete empty TupleField | Type child envelope |
+| delimited field list | actual opener commits even an empty list; missing/borrowed close retains fields and unavailable `close` | opener through last locally emitted byte, including local recovery, never unread foreign close/leading |
+| indented named fields | actual colon commits the Struct form; only valid deeper indentation admits its nested sequence | colon through last locally emitted body byte; exact empty-entered-sequence endpoint remains open |
+| VariantBody | actual brace, colon or equals commits the selected form; failed required indentation leaves that form complete with unavailable nested sequence | introducer through last locally emitted body byte, subject to each form's close/dedent handoff |
+| Variant | accepted/retried name retains its Unit/From/Named/Tuple/Positional skeleton; actual `from` or payload opener commits its required child/list; terminal malformed name leaves an unavailable position | first variant-owner byte through the last byte published by that owner, falling back to the actual name |
+| DerivesClause | actual `derives` commits a clause with one required role; every actual comma adds one required role position; actual `via` commits a DerivesVia skeleton with required target | first clause-owner byte through the last byte published by that owner, falling back to the actual `derives` keyword |
+
+All candidate envelopes retain physically emitted owned bytes even when a child
+is unavailable; neither Missing anchors nor diagnostic extents substitute for
+them. Retry leading belongs exactly to the owner that emits it. Parent envelopes
+may therefore include recovery bytes that no completed child represents.
+
+The candidate separator rules remain owner-specific. Field lists admit commas
+and qualifying newline; semicolon remains recovery, matching close has priority
+and no field is created merely because close follows a separator. Braced
+variants admit comma/qualifying newline but not pipe; equals-inline variants
+admit pipe but not comma or implicit newline; colon-/equals-indented variants
+admit pipe, comma and exact-baseline newline, while dedent ends their sequence.
+One initial non-braced pipe is admitted without an unavailable variant. Struct
+local mismatched close may recover and retry; Variant field lists borrow a
+foreign close, retain unavailable local close, and preserve that Item.
+
+These are M3 candidates. Tuple-field availability, empty entered-sequence
+endpoints, retention of accepted interior separators, exhaustive malformed
+NamedField retry and Enum/Error parameter exclusions remain open. They need
+exact controls and compiler/recovery plus specification review before user
+approval or any API/implementation.
+
 `UseTree` is structural syntax, never flattened header projection:
 
 ```text
