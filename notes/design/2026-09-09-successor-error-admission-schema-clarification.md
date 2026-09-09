@@ -459,6 +459,60 @@ closed a boundary-dispatch panic in the existing owner; its minimal repair was
 independently reviewed. This does not promote the slice or cover its delegated
 Type children.
 
+## Proposed schema slice: LeadingEffectTypeHead
+
+This proposed slice names the required Type head immediately after a leading
+`BracketRow` in an existing `TypeExpression`. `LeadingEffectTypeHead` is a slot
+name, not a Rowan node or wrapper. It neither specifies the row itself nor the
+ordinary continuations selected after an admitted primary.
+
+```text
+TypeExpression.leading-row := BracketRow LeadingHead
+
+LeadingHead :=
+    Missing
+  | OwnedTrivia* Missing
+  | OwnedTrivia* PrimaryAndContinuation
+  | OwnedTrivia* Error+ OwnedTrivia*
+  | OwnedTrivia* Error+ OwnedTrivia* PrimaryAndContinuation
+```
+
+`PrimaryAndContinuation` is documentation shorthand only. Its existing output
+is a direct scalar/sigil/integer token, or an existing structured primary node,
+with that primary's already-selected continuation; this slice adds no generic
+primary or tail node. Native leading is elided from the grammar. Initial
+malformed leading and admitted/retry leading are direct native children of the
+enclosing `TypeExpression`; internal malformed leading belongs to adjacent
+direct Error tokens. A fresh protected boundary produces a direct head Missing.
+Only continuation-compatible ordinary EOF leading may precede its Missing;
+protected-boundary leading remains pending. After Error, compatible EOF leading
+is native outside the Error group, while a boundary returns unchanged without a
+same-slot Missing.
+
+An incomplete first row returns immediately with a direct sibling head Missing;
+that row's close Missing stays nested in `BracketRow`, including at the same
+offset. A disabled second bare row is instead one direct Error-token group:
+there is no second `BracketRow`, synthetic child `TypeExpression` or second
+head slot. Its nested punctuation/comments remain raw Error fragments. Matching
+local closes may be consumed; mismatched closes, caller/outer boundaries and
+non-continuation newline stay pending at every nesting depth. At empty nesting
+depth comma and semicolon terminate recovery; inside nesting they are consumed
+only when no caller stop has claimed them. Primary admission resumes only with
+an empty recovery-local close stack. The direct Missing or maximal Error group
+projects one `Type(LeadingEffectTypeHead)` occurrence with expected
+`TypeExpression` and primary zero. Its CST-derived Missing position is the
+Rowan zero-width range, which can precede the protected fence-boundary
+coordinate retained by temporary legacy records. Descendant row/group/forall/
+record/variant/tail recovery retains its own slot.
+
+This is a Draft proposal. Direct CST evidence must cover scalar and structured
+heads, incomplete-row same-offset nesting, disabled second rows and Error retry,
+initial/internal/retry leading, terminal Error/EOF behavior, UTF-8 byte ranges,
+LF/CRLF and nested/caller/outer boundaries, quoted fence local-range versus
+pending-coordinate ownership, ordinary attachment/terminality, structured
+outer Invalid nesting and public Root source conservation before review or
+promotion.
+
 ## Proposed schema slice: BracketRow-selected required-arrow continuation
 
 This proposed slice covers the required-arrow slot after a trailing
