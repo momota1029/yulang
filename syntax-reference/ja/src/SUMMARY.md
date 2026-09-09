@@ -10,6 +10,7 @@
 - [一覧（未執筆）](expressions/index.md)
 - [Parenthesized expression list](expressions/parenthesized-expression.md)
 - [Dynamic operator chain](expressions/operator-chain.md)
+- [Assignment tail](expressions/assignment-tail.md)
 - [Colon application](expressions/colon-application.md)
 - [`if` / `elsif` / `else` expression](expressions/if-expression.md)
 - [Brace-delimited statement block](expressions/braced-statement-block.md)
