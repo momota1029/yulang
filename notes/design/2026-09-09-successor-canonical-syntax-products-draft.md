@@ -624,6 +624,27 @@ own driver, never reconstructed from records:
 Thus a root Error never silently attaches to a child, but neither does every
 root-owned Error become a fabricated Error-statement product.
 
+## Evidence-backed closure queue; no candidate selection
+
+The following finite queue records current-owner evidence that the candidate
+schema still needs. It neither selects a range/API nor turns a recovery fact
+into materialization authority.
+
+| family | established current-owner evidence | still required before approval |
+| --- | --- | --- |
+| Type core and delimiters | `type_expr/mod.rs` owns primary/tail/apply/arrow progression; `type_expr/delimited.rs` owns Call, Group, EffectRow and BracketRow items/closes; the required-Type, leading-row-head and P/E current-Item records fix their recovery and handoff | physical endpoints for TypeExpression, rows, postfixes, arrow, groups, records and closes, including terminal emitted Error and returned boundary leading; source representation/range for Apply's `boundary`; exact accepted trailing-separator leaves |
+| Type recursive forms | `type_expr/forall.rs` owns the distinct malformed-binder retry; `type_expr/variants.rs` owns PV tag/payload sequences; `type_expr/mod.rs` dispatches record/forall/effect/PV primaries | Forall binder/colon/body, TypeRecordField, PV/tag/payload envelopes and all recovered-close endpoints; `nonempty Vec` concrete representation remains an API choice |
+| Inline and Pattern lists | `expression/tails/colon.rs` distinguishes first RHS from later InlineArgument; `pattern/delimited.rs` owns group/list/record comma/layout/close and spread/default children | first versus subsequent slot availability, retry/error-to-entry mapping, separator treatment and physical endpoints per owner; do not borrow the ordinary ExpressionList rule |
+| Declaration list helpers | `declaration/type_decl.rs`, `enum_decl.rs` and `error_decl.rs` admit only contiguous, same-line parameters; `declaration/fields.rs` owns field-list slots/closes; `declaration_variant.rs` owns form-specific variant separators/payloads; `declaration/derives.rs` owns required role and independent `via` target | parameter range/no-wrapper contract; field/variant/derives entry, separator, borrowed-close and endpoint rows for each form |
+| SourceRoot and coordinate publication | `source_file.rs` creates only Rowan Root plus recoveries; `root_statement.rs` owns root progression/leading/Error handoff; `cst_output/mod.rs` accounts raw token bytes without general coordinates; `lexical/item.rs` derives Item parts from threaded origin | selected SourceRoot range convention for full source versus selected cells, trailing trivia/fence relation, product recovery mapping, and a shared coordinate-publication surface. The mechanically available full-source span is not yet a selected semantic range |
+
+The exact current tests for these queues are `tests/colon_sequence.rs`,
+`tests/colon_with_recovery.rs`, `tests/pattern/recovery/sequence.rs`,
+`tests/pattern/recovery/delimited.rs`, `tests/declaration/type_decl.rs`,
+`tests/declaration/declaration_variant.rs`, and the type/declaration
+owner-local suites. They are evidence controls, not authorization to change
+their expectations.
+
 ## Mandatory pre-approval closure
 
 1. Give every row above a field-to-current-authority/evidence locator and

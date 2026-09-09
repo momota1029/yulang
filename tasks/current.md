@@ -187,6 +187,13 @@ block close-recovery leading; no production authority follows from that Draft
 repair. Undefined remaining helper maps, complete authority locators, output
 API/coordinate publication, static performance review and user approval remain
 open.
+The next evidence pass made that remainder finite without selecting those
+choices: Type core/delimited/recursive physical envelopes and Apply boundary;
+InlineArguments and Pattern sequence slots; declaration parameter/field/variant/
+derives lists; and SourceRoot coordinate publication. Their concrete owners,
+current-item evidence and existing controls are now a Draft closure queue.
+Its specification and compiler/recovery delta reviews were clean; it is still
+an inventory aid, not an M3 approval or materialization pilot.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be
