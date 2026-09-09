@@ -54,12 +54,47 @@ Each completed catalog row must state all of the following:
 | ordered Rowan grammar | valid children, punctuation, optionality, repetition, and trivia placement |
 | malformed admission | exact Missing, raw Error-group, retry, terminal, and structured-child alternatives |
 | nested ownership | child productions which retain their own slot schemas |
-| source/boundary ownership | ordinary, malformed-run, retry, and protected-boundary leading; consumed/returned Item facts |
+| transition/handoff | owner transition form; ordinary, malformed-run, retry, and protected-boundary leading; consumed/returned Item facts |
 | diagnostic projection | recovery category, expected alternatives, primary alternative, range/grouping, and occurrence order |
 | proof/status | governing authority, direct CST evidence, review/promotion state, and any excluded dependency |
 
 An omitted row grants no malformed admission. This catalog does not infer one
 from a sibling, common helper, or matching source spelling.
+
+## User-approved transition vocabulary convention
+
+The user approved the following bounded convention for catalog documentation.
+It is explanatory schema notation for assigning ownership and continuation in a
+row. It is not parser state, an API, a generic recovery library, or a
+token-global policy.
+
+An owner may document only the transition form that its governing behavior
+already establishes:
+
+| Transition form | Catalog meaning |
+| --- | --- |
+| consume foreign close + preserve sequence position | consume the foreign close required by the owner while returning to the same ordered sequence phase, rather than treating it as a successful local close |
+| recover failed slot + retry without duplicate Missing | publish the failed-slot recovery once, then retry the same slot without emitting another Missing for that occurrence |
+| commit terminal close recovery | enter an irreversible terminal-close recovery owned by the close slot; later content is not reconsidered as an argument or separator |
+| complete locally | consume the recognized local completion and advance to the owner's next ordered phase |
+| hand off protected boundary | return the protected boundary Item unchanged, with its pending leading and continuation facts, to the caller that owns it |
+| retain nested syntax in wrong slot via existing Invalid | retain the admitted nested production beneath an already-authorized structured `Invalid`; the child keeps its own schema |
+
+Every completed row uses this format:
+
+```text
+entry slot → recognized condition and priority → consumed extent/CST output
+→ continuation position or handoff → diagnostic slot witness
+```
+
+The row records the selected transition or handoff explicitly. Expected
+alternatives remain separately derived from the ordered CST grammar; they are
+not inferred from a transition label, a token spelling, or a source helper.
+`Error` spelling is never read or relexed for this convention. The convention
+does not create a generic wrapper or expand `Invalid` beyond its existing
+authorized owners. TypeCall proves why a token-global `)` versus `@` policy is
+invalid: the same spelling participates in different owner phases and must be
+classified by the documented slot, priority, and continuation.
 
 ## Source-family catalog map
 

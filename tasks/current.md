@@ -185,6 +185,14 @@ and independently audited from its existing Authoritative close-node and
 residual-policy amendments. Its TypeCallClose Error/Missing grouping, leading
 and boundary ownership, and direct source links are complete only for that
 slot; argument, separator and other TypeCall rows remain open.
+The user approved a bounded transition-vocabulary convention for catalog
+documentation: every mapped row records its owner transition or handoff from
+entry/priority through consumed CST extent to continuation and diagnostic-slot
+witness. It is explanatory notation only, not parser state/API, a generic
+recovery library, or a token-global `)`/`@` policy; Error spelling is never
+read or relexed, and no generic wrapper or Invalid expansion follows. TypeCall
+demonstrates that identical token spelling must be classified by the owning
+slot and continuation. The catalog itself remains Draft and globally open.
 RecordPattern's structured separator Invalid now has a user-selected
 CST-visible discriminator under
 `notes/design/2026-09-10-successor-record-pattern-separator-slot.md`:
