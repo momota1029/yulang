@@ -237,12 +237,11 @@ The BracketRow-selected required-arrow continuation Draft is preflighted and
 has direct CST proof; user promotion remains open.
 The LeadingEffectTypeHead Draft is preflighted and has direct CST proof; user
 promotion remains open.
-The TypeCall close-slot preflight returned an unresolved representation issue:
-current direct `Error` leaves do not distinguish CallArgument recovery from
-close recovery, while opaque-Error relexing and retaining the parser ledger are
-excluded by the CST-derived diagnostic authority. This affected slice awaits a
-user-selected structural boundary; no close-slot Draft or production change is
-authorized.
+The user selected the TypeCall close-slot structural boundary under
+`2026-09-10-successor-typecall-close-slot-node.md`: terminal Call close
+construction will use `TypeCallClose`, separating close Error from direct
+CallArgument Error without relexing or a ledger. Private construction is
+pending its required generic-fallback reachability proof.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
