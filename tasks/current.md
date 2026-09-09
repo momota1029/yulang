@@ -202,6 +202,14 @@ fields, declaration field positions and Apply/Forall/PV boundary leaves remain
 open. Repair-focused specification and compiler/recovery review is clean. The
 candidate still requires exact range controls and user approval before any API
 or implementation.
+The next queue slice now has unselected InlineArguments and Pattern sequence
+contracts. They preserve initial versus subsequent inline slots, owner-local
+separator advancement, Pattern pending-entry retry, local close and protected
+handoff distinctions, plus physical-error envelopes. A consumed unclaimed
+Record wrong close keeps its pending entry rather than fabricating a sibling.
+Specification and compiler/recovery review is clean after that repair. Exact
+controls, unresolved trailing-comma-after-recovery behavior and user approval
+remain required before any API or implementation.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be

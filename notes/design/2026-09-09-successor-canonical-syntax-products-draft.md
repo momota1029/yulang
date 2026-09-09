@@ -191,6 +191,62 @@ accepted tail is stated below; before approval it still needs its exact
 current-authority/evidence locator and review, rather than a second invented
 policy row.
 
+### Candidate inline and Pattern sequence products; not yet selected
+
+`InlineArguments` preserves its existing distinct initial `Rhs` and subsequent
+`InlineArgument` obligations. A malformed run followed by an admitted chain
+completes that obligation; a boundary without retry leaves it incomplete. A
+locally owned comma or qualifying newline advances one argument position;
+comma plus qualifying newline still advances once, and a final implicit newline
+before End advances none. An outer-owned separator remains unread and creates
+no position. Records alone never advance a position.
+
+The candidate wrapper-commit rule is: an admitted first chain **or an actual
+local continuation separator** commits InlineArguments. Thus `f:` has its
+separate ColonApplication RHS incomplete; `f:, x` has
+`[Incomplete, Complete(x)]`; and `f:x,` has
+`[Complete(x), Incomplete]`. This is a new product choice, not an inference
+from the current CST. The candidate InlineArguments range starts at its first
+post-colon byte locally published by this owner and ends at its last, including
+owned separators, emitted trivia and Error bytes. The colon remains solely in
+ColonApplication. A committed zero-byte vector is zero-width at the post-colon
+coordinate; Missing/diagnostic ranges and unread boundary leading do not extend
+it.
+
+For Pattern group/list/record forms, the actual opener commits the enclosing
+skeleton independently of `PatternCompletion`; unavailable child or close slots
+do not erase it. Fresh item Missing adds one incomplete position. Group/list
+ordinary-child availability follows the Pattern skeleton rule, including an
+admitted tail after a missing head. For Record item-phase lexical/structured
+wrong-kind recovery, the candidate mapping reserves one pending item position
+across successive recovery units: admitted name/spread retry completes it;
+locally owned comma, matching local close, EOF, fence or protected caller-close
+handoff finalizes it incomplete. A consumed unclaimed wrong close keeps that
+pending position for a later name/spread retry and creates no new position.
+Diagnostics do not multiply the entry. Separator-role recovery creates no item
+position. A matching initial close means empty contents; one terminal actual
+comma adds no position, while fresh repeated commas retain their existing
+Missing positions.
+
+An actual spread marker commits a complete spread item with its RHS recovered
+independently; an actual field name commits its field, `:` commits its nested
+form and `=` commits its default form independently of child completeness.
+Delimited ranges start at their actual opener and end at their last locally
+published byte, including a matching local close or terminal recovery emission.
+Local-close Missing and protected caller/fence handoff do not extend them. Item
+ranges exclude sequence-owned leading/separators; spread/default ranges start
+at their marker and include all published child/recovery bytes. A missing child
+does not reduce either to marker-only when Error bytes were emitted. If
+retained, `trailing_comma` means the last actual consumed terminal comma;
+recovered separator records never fabricate it. Its state when later recovery
+follows that comma remains open.
+
+These are M3 candidate choices. They require exact controls for initial/later
+inline slots, local versus outer separators, Pattern retry/finalization, local
+wrong close, spread/default terminal recovery and EOF/fence handoff, then
+compiler/recovery and specification review plus user approval before any API or
+implementation.
+
 ```text
 BracedBlock { open, statements: Vec<R<Statement>>, close: R<Range>, range }
 IndentedBlock { base_indent, block_indent, statements: Vec<R<Statement>>, range }
