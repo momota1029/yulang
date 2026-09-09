@@ -169,6 +169,18 @@ other Pattern emission remain unmapped.
 - `crates/yu-syntax/src/rule/mod.rs`
 - `crates/yu-syntax/src/rule/expression_list.rs`
 
+#### StringLiteral final outer-terminator row link
+
+Only `crates/yu-syntax/src/literal/mod.rs:849` and
+`crates/yu-syntax/src/literal/mod.rs:855` are linked to the Draft catalog row
+`(StringLiteral, final outer terminator phase, opener-selected normal/heredoc
+mode)`. Status: `linked`; linked facts: the existing boundary path publishes
+the `StringTerminator` Missing and returns the protected pending Item. This
+evidence link does not classify the temporary shifted recovery record
+`105..105` as a schema fact: the isolated interpolation-EOF CST Missing is
+`3..3`. All StringPiece/escape/interpolation, Rule, caller, and Root
+terminal-leading evidence remains delegated or unmapped.
+
 ### Root, statement, and virtual layout — 3 files / 11 calls
 
 - `crates/yu-syntax/src/root_statement.rs`

@@ -259,6 +259,11 @@ The outer StringLiteral terminator has a preflighted Draft. Its isolated
 interpolation-EOF evidence retains trailing spaces in the pending EOF Item;
 SourceRoot is the terminal-leading owner. Full-Root losslessness evidence is
 complete; user promotion remains required before public reconstruction.
+Its bounded catalog row now records only the final outer terminator phase,
+with opener-selected normal/heredoc mode. The CST Missing for the isolated
+interpolation-EOF witness is `3..3`; its temporary shifted recovery record at
+`105..105` is evidence only, never a schema or ledger fact. The catalog row is
+evidence-complete Draft and is not promoted.
 The dedicated Rule-slot Draft is preflighted; direct CST proof and promotion
 is complete; user promotion remains open.
 The StringInterpolationBody statement-sequence Draft is preflighted and has
