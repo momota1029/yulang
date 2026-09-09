@@ -212,6 +212,65 @@ evidence for the Draft only; it neither promotes this slice nor closes the
 indented dependency, complete inventory, interpreter or parser-ledger
 migration.
 
+## Proposed schema slice: fixed FieldTail and PathTail names
+
+The next proposed slice covers the dedicated required-name positions of
+`FieldTail` and `PathTail`. Its governing recovery authority is
+`2026-09-08-successor-expression-fixed-tail-current-item-recovery.md`.
+Unlike an Assignment RHS, neither fixed tail retries a name inside the same
+tail after raw recovery: it closes and returns the retained Item to ordinary
+outer-tail handling.
+
+The trivia-elided direct child alternatives are:
+
+```text
+FieldTail := Dot (Missing | Error+ | Identifier)
+PathTail  := ColonColon (Missing | Error+ | Identifier | SigilIdentifier)
+```
+
+`Dot` is `.` and `ColonColon` is `::`; `PathSeparator` remains only the
+scanner concept, not a Rowan token name. Field has grammar-empty internal
+leading: leading before a candidate name makes that name absent and remains
+with the returned Item. Path owns its existing permitted `G*` before a name,
+including a physical newline when no line stop applies. Initial malformed Path
+leading is native trivia inside `PathTail` but outside its raw Error group;
+retry and protected-boundary leading remain with the returned Item. Accepted
+Field names are adjacent ordinary `Identifier` children. Accepted Path names
+are `Identifier` or `SigilIdentifier` children after permitted path leading.
+
+The slot mappings are `Expression(FieldName)` for Field and
+`Expression(PathSegment)` for Path. For Field, apply the shared boundary list
+only after the higher-priority dot/projection judges have admitted a FieldTail.
+At each documented stop, boundary, separator, close, accepted dynamic LED,
+`(`, `[`, fixed/dynamic tail continuation or colon boundary, the matching name
+position has one zero-width `Missing`; its diagnostic projects at that CST
+range with expected `Identifier` and primary index zero. The whole protected
+Item remains outside the tail. Ordinary Path EOF may first emit its owned
+leading before the `Missing`. `.{` and `.(` dispatch to record and tuple
+projection respectively before a FieldTail exists, while `::{` is a non-name
+Path item and enters Path raw recovery. A lone `:` is always the terminal
+outer-tail continuation, even when `STOP_COLON` is not active; deferred-dot
+and longer projection judges retain their priority.
+
+A non-boundary non-name item produces one maximal adjacent direct Error-token
+group. The run stops before a trivia-bearing retry Item, every protected
+boundary above, an accepted Field/Path name, or a fixed/dynamic tail
+continuation. Its diagnostic projects once for the containing mapped name slot
+over the combined group range, expected `Identifier`, primary index zero. It
+neither creates a second Missing nor an `Invalid` node.
+
+After such a raw group, `FieldTail` or `PathTail` finishes without attaching a
+replacement name. The outer tail receives the following Item and its retry
+leading unchanged, with threshold, ML mode, stops, baseline, line/fence and
+ambient context intact; it may form a later fixed/dynamic or ML continuation
+under its own slot. Neither dedicated name slot admits nested grammar recovery.
+
+This is a Draft proposal. Exact direct-child evidence must cover accepted
+Field/Path names, Missing, raw Error, leading ownership, `.{` projection and
+`::{` raw recovery, protected Item continuation, subsequent outer-tail
+siblings, UTF-8/CRLF/fence ranges and threshold/ML handoff before review or
+promotion.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`

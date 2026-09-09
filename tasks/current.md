@@ -216,6 +216,8 @@ has direct Rowan evidence for child order, leading, Missing, Error grouping,
 retry and nested ownership. The user approved this direct-inline slice as
 Authoritative, and its paired EN/JA public reference pages are reconstructed
 from it. The indented RHS and complete inventory stay open.
+The dedicated FieldTail/PathTail name-slot Draft is preflighted against the
+existing recovery authority; exact CST proof and user promotion remain open.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
