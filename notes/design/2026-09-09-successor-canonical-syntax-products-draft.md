@@ -762,6 +762,29 @@ own driver, never reconstructed from records:
 Thus a root Error never silently attaches to a child, but neither does every
 root-owned Error become a fabricated Error-statement product.
 
+### Candidate SourceRoot physical envelope; not yet selected
+
+The candidate SourceRoot range is the physical envelope of its root owner's
+input region, including owner-emitted trivia and recovery. It is not formed by
+unioning statement ranges: a trivia-only or Error-only root still occupies its
+physical source. Missing locations and diagnostic extents do not enlarge it.
+
+| construction | candidate range | excluded physical text |
+| --- | --- | --- |
+| full source facade | `0..source.len()`, including leading/trailing trivia and Root Error bytes; empty source is `0..0` | none within the source input |
+| selected Yumark cell | `body_start..body_end` in the owning document coordinate space; `body_start` is the outer body's explicit entry coordinate and `body_end` is its consumption frontier after terminal body-leading publication | outer opener, close/transition boundary line and unread suffix |
+
+The selected-cell form includes accepted foreign prefixes, including a
+leading-only EOF prefix, but does not consume boundary facts merely to extend
+its range. Its current wrapper is still test-only; this is a candidate product
+decision for the later document owner, not permission to expose that wrapper.
+The existing root availability table remains unchanged: a Starter Error makes
+one incomplete statement position, while Separator/TrailingInput Error remains
+sequence evidence even though its emitted bytes are inside the root range.
+Whether the terminal frontier always equals a pending boundary coordinate is
+explicitly unselected and must be proved separately for EOF, close and
+transition exits.
+
 ## Evidence-backed closure queue; no candidate selection
 
 The following finite queue records current-owner evidence that the candidate

@@ -233,6 +233,25 @@ source order. No raw `token(text)` emission, synthetic/unranged token, or
 after-the-fact asserted range bypasses the account. Recovery-only Error
 segments use this surface before entering their extent in a reservation.
 
+### Candidate root/cell coordinate entry invariant; not yet selected
+
+Every full-root or selected-cell construction entry must carry an explicit
+physical input region in the owning document's coordinate space. The convenient
+calculation `absolute_end - remaining.len()` is permitted only while
+`remaining` is a suffix ending at that same explicit `absolute_end`; a shifted
+slice may not substitute its own length or a zero-based origin. Any entry that
+cannot maintain that invariant carries/updates its explicit absolute frontier
+instead. The candidate surface obtains fragment coordinates only from this
+entry frontier plus the consuming Item/subslice owner's monotone traversal.
+
+For a selected cell, terminal body-leading is published through the cell while
+it remains open. Its resulting frontier is recorded as the candidate cell-range
+end, but boundary facts, boundary-line text and suffix stay pending for the
+outer document owner. No equality between that frontier and a pending close or
+transition coordinate is assumed without controls for every terminal path.
+This is a durable coordinate convention requiring M3 review and user approval;
+it names no Rust API and authorizes no shared-output extraction.
+
 The direct-CST specialization replaces the current token-counter increment
 with this common call; it may not wrap it with a second counter, branch,
 dynamic dispatch, `Option<Vec<Range>>`, or AST accumulator on its per-fragment

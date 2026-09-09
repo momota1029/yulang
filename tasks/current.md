@@ -216,6 +216,13 @@ rules. Review corrected Variant/Derives introducer-only physical endpoints;
 tuple availability, empty entered sequences, interior separator retention and
 some malformed-field/parameter branches remain open. Exact controls and user
 approval remain required before any API or implementation.
+SourceRoot and coordinate publication now have unselected physical-envelope
+and entry-frontier candidates. Full root includes its whole source input;
+selected cells exclude outer fence/boundary text and preserve terminal leading
+inside the cell. Shifted inputs require an explicit absolute region/frontier;
+frontier-to-boundary equality remains unproven. Specification and
+compiler/recovery review is clean. Exact controls, materialization API,
+performance review and user approval remain required before implementation.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be
