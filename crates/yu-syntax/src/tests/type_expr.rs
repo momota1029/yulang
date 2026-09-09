@@ -25,6 +25,7 @@ mod pv_recovery;
 mod record_field_recovery;
 mod record_sequence_recovery;
 mod required_recovery;
+mod type_path_tail_cst;
 
 fn top_type_expression(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())

@@ -2195,7 +2195,8 @@ fn type_path_tail_normalized(
             fence,
             ambient,
         );
-        if is_type_caller_boundary(&segment, caller_stops)
+        if segment.payload_view().is_boundary()
+            || is_type_caller_boundary(&segment, caller_stops)
             || is_type_outer_boundary(&segment, outer_boundary)
         {
             i.state.finish_node();

@@ -416,6 +416,44 @@ leading/repeated/trailing separators, direct Missing versus nested child
 Missing, Error retry/newline behavior, UTF-8/fence and public Root source
 conservation before review or promotion.
 
+## Proposed schema slice: TypePathTail segment
+
+This proposed slice covers the required segment immediately after a Type
+`ColonColon` token. It is distinct from expression PathTail because Type
+contextual admission, horizontal application and continuation-qualified
+newlines select different child ownership.
+
+```text
+TypePathTail := ColonColon (Identifier | SigilIdentifier | Missing
+                            | Error+ Identifier | Error+ SigilIdentifier | Error+)
+```
+
+This grammar elides native trivia. Initial leading remains in `TypePathTail`
+before an accepted name, Missing or Error group. Initial ordinary EOF/path
+boundaries and shallow layout emit their owned leading before Missing; abstract,
+caller and outer boundaries keep their Item and leading pending. After Error,
+every boundary keeps its pending leading. A segment Missing or maximal direct
+Error group projects one `Type(PathSegment)` occurrence with expected
+`TypePathSegment` and primary zero. Integers are malformed; `Invalid` is not
+admitted. Adjacent Error leaves are one group only under the same immediate
+slot.
+
+An adjacent identifier/sigil or a continuation-qualified deeper newline retries
+inside the same tail after Error. Horizontal retry leading instead remains with
+the outer TypeApply: `A::@B` gains a segment child `B`, while `A::@ B` closes
+the incomplete path and leaves space/`B` to the outer owner. An immediately
+adjacent block-comment prefix may be Error content before either outcome.
+Same-line contextual initial names win before segment admission; a
+newline-bearing contextual Item remains protected even at deeper indentation.
+After Error its contextual boundary priority resumes. Repeated `::` finishes
+one tail and starts a sibling tail. Active closes/stops, shallow newline, EOF
+and fence follow the phase-specific leading rules above.
+
+This is a Draft proposal. Direct CST evidence must cover accepted/sigil/integer
+forms, comment-prefix variants, contextual and close priority, retry versus
+outer TypeApply, repeated tails, UTF-8/CRLF/fence and public Root conservation
+before review or promotion.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`

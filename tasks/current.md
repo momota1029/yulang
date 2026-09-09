@@ -227,6 +227,9 @@ The dedicated Rule-slot Draft is preflighted; direct CST proof and promotion
 is complete; user promotion remains open.
 The StringInterpolationBody statement-sequence Draft is preflighted; direct
 CST proof and promotion remain open.
+The TypePathTail segment Draft and direct CST evidence are complete; its
+post-Error fence boundary repair is reviewed, while user promotion remains
+open.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
