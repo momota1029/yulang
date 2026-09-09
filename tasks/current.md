@@ -287,6 +287,11 @@ post-Error fence boundary repair is reviewed. Its bounded catalog row is now
 mapped: it distinguishes Type continuation from expression PathTail, including
 continuation-qualified newline trivia versus outer TypeApply horizontal handoff.
 User promotion and every other Type context remain open.
+The LeadingEffectTypeHead row is likewise mapped as a bounded Draft: its direct
+head Missing is ordered after a nested BracketRow close Missing even at the
+same offset, while terminal Error EOF trivia remains native TypeExpression
+content outside Error. BracketRow, primary children, and all other Type slots
+remain separate.
 The actual-arrow TypeArrowTail RHS Draft is preflighted and has direct CST
 proof. Its post-Error shallow-newline admission now follows the existing
 authority; user promotion remains open.

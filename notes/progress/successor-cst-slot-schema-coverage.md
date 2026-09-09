@@ -110,6 +110,28 @@ source-navigation families, not semantic schema families.
 - `crates/yu-syntax/src/type_expr/record.rs`
 - `crates/yu-syntax/src/type_expr/variants.rs`
 
+#### LeadingEffectTypeHead required-head row links
+
+Only the following concrete `type_expr/mod.rs` emissions are linked to the
+Draft catalog row `(TypeExpression, required LeadingEffectTypeHead phase
+immediately after a direct leading BracketRow)`. Status: `linked`; they
+evidence only its incomplete-row/boundary Missing alternatives and direct
+malformed Error-run. The row does not assign BracketRow rows, arrow RHS,
+structured-primary internals, or another Type context.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/type_expr/mod.rs:1518` | `linked` | incomplete direct leading BracketRow exit publishes the sibling head Missing |
+| `crates/yu-syntax/src/type_expr/mod.rs:1667` | `linked` | direct LeadingEffectTypeHead malformed Error-run publication |
+| `crates/yu-syntax/src/type_expr/mod.rs:1678` | `linked` | protected-boundary or ordinary-leading direct head Missing publication |
+
+The enclosing helper/caller at `1485–1680` and the focused direct CST/recovery
+controls are support evidence, not additional census assignments. In
+particular, `[e` proves that the nested BracketRow close Missing precedes the
+direct sibling head Missing at the same offset. Every other
+`type_expr/mod.rs` emission remains `untriaged` and unmapped unless separately
+linked below.
+
 #### TypePathTail required-segment row links
 
 Only the following concrete `type_expr/mod.rs` emissions are linked to the
