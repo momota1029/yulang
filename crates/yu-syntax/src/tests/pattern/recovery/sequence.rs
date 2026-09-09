@@ -2,6 +2,202 @@ use crate::recovery_record::{ConstructRole, Delimiter, PunctuationEvidence};
 use crate::tests::pattern::recovery::delimited::close_record;
 use crate::tests::pattern::recovery::*;
 
+fn assert_separator_slot(green: GreenNode, text: &str, start: usize) {
+    let root = SyntaxNode::new_root(green);
+    let owner = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .unwrap()
+        .children()
+        .find(|node| node.kind() == SyntaxKind::RecordPattern)
+        .unwrap();
+    let slots = owner
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::RecordPatternSeparator)
+        .collect::<Vec<_>>();
+    assert_eq!(slots.len(), 1);
+    let slot = &slots[0];
+    assert_eq!(slot.to_string(), text);
+    assert_eq!(
+        usize::from(slot.text_range().start()),
+        "sentinel".len() + start
+    );
+    assert_eq!(
+        usize::from(slot.text_range().end()),
+        "sentinel".len() + start + text.len()
+    );
+    let children = slot.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), 1);
+    let invalid = children[0].as_node().unwrap();
+    assert_eq!(invalid.kind(), SyntaxKind::Invalid);
+    assert_eq!(invalid.text_range(), slot.text_range());
+    let children = invalid.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].kind(), SyntaxKind::Pattern);
+}
+
+#[test]
+fn record_separator_slot_distinguishes_colliding_item_topology() {
+    use ConstructRole::RecordPattern;
+    use Delimiter::{Brace, Parenthesis};
+    for origin in [0, 41] {
+        for (source, separator) in [
+            ("{a)1}", true),
+            ("{a@1}", false),
+            ("{a))1}", true),
+            ("{a@ @1}", false),
+        ] {
+            let start = source.find('1').unwrap();
+            let first = if separator {
+                let mut close = close_record(1, RecordPattern, Brace, origin + 2);
+                close.kind = RecoveryKind::Error;
+                close.site.range = origin + 2..origin + 3;
+                Arc::make_mut(&mut close.expectations)[0].range = close.site.range.clone();
+                close.unexpected = Arc::from([UnexpectedSyntax::Token {
+                    range: close.site.range.clone(),
+                    category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                        Parenthesis,
+                    )),
+                }]);
+                close
+            } else {
+                record(
+                    1,
+                    PatternRole::RecordSeparator,
+                    origin + 2..origin + start,
+                    true,
+                )
+            };
+            let mut expected = vec![first];
+            if source == "{a))1}" {
+                let mut second = expected[0].clone();
+                second.id = DiagnosticId(2);
+                second.site.range = origin + 3..origin + 4;
+                Arc::make_mut(&mut second.expectations)[0].range = second.site.range.clone();
+                second.unexpected = Arc::from([UnexpectedSyntax::Token {
+                    range: second.site.range.clone(),
+                    category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                        Parenthesis,
+                    )),
+                }]);
+                expected.push(second);
+            }
+            expected.push(record(
+                1 + expected.len() as u32,
+                if separator {
+                    PatternRole::RecordSeparator
+                } else {
+                    PatternRole::RecordItem
+                },
+                origin + start..origin + start + 1,
+                true,
+            ));
+            let fresh = checked(
+                source,
+                Context {
+                    origin,
+                    ..Context::default()
+                },
+                &expected,
+                source,
+                PatternCompletion::Complete,
+            );
+            let root = SyntaxNode::new_root(fresh.green.clone());
+            let owner = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Pattern)
+                .unwrap()
+                .children()
+                .next()
+                .unwrap();
+            assert_eq!(owner.kind(), SyntaxKind::RecordPattern);
+            let mut kinds = vec![SyntaxKind::LBrace, SyntaxKind::RecordPatternField];
+            kinds.extend(std::iter::repeat_n(SyntaxKind::Error, start - 2));
+            kinds.extend([
+                if separator {
+                    SyntaxKind::RecordPatternSeparator
+                } else {
+                    SyntaxKind::Invalid
+                },
+                SyntaxKind::RBrace,
+            ]);
+            assert_eq!(
+                owner
+                    .children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                kinds
+            );
+            if separator {
+                assert_separator_slot(fresh.green, "1", start);
+            } else {
+                let invalid = owner
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::Invalid)
+                    .unwrap();
+                assert_eq!(invalid.to_string(), "1");
+                assert_eq!(
+                    usize::from(invalid.text_range().start()),
+                    "sentinel".len() + start
+                );
+                assert_eq!(
+                    usize::from(invalid.text_range().end()),
+                    "sentinel".len() + start + 1
+                );
+                assert_eq!(invalid.children_with_tokens().count(), 1);
+                assert_eq!(invalid.first_child().unwrap().kind(), SyntaxKind::Pattern);
+                assert!(
+                    !root
+                        .descendants()
+                        .any(|node| node.kind() == SyntaxKind::RecordPatternSeparator)
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn record_separator_slot_excludes_leading_and_accepted_layout() {
+    for origin in [0, 41] {
+        let source = "{a /*é*/\r\n\"é\", b}";
+        let start = source.find('"').unwrap();
+        let fresh = checked(
+            source,
+            Context {
+                origin,
+                ..Context::default()
+            },
+            &[record(
+                1,
+                PatternRole::RecordSeparator,
+                origin + start..origin + start + "\"é\"".len(),
+                true,
+            )],
+            source,
+            PatternCompletion::Complete,
+        );
+        assert_separator_slot(fresh.green, "\"é\"", start);
+        for source in ["{a,b}", "{a\r\nb}", "{a /*é*/, b}", "{a :tag, b}"] {
+            let fresh = checked(
+                source,
+                Context {
+                    origin,
+                    ..Context::default()
+                },
+                &[],
+                source,
+                PatternCompletion::Complete,
+            );
+            let root = SyntaxNode::new_root(fresh.green);
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::RecordPatternSeparator)
+            );
+        }
+    }
+}
+
 #[test]
 fn record_wrong_kind_literal_keeps_its_inner_brace_and_following_field() {
     let source = "{\"\"\"}\"\"\", a}";
@@ -110,6 +306,11 @@ fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
             );
             let root = SyntaxNode::new_root(fresh.green);
             let error = recovery_groups(&root).into_iter().next().unwrap();
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::RecordPatternSeparator)
+            );
             assert_eq!(error.to_string(), source[range.clone()]);
             assert_eq!(
                 error.parent().unwrap().kind(),
@@ -196,9 +397,18 @@ fn record_wrong_kind_primaries_are_structured_in_both_sequence_phases() {
                     .unwrap();
                 assert_eq!(error.to_string(), head);
                 assert_eq!(error.children().next().unwrap().kind(), SyntaxKind::Pattern);
-                assert_eq!(error.parent().unwrap().kind(), SyntaxKind::RecordPattern);
+                let slot = if role == PatternRole::RecordSeparator {
+                    let slot = error.parent().unwrap();
+                    assert_eq!(slot.kind(), SyntaxKind::RecordPatternSeparator);
+                    assert_eq!(slot.children_with_tokens().count(), 1);
+                    assert_eq!(slot.text_range(), error.text_range());
+                    slot
+                } else {
+                    error.clone()
+                };
+                assert_eq!(slot.parent().unwrap().kind(), SyntaxKind::RecordPattern);
                 assert_eq!(
-                    error.next_sibling_or_token().unwrap().kind(),
+                    slot.next_sibling_or_token().unwrap().kind(),
                     SyntaxKind::Comma
                 );
             }
@@ -213,6 +423,20 @@ fn record_structured_errors_reserve_outer_records_before_nested_recovery() {
     use PatternRole::{ParenthesizedElement as E, RecordItem as I};
     for origin in [0, 41] {
         for (source, expected, completion) in [
+            (
+                "{a (@ a}",
+                vec![
+                    record(
+                        1,
+                        PatternRole::RecordSeparator,
+                        origin + 3..origin + 7,
+                        true,
+                    ),
+                    record(2, E, origin + 4..origin + 5, true),
+                    close_record(3, P, Parenthesis, origin + 7),
+                ],
+                PatternCompletion::Incomplete,
+            ),
             (
                 "{(A}",
                 vec![
@@ -270,7 +494,11 @@ fn record_structured_errors_reserve_outer_records_before_nested_recovery() {
                         .any(|child| child.kind() == SyntaxKind::Pattern)
                 })
                 .unwrap();
-            assert_eq!(outer.parent().unwrap().kind(), SyntaxKind::RecordPattern);
+            if source == "{a (@ a}" {
+                assert_separator_slot(root.green().into_owned(), "(@ a", 3);
+            } else {
+                assert_eq!(outer.parent().unwrap().kind(), SyntaxKind::RecordPattern);
+            }
             if source == "{{1}}" {
                 assert!(errors[1].ancestors().any(|ancestor| ancestor == *outer));
                 assert_eq!(errors[1].to_string(), "1");
@@ -323,6 +551,11 @@ fn sequence_unclaimed_closes_publish_native_evidence_in_both_phases() {
             );
             let root = SyntaxNode::new_root(fresh.green);
             let error = recovery_groups(&root).into_iter().next().unwrap();
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::RecordPatternSeparator)
+            );
             assert_eq!(error.last_token().unwrap().kind(), SyntaxKind::Error);
             assert_eq!(
                 error.last_token().unwrap().text(),
@@ -388,26 +621,33 @@ fn sequence_error_handoff_preserves_whole_caller_items_and_eof_extent() {
                 );
                 assert_pending_control(&fresh, &suffix, origin + prefix.len(), context);
             }
-            let prefix = "{(A";
-            let suffix = format!("{gap}]tail");
-            let source = format!("{prefix}{suffix}");
-            let context = Context {
-                origin,
-                closes: PatternCallerCloses::RBRACKET,
-                ..Context::default()
-            };
-            let fresh = checked(
-                &source,
-                context,
-                &[
-                    record(1, PatternRole::RecordItem, origin + 1..origin + 3, true),
-                    close_record(2, P, Parenthesis, origin + 3),
-                    close_record(3, R, Brace, origin + 3),
-                ],
-                prefix,
-                PatternCompletion::Incomplete,
-            );
-            assert_pending_control(&fresh, &suffix, origin + prefix.len(), context);
+            for (prefix, role, start) in [
+                ("{(A", PatternRole::RecordItem, 1),
+                ("{a (A", PatternRole::RecordSeparator, 3),
+            ] {
+                let suffix = format!("{gap}]tail");
+                let source = format!("{prefix}{suffix}");
+                let context = Context {
+                    origin,
+                    closes: PatternCallerCloses::RBRACKET,
+                    ..Context::default()
+                };
+                let fresh = checked(
+                    &source,
+                    context,
+                    &[
+                        record(1, role, origin + start..origin + prefix.len(), true),
+                        close_record(2, P, Parenthesis, origin + prefix.len()),
+                        close_record(3, R, Brace, origin + prefix.len()),
+                    ],
+                    prefix,
+                    PatternCompletion::Incomplete,
+                );
+                assert_pending_control(&fresh, &suffix, origin + prefix.len(), context);
+                if role == PatternRole::RecordSeparator {
+                    assert_separator_slot(fresh.green, "(A", start);
+                }
+            }
         }
         checked(
             "{@  ",
@@ -462,6 +702,7 @@ fn sequence_error_fences_preserve_pending_items_and_structured_emitted_bounds() 
             ("{@", R, Brace, PatternRole::RecordItem, 1, false),
             ("[a;", L, Bracket, PatternRole::ListSeparator, 2, false),
             ("{(A", R, Brace, PatternRole::RecordItem, 1, true),
+            ("{a (A", R, Brace, PatternRole::RecordSeparator, 3, true),
         ] {
             let suffix = "\r\n> > ```\r\nouter";
             let source = format!("{prefix}{suffix}");
@@ -484,6 +725,9 @@ fn sequence_error_fences_preserve_pending_items_and_structured_emitted_bounds() 
                 PatternCompletion::Incomplete,
             );
             assert_pending_control(&fresh, suffix, origin + prefix.len(), context);
+            if role == PatternRole::RecordSeparator {
+                assert_separator_slot(fresh.green, "(A", start);
+            }
         }
         for (source, end) in [("{@ \r\n> > @ a}", 10), ("{\"\"\"}\r\n> > x\"\"\", a}", 15)] {
             let fresh = checked(

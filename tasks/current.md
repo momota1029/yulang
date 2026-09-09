@@ -190,7 +190,8 @@ CST-visible discriminator under
 `notes/design/2026-09-10-successor-record-pattern-separator-slot.md`:
 `RecordPatternSeparator` wraps only the separator-phase Invalid, while the
 item-phase Invalid remains direct. Private construction and M2 review are
-pending; no parser/API test contract has changed yet.
+complete; only separator-phase CST topology changed, with parser diagnostic/API
+migration still pending.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

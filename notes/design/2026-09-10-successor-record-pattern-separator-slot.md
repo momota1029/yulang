@@ -1,6 +1,6 @@
 # RecordPattern structured separator-slot discriminator
 
-Status: Authoritative; private construction pending
+Status: Authoritative; private construction complete
 
 Approved-by: user
 
@@ -110,3 +110,12 @@ group would need wrapping, or another collision remains in this structured
 Item/Separator discrimination. Return such a case to design; do not retain
 hidden phase provenance or a parser ledger. Unrelated incomplete RecordPattern
 schema rows remain outside this bounded completion.
+
+## Implementation status
+
+Private construction completed on 2026-09-10. `RecordPatternSeparator` is
+append-only SyntaxKind `274` and wraps only the existing separator-phase
+structured Invalid path in `pattern::delimited`; the item phase stays direct.
+Focused Pattern recovery controls (30), SyntaxKind controls (3), package check,
+format and diff checks passed. Independent specification and compiler/recovery
+reviews found no remaining delta finding. No benchmark sample/process was used.

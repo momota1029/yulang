@@ -475,7 +475,7 @@ fn recover_sequence_run(
 
 #[allow(clippy::too_many_arguments)]
 fn recover_record_pattern(
-    i: SyntaxIn,
+    mut i: SyntaxIn,
     item: Item,
     role: PatternRole,
     baseline: usize,
@@ -493,8 +493,12 @@ fn recover_record_pattern(
         PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
         _ => unreachable!("only Record sequence slots own a wrong-kind Pattern"),
     };
-    emit_structured_recovery_error_from_item(
-        i,
+    if role == PatternRole::RecordSeparator {
+        i.state
+            .start_node(SyntaxKind::RecordPatternSeparator.into());
+    }
+    let exit = emit_structured_recovery_error_from_item(
+        i.rb(),
         item,
         item_origin,
         StructuredRecoverySpec::new(
@@ -539,7 +543,11 @@ fn recover_record_pattern(
             });
             (exit, end)
         },
-    )
+    );
+    if role == PatternRole::RecordSeparator {
+        i.state.finish_node();
+    }
+    exit
 }
 
 fn emit_wrong_close(i: SyntaxIn, item: Item, owner: Owner, item_origin: usize) {
