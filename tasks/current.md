@@ -223,6 +223,8 @@ The outer StringLiteral terminator has a preflighted Draft. Its isolated
 interpolation-EOF evidence retains trailing spaces in the pending EOF Item;
 SourceRoot is the terminal-leading owner. Full-Root losslessness evidence is
 complete; user promotion remains required before public reconstruction.
+The dedicated Rule-slot Draft is preflighted; direct CST proof and promotion
+remain open.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

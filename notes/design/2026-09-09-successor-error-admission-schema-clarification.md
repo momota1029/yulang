@@ -321,6 +321,59 @@ trailing leading remains in the pending EOF Item, plus public Root witnesses
 that emit that leading as native source-order tokens and preserve full-source
 losslessness. This does not promote the slice or specify child recovery slots.
 
+## Proposed schema slice: dedicated Rule literal slots
+
+This proposed slice covers Rule-owned recovery only. It excludes bracket
+ExpressionList, RuleLiteral terminator/interpolation/lazy-capture, String and
+Virtual children, which retain their own schemas. A `RuleItem` requires its
+first atom as a discriminator; its parent kind alone does not select a close
+slot.
+
+```text
+RuleBody                         := LBrace RuleAlternation (RBrace | Missing)
+RuleItem[LParen]                := LParen RuleAlternation Missing
+                                  | LParen RuleAlternation RParen RuleNonCapturePostfix* RuleCapture?
+RuleCapture                     := Equals (Error* RuleItem | Error* Missing)  // terminal
+RuleField                       := Dot (Identifier | Error+ | Missing)
+RulePath                        := ColonColon (Identifier | Error+ | Missing)
+RuleSequence                    := (RuleItem | Error+)*
+```
+
+`RuleNonCapturePostfix` denotes only the existing non-capture postfix forms;
+it is not a new CST node. A Missing parenthesis close terminates its RuleItem.
+The Body and parenthesized-Item close slots are distinguished by direct opener
+and expected punctuation. Capture is optional after non-capture postfixes and
+terminal when present. Capture Error belongs directly to `RuleCapture` but
+its later Missing belongs to the required RHS position; both project a Rule
+item expectation without reconstructing temporary role records. Field/Path
+consume one malformed lexical Item and close their name owner: a following
+valid name or postfix is handled by the outer RuleItem, never retried inside
+the failed name slot. Adjacent raw Error leaves in Capture or RuleSequence form
+one occurrence only while their immediate parent and slot agree.
+
+These productions elide native trivia. Leading before an admitted opener,
+atom, name, capture or matching close stays as direct content of the parent
+that emits it. A rejected Rule Item, including its leading, is emitted in that
+owner's Error group; retry leading belongs to the newly admitted child and
+protected boundary leading remains with the returned Item. Body/Paren protected
+and retry leading therefore stays pending. Body/Paren newline stops apply before name/RHS admission; RuleLiteral
+interpolation deliberately owns different stops and remains excluded. At EOF
+or a fence, a Missing uses its direct CST insertion range while pending leading
+is returned to its terminal owner. Nested same-offset Missing occurrences are
+identified by their distinct parent paths, not by legacy record coordinates.
+No form above admits `Invalid`; delegated bracket atoms retain ExpressionList
+close ownership. RuleCall, RuleIndex and bracket RuleItem interiors likewise
+delegate all Item/Separator/close recovery to ExpressionList. RuleSequence
+receives its explicit caller stops: Body and parenthesized atoms distinguish
+their matching close, separators and newline stop before name/RHS admission;
+the inherited outer RuleLiteral quote context remains with that outer owner.
+
+This is a Draft proposal. Exact direct CST evidence must cover closes,
+capture Error-to-Missing and Error-to-valid, nested same-offset Missing,
+field/path outer siblings, consecutive Error grouping, newline/quoted-fence
+stops, UTF-8/CRLF and public Root leading conservation before review or
+promotion.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`
