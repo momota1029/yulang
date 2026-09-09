@@ -166,10 +166,14 @@ Missing or nested Error children. Expected syntax is specified by the
 documented grammar slot.
 
 The Authoritative Error/Invalid topology-ordering addendum selects the bounded
-topology-only migration now: ordinary raw fragments become Error tokens and the
-two structured owners become Invalid nodes, while recovery records, frozen
-reconciliation and public diagnostics remain temporarily unchanged. The full
-per-slot schema still blocks their later removal.
+topology-only migration now: ordinary raw fragments are Error tokens and the
+two structured owners are Invalid nodes, while recovery records, frozen
+reconciliation and public diagnostics remain temporarily unchanged. This M2
+construction is complete: focused owner/output controls and the final
+single-threaded library run passed 1,070 tests with one existing manual harness
+ignored. The sole failure remains the pre-existing stale `SyntaxKind::Unknown`
+discriminant assertion (`231` actual, `229` expected) in an unmodified test.
+The full per-slot schema still blocks removal of that temporary machinery.
 
 The direct-Rowan design is independently reviewed. Its bounded first migration
 removes `CstOutput` while preserving the current tree topology, so direct
@@ -187,10 +191,11 @@ construction/finalization is cursor-private. Header reconciliation is a
 temporary direct-builder control and is retired by the amendment. The
 final focused cursor/recovery/header/root/
 lexical/literal/slot set passed 175 tests. Full-package behavior certification
-ran once: 1,067 tests passed and the only failure was the pre-existing
-`SyntaxKind::Unknown` discriminant assertion (`231` actual, `229` expected) in
-an unmodified file. Its fix is outside this direct-Rowan gate. The Error-token/
-Invalid schema migration remains open.
+ran once after the topology migration: 1,070 tests passed and the only failure
+was the pre-existing `SyntaxKind::Unknown` discriminant assertion (`231`
+actual, `229` expected) in an unmodified file. Its fix is outside this
+direct-Rowan gate. The complete per-slot diagnostic schema and parser-ledger
+retirement remain open.
 `syntax-reference` is rebuilt around
 the same XML-like Rowan node notation, grammar and recovery placement; parser
 internals, commits, fixtures and AST/direct parity leave that public reference.

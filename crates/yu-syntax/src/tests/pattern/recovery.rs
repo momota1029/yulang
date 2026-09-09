@@ -1,4 +1,5 @@
 use crate::tests::pattern::*;
+use crate::tests::recovery_output::recovery_groups;
 use crate::{
     ambient_claim::AmbientClaimView,
     cursor::recovery::{RecoveryDraft, emit::emit_recovery_missing},
@@ -245,19 +246,56 @@ fn checked<'source>(
     assert_eq!(fresh.slots, all.len());
     assert_eq!(fresh.diagnostics, (Some(all.len() as u32), 0));
     let root = SyntaxNode::new_root(fresh.green.clone());
-    for (node_kind, record_kind) in [
-        (SyntaxKind::Missing, RecoveryKind::Missing),
-        (SyntaxKind::Error, RecoveryKind::Error),
-    ] {
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        all.iter()
+            .filter(|record| record.kind == RecoveryKind::Missing)
+            .count(),
+        "{source:?}\n{root:#?}"
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+    for record in all
+        .iter()
+        .filter(|record| record.kind == RecoveryKind::Error)
+    {
+        let start = "sentinel".len() + record.site.range.start - context.origin;
+        let end = "sentinel".len() + record.site.range.end - context.origin;
+        let range = rowan::TextRange::new((start as u32).into(), (end as u32).into());
+        if root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Invalid && node.text_range() == range)
+        {
+            continue;
+        }
+        let tokens = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| {
+                token.kind() == SyntaxKind::Error && range.contains_range(token.text_range())
+            })
+            .collect::<Vec<_>>();
+        assert!(!tokens.is_empty(), "{source:?}: {range:?}\n{root:#?}");
+        assert_eq!(tokens[0].text_range().start(), range.start());
+        assert_eq!(tokens.last().unwrap().text_range().end(), range.end());
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == node_kind)
-                .count(),
-            all.iter()
-                .filter(|record| record.kind == record_kind)
-                .count(),
-            "{source:?}\n{root:#?}"
+            tokens.iter().map(|token| token.text()).collect::<String>(),
+            source
+                [record.site.range.start - context.origin..record.site.range.end - context.origin]
         );
+        for pair in tokens.windows(2) {
+            assert_eq!(pair[0].parent(), pair[1].parent());
+            assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+            assert_eq!(
+                pair[0].next_sibling_or_token(),
+                Some(pair[1].clone().into())
+            );
+        }
     }
     for (index, record) in all.iter_mut().enumerate() {
         record.id = DiagnosticId(7 + index as u32);
@@ -391,10 +429,7 @@ fn primary_error_runs_exclude_retry_leading_and_keep_native_payloads() {
             );
             assert_eq!(fresh.remainder, "");
             let root = SyntaxNode::new_root(fresh.green);
-            let error = root
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
-                .unwrap();
+            let error = recovery_groups(&root).into_iter().next().unwrap();
             assert_eq!(error.to_string(), malformed);
             assert_eq!(error.parent().unwrap().kind(), owner);
             let retry_gap = error.next_sibling_or_token().unwrap();
@@ -409,13 +444,14 @@ fn primary_error_runs_exclude_retry_leading_and_keep_native_payloads() {
                         .children_with_tokens()
                         .map(|element| element.kind())
                         .collect::<Vec<_>>(),
-                    [
-                        SyntaxKind::SigilIdentifier,
-                        SyntaxKind::Whitespace,
-                        SyntaxKind::Integer,
-                        SyntaxKind::Whitespace,
-                        SyntaxKind::Unknown
-                    ]
+                    [SyntaxKind::Error; 5]
+                );
+                assert_eq!(
+                    error
+                        .children_with_tokens()
+                        .map(|element| element.to_string())
+                        .collect::<Vec<_>>(),
+                    ["$x", " ", "1", " ", "@"]
                 );
             }
         }

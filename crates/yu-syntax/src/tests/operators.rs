@@ -477,8 +477,8 @@ fn dangling_operator_recovery_is_direct_cst_only() {
         );
         assert!(
             !root
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
     }
@@ -488,8 +488,8 @@ fn dangling_operator_recovery_is_direct_cst_only() {
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     let root = SyntaxNode::new_root(green.clone());
     assert_eq!(
-        root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&root)
+            .into_iter()
             .count(),
         1
     );
@@ -500,7 +500,13 @@ fn dangling_operator_recovery_is_direct_cst_only() {
         "a malformed operand is its own sentinel"
     );
     assert_eq!(
-        operator_chain_children(&green),
+        root.descendants()
+            .find(|node| node.kind() == SyntaxKind::OperatorChain)
+            .unwrap()
+            .children_with_tokens()
+            .filter(|element| element.as_node().is_some() || element.kind() == SyntaxKind::Error)
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
         [
             SyntaxKind::IdentifierExpression,
             SyntaxKind::InfixOperatorUse,

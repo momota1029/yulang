@@ -200,8 +200,9 @@ fn empty_catch_keeps_required_arm_recovery_before_local_close_completion() {
                     assert_eq!(block.last_token().unwrap().text(), "}");
                 } else {
                     assert_eq!(
-                        arm.descendants()
-                            .find(|node| node.kind() == SyntaxKind::Error)
+                        crate::tests::recovery_output::recovery_groups(&arm)
+                            .into_iter()
+                            .next()
                             .unwrap()
                             .to_string(),
                         " ]"
@@ -886,13 +887,13 @@ fn case_body_lexical_retry_keeps_native_tokens_and_prefix_admission() {
             root.descendants()
                 .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
         );
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&root)
+            .into_iter()
+            .next()
             .unwrap();
         assert_eq!(error.to_string(), "+");
-        // The unchanged NUD judge rejects this infix-only spelling as a native Unknown.
-        assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Unknown);
+        // The unchanged NUD judge rejects this infix-only spelling; raw recovery is opaque.
+        assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
         assert_eq!(parsed.committed_recoveries.len(), 1);
     }
 }
@@ -1490,7 +1491,7 @@ fn case_like_c7_keeps_pattern_and_guard_boundaries_exact() {
     assert_eq!(
         root.descendants_with_tokens()
             .filter_map(|element| element.into_token())
-            .filter(|token| token.kind() == SyntaxKind::Unknown)
+            .filter(|token| token.kind() == SyntaxKind::Error)
             .map(|token| token.text().to_owned())
             .collect::<Vec<_>>(),
         ["->>"],
@@ -1718,13 +1719,11 @@ fn case_like_c7_recovers_case_next_arm_at_its_following_separator() {
             .count(),
         2
     );
-    assert!(case.descendants().any(|node| {
-        node.kind() == SyntaxKind::Error
-            && node
-                .descendants_with_tokens()
-                .filter_map(|element| element.into_token())
-                .any(|token| token.text() == "@")
-    }));
+    assert!(
+        case.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.kind() == SyntaxKind::Error && token.text() == "@")
+    );
 }
 
 #[test]

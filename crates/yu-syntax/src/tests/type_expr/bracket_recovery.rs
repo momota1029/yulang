@@ -81,9 +81,10 @@ fn bracket_row_accepted_controls_keep_attachment_layout_and_full_typeapply() {
     ] {
         let root = assert_complete_type_recovery(source, 0, &[]);
         assert!(
-            !root
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            !root.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )),
             "{source:?}"
         );
         assert!(
@@ -108,12 +109,13 @@ fn bracket_row_item_errors_keep_retry_trivia_outside_the_error() {
         ("T [A @ B] -> U", 5..6, "@", SyntaxKind::Unknown),
     ] {
         let root = assert_complete_type_recovery(source, 0, &[item(0, range, true)]);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
-            .unwrap();
+        let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(error.text(), text, "{source:?}");
-        assert_eq!(error.first_token().unwrap().kind(), first);
+        assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
+        assert_eq!(
+            error.first_token().unwrap().text(),
+            if first == SyntaxKind::Colon { ":" } else { "@" }
+        );
         assert_eq!(error.parent().unwrap().kind(), SyntaxKind::BracketRow);
         for retry in error
             .parent()
@@ -189,18 +191,55 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
             .unwrap();
         assert_eq!(
             row.children()
-                .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
             expected
                 .iter()
-                .filter(|record| record.site.role != GrammarRole::Type(TypeRole::BracketRowArrow))
+                .filter(|record| record.kind == RecoveryKind::Missing
+                    && record.site.role != GrammarRole::Type(TypeRole::BracketRowArrow))
                 .count()
         );
-        for error in row
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error && node.text() == ")")
+        let groups = recovery_groups(&row);
+        let mut expected_ranges: Vec<std::ops::Range<usize>> = Vec::new();
+        for record in expected
+            .iter()
+            .filter(|record| record.kind == RecoveryKind::Error)
         {
-            assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::RParen);
+            if let Some(last) = expected_ranges
+                .last_mut()
+                .filter(|last| last.end == record.site.range.start)
+            {
+                last.end = record.site.range.end;
+            } else {
+                expected_ranges.push(record.site.range.clone());
+            }
+        }
+        assert_eq!(
+            groups
+                .iter()
+                .map(|group| {
+                    assert_eq!(group.parent(), Some(row.clone()));
+                    let range = group.text_range();
+                    usize::from(range.start()) - "sentinel".len()
+                        ..usize::from(range.end()) - "sentinel".len()
+                })
+                .collect::<Vec<_>>(),
+            expected_ranges
+        );
+        assert_eq!(
+            groups.iter().map(|group| group.text()).collect::<Vec<_>>(),
+            expected_ranges
+                .iter()
+                .map(|range| &source[range.clone()])
+                .collect::<Vec<_>>()
+        );
+        for error in row
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Error && token.text() == ")")
+        {
+            assert_eq!(error.parent(), Some(row.clone()));
+            assert_eq!(error.text_range().len(), 1.into());
         }
     }
     assert_complete_type_recovery(
@@ -395,15 +434,11 @@ fn bracket_row_fence_and_structured_pv_keep_native_boundaries() {
             item(1, 3..4, true),
         ],
     );
-    let error = root
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
-        .unwrap();
-    assert_eq!(
-        error
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .count(),
-        2
-    );
+    let error = recovery_groups(&root).into_iter().next().unwrap();
+    let crate::tests::recovery_output::RecoveryGroup::Structured(invalid) = error else {
+        panic!("structured tag-name Invalid")
+    };
+    let groups = recovery_groups(&invalid);
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[1].text(), "@");
 }

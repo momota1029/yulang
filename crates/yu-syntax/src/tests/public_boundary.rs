@@ -301,8 +301,11 @@ fn gate10_public_production_companion_performance_harness() {
     assert_eq!(root.to_string(), source.as_ref());
     assert!(parsed.diagnostics().is_empty());
     assert_eq!(
-        root.descendants()
-            .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+        root.descendants_with_tokens()
+            .filter(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            ))
             .count(),
         0,
     );

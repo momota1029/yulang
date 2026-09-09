@@ -45,9 +45,10 @@ fn rule_expression_lists_keep_colon_comma_and_newline_with_the_list_owner() {
             1
         );
         assert!(
-            !root
-                .descendants()
-                .any(|n| matches!(n.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            !root.descendants_with_tokens().any(|n| matches!(
+                n.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )),
             "{source:?}"
         );
     }
@@ -225,6 +226,12 @@ fn root(green: &GreenNode) -> SyntaxNode {
 }
 
 fn count(green: &GreenNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(
+            green.clone(),
+        ))
+        .len();
+    }
     root(green)
         .descendants()
         .filter(|node| node.kind() == kind)
@@ -717,12 +724,23 @@ fn expression_list_errors_do_not_satisfy_a_required_expression_slot() {
         let (green, exit, remainder) = run_rule_body(source);
         assert_eq!(exit, RuleWitnessExit::Complete, "{source:?}");
         assert_eq!(remainder, "", "{source:?}");
-        assert_eq!(count(&green, SyntaxKind::Error), errors, "{source:?}");
+        assert_eq!(
+            tokens(&green)
+                .iter()
+                .filter(|(kind, _)| *kind == SyntaxKind::Error)
+                .count(),
+            errors,
+            "{source:?}"
+        );
+        assert_eq!(
+            count(&green, SyntaxKind::Error),
+            1,
+            "one contiguous argument-slot group: {source:?}"
+        );
         assert_eq!(count(&green, SyntaxKind::Missing), 0, "{source:?}");
         assert_eq!(count(&green, SyntaxKind::OperatorChain), 1, "{source:?}");
-        let recovered = root(&green)
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let recovered = crate::tests::recovery_output::recovery_groups(&root(&green))
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<String>();
         assert_eq!(recovered, malformed, "{source:?}");
@@ -736,7 +754,7 @@ fn expression_list_errors_do_not_satisfy_a_required_expression_slot() {
         assert_eq!(count(&green, SyntaxKind::Error), 1, "{source:?}");
         assert_eq!(count(&green, SyntaxKind::Missing), 1, "{source:?}");
         let recovery = root(&green)
-            .descendants()
+            .descendants_with_tokens()
             .filter_map(|node| match node.kind() {
                 SyntaxKind::Error => Some(SyntaxKind::Error),
                 SyntaxKind::Missing => Some(SyntaxKind::Missing),
@@ -892,9 +910,9 @@ fn unexpected_items_are_one_item_errors_without_host_pratt_or_ml_nodes() {
         assert_eq!(count(&green, SyntaxKind::OperatorChain), 0, "{source:?}");
         assert_eq!(count(&green, SyntaxKind::RuleCall), 0, "{source:?}");
         assert_eq!(count(&green, SyntaxKind::RuleIndex), 0, "{source:?}");
-        let error = root(&green)
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&root(&green))
+            .into_iter()
+            .next()
             .expect("one malformed operator Error");
         assert_eq!(error.text().to_string(), malformed, "{source:?}");
     }

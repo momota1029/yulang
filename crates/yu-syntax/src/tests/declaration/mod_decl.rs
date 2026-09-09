@@ -356,6 +356,9 @@ fn mod_declaration(green: &GreenNode) -> SyntaxNode {
 }
 
 fn descendants(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|descendant| descendant.kind() == kind)
         .count()
@@ -709,9 +712,9 @@ fn mod_c10_recovers_body_slots_and_preserves_boundaries() {
 
     let (green, _) = run_statement("mod A][next");
     let declaration = mod_declaration(&green);
-    let error = declaration
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = crate::tests::recovery_output::recovery_groups(&declaration)
+        .into_iter()
+        .find(|group| group.parent().as_ref() == Some(&declaration))
         .expect("local BodyIntroducer Error");
     assert_eq!(error.text().to_string(), "][");
 

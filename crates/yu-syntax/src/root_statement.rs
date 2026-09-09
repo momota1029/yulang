@@ -1302,6 +1302,12 @@ mod opaque_fence_tests {
                 Some(Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_)))
             ));
             let syntax = crate::syntax_kind::SyntaxNode::new_root(green);
+            assert!(syntax.children().next().is_none());
+            assert!(
+                syntax
+                    .children_with_tokens()
+                    .all(|leaf| leaf.kind() == SyntaxKind::Error)
+            );
             let actual: Vec<_> = syntax
                 .descendants_with_tokens()
                 .filter_map(|e| e.into_token())
@@ -1317,20 +1323,11 @@ mod opaque_fence_tests {
             let mut start = 3;
             let expected: Vec<_> = parts
                 .into_iter()
-                .enumerate()
-                .map(|(index, text)| {
+                .map(|text| {
                     let end = start + text.len();
                     let range = start..end;
                     start = end;
-                    (
-                        if index % 2 == 0 {
-                            SyntaxKind::Unknown
-                        } else {
-                            SyntaxKind::YmQuotePrefix
-                        },
-                        range,
-                        text,
-                    )
+                    (SyntaxKind::Error, range, text)
                 })
                 .collect();
             assert_eq!(actual, expected);
@@ -1465,10 +1462,16 @@ mod opaque_fence_tests {
                         ));
                     }
                     let syntax = crate::syntax_kind::SyntaxNode::new_root(green);
+                    assert!(syntax.children().next().is_none());
+                    assert!(
+                        syntax
+                            .children_with_tokens()
+                            .all(|leaf| leaf.kind() == SyntaxKind::Error)
+                    );
                     let prefixes: Vec<_> = syntax
                         .descendants_with_tokens()
                         .filter_map(|e| e.into_token())
-                        .filter(|t| t.kind() == SyntaxKind::YmQuotePrefix)
+                        .filter(|t| t.kind() == SyntaxKind::Error && t.text() == "> ")
                         .map(|t| t.text().to_owned())
                         .collect();
                     assert_eq!(

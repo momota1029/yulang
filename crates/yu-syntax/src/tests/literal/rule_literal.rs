@@ -115,9 +115,9 @@ fn rule_literal_sequence_uses_only_its_brace_and_outer_quote_stops() {
         assert_eq!(node_count(&green, SyntaxKind::RuleItem), 2, "{source:?}");
         assert_eq!(node_count(&green, SyntaxKind::Error), 1, "{source:?}");
         assert_eq!(node_count(&green, SyntaxKind::Missing), 0, "{source:?}");
-        let error = SyntaxNode::new_root(green)
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(green))
+            .into_iter()
+            .next()
             .expect("one interpolation-local unexpected Item");
         assert_eq!(
             error.parent().expect("Error parent").kind(),

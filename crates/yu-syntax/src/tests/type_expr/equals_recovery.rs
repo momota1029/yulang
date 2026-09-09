@@ -248,10 +248,7 @@ fn declaration_fields_recover_unclaimed_equals_without_zero_progress_retry() {
                     raw_missing,
                     "{source:?}\n{root:#?}"
                 );
-                let errors = root
-                    .descendants()
-                    .filter(|node| node.kind() == SyntaxKind::Error)
-                    .collect::<Vec<_>>();
+                let errors = recovery_groups(&root).into_iter().collect::<Vec<_>>();
                 assert_eq!(errors.len(), 1, "{source:?}\n{root:#?}");
                 assert_eq!(errors[0].to_string(), malformed);
                 assert_eq!(errors[0].parent().unwrap().kind(), SyntaxKind::StructField);
@@ -268,7 +265,7 @@ fn declaration_fields_recover_unclaimed_equals_without_zero_progress_retry() {
                     .filter_map(|element| element.into_token())
                     .filter(|token| token.text() == "=")
                 {
-                    assert_eq!(token.kind(), SyntaxKind::Equals);
+                    assert_eq!(token.kind(), SyntaxKind::Error);
                 }
                 let frozen = frozen_recovery_ids(&expected);
                 let replay = run_statement_records(&source, origin, Some(&frozen));
@@ -492,9 +489,10 @@ fn declaration_field_equals_fix_retains_accepted_type_apply_and_trailing_comma()
                 "{source:?}\n{root:#?}"
             );
             assert!(
-                !root
-                    .descendants()
-                    .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+                !root.descendants_with_tokens().any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+                )),
                 "{source:?}\n{root:#?}"
             );
         }

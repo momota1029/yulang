@@ -244,6 +244,12 @@ fn syntax_tokens(green: &GreenNode) -> Vec<(SyntaxKind, String)> {
 }
 
 fn node_count(green: &GreenNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(
+            green.clone(),
+        ))
+        .len();
+    }
     SyntaxNode::new_root(green.clone())
         .descendants()
         .filter(|node| node.kind() == kind)
@@ -251,6 +257,14 @@ fn node_count(green: &GreenNode, kind: SyntaxKind) -> usize {
 }
 
 fn node_texts(green: &GreenNode, kind: SyntaxKind) -> Vec<String> {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(
+            green.clone(),
+        ))
+        .iter()
+        .map(|group| group.text())
+        .collect();
+    }
     SyntaxNode::new_root(green.clone())
         .descendants()
         .filter(|node| node.kind() == kind)
@@ -881,11 +895,11 @@ fn unicode_escape_valid_empty_and_malformed_end_have_exact_recovery() {
                 (SyntaxKind::StringStart, "\"".to_owned()),
                 (SyntaxKind::StringEscapeLead, "\\".to_owned()),
                 (SyntaxKind::StringEscapeUnicodeStart, "u{".to_owned()),
-                (SyntaxKind::StringEscapeUnicodeHex, "g!".to_owned()),
+                (SyntaxKind::Error, "g!".to_owned()),
                 (SyntaxKind::StringEscapeUnicodeEnd, "}".to_owned()),
                 (SyntaxKind::StringEnd, "\"".to_owned()),
             ],
-            r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g!")),StringEscapeUnicodeEnd("}")),StringEnd("\"")))"#,
+            r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error("g!"),StringEscapeUnicodeEnd("}")),StringEnd("\"")))"#,
         ),
     ] {
         let (green, exit, remainder) = run_string(source, 0, &fence(FencePrefixPolicy::None));
@@ -951,7 +965,7 @@ fn unicode_terminator_percent_and_eof_sentinels_remain_unconsumed() {
             missing: 1,
             error: Some("g"),
             exit: 0,
-            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g")),Missing()),StringEnd("\"")))"#,
+            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error("g"),Missing()),StringEnd("\"")))"#,
         },
         Case {
             source: "\"\\u{g%fmt",
@@ -959,7 +973,7 @@ fn unicode_terminator_percent_and_eof_sentinels_remain_unconsumed() {
             missing: 3,
             error: Some("g"),
             exit: 2,
-            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g")),Missing()),StringInterpolation(StringInterpolationPercent("%"),StringInterpolationFormatText("fmt"),Missing()),Missing()))"#,
+            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error("g"),Missing()),StringInterpolation(StringInterpolationPercent("%"),StringInterpolationFormatText("fmt"),Missing()),Missing()))"#,
         },
         Case {
             source: "\"\\u{",
@@ -983,7 +997,7 @@ fn unicode_terminator_percent_and_eof_sentinels_remain_unconsumed() {
             missing: 2,
             error: Some("g"),
             exit: 2,
-            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g")),Missing()),Missing()))"#,
+            shape: r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error("g"),Missing()),Missing()))"#,
         },
     ] {
         let (green, exit, remainder) = run_string(case.source, 0, &fence(FencePrefixPolicy::None));
@@ -1038,14 +1052,14 @@ fn multiline_unicode_error_emits_prefix_outside_error_text_and_hands_off_close()
             (SyntaxKind::StringStart, "\"".to_owned()),
             (SyntaxKind::StringEscapeLead, "\\".to_owned()),
             (SyntaxKind::StringEscapeUnicodeStart, "u{".to_owned()),
-            (SyntaxKind::StringEscapeUnicodeHex, "g\n".to_owned()),
-            (SyntaxKind::YmQuotePrefix, "> > ".to_owned()),
-            (SyntaxKind::StringEscapeUnicodeHex, "h\r\n".to_owned()),
+            (SyntaxKind::Error, "g\n".to_owned()),
+            (SyntaxKind::Error, "> > ".to_owned()),
+            (SyntaxKind::Error, "h\r\n".to_owned()),
         ]
     );
     assert_eq!(
         syntax_shape(&green),
-        r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g\n"),YmQuotePrefix("> > "),StringEscapeUnicodeHex("h\r\n")),Missing()),Missing()))"#
+        r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error("g\n"),Error("> > "),Error("h\r\n"),Missing()),Missing()))"#
     );
 }
 
@@ -1370,7 +1384,7 @@ fn structural_item_after_body_prefix_owns_that_prefix() {
     assert_eq!(node_texts(&green, SyntaxKind::Error), ["g\n"]);
     assert_eq!(
         syntax_shape(&green),
-        r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g\n")),YmQuotePrefix("> > "),StringEscapeUnicodeEnd("}")),StringEnd("\"")))"#
+        r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error("g\n"),YmQuotePrefix("> > "),StringEscapeUnicodeEnd("}")),StringEnd("\"")))"#
     );
 
     let source = "\"α\n> > %format {}\"tail";
@@ -1389,7 +1403,7 @@ fn structural_item_after_body_prefix_owns_that_prefix() {
     assert_eq!(node_texts(&green, SyntaxKind::Error), ["g\n"]);
     assert_eq!(
         syntax_shape(&green),
-        r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error(StringEscapeUnicodeHex("g\n")),Missing()),StringInterpolation(YmQuotePrefix("> > "),StringInterpolationPercent("%"),StringInterpolationFormatText("format "),StringInterpolationOpenBrace("{"),StringInterpolationBody(),StringInterpolationCloseBrace("}")),StringEnd("\"")))"#
+        r#"Root(StringLiteral(StringStart("\""),StringEscape(StringEscapeLead("\\"),StringEscapeUnicodeStart("u{"),Error("g\n"),Missing()),StringInterpolation(YmQuotePrefix("> > "),StringInterpolationPercent("%"),StringInterpolationFormatText("format "),StringInterpolationOpenBrace("{"),StringInterpolationBody(),StringInterpolationCloseBrace("}")),StringEnd("\"")))"#
     );
 }
 

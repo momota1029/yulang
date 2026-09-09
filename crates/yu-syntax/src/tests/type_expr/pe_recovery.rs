@@ -108,10 +108,7 @@ fn pe_item_slots_publish_missing_and_error_with_retry_leading_outside_error() {
         ("'[@\n  A]", true, 2..3, "@"),
     ] {
         let root = assert_complete_type_recovery(source, 0, &[item(0, effect, range, true)]);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
-            .unwrap();
+        let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(error.text(), text, "{source:?}");
         assert_eq!(
             error.parent().unwrap().kind(),
@@ -148,18 +145,16 @@ fn pe_closes_recover_unclaimed_tokens_and_preserve_actual_matching_closes() {
             expected.push(close(1, effect, at..at, None));
         }
         let root = assert_complete_type_recovery(source, 0, &expected);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
-            .unwrap();
+        let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(
-            error.first_token().unwrap().kind(),
+            error.first_token().unwrap().text(),
             if actual == Delimiter::Bracket {
-                SyntaxKind::RBracket
+                "]"
             } else {
-                SyntaxKind::RParen
+                ")"
             }
         );
+        assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
     }
     for (source, effect, at) in [("(A", false, 2), ("'[A", true, 3)] {
         assert_complete_type_recovery(source, 0, &[close(0, effect, at..at, None)]);
@@ -199,10 +194,7 @@ fn pe_close_errors_resume_with_owner_trivia_and_protected_caller_words() {
         for gap in [" ", "/*é*/", "\r\n  "] {
             let source = format!("{prefix}{gap}A{}", if effect { "]" } else { ")" });
             let root = assert_complete_type_recovery(&source, 0, std::slice::from_ref(&error));
-            let node = root
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
-                .unwrap();
+            let node = recovery_groups(&root).into_iter().next().unwrap();
             let mut following = node.next_sibling_or_token();
             let mut leading = String::new();
             while let Some(element) = following {
@@ -390,15 +382,15 @@ fn pe_records_nest_inside_reserved_pv_errors_and_keep_native_pv_close() {
             pv.children_with_tokens()
                 .any(|child| child.kind() == SyntaxKind::RBrace)
         );
-        let outer_error = pv
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
-            .unwrap();
+        let outer_error = recovery_groups(&pv).into_iter().next().unwrap();
         assert!(
             outer_error
-                .descendants()
+                .descendants_with_tokens()
                 .skip(1)
-                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+                .any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+                ))
         );
     }
 }

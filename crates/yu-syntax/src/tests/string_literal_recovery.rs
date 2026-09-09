@@ -238,9 +238,9 @@ fn unicode_foreign_prefix_extent_and_deferred_structural_prefix_are_distinct() {
         assert_eq!(green.to_string(), source);
         assert_eq!(remainder, "");
         let root = SyntaxNode::new_root(green.clone());
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&root)
+            .into_iter()
+            .next()
             .unwrap();
         assert_eq!(error.to_string(), &source[4..end]);
         let (again, frozen, _) = parse(source, 100, Some(&fence()), Some(&records));

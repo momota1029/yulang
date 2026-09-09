@@ -492,7 +492,7 @@ impl<'frozen> Recover<'frozen> {
 /// Reserves one ordered structured Error before running its total nested body.
 ///
 /// The affine reservation token never leaves this output-owning helper. A
-/// panic invalidates the output; a normal return pairs exactly one Error node
+/// panic invalidates the output; a normal return pairs exactly one Invalid node
 /// with the completed record in its original reserved slot.
 pub(crate) fn emit_structured_recovery_error_from_item<R>(
     mut i: SyntaxIn,
@@ -503,7 +503,7 @@ pub(crate) fn emit_structured_recovery_error_from_item<R>(
 ) -> R {
     let start = structured_start_from_item(&primary, successor_origin);
     let reservation = i.recover.begin_structured_recovery(start, spec);
-    i.state.start_node(SyntaxKind::Error.into());
+    i.state.start_node(SyntaxKind::Invalid.into());
     let (result, end) = body(i.rb(), primary);
     i.state.finish_node();
     i.recover.complete_structured_recovery(reservation, end);

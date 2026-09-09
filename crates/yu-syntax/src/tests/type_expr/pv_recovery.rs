@@ -96,27 +96,26 @@ fn assert_complete(source: &str, expected: &[CommittedRecoveryRecord]) -> Syntax
         );
         assert_eq!(remainder, "");
         let root = SyntaxNode::new_root(green.clone());
-        assert_eq!(
-            root.descendants()
-                .filter(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-                .count(),
-            records.len(),
-            "{source:?}"
-        );
-        for node in root
+        let groups = recovery_groups(&root);
+        let missing = root
             .descendants()
-            .filter(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(groups.len() + missing.len(), records.len(), "{source:?}");
+        for (range, kind) in groups
+            .iter()
+            .map(|group| (group.text_range(), RecoveryKind::Error))
+            .chain(
+                missing
+                    .iter()
+                    .map(|node| (node.text_range(), RecoveryKind::Missing)),
+            )
         {
-            let range =
-                usize::from(node.text_range().start())..usize::from(node.text_range().end());
+            let range = usize::from(range.start())..usize::from(range.end());
             assert!(
-                records.iter().any(|record| record.site.range == range
-                    && record.kind
-                        == if node.kind() == SyntaxKind::Missing {
-                            RecoveryKind::Missing
-                        } else {
-                            RecoveryKind::Error
-                        }),
+                records
+                    .iter()
+                    .any(|record| record.site.range == range && record.kind == kind),
                 "{source:?}: {range:?}"
             );
         }
@@ -214,10 +213,7 @@ fn pv_payload_recovery_keeps_gap_error_and_retry_at_the_payload_owner() {
         (":{A @,B}", 4..5, "@"),
     ] {
         let root = assert_complete(source, &[payload_error(0, range)]);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
-            .unwrap();
+        let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(error.text(), text);
         assert_eq!(
             error.parent().unwrap().kind(),
@@ -282,10 +278,7 @@ fn pv_wrong_kind_type_keeps_tight_tails_and_structured_record_order() {
                     2..end,
                 )],
             );
-            let error = root
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
-                .unwrap();
+            let error = recovery_groups(&root).into_iter().next().unwrap();
             assert!(error.descendants().any(|node| node.kind() == owner));
             assert_eq!(error.text().to_string(), source[2..end]);
             let top = root

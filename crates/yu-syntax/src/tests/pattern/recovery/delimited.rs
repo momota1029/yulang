@@ -179,10 +179,7 @@ fn delimited_child_error_roles_do_not_override_nested_owners() {
             assert_eq!(fresh.remainder, "");
             if error {
                 let root = SyntaxNode::new_root(fresh.green);
-                let node = root
-                    .descendants()
-                    .find(|node| node.kind() == SyntaxKind::Error)
-                    .unwrap();
+                let node = recovery_groups(&root).into_iter().next().unwrap();
                 assert_eq!(node.to_string(), "@");
                 assert_eq!(
                     node.next_sibling_or_token().unwrap().kind(),
@@ -357,7 +354,7 @@ fn delimited_missing_closes_keep_caller_items_and_real_outer_close_ownership() {
         assert!(
             !close
                 .parent_ancestors()
-                .any(|node| node.kind() == SyntaxKind::Error)
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
         );
     }
 }

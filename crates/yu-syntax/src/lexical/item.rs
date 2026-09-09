@@ -795,7 +795,7 @@ impl Item {
         prefix: PathSegmentRetryLeadingPrefix,
     ) {
         debug_assert_eq!(self.first_unemitted_leading, 0);
-        self.emit_leading_prefix_with(output, prefix.end_part, |_, _| {});
+        self.emit_error_leading_prefix(output, prefix.end_part);
     }
 
     /// Validates the complete same-line leading prefix which a CallArgument
@@ -835,7 +835,7 @@ impl Item {
     ) {
         debug_assert_eq!(self.first_unemitted_leading, 0);
         debug_assert_eq!(prefix.end_part, self.physical_leading.len());
-        self.emit_leading_prefix_with(output, prefix.end_part, |_, _| {});
+        self.emit_error_leading_prefix(output, prefix.end_part);
     }
 
     pub(crate) fn emit_all_remaining_leading(&mut self, output: &mut GreenNodeBuilder) {
@@ -909,6 +909,50 @@ impl Item {
     pub(crate) fn emit_eof_leading(&mut self, output: &mut GreenNodeBuilder) {
         assert!(self.payload_view().is_eof());
         self.emit_leading_range(output, self.physical_leading.len(), |_, _| {});
+    }
+
+    /// Emits every remaining physical fragment in one raw recovery Item.
+    /// The ordinary fragment cursor still owns splitting and source order.
+    pub(crate) fn emit_remaining_error(mut self, output: &mut GreenNodeBuilder) {
+        assert!(payload_text(&self.payload).is_some());
+        let mut cursor = self.fragment_cursor();
+        self.emit_error_leading_prefix_with_cursor(
+            output,
+            self.physical_leading.len(),
+            &mut cursor,
+        );
+        self.emit_payload_with_cursor(output, SyntaxKind::Error, &mut cursor);
+    }
+
+    pub(crate) fn emit_error_eof_leading(&mut self, output: &mut GreenNodeBuilder) {
+        assert!(self.payload_view().is_eof());
+        self.emit_error_leading_prefix(output, self.physical_leading.len());
+    }
+
+    fn emit_error_leading_prefix(&mut self, output: &mut GreenNodeBuilder, end_part: usize) {
+        let mut cursor = self.fragment_cursor();
+        self.emit_error_leading_prefix_with_cursor(output, end_part, &mut cursor);
+    }
+
+    fn emit_error_leading_prefix_with_cursor(
+        &mut self,
+        output: &mut GreenNodeBuilder,
+        end_part: usize,
+        cursor: &mut Option<FragmentCursor>,
+    ) {
+        assert!(!self.payload_view().is_boundary());
+        assert!(end_part >= self.first_unemitted_leading);
+        assert!(end_part <= self.physical_leading.len());
+        for index in self.first_unemitted_leading..end_part {
+            emit_physical_text(
+                output,
+                self.fragments.as_ref(),
+                cursor,
+                SyntaxKind::Error,
+                &self.physical_leading[index].text,
+            );
+            self.first_unemitted_leading = index + 1;
+        }
     }
 
     #[cfg(test)]
@@ -1183,8 +1227,9 @@ fn emit_fragmented_part(
         if cursor < start {
             output.token(ordinary.into(), &text[cursor..start]);
         }
-        let kind = match split.kind {
-            ForeignKind::YmQuotePrefix => SyntaxKind::YmQuotePrefix,
+        let kind = match (ordinary, split.kind) {
+            (SyntaxKind::Error, _) => SyntaxKind::Error,
+            (_, ForeignKind::YmQuotePrefix) => SyntaxKind::YmQuotePrefix,
         };
         output.token(kind.into(), &text[start..end]);
         cursor = end;

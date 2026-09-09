@@ -217,8 +217,9 @@ fn companion_errors_keep_retry_and_boundary_leading_outside_the_run() {
     );
     let root = syntax_root(green);
     assert_eq!(
-        root.descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&root)
+            .into_iter()
+            .next()
             .unwrap()
             .text()
             .to_string(),
@@ -453,6 +454,9 @@ fn syntax_root(green: GreenNode) -> SyntaxNode {
 }
 
 fn count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(root).len();
+    }
     root.descendants()
         .filter(|node| node.kind() == kind)
         .count()

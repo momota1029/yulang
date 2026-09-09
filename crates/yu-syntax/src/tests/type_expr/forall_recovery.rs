@@ -50,9 +50,13 @@ fn assert_typed_nodes(root: &SyntaxNode, expected: &[CommittedRecoveryRecord]) {
         (SyntaxKind::Error, RecoveryKind::Error),
     ] {
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == syntax)
-                .count(),
+            if syntax == SyntaxKind::Error {
+                recovery_groups(root).len()
+            } else {
+                root.descendants()
+                    .filter(|node| node.kind() == syntax)
+                    .count()
+            },
             expected
                 .iter()
                 .filter(|record| record.kind == recovery)
@@ -139,10 +143,7 @@ fn forall_forward_errors_have_phase_owned_roles_and_native_extents() {
             )];
             let root = assert_complete_type_recovery(source, origin, &expected);
             assert_typed_nodes(&root, &expected);
-            let error = root
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
-                .unwrap();
+            let error = recovery_groups(&root).into_iter().next().unwrap();
             assert_eq!(error.text(), text, "{source:?}");
             assert_eq!(
                 error.parent().unwrap().kind(),
@@ -156,12 +157,12 @@ fn forall_forward_errors_have_phase_owned_roles_and_native_extents() {
                 assert!(
                     error
                         .children_with_tokens()
-                        .any(|node| node.kind() == SyntaxKind::LParen)
+                        .any(|node| node.kind() == SyntaxKind::Error && node.to_string() == "(")
                 );
                 assert!(
                     error
                         .children_with_tokens()
-                        .any(|node| node.kind() == SyntaxKind::RParen)
+                        .any(|node| node.kind() == SyntaxKind::Error && node.to_string() == ")")
                 );
             }
         }
@@ -507,7 +508,7 @@ fn forall_nested_in_structured_pv_errors_keeps_parent_before_child_records() {
         assert!(
             forall
                 .ancestors()
-                .any(|node| node.kind() == SyntaxKind::Error)
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
         );
         let close = root.last_token().unwrap();
         assert_eq!(close.kind(), SyntaxKind::RBrace);
@@ -516,7 +517,7 @@ fn forall_nested_in_structured_pv_errors_keeps_parent_before_child_records() {
                 .parent()
                 .unwrap()
                 .ancestors()
-                .any(|node| node.kind() == SyntaxKind::Error)
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
         );
     }
 }

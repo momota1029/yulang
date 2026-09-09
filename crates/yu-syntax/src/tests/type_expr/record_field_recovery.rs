@@ -134,12 +134,20 @@ fn record_field_errors_publish_exact_slot_extents_and_native_retry_structure() {
         ("{a: @ : B}", T, 4..7, "@ :", SyntaxKind::Unknown),
     ] {
         let root = assert_complete_type_recovery(source, 0, &[field_record(0, role, range, true)]);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
-            .unwrap();
+        let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(error.text(), error_text, "{source:?}");
-        assert_eq!(error.first_token().unwrap().kind(), first_kind);
+        assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
+        assert_eq!(
+            error.first_token().unwrap().text(),
+            match first_kind {
+                SyntaxKind::Unknown => "@",
+                SyntaxKind::SigilIdentifier => "'a",
+                SyntaxKind::Integer => "1",
+                SyntaxKind::ColonColon => "::",
+                SyntaxKind::Equals => "=",
+                _ => unreachable!(),
+            }
+        );
         assert_eq!(error.parent().unwrap().kind(), SyntaxKind::TypeRecordField);
         assert!(
             !root
@@ -150,12 +158,12 @@ fn record_field_errors_publish_exact_slot_extents_and_native_retry_structure() {
             assert!(
                 error
                     .children_with_tokens()
-                    .any(|child| child.kind() == SyntaxKind::LParen)
+                    .any(|child| child.kind() == SyntaxKind::Error && child.to_string() == "(")
             );
             assert!(
                 error
                     .children_with_tokens()
-                    .any(|child| child.kind() == SyntaxKind::RParen)
+                    .any(|child| child.kind() == SyntaxKind::Error && child.to_string() == ")")
             );
         }
     }
@@ -385,9 +393,10 @@ fn record_field_accepted_controls_keep_full_type_and_layout_grammar() {
     ] {
         let root = assert_complete_type_recovery(source, 0, &[]);
         assert!(
-            !root
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            !root.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{source:?}"
         );
     }
@@ -419,8 +428,8 @@ fn record_field_next_head_query_shares_exact_colon_ownership() {
     assert_eq!(usize::from(missing.text_range().start()), 8 + 5);
     assert!(
         !record
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
+            .descendants_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
     assert_eq!(
         record

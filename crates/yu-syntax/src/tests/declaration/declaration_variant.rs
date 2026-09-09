@@ -21,6 +21,9 @@ fn syntax_root(green: GreenNode) -> SyntaxNode {
 }
 
 fn count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(root).len();
+    }
     root.descendants()
         .filter(|node| node.kind() == kind)
         .count()
@@ -360,8 +363,9 @@ fn typed_variant_records_cover_both_owners_all_forms_and_frozen_seeded_ids() {
                 assert_eq!(records, expected, "{source:?} {owner:?}");
                 let root = syntax_root(green.clone());
                 assert_eq!(
-                    root.descendants()
-                        .find(|n| n.kind() == SyntaxKind::Error)
+                    crate::tests::recovery_output::recovery_groups(&root)
+                        .into_iter()
+                        .next()
                         .unwrap()
                         .text()
                         .to_string(),
@@ -825,7 +829,8 @@ fn declaration_variant_outer_pipe_is_suspended_inside_nested_type_episodes() {
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .filter(|token| token.kind() == SyntaxKind::Pipe)
+                .filter(|token| token.kind() == SyntaxKind::Pipe
+                    || (token.kind() == SyntaxKind::Error && token.text() == "|"))
                 .count(),
             2,
         );
@@ -887,25 +892,17 @@ fn declaration_variant_contextual_pipe_stays_local_to_each_nested_type_owner() {
             .filter(|token| token.text() == "|")
             .collect::<Vec<_>>();
         assert_eq!(bars.len(), 2, "{source:?}\n{root:#?}");
-        // T3 CallArgument Error retains payload boundaries with Unknown kind;
-        // the current-Item owners retain the native Pipe kind instead.
-        let inner_kind = if owner == SyntaxKind::TypeCallTail {
-            SyntaxKind::Unknown
-        } else {
-            SyntaxKind::Pipe
-        };
-        assert_eq!(bars[0].kind(), inner_kind, "{source:?}\n{root:#?}");
+        assert_eq!(bars[0].kind(), SyntaxKind::Error, "{source:?}\n{root:#?}");
         assert!(
             bars[0]
                 .parent_ancestors()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .any(|node| node.kind() == SyntaxKind::EnumVariant),
             "{source:?}\n{root:#?}"
         );
         assert_eq!(bars[1].kind(), SyntaxKind::Pipe, "{source:?}\n{root:#?}");
-        assert!(
-            !bars[1]
-                .parent_ancestors()
-                .any(|node| node.kind() == SyntaxKind::Error),
+        assert_eq!(
+            bars[1].parent().unwrap().kind(),
+            SyntaxKind::Root,
             "{source:?}\n{root:#?}"
         );
     }
@@ -935,7 +932,8 @@ fn braced_variant_fields_keep_contextual_pipe_as_local_malformed_type_input() {
         assert_eq!(
             root.descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .filter(|token| token.kind() == SyntaxKind::Pipe)
+                .filter(|token| token.kind() == SyntaxKind::Pipe
+                    || (token.kind() == SyntaxKind::Error && token.text() == "|"))
                 .count(),
             1,
             "{source:?}\n{root:#?}",
@@ -969,7 +967,10 @@ fn malformed_named_payload_retry_keeps_pipe_lexical_and_converges_at_outer_comma
     let pipes = root
         .descendants_with_tokens()
         .filter_map(|element| element.into_token())
-        .filter(|token| token.kind() == SyntaxKind::Pipe)
+        .filter(|token| {
+            token.kind() == SyntaxKind::Pipe
+                || (token.kind() == SyntaxKind::Error && token.text() == "|")
+        })
         .collect::<Vec<_>>();
     assert_eq!(pipes.len(), 1, "{root:#?}");
     assert!(
@@ -978,12 +979,7 @@ fn malformed_named_payload_retry_keeps_pipe_lexical_and_converges_at_outer_comma
             .any(|node| node.kind() == SyntaxKind::StructField),
         "{root:#?}",
     );
-    assert!(
-        pipes[0]
-            .parent_ancestors()
-            .any(|node| node.kind() == SyntaxKind::Error),
-        "{root:#?}",
-    );
+    assert!(pipes[0].kind() == SyntaxKind::Error, "{root:#?}",);
 }
 
 #[test]
@@ -1013,7 +1009,10 @@ fn type_apply_argument_keeps_local_pipe_lexical_before_outer_variant_pipe() {
     let pipes = root
         .descendants_with_tokens()
         .filter_map(|element| element.into_token())
-        .filter(|token| token.kind() == SyntaxKind::Pipe)
+        .filter(|token| {
+            token.kind() == SyntaxKind::Pipe
+                || (token.kind() == SyntaxKind::Error && token.text() == "|")
+        })
         .collect::<Vec<_>>();
     assert_eq!(pipes.len(), 2, "{root:#?}");
     assert!(
@@ -1022,12 +1021,7 @@ fn type_apply_argument_keeps_local_pipe_lexical_before_outer_variant_pipe() {
             .any(|node| node.kind() == SyntaxKind::TypeApplyArgument),
         "{root:#?}",
     );
-    assert!(
-        pipes[0]
-            .parent_ancestors()
-            .any(|node| node.kind() == SyntaxKind::Error),
-        "{root:#?}",
-    );
+    assert!(pipes[0].kind() == SyntaxKind::Error, "{root:#?}",);
     assert!(
         !pipes[1]
             .parent_ancestors()
@@ -1062,7 +1056,10 @@ fn completed_type_path_returns_same_episode_pipe_to_variant_owner() {
     let pipes = root
         .descendants_with_tokens()
         .filter_map(|element| element.into_token())
-        .filter(|token| token.kind() == SyntaxKind::Pipe)
+        .filter(|token| {
+            token.kind() == SyntaxKind::Pipe
+                || (token.kind() == SyntaxKind::Error && token.text() == "|")
+        })
         .collect::<Vec<_>>();
     assert_eq!(pipes.len(), 1, "{root:#?}");
     assert!(

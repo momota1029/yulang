@@ -277,14 +277,22 @@ fn header_recovery_records_are_exact_shifted_and_frozen() {
                 assert_eq!(actual, records, "{source:?}");
                 if source.contains("@ \t@") {
                     let node = declaration(&green);
-                    let errors: Vec<_> = node
-                        .descendants()
-                        .filter(|node| node.kind() == SyntaxKind::Error)
+                    let errors: Vec<_> = crate::tests::recovery_output::recovery_groups(&node)
+                        .into_iter()
                         .collect();
                     assert_eq!(errors.len(), 1);
                     assert_eq!(errors[0].to_string(), "@ \t@");
-                    assert_eq!(token_count(&errors[0], SyntaxKind::Unknown), 2);
-                    assert_eq!(token_count(&errors[0], SyntaxKind::Whitespace), 1);
+                    assert_eq!(
+                        errors[0]
+                            .children_with_tokens()
+                            .map(|leaf| (leaf.kind(), leaf.to_string()))
+                            .collect::<Vec<_>>(),
+                        [
+                            (SyntaxKind::Error, "@".into()),
+                            (SyntaxKind::Error, " \t".into()),
+                            (SyntaxKind::Error, "@".into())
+                        ]
+                    );
                     assert_eq!(count(&node, SyntaxKind::Missing), 0);
                 }
                 if let Some((head, tail)) = source.split_once("\r\n>") {
@@ -403,6 +411,9 @@ fn clean_header_keeps_foreign_prefix_without_body_introducer_recovery() {
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|node| node.kind() == kind)
         .count()
@@ -472,9 +483,9 @@ fn error_sigil_head_evidence_recovers_one_maximal_raw_name_and_stops() {
     assert_eq!(count(&node, SyntaxKind::DerivesClause), 0, "{node:#?}");
     assert_eq!(token_count(&node, SyntaxKind::Identifier), 0, "{node:#?}");
     assert_eq!(token_count(&node, SyntaxKind::Equals), 0, "{node:#?}");
-    let error = node
-        .descendants()
-        .find(|child| child.kind() == SyntaxKind::Error)
+    let error = crate::tests::recovery_output::recovery_groups(&node)
+        .into_iter()
+        .next()
         .expect("one declaration-local Name Error");
     assert_eq!(error.text().to_string(), "&hidden");
 }

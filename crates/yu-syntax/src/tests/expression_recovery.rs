@@ -295,11 +295,25 @@ fn required_operand_error_run_is_typed_retries_and_reconciles() {
     assert_eq!(remainder, "");
     assert_eq!(fresh.len(), 1);
     assert_expression_record(&fresh[0], role, RecoveryKind::Error, 0..1);
-    assert!(
-        SyntaxNode::new_root(green.clone())
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
-    );
+    let root = SyntaxNode::new_root(green.clone());
+    let chain = root.first_child().unwrap();
+    assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+    let children = chain.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children[0].as_token().unwrap().kind(), SyntaxKind::Error);
+    assert_eq!(children[0].to_string(), "@");
+    assert_eq!(children[1].kind(), SyntaxKind::IdentifierExpression);
+    assert_eq!(children[1].to_string(), " x");
+    let retry = children[1]
+        .as_node()
+        .unwrap()
+        .children_with_tokens()
+        .collect::<Vec<_>>();
+    assert_eq!(retry[0].kind(), SyntaxKind::Whitespace);
+    assert_eq!(retry[0].to_string(), " ");
+    assert_eq!(retry[1].kind(), SyntaxKind::Identifier);
+    assert_eq!(retry[1].to_string(), "x");
+    assert_eq!(retry.len(), 2);
+    assert_eq!(children.len(), 2);
 
     let (frozen_green, frozen_exit, frozen_remainder, frozen) =
         direct_required_expr_with_recoveries("@ x", role, 0, Some(&fresh));
@@ -383,7 +397,7 @@ fn actual_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
         let root = SyntaxNode::new_root(green.clone());
         let expected_body = match kind {
             RecoveryKind::Missing => "        Missing@13..13\n",
-            RecoveryKind::Error => "        Error@13..14\n          Unknown@13..14 \"@\"\n",
+            RecoveryKind::Error => "        Error@13..14 \"@\"\n",
         };
         assert_eq!(
             format!("{root:#?}"),
@@ -417,12 +431,13 @@ fn actual_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
             RecoveryKind::Missing => SyntaxKind::Missing,
             RecoveryKind::Error => SyntaxKind::Error,
         };
-        let recovery_nodes: Vec<_> = root
-            .descendants()
+        let recovery_elements: Vec<_> = root
+            .descendants_with_tokens()
             .filter(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
             .collect();
-        assert_eq!(recovery_nodes.len(), 1);
-        let recovery = &recovery_nodes[0];
+        assert_eq!(recovery_elements.len(), 1);
+        let recovery = &recovery_elements[0];
+        assert_eq!(recovery.as_token().is_some(), kind == RecoveryKind::Error);
         assert_eq!(recovery.kind(), recovery_kind);
         assert_eq!(usize::from(recovery.text_range().start()), range.start);
         assert_eq!(usize::from(recovery.text_range().end()), range.end);

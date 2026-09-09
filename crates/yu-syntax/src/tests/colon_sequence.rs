@@ -270,8 +270,11 @@ fn record_pattern_defaults_establish_their_local_expression_owner() {
         assert_eq!(arguments(&green), [1]);
         assert!(
             !SyntaxNode::new_root(green)
-                .descendants()
-                .any(|n| matches!(n.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .descendants_with_tokens()
+                .any(|n| matches!(
+                    n.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+                ))
         );
     }
 }

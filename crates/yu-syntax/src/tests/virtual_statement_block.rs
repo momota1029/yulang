@@ -330,6 +330,12 @@ fn run_virtual_string<'source>(
 }
 
 fn count(green: &GreenNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(
+            green.clone(),
+        ))
+        .len();
+    }
     SyntaxNode::new_root(green.clone())
         .descendants()
         .filter(|node| node.kind() == kind)
@@ -488,7 +494,7 @@ fn virtual_statement_block_orders_child_and_parent_recovery_at_eof() {
     );
     let root = SyntaxNode::new_root(green);
     let kinds = root
-        .descendants()
+        .descendants_with_tokens()
         .filter(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
         .map(|node| node.kind())
         .collect::<Vec<_>>();

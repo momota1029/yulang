@@ -1,6 +1,9 @@
 use crate::tests::support::*;
 
 fn count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(root).len();
+    }
     root.descendants()
         .filter(|node| node.kind() == kind)
         .count()

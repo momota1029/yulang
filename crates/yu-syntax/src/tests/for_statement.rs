@@ -324,6 +324,9 @@ fn for_node(green: &GreenNode) -> SyntaxNode {
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|descendant| descendant.kind() == kind)
         .count()

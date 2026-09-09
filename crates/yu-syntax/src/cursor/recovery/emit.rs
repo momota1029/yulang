@@ -24,7 +24,7 @@ use crate::{
 /// node and diagnostic operations remain owned by the helper.
 pub(crate) struct ErrorRunOutput<'a, 'source, 'operators, 'cache> {
     input: SyntaxIn<'a, 'source, 'operators, 'cache>,
-    error_node_extent: Option<Range<usize>>,
+    error_run_extent: Option<Range<usize>>,
     record_extent: Option<Range<usize>>,
     unexpected: Vec<UnexpectedSyntax>,
     sealed: Option<ErrorRunSeal>,
@@ -61,12 +61,12 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
         &mut self,
         item: Item,
         successor_origin: usize,
-        kind: SyntaxKind,
+        _kind: SyntaxKind,
     ) -> ItemExtent {
         self.assert_unsealed();
         let extent = item.extent(successor_origin);
         self.include_extent(extent.recovery_range());
-        item.emit_remaining(&mut *self.input.state, kind);
+        item.emit_remaining_error(&mut *self.input.state);
         extent
     }
 
@@ -74,7 +74,7 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
         &mut self,
         text: &str,
         range: Range<usize>,
-        kind: SyntaxKind,
+        _kind: SyntaxKind,
     ) {
         self.assert_unsealed();
         assert!(!text.is_empty(), "an Error literal segment is nonempty");
@@ -84,7 +84,7 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
             "literal segment text and extent must agree"
         );
         self.include_extent(range);
-        self.input.state.token(kind.into(), text);
+        self.input.state.token(SyntaxKind::Error.into(), text);
     }
 
     pub(crate) fn append_unexpected(&mut self, unexpected: UnexpectedSyntax) {
@@ -92,9 +92,8 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
         self.unexpected.push(unexpected);
     }
 
-    /// Emits a contiguous same-line EOF-leading suffix while the Error node is
-    /// still open. The suffix is physical Error content, so it extends the
-    /// Error and record extents even though EOF itself is not a token.
+    /// Emits a contiguous same-line EOF-leading suffix into the raw Error run.
+    /// The suffix extends both extents even though EOF itself is not a token.
     pub(crate) fn emit_same_line_eof_leading(
         &mut self,
         item: &mut Item,
@@ -109,8 +108,8 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
         let extent = item.extent(successor_origin).remaining();
         assert!(!extent.is_empty(), "EOF Error leading is nonempty");
         self.include_extent(extent);
-        item.emit_eof_leading(&mut *self.input.state);
-        self.error_node_extent
+        item.emit_error_eof_leading(&mut *self.input.state);
+        self.error_run_extent
             .clone()
             .expect("EOF leading extends a nonempty Error")
     }
@@ -129,17 +128,17 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
             self.unexpected.is_empty(),
             "retry-leading sealing replaces ordinary unexpected evidence"
         );
-        let error_node_extent = self
-            .error_node_extent
+        let error_run_extent = self
+            .error_run_extent
             .as_ref()
             .expect("retry-leading sealing requires a nonempty Error body");
         let Some(suffix) = retry.retry_leading_diagnostic_suffix(successor_origin) else {
             return false;
         };
-        if suffix.start != error_node_extent.end {
+        if suffix.start != error_run_extent.end {
             return false;
         }
-        let record_extent = error_node_extent.start..suffix.end;
+        let record_extent = error_run_extent.start..suffix.end;
         debug_assert!(record_extent.start < record_extent.end);
         self.record_extent = Some(record_extent);
         self.sealed = Some(ErrorRunSeal::RecordThroughRetryLeading(category));
@@ -159,20 +158,20 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
             self.unexpected.is_empty(),
             "PathSegment retry-leading sealing replaces ordinary unexpected evidence"
         );
-        let error_node_extent = self
-            .error_node_extent
+        let error_run_extent = self
+            .error_run_extent
             .as_ref()
             .expect("PathSegment retry-leading sealing requires a nonempty Error body");
         let Some(prefix) = retry.path_segment_retry_leading_prefix(successor_origin) else {
             return PathSegmentRetryLeadingSeal::Ineligible;
         };
         let prefix_range = prefix.range();
-        if prefix_range.start != error_node_extent.end {
+        if prefix_range.start != error_run_extent.end {
             return PathSegmentRetryLeadingSeal::Ineligible;
         }
-        let sealed_extent = error_node_extent.start..prefix_range.end;
+        let sealed_extent = error_run_extent.start..prefix_range.end;
         retry.emit_path_segment_retry_leading_prefix(&mut *self.input.state, prefix);
-        self.error_node_extent = Some(sealed_extent.clone());
+        self.error_run_extent = Some(sealed_extent.clone());
         self.record_extent = Some(sealed_extent);
         self.sealed = Some(ErrorRunSeal::PathSegmentRetryLeadingPrefix(category));
         PathSegmentRetryLeadingSeal::Sealed
@@ -192,20 +191,20 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
             self.unexpected.is_empty(),
             "CallArgument retry-leading sealing replaces ordinary unexpected evidence"
         );
-        let error_node_extent = self
-            .error_node_extent
+        let error_run_extent = self
+            .error_run_extent
             .as_ref()
             .expect("CallArgument retry-leading sealing requires a nonempty Error body");
         let Some(prefix) = retry.call_argument_retry_leading_prefix(successor_origin) else {
             return CallArgumentRetryLeadingSeal::Ineligible;
         };
         let prefix_range = prefix.range();
-        if prefix_range.start != error_node_extent.end {
+        if prefix_range.start != error_run_extent.end {
             return CallArgumentRetryLeadingSeal::Ineligible;
         }
-        let sealed_extent = error_node_extent.start..prefix_range.end;
+        let sealed_extent = error_run_extent.start..prefix_range.end;
         retry.emit_call_argument_retry_leading_prefix(&mut *self.input.state, prefix);
-        self.error_node_extent = Some(sealed_extent.clone());
+        self.error_run_extent = Some(sealed_extent.clone());
         self.record_extent = Some(sealed_extent);
         self.sealed = Some(ErrorRunSeal::CallArgumentRetryLeadingPrefix(category));
         CallArgumentRetryLeadingSeal::Sealed
@@ -214,16 +213,16 @@ impl ErrorRunOutput<'_, '_, '_, '_> {
     fn include_extent(&mut self, next: Range<usize>) {
         self.assert_unsealed();
         assert!(next.start < next.end, "an Error-run segment is nonempty");
-        if let Some(extent) = &mut self.error_node_extent {
+        if let Some(extent) = &mut self.error_run_extent {
             assert_eq!(
                 extent.end, next.start,
                 "Error-run segments remain in physical source order"
             );
             extent.end = next.end;
         } else {
-            self.error_node_extent = Some(next);
+            self.error_run_extent = Some(next);
         }
-        self.record_extent = self.error_node_extent.clone();
+        self.record_extent = self.error_run_extent.clone();
     }
 
     fn assert_unsealed(&self) {
@@ -304,13 +303,12 @@ pub(crate) fn emit_recovery_error_run<R>(
     body: impl FnOnce(&mut ErrorRunOutput<'_, '_, '_, '_>) -> R,
     make_draft: impl FnOnce(Range<usize>, Arc<[UnexpectedSyntax]>) -> RecoveryDraft,
 ) -> R {
-    // This is atomic for normal parser returns: the one node and one record are
-    // paired before the helper returns. `body` and `make_draft` are total
+    // The physical token run and its temporary record are paired before the
+    // helper returns. `body` and `make_draft` are total
     // post-commit contracts; unwinding invalidates this GreenNodeBuilder.
-    i.state.start_node(SyntaxKind::Error.into());
     let mut run = ErrorRunOutput {
         input: i,
-        error_node_extent: None,
+        error_run_extent: None,
         record_extent: None,
         unexpected: Vec::new(),
         sealed: None,
@@ -318,20 +316,18 @@ pub(crate) fn emit_recovery_error_run<R>(
     let result = body(&mut run);
     let ErrorRunOutput {
         input,
-        error_node_extent,
+        error_run_extent,
         record_extent,
         unexpected,
         sealed,
     } = run;
-    input.state.finish_node();
-    let error_node_extent =
-        error_node_extent.expect("an Error run emits a nonempty physical extent");
+    let error_run_extent = error_run_extent.expect("an Error run emits a nonempty physical extent");
     let range = record_extent.expect("an Error run records its emitted physical extent");
     let unexpected: Arc<[UnexpectedSyntax]> = match sealed {
         Some(ErrorRunSeal::RecordThroughRetryLeading(category)) => {
             assert!(unexpected.is_empty());
-            assert_eq!(range.start, error_node_extent.start);
-            assert!(range.end > error_node_extent.end);
+            assert_eq!(range.start, error_run_extent.start);
+            assert!(range.end > error_run_extent.end);
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
                 category,
@@ -339,7 +335,7 @@ pub(crate) fn emit_recovery_error_run<R>(
         }
         Some(ErrorRunSeal::PathSegmentRetryLeadingPrefix(category)) => {
             assert!(unexpected.is_empty());
-            assert_eq!(range, error_node_extent);
+            assert_eq!(range, error_run_extent);
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
                 category,
@@ -347,14 +343,14 @@ pub(crate) fn emit_recovery_error_run<R>(
         }
         Some(ErrorRunSeal::CallArgumentRetryLeadingPrefix(category)) => {
             assert!(unexpected.is_empty());
-            assert_eq!(range, error_node_extent);
+            assert_eq!(range, error_run_extent);
             Arc::from([UnexpectedSyntax::Token {
                 range: range.clone(),
                 category,
             }])
         }
         None => {
-            assert_eq!(range, error_node_extent);
+            assert_eq!(range, error_run_extent);
             unexpected.into()
         }
     };

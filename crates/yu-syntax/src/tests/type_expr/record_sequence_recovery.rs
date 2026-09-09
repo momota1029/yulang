@@ -41,9 +41,13 @@ fn assert_typed_nodes(root: &SyntaxNode, expected: &[CommittedRecoveryRecord]) {
         (SyntaxKind::Error, RecoveryKind::Error),
     ] {
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == syntax)
-                .count(),
+            if syntax == SyntaxKind::Error {
+                recovery_groups(root).len()
+            } else {
+                root.descendants()
+                    .filter(|node| node.kind() == syntax)
+                    .count()
+            },
             expected
                 .iter()
                 .filter(|record| record.kind == recovery)
@@ -116,10 +120,7 @@ fn record_sequence_and_name_errors_keep_their_cut_and_native_nested_items() {
         let expected = [field_record(0, role, range, true)];
         let root = assert_complete_type_recovery(source, 0, &expected);
         assert_typed_nodes(&root, &expected);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
-            .unwrap();
+        let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(error.text(), text, "{source:?}");
         assert_eq!(
             error.parent().unwrap().kind(),
@@ -134,14 +135,35 @@ fn record_sequence_and_name_errors_keep_their_cut_and_native_nested_items() {
                 error
                     .children_with_tokens()
                     .filter_map(|element| element.into_token())
-                    .any(|token| token.kind() == SyntaxKind::LParen)
+                    .any(|token| token.kind() == SyntaxKind::Error && token.text() == "(")
             );
         }
     }
     // A ')' cannot discharge the '[' in a malformed name authority probe.
     let expected = [field_record(0, F, 1..3, true), close(1, 3..7, true)];
     let root = assert_complete_type_recovery("{([)]:A}", 0, &expected);
-    assert_typed_nodes(&root, &expected);
+    // The field probe and close recovery keep their separate records, but
+    // their adjacent raw leaves share one NamedRecordType parent.
+    let groups = recovery_groups(&root);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].text(), "([)]:A");
+    assert_eq!(
+        groups[0].parent().unwrap().kind(),
+        SyntaxKind::NamedRecordType
+    );
+    assert_eq!(
+        groups[0].text_range(),
+        rowan::TextRange::new(9.into(), 15.into())
+    );
+    assert!(matches!(
+        groups[0],
+        crate::tests::recovery_output::RecoveryGroup::Raw(_)
+    ));
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
     assert!(
         !root
             .descendants()
@@ -182,17 +204,15 @@ fn record_unclaimed_closes_use_one_native_close_only_run_and_preserve_outer_tail
         ] {
             let root = assert_complete_type_recovery(source, origin, &expected);
             assert_typed_nodes(&root, &expected);
-            let error = root
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
-                .unwrap();
-            assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::RBracket);
+            let error = recovery_groups(&root).into_iter().next().unwrap();
+            assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
+            assert_eq!(error.first_token().unwrap().text(), "]");
             assert_eq!(error.parent().unwrap().kind(), SyntaxKind::NamedRecordType);
             assert!(
                 !error
                     .descendants_with_tokens()
                     .filter_map(|element| element.into_token())
-                    .any(|token| token.kind() == SyntaxKind::RBrace)
+                    .any(|token| token.text() == "}")
             );
             if source.ends_with("::Next") {
                 let tail = root
@@ -203,7 +223,7 @@ fn record_unclaimed_closes_use_one_native_close_only_run_and_preserve_outer_tail
                 assert!(
                     !tail
                         .ancestors()
-                        .any(|node| node.kind() == SyntaxKind::Error)
+                        .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
                 );
             }
             if source.starts_with("F(") {

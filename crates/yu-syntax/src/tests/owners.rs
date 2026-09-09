@@ -40,7 +40,7 @@ fn parenthesized_primary_owns_its_sequence_and_outer_ml_tail() {
             SyntaxKind::Identifier,
             SyntaxKind::Comma,
             SyntaxKind::Identifier,
-            SyntaxKind::Semicolon,
+            SyntaxKind::Error,
             SyntaxKind::Identifier,
             SyntaxKind::RParen,
             SyntaxKind::Whitespace,
@@ -50,9 +50,9 @@ fn parenthesized_primary_owns_its_sequence_and_outer_ml_tail() {
     // Parenthesized expressions accept comma but not semicolon.  The sequence
     // and outer ML ownership stay unchanged while the local separator recovers.
     assert_eq!(
-        group
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&group)
+            .into_iter()
+            .filter(|run| run.parent().as_ref() == Some(&group))
             .count(),
         1
     );
@@ -114,11 +114,10 @@ fn call_and_index_own_valid_multiple_item_sequences() {
         rbracket.parent().expect("index close owner").kind(),
         SyntaxKind::IndexTail
     );
-    assert!(
-        !root
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-    );
+    assert!(!root.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
 }
 
 #[test]
@@ -175,8 +174,8 @@ fn delimited_owner_emits_missing_close_before_handing_eof_outward() {
         );
         assert!(
             !root
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
     }
@@ -211,8 +210,8 @@ fn delimited_owner_recovers_missing_items_before_separators() {
         );
         assert!(
             !root
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
     }
@@ -249,9 +248,9 @@ fn delimited_nud_recovery_retries_one_maximal_error_run() {
             .find(|node| node.kind() == owner)
             .expect("delimited owner");
         assert_eq!(
-            owner
-                .children()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&owner)
+                .into_iter()
+                .filter(|group| group.parent().as_ref() == Some(&owner))
                 .count(),
             1,
             "{source:?}"
@@ -306,14 +305,22 @@ fn delimited_owner_consumes_wrong_closes_before_settling_its_own_close() {
             .descendants()
             .find(|node| node.kind() == owner)
             .expect("delimited owner");
-        let error = owner
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&owner)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&owner))
             .expect("owner-local wrong-close error");
         assert_eq!(
             error.first_token().map(|token| token.kind()),
-            Some(wrong),
+            Some(SyntaxKind::Error),
             "{source:?}"
+        );
+        assert_eq!(
+            error.text(),
+            if wrong == SyntaxKind::RBracket {
+                "]"
+            } else {
+                ")"
+            }
         );
         assert_eq!(
             owner
@@ -486,9 +493,10 @@ fn deeper_newlines_continue_the_current_delimited_item_chain() {
             "{source:?}"
         );
         assert!(
-            !owner
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            !owner.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )),
             "{source:?}"
         );
     }
@@ -535,11 +543,10 @@ fn record_projection_spread_owns_exact_marker_and_rhs() {
             .count(),
         1
     );
-    assert!(
-        !record
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-    );
+    assert!(!record.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
 }
 
 #[test]
@@ -565,8 +572,8 @@ fn record_projection_spread_recovers_its_mandatory_rhs() {
         );
         assert!(
             !record
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
     }
@@ -585,9 +592,9 @@ fn record_projection_spread_retries_one_invalid_rhs_run() {
         .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
         .expect("record spread item");
     assert_eq!(
-        spread
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&spread)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&spread))
             .count(),
         1
     );
@@ -638,9 +645,8 @@ fn record_projection_spread_is_a_delimited_item_boundary() {
             "{source:?}"
         );
         assert_eq!(
-            record
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&record)
+                .into_iter()
                 .count(),
             expected_error,
             "{source:?}"
@@ -672,9 +678,12 @@ fn record_projection_spread_yields_to_an_accepted_dynamic_led() {
             .count(),
         1
     );
-    assert!(!record.descendants().any(|node| matches!(
+    assert!(!record.descendants_with_tokens().any(|node| matches!(
         node.kind(),
-        SyntaxKind::ProjectionRecordSpreadItem | SyntaxKind::Missing | SyntaxKind::Error
+        SyntaxKind::ProjectionRecordSpreadItem
+            | SyntaxKind::Missing
+            | SyntaxKind::Error
+            | SyntaxKind::Invalid
     )));
 }
 
@@ -709,9 +718,8 @@ fn record_projection_spread_rhs_keeps_a_rejected_marker_for_the_owner() {
             "{source:?}"
         );
         assert_eq!(
-            record
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&record)
+                .into_iter()
                 .count(),
             expected_error,
             "{source:?}"
@@ -787,11 +795,10 @@ fn dot_projections_precede_field_dispatch_and_own_their_closes() {
             .expect("projection close");
         assert_eq!(close.parent().expect("close owner").kind(), kind);
     }
-    assert!(
-        !root
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-    );
+    assert!(!root.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
 }
 
 #[test]
@@ -859,11 +866,10 @@ fn index_item_accepts_ml_argument_without_separator_recovery() {
         rbracket.parent().expect("index close owner").kind(),
         SyntaxKind::IndexTail
     );
-    assert!(
-        !root
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-    );
+    assert!(!root.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
 }
 
 #[test]
@@ -1014,9 +1020,8 @@ fn index_item_nested_call_keeps_close_owner_control() {
         rbracket.parent().expect("index close owner").kind(),
         SyntaxKind::IndexTail
     );
-    assert!(
-        !root
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-    );
+    assert!(!root.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
 }

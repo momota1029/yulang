@@ -221,6 +221,12 @@ fn header_role_boundary() -> TypeOuterBoundary {
 }
 
 fn count(green: &GreenNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(
+            green.clone(),
+        ))
+        .len();
+    }
     SyntaxNode::new_root(green.clone())
         .descendants()
         .filter(|node| node.kind() == kind)
@@ -651,10 +657,11 @@ fn derives_via_error_preserves_protected_identifier_before_retry() {
                 assert_eq!(rest, " tail");
                 assert_eq!(count(&green, SyntaxKind::Missing), 0);
                 assert_eq!(count(&green, SyntaxKind::Error), 1);
-                let error = SyntaxNode::new_root(green)
-                    .descendants()
-                    .find(|node| node.kind() == SyntaxKind::Error)
-                    .unwrap();
+                let error =
+                    crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(green))
+                        .into_iter()
+                        .next()
+                        .unwrap();
                 assert_eq!(error.to_string(), " @ 123");
             }
         }

@@ -170,6 +170,175 @@ fn unknown_item(text: &str) -> Item {
     )
 }
 
+/// These isolated fixtures have exactly one raw group in the root slot.
+/// Check its physical leaves, direct containment and absence of a wrapper.
+fn assert_raw_root_tokens(root: &SyntaxNode, expected: &[&str]) {
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Error)
+    );
+    let tokens = root
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        tokens.iter().map(|token| token.text()).collect::<Vec<_>>(),
+        expected
+    );
+    for pair in tokens.windows(2) {
+        assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+        assert_eq!(
+            pair[0].next_sibling_or_token(),
+            Some(pair[1].clone().into())
+        );
+    }
+}
+
+/// A test view of a raw leaf group or structured Invalid, never an extra CST
+/// wrapper. A raw group contains consecutive Error leaves of one immediate
+/// parent and can span multiple separately asserted diagnostic records.
+#[derive(Clone, Debug)]
+pub(super) enum RecoveryGroup {
+    Raw(Vec<crate::SyntaxToken>),
+    Structured(SyntaxNode),
+}
+
+impl RecoveryGroup {
+    pub(super) fn descendants(&self) -> impl Iterator<Item = SyntaxNode> {
+        match self {
+            Self::Raw(_) => Vec::new(),
+            Self::Structured(node) => node.descendants().collect(),
+        }
+        .into_iter()
+    }
+
+    pub(super) fn descendants_with_tokens(
+        &self,
+    ) -> impl Iterator<Item = rowan::NodeOrToken<SyntaxNode, crate::SyntaxToken>> {
+        match self {
+            Self::Raw(tokens) => tokens.iter().cloned().map(Into::into).collect::<Vec<_>>(),
+            Self::Structured(node) => node.descendants_with_tokens().collect(),
+        }
+        .into_iter()
+    }
+    pub(super) fn text(&self) -> String {
+        match self {
+            Self::Raw(tokens) => tokens.iter().map(|token| token.text()).collect(),
+            Self::Structured(node) => node.to_string(),
+        }
+    }
+
+    pub(super) fn text_range(&self) -> rowan::TextRange {
+        match self {
+            Self::Raw(tokens) => rowan::TextRange::new(
+                tokens[0].text_range().start(),
+                tokens.last().unwrap().text_range().end(),
+            ),
+            Self::Structured(node) => node.text_range(),
+        }
+    }
+
+    pub(super) fn parent(&self) -> Option<SyntaxNode> {
+        match self {
+            Self::Raw(tokens) => tokens[0].parent(),
+            Self::Structured(node) => node.parent(),
+        }
+    }
+
+    pub(super) fn next_sibling_or_token(
+        &self,
+    ) -> Option<rowan::NodeOrToken<SyntaxNode, crate::SyntaxToken>> {
+        match self {
+            Self::Raw(tokens) => tokens.last().unwrap().next_sibling_or_token(),
+            Self::Structured(node) => node.next_sibling_or_token(),
+        }
+    }
+
+    pub(super) fn children(&self) -> impl Iterator<Item = SyntaxNode> {
+        match self {
+            Self::Raw(_) => Vec::new(),
+            Self::Structured(node) => node.children().collect(),
+        }
+        .into_iter()
+    }
+
+    pub(super) fn children_with_tokens(
+        &self,
+    ) -> impl Iterator<Item = rowan::NodeOrToken<SyntaxNode, crate::SyntaxToken>> {
+        match self {
+            Self::Raw(tokens) => tokens.iter().cloned().map(Into::into).collect::<Vec<_>>(),
+            Self::Structured(node) => node.children_with_tokens().collect(),
+        }
+        .into_iter()
+    }
+
+    pub(super) fn first_token(&self) -> Option<crate::SyntaxToken> {
+        match self {
+            Self::Raw(tokens) => tokens.first().cloned(),
+            Self::Structured(node) => node.first_token(),
+        }
+    }
+
+    pub(super) fn last_token(&self) -> Option<crate::SyntaxToken> {
+        match self {
+            Self::Raw(tokens) => tokens.last().cloned(),
+            Self::Structured(node) => node.last_token(),
+        }
+    }
+}
+
+impl std::fmt::Display for RecoveryGroup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.text())
+    }
+}
+
+pub(super) fn recovery_groups(root: &SyntaxNode) -> Vec<RecoveryGroup> {
+    fn visit(node: &SyntaxNode, groups: &mut Vec<RecoveryGroup>) {
+        assert_ne!(node.kind(), SyntaxKind::Error, "Error must be a token");
+        if node.kind() == SyntaxKind::Invalid {
+            groups.push(RecoveryGroup::Structured(node.clone()));
+        }
+        let mut children = node.children_with_tokens().peekable();
+        while let Some(child) = children.next() {
+            match child {
+                rowan::NodeOrToken::Node(node) => visit(&node, groups),
+                rowan::NodeOrToken::Token(token) if token.kind() == SyntaxKind::Error => {
+                    let mut tokens = vec![token];
+                    while children
+                        .peek()
+                        .is_some_and(|next| next.kind() == SyntaxKind::Error)
+                    {
+                        let next = children.next().unwrap().into_token().expect("Error leaf");
+                        assert_eq!(tokens.last().unwrap().parent(), next.parent());
+                        assert_eq!(
+                            tokens.last().unwrap().text_range().end(),
+                            next.text_range().start()
+                        );
+                        tokens.push(next);
+                    }
+                    let group = RecoveryGroup::Raw(tokens);
+                    let range = group.text_range();
+                    let source = node.to_string();
+                    let offset = usize::from(node.text_range().start());
+                    assert_eq!(
+                        group.text(),
+                        source[usize::from(range.start()) - offset
+                            ..usize::from(range.end()) - offset]
+                    );
+                    groups.push(group);
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut groups = Vec::new();
+    visit(root, &mut groups);
+    groups
+}
+
 fn token_item(kind: TokenKind, text: &str) -> Item {
     Item::plain(
         LeadingTrivia::default(),
@@ -556,7 +725,7 @@ fn structured_reservations_preserve_fresh_and_frozen_order_through_nested_public
     let root = SyntaxNode::new_root(green);
     assert_eq!(
         root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+            .filter(|node| node.kind() == SyntaxKind::Invalid)
             .count(),
         2
     );
@@ -805,7 +974,7 @@ fn structured_source_range_and_cst_anchor_exclude_prior_and_preemitted_bytes() {
     let root = SyntaxNode::new_root(green);
     let error = root
         .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
+        .find(|node| node.kind() == SyntaxKind::Invalid)
         .unwrap();
     assert_eq!(error.to_string(), payload);
     assert_eq!(
@@ -885,7 +1054,7 @@ fn structured_reservation_rejects_partial_full_lifo_overflow_and_unfinished_fail
         let records = recover.finish_recoveries_for_test();
         assert_eq!(root.text(), "x");
         let error = root.children().next().unwrap();
-        assert_eq!(error.kind(), SyntaxKind::Error);
+        assert_eq!(error.kind(), SyntaxKind::Invalid);
         assert_eq!(
             error.text_range(),
             rowan::TextRange::new(0.into(), 1.into())
@@ -1199,12 +1368,7 @@ fn typed_missing_and_one_item_error_publish_exact_records_and_nodes() {
             .count(),
         1
     );
-    assert_eq!(
-        root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .count(),
-        1
-    );
+    assert_raw_root_tokens(&root, &["\r\n", "α"]);
     assert_eq!(records[0].site.range, 5..5);
     assert_eq!(records[1].site.range, 5..9);
     assert_eq!(
@@ -1217,7 +1381,7 @@ fn typed_missing_and_one_item_error_publish_exact_records_and_nodes() {
 }
 
 #[test]
-fn one_item_error_uses_owner_selected_kind_and_preserves_leading_fragments() {
+fn one_item_error_tags_every_owned_physical_fragment_as_error() {
     let mut input = "";
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
@@ -1276,11 +1440,11 @@ fn one_item_error_uses_owner_selected_kind_and_preserves_leading_fragments() {
     assert_eq!(
         tokens,
         [
-            (SyntaxKind::BlockComment, "/*a\n".into()),
-            (SyntaxKind::YmQuotePrefix, "> ".into()),
-            (SyntaxKind::BlockComment, "b*/".into()),
-            (SyntaxKind::Whitespace, " ".into()),
-            (SyntaxKind::Unknown, "++".into()),
+            (SyntaxKind::Error, "/*a\n".into()),
+            (SyntaxKind::Error, "> ".into()),
+            (SyntaxKind::Error, "b*/".into()),
+            (SyntaxKind::Error, " ".into()),
+            (SyntaxKind::Error, "++".into()),
         ]
     );
     assert_eq!(records.len(), 1);
@@ -1326,13 +1490,7 @@ fn total_error_run_exposes_only_forward_lexical_and_emission_capabilities() {
     let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     assert_eq!(input, "");
     assert_eq!(green.to_string(), "@β");
-    assert_eq!(
-        SyntaxNode::new_root(green)
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .count(),
-        1
-    );
+    assert_raw_root_tokens(&SyntaxNode::new_root(green), &["@", "β"]);
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].site.range, 10..13);
     assert_eq!(records[0].unexpected.len(), 2);
@@ -1350,7 +1508,38 @@ fn total_error_run_exposes_only_forward_lexical_and_emission_capabilities() {
 }
 
 #[test]
-fn call_argument_retry_leading_seal_emits_the_complete_native_prefix() {
+fn raw_error_same_line_eof_leading_is_error_content() {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut input = "";
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let mut eof = Item::plain(
+        LeadingTrivia::ordinary(vec![Trivia::whitespace(" \t".into())].into_boxed_slice()),
+        Payload::Eof,
+    );
+    emit_recovery_error_run(
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+        |run| {
+            run.emit_literal_segment("β", 0..2, SyntaxKind::Unknown);
+            assert_eq!(run.emit_same_line_eof_leading(&mut eof, 4), 0..4);
+            run.append_unexpected(UnexpectedSyntax::Token {
+                range: 0..4,
+                category: UnexpectedCategory::OtherCharacter,
+            });
+        },
+        |range, unexpected| path_segment_draft(RecoveryKind::Error, range, unexpected),
+    );
+    output.finish_node();
+    let root = SyntaxNode::new_root(output.finish());
+    assert_eq!(root.text(), "β \t");
+    assert_raw_root_tokens(&root, &["β", " \t"]);
+    assert_eq!(eof.extent(4).remaining(), 4..4);
+    assert_eq!(recover.finish_recoveries_for_test()[0].site.range, 0..4);
+}
+
+#[test]
+fn call_argument_retry_leading_seal_emits_the_complete_error_prefix() {
     let mut input = "";
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
@@ -1468,22 +1657,7 @@ fn call_argument_retry_leading_seal_emits_the_complete_native_prefix() {
         }])
     );
     let root = SyntaxNode::new_root(green);
-    let error = root
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
-        .expect("CallArgument Error");
-    assert_eq!(
-        error
-            .children_with_tokens()
-            .map(|element| (element.kind(), element.to_string()))
-            .collect::<Vec<_>>(),
-        [
-            (SyntaxKind::Unknown, "@".to_owned()),
-            (SyntaxKind::Whitespace, " ".to_owned()),
-            (SyntaxKind::BlockComment, "/*a*/".to_owned()),
-            (SyntaxKind::Whitespace, " ".to_owned()),
-        ]
-    );
+    assert_raw_root_tokens(&root, &["@", " ", "/*a*/", " "]);
 }
 
 #[test]
@@ -1651,28 +1825,15 @@ fn path_segment_retry_leading_seal_emits_only_block_comments_and_returns_the_sam
         }])
     );
     let root = SyntaxNode::new_root(green);
-    let error = root
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
-        .expect("PathSegment Error");
-    assert_eq!(error.text(), "@/*a*//*b*/");
-    assert_eq!(
-        error
-            .children_with_tokens()
-            .map(|element| (element.kind(), element.to_string()))
-            .collect::<Vec<_>>(),
-        [
-            (SyntaxKind::Unknown, "@".to_owned()),
-            (SyntaxKind::BlockComment, "/*a*/".to_owned()),
-            (SyntaxKind::BlockComment, "/*b*/".to_owned()),
-        ]
-    );
+    assert_raw_root_tokens(&root, &["@", "/*a*/", "/*b*/"]);
     assert_eq!(
         root.children_with_tokens()
             .map(|element| (element.kind(), element.to_string()))
             .collect::<Vec<_>>(),
         [
-            (SyntaxKind::Error, "@/*a*//*b*/".to_owned()),
+            (SyntaxKind::Error, "@".to_owned()),
+            (SyntaxKind::Error, "/*a*/".to_owned()),
+            (SyntaxKind::Error, "/*b*/".to_owned()),
             (SyntaxKind::Whitespace, " ".to_owned()),
             (SyntaxKind::Identifier, "B".to_owned()),
         ]

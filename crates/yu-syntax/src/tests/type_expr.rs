@@ -1,3 +1,4 @@
+use crate::tests::recovery_output::recovery_groups;
 use crate::tests::support::*;
 
 use std::{
@@ -523,8 +524,8 @@ fn assert_parenthesized_t4p_topology(green: &GreenNode, expected: &[(SyntaxKind,
     assert_direct_children_topology(&group, expected);
     assert!(
         !group
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error),
+            .descendants_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
         "{}",
         group.text(),
     );
@@ -778,11 +779,10 @@ fn assert_local_parenthesized_close(source: &str, item_error: Option<Range<usize
             .count(),
         1
     );
-    assert!(group.children().any(|node| {
-        node.kind() == SyntaxKind::Error
-            && node
-                .first_token()
-                .is_some_and(|token| token.kind() == SyntaxKind::RBracket)
+    assert!(group.children_with_tokens().any(|element| {
+        element
+            .as_token()
+            .is_some_and(|token| token.kind() == SyntaxKind::Error && token.text() == "]")
     }));
 }
 
@@ -807,9 +807,9 @@ fn required_type_primary_publishes_fresh_and_frozen_malformed_records() {
     assert_eq!(remainder, "");
     assert_eq!(records, [malformed.clone()]);
     let root = SyntaxNode::new_root(green.clone());
-    let error = root
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&root)
+        .into_iter()
+        .find(|group| group.parent().as_ref() == Some(&root))
         .expect("required Type-primary Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
@@ -818,7 +818,7 @@ fn required_type_primary_publishes_fresh_and_frozen_malformed_records() {
             .filter_map(|element| element.into_token())
             .map(|token| (token.kind(), token.text().to_owned()))
             .collect::<Vec<_>>(),
-        [(SyntaxKind::Unknown, "@".to_owned())]
+        [(SyntaxKind::Error, "@".to_owned())]
     );
     let (frozen_green, frozen_exit, frozen_found, frozen_remainder, frozen_records) =
         run_required_type_with_recoveries(
@@ -864,9 +864,9 @@ fn required_type_primary_error_run_keeps_item_evidence_and_cst_order() {
     assert!(primary_found);
     assert_eq!(remainder, "");
     assert_eq!(records, [expected.clone()]);
-    let error = SyntaxNode::new_root(green.clone())
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&SyntaxNode::new_root(green.clone()))
+        .into_iter()
+        .next()
         .expect("one contiguous required Type Error");
     assert_eq!(error.text(), "@ .");
     assert_eq!(
@@ -876,9 +876,9 @@ fn required_type_primary_error_run_keeps_item_evidence_and_cst_order() {
             .map(|token| (token.kind(), token.text().to_owned()))
             .collect::<Vec<_>>(),
         [
-            (SyntaxKind::Unknown, "@".to_owned()),
-            (SyntaxKind::Whitespace, " ".to_owned()),
-            (SyntaxKind::Dot, ".".to_owned()),
+            (SyntaxKind::Error, "@".to_owned()),
+            (SyntaxKind::Error, " ".to_owned()),
+            (SyntaxKind::Error, ".".to_owned()),
         ]
     );
     let (frozen_green, _, frozen_found, frozen_remainder, frozen_records) =
@@ -917,9 +917,9 @@ fn required_type_primary_error_stops_before_a_pending_lexical_boundary() {
     assert_eq!(emit_pending_leading_text(&mut item), " ");
     assert_eq!(remainder, "A");
     assert_eq!(records, [expected.clone()]);
-    let error = SyntaxNode::new_root(green.clone())
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&SyntaxNode::new_root(green.clone()))
+        .into_iter()
+        .next()
         .expect("required Type-primary Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
@@ -928,7 +928,7 @@ fn required_type_primary_error_stops_before_a_pending_lexical_boundary() {
             .filter_map(|element| element.into_token())
             .map(|token| (token.kind(), token.text().to_owned()))
             .collect::<Vec<_>>(),
-        [(SyntaxKind::Unknown, "@".to_owned())]
+        [(SyntaxKind::Error, "@".to_owned())]
     );
 
     let (frozen_green, frozen_exit, frozen_found, frozen_remainder, frozen_records) =
@@ -1092,8 +1092,8 @@ fn pattern_annotation_keeps_caller_missing_distinct_from_t1_error() {
     );
     assert!(
         !missing_annotation
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
+            .descendants_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
 
     let expected = expected_required_type_primary_error(
@@ -1112,10 +1112,7 @@ fn pattern_annotation_keeps_caller_missing_distinct_from_t1_error() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
         .expect("pattern Type annotation");
-    let errors = annotation
-        .descendants()
-        .filter(|node| node.kind() == SyntaxKind::Error)
-        .collect::<Vec<_>>();
+    let errors = recovery_groups(&annotation).into_iter().collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text(), "@");
     assert!(
@@ -1293,9 +1290,7 @@ fn rb_t_arrow_rhs_rejected_retry_seal_preserves_successor_vector() {
     control_output.start_node(SyntaxKind::TypeArrowTail.into());
     control_output.token(SyntaxKind::Whitespace.into(), " ");
     control_output.token(SyntaxKind::Arrow.into(), "->");
-    control_output.start_node(SyntaxKind::Error.into());
-    control_output.token(SyntaxKind::Unknown.into(), "@");
-    control_output.finish_node();
+    control_output.token(SyntaxKind::Error.into(), "@");
     commit_record_draft(&mut control_recover, &frozen[0]);
     control_output.finish_node();
     control_output.finish_node();
@@ -1501,8 +1496,11 @@ fn type_call_and_group_keep_explicit_and_implicit_boundaries() {
     );
     assert!(
         !SyntaxNode::new_root(green)
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            .descendants_with_tokens()
+            .any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            ))
     );
 }
 
@@ -1522,7 +1520,7 @@ fn type_path_tail_recovers_its_mandatory_segment() {
             .find(|node| node.kind() == SyntaxKind::TypePathTail)
             .expect("type path tail");
         assert_eq!(
-            path.children()
+            path.children_with_tokens()
                 .filter(|node| node.kind() == recovery)
                 .count(),
             1,
@@ -1739,8 +1737,11 @@ fn type_contextual_names_belong_to_paths_and_nested_calls() {
                     }
                     let root = SyntaxNode::new_root(green.clone());
                     assert!(
-                        !root.descendants().any(|node| {
-                            matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)
+                        !root.descendants_with_tokens().any(|node| {
+                            matches!(
+                                node.kind(),
+                                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+                            )
                         }),
                         "{source:?}"
                     );
@@ -1912,9 +1913,9 @@ fn type_path_segment_error_records_preserve_legacy_continuation_and_native_child
             .descendants()
             .find(|node| node.kind() == SyntaxKind::TypePathTail)
             .expect("TypePathTail");
-        let error = path
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&path)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&path))
             .expect("PathSegment Error");
         assert_eq!(
             usize::from(error.text_range().start())..usize::from(error.text_range().end()),
@@ -1929,7 +1930,7 @@ fn type_path_segment_error_records_preserve_legacy_continuation_and_native_child
                 .collect::<Vec<_>>(),
             error_children
                 .into_iter()
-                .map(|(kind, text)| (kind, text.to_owned()))
+                .map(|(_, text)| (SyntaxKind::Error, text.to_owned()))
                 .collect::<Vec<_>>(),
             "{source:?}",
         );
@@ -1954,7 +1955,7 @@ fn type_path_segment_error_records_preserve_legacy_continuation_and_native_child
                             && usize::from(token.text_range().start()) == range.end
                     })
                     .expect("outer TypeApply space");
-                assert!(!space.parent_ancestors().any(|ancestor| ancestor == error));
+                assert!(!error.text_range().contains_range(space.text_range()));
                 assert!(
                     space
                         .parent_ancestors()
@@ -1988,9 +1989,9 @@ fn type_path_segment_malformed_trivia_ownership_is_phase_aware() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::TypePathTail)
         .expect("TypePathTail");
-    let error = path
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&path)
+        .into_iter()
+        .find(|group| group.parent().as_ref() == Some(&path))
         .expect("PathSegment Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
@@ -2013,9 +2014,9 @@ fn type_path_segment_malformed_trivia_ownership_is_phase_aware() {
             .any(|ancestor| ancestor == path)
     );
     assert!(
-        !initial_space
-            .parent_ancestors()
-            .any(|ancestor| ancestor == error)
+        !error
+            .text_range()
+            .contains_range(initial_space.text_range())
     );
     let frozen = expected_type_path_segment_recovery(7, RecoveryKind::Error, 4..5);
     let (frozen_green, _, frozen_records) =
@@ -2044,9 +2045,9 @@ fn type_path_segment_malformed_trivia_ownership_is_phase_aware() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::TypePathTail)
             .expect("TypePathTail");
-        let error = path
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&path)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&path))
             .expect("PathSegment Error");
         assert_eq!(
             error
@@ -2056,7 +2057,7 @@ fn type_path_segment_malformed_trivia_ownership_is_phase_aware() {
                 .collect::<Vec<_>>(),
             error_children
                 .into_iter()
-                .map(|(kind, text)| (kind, text.to_owned()))
+                .map(|(_, text)| (SyntaxKind::Error, text.to_owned()))
                 .collect::<Vec<_>>(),
             "{source:?}",
         );
@@ -2083,7 +2084,7 @@ fn type_path_segment_malformed_trivia_ownership_is_phase_aware() {
             gap.parent_ancestors()
                 .any(|ancestor| ancestor.kind() == SyntaxKind::TypeApplyArgument)
         );
-        assert!(!gap.parent_ancestors().any(|ancestor| ancestor == error));
+        assert!(!error.text_range().contains_range(gap.text_range()));
 
         let frozen = expected_type_path_segment_recovery(7, RecoveryKind::Error, range);
         let (frozen_green, _, frozen_records) =
@@ -2102,8 +2103,11 @@ fn type_path_segment_valid_controls_publish_no_recovery() {
         assert!(records.is_empty(), "{source:?}");
         assert!(
             !SyntaxNode::new_root(green)
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+                .descendants_with_tokens()
+                .any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+                ))
         );
     }
 }
@@ -2131,9 +2135,9 @@ fn type_path_segment_shifted_origin_maps_local_cst_to_global_records() {
                 global.clone()
             )]
         );
-        let error = SyntaxNode::new_root(green)
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&SyntaxNode::new_root(green))
+            .into_iter()
+            .next()
             .expect("shifted PathSegment Error");
         assert_eq!(
             usize::from(error.text_range().start())..usize::from(error.text_range().end()),
@@ -2423,9 +2427,7 @@ fn rb_t_path_segment_rejected_retry_seal_preserves_successor_vector() {
         control_output.token(SyntaxKind::Identifier.into(), "A");
         control_output.start_node(SyntaxKind::TypePathTail.into());
         control_output.token(SyntaxKind::ColonColon.into(), "::");
-        control_output.start_node(SyntaxKind::Error.into());
-        control_output.token(SyntaxKind::Unknown.into(), "@");
-        control_output.finish_node();
+        control_output.token(SyntaxKind::Error.into(), "@");
         commit_record_draft(&mut control_recover, &frozen[0]);
         control_output.finish_node();
         control_output.finish_node();
@@ -2470,7 +2472,7 @@ fn type_arrow_tail_recovers_its_mandatory_rhs() {
             .expect("type arrow tail");
         assert_eq!(
             arrow
-                .children()
+                .children_with_tokens()
                 .filter(|node| node.kind() == recovery)
                 .count(),
             1,
@@ -2520,9 +2522,9 @@ fn type_arrow_rhs_publishes_fresh_and_frozen_extended_error_records() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
         .expect("Arrow tail");
-    let error = arrow
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&arrow)
+        .into_iter()
+        .find(|group| group.parent().as_ref() == Some(&arrow))
         .expect("Arrow-RHS Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
@@ -2549,11 +2551,7 @@ fn type_arrow_rhs_publishes_fresh_and_frozen_extended_error_records() {
             .parent_ancestors()
             .any(|ancestor| ancestor == rhs_expression)
     );
-    assert!(
-        !retry_space
-            .parent_ancestors()
-            .any(|ancestor| ancestor == error)
-    );
+    assert!(!error.text_range().contains_range(retry_space.text_range()));
     let rhs = rhs_expression
         .descendants_with_tokens()
         .filter_map(|element| element.into_token())
@@ -2614,9 +2612,9 @@ fn type_arrow_rhs_shifted_origin_keeps_local_cst_and_global_recovery_extent() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
         .expect("shifted Arrow tail");
-    let error = arrow
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&arrow)
+        .into_iter()
+        .next()
         .expect("shifted Arrow-RHS Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
@@ -2642,11 +2640,7 @@ fn type_arrow_rhs_shifted_origin_keeps_local_cst_and_global_recovery_extent() {
             .parent_ancestors()
             .any(|ancestor| ancestor == rhs_expression)
     );
-    assert!(
-        !retry_space
-            .parent_ancestors()
-            .any(|ancestor| ancestor == error)
-    );
+    assert!(!error.text_range().contains_range(retry_space.text_range()));
     let rhs = rhs_expression
         .descendants_with_tokens()
         .filter_map(|element| element.into_token())
@@ -2735,9 +2729,9 @@ fn type_arrow_rhs_record_extension_obeys_retry_leading_eligibility() {
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         assert_eq!(records, [expected], "{source:?}");
         let root = SyntaxNode::new_root(green);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&root)
+            .into_iter()
+            .next()
             .expect("Arrow-RHS Error");
         assert_eq!(error.text(), error_text, "{source:?}");
         assert_eq!(
@@ -2753,9 +2747,9 @@ fn type_arrow_rhs_record_extension_obeys_retry_leading_eligibility() {
                     .map(|token| (token.kind(), token.text().to_owned()))
                     .collect::<Vec<_>>(),
                 [
-                    (SyntaxKind::Unknown, "@".to_owned()),
-                    (SyntaxKind::Whitespace, " ".to_owned()),
-                    (SyntaxKind::Dot, ".".to_owned()),
+                    (SyntaxKind::Error, "@".to_owned()),
+                    (SyntaxKind::Error, " ".to_owned()),
+                    (SyntaxKind::Error, ".".to_owned()),
                 ],
                 "{source:?}"
             );
@@ -2813,9 +2807,9 @@ fn type_arrow_rhs_preserves_pending_boundaries_after_error() {
         assert_eq!(green.to_string(), &source[..error_range.end], "{source:?}");
         assert_eq!(records, [expected], "{source:?}");
         assert_eq!(
-            SyntaxNode::new_root(green)
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&SyntaxNode::new_root(green))
+                .into_iter()
+                .next()
                 .expect("Arrow-RHS Error")
                 .text(),
             error_text,
@@ -2886,9 +2880,9 @@ fn type_arrow_rhs_preserves_real_with_outer_boundaries_before_and_after_error() 
         let root = SyntaxNode::new_root(green.clone());
         match &error_range {
             Some(range) => {
-                let error = root
-                    .descendants()
-                    .find(|node| node.kind() == SyntaxKind::Error)
+                let error = recovery_groups(&root)
+                    .into_iter()
+                    .next()
                     .expect("Arrow-RHS Error");
                 assert_eq!(error.text(), "@");
                 assert_eq!(
@@ -3013,9 +3007,9 @@ fn type_arrow_rhs_preserves_non_nud_outer_boundaries_after_error() {
         assert!(same_operators);
 
         let root = SyntaxNode::new_root(green);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&root)
+            .into_iter()
+            .next()
             .expect("Arrow-RHS Error");
         assert_eq!(error.text(), "@", "{source:?}");
         assert_eq!(
@@ -3132,9 +3126,9 @@ fn type_arrow_rhs_fenced_boundaries_and_carriers_do_not_extend_error_records() {
         assert_eq!(actual_remainder, remainder, "{source:?}");
         assert_eq!(records, [expected], "{source:?}");
         let root = SyntaxNode::new_root(green);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&root)
+            .into_iter()
+            .next()
             .expect("Arrow-RHS Error");
         assert_eq!(error.text(), "@", "{source:?}");
         assert_eq!(
@@ -3161,8 +3155,11 @@ fn type_arrow_rhs_valid_control_has_no_recovery() {
     assert!(records.is_empty());
     assert!(
         !SyntaxNode::new_root(green)
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
+            .descendants_with_tokens()
+            .any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            ))
     );
 }
 
@@ -3610,8 +3607,8 @@ fn type_parenthesized_t4p_seeded_context_phase_is_lexical_and_frozen_stable() {
         assert!(fresh.same_operators, "{label}");
         assert!(
             !SyntaxNode::new_root(fresh.green.clone())
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{label}",
         );
 
@@ -4145,8 +4142,9 @@ fn type_parenthesized_t4p_provenance_routes_each_delimited_owner_record() {
         assert_eq!(
             SyntaxNode::new_root(green.clone())
                 .descendants()
-                .filter(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-                .count(),
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count()
+                + recovery_groups(&SyntaxNode::new_root(green.clone())).len(),
             expected.len(),
             "{source:?}",
         );
@@ -4414,9 +4412,9 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
         assert_eq!(green.to_string(), source, "{source:?}");
         assert_eq!(records, expected, "{source:?}");
         let root = SyntaxNode::new_root(green.clone());
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&root)
+            .into_iter()
+            .next()
             .expect("typed CallArgument Error");
         assert_eq!(error.text(), "@ ", "{source:?}");
         assert_eq!(
@@ -4459,9 +4457,9 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
             .find(|node| node.kind() == SyntaxKind::TypeCallTail)
             .expect("nested TypeCallTail");
         assert_eq!(call.text(), call_text, "{source:?}");
-        let error = call
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&call)
+            .into_iter()
+            .next()
             .expect("typed CallArgument Error");
         assert_eq!(error.text(), "@", "{source:?}");
         assert_eq!(
@@ -4522,9 +4520,9 @@ fn type_call_t3b_retry_keeps_contextual_names_local_and_outer_closes_pending() {
             ],
             "{source:?}"
         );
-        let error = SyntaxNode::new_root(green)
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&SyntaxNode::new_root(green))
+            .into_iter()
+            .next()
             .expect("typed CallArgument Error");
         assert_eq!(error.text(), "@", "{source:?}");
         assert_eq!(
@@ -4601,9 +4599,9 @@ fn type_call_t3b_abstract_boundary_preserves_typed_error_and_pending_coordinate(
     assert!(boundary.payload_view().is_boundary());
     assert_eq!(remainder, "> > ```\nouter\n");
     assert_eq!(records, expected);
-    let error = SyntaxNode::new_root(green.clone())
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&SyntaxNode::new_root(green.clone()))
+        .into_iter()
+        .next()
         .expect("typed CallArgument Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
@@ -4630,9 +4628,9 @@ fn type_call_t3b_publishes_argument_error_and_maps_missing_records_from_shifted_
     assert_eq!(green.to_string(), "T(@A)");
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     assert_eq!(records, [expected_type_call_argument_error(0, 2..3)]);
-    let error = SyntaxNode::new_root(green)
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&SyntaxNode::new_root(green))
+        .into_iter()
+        .next()
         .expect("typed CallArgument Error");
     assert_eq!(error.text(), "@");
     assert_eq!(
@@ -4641,7 +4639,7 @@ fn type_call_t3b_publishes_argument_error_and_maps_missing_records_from_shifted_
             .filter_map(|element| element.into_token())
             .map(|token| (token.kind(), token.text().to_owned()))
             .collect::<Vec<_>>(),
-        [(SyntaxKind::Unknown, "@".to_owned())],
+        [(SyntaxKind::Error, "@".to_owned())],
     );
 
     let expected = vec![
@@ -4741,9 +4739,9 @@ fn type_call_t3b_argument_errors_keep_exact_native_children_and_continuation() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::TypeCallTail)
             .expect("TypeCallTail");
-        let error = call
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&call)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&call))
             .expect("CallArgument Error");
         assert_eq!(
             usize::from(error.text_range().start())..usize::from(error.text_range().end()),
@@ -4758,7 +4756,7 @@ fn type_call_t3b_argument_errors_keep_exact_native_children_and_continuation() {
                 .collect::<Vec<_>>(),
             expected_children
                 .iter()
-                .map(|(kind, text)| (*kind, (*text).to_owned()))
+                .map(|(_, text)| (SyntaxKind::Error, (*text).to_owned()))
                 .collect::<Vec<_>>(),
             "{source:?}",
         );
@@ -4821,9 +4819,9 @@ fn type_call_t3b_argument_error_maps_global_records_without_shifting_local_cst()
         ))
     ));
     assert_eq!(records, [expected_type_call_argument_error(0, 15..17)]);
-    let error = SyntaxNode::new_root(green)
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&SyntaxNode::new_root(green))
+        .into_iter()
+        .next()
         .expect("CallArgument Error");
     assert_eq!(
         usize::from(error.text_range().start())..usize::from(error.text_range().end()),
@@ -4929,28 +4927,35 @@ fn type_call_t3b_close_errors_retry_matching_close_and_preserve_native_leading()
             .descendants()
             .find(|node| node.kind() == SyntaxKind::TypeCallTail)
             .expect("TypeCallTail");
-        let errors = call
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let errors = recovery_groups(&call)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&call))
             .collect::<Vec<_>>();
         assert_eq!(
             errors
                 .iter()
-                .map(|error| {
+                .flat_map(|error| {
                     error
                         .children_with_tokens()
                         .filter_map(|element| element.into_token())
-                        .map(|token| (token.kind(), token.text().to_owned()))
-                        .collect::<Vec<_>>()
+                        .map(|token| {
+                            (
+                                token.kind(),
+                                token.text().to_owned(),
+                                usize::from(token.text_range().start())
+                                    ..usize::from(token.text_range().end()),
+                            )
+                        })
                 })
                 .collect::<Vec<_>>(),
             expected
                 .iter()
                 .filter(|record| record.kind == RecoveryKind::Error)
-                .map(|record| vec![(
-                    SyntaxKind::Unknown,
-                    source[record.site.range.clone()].to_owned()
-                )])
+                .map(|record| (
+                    SyntaxKind::Error,
+                    source[record.site.range.clone()].to_owned(),
+                    record.site.range.clone()
+                ))
                 .collect::<Vec<_>>(),
             "{source:?}",
         );
@@ -5115,9 +5120,9 @@ fn type_delimited_owner_retries_malformed_initial_items() {
             .find(|node| node.kind() == owner)
             .expect("type delimited owner");
         assert_eq!(
-            owner
-                .children()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&owner)
+                .into_iter()
+                .filter(|group| group.parent().as_ref() == Some(&owner))
                 .count(),
             1,
             "{source:?}"
@@ -5141,8 +5146,9 @@ fn type_delimited_owner_retries_malformed_initial_items() {
         .expect("type call tail");
     assert_eq!(
         call.children()
-            .filter(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-            .count(),
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count()
+            + recovery_groups(&call).len(),
         2
     );
 }
@@ -5360,9 +5366,9 @@ fn named_record_type_retries_a_malformed_whole_field() {
             fields,
             "{source:?}"
         );
-        let error = record
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&record)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&record))
             .expect("whole-field error");
         assert_eq!(error.text(), error_text, "{source:?}");
         assert!(
@@ -5393,9 +5399,9 @@ fn named_record_whole_field_retry_keeps_qualified_newline_with_the_record() {
         1
     );
     assert_eq!(
-        record
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&record)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&record))
             .expect("whole-field error")
             .text(),
         "@"
@@ -5441,17 +5447,17 @@ fn named_record_field_retries_a_malformed_name_only_with_a_colon_skeleton() {
             .find(|node| node.kind() == SyntaxKind::TypeRecordField)
             .expect("type record field");
         assert_eq!(
-            field
-                .children()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&field)
+                .into_iter()
+                .filter(|group| group.parent().as_ref() == Some(&field))
                 .count(),
             1,
             "{source:?}"
         );
         assert_eq!(
-            field
-                .children()
-                .find(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&field)
+                .into_iter()
+                .find(|group| group.parent().as_ref() == Some(&field))
                 .expect("name error")
                 .text(),
             error_text,
@@ -5493,9 +5499,9 @@ fn named_record_type_recovers_an_invalid_semicolon_separator() {
             fields,
             "{source:?}"
         );
-        let error = record
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&record)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&record))
             .expect("separator error");
         assert_eq!(error.text(), ";", "{source:?}");
     }
@@ -5516,9 +5522,9 @@ fn named_record_type_recovers_an_invalid_semicolon_separator() {
         2
     );
     assert_eq!(
-        record
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&record)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&record))
             .expect("separator error")
             .text(),
         "; (\n)"
@@ -5616,16 +5622,16 @@ fn named_record_field_retries_a_malformed_colon_slot() {
             .find(|node| node.kind() == SyntaxKind::TypeRecordField)
             .expect("type record field");
         assert_eq!(
-            field
-                .children()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&field)
+                .into_iter()
+                .filter(|group| group.parent().as_ref() == Some(&field))
                 .count(),
             1,
             "{source:?}"
         );
-        let error = field
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&field)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&field))
             .expect("colon error");
         assert_eq!(error.text(), error_text, "{source:?}");
         assert!(
@@ -5661,9 +5667,9 @@ fn named_record_field_retries_a_malformed_type_slot() {
             .children()
             .find(|node| node.kind() == SyntaxKind::TypeRecordField)
             .expect("first type record field");
-        let error = field
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&field)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&field))
             .expect("type error");
         assert_eq!(error.text(), "@", "{source:?}");
         assert_eq!(
@@ -5844,10 +5850,7 @@ fn forall_type_recovers_root_separators_as_its_own_malformed_phase() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::ForallType)
             .expect("forall type");
-        let errors = forall
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .collect::<Vec<_>>();
+        let errors = recovery_groups(&forall).into_iter().collect::<Vec<_>>();
         assert_eq!(
             errors
                 .iter()
@@ -5890,9 +5893,9 @@ fn forall_type_separator_recovery_keeps_first_binder_and_continuation_phases_dis
             .descendants()
             .find(|node| node.kind() == SyntaxKind::ForallType)
             .expect("forall type");
-        let error = forall
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&forall)
+            .into_iter()
+            .next()
             .expect("malformed first binder");
         assert_eq!(error.text().to_string(), malformed, "{source:?}");
         assert_eq!(
@@ -5922,9 +5925,9 @@ fn forall_type_separator_recovery_keeps_first_binder_and_continuation_phases_dis
             .descendants()
             .find(|node| node.kind() == SyntaxKind::ForallType)
             .expect("forall type");
-        let error = forall
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&forall)
+            .into_iter()
+            .next()
             .expect("separator error");
         assert_eq!(error.text().to_string(), separator, "{source:?}");
         assert_eq!(
@@ -5962,8 +5965,8 @@ fn forall_type_handoffs_active_owner_separators_without_absorbing_trivia() {
             .expect("forall type");
         assert!(
             !forall
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
         assert_eq!(
@@ -6023,9 +6026,8 @@ fn forall_type_body_separators_follow_the_active_owner() {
             .find(|node| node.kind() == SyntaxKind::ForallType)
             .expect("forall type");
         assert_eq!(
-            forall
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&forall)
+                .into_iter()
                 .map(|node| node.text().to_string())
                 .collect::<Vec<_>>(),
             [separator],
@@ -6050,8 +6052,8 @@ fn forall_type_body_separators_follow_the_active_owner() {
             .expect("forall type");
         assert!(
             !forall
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
         assert_eq!(
@@ -6081,8 +6083,8 @@ fn forall_type_handoffs_record_and_variant_payload_separators() {
             .expect("forall type");
         assert!(
             !forall
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
         assert_eq!(
@@ -6113,9 +6115,8 @@ fn forall_type_handoffs_record_and_variant_payload_separators() {
             "{source:?}"
         );
         assert_eq!(
-            record
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&record)
+                .into_iter()
                 .map(|node| node.text().to_string())
                 .collect::<Vec<_>>(),
             record_error.into_iter().collect::<Vec<_>>(),
@@ -6125,7 +6126,10 @@ fn forall_type_handoffs_record_and_variant_payload_separators() {
             record
                 .descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .filter(|token| matches!(token.kind(), SyntaxKind::Comma | SyntaxKind::Semicolon))
+                .filter(
+                    |token| matches!(token.kind(), SyntaxKind::Comma | SyntaxKind::Semicolon)
+                        || (token.kind() == SyntaxKind::Error && token.text() == separator)
+                )
                 .map(|token| token.text().to_string())
                 .collect::<Vec<_>>(),
             [separator],
@@ -6143,8 +6147,8 @@ fn forall_type_handoffs_record_and_variant_payload_separators() {
         .expect("forall type");
     assert!(
         !forall
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
+            .descendants_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
     assert_eq!(
         forall
@@ -6183,9 +6187,8 @@ fn forall_type_recovers_malformed_phase_runs_and_retries() {
             .find(|node| node.kind() == SyntaxKind::ForallType)
             .expect("forall type");
         assert_eq!(
-            forall
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&forall)
+                .into_iter()
                 .map(|node| node.text().to_string())
                 .collect::<Vec<_>>(),
             [expected_error],
@@ -6216,8 +6219,8 @@ fn forall_type_recovers_malformed_phase_runs_and_retries() {
         .expect("recovered first binder");
     assert!(
         first_binder
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
+            .descendants_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
 
     let malformed_colon = run_type("for 'a @: T").0;
@@ -6227,8 +6230,8 @@ fn forall_type_recovers_malformed_phase_runs_and_retries() {
         .expect("forall type");
     assert!(
         malformed_colon
-            .children()
-            .any(|node| node.kind() == SyntaxKind::Error)
+            .children_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
 
     let (green, exit) = run_type("for 'a @\nT");
@@ -6265,9 +6268,8 @@ fn forall_type_recovers_malformed_phase_runs_and_retries() {
     let nested = run_type("for (@: T) 'a: T").0;
     let nested = SyntaxNode::new_root(nested);
     assert_eq!(
-        nested
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&nested)
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>(),
         ["(@: T)"]
@@ -6276,9 +6278,8 @@ fn forall_type_recovers_malformed_phase_runs_and_retries() {
     let nested_newline = run_type("for (@\n) 'a: T").0;
     let nested_newline = SyntaxNode::new_root(nested_newline);
     assert_eq!(
-        nested_newline
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&nested_newline)
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>(),
         ["(@\n)"]
@@ -6619,10 +6620,7 @@ fn shared_delimited_pv_carriers_preserve_extent_and_outer_continuation() {
                 for suffix in ["", "::Next"] {
                     let source = format!("{base}{suffix}");
                     let root = assert_complete_type_recovery(&source, origin, &expected);
-                    let errors = root
-                        .descendants()
-                        .filter(|node| node.kind() == SyntaxKind::Error)
-                        .collect::<Vec<_>>();
+                    let errors = recovery_groups(&root).into_iter().collect::<Vec<_>>();
                     assert_eq!(errors.len(), 1, "{source:?}");
                     let error = &errors[0];
                     assert_eq!(error.text().to_string(), &base[2..end]);
@@ -6738,10 +6736,7 @@ fn shared_delimited_pv_prefix_and_recursive_reservations_keep_owned_ranges() {
         for suffix in ["", "::Next"] {
             let source = format!("{base}{suffix}");
             let root = assert_complete_type_recovery(&source, 0, &expected);
-            let errors = root
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .collect::<Vec<_>>();
+            let errors = recovery_groups(&root).into_iter().collect::<Vec<_>>();
             let error_records = expected
                 .iter()
                 .filter(|record| record.kind == RecoveryKind::Error)
@@ -6759,7 +6754,9 @@ fn shared_delimited_pv_prefix_and_recursive_reservations_keep_owned_ranges() {
                 assert_eq!(node.text().to_string(), &base[record.site.range.clone()]);
             }
             assert_eq!(
-                errors[0].descendants().any(|node| node == errors[1]),
+                errors[0]
+                    .descendants()
+                    .any(|node| errors[1].parent().as_ref() == Some(&node)),
                 base.starts_with(":{:{")
             );
             for variant in root
@@ -6800,9 +6797,12 @@ fn shared_delimited_recovery_preserves_accepted_numeric_and_pv_types() {
     ] {
         let root = assert_complete_type_recovery(source, 0, &[]);
         assert!(
-            !root
-                .descendants()
-                .any(|node| { matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing) }),
+            !root.descendants_with_tokens().any(|node| {
+                matches!(
+                    node.kind(),
+                    SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+                )
+            }),
             "{source:?}"
         );
         if let Some(owner) = owner {
@@ -6851,11 +6851,11 @@ fn polymorphic_variant_structured_tag_name_orders_fresh_and_frozen_recovery() {
     assert_eq!(tag_children[0].to_string(), "@");
     assert_eq!(tag_children[1].kind(), SyntaxKind::Whitespace);
     assert_eq!(tag_children[1].to_string(), " ");
-    assert_eq!(tag_children[2].kind(), SyntaxKind::Error);
+    assert_eq!(tag_children[2].kind(), SyntaxKind::Invalid);
     let structured = tag_children[2]
         .clone()
         .into_node()
-        .expect("structured tag-name Error");
+        .expect("structured tag-name Invalid");
     let group = structured
         .descendants()
         .find(|node| node.kind() == SyntaxKind::ParenthesizedTypeGroup)
@@ -6902,7 +6902,7 @@ fn polymorphic_variant_recursive_structured_tag_names_are_lifo_and_reusable() {
     let root = SyntaxNode::new_root(green.clone());
     let structured = root
         .descendants()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+        .filter(|node| node.kind() == SyntaxKind::Invalid)
         .collect::<Vec<_>>();
     assert_eq!(
         structured
@@ -6940,6 +6940,46 @@ fn polymorphic_variant_structured_tag_name_single_and_valid_controls() {
     assert_eq!(green.to_string(), ":{A}");
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     assert!(records.is_empty());
+}
+
+#[test]
+fn polymorphic_variant_invalid_retains_valid_nested_types_without_child_recovery() {
+    let source = ":{(A)(B)}";
+    let (green, exit, records) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let invalid = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Invalid)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        invalid
+            .iter()
+            .map(|node| node.to_string())
+            .collect::<Vec<_>>(),
+        ["(A)(B)"]
+    );
+    for node in invalid {
+        assert!(
+            node.descendants()
+                .any(|child| child.kind() == SyntaxKind::ParenthesizedTypeGroup)
+        );
+        assert!(
+            !node.descendants_with_tokens().skip(1).any(|child| matches!(
+                child.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            ))
+        );
+    }
+    assert_eq!(
+        records,
+        [expected_type_error(
+            0,
+            TypeRole::PolymorphicVariantTagName,
+            2..8
+        )]
+    );
 }
 
 #[test]
@@ -7340,11 +7380,10 @@ fn shared_delimited_horizontal_boundary_phases_are_fresh_frozen_exact() {
                             );
                             assert!(missing.text_range().is_empty());
                         }
-                        assert!(
-                            !node
-                                .descendants()
-                                .any(|node| node.kind() == SyntaxKind::Error)
-                        );
+                        assert!(!node.descendants_with_tokens().any(|node| matches!(
+                            node.kind(),
+                            SyntaxKind::Error | SyntaxKind::Invalid
+                        )));
                         let frozen = frozen_recovery_ids(&expected);
                         let replay = run_contextual_type_snapshot(
                             &source,
@@ -7398,11 +7437,10 @@ fn shared_delimited_horizontal_local_closes_and_fresh_else_keep_owner_admission(
             assert_eq!(children[children.len() - 2].kind(), SyntaxKind::Whitespace);
             assert_eq!(children[children.len() - 2].to_string(), " \t");
             assert_eq!(children.last().unwrap().to_string(), close);
-            assert!(
-                !node
-                    .descendants()
-                    .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-            );
+            assert!(!node.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )));
             let (replayed, _, frozen_records) = run_type_with_recoveries(&source, Some(&[]));
             assert_eq!(replayed, green);
             assert!(frozen_records.is_empty());
@@ -7652,8 +7690,8 @@ fn shared_delimited_horizontal_fresh_outer_closes_continue_in_their_actual_owner
         }
         assert!(
             !root
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error)
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
         );
         let outer_close = root
             .descendants_with_tokens()
@@ -7753,11 +7791,22 @@ fn polymorphic_variant_nt8_same_slot_trivia_has_one_exact_prefix_record() {
         .expect("multi-Item same-slot recovered tag");
     let children = tag.children_with_tokens().collect::<Vec<_>>();
     assert_eq!(children[0].kind(), SyntaxKind::Error);
-    assert_eq!(children[0].to_string(), "@ .");
-    assert_eq!(children[1].kind(), SyntaxKind::Whitespace);
+    assert_eq!(children[0].to_string(), "@");
+    assert_eq!(children[1].kind(), SyntaxKind::Error);
     assert_eq!(children[1].to_string(), " ");
-    assert_eq!(children[2].kind(), SyntaxKind::Identifier);
-    assert_eq!(children[2].to_string(), "A");
+    assert_eq!(children[2].kind(), SyntaxKind::Error);
+    assert_eq!(children[2].to_string(), ".");
+    assert_eq!(children[3].kind(), SyntaxKind::Whitespace);
+    assert_eq!(children[3].to_string(), " ");
+    assert_eq!(children[4].kind(), SyntaxKind::Identifier);
+    assert_eq!(children[4].to_string(), "A");
+    let groups = recovery_groups(&tag);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].text(), "@ .");
+    assert_eq!(
+        groups[0].text_range(),
+        rowan::TextRange::new(2.into(), 5.into())
+    );
 }
 
 #[test]
@@ -7949,9 +7998,9 @@ fn polymorphic_variant_type_recovers_non_identifier_tag_primaries() {
             .collect::<Vec<_>>();
         assert_eq!(tags.len(), 1, "{source:?}");
         let tag = &tags[0];
-        let errors = tag
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let errors = recovery_groups(&tag)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&tag))
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{source:?}");
         let error = &errors[0];
@@ -8010,9 +8059,8 @@ fn polymorphic_variant_type_recovers_non_identifier_tag_primaries() {
         .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
         .expect("polymorphic variant type");
     assert_eq!(
-        variant
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&variant)
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>(),
         ["123", "]"]
@@ -8057,9 +8105,8 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
             "{source:?}"
         );
         assert_eq!(
-            variant
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&variant)
+                .into_iter()
                 .next()
                 .expect("malformed tag error")
                 .text()
@@ -8078,9 +8125,9 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
         .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
         .collect::<Vec<_>>();
     assert_eq!(tags.len(), 1);
-    let errors = tags[0]
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = recovery_groups(&tags[0])
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&tags[0]))
         .collect::<Vec<_>>();
     assert_eq!(
         errors
@@ -8122,9 +8169,9 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
         .children()
         .find(|node| node.kind() == SyntaxKind::PolymorphicVariantTag)
         .expect("recovered tag");
-    let error = tag
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&tag)
+        .into_iter()
+        .find(|group| group.parent().as_ref() == Some(&tag))
         .expect("malformed tag error");
     assert_eq!(error.text().to_string(), "@");
     assert!(
@@ -8144,9 +8191,8 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
             .any(|token| token.kind() == SyntaxKind::Whitespace && token.text() == " ")
     );
     assert_eq!(
-        variant
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&variant)
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>(),
         ["@"]
@@ -8166,9 +8212,8 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
         .expect("polymorphic variant type");
     assert_eq!(variant.text().to_string(), ":{@");
     assert_eq!(
-        variant
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&variant)
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>(),
         ["@"]
@@ -8190,9 +8235,8 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     let variant = polymorphic_variant_node(green);
     assert_eq!(
-        variant
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&variant)
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>(),
         ["@", ";"]
@@ -8208,9 +8252,8 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
         .expect("polymorphic variant type");
     assert_eq!(variant.text().to_string(), ":{@");
     assert_eq!(
-        variant
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&variant)
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>(),
         ["@"]
@@ -8288,9 +8331,9 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let variant = polymorphic_variant_node(green);
         let payload = only_payload(&variant);
-        let error = payload
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&payload)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&payload))
             .expect("malformed payload error");
         assert_eq!(error.text().to_string(), error_text, "{source:?}");
         assert_eq!(
@@ -8332,9 +8375,9 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
         let variant = polymorphic_variant_node(green);
         let payload = only_payload(&variant);
         assert_eq!(
-            payload
-                .children()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&payload)
+                .into_iter()
+                .filter(|group| group.parent().as_ref() == Some(&payload))
                 .map(|node| node.text().to_string())
                 .collect::<Vec<_>>(),
             ["@"],
@@ -8384,9 +8427,11 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
             "{source:?}"
         );
         if let Some(separator) = separator {
-            let error = variant
-                .children()
-                .find(|node| node.kind() == SyntaxKind::Error && node.text() == separator)
+            let error = recovery_groups(&variant)
+                .into_iter()
+                .find(|group| {
+                    group.parent().as_ref() == Some(&variant) && group.text() == separator
+                })
                 .expect("local separator error");
             assert_eq!(
                 error.parent().map(|node| node.kind()),
@@ -8438,9 +8483,9 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let variant = polymorphic_variant_node(green);
-        let error = variant
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error && node.text() == boundary)
+        let error = recovery_groups(&variant)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&variant) && group.text() == boundary)
             .expect("local payload boundary error");
         assert_eq!(
             error.parent().map(|node| node.kind()),
@@ -8460,9 +8505,9 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
     assert_eq!(variant.text().to_string(), ":{A @");
     let payload = only_payload(&variant);
     assert_eq!(
-        payload
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        recovery_groups(&payload)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&payload))
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>(),
         ["@"]
@@ -8493,9 +8538,9 @@ fn polymorphic_variant_type_recovers_local_separators_and_closes() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
             .expect("polymorphic variant type");
-        let error = variant
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&variant)
+            .into_iter()
+            .next()
             .expect("local semicolon error");
         assert_eq!(error.text().to_string(), ";", "{source:?}");
         assert_eq!(
@@ -8512,9 +8557,9 @@ fn polymorphic_variant_type_recovers_local_separators_and_closes() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
             .expect("polymorphic variant type");
-        let error = variant
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&variant)
+            .into_iter()
+            .next()
             .expect("local close error");
         assert_eq!(error.text().to_string(), "]", "{source:?}");
         assert_eq!(
@@ -8547,8 +8592,8 @@ fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
     );
     assert!(
         !variant
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
+            .descendants_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
 
     for source in ["F(:{A])", "F({a: :{A)"] {
@@ -8568,9 +8613,8 @@ fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
             1,
             "{source:?}"
         );
-        let errors = variant
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let errors = recovery_groups(&variant)
+            .into_iter()
             .map(|node| node.text().to_string())
             .collect::<Vec<_>>();
         assert_eq!(
@@ -8628,8 +8672,8 @@ fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
         );
         assert!(
             !variant
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error)
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
         );
         let owner = root
             .descendants()
@@ -8666,7 +8710,13 @@ fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
             owner
                 .descendants_with_tokens()
                 .filter_map(|element| element.into_token())
-                .any(|token| token.kind() == SyntaxKind::Semicolon),
+                .any(|token| token.text() == ";"
+                    && token.kind()
+                        == if outer == SyntaxKind::NamedRecordType {
+                            SyntaxKind::Error
+                        } else {
+                            SyntaxKind::Semicolon
+                        }),
             "{source:?}"
         );
     }
@@ -8679,9 +8729,9 @@ fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
         .expect("polymorphic variant type");
-    let error = variant
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&variant)
+        .into_iter()
+        .find(|group| group.parent().as_ref() == Some(&variant))
         .expect("local close error");
     assert_eq!(error.text().to_string(), "]");
     assert!(
@@ -8915,8 +8965,9 @@ fn leading_bracket_row_retries_a_balanced_second_row_as_one_error() {
             "{source:?}"
         );
         assert_eq!(
-            top.children()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&top)
+                .into_iter()
+                .filter(|group| group.parent().as_ref() == Some(&top))
                 .count(),
             1,
             "{source:?}"
@@ -8934,8 +8985,9 @@ fn leading_bracket_row_retries_malformed_heads_without_a_missing_cascade() {
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let top = top_type_expression(&green);
         assert_eq!(
-            top.children()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            recovery_groups(&top)
+                .into_iter()
+                .filter(|group| group.parent().as_ref() == Some(&top))
                 .count(),
             1,
             "{source:?}"
@@ -8982,13 +9034,7 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let root = SyntaxNode::new_root(green);
-        assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
-            1,
-            "{source:?}"
-        );
+        assert_eq!(recovery_groups(&root).into_iter().count(), 1, "{source:?}");
         assert_eq!(
             root.descendants()
                 .filter(|node| node.kind() == SyntaxKind::Missing)
@@ -9000,9 +9046,9 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
 
     let (green, exit) = run_type("T [@ A] -> U");
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
-    let error = SyntaxNode::new_root(green)
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = recovery_groups(&SyntaxNode::new_root(green))
+        .into_iter()
+        .next()
         .expect("bracket item error");
     assert_eq!(error.text().to_string(), "@");
 
@@ -9030,8 +9076,8 @@ fn bracket_rows_recover_malformed_items_and_local_closes() {
     let root = SyntaxNode::new_root(green);
     assert!(
         !root
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
+            .descendants_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
     assert_eq!(
         root.descendants()
@@ -9055,10 +9101,7 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let root = SyntaxNode::new_root(green);
-        let errors = root
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .collect::<Vec<_>>();
+        let errors = recovery_groups(&root).into_iter().collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{source:?}");
         assert_eq!(errors[0].text().to_string(), error_text, "{source:?}");
         assert_eq!(
@@ -9074,11 +9117,10 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
     assert_eq!(green.to_string(), "T [A\n  ] -> U");
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     let root = SyntaxNode::new_root(green);
-    assert!(
-        !root
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(!root.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
 
     let (green, exit) = run_type("T [");
     assert_eq!(green.to_string(), "T [");
@@ -9092,20 +9134,21 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
     );
 
     for (source, errors, missing) in [
-        ("T [e,)] -> U", 1, 1),
-        ("T [@,)] -> U", 2, 1),
-        ("T [e))] -> U", 2, 0),
-        ("T [e))", 2, 2),
-        ("T [)", 1, 3),
+        ("T [e,)] -> U", &[")"][..], 1),
+        ("T [@,)] -> U", &["@", ")"][..], 1),
+        ("T [e))] -> U", &["))"][..], 0),
+        ("T [e))", &["))"][..], 2),
+        ("T [)", &[")"][..], 3),
     ] {
         let (green, exit) = run_type(source);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let root = SyntaxNode::new_root(green);
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root)
+                .into_iter()
+                .map(|group| group.text())
+                .collect::<Vec<_>>(),
             errors,
             "{source:?}"
         );
@@ -9131,13 +9174,7 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
             ]
         );
         let root = SyntaxNode::new_root(green);
-        assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
-            1,
-            "{source:?}"
-        );
+        assert_eq!(recovery_groups(&root).into_iter().count(), 1, "{source:?}");
         assert_eq!(
             root.descendants()
                 .filter(|node| node.kind() == SyntaxKind::Missing)
@@ -9160,12 +9197,7 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
         newline.parent().expect("newline parent").kind(),
         SyntaxKind::BracketRow
     );
-    assert_eq!(
-        root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .count(),
-        1
-    );
+    assert_eq!(recovery_groups(&root).into_iter().count(), 1);
     assert_eq!(
         root.descendants()
             .filter(|node| node.kind() == SyntaxKind::Missing)

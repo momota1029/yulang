@@ -1,3 +1,4 @@
+use crate::tests::recovery_output::recovery_groups;
 use crate::{
     OperatorTable, SyntaxNode,
     recovery_record::{GrammarRole, StatementRole},
@@ -43,13 +44,11 @@ fn root_initial_indent_is_rejected_but_semicolon_gap_is_allowed() {
             GrammarRole::Statement(StatementRole::Starter)
         );
         let syntax = SyntaxNode::new_root(root.green);
-        assert_eq!(
-            syntax
-                .children()
-                .map(|node| node.kind())
-                .collect::<Vec<_>>(),
-            [SyntaxKind::Error]
-        );
+        assert_eq!(syntax.children().count(), 0);
+        let groups = recovery_groups(&syntax);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].parent(), Some(syntax.clone()));
+        assert_eq!(groups[0].text(), source.trim_start());
     }
     let source = "a;  use b;  my c = 1";
     let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
@@ -275,15 +274,13 @@ fn root_error_keeps_undeclared_operator_as_raw_token() {
         })]
     );
     let syntax = SyntaxNode::new_root(root.green);
-    let error = syntax
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
-        .unwrap();
+    let error = recovery_groups(&syntax).into_iter().next().unwrap();
+    assert_eq!(error.parent(), Some(syntax));
     assert_eq!(error.to_string(), "<+>");
     assert!(
-        error.children_with_tokens().any(|element| {
-            element.kind() == SyntaxKind::Operator && element.to_string() == "<+>"
-        }),
+        error
+            .children_with_tokens()
+            .any(|element| { element.kind() == SyntaxKind::Error && element.to_string() == "<+>" }),
         "{error:#?}"
     );
 }
@@ -359,6 +356,15 @@ fn operator_body_error_is_root_sibling_and_cannot_retry_into_later_header() {
         }
         assert_eq!(root.committed_recoveries.last(), header.recoveries.last());
         let syntax = SyntaxNode::new_root(root.green);
-        assert_eq!(syntax.children().nth(1).unwrap().kind(), SyntaxKind::Error);
+        let groups = recovery_groups(&syntax);
+        let trailing = groups
+            .iter()
+            .find(|group| group.parent().as_ref() == Some(&syntax))
+            .unwrap();
+        assert_eq!(trailing.text(), "@@");
+        assert_eq!(
+            trailing.text_range(),
+            rowan::TextRange::new(16.into(), 18.into())
+        );
     }
 }

@@ -322,8 +322,8 @@ fn record_default_exact_equals_rejection_preserves_the_original_literal_controls
         );
         let root = SyntaxNode::new_root(fresh.green);
         assert!(
-            root.descendants()
-                .any(|node| node.kind() == SyntaxKind::Error)
+            root.descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
         );
         assert!(
             !root

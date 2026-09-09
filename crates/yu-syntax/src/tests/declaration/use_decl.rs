@@ -8,6 +8,9 @@ fn use_declaration(green: &GreenNode) -> SyntaxNode {
 }
 
 fn descendants_of_kind(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|descendant| descendant.kind() == kind)
         .count()
@@ -363,8 +366,8 @@ fn use_c9_requires_an_immediate_operator_after_a_path_open() {
             "{source:?}",
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&root)
+                .into_iter()
                 .count(),
             errors,
             "{source:?}",

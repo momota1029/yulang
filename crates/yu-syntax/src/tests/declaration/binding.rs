@@ -357,9 +357,8 @@ fn binding_annotation_equals_stays_outside_type_recovery() {
             usize::from(source == "my x: = value")
         );
         assert_eq!(
-            annotation
-                .descendants()
-                .filter(|child| child.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&annotation)
+                .into_iter()
                 .count(),
             usize::from(source != "my x: = value")
         );
@@ -608,9 +607,8 @@ fn binding_c8_totalizes_target_and_accepted_body_slots_once() {
             "{source:?}"
         );
         assert_eq!(
-            declaration
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&declaration)
+                .into_iter()
                 .count(),
             error,
             "{source:?}"
@@ -646,9 +644,8 @@ fn binding_c8_totalizes_target_and_accepted_body_slots_once() {
             "{source:?}"
         );
         assert_eq!(
-            declaration
-                .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&declaration)
+                .into_iter()
                 .count(),
             error,
             "{source:?}"

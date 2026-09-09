@@ -620,8 +620,11 @@ fn accepted_delimiters_shield_contextual_stops_and_keep_ml_items() {
         assert!(records.is_empty(), "{source:?}: {records:?}");
         assert!(
             !SyntaxNode::new_root(green.clone())
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+                .descendants_with_tokens()
+                .any(|node| matches!(
+                    node.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+                )),
             "{source:?}"
         );
         let (again, frozen) = full(source, Some(&records));
@@ -674,8 +677,8 @@ fn quoted_prefix_and_utf8_error_ranges_stay_physical_and_reconcile() {
         1
     );
     assert_eq!(
-        root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&root)
+            .into_iter()
             .map(|node| node.to_string())
             .collect::<Vec<_>>(),
         ["@", "💥"]

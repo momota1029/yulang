@@ -52,11 +52,10 @@ fn fixed_field_and_path_tails_keep_their_own_tokens() {
             (SyntaxKind::Identifier, "name".to_owned()),
         ]
     );
-    assert!(
-        !root
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-    );
+    assert!(!root.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
 }
 
 #[test]
@@ -110,11 +109,10 @@ fn path_tails_classify_sigil_segments() {
             ],
         ]
     );
-    assert!(
-        !root
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-    );
+    assert!(!root.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+    )));
 }
 
 #[test]
@@ -135,7 +133,7 @@ fn fixed_tails_keep_missing_and_invalid_identifier_slots_local() {
             .find(|node| node.kind() == tail_kind)
             .expect("fixed tail");
         assert_eq!(
-            tail.children()
+            tail.children_with_tokens()
                 .filter(|node| node.kind() == recovery_kind)
                 .count(),
             1,
@@ -463,8 +461,9 @@ fn with_c5_is_a_terminal_direct_body_tail() {
             );
         } else {
             assert_eq!(
-                tail.children()
-                    .filter(|node| node.kind() == SyntaxKind::Error)
+                crate::tests::recovery_output::recovery_groups(&tail)
+                    .into_iter()
+                    .filter(|group| group.parent().as_ref() == Some(&tail))
                     .count(),
                 1,
                 "{source:?}"
@@ -538,8 +537,8 @@ fn colon_c4_commits_and_recovers_mandatory_inline_slots() {
         );
         assert!(
             !colon
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
         if source == "f:\nx" {
@@ -619,9 +618,9 @@ fn colon_c4_commits_and_recovers_mandatory_inline_slots() {
         .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
         .expect("colon tail");
     assert_eq!(
-        colon
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&colon)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&colon))
             .count(),
         1
     );
@@ -899,9 +898,9 @@ fn colon_c4_recovers_deep_indented_statement_slots() {
             .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
             .expect("deep block");
         assert_eq!(
-            block
-                .children()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&block)
+                .into_iter()
+                .filter(|group| group.parent().as_ref() == Some(&block))
                 .count(),
             1,
             "{source:?}"
@@ -932,9 +931,9 @@ fn colon_c4_recovers_deep_indented_statement_slots() {
         2
     );
     assert_eq!(
-        block
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&block)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&block))
             .count(),
         1
     );
@@ -1035,9 +1034,10 @@ fn braced_statement_block_owns_normal_sequence_and_colon_comma() {
             "{source:?}"
         );
         assert!(
-            !block
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            !block.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )),
             "{source:?}"
         );
     }
@@ -1099,8 +1099,8 @@ fn braced_statement_block_recovers_close_and_keeps_nested_boundaries() {
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     let root = SyntaxNode::new_root(green);
     assert_eq!(
-        root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&root)
+            .into_iter()
             .count(),
         1
     );
@@ -1122,9 +1122,9 @@ fn braced_statement_block_recovers_close_and_keeps_nested_boundaries() {
         .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
         .expect("braced statement block");
     assert_eq!(
-        block
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&block)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&block))
             .count(),
         0
     );
@@ -1172,9 +1172,9 @@ fn braced_statement_block_recovers_close_and_keeps_nested_boundaries() {
         .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
         .expect("braced statement block");
     assert_eq!(
-        block
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&block)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&block))
             .count(),
         1
     );
@@ -1209,9 +1209,9 @@ fn braced_statement_block_recovers_close_and_keeps_nested_boundaries() {
         0
     );
     assert_eq!(
-        block
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&block)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&block))
             .count(),
         1
     );

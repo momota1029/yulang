@@ -146,10 +146,12 @@ fn inline_slots_have_exact_fresh_and_frozen_records() {
         let (green, records, _, _) = parse(source, 0, 0, None, None);
         assert_eq!(records, [record(role, expected, kind, range)], "{source:?}");
         if kind == RecoveryKind::Error {
-            let error = SyntaxNode::new_root(green.clone())
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
-                .expect("typed Error product");
+            let error = crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(
+                green.clone(),
+            ))
+            .into_iter()
+            .next()
+            .expect("typed Error product");
             assert_eq!(
                 error.text().to_string(),
                 source[records[0].site.range.clone()]

@@ -1,4 +1,5 @@
 use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+use crate::tests::recovery_output::recovery_groups;
 use crate::tests::support::*;
 
 fn active_fence() -> FenceBoundary {
@@ -180,10 +181,10 @@ fn normalized_type_declaration_streams_header_and_trailing_derives() {
             .count(),
         2
     );
-    assert!(
-        root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(root.descendants_with_tokens().all(|node| !matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
 }
 
 #[test]
@@ -273,9 +274,7 @@ fn normalized_struct_streams_visibility_and_all_body_forms() {
             "{accepted:?}",
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             errors,
             "{accepted:?}",
         );
@@ -326,9 +325,7 @@ fn normalized_struct_phase_recovery_stops_before_boundaries() {
             "{accepted:?}",
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             errors,
             "{accepted:?}",
         );
@@ -547,8 +544,10 @@ fn normalized_mod_streams_visibility_gaps_and_all_body_forms() {
             "{accepted:?}",
         );
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{accepted:?}",
         );
         let (leading, pending) = emit_terminal_leading_text(boundary);
@@ -637,9 +636,7 @@ fn normalized_mod_phase_recovery_stops_before_fence_boundaries() {
             "{accepted:?}",
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             errors,
             "{accepted:?}",
         );
@@ -674,8 +671,10 @@ fn normalized_mod_owns_the_nested_type_statement() {
             "{source:?}",
         );
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{source:?}",
         );
     }
@@ -723,8 +722,10 @@ fn normalized_binding_streams_inline_and_nested_deeper_bodies() {
             "{accepted:?}",
         );
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{accepted:?}",
         );
     }
@@ -758,10 +759,10 @@ fn normalized_binding_emits_quote_prefixes_across_pattern_equals_and_rhs() {
             .count(),
         1
     );
-    assert!(
-        root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(root.descendants_with_tokens().all(|node| !matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
 }
 
 #[test]
@@ -871,9 +872,7 @@ fn normalized_binding_retries_malformed_target_and_rhs_without_crossing_fence() 
         assert_eq!(root.to_string(), accepted, "{accepted:?}");
         assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             1,
             "{accepted:?}",
         );
@@ -940,8 +939,10 @@ fn normalized_for_streams_labels_and_all_body_forms() {
             "{accepted:?}",
         );
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{accepted:?}",
         );
         if labels == 1 {
@@ -1095,8 +1096,8 @@ fn normalized_for_recovery_and_nested_declaration_stop_at_their_exact_frontiers(
         assert_eq!(root.to_string(), accepted, "{accepted:?}");
         assert_eq!(remainder, "> ]\nouter", "{accepted:?}");
         assert!(
-            root.descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+            root.descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{accepted:?}",
         );
         let (leading, _) = emit_terminal_leading_text(boundary);
@@ -1196,8 +1197,10 @@ fn normalized_use_streams_bare_visibility_and_nested_statement_sites() {
             "{accepted:?}",
         );
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{accepted:?}",
         );
         let (leading, pending) = emit_terminal_leading_text(boundary);
@@ -1308,8 +1311,10 @@ fn normalized_use_streams_recursive_groups_exclusions_and_qualifiers() {
             "{terminal:?}",
         );
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{terminal:?}",
         );
         let (leading, pending) = emit_terminal_leading_text(boundary);
@@ -1408,9 +1413,7 @@ fn normalized_use_phase_recovery_hands_exact_boundaries_up() {
             "{source:?}",
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             errors,
             "{source:?}",
         );
@@ -1451,9 +1454,7 @@ fn normalized_use_path_operator_probe_is_strict_and_transactional() {
             "{accepted:?}",
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             errors,
             "{accepted:?}",
         );
@@ -1577,8 +1578,10 @@ fn normalized_type_statement_streams_through_existing_callers() {
         assert_eq!(root.to_string(), source, "{source:?}");
         assert_eq!(remainder, "", "{source:?}");
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{source:?}",
         );
     }
@@ -1647,8 +1650,8 @@ fn normalized_braced_explicit_separator_enters_the_next_type_statement() {
     assert_eq!(root.to_string(), source);
     assert_eq!(remainder, "");
     assert!(
-        root.descendants()
-            .all(|node| node.kind() != SyntaxKind::Error)
+        root.descendants_with_tokens()
+            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
     assert_eq!(
         root.descendants()
@@ -1681,8 +1684,8 @@ fn normalized_braced_explicit_separator_enters_the_next_type_statement() {
         1
     );
     assert!(
-        root.descendants()
-            .all(|node| node.kind() != SyntaxKind::Error)
+        root.descendants_with_tokens()
+            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
 }
 
@@ -1720,8 +1723,8 @@ fn normalized_braced_initial_boundary_keeps_boundary_leading_pending() {
             "{source:?}",
         );
         assert!(
-            root.descendants()
-                .all(|node| node.kind() != SyntaxKind::Error),
+            root.descendants_with_tokens()
+                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}",
         );
     }
@@ -1860,9 +1863,7 @@ fn normalized_infix_rhs_enters_braces_directly_and_after_retry() {
             "{accepted:?}",
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             expected_errors,
             "{accepted:?}",
         );
@@ -1903,10 +1904,10 @@ fn normalized_case_like_streams_case_and_catch_to_the_fence_boundary() {
         for kind in kinds {
             assert!(root.descendants().any(|node| node.kind() == kind));
         }
-        assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-        );
+        assert!(root.descendants_with_tokens().all(|node| !matches!(
+            node.kind(),
+            SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+        )));
     }
 }
 
@@ -1983,8 +1984,10 @@ fn normalized_case_if_complete_inline_forms_reach_transition_and_eof() {
         assert_eq!(actual_remainder, remainder, "{source:?}");
         assert!(boundary.payload_view().is_boundary(), "{source:?}");
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{source:?}",
         );
     }
@@ -2025,8 +2028,10 @@ fn normalized_nested_case_like_respects_if_stops_before_fence_boundaries() {
         assert_eq!(root.to_string(), accepted, "{source:?}");
         assert_eq!(actual_remainder, remainder, "{source:?}");
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{source:?}",
         );
         let (leading, pending) = emit_terminal_leading_text(boundary);
@@ -2232,9 +2237,7 @@ fn normalized_case_if_malformed_body_recovery_stops_before_the_fence() {
         assert_eq!(root.to_string(), accepted, "{accepted:?}");
         assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             1,
             "{accepted:?}",
         );
@@ -2648,8 +2651,10 @@ fn normalized_type_shared_delimiters_own_their_closes_before_boundary_handoff() 
             "{accepted:?}"
         );
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{accepted:?}"
         );
     }
@@ -2739,8 +2744,10 @@ fn normalized_type_polymorphic_variant_composes_inside_existing_type_owners() {
             "{accepted:?}"
         );
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{accepted:?}"
         );
         let (leading, pending) = emit_terminal_leading_text(boundary);
@@ -2766,23 +2773,17 @@ fn normalized_type_balanced_head_retry_resynchronizes_before_boundary() {
 
     assert_eq!(root.to_string(), accepted);
     assert_eq!(remainder, "> > ```\nouter");
-    assert_eq!(
-        root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .count(),
-        1
-    );
+    assert_eq!(recovery_groups(&root).into_iter().count(), 1);
     assert!(
         root.descendants()
             .all(|node| node.kind() != SyntaxKind::Missing)
     );
-    let error = root
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
-        .unwrap();
+    let error = recovery_groups(&root).into_iter().next().unwrap();
     assert_eq!(error.text(), "[bad]");
-    assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::LBracket);
-    assert_eq!(error.last_token().unwrap().kind(), SyntaxKind::RBracket);
+    assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
+    assert_eq!(error.first_token().unwrap().text(), "[");
+    assert_eq!(error.last_token().unwrap().kind(), SyntaxKind::Error);
+    assert_eq!(error.last_token().unwrap().text(), "]");
     let (leading, pending) = emit_terminal_leading_text(boundary);
     assert_eq!(leading, "\n");
     assert_eq!(pending.coordinate(), origin + accepted.len() + 1);
@@ -2845,13 +2846,7 @@ fn normalized_type_unmatched_balanced_head_stops_before_close_and_transition_lin
             remainder.contains(']'),
             "the outer close control must remain live"
         );
-        assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
-            1,
-            "{source:?}"
-        );
+        assert_eq!(recovery_groups(&root).into_iter().count(), 1, "{source:?}");
         assert!(
             root.descendants()
                 .all(|node| node.kind() != SyntaxKind::Missing),
@@ -2899,12 +2894,12 @@ fn normalized_type_unmatched_balanced_head_keeps_continuation_and_boundary_prefi
             panic!("the malformed head must precede its exact boundary: {source:?}")
         };
         let root = SyntaxNode::new_root(green);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&root)
+            .into_iter()
+            .next()
             .expect("one malformed bracket-head Error");
         let actual_tokens: Vec<_> = error
-            .descendants_with_tokens()
+            .children_with_tokens()
             .filter_map(|element| element.into_token())
             .map(|token| (token.kind(), token.text().to_owned()))
             .collect();
@@ -2915,7 +2910,7 @@ fn normalized_type_unmatched_balanced_head_keeps_continuation_and_boundary_prefi
             actual_tokens,
             error_tokens
                 .into_iter()
-                .map(|(kind, text)| (kind, text.to_owned()))
+                .map(|(_, text)| (SyntaxKind::Error, text.to_owned()))
                 .collect::<Vec<_>>(),
             "{source:?}"
         );
@@ -2977,10 +2972,10 @@ fn normalized_type_parses_named_record_before_boundary() {
             .count(),
         1
     );
-    assert!(
-        root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(root.descendants_with_tokens().all(|node| !matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
 }
 
 #[test]
@@ -3013,10 +3008,10 @@ fn normalized_type_named_record_streams_nested_record_prefixes() {
             .count(),
         5
     );
-    assert!(
-        root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(root.descendants_with_tokens().all(|node| !matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
 }
 
 #[test]
@@ -3046,9 +3041,7 @@ fn normalized_type_named_record_recovery_stops_at_exact_boundary() {
         assert_eq!(root.to_string(), accepted, "{accepted:?}");
         assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             expected_error,
             "{accepted:?}"
         );
@@ -3139,9 +3132,7 @@ fn normalized_type_named_record_resolves_colon_before_rhs_polymorphic_variants()
             "{accepted:?}"
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             expected_error,
             "{accepted:?}"
         );
@@ -3187,12 +3178,7 @@ fn normalized_type_malformed_name_probe_stops_before_outer_transition_colon() {
             .count(),
         0
     );
-    assert_eq!(
-        root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .count(),
-        1
-    );
+    assert_eq!(recovery_groups(&root).into_iter().count(), 1);
     assert_eq!(
         root.descendants()
             .filter(|node| node.kind() == SyntaxKind::Missing)
@@ -3235,10 +3221,10 @@ fn normalized_type_forall_streams_valid_and_nested_bodies_until_the_boundary() {
             .count(),
         3
     );
-    assert!(
-        root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(root.descendants_with_tokens().all(|node| !matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
     let (leading, pending) = emit_terminal_leading_text(boundary);
     assert_eq!(leading, "\n");
     assert_eq!(pending.coordinate(), origin + accepted.len() + 1);
@@ -3272,9 +3258,7 @@ fn normalized_type_forall_returns_each_phase_boundary_after_only_owned_recovery(
         assert_eq!(remainder, "> > ```\r\nouter", "{accepted:?}");
         assert_eq!(root.to_string(), accepted, "{accepted:?}");
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             expected_error,
             "{accepted:?}"
         );
@@ -3320,12 +3304,7 @@ fn normalized_type_forall_malformed_run_stops_before_outer_transition() {
     assert!(boundary.payload_view().is_boundary());
     assert_eq!(remainder, "> ]\n: outer");
     assert_eq!(root.to_string(), accepted);
-    assert_eq!(
-        root.descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
-            .count(),
-        1
-    );
+    assert_eq!(recovery_groups(&root).into_iter().count(), 1);
     assert_eq!(
         root.descendants()
             .filter(|node| node.kind() == SyntaxKind::Missing)
@@ -3375,9 +3354,7 @@ fn normalized_type_forall_resolves_colon_before_rhs_polymorphic_variants() {
             "{accepted:?}"
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             expected_error,
             "{accepted:?}"
         );
@@ -3428,10 +3405,10 @@ fn normalized_type_polymorphic_variant_streams_nested_tags_and_payloads() {
             .count(),
         3
     );
-    assert!(
-        root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(root.descendants_with_tokens().all(|node| !matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
     let (leading, pending) = emit_terminal_leading_text(boundary);
     assert_eq!(leading, "\n");
     assert_eq!(pending.coordinate(), origin + accepted.len() + 1);
@@ -3471,9 +3448,7 @@ fn normalized_type_polymorphic_variant_stops_each_phase_at_the_exact_fence_bound
         assert_eq!(remainder, boundary_line, "{accepted:?}");
         assert_eq!(root.to_string(), accepted, "{accepted:?}");
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
-                .count(),
+            recovery_groups(&root).into_iter().count(),
             expected_error,
             "{accepted:?}"
         );
@@ -3591,9 +3566,7 @@ fn normalized_pattern_stops_recovery_tails_and_annotations_at_the_fence() {
             assert_eq!(remainder, expected_remainder, "{source:?}");
             assert_eq!(root.to_string(), accepted, "{source:?}");
             assert_eq!(
-                root.descendants()
-                    .filter(|node| node.kind() == SyntaxKind::Error)
-                    .count(),
+                recovery_groups(&root).into_iter().count(),
                 expected_error,
                 "{source:?}"
             );
@@ -3741,10 +3714,10 @@ fn normalized_pattern_annotation_enters_the_mandatory_type_body() {
         root.descendants()
             .any(|node| node.kind() == SyntaxKind::TypeExpression)
     );
-    assert!(
-        root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(root.descendants_with_tokens().all(|node| !matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
 }
 
 #[test]
@@ -3772,10 +3745,10 @@ fn normalized_pattern_record_defaults_parse_all_expression_owners() {
             .count(),
         1
     );
-    assert!(
-        root.descendants()
-            .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(root.descendants_with_tokens().all(|node| !matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
 
     for (expression, owner) in [
         ("case x: n -> y", SyntaxKind::CaseExpression),
@@ -3799,8 +3772,10 @@ fn normalized_pattern_record_defaults_parse_all_expression_owners() {
         assert_eq!(remainder, "> > ```\nouter");
         assert!(root.descendants().any(|node| node.kind() == owner));
         assert!(
-            root.descendants()
-                .all(|node| !matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing)),
+            root.descendants_with_tokens().all(|node| !matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+            )),
             "{expression:?}"
         );
     }

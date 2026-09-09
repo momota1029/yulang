@@ -142,6 +142,12 @@ fn policy(fresh: PatternStops, recovered_tail: PatternStops) -> PatternMandatory
 }
 
 fn recovery_count(green: &GreenNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(
+            green.clone(),
+        ))
+        .len();
+    }
     SyntaxNode::new_root(green.clone())
         .descendants()
         .filter(|node| node.kind() == kind)
@@ -1046,9 +1052,10 @@ fn standalone_patterns_keep_symbols_and_parenthesized_layout_local() {
             "{source:?}"
         );
         assert!(
-            !parenthesized
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            !parenthesized.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )),
             "{source:?}"
         );
     }
@@ -1138,9 +1145,10 @@ fn standalone_patterns_keep_list_record_and_annotation_owners_local() {
             "{source:?}"
         );
         assert!(
-            !list
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            !list.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )),
             "{source:?}"
         );
     }
@@ -1176,9 +1184,10 @@ fn standalone_patterns_keep_list_record_and_annotation_owners_local() {
             "{source:?}"
         );
         assert!(
-            !record
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error)),
+            !record.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )),
             "{source:?}"
         );
     }
@@ -1304,11 +1313,10 @@ fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
             .collect::<Vec<_>>(),
         [SyntaxKind::TypeExpression]
     );
-    assert!(
-        !annotation
-            .descendants()
-            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Missing))
-    );
+    assert!(!annotation.descendants_with_tokens().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Missing
+    )));
 
     for (source, error, retry) in [
         ("x: @Int", "@", "Int"),
@@ -1322,15 +1330,16 @@ fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
         let annotation = annotation_node(&green);
         assert_eq!(
             annotation
-                .children()
+                .children_with_tokens()
+                .filter(|element| element.as_node().is_some() || element.kind() == SyntaxKind::Error)
                 .map(|node| node.kind())
                 .collect::<Vec<_>>(),
             [SyntaxKind::Error, SyntaxKind::TypeExpression],
             "{source:?}"
         );
-        let error_node = annotation
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error_node = crate::tests::recovery_output::recovery_groups(&annotation)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&annotation))
             .expect("direct Type-primary Error");
         assert_eq!(error_node.text().to_string(), error, "{source:?}");
         let type_expr = annotation
@@ -1352,17 +1361,17 @@ fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
     let annotation = annotation_node(&green);
     assert_eq!(
         annotation
-            .children()
+            .children_with_tokens()
+            .filter(|element| element.as_node().is_some() || element.kind() == SyntaxKind::Error)
             .map(|node| node.kind())
             .collect::<Vec<_>>(),
         [SyntaxKind::Error]
     );
     assert_eq!(
         annotation
-            .children()
-            .next()
+            .children_with_tokens()
+            .find(|element| element.kind() == SyntaxKind::Error)
             .expect("Type-primary Error")
-            .text()
             .to_string(),
         "@"
     );
@@ -1385,7 +1394,8 @@ fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
     let annotation = annotation_node(&green);
     assert_eq!(
         annotation
-            .children()
+            .children_with_tokens()
+            .filter(|element| element.as_node().is_some() || element.kind() == SyntaxKind::Error)
             .map(|node| node.kind())
             .collect::<Vec<_>>(),
         [SyntaxKind::Error]
@@ -1440,8 +1450,8 @@ fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
         );
         assert!(
             !annotation
-                .descendants()
-                .any(|node| node.kind() == SyntaxKind::Error),
+                .descendants_with_tokens()
+                .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)),
             "{source:?}"
         );
     }
@@ -1463,9 +1473,9 @@ fn standalone_patterns_recover_primary_alias_and_alternation_slots_locally() {
     assert_eq!(green.to_string(), "@ x");
     assert!(matches!(exit, Err(Either::Right(_))));
     let pattern = pattern_node(green);
-    let errors = pattern
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&pattern)
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&pattern))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "@");
@@ -1508,9 +1518,9 @@ fn standalone_patterns_recover_primary_alias_and_alternation_slots_locally() {
         .children()
         .find(|node| node.kind() == SyntaxKind::PatternAliasTail)
         .expect("PatternAliasTail");
-    let errors = alias
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&alias)
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&alias))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "$x");
@@ -1601,9 +1611,9 @@ fn standalone_patterns_recover_primary_alias_and_alternation_slots_locally() {
         .children()
         .find(|node| node.kind() == SyntaxKind::PatternAliasTail)
         .expect("PatternAliasTail");
-    let errors = alias
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&alias)
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&alias))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "@");
@@ -1671,9 +1681,8 @@ fn standalone_patterns_keep_parenthesized_and_list_recovery_inside_their_owners(
             expected_missing,
             "{source:?}"
         );
-        let errors = delimited
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let errors = crate::tests::recovery_output::recovery_groups(&delimited)
+            .into_iter()
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), expected_errors, "{source:?}");
         if source == "(a]" {
@@ -1730,9 +1739,9 @@ fn standalone_patterns_keep_delimiter_and_malformed_list_item_recovery_local() {
         .filter(|node| node.kind() == SyntaxKind::Pattern)
         .collect::<Vec<_>>();
     assert_eq!(items.len(), 2);
-    let errors = items[1]
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&items[1])
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&items[1]))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "@");
@@ -1758,9 +1767,8 @@ fn standalone_patterns_keep_delimiter_and_malformed_list_item_recovery_local() {
         .children()
         .find(|node| node.kind() == SyntaxKind::ListPattern)
         .expect("ListPattern");
-    let errors = list
-        .descendants()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&list)
+        .into_iter()
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "...");
@@ -1809,9 +1817,9 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
     assert_eq!(green.to_string(), "{a; b}");
     assert!(matches!(exit, Err(Either::Right(_))));
     let record = record_node(green);
-    let errors = record
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&record)
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&record))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), ";");
@@ -1934,9 +1942,9 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
         .children()
         .find(|node| node.kind() == SyntaxKind::Pattern)
         .expect("nested Pattern");
-    let errors = nested
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&nested)
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&nested))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "@");
@@ -1992,9 +2000,9 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
         .children()
         .find(|node| node.kind() == SyntaxKind::Pattern)
         .expect("nested Pattern");
-    let errors = nested
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&nested)
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&nested))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "@");
@@ -2020,9 +2028,9 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
         .children()
         .find(|node| node.kind() == SyntaxKind::Pattern)
         .expect("spread Pattern");
-    let errors = nested
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&nested)
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&nested))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "@");
@@ -2041,9 +2049,9 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
     assert_eq!(green.to_string(), "{...a}");
     assert!(matches!(exit, Err(Either::Right(_))));
     let record = record_node(green);
-    let errors = record
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&record)
+        .into_iter()
+        .filter(|group| group.parent().as_ref() == Some(&record))
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "...");
@@ -2066,18 +2074,22 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
         assert_eq!(green.to_string(), source, "{spelling:?}");
         assert!(matches!(exit, Err(Either::Right(_))), "{spelling:?}");
         let record = record_node(green);
-        let errors = record
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let errors = crate::tests::recovery_output::recovery_groups(&record)
+            .into_iter()
+            .filter(|group| group.parent().as_ref() == Some(&record))
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{spelling:?}");
         assert_eq!(errors[0].text().to_string(), spelling);
-        let leading = errors[0].prev_sibling_or_token().unwrap();
+        let leading = errors[0]
+            .first_token()
+            .unwrap()
+            .prev_sibling_or_token()
+            .unwrap();
         assert_eq!(leading.kind(), SyntaxKind::Whitespace);
         assert_eq!(leading.to_string(), " ");
         assert_eq!(
             errors[0].last_token().map(|token| token.kind()),
-            Some(SyntaxKind::Unknown),
+            Some(SyntaxKind::Error),
             "{spelling:?}"
         );
         assert!(
@@ -2106,14 +2118,14 @@ fn standalone_records_keep_recovery_slots_and_malformed_fixed_spellings_local() 
     let (green, exit) = run_pattern(".");
     assert_eq!(green.to_string(), ".");
     assert!(matches!(exit, Err(Either::Right(_))));
-    let error = pattern_node(green)
-        .children()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = crate::tests::recovery_output::recovery_groups(&pattern_node(green))
+        .into_iter()
+        .next()
         .expect("Pattern Error");
     assert_eq!(error.text().to_string(), ".");
     assert_eq!(
         error.first_token().map(|token| token.kind()),
-        Some(SyntaxKind::Dot)
+        Some(SyntaxKind::Error)
     );
 }
 

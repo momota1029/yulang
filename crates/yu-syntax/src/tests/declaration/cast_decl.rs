@@ -9,6 +9,9 @@ fn declaration(green: &GreenNode) -> SyntaxNode {
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|node| node.kind() == kind)
         .count()
@@ -895,9 +898,9 @@ fn cast_malformed_body_introducer_retries_actual_form_starters() {
             "{source:?}"
         );
         assert_eq!(
-            declaration
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&declaration)
+                .into_iter()
+                .next()
                 .expect("BodyIntroducer Error")
                 .to_string(),
             "@",
@@ -937,8 +940,9 @@ fn cast_definition_body_preserves_boundaries_and_recovers_one_run() {
     assert_eq!(count(&node, SyntaxKind::Error), 1);
     assert_eq!(count(&node, SyntaxKind::Missing), 0);
     assert_eq!(
-        node.descendants()
-            .find(|descendant| descendant.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&node)
+            .into_iter()
+            .next()
             .expect("PatternIntroducer Error")
             .to_string(),
         "@   "
@@ -1059,8 +1063,9 @@ fn cast_malformed_pattern_introducer_owns_only_same_line_eof_trivia() {
     assert_eq!(count(&node, SyntaxKind::Error), 1);
     assert_eq!(count(&node, SyntaxKind::Missing), 0);
     assert_eq!(
-        node.descendants()
-            .find(|descendant| descendant.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&node)
+            .into_iter()
+            .next()
             .expect("PatternIntroducer Error")
             .to_string(),
         "@   "
@@ -1077,9 +1082,9 @@ fn cast_malformed_pattern_introducer_owns_only_same_line_eof_trivia() {
         assert_eq!(count(&declaration, SyntaxKind::Error), 1, "{source:?}");
         assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
         assert_eq!(
-            declaration
-                .descendants()
-                .find(|descendant| descendant.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&declaration)
+                .into_iter()
+                .next()
                 .expect("PatternIntroducer Error")
                 .to_string(),
             "@",
@@ -1105,8 +1110,9 @@ fn cast_malformed_target_introducer_owns_only_same_line_eof_trivia() {
     assert_eq!(count(&node, SyntaxKind::Error), 1);
     assert_eq!(count(&node, SyntaxKind::Missing), 0);
     assert_eq!(
-        node.descendants()
-            .find(|descendant| descendant.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&node)
+            .into_iter()
+            .next()
             .expect("TargetIntroducer Error")
             .to_string(),
         "@   "
@@ -1123,9 +1129,9 @@ fn cast_malformed_target_introducer_owns_only_same_line_eof_trivia() {
         assert_eq!(count(&declaration, SyntaxKind::Error), 1, "{source:?}");
         assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
         assert_eq!(
-            declaration
-                .descendants()
-                .find(|descendant| descendant.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&declaration)
+                .into_iter()
+                .next()
                 .expect("TargetIntroducer Error")
                 .to_string(),
             "@",
@@ -1151,8 +1157,9 @@ fn cast_malformed_body_introducer_owns_only_same_line_eof_trivia() {
     assert_eq!(count(&node, SyntaxKind::Error), 1);
     assert_eq!(count(&node, SyntaxKind::Missing), 0);
     assert_eq!(
-        node.descendants()
-            .find(|descendant| descendant.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&node)
+            .into_iter()
+            .next()
             .expect("BodyIntroducer Error")
             .to_string(),
         "@   "
@@ -1169,9 +1176,9 @@ fn cast_malformed_body_introducer_owns_only_same_line_eof_trivia() {
         assert_eq!(count(&declaration, SyntaxKind::Error), 1, "{source:?}");
         assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
         assert_eq!(
-            declaration
-                .descendants()
-                .find(|descendant| descendant.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&declaration)
+                .into_iter()
+                .next()
                 .expect("BodyIntroducer Error")
                 .to_string(),
             "@",
@@ -1197,8 +1204,9 @@ fn cast_malformed_body_owns_only_same_line_eof_trivia() {
     assert_eq!(count(&node, SyntaxKind::Error), 1);
     assert_eq!(count(&node, SyntaxKind::Missing), 0);
     assert_eq!(
-        node.descendants()
-            .find(|descendant| descendant.kind() == SyntaxKind::Error)
+        crate::tests::recovery_output::recovery_groups(&node)
+            .into_iter()
+            .next()
             .expect("Body Error")
             .to_string(),
         "@   "
@@ -1215,9 +1223,9 @@ fn cast_malformed_body_owns_only_same_line_eof_trivia() {
         assert_eq!(count(&declaration, SyntaxKind::Error), 1, "{source:?}");
         assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
         assert_eq!(
-            declaration
-                .descendants()
-                .find(|descendant| descendant.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&declaration)
+                .into_iter()
+                .next()
                 .expect("Body Error")
                 .to_string(),
             "@",

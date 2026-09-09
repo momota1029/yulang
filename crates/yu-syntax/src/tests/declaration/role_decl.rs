@@ -318,6 +318,9 @@ fn role_body_recovery_retains_head_and_statement_child_owners() {
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|node| node.kind() == kind)
         .count()
@@ -532,9 +535,9 @@ fn role_head_retains_inherited_type_ml_stop_before_spaced_arrow() {
     );
     assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
     assert_eq!(count(&node, SyntaxKind::Error), 1, "{node:#?}");
-    let error = node
-        .descendants()
-        .find(|child| child.kind() == SyntaxKind::Error)
+    let error = crate::tests::recovery_output::recovery_groups(&node)
+        .into_iter()
+        .next()
         .expect("spaced arrow is not a tail in inherited Type-ML");
     assert_eq!(error.to_string(), "->");
     assert_eq!(usize::from(error.text_range().start()), 10);
@@ -616,9 +619,9 @@ fn role_head_missing_and_malformed_recovery_retries_without_cascade() {
             "{source:?}\n{node:#?}"
         );
         assert_eq!(count(&node, SyntaxKind::Error), 1, "{source:?}\n{node:#?}");
-        let error = node
-            .descendants()
-            .find(|child| child.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&node)
+            .into_iter()
+            .next()
             .expect("one malformed Type head run");
         assert_eq!(
             error.parent().map(|parent| parent.kind()),
@@ -760,9 +763,9 @@ fn role_isolated_body_recovery_commits_one_error_node_per_malformed_run() {
             0,
             "{source:?}\n{node:#?}"
         );
-        let error = node
-            .descendants()
-            .find(|child| child.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&node)
+            .into_iter()
+            .next()
             .expect("one malformed body run");
         assert_eq!(error.text().to_string(), "@", "{source:?}\n{node:#?}");
     }

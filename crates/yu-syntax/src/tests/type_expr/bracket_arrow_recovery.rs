@@ -73,10 +73,7 @@ fn bracket_arrow_errors_retry_arrow_or_rhs_without_an_extra_missing() {
         ("F [e] @\r\n  U", 6..7, "@"),
     ] {
         let root = assert_complete_type_recovery(source, 0, &[arrow(0, range, true)]);
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
-            .unwrap();
+        let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(error.text(), text, "{source:?}");
         assert_eq!(error.parent().unwrap().kind(), SyntaxKind::TypeArrowTail);
         assert!(
@@ -88,7 +85,7 @@ fn bracket_arrow_errors_retry_arrow_or_rhs_without_an_extra_missing() {
             assert!(
                 error
                     .children_with_tokens()
-                    .any(|child| child.kind() == SyntaxKind::Colon)
+                    .any(|child| child.kind() == SyntaxKind::Error && child.to_string() == ":")
             );
         }
     }
@@ -234,11 +231,10 @@ fn bracket_arrow_accepted_controls_keep_right_associative_recursion() {
         "[e] F [io] -> U",
     ] {
         let root = assert_complete_type_recovery(source, 0, &[]);
-        assert!(
-            !root
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-        );
+        assert!(!root.descendants_with_tokens().any(|node| matches!(
+            node.kind(),
+            SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+        )));
         assert_eq!(
             root.descendants()
                 .filter(|node| node.kind() == SyntaxKind::TypeArrowTail)

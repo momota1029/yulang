@@ -68,3 +68,21 @@ Invalid with valid nested syntax and nested recovery, accepted controls,
 normalization and public boundaries. Then run one package check, scoped format
 and diff checks. The existing `SyntaxKind::Unknown` discriminant failure is
 outside this gate; appending `Invalid` must not alter it.
+
+## Construction evidence
+
+Completed 2026-09-09 under the bounded topology-only scope. The direct Rowan
+emitter now writes raw malformed physical fragments as `Error` leaves and the
+two designated structured owners as `Invalid` nodes. `Invalid` was appended
+without renumbering an existing syntax kind. Recovery records, reservations,
+frozen reconciliation, diagnostic IDs and public diagnostic construction were
+intentionally retained.
+
+Focused raw-output, owner, Rule and opaque-root controls passed. The final
+single-threaded `yu-syntax` library run passed 1,070 tests, ignored one
+existing manual harness and had one failure: the pre-existing stale
+`SyntaxKind::Unknown` discriminant assertion (`231` actual, `229` expected) in
+an unmodified test. Scoped format and diff checks passed. Compiler/recovery
+delta review found no topology finding. This evidence completes only this
+topology gate; the complete per-slot schema and parser diagnostic-ledger
+retirement remain open.

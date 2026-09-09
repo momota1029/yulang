@@ -25,7 +25,7 @@ fn record_wrong_kind_literal_keeps_its_inner_brace_and_following_field() {
         let root = SyntaxNode::new_root(fresh.green);
         let error = root
             .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+            .find(|node| node.kind() == SyntaxKind::Invalid)
             .unwrap();
         assert_eq!(error.to_string(), "\"\"\"}\"\"\"");
         assert_eq!(error.children().next().unwrap().kind(), SyntaxKind::Pattern);
@@ -109,10 +109,7 @@ fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
                 PatternCompletion::Complete,
             );
             let root = SyntaxNode::new_root(fresh.green);
-            let error = root
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
-                .unwrap();
+            let error = recovery_groups(&root).into_iter().next().unwrap();
             assert_eq!(error.to_string(), source[range.clone()]);
             assert_eq!(
                 error.parent().unwrap().kind(),
@@ -126,12 +123,7 @@ fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
                 .children_with_tokens()
                 .filter_map(|element| element.into_token())
             {
-                match token.text() {
-                    ";" => assert_eq!(token.kind(), SyntaxKind::Semicolon),
-                    "." => assert_eq!(token.kind(), SyntaxKind::Dot),
-                    "@" => assert_eq!(token.kind(), SyntaxKind::Unknown),
-                    _ => assert_eq!(token.kind(), SyntaxKind::Whitespace),
-                }
+                assert_eq!(token.kind(), SyntaxKind::Error);
             }
         }
         checked(
@@ -200,7 +192,7 @@ fn record_wrong_kind_primaries_are_structured_in_both_sequence_phases() {
                 let root = SyntaxNode::new_root(fresh.green);
                 let error = root
                     .descendants()
-                    .find(|node| node.kind() == SyntaxKind::Error)
+                    .find(|node| node.kind() == SyntaxKind::Invalid)
                     .unwrap();
                 assert_eq!(error.to_string(), head);
                 assert_eq!(error.children().next().unwrap().kind(), SyntaxKind::Pattern);
@@ -269,7 +261,7 @@ fn record_structured_errors_reserve_outer_records_before_nested_recovery() {
             let root = SyntaxNode::new_root(fresh.green);
             let errors = root
                 .descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+                .filter(|node| node.kind() == SyntaxKind::Invalid)
                 .collect::<Vec<_>>();
             let outer = errors
                 .iter()
@@ -330,11 +322,17 @@ fn sequence_unclaimed_closes_publish_native_evidence_in_both_phases() {
                 PatternCompletion::Complete,
             );
             let root = SyntaxNode::new_root(fresh.green);
-            let error = root
-                .descendants()
-                .find(|node| node.kind() == SyntaxKind::Error)
-                .unwrap();
-            assert_eq!(error.last_token().unwrap().kind(), kind);
+            let error = recovery_groups(&root).into_iter().next().unwrap();
+            assert_eq!(error.last_token().unwrap().kind(), SyntaxKind::Error);
+            assert_eq!(
+                error.last_token().unwrap().text(),
+                match kind {
+                    SyntaxKind::RBracket => "]",
+                    SyntaxKind::RBrace => "}",
+                    SyntaxKind::RParen => ")",
+                    _ => unreachable!(),
+                }
+            );
             assert_eq!(
                 error.next_sibling_or_token().unwrap().to_string(),
                 &source[source.len() - 1..]
@@ -501,15 +499,29 @@ fn sequence_error_fences_preserve_pending_items_and_structured_emitted_bounds() 
                 PatternCompletion::Complete,
             );
             let root = SyntaxNode::new_root(fresh.green);
-            let prefix = root
-                .descendants_with_tokens()
-                .find(|element| element.kind() == SyntaxKind::YmQuotePrefix)
-                .unwrap();
-            assert!(
-                prefix
-                    .ancestors()
-                    .any(|node| node.kind() == SyntaxKind::Error)
-            );
+            let groups = recovery_groups(&root);
+            assert_eq!(groups.len(), 1);
+            assert_eq!(groups[0].text(), &source[1..end]);
+            if source.starts_with("{@") {
+                assert!(groups[0].children_with_tokens().any(|element| {
+                    element.kind() == SyntaxKind::Error && element.to_string() == "> > "
+                }));
+                assert!(
+                    !root
+                        .descendants_with_tokens()
+                        .any(|element| element.kind() == SyntaxKind::YmQuotePrefix)
+                );
+            } else {
+                let prefix = root
+                    .descendants_with_tokens()
+                    .find(|element| element.kind() == SyntaxKind::YmQuotePrefix)
+                    .unwrap();
+                assert!(
+                    prefix
+                        .ancestors()
+                        .any(|node| node.kind() == SyntaxKind::Invalid)
+                );
+            }
         }
     }
 }

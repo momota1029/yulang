@@ -806,8 +806,8 @@ fn if_c6_reuses_indented_block_and_stops_at_companion_words() {
     );
     assert!(
         !if_expression
-            .descendants()
-            .any(|node| node.kind() == SyntaxKind::Error)
+            .descendants_with_tokens()
+            .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
     );
 
     for source in ["if x: a elsif y: b", "if x: a\n  elsif y: b"] {
@@ -859,8 +859,8 @@ fn if_c6_recovers_accepted_arm_slots_once() {
             "{source:?}"
         );
         assert_eq!(
-            root.descendants()
-                .filter(|node| node.kind() == SyntaxKind::Error)
+            crate::tests::recovery_output::recovery_groups(&root)
+                .into_iter()
                 .count(),
             error,
             "{source:?}"

@@ -385,6 +385,9 @@ fn declaration(green: &GreenNode) -> SyntaxNode {
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|node| node.kind() == kind)
         .count()
@@ -605,9 +608,9 @@ fn impl_head_retains_inherited_type_ml_stop_before_spaced_arrow() {
     );
     assert_eq!(count(&node, SyntaxKind::Missing), 0, "{node:#?}");
     assert_eq!(count(&node, SyntaxKind::Error), 1, "{node:#?}");
-    let error = node
-        .descendants()
-        .find(|child| child.kind() == SyntaxKind::Error)
+    let error = crate::tests::recovery_output::recovery_groups(&node)
+        .into_iter()
+        .next()
         .expect("spaced arrow is not a tail in inherited Type-ML");
     assert_eq!(error.to_string(), "->");
     assert_eq!(usize::from(error.text_range().start()), 10);

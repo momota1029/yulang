@@ -387,17 +387,29 @@ fn type_header_error_run_keeps_internal_trivia_and_native_tokens() {
         );
         assert_eq!(green.to_string(), source);
         let declaration = type_declaration_node(&green);
-        let error = declaration
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&declaration)
+            .into_iter()
+            .next()
             .unwrap();
         assert_eq!(error.to_string(), "@ @");
-        assert_eq!(token_count(&error, SyntaxKind::Unknown), 2);
-        assert_eq!(token_count(&error, SyntaxKind::Whitespace), 1);
+        assert_eq!(
+            error
+                .children_with_tokens()
+                .map(|leaf| (leaf.kind(), leaf.to_string()))
+                .collect::<Vec<_>>(),
+            [
+                (SyntaxKind::Error, "@".into()),
+                (SyntaxKind::Error, " ".into()),
+                (SyntaxKind::Error, "@".into())
+            ]
+        );
     }
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|descendant| descendant.kind() == kind)
         .count()
@@ -938,9 +950,8 @@ fn type_c12_malformed_path_retry_preserves_caller_stops() {
         let (green, exit) = run_statement_with_stops(source, &operators, stops);
         assert_eq!(green.to_string(), committed, "{source:?}");
         let declaration = type_declaration_node(&green);
-        let errors = declaration
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let errors = crate::tests::recovery_output::recovery_groups(&declaration)
+            .into_iter()
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{source:?}");
         assert_eq!(errors[0].text().to_string(), "@");
@@ -970,9 +981,8 @@ fn type_c12_malformed_path_retry_preserves_caller_stops() {
     assert!(matches!(exit, NormalizedExit::Complete(Ok(()), _)));
     assert_eq!(remainder, " tail");
     let declaration = type_declaration_node(&green);
-    let errors = declaration
-        .descendants()
-        .filter(|node| node.kind() == SyntaxKind::Error)
+    let errors = crate::tests::recovery_output::recovery_groups(&declaration)
+        .into_iter()
         .collect::<Vec<_>>();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].text().to_string(), "@");
@@ -986,9 +996,9 @@ fn type_c12_malformed_path_retry_preserves_caller_stops() {
     let (green, _) = run_statement(source);
     assert_eq!(green.to_string(), source);
     let declaration = type_declaration_node(&green);
-    let error = declaration
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::Error)
+    let error = crate::tests::recovery_output::recovery_groups(&declaration)
+        .into_iter()
+        .next()
         .expect("the malformed path segment must remain path-owned");
     assert_eq!(error.text().to_string(), "@");
     assert_eq!(
@@ -1046,9 +1056,8 @@ fn type_c12_recovery_roles_stay_at_the_owning_slot() {
     ] {
         let (green, exit) = run_statement(source);
         let declaration = type_declaration_node(&green);
-        let errors = declaration
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let errors = crate::tests::recovery_output::recovery_groups(&declaration)
+            .into_iter()
             .collect::<Vec<_>>();
         let missing = declaration
             .descendants()
@@ -1096,9 +1105,8 @@ fn type_c12_completes_the_header_and_rhs_recovery_rows() {
         let (green, exit) = run_statement(source);
         assert_eq!(green.to_string(), committed, "{source:?}");
         let declaration = type_declaration_node(&green);
-        let errors = declaration
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Error)
+        let errors = crate::tests::recovery_output::recovery_groups(&declaration)
+            .into_iter()
             .collect::<Vec<_>>();
         assert_eq!(errors.len(), 1, "{source:?}");
         assert_eq!(errors[0].text().to_string(), error_text, "{source:?}");
@@ -2334,9 +2342,9 @@ fn type_error_recovery_owns_ordinary_eof_trailing_trivia() {
         let (green, _) = run_statement(source);
         assert_eq!(green.to_string(), source, "{source:?}");
         let declaration = type_declaration_node(&green);
-        let error = declaration
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&declaration)
+            .into_iter()
+            .next()
             .expect("malformed Type slot must own one Error");
         assert_eq!(error.to_string(), "@", "{source:?}");
         let trailing = declaration

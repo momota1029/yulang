@@ -68,9 +68,9 @@ fn leading_row_error_retries_one_head_without_a_missing_cascade() {
             .children()
             .find(|node| node.kind() == SyntaxKind::TypeExpression)
             .unwrap();
-        let error = top
-            .children()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = recovery_groups(&top)
+            .into_iter()
+            .find(|group| group.parent().as_ref() == Some(&top))
             .unwrap();
         assert_eq!(error.text(), text, "{source:?}");
         assert_eq!(
@@ -86,10 +86,12 @@ fn leading_row_error_retries_one_head_without_a_missing_cascade() {
             "{source:?}"
         );
         if text.starts_with('[') {
-            assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::LBracket);
+            assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
+            assert_eq!(error.first_token().unwrap().text(), "[");
         }
         if text.ends_with(']') {
-            assert_eq!(error.last_token().unwrap().kind(), SyntaxKind::RBracket);
+            assert_eq!(error.last_token().unwrap().kind(), SyntaxKind::Error);
+            assert_eq!(error.last_token().unwrap().text(), "]");
         }
     }
     assert_complete_type_recovery("[e][f]T", 40, &[head_error(0, 43..46)]);
@@ -265,11 +267,10 @@ fn leading_row_accepted_heads_keep_attachment_and_primary_disposition() {
         "[e]\r\n  T",
     ] {
         let root = assert_complete_type_recovery(source, 0, &[]);
-        assert!(
-            !root
-                .descendants()
-                .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-        );
+        assert!(!root.descendants_with_tokens().any(|node| matches!(
+            node.kind(),
+            SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+        )));
         let top = root
             .children()
             .find(|node| node.kind() == SyntaxKind::TypeExpression)

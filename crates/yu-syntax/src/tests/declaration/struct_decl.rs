@@ -423,6 +423,9 @@ fn struct_header_active_starters_and_quoted_fences_remain_whole() {
 }
 
 fn count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
+    if kind == SyntaxKind::Error {
+        return crate::tests::recovery_output::recovery_groups(node).len();
+    }
     node.descendants()
         .filter(|node| node.kind() == kind)
         .count()
@@ -620,11 +623,14 @@ fn struct_c11_malformed_recovery_owns_trailing_eof_trivia() {
             // Header Error leaves terminal EOF leading to the pending Item.
             assert_eq!(trailing.parent().unwrap().kind(), SyntaxKind::Root);
         }
-        let error = root
-            .descendants()
-            .find(|node| node.kind() == SyntaxKind::Error)
+        let error = crate::tests::recovery_output::recovery_groups(&root)
+            .into_iter()
+            .next()
             .unwrap();
-        assert_eq!(error.kind(), SyntaxKind::Error, "{source:?}");
+        assert!(
+            matches!(&error, crate::tests::recovery_output::RecoveryGroup::Raw(_)),
+            "{source:?}"
+        );
         assert_eq!(error.to_string(), error_text, "{source:?}");
         assert_eq!(
             error.parent().map(|node| node.kind()),
