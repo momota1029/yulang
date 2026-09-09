@@ -283,8 +283,10 @@ or unmapped.
 The StringInterpolationBody statement-sequence Draft is preflighted and has
 direct CST proof; user promotion remains open.
 The TypePathTail segment Draft and direct CST evidence are complete; its
-post-Error fence boundary repair is reviewed, while user promotion remains
-open.
+post-Error fence boundary repair is reviewed. Its bounded catalog row is now
+mapped: it distinguishes Type continuation from expression PathTail, including
+continuation-qualified newline trivia versus outer TypeApply horizontal handoff.
+User promotion and every other Type context remain open.
 The actual-arrow TypeArrowTail RHS Draft is preflighted and has direct CST
 proof. Its post-Error shallow-newline admission now follows the existing
 authority; user promotion remains open.

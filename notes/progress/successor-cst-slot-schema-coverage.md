@@ -110,6 +110,29 @@ source-navigation families, not semantic schema families.
 - `crates/yu-syntax/src/type_expr/record.rs`
 - `crates/yu-syntax/src/type_expr/variants.rs`
 
+#### TypePathTail required-segment row links
+
+Only the following concrete `type_expr/mod.rs` emissions are linked to the
+Draft catalog row `(TypePathTail, required segment immediately after
+ColonColon, enclosing Type continuation context)`. Status: `linked`; together
+they evidence only this row's three phase-specific Missing alternatives and
+its direct malformed Error-run. The Type contextual-boundary correction and
+the row's transition facts distinguish same-tail `A::@B` retry from `A::@ B`
+handoff to TypeApply; `::` spelling alone is not an assignment rule.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/type_expr/mod.rs:2109` | `linked` | abstract pending-boundary Missing |
+| `crates/yu-syntax/src/type_expr/mod.rs:2137` | `linked` | caller/outer protected-boundary Missing |
+| `crates/yu-syntax/src/type_expr/mod.rs:2161` | `linked` | ordinary leading/path-boundary Missing after owned leading emission |
+| `crates/yu-syntax/src/type_expr/mod.rs:2294` | `linked` | direct TypePathTail malformed Error-run and same-slot retry/handoff evidence |
+
+The helper/caller context at `2074–2273` and `2281–2366` is support for the
+linked facts, not a separate census assignment. Every other
+`type_expr/mod.rs` emission, including other Type heads, tails, calls, rows,
+variants, forall, delimiter, and close contexts, remains `untriaged` and
+unmapped.
+
 #### TypeCall terminal-close row links
 
 Only the following census emissions are linked to the Draft catalog row
