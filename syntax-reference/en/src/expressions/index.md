@@ -4,6 +4,7 @@ Authored pages:
 
 - [Parenthesized expression lists (unit / group / tuple)](parenthesized-expression.md)
 - [Dynamic operator chains](operator-chain.md)
+- [Assignment tail](assignment-tail.md)
 - [Colon application](colon-application.md)
 - [`if` / `elsif` / `else` expressions](if-expression.md)
 - [Brace-delimited statement blocks](braced-statement-block.md)

@@ -4,6 +4,7 @@
 
 - [Parenthesized expression list（unit / group / tuple）](parenthesized-expression.md)
 - [Dynamic operator chain](operator-chain.md)
+- [Assignment tail](assignment-tail.md)
 - [Colon application](colon-application.md)
 - [`if` / `elsif` / `else` expression](if-expression.md)
 - [Brace-delimited statement block](braced-statement-block.md)

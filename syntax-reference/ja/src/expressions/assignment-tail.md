@@ -1,80 +1,136 @@
 # Assignment tail
 
-## 1. 対象範囲
+## 1. 対象範囲と受理
 
-Assignment は、`OperatorChain` の終端 outer continuation である。
-1 文字の `=` と、その直後に置く 1 個の右辺を受け付ける。
-このページは、surface spelling、CST、recovery だけを定める。
+このページは、`AssignmentTail`の direct inline `Assignment(Rhs)` slot を定める。
+対象は、この slot の source-order Rowan CST、recovery shape、後続の diagnostic projection である。
 
-Assignment は outer-only continuation である。
-continuation が enabled であり、ML argument の外にある場合だけ受理する。
-より低い binding-threshold context または ML argument の candidate は、source を consume せず、CST/recovery output を出さずに reject する。
+例は、可逆な`text` attribute escape を含む site-wide の[Rowan CST表記](../conventions/rowan-cst.md)を使う。
 
-右辺は inline `Expression` または indented `Statement` block のどちらか一方である。
-comma を所有する inline list にはならない。
+Assignment は、`OperatorChain`の終端 outer continuation である。
+admitted dynamic LED operator が不成立になった後、1 個の`=`を取得する。
+continuation は enabled、outermost、かつ ML argument の外でなければならない。
+lower-threshold または ML の candidate は source を pending のまま残す。
+`AssignmentTail`と recovery element は emit しない。
+したがって、`x=-y`は prefix RHS を持つ assignment である。
+`x==y`は dynamic infix expression のままである。
 
-## 2. 受理する表記
+direct inline slot は RHS を 1 個要求する。
+comma を所有する inline list ではない。
+RHS を受理した後、`AssignmentTail`は閉じる。
+さらに outer continuation は走査しない。
 
-次は assignment の inline form である。
+## 2. Source-order CST
+
+`AssignmentTail`は左辺を所有も wrap もしない。
+enclosing `OperatorChain`が、左辺の child と`=`より前の trivia を所有する。
+その後に 1 個の`AssignmentTail` node を追加する。
+
+direct inline の child alternative を次に示す。
+この grammar は alternative を読みやすくするため、trivia を省略している。
+trivia の位置は後の節で明示する。
 
 ```text
-x = y
-x=-y
+OperatorChain := <left-expression children and pre-`=` trivia> AssignmentTail
+AssignmentTail := Equals (Missing | Error+ | Error+ OperatorChain | OperatorChain)
+Equals := "="
 ```
 
-assignment は、admitted dynamic LED operator より後に判定する。
-そのため、`x == y` は assignment と後続の `=` ではなく dynamic infix のままである。
+accepted inline RHS では、`AssignmentTail`は`Equals` token、native leading trivia、1 個の concrete な RHS `OperatorChain`をこの順で持つ。
+`InlineRhs` node は存在しない。
 
-## 3. Flat source-order CST
-
-`AssignmentTail` は左辺を所有も wrap もしない。
-完了した左辺の source-order child の後へ、開いている `OperatorChain` が `AssignmentTail` を追加する。
-Rowan CST では、`AssignmentTail` node は flat `OperatorChain` の中に置く。
-
-```text
-OperatorChain :=
-    <left-expression children in source order>
-    AssignmentTail
-
-AssignmentTail :=
-    "=" G* Expression
-  | "=" <existing indented Statement block>
+```xml
+<AssignmentTail>
+  <Equals text="=" />
+  <Whitespace text=" " />
+  <OperatorChain>
+    <IdentifierExpression>
+      <Identifier text="y" />
+    </IdentifierExpression>
+  </OperatorChain>
+</AssignmentTail>
 ```
 
-committed `=` より前の trivia は `OperatorChain` の direct child に残る。
-`AssignmentTail` は `=`、その後に受理した leading trivia、右辺を source order で所有する。
+accepted direct RHS または initially rejected direct RHS の前にある initial leading は、`AssignmentTail`の直下に native trivia として置く。
+その trivia は RHS `OperatorChain`または direct `Error` token より前に置く。
+admitted retry の leading は、新しい RHS `OperatorChain`に入る native trivia である。
+直前の raw group には含めない。
 
-改行後の indent が導入位置より厳密に深いとき、右辺は existing indented `Statement` block になる。
-それ以外では、`AssignmentTail` は inline `Expression` を 1 個だけ要求する。
+## 3. RHS の absence と raw form
 
-## 4. 終端性
+admitted stop、boundary、separator、close、non-NUD bracket opener、non-continuing layout、EOF では、必要な inline RHS がない。
+tail は`Assignment(Rhs)` slot に zero-width の`Missing`を 1 個置く。
 
-右辺が成功すると、`AssignmentTail` は閉じる。
-その exit を enclosing owner へ返し、さらに outer-chain continuation は走査しない。
+```xml
+<AssignmentTail>
+  <Equals text="=" />
+  <Whitespace text=" " />
+  <Missing />
+</AssignmentTail>
+```
 
-この規則は assignment にだけ適用する。
-`as Type` annotation は別の tail であり、このページはその構文を定めない。
+ordinary EOF では、`AssignmentTail`が所有する leading trivia を先に emit してよい。
+そのとき`Missing`の range は physical EOF になる。
+protected boundary では、boundary item 全体と未所有の leading は pending のまま残る。
+これらは`AssignmentTail`の child にならない。
 
-## 5. Recovery
+non-boundary かつ non-NUD の run が RHS を始めるとき、tail は最大の raw group を隣接した direct `Error` token として emit する。
+initial rejected-item leading は group の外に残る。
+interior leading は group に含める。
+terminal group は protected boundary を変更せずに返す。
+同じ原因の`Missing`は追加しない。
 
-inline 右辺を開始できない fence、abstract boundary、active stop、line stop、separator、close、non-NUD bracket opener、non-continuing layout、EOF では、`AssignmentTail` の RHS slot に zero-width `Missing` を 1 個置く。
-ordinary EOF では、`AssignmentTail` は所有する leading trivia を先に発行してよく、`Missing` は physical EOF に anchor する。
-protected boundary では、その item 全体と未所有の leading trivia を pending のまま残す。
+```xml
+<AssignmentTail>
+  <Equals text="=" />
+  <Whitespace text=" " />
+  <Error text="@" />
+  <Error text="  " />
+  <Error text="@" />
+</AssignmentTail>
+```
 
-boundary ではない non-NUD material が右辺の先頭にある場合、最初の leading trivia は `Error` の外に残る。
-assignment は maximal lexical run を `Error` として消費する。
-malformed `Error` run の内部の leading trivia は `Error` に含める。retry または protected boundary の前の leading trivia は `Error` の外に残す。
-その後に受理できる右辺があれば、同じ 1 個の RHS slot を retry する。
-run が protected boundary に達した場合は `Error` を返し、追加の `Missing` は置かない。
+raw group の後で inline expression を受理できる場合、その expression は同じ RHS slot を満たす。
+retry-leading whitespace は新しい RHS child に属する。
 
-入れ子の `Expression` recovery は既存の role を保つ。
-この tail はそれらを再分類しない。
+```xml
+<AssignmentTail>
+  <Equals text="=" />
+  <Whitespace text=" " />
+  <Error text="@" />
+  <OperatorChain>
+    <IdentifierExpression>
+      <Whitespace text=" " />
+      <Identifier text="y" />
+    </IdentifierExpression>
+  </OperatorChain>
+</AssignmentTail>
+```
 
-このページで使う`Missing`と`Error`の表記は、[Rowan CST表記](../conventions/rowan-cst.md)に従う。
-実装済みの`Error`と`Invalid`のtopologyは、site-wide conventionが定める。
-このlegacy pageは、構文固有のrecovery topologyを定めない。
+raw group を`Invalid`で wrap してはならない。
+`Error`は token leaf である。
+隣接する leaf は physical fragment を表す。
+そこに新しい grammar は作らない。
 
-## 6. 除外事項
+## 4. Slot projection と nested ownership
 
-この構文は canonical AST materialization、HIR association、operator table の変更、declaration equality の scanning を定めない。
-`AssignmentTail` は flat CST の構文形であり、semantic target を持たない。
+この direct inline slot では、`Missing` node と最大の raw `Error` group は、それぞれ`Assignment(Rhs)`へ project する。
+expected syntax は`Expression`である。
+primary expectation index は 0 である。
+`Missing`は zero-width CST range に project する。
+raw group は、隣接する`Error` token の combined range に 1 回だけ project する。
+これは 2 個目の`Missing`でも unexpected payload でもない。
+
+入れ子の recovery は、入れ子の grammar slot に属する。
+たとえば、RHS `OperatorChain`内の`FieldTail`にある`Missing`は、`Assignment(Rhs)`の recovery occurrence にならない。
+
+CST 由来 diagnostic の publication は実装待ちである。
+ここで定めた node range と最大の direct `Error` group を使う。
+[Source root、header、diagnosticの責務](../conventions/source-root-and-diagnostics.md)は、その publication boundary を定める。
+
+## 5. 除外事項
+
+より深く導入した行にある RHS は、`IndentedStatementBlock`へ delegate する。
+その block entry、child slot、recovery、diagnostic projection は、このページでは定めない。
+
+このページは、AST、HIR association、operator table の変更、完全な slot inventory、後続の public diagnostic result を定めない。

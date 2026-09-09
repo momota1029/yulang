@@ -1,80 +1,139 @@
 # Assignment tail
 
-## 1. Scope
+## 1. Scope and admission
 
-Assignment is a terminal outer continuation in an `OperatorChain`.
-It accepts one-character `=` and exactly one right-hand side.
-This page defines only the surface spelling, CST, and recovery.
+This page specifies the direct inline `Assignment(Rhs)` slot of
+`AssignmentTail`. It defines the source-order Rowan CST, recovery shape, and
+later diagnostic projection for that slot.
 
-Assignment is outer-only.
-It requires an enabled continuation outside an ML argument.
-A candidate in a lower binding-threshold context or an ML argument is rejected without consuming source or emitting CST or recovery output.
+The examples use the site-wide [Rowan CST notation](../conventions/rowan-cst.md),
+including its reversible `text`-attribute escaping rules.
 
-The right-hand side is either an inline `Expression` or an indented `Statement` block.
-It is not a comma-owning inline list.
+Assignment is a terminal outer continuation in an `OperatorChain`. It acquires
+one `=` after an admitted dynamic LED operator has declined. The continuation
+must be enabled, outermost, and outside an ML argument. A lower-threshold or
+ML candidate leaves its source pending and emits neither an `AssignmentTail`
+nor recovery elements. Thus `x=-y` is an assignment with a prefix RHS, while
+`x==y` remains a dynamic infix expression.
 
-## 2. Accepted spelling
+The direct inline slot requires one RHS. It is not a comma-owning inline list.
+After an admitted RHS, `AssignmentTail` closes and does not scan another outer
+continuation.
 
-The following are inline assignment forms.
+## 2. Source-order CST
 
-```text
-x = y
-x=-y
-```
+`AssignmentTail` neither owns nor wraps the left expression. The enclosing
+`OperatorChain` owns the left-expression children and the trivia before `=`.
+It then appends one `AssignmentTail` node.
 
-Assignment is judged after an admitted dynamic LED operator.
-Therefore, `x == y` remains a dynamic infix rather than an assignment followed by `=`.
-
-## 3. Flat source-order CST
-
-`AssignmentTail` neither owns nor wraps a left operand.
-The open `OperatorChain` appends `AssignmentTail` after the completed left expression's source-order children.
-In the Rowan CST, an `AssignmentTail` node is placed within the flat `OperatorChain`.
+The direct inline child alternatives are shown below. This grammar omits
+trivia only in the alternatives; the following sections place it explicitly.
 
 ```text
-OperatorChain :=
-    <left-expression children in source order>
-    AssignmentTail
-
-AssignmentTail :=
-    "=" G* Expression
-  | "=" <existing indented Statement block>
+OperatorChain := <left-expression children and pre-`=` trivia> AssignmentTail
+AssignmentTail := Equals (Missing | Error+ | Error+ OperatorChain | OperatorChain)
+Equals := "="
 ```
 
-Trivia before a committed `=` remains a direct child of `OperatorChain`.
-`AssignmentTail` owns `=`, accepted leading trivia after it, and the right-hand side in source order.
+For an accepted inline RHS, `AssignmentTail` contains its `Equals` token,
+then its native leading trivia, then one concrete RHS `OperatorChain`. There
+is no `InlineRhs` node.
 
-When the newline introduces indentation strictly deeper than the introduction position, the right-hand side is the existing indented `Statement` block.
-Otherwise, `AssignmentTail` requires exactly one inline `Expression`.
+```xml
+<AssignmentTail>
+  <Equals text="=" />
+  <Whitespace text=" " />
+  <OperatorChain>
+    <IdentifierExpression>
+      <Identifier text="y" />
+    </IdentifierExpression>
+  </OperatorChain>
+</AssignmentTail>
+```
 
-## 4. Termination
+Initial leading before an accepted or initially rejected direct RHS is native
+trivia directly under `AssignmentTail`. It precedes that RHS `OperatorChain`
+or the direct `Error` tokens. Leading at an admitted retry is native trivia in
+the new RHS `OperatorChain`; it is not part of the preceding raw group.
 
-After a successful right-hand side, `AssignmentTail` closes.
-It returns that exit to its enclosing owner and does not scan another outer-chain continuation.
+## 3. Absent and raw RHS forms
 
-This rule applies only to assignment.
-The `as Type` annotation is a separate tail, and this page does not define its syntax.
+At an admitted stop, boundary, separator, close, non-NUD bracket opener,
+non-continuing layout, or EOF, the required inline RHS is absent. The tail
+contains one zero-width `Missing` in its `Assignment(Rhs)` slot.
 
-## 5. Recovery
+```xml
+<AssignmentTail>
+  <Equals text="=" />
+  <Whitespace text=" " />
+  <Missing />
+</AssignmentTail>
+```
 
-Before an inline right-hand side, a fence, abstract boundary, active stop, line stop, separator, close, non-NUD bracket opener, non-continuing layout, or EOF emits one zero-width `Missing` in `AssignmentTail`'s RHS slot.
-At ordinary EOF, `AssignmentTail` may first emit leading trivia that it owns and anchors the `Missing` at physical EOF.
-At a protected boundary, the whole protected item and its unowned leading trivia remain pending.
+At ordinary EOF, `AssignmentTail` may first emit leading trivia that it owns.
+The `Missing` range is then the physical EOF. At a protected boundary, the
+complete boundary item and its unowned leading remain pending. They do not
+become `AssignmentTail` children.
 
-When non-boundary non-NUD material starts the right-hand side, its initial leading trivia remains outside `Error`.
-Assignment consumes one maximal lexical run as `Error`.
-Internal leading trivia belongs to the malformed `Error` run; leading trivia before a retry or protected boundary remains outside it.
-If an admitted right-hand side follows, it retries the same single RHS slot.
-If the run reaches a protected boundary, it returns the `Error` and adds no `Missing`.
+If a non-boundary, non-NUD run begins the RHS, the tail emits one maximal raw
+group as adjacent direct `Error` tokens. Initial rejected-item leading stays
+outside the group. Interior leading belongs to the group. A terminal group
+returns a protected boundary unchanged and does not add a same-cause
+`Missing`.
 
-Nested `Expression` recovery retains its existing roles.
-This tail does not reclassify it.
+```xml
+<AssignmentTail>
+  <Equals text="=" />
+  <Whitespace text=" " />
+  <Error text="@" />
+  <Error text="  " />
+  <Error text="@" />
+</AssignmentTail>
+```
 
-The `Missing` and `Error` notation on this page follows the [Rowan CST notation](../conventions/rowan-cst.md).
-The site-wide conventions define the implemented `Error` / `Invalid` topology.
-This legacy page does not assign construct-specific recovery topology.
+If an inline expression is admitted after the raw group, it fills the same
+RHS slot. The retry-leading whitespace belongs to the new RHS child.
 
-## 6. Exclusions
+```xml
+<AssignmentTail>
+  <Equals text="=" />
+  <Whitespace text=" " />
+  <Error text="@" />
+  <OperatorChain>
+    <IdentifierExpression>
+      <Whitespace text=" " />
+      <Identifier text="y" />
+    </IdentifierExpression>
+  </OperatorChain>
+</AssignmentTail>
+```
 
-This construct does not define canonical AST materialization, HIR association, operator-table changes, or declaration-equality scanning.
-`AssignmentTail` is a flat CST form and has no semantic target.
+The raw group has no `Invalid` wrapper. `Error` is a token leaf, and its
+adjacent leaves describe physical fragments rather than an invented grammar.
+
+## 4. Slot projection and nested ownership
+
+For this direct inline slot, a `Missing` node and one maximal raw `Error`
+group each project `Assignment(Rhs)`, whose expected syntax is `Expression`
+and whose primary expectation index is zero. A `Missing` projects at its
+zero-width CST range. A raw group projects once over the combined range of
+its adjacent `Error` tokens. It is not a second `Missing` or an unexpected
+payload.
+
+Nested recovery belongs to the nested grammar slot. For example, a `Missing`
+inside a `FieldTail` in the RHS `OperatorChain` does not become an
+`Assignment(Rhs)` recovery occurrence.
+
+CST-derived diagnostic publication is pending. It will use the node range and
+the maximal direct `Error` group described here. The
+[source-root and diagnostic ownership](../conventions/source-root-and-diagnostics.md)
+convention defines that publication boundary.
+
+## 5. Exclusions
+
+An RHS on a deeper introduced line delegates to `IndentedStatementBlock`.
+Its block entry, child slots, recovery, and diagnostic projection are not
+specified on this page.
+
+This page does not define an AST, HIR association, operator-table changes, a
+complete slot inventory, or the later public diagnostic result.
