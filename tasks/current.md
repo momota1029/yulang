@@ -206,6 +206,11 @@ diagnostic migration, and labels unconverted construct pages as legacy
 implementation material. Exact reversible escaping for XML-like `text`
 attributes is defined by the text-attribute escaping addendum: canonical
 backslash/control escapes preserve CRLF, and the notation uses no XML entities.
+The paired recovery-topology pages now specify the implemented direct `Error`
+leaf and restricted `Invalid` node shape, raw-fragment/leading ownership and
+the two structured owners. They intentionally defer construct slot schemas and
+the later CST-derived public diagnostic result. Both language books build with
+`mdbook v0.5.4`.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
