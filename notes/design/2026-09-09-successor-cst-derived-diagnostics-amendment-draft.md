@@ -1,10 +1,14 @@
 # CST-derived syntax diagnostics successor amendment
 
-Status: Reviewed
+Status: Authoritative
 
 Drafted-by: primary from the user's CST-derived diagnostic direction
 
 Reviewed-by: specification and compiler/recovery reviewers
+
+Approved-by: user
+
+Approved-at: 2026-09-09
 
 Date: 2026-09-09
 
