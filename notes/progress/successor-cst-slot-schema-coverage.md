@@ -132,6 +132,31 @@ direct sibling head Missing at the same offset. Every other
 `type_expr/mod.rs` emission remains `untriaged` and unmapped unless separately
 linked below.
 
+#### BracketRow-selected required-arrow continuation row links
+
+Only the following concrete `type_expr/mod.rs` publishers are linked to the
+Draft catalog row `(TypeArrowTail, required-arrow continuation immediately
+after its direct BracketRow)`. Status: `linked`; together they evidence the
+direct-tail wrapper, completed-row required-arrow classification, the separate
+unconditional incomplete-row Arrow Missing/unchanged exit handoff, and
+arrowless Type-expression continuation. The row excludes BracketRow internals
+and the actual-arrow RHS slot; no other `type_expr/mod.rs` publisher is
+assigned to it.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/type_expr/mod.rs:1683–1740` | `linked` | direct `TypeArrowTail` owner; every incomplete BracketRow exit emits its separate Arrow Missing and returns its existing exit/handoff unchanged, without Arrow/RHS classification |
+| `crates/yu-syntax/src/type_expr/mod.rs:1780` | `linked` | completed-row boundary, actual-Arrow, malformed-run, and retry classification |
+| `crates/yu-syntax/src/type_expr/mod.rs:1850–1854` | `linked` | arrowless admitted-Type leading, its one required-arrow Missing, then `TypeExpression` continuation |
+
+Focused direct CST/recovery support is
+`tests/type_expr/bracket_arrow_cst.rs:17–147,151–185,189–408` and
+`tests/type_expr/bracket_arrow_recovery.rs:35–100,104–222,226–244`.
+This row's existing Draft evidence also establishes same-range nested row-close
+then arrow-Missing preorder and a recovered actual Arrow's separate nested RHS
+occurrence. Every other `type_expr/mod.rs` emission remains `untriaged` and
+unmapped unless separately linked below.
+
 #### TypePathTail required-segment row links
 
 Only the following concrete `type_expr/mod.rs` emissions are linked to the

@@ -292,6 +292,10 @@ head Missing is ordered after a nested BracketRow close Missing even at the
 same offset, while terminal Error EOF trivia remains native TypeExpression
 content outside Error. BracketRow, primary children, and all other Type slots
 remain separate.
+The BracketRow required-arrow continuation is mapped separately: an incomplete
+row emits its Arrow Missing unconditionally and returns its existing Item
+unchanged, while a completed row alone proceeds to Arrow/RHS classification.
+Actual-arrow RHS and BracketRow internals remain delegated.
 The actual-arrow TypeArrowTail RHS Draft is preflighted and has direct CST
 proof. Its post-Error shallow-newline admission now follows the existing
 authority; user promotion remains open.
