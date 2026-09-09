@@ -1,10 +1,9 @@
 # Source root, headers, and diagnostic ownership
 
 This page defines the approved target for source-root, header, and diagnostic
-ownership. Direct Rowan construction and header discovery/selection are
-implemented. The `Error`-token and `Invalid`-node topology is a distinct,
-approved topology-only migration that may precede CST-derived diagnostic
-publication. The later diagnostic migration remains pending.
+ownership. Direct Rowan construction, header discovery/selection, and the
+`Error`-token and `Invalid`-node topology are implemented. The later
+CST-derived diagnostic migration remains pending.
 
 ## Source root
 
@@ -39,7 +38,7 @@ compare diagnostic streams.
 
 ## CST-derived diagnostic ownership
 
-The topology-only migration changes only CST shape. It records raw malformed
+The completed topology-only migration changed only CST shape. It records raw malformed
 source with `Error` tokens and uses `Invalid` only for the approved structured
 owners. Existing parser recovery records, frozen-header reconciliation, and
 published diagnostics remain as temporary compatibility machinery.
@@ -96,11 +95,10 @@ whole source revision and its effective syntax-table identity.
 
 ## Current and pending publication
 
-The current implementation still publishes parser-produced recovery
-diagnostics. The approved topology-only migration may replace the structural
-`Error` wrapper with `Error` tokens and restricted `Invalid` nodes while
-leaving that publication intact. A later target removes the parser ledger and
-derives both structural recovery diagnostics and environment conflict
-diagnostics during the single CST walk described above. The remaining per-slot
-schema audit and implementation migration are required before that later target
-replaces current publication.
+The current implementation publishes parser-produced recovery diagnostics while
+the completed topology-only migration emits `Error` tokens and restricted
+`Invalid` nodes. A later target removes the parser ledger and derives both
+structural recovery diagnostics and environment conflict diagnostics during the
+single CST walk described above. The remaining per-slot schema audit and
+implementation migration are required before that later target replaces current
+publication.

@@ -70,9 +70,9 @@ run が protected boundary に達した場合は `Error` を返し、追加の `
 入れ子の `Expression` recovery は既存の role を保つ。
 この tail はそれらを再分類しない。
 
-このページで使う `Missing` と `Error` の表記は、[Rowan CST表記](../conventions/rowan-cst.md)に従う。
-current と approved の `Error` / `Invalid` rendering は site-wide convention が定める。
-このページは、実装待ちの topology migration が有効になったとは述べない。
+このページで使う`Missing`と`Error`の表記は、[Rowan CST表記](../conventions/rowan-cst.md)に従う。
+実装済みの`Error`と`Invalid`のtopologyは、site-wide conventionが定める。
+このlegacy pageは、構文固有のrecovery topologyを定めない。
 
 ## 6. 除外事項
 

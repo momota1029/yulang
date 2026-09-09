@@ -4,4 +4,5 @@
 構文ごとのgrammar slotはここでは定めない。
 
 - [Rowan CST表記](rowan-cst.md)
+- [回復の`Error` tokenと`Invalid` nodeのtopology](recovery-error-invalid-topology.md)
 - [Source root、header、diagnosticの責務](source-root-and-diagnostics.md)

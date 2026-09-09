@@ -2,10 +2,8 @@
 
 This page defines the notation for Yulang's lossless Rowan CST. It is an
 Authoritative target specification. Direct construction with
-`rowan::GreenNodeBuilder` is implemented. The `Error`-token and `Invalid`-node
-topology is an approved topology-only migration that may precede the later
-CST-derived diagnostic migration. This page does not treat either migration as
-implemented.
+`rowan::GreenNodeBuilder` and the `Error`-token and `Invalid`-node topology
+are implemented. The later CST-derived diagnostic migration remains pending.
 
 ## Documentation notation
 
@@ -65,11 +63,10 @@ no `text` attribute and contributes no source bytes.
 </OperatorChain>
 ```
 
-`Error` is an approved token topology. It is always a token leaf, not a node.
+`Error` is the implemented token topology. It is always a token leaf, not a node.
 Each leaf represents an already-emitted physical source fragment in its owning
 slot. Adjacent leaves can form one raw malformed run; the run exposes no
-invented internal grammar. This topology-only migration may precede
-CST-derived diagnostics.
+invented internal grammar.
 
 ```xml
 <Error text="@" />
@@ -81,7 +78,7 @@ including interior trivia and a Yumark quote prefix. It does not absorb leading
 trivia that the owning production has already emitted, or leading trivia that
 remains with a retry or boundary owner.
 
-`Invalid` is an approved node topology. It is used only for a schema-defined
+`Invalid` is the implemented node topology. It is used only for a schema-defined
 structured recovery that retains nested grammar, `Missing`, or nested `Error`
 children. An ordinary raw `Error` token must not receive an `Invalid` wrapper.
 
@@ -101,12 +98,11 @@ The range of a `Missing` node is zero-width. Source-bearing leaves preserve the
 source spelling that determines their ranges; a structural node does not add
 unrepresented source text.
 
-## Current and pending topology
+## Implemented and pending topology
 
-The direct Rowan builder is the implemented construction path. The current CST
-still has a structural `Error` node and parser-published recovery diagnostics.
-The approved topology-only migration replaces that recovery shape with `Error`
-token leaves and the restricted `Invalid` node while retaining those parser
-diagnostics. A later migration derives structural diagnostics from the CST.
-The [source-root and diagnostic ownership](source-root-and-diagnostics.md) page
+The direct Rowan builder emits `Error` token leaves and the restricted
+`Invalid` node. The parser still publishes recovery diagnostics through its
+temporary compatibility machinery. A later migration derives structural
+diagnostics from the CST. The
+[source-root and diagnostic ownership](source-root-and-diagnostics.md) page
 specifies that later publication boundary.

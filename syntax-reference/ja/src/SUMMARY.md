@@ -3,6 +3,7 @@
 - [はじめに](index.md)
 - [CST共通規約](conventions/index.md)
   - [Rowan CST表記](conventions/rowan-cst.md)
+  - [回復の`Error` tokenと`Invalid` nodeのtopology](conventions/recovery-error-invalid-topology.md)
   - [Source root、header、diagnosticの責務](conventions/source-root-and-diagnostics.md)
 
 # Expressions

@@ -1,10 +1,8 @@
 # Source root、header、diagnosticの責務
 
 このページは、source root、header、diagnosticの責務について承認済みのtargetを定める。
-direct Rowan constructionとheader discoveryおよびselectionは実装済みである。
-`Error` tokenと`Invalid` nodeのCST topologyは、承認済みの独立したtopology-only migrationである。
-CST由来diagnosticのpublicationより先に行える。
-後続のdiagnostic migrationは実装待ちである。
+direct Rowan construction、header discoveryとselection、`Error` tokenと`Invalid` nodeのCST topologyは実装済みである。
+後続のCST由来diagnostic migrationは実装待ちである。
 
 ## Source root
 
@@ -36,7 +34,7 @@ header parseとfull parseはdiagnostic streamをreconcileも比較もしない�
 
 ## CST由来diagnosticの責務
 
-topology-only migrationはCST shapeだけを変更する。
+完了したtopology-only migrationはCST shapeだけを変更した。
 raw malformed sourceは`Error` tokenに記録し、`Invalid`は承認済みのstructured ownerだけに使う。
 既存のparser recovery record、frozen-header reconciliation、公開するdiagnosticは、一時的なcompatibility machineryとして残る。
 
@@ -86,7 +84,7 @@ effective tableが変わる場合はparse結果も変わり得る。
 ## 現在と実装待ちのpublication
 
 現在の実装はparserが作るrecovery diagnosticを公開している。
-承認済みのtopology-only migrationは、structuralな`Error` wrapperを`Error` tokenと限定した`Invalid` nodeへ置き換える。
+完了したtopology-only migrationは、`Error` tokenと限定した`Invalid` nodeをemitする。
 このpublicationはそのまま保つ。
 後続のtargetがparser ledgerを削除する。
 上で定めた一つのCST walkでstructural recovery diagnosticとenvironment conflict diagnosticを導く。

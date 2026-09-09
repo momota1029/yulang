@@ -2,10 +2,8 @@
 
 このページは、Yulangのlossless Rowan CSTを表す記法を定める。
 これはAuthoritativeなtarget specificationである。
-`rowan::GreenNodeBuilder`によるdirect constructionは実装済みである。
-`Error` tokenと`Invalid` nodeのtopologyは、承認済みの独立したtopology-only migrationである。
-後続のCST由来diagnostic移行より先に行える。
-このページは、どちらの移行も実装済みとして扱わない。
+`rowan::GreenNodeBuilder`によるdirect constructionと、`Error` tokenと`Invalid` nodeのtopologyは実装済みである。
+後続のCST由来diagnostic移行は実装待ちである。
 
 ## 文書上の表記
 
@@ -66,12 +64,11 @@ schemaは各tokenとtrivia leafを一つのgrammar slotへ割り当てなけれ�
 </OperatorChain>
 ```
 
-`Error`は承認済みのtoken topologyである。
+`Error`は実装済みのtoken topologyである。
 `Error`は常にtoken leafであり、nodeではない。
 各leafはowner slot内で既にemitされたphysical source fragmentを表す。
 隣接するleafは一つのraw malformed runを構成できる。
 そのrunは内部のgrammarを作らない。
-CST由来diagnosticより先に、このtopology-only migrationを行ってよい。
 
 ```xml
 <Error text="@" />
@@ -82,7 +79,7 @@ raw recoveryは、そのItemに残るすべてのphysical fragmentを`Error`に�
 これにはinterior triviaとYumark quote prefixを含む。
 owner productionが既にemitしたleading trivia、retryまたはboundary ownerに残るleading triviaは吸収しない。
 
-`Invalid`は承認済みのnode topologyである。
+`Invalid`は実装済みのnode topologyである。
 schemaで定めたstructured recoveryがnested grammar、`Missing`、nested `Error` childを保持するときだけ使う。
 通常のraw `Error` tokenを`Invalid`で囲んではならない。
 
@@ -102,11 +99,9 @@ tree rangeとdiagnostic rangeは、0始まりで終端を含まないUTF-8 byte 
 sourceを持つleafはrangeを決めるsource spellingを保存する。
 structural nodeは表現されないsource textを追加しない。
 
-## 現在と実装待ちのtopology
+## 実装済みと実装待ちのtopology
 
-direct Rowan builderは実装済みのconstruction pathである。
-現在のCSTにはstructuralな`Error` nodeと、parserが公開するrecovery diagnosticが残る。
-承認済みのtopology-only migrationは、そのrecovery shapeを`Error` token leafと限定した`Invalid` nodeへ置き換える。
-この間もparserが公開するdiagnosticを残す。
+direct Rowan builderは、`Error` token leafと限定した`Invalid` nodeをemitする。
+parserは一時的なcompatibility machineryを通じてrecovery diagnosticを公開している。
 後続のmigrationがstructural diagnosticをCSTから導く。
 [Source root、header、diagnosticの責務](source-root-and-diagnostics.md)は、その後続のpublication boundaryを定める。

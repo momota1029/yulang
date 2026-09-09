@@ -71,8 +71,8 @@ Nested `Expression` recovery retains its existing roles.
 This tail does not reclassify it.
 
 The `Missing` and `Error` notation on this page follows the [Rowan CST notation](../conventions/rowan-cst.md).
-The site-wide conventions define current-versus-approved `Error` / `Invalid` rendering.
-This page does not claim that the pending topology migration is implemented.
+The site-wide conventions define the implemented `Error` / `Invalid` topology.
+This legacy page does not assign construct-specific recovery topology.
 
 ## 6. Exclusions
 

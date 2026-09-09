@@ -3,6 +3,7 @@
 - [Introduction](index.md)
 - [CST conventions](conventions/index.md)
   - [Rowan CST notation](conventions/rowan-cst.md)
+  - [Recovery `Error` and `Invalid` topology](conventions/recovery-error-invalid-topology.md)
   - [Source root, headers, and diagnostic ownership](conventions/source-root-and-diagnostics.md)
 
 # Expressions
