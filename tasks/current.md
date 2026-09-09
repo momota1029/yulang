@@ -219,10 +219,10 @@ from it. The indented RHS and complete inventory stay open.
 The dedicated FieldTail/PathTail name-slot Draft is preflighted against the
 existing recovery authority and has direct CST proof; user promotion remains
 open.
-The outer StringLiteral terminator has a preflighted Draft; its direct CST proof
-has exposed an interpolation-EOF losslessness defect. Promotion and the later
-CST-derived diagnostic migration remain blocked on the owning literal-boundary
-correction.
+The outer StringLiteral terminator has a preflighted Draft. Its isolated
+interpolation-EOF evidence retains trailing spaces in the pending EOF Item;
+SourceRoot is the terminal-leading owner. A full-Root losslessness witness is
+required before promotion or any literal-boundary correction.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
