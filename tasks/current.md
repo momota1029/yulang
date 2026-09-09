@@ -235,8 +235,8 @@ proof. Its post-Error shallow-newline admission now follows the existing
 authority; user promotion remains open.
 The BracketRow-selected required-arrow continuation Draft is preflighted and
 has direct CST proof; user promotion remains open.
-The LeadingEffectTypeHead Draft is preflighted; direct CST proof and user
-promotion remain open.
+The LeadingEffectTypeHead Draft is preflighted and has direct CST proof; user
+promotion remains open.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

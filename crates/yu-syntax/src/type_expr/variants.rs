@@ -160,6 +160,9 @@ pub(super) fn type_polymorphic_variant_normalized(
     );
     item_origin = advanced_origin(item_origin, entry, i.rb());
     i.state.finish_node();
+    if !matches!(exit, NormalizedExit::Complete(Ok(()), _)) {
+        return exit;
+    }
     continue_type_tail_normalized(
         i,
         baseline,

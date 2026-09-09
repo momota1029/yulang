@@ -21,6 +21,7 @@ mod bracket_arrow_recovery;
 mod bracket_recovery;
 mod equals_recovery;
 mod forall_recovery;
+mod leading_row_cst;
 mod leading_row_recovery;
 mod pe_recovery;
 mod pv_recovery;

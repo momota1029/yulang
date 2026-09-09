@@ -489,6 +489,13 @@ protected-boundary leading remains pending. After Error, compatible EOF leading
 is native outside the Error group, while a boundary returns unchanged without a
 same-slot Missing.
 
+A leading-row `ForallType` is terminal for this enclosing `TypeExpression`:
+any arrow, path, call or application selected by its recursive body remains
+inside that `ForallType`, never as a sibling outer tail. An incomplete
+leading-row `PolymorphicVariantType` is likewise terminal and returns its
+boundary rather than resuming this head slot. These are existing primary
+dispositions, deliberately not generalized by `PrimaryAndContinuation`.
+
 An incomplete first row returns immediately with a direct sibling head Missing;
 that row's close Missing stays nested in `BracketRow`, including at the same
 offset. A disabled second bare row is instead one direct Error-token group:
@@ -505,13 +512,16 @@ Rowan zero-width range, which can precede the protected fence-boundary
 coordinate retained by temporary legacy records. Descendant row/group/forall/
 record/variant/tail recovery retains its own slot.
 
-This is a Draft proposal. Direct CST evidence must cover scalar and structured
-heads, incomplete-row same-offset nesting, disabled second rows and Error retry,
-initial/internal/retry leading, terminal Error/EOF behavior, UTF-8 byte ranges,
-LF/CRLF and nested/caller/outer boundaries, quoted fence local-range versus
-pending-coordinate ownership, ordinary attachment/terminality, structured
-outer Invalid nesting and public Root source conservation before review or
-promotion.
+Draft evidence is complete as of 2026-09-10. Focused Rowan tests cover scalar
+and structured heads, incomplete-row same-offset nesting, disabled second rows
+and Error retry, initial/internal/retry leading, terminal Error/EOF behavior,
+UTF-8 byte ranges, LF/CRLF and nested/caller/outer boundaries, quoted-fence
+local-range versus pending-coordinate ownership, ordinary attachment/terminal
+primary disposition, structured outer Invalid nesting and public Root source
+conservation. The proof exposed and repaired the existing incomplete-PV
+terminal-disposition defect in its owning wrapper. Specification, compiler/
+recovery and regression delta reviews are closed. This does not promote the
+slice or cover its delegated Type children.
 
 ## Proposed schema slice: BracketRow-selected required-arrow continuation
 
