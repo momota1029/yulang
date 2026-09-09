@@ -1,4 +1,488 @@
 use crate::tests::support::*;
+use crate::{
+    ambient_claim::AmbientClaimView,
+    handoff::MlMode,
+    lexical::{
+        item::{BorrowedTarget, Boundary},
+        yumark::{FenceOpener, FencePrefixPolicy},
+    },
+    statement::StatementLineHandoff,
+};
+
+fn range(node: &SyntaxNode) -> std::ops::Range<usize> {
+    usize::from(node.text_range().start())..usize::from(node.text_range().end())
+}
+
+fn run_fixed_tail_normalized(
+    source: &str,
+    operators: &OperatorTable,
+    threshold: Option<&BindingPower>,
+    ml_mode: MlMode,
+) -> (GreenNode, NormalizedExit) {
+    let mut input = source;
+    let mut recover = Recover::new_for_test(operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let exit = expr_normalized(
+        SyntaxIn::new(&mut input, &mut recover, &mut output),
+        threshold,
+        0,
+        0,
+        ml_mode,
+        StatementLineHandoff::OrdinaryLayout,
+        0,
+        LineEntry::InLine,
+        None,
+        Some(AmbientClaimView::root_statement(0)).into(),
+        None,
+    )
+    .expect("admitted fixed tail expression");
+    output.finish_node();
+    (finish_with_discarded_recoveries(output, recover), exit)
+}
+
+fn run_fixed_tail_fenced(
+    source: &str,
+    origin: usize,
+    fence: &FenceBoundary,
+) -> (GreenNode, NormalizedExit, String) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let exit = expr_normalized(
+        SyntaxIn::new(&mut input, &mut recover, &mut output),
+        None,
+        0,
+        0,
+        MlMode::All,
+        StatementLineHandoff::OrdinaryLayout,
+        origin,
+        LineEntry::InLine,
+        Some(fence),
+        Some(AmbientClaimView::root_statement(0)).into(),
+        None,
+    )
+    .expect("admitted fenced fixed tail expression");
+    output.finish_node();
+    (
+        finish_with_discarded_recoveries(output, recover),
+        exit,
+        input.to_owned(),
+    )
+}
+
+#[test]
+fn fixed_tail_name_slots_have_direct_rowan_admission_shapes() {
+    let source = "x .field:: $name";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let chain = root.first_child().expect("outer OperatorChain");
+    assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+    let children = chain.children().collect::<Vec<_>>();
+    assert_eq!(
+        children.iter().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::FieldTail,
+            SyntaxKind::PathTail,
+        ]
+    );
+    let field = &children[1];
+    assert_eq!(range(field), 1..8);
+    assert_eq!(field.parent(), Some(chain.clone()));
+    assert_eq!(
+        field
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::Whitespace,
+            SyntaxKind::Dot,
+            SyntaxKind::Identifier,
+        ]
+    );
+    let path = &children[2];
+    assert_eq!(range(path), 8..16);
+    assert_eq!(path.parent(), Some(chain.clone()));
+    assert_eq!(
+        path.children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::ColonColon,
+            SyntaxKind::Whitespace,
+            SyntaxKind::SigilIdentifier,
+        ]
+    );
+
+    let source = "x::\r\n&name";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let path = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PathTail)
+        .expect("PathTail");
+    assert_eq!(range(&path), 1..10);
+    assert_eq!(
+        path.children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::ColonColon,
+            SyntaxKind::Newline,
+            SyntaxKind::SigilIdentifier,
+        ]
+    );
+    assert_eq!(path.to_string(), "::\r\n&name");
+}
+
+#[test]
+fn fixed_tail_name_slots_keep_missing_and_field_leading_at_the_outer_slot() {
+    let (green, exit) = run("x. field");
+    assert_eq!(green.to_string(), "x. field");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let chain = root.first_child().expect("outer OperatorChain");
+    let children = chain.children().collect::<Vec<_>>();
+    assert_eq!(
+        children.iter().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::FieldTail,
+            SyntaxKind::MlArgument,
+        ]
+    );
+    let field = &children[1];
+    assert_eq!(range(field), 1..2);
+    assert_eq!(
+        field
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Dot, SyntaxKind::Missing]
+    );
+    let missing = field.last_child().expect("FieldName Missing");
+    assert_eq!(missing.kind(), SyntaxKind::Missing);
+    assert_eq!(range(&missing), 2..2);
+    assert_eq!(missing.parent(), Some(field.clone()));
+    let argument = &children[2];
+    assert_eq!(
+        argument.first_token().expect("field leading").kind(),
+        SyntaxKind::Whitespace
+    );
+    assert_eq!(argument.first_token().unwrap().text(), " ");
+
+    let (green, exit) = run("x::,");
+    assert_eq!(green.to_string(), "x::");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item))) if token_kind(&item) == Some(TokenKind::Comma)
+    ));
+    let root = SyntaxNode::new_root(green);
+    let path = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PathTail)
+        .expect("PathTail");
+    assert_eq!(range(&path), 1..3);
+    assert_eq!(
+        path.children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ColonColon, SyntaxKind::Missing]
+    );
+    let missing = path.last_child().expect("PathSegment Missing");
+    assert_eq!(missing.kind(), SyntaxKind::Missing);
+    assert_eq!(range(&missing), 3..3);
+    assert_eq!(missing.parent(), Some(path));
+}
+
+#[test]
+fn fixed_tail_name_slots_keep_raw_error_and_later_tails_as_siblings() {
+    let (green, exit) = run("x.@::later");
+    assert_eq!(green.to_string(), "x.@::later");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let chain = root.first_child().expect("outer OperatorChain");
+    let tails = chain
+        .children()
+        .filter(|node| matches!(node.kind(), SyntaxKind::FieldTail | SyntaxKind::PathTail))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        tails.iter().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::FieldTail, SyntaxKind::PathTail]
+    );
+    assert_eq!(
+        tails[0]
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Dot, SyntaxKind::Error]
+    );
+    let error = tails[0].last_token().expect("FieldName Error");
+    assert_eq!((error.kind(), error.text()), (SyntaxKind::Error, "@"));
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        2..3
+    );
+    assert_eq!(error.parent(), Some(tails[0].clone()));
+    assert_eq!(
+        tails[1].first_token().expect("later path").kind(),
+        SyntaxKind::ColonColon
+    );
+    assert_eq!(
+        tails[1]
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ColonColon, SyntaxKind::Identifier]
+    );
+    assert_eq!(tails[1].parent(), Some(chain.clone()));
+    assert!(
+        !tails[0]
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Identifier)
+    );
+
+    let (green, exit) = run("x:: @::later");
+    assert_eq!(green.to_string(), "x:: @::later");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let chain = root.first_child().expect("outer OperatorChain");
+    let tails = chain
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::PathTail)
+        .collect::<Vec<_>>();
+    assert_eq!(tails.len(), 2);
+    let first = &tails[0];
+    assert_eq!(range(first), 1..5);
+    assert_eq!(
+        first
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::ColonColon,
+            SyntaxKind::Whitespace,
+            SyntaxKind::Error
+        ]
+    );
+    let leaves = first
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        leaves
+            .iter()
+            .map(|token| (token.kind(), token.text().to_owned()))
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::ColonColon, "::".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+            (SyntaxKind::Error, "@".to_owned()),
+        ]
+    );
+    assert_eq!(
+        usize::from(leaves[2].text_range().start())..usize::from(leaves[2].text_range().end()),
+        4..5
+    );
+    assert_eq!(leaves[2].parent(), Some(first.clone()));
+    assert_eq!(tails[1].parent(), Some(chain));
+    assert_eq!(
+        tails[1]
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ColonColon, SyntaxKind::Identifier]
+    );
+
+    let source = "x::💥";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(range(&root), 0..source.len());
+    let path = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PathTail)
+        .expect("PathTail");
+    assert_eq!(range(&path), 1..source.len());
+    assert_eq!(
+        path.children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ColonColon, SyntaxKind::Error]
+    );
+    let error = path.last_token().expect("UTF-8 PathSegment Error");
+    assert_eq!(error.text(), "💥");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        3..source.len()
+    );
+}
+
+#[test]
+fn fixed_tail_raw_error_keeps_a_quoted_fence_pending_outside_the_cst() {
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let source = "x::💥\r\n> > ```\nouter";
+    let (green, exit, remainder) = run_fixed_tail_fenced(source, 100, &fence);
+    assert_eq!(green.to_string(), "x::💥");
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(range(&root), 0..7);
+    let path = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PathTail)
+        .expect("PathTail");
+    assert_eq!(range(&path), 1..7);
+    assert_eq!(
+        path.children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ColonColon, SyntaxKind::Error]
+    );
+    let error = path.last_token().expect("PathSegment Error");
+    assert_eq!(error.text(), "💥");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        3..7
+    );
+    assert_eq!(remainder, "> > ```\nouter");
+    let NormalizedExit::Complete(Err(Either::Left(item)), line) = exit else {
+        panic!("quoted fence remains pending")
+    };
+    assert_eq!(line, LineEntry::PhysicalStart);
+    assert!(item.payload_view().is_boundary());
+    assert!(item.leading_view().has_ordinary_newline());
+    assert_eq!(item.leading_view().remaining_physical_parts(), 1);
+    let boundary = item
+        .payload_view()
+        .pending_boundary()
+        .expect("quoted fence boundary");
+    assert_eq!(boundary.inspected(), &(109..117));
+    assert!(matches!(
+        boundary.kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
+    assert_eq!(
+        item.extent(100 + source.len() - remainder.len())
+            .recovery_range(),
+        107..109,
+        "the pending Item owns only the CRLF leading; its fence facts remain in the boundary"
+    );
+}
+
+#[test]
+fn fixed_tail_name_slots_preserve_projection_priority_and_path_brace_recovery() {
+    for (source, tail_kind) in [
+        ("x.{field}", SyntaxKind::ProjectionRecordTail),
+        ("x.(field)", SyntaxKind::ProjectionTupleTail),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        assert!(root.descendants().any(|node| node.kind() == tail_kind));
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::FieldTail)
+        );
+    }
+
+    let (green, exit) = run("x::{field}");
+    assert_eq!(green.to_string(), "x::{");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item))) if token_kind(&item) == Some(TokenKind::Identifier)
+    ));
+    let root = SyntaxNode::new_root(green);
+    let path = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PathTail)
+        .expect("PathTail");
+    assert_eq!(range(&path), 1..4);
+    assert_eq!(
+        path.children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ColonColon, SyntaxKind::Error]
+    );
+    let error = path.last_token().expect("PathSegment Error");
+    assert_eq!(error.kind(), SyntaxKind::Error);
+    assert_eq!(error.text(), "{");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        3..4
+    );
+    assert_eq!(error.parent(), Some(path));
+}
+
+#[test]
+fn fixed_tail_name_slots_preserve_threshold_and_ml_outer_handoffs() {
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "+",
+        OperatorFixities::new().with_infix(BindingPower::scalar(20), BindingPower::scalar(21)),
+    )])
+    .expect("fixed-tail handoff operator table");
+    let threshold = BindingPower::scalar(70);
+    let (green, exit) =
+        run_fixed_tail_normalized("x.@ + y", &operators, Some(&threshold), MlMode::All);
+    assert_eq!(green.to_string(), "x.@");
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Left(item)), _)
+            if token_kind(&item) == Some(TokenKind::Operator)
+    ));
+    let root = SyntaxNode::new_root(green);
+    let chain = root.first_child().expect("outer OperatorChain");
+    assert_eq!(
+        chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::IdentifierExpression, SyntaxKind::FieldTail]
+    );
+    let field = chain.last_child().expect("FieldTail");
+    assert_eq!(
+        field
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Dot, SyntaxKind::Error]
+    );
+
+    let (green, exit) =
+        run_fixed_tail_normalized("x::123 name", &OperatorTable::empty(), None, MlMode::None);
+    assert_eq!(green.to_string(), "x::123");
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Left(item)), _)
+            if token_kind(&item) == Some(TokenKind::Identifier)
+    ));
+    let root = SyntaxNode::new_root(green);
+    let chain = root.first_child().expect("outer OperatorChain");
+    assert_eq!(
+        chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::IdentifierExpression, SyntaxKind::PathTail]
+    );
+    let path = chain.last_child().expect("PathTail");
+    assert_eq!(
+        path.children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ColonColon, SyntaxKind::Error]
+    );
+}
 
 #[test]
 fn fixed_field_and_path_tails_keep_their_own_tokens() {
