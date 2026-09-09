@@ -230,6 +230,12 @@ exclude enclosing-sequence and unread-successor publication. Record, Struct and
 Variant close ownership stays distinct. Specification and compiler/recovery
 review is clean after one sequence-leading clarification. Focused range
 controls and user approval remain required before any API or implementation.
+Apply, Forall and PV recursive boundary leaves now have unselected candidates:
+their source ranges reflect owner publication, while grammar admission and
+recovery roles remain unchanged. The Forall vector keeps an extra incomplete
+entry only for first-binder retry, never later colon-role Error. Specification
+and compiler/recovery review is clean after that correction. Exact controls and
+user approval remain required before any API or implementation.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be

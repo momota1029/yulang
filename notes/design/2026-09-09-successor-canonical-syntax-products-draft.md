@@ -380,7 +380,7 @@ TypePrimary ::= Identifier(WordSyntax) | SigilIdentifier(WordSyntax) | Number(Te
               | EffectRow(EffectRowType) | PolymorphicVariant(PolyvariantType)
 TypePostfix ::= Path { separator, segment:R<Identifier|SigilIdentifier>, range }
               | Call { open, arguments:Vec<R<TypeExpression>>, close:R<Range>, range }
-              | Apply { boundary, argument:Box<TypeExpression>, range }
+              | Apply { boundary:Range, argument:Box<TypeExpression>, range }
 TypeArrow { argument_effect:Option<BracketRow>, arrow:R<Range>,
             rhs:R<Box<TypeExpression>>, range }
 TypeGroup { open, elements:Vec<R<TypeExpression>>, trailing_explicit_separator,
@@ -459,7 +459,7 @@ its leading never count.
 | Apply postfix | first physical byte of its admitted argument boundary | last byte published through that argument child |
 | TypeArrow | first selected-tail publication, including still-owned leading before its argument-effect row or arrow | last byte published through the arrow owner, falling back to its admitted argument-effect row or actual arrow when no later byte is published |
 | ForallType | first owner publication, including still-owned introductory leading before `for` | last byte published through the owner, falling back to actual `for` when no later byte is published |
-| ForallBinder | first owned boundary-trivia byte, or apostrophe when its boundary is Missing | actual binder-token end |
+| ForallBinder | first binder-owner publication, including physically emitted boundary leading | actual binder-token end |
 | PolyvariantType | first PV-owner publication, including still-owned leading before adjacent `:{` | actual close end, or last PV-owned emitted byte |
 | PV tag / payload | first committed tag head/recovery byte / owned payload-boundary byte, or zero-width at admitted Type start when that boundary is Missing | last tag/payload-owned byte, including nested recovery |
 
@@ -523,6 +523,44 @@ position retains its actual sequence-emitted bytes. Its enclosing body ends at
 the last published body byte, falling back to its colon if there was none.
 These remain M3 candidates requiring focused product controls, review and user
 approval; they change no existing admission, record or Item handoff rule.
+
+### Candidate Type recursive boundary leaves; not yet selected
+
+An Apply retains `boundary: Range` for exactly the remaining leading physically
+published by the Apply owner before its already-admitted argument. Its
+nonempty grammar-leading admission predicate is not reconstructed from that
+range, which may include foreign-prefix fragments; no recovery wrapper is
+introduced. The argument starts after this publication.
+
+A Forall binder retains `boundary:R<Range>` plus its actual apostrophe/name
+leaf. Its complete boundary contains binder-owned leading; grammar-absent
+boundary remains incomplete under the existing BinderBoundary Missing. The
+binder envelope nevertheless begins at its first actual publication, so it
+keeps physically emitted foreign leading even when the boundary leaf is
+incomplete. The colon leaf contains only its actual token; unavailable colon
+remains incomplete. The body uses its admitted Type product, while Forall
+retains body retry Error and leading it published before entry. A terminal
+malformed body leaves that child incomplete but extends the Forall envelope.
+
+PV payload retains `boundary:R<Range>`. An accepted gap uses its original
+payload-owned leading before malformed-run processing; retry leading extends
+the payload envelope but not that boundary leaf. An adjacent admitted Type has
+an incomplete boundary under the existing Missing, while an absent optional
+payload creates no entry. Tag/payload envelopes include their malformed prefix
+and nested recovery publication, excluding tag-list leading and returned
+successor leading. A wrong-kind tag retains its incomplete name and structured
+Type Error. A matched close leaf is only the actual `}`; wrong-close Error and
+its leading extend the PV parent, and unavailable close leaves the parent at
+its last actual publication.
+
+`nonempty Vec<R<ForallBinder>>` remains an invariant, not a new collection API:
+a private ordinary vector is constructed with at least one position after
+`for`. First-binder absence yields `[Incomplete]`; a malformed **first-binder**
+retry yields an earlier incomplete position plus a distinct complete binder.
+After an admitted binder, a colon-role malformed run creates no additional
+binder position; only the existing explicit separator-placeholder paths do.
+These are M3 candidates requiring exact controls, review and user approval;
+they authorize neither a generic nonempty type nor implementation.
 
 ```text
 InlineStatementBody ::= Inline(Box<Statement>) | Indented(IndentedBlock)
