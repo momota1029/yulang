@@ -152,6 +152,17 @@ close, and nested Type rows remain unmapped.
 - `crates/yu-syntax/src/pattern/delimited.rs`
 - `crates/yu-syntax/src/pattern/mod.rs`
 
+#### RecordPattern separator-phase structured Invalid row link
+
+Only the existing structured-recovery emission at
+`crates/yu-syntax/src/pattern/delimited.rs:496`, in its
+`RecordPatternSeparator` separator-phase context, is linked to the referenced
+catalog row `(RecordPattern, separator phase, RecordPattern sequence context)`.
+Status: `linked`; linked fact: separator-phase `Invalid(Pattern(...))` is
+wrapped by the authorized discriminator. Non-census implementation behavior is
+support only. The direct item-phase Invalid, its preceding raw Error, and every
+other Pattern emission remain unmapped.
+
 ### Literal and rule — 3 files / 6 calls
 
 - `crates/yu-syntax/src/literal/mod.rs`
