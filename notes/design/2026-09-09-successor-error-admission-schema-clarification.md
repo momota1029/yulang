@@ -271,6 +271,12 @@ Field/Path names, Missing, raw Error, leading ownership, `.{` projection and
 siblings, UTF-8/CRLF/fence ranges and threshold/ML handoff before review or
 promotion.
 
+Draft evidence is complete as of 2026-09-10. Focused Rowan tests cover every
+listed case, including root-relative UTF-8 and fence ranges and the true
+successor coordinate for unread CRLF leading. Specification and
+compiler/recovery reviews closed after bounded test-only repairs. This does not
+promote the slice or close any other inventory row.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`
