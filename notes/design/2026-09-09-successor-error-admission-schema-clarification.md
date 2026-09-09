@@ -379,6 +379,82 @@ listed form, including terminal Capture structure and retry ownership, with
 specification and compiler/recovery delta reviews closed. This does not promote
 the slice or cover its delegated child schemas.
 
+## Proposed schema slice: Rule ExpressionList phases
+
+This bounded Draft slice covers the existing ordinary expression-list child
+phases only when the list is introduced by one of these Rule callers:
+
+```text
+RuleItem[LBracket] list phase := LBracket ExpressionList[RuleItem[LBracket]] RBracket
+RuleCall                       := LParen   ExpressionList[RuleCall]            RParen
+RuleIndex                      := LBracket ExpressionList[RuleIndex]           RBracket
+```
+
+`ExpressionList` is a phase schema, not a new Rowan node. The caller owns its
+`LParen`/`LBracket` opener and `RParen`/`RBracket` closer, including their
+direct CST leaves and the caller's close phase. ExpressionList owns only the
+ordered contents between those caller-owned delimiter children. Native trivia
+in those contents is likewise direct caller content. The three contexts remain
+distinct identities because their enclosing production and selected delimiter
+pair distinguish their caller phases; the shared parser helper and a
+`GrammarRole` record do not merge them.
+
+```text
+ExpressionList[C] := OrderedContents
+OrderedContents   := ε | Expression (AcceptedSeparator Expression)* [AcceptedSeparator]
+AcceptedSeparator := Comma | direct native newline trivia
+```
+
+This notation shows accepted paths only and elides other native trivia and
+ordinary accepted-expression continuations. Empty contents and an accepted
+trailing comma or newline are therefore valid and add neither a synthetic Item
+nor a `Missing`. A comma starts the next Item phase. A required Item interrupted
+by a newline receives a zero-width Item `Missing` before the newline that
+exposes it; it is distinct from a trailing separator and from the caller's
+close `Missing`.
+
+An Item phase admits one current lexical Item as a direct raw `Error` group.
+If the following state still cannot satisfy the required Item, it then admits
+the required zero-width Item `Missing`; otherwise a later admitted Expression
+retries that Item phase. A Separator phase after a completed Expression admits
+one direct raw `Error` group. It may be terminal when the following caller
+close completes the list; a valid subsequent comma can continue to the next
+Item phase. This bounded schema does not claim a general Separator
+Error-to-Expression retry: direct evidence for any broader sequence remains
+open. The list admits no `Invalid`, and a nested expression keeps every child
+recovery schema of its own.
+
+At ordinary EOF, a foreign close, or a protected fence boundary, the selected
+caller admits one direct close `Missing`. A foreign close and a fence Item are
+returned unchanged to their outer owner, including pending leading; the list
+does not consume either as its local close. A matching close is caller-owned
+and consumes its native leading as direct caller content. Thus the transition
+vocabulary for each `C` is: `entry Item or Separator phase → accepted content,
+phase Error, newline-required Item Missing, or Item retry → caller matching
+close completes; otherwise caller close Missing → hand off the unchanged
+protected/foreign Item`. The direct caller path and ordered contents witness
+only Item and Separator; the caller path witnesses its own delimiter and close.
+
+The direct `Missing` range is the CST insertion range. Focused direct-CST
+tests assert that the newline following a newline-required Item `Missing` is a
+source-bearing `Newline` token at its physical LF or whole-CRLF byte range.
+Current recovery-record coordinates are temporary compatibility evidence for
+the old publisher; they are neither slot identity nor a substitute for direct
+CST child order/ranges. Equal-offset nested Missing occurrences remain
+distinguishable by their caller/child paths.
+
+Direct Rowan evidence is in
+`crates/yu-syntax/src/tests/rule_expression_list_recovery.rs`: it checks all
+three caller contexts, caller-owned delimiter order/ranges, empty and trailing
+accepted contents, terminal Separator Error, Item Error-to-Expression retry,
+Item Error then required Item Missing, direct caller EOF close-Missing range,
+and LF/CRLF physical newline ranges. The direct foreign-close control and the
+helper-level fence handoff witness, along with temporary record/frozen tests,
+remain supplementary compatibility evidence only. A direct caller CST/range
+fence case remains an open proof obligation. This is a Draft proposal: it adds
+no recovery admission, diagnostic projection, parser behavior, API, or
+promotion.
+
 ## Proposed schema slice: StringInterpolationBody statement sequence
 
 This proposed slice covers only the root-style statement sequence directly in

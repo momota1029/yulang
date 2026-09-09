@@ -24,10 +24,12 @@ count of semantic slots.
 There is one known exception outside this four-emitter census:
 `rule/expression_list.rs::emit_leading_newline_separators` calls
 `emit_required_slots_before_newlines` with a callback which creates
-`ExpressionList(Item)` Missing. It remains an intentionally unlinked,
-unmapped `exception`: its committed recovery record is evidence of the callback
-only, not a CST slot identity or a substitute for its caller-specific
-separator/newline phase. It is intentionally excluded from the 123-call census.
+`ExpressionList(Item)` Missing. It remains an `exception` because it is outside
+the four-emitter census. The Rule ExpressionList Draft now supplies direct
+caller-specific CST placement/range evidence for the callback's newline phase;
+the callback's committed recovery record is still neither slot identity nor a
+diagnostic-ledger substitute. It is intentionally excluded from the 123-call
+census until a complete catalog row links it.
 
 ## Matching rule
 
@@ -201,10 +203,11 @@ into a slot identity.
 
 `crates/yu-syntax/src/rule/expression_list.rs` is deliberately not linked by
 these rows. Its bracket Item/Separator/close slots, plus every RuleCall,
-RuleIndex, and bracket-RuleItem caller-specific phase, remain delegated and
-unmapped. The special newline callback remains the `exception` above: its
-record publication must not be mistaken for CST evidence, because its direct
-child placement and caller-selected separator/newline phase are still open.
+RuleIndex, and bracket-RuleItem caller-specific phase, have bounded Draft
+direct-CST evidence but remain unmapped pending complete catalog diagnostic
+projection. The special newline callback remains the `exception` above: its
+record publication is not slot identity, although the Draft now directly proves
+its caller-specific child placement and LF/CRLF ranges.
 
 ### Root, statement, and virtual layout — 3 files / 11 calls
 
@@ -213,9 +216,9 @@ child placement and caller-selected separator/newline phase are still open.
 - `crates/yu-syntax/src/virtual_statement_block.rs`
 
 `rule/expression_list.rs` contributes two census calls and the separate
-unlinked/unmapped newline-Missing `exception` above. Its placement in this
-source-navigation group does not classify that record-producing callback as a
-root/layout CST slot.
+newline-Missing `exception` above. Its placement in this source-navigation
+group does not classify that record-producing callback as a root/layout CST
+slot.
 
 ## Boundaries
 
