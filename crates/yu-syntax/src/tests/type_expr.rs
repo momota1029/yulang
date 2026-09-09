@@ -380,6 +380,95 @@ fn run_required_type_with_recoveries<'source, 'frozen>(
     (green, exit, primary_found, input, records)
 }
 
+fn assert_polymorphic_variant_deep_newline_boundary(
+    source: &str,
+    emitted: &str,
+    leading: &str,
+    local_error: Option<(TypeRole, &str)>,
+) {
+    let (green, exit, primary_found, remainder, records) =
+        run_required_type_with_recoveries(source, 0, LineEntry::InLine, None, None);
+    assert!(primary_found, "{source:?}");
+    assert_eq!(green.to_string(), emitted, "{source:?}");
+    let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+        panic!("deep newline must leave its current Item pending: {source:?}")
+    };
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(TokenKind::Identifier)
+    );
+    assert_eq!(item.payload_view().spelling(), Some("B"));
+    assert_eq!(emit_pending_leading_text(&mut item), leading);
+    assert_eq!(remainder, "}");
+
+    let root = SyntaxNode::new_root(green);
+    let variant = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type");
+    let local_errors = recovery_groups(&variant)
+        .into_iter()
+        .map(|node| node.text().to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        local_errors,
+        local_error
+            .map(|(_, text)| text.to_owned())
+            .into_iter()
+            .collect::<Vec<_>>(),
+        "{source:?}"
+    );
+    assert_eq!(
+        records
+            .iter()
+            .filter(|record| {
+                record.kind == RecoveryKind::Error
+                    && local_error
+                        .is_some_and(|(role, _)| record.site.role == GrammarRole::Type(role))
+            })
+            .count(),
+        usize::from(local_error.is_some()),
+        "{source:?}"
+    );
+    assert_eq!(
+        records.len(),
+        1 + usize::from(local_error.is_some()),
+        "{source:?}"
+    );
+    assert_eq!(
+        records
+            .iter()
+            .filter(|record| {
+                record.kind == RecoveryKind::Missing
+                    && matches!(
+                        record.site.role,
+                        GrammarRole::ClosingDelimiter {
+                            owner: ConstructRole::PolymorphicVariantType,
+                            delimiter: Delimiter::Brace,
+                        }
+                    )
+            })
+            .count(),
+        1,
+        "{source:?}"
+    );
+    assert!(!records.iter().any(|record| {
+        record.kind == RecoveryKind::Missing
+            && matches!(
+                record.site.role,
+                GrammarRole::Type(
+                    TypeRole::PolymorphicVariantTag | TypeRole::PolymorphicVariantPayload
+                )
+            )
+    }));
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument),
+        "{source:?}"
+    );
+}
+
 fn run_type_with_context_and_recoveries<'frozen>(
     source: &str,
     type_ml: crate::type_expr::TypeMlContext,
@@ -8302,37 +8391,14 @@ fn polymorphic_variant_type_recovers_malformed_tag_runs() {
         ["@"]
     );
 
-    let (green, exit) = run_type(":{@\n B}");
-    assert_eq!(green.to_string(), ":{@\n B");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if item.payload_view().token_kind() == Some(TokenKind::RBrace)
-    ));
-    let top = top_type_expression(&green);
-    let variant = top
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
-        .expect("polymorphic variant type");
-    assert_eq!(variant.text().to_string(), ":{@");
-    assert_eq!(
-        recovery_groups(&variant)
-            .into_iter()
-            .map(|node| node.text().to_string())
-            .collect::<Vec<_>>(),
-        ["@"]
-    );
-    assert_eq!(
-        variant
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Missing)
-            .count(),
-        1
-    );
-    assert!(
-        top.children()
-            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
-    );
+    for (source, emitted, leading) in [(":{@\n B}", ":{@", "\n "), (":{@\r\n B}", ":{@", "\r\n ")] {
+        assert_polymorphic_variant_deep_newline_boundary(
+            source,
+            emitted,
+            leading,
+            Some((TypeRole::PolymorphicVariantTag, "@")),
+        );
+    }
 
     let (green, exit) = run_type(":{@;A}");
     assert_eq!(green.to_string(), ":{@;A}");
@@ -8564,23 +8630,17 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
         2
     );
 
-    let (green, exit) = run_type(":{A @\n B}");
-    assert_eq!(green.to_string(), ":{A @\n B");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if item.payload_view().token_kind() == Some(TokenKind::RBrace)
-    ));
-    let top = top_type_expression(&green);
-    let variant = top
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
-        .expect("polymorphic variant type");
-    assert_eq!(variant.text().to_string(), ":{A @");
-    assert!(
-        top.children()
-            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
-    );
+    for (source, emitted, leading) in [
+        (":{A @\n B}", ":{A @", "\n "),
+        (":{A @\r\n B}", ":{A @", "\r\n "),
+    ] {
+        assert_polymorphic_variant_deep_newline_boundary(
+            source,
+            emitted,
+            leading,
+            Some((TypeRole::PolymorphicVariantPayload, "@")),
+        );
+    }
 
     for (source, boundary) in [(":{A @;B}", ";"), (":{A @]}", "]")] {
         let (green, exit) = run_type(source);
@@ -8626,7 +8686,7 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
             .any(|token| token.kind() == SyntaxKind::Whitespace && token.text() == " ")
     );
     assert!(
-        call.children_with_tokens()
+        delimited_slot_children(&call)
             .filter_map(|element| element.into_token())
             .any(|token| token.kind() == SyntaxKind::RParen)
     );
@@ -8900,30 +8960,12 @@ fn polymorphic_variant_type_recovers_newline_and_eof_boundaries() {
         );
     }
 
-    let (green, exit) = run_type(":{A\n  B}");
-    assert_eq!(green.to_string(), ":{A\n  B");
-    assert!(matches!(
-        exit,
-        Some(Err(Either::Left(item)))
-            if item.payload_view().token_kind() == Some(TokenKind::RBrace)
-    ));
-    let top = top_type_expression(&green);
-    let variant = top
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
-        .expect("polymorphic variant type");
-    assert_eq!(variant.text().to_string(), ":{A");
-    assert_eq!(
-        variant
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::Missing)
-            .count(),
-        1
-    );
-    assert!(
-        top.children()
-            .any(|node| node.kind() == SyntaxKind::TypeApplyArgument)
-    );
+    for (source, emitted, leading) in [
+        (":{A\n  B}", ":{A", "\n  "),
+        (":{A\r\n  B}", ":{A", "\r\n  "),
+    ] {
+        assert_polymorphic_variant_deep_newline_boundary(source, emitted, leading, None);
+    }
 }
 
 #[test]

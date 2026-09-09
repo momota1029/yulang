@@ -171,9 +171,17 @@ two structured owners are Invalid nodes, while recovery records, frozen
 reconciliation and public diagnostics remain temporarily unchanged. This M2
 construction is complete: focused owner/output controls and the final
 single-threaded library run passed 1,070 tests with one existing manual harness
-ignored. The sole failure remains the pre-existing stale `SyntaxKind::Unknown`
+ignored. The sole then-observed failure was the pre-existing `SyntaxKind::Unknown`
 discriminant assertion (`231` actual, `229` expected) in an unmodified test.
 The full per-slot schema still blocks removal of that temporary machinery.
+
+That observed failure was subsequently traced to `f14d9a0a` inserting
+`AssignmentTail` and `TypeAnnotationTail` before established kinds. The
+2026-09-10 repair restores the pre-insertion values through
+`RuleLiteralColon = 267`, retains the already-committed `Invalid = 270` and
+`TypeCallClose = 271`, and assigns the two tails `272` and `273`; unused raw
+values `268` and `269` remain unknown. The earlier result is historical
+evidence, not proof that the `229` contract was stale.
 
 The direct-Rowan design is independently reviewed. Its bounded first migration
 removes `CstOutput` while preserving the current tree topology, so direct

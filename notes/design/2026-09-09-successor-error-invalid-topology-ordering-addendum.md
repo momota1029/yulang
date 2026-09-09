@@ -86,3 +86,13 @@ an unmodified test. Scoped format and diff checks passed. Compiler/recovery
 delta review found no topology finding. This evidence completes only this
 topology gate; the complete per-slot schema and parser diagnostic-ledger
 retirement remain open.
+
+Post-gate correction (2026-09-10): the observed `231` value was caused by the
+earlier insertion of `AssignmentTail` and `TypeAnnotationTail` ahead of
+established kinds, not by a stale `Unknown = 229` contract. A focused
+conformance repair restored historical values through `RuleLiteralColon = 267`
+while preserving this gate's committed `Invalid = 270`; it also preserved the
+later `TypeCallClose = 271` and assigned the relocated tails `272` and `273`.
+The sparse raw domain deliberately leaves `268` and `269` unassigned. This
+note corrects the current interpretation while retaining the historical test
+result above.
