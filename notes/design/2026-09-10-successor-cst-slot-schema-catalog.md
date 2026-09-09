@@ -86,13 +86,30 @@ child-owned and must be cataloged in its own row before ledger retirement.
 
 | Semantic slot identity | Exact structural nesting | Status |
 | --- | --- | --- |
-| `(PolymorphicVariantTag, TagName after the variant introducer, polymorphic-variant head context)` | `PolymorphicVariantType(PolymorphicVariantTag(Invalid(TypeExpression(...))))` | fixed existing structured owner; slot schema unmapped |
+| `(PolymorphicVariantTag, wrong-kind TagName head before payload children, direct tag in PolymorphicVariantType)` | see the bounded PV row below | fixed existing structured owner; mapped |
 | `(RecordPattern, Item or Separator in its record sequence phase, RecordPattern sequence context)` | `RecordPattern(Invalid(Pattern(...)))` | fixed existing structured owner; slot schema unmapped |
 
 No other row may obtain `Invalid` by analogy. The nested `TypeExpression` or
 `Pattern` can itself contain its own documented Missing/Error/Invalid topology;
 the enclosing `Invalid` remains a distinct structured occurrence and precedes
 its children in future interpretation.
+
+### Polymorphic-variant wrong-kind TagName-head map
+
+This is one bounded Draft row for the already-Authoritative wrong-kind
+TagName recovery. It expands the fixed PV topology reference above; it adds no
+admission or recovery semantics. `RecordPattern` remains a separate discovered
+ambiguity and is not mapped by this row.
+
+| Fact | Draft catalog row |
+| --- | --- |
+| identity | `(PolymorphicVariantTag, wrong-kind TagName head before payload children, direct tag in PolymorphicVariantType)` |
+| ordered Rowan grammar | `PolymorphicVariantType > PolymorphicVariantTag > Invalid > TypeExpression`, with exactly one direct `TypeExpression` child of this `Invalid`. The PV list keeps its outer introducer, commas, and closing brace; they are not children of this slot. |
+| malformed admission and completion | Only a non-Identifier Type NUD admitted by the existing Type-ML scope enters this row. It parses one full Type expression in non-`TypeApply` Type-ML scope; adjacent internal continuation remains Type-owned. The completed head then returns to the existing PV payload judge. |
+| nested ownership | The `TypeExpression` owns its internal continuation and all of its nested Missing/Error/Invalid topology. This row neither maps nor changes malformed prefix recovery, payload/list-tag recovery, separators, the PV close, or nested Type rows. |
+| source and boundary ownership | Fresh outer-list leading is emitted before entry to the direct tag. A retry after a malformed tag prefix is inside that `PolymorphicVariantTag`, before this `Invalid`; a protected outer-list boundary Item keeps its leading pending and unemitted. The row does not claim ownership of outer-list leading, introducer, comma, brace, or a returned boundary Item. |
+| diagnostic projection | Project singleton `Identifier` with primary alternative zero. Its range is the `Invalid` text range in UTF-8 bytes. Occurrence order is pre-order: a preceding tag-prefix `Error`, when present, precedes this TagName occurrence; nested Type occurrences follow it. |
+| proof and status | Governing behavior: [PV current-Item recovery](2026-09-08-successor-pv-current-item-recovery.md) §§Acceptance and supersession, Typed PV sites, and Pre-write controls. Direct proof locators: `tests/type_expr/pv_recovery.rs:263–303`; `tests/type_expr.rs:6735–6832, 7085–7176, 8173–8254`; `tests/type_expr/bracket_arrow_recovery.rs:216–221`; `tests/type_expr/forall_recovery.rs:496–502`; `tests/type_expr/record_field_recovery.rs:368–374`. Status: `mapped`; temporary recovery records are proof only, never row identity or a future ledger. |
 
 ### TypeCall close-slot map
 
@@ -154,7 +171,7 @@ Use these statuses for catalog rows:
 | `referenced` | a governing authority or bounded slice exists elsewhere; the catalog has not duplicated it |
 | `evidence-complete Draft` | direct CST proof is reported complete, but promotion remains open |
 | `Authoritative slice` | user-approved bounded schema authority; surrounding rows remain independent |
-| `mapped` | all mandatory row facts have been recorded and independently audited; this scaffold currently claims no such global completion |
+| `mapped` | all mandatory row facts have been recorded and independently audited; this never implies global catalog completion |
 
 Source sites are evidence links only. Map a helper/caller to a semantic slot
 only after its produced direct-child phase and all necessary parent/caller

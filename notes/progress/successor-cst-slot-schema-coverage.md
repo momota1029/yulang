@@ -124,6 +124,29 @@ EOF completion at `1243–1268`, and dispatch references at `99–213`,
 census assignments. Argument/separator emissions and every other owner
 emission in this file remain `untriaged` and unmapped.
 
+#### Polymorphic-variant wrong-kind TagName-head row link
+
+Only the following census emission is linked to the Draft catalog row
+`(PolymorphicVariantTag, wrong-kind TagName head before payload children,
+direct tag in PolymorphicVariantType)`:
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/type_expr/variants.rs:631` | `linked` | structured `Invalid` publication for the wrong-kind TagName head |
+
+Non-census support for that row: outer-list dispatch and fresh-leading entry at
+`192–425`; direct-tag wrapper at `546–574`; nested Type entry, non-`TypeApply`
+Type-ML scope, and structured extent at `617–678`; returned head/boundary
+handoff at `853–900`; malformed-run retry and pending-leading behavior at
+`792–850`; and PV boundary ownership at `428–470`, all in
+`crates/yu-syntax/src/type_expr/variants.rs`. Direct proof locators are
+`tests/type_expr/pv_recovery.rs:263–303`, `tests/type_expr.rs:6735–6832,
+7085–7176, 8173–8254`, `tests/type_expr/bracket_arrow_recovery.rs:216–221`,
+`tests/type_expr/forall_recovery.rs:496–502`, and
+`tests/type_expr/record_field_recovery.rs:368–374`. These are support/proof
+links, not census assignments. Malformed prefix, payload/list-tag, separator,
+close, and nested Type rows remain unmapped.
+
 ### Pattern — 2 files / 8 calls
 
 - `crates/yu-syntax/src/pattern/delimited.rs`
