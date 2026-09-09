@@ -3,7 +3,10 @@ use crate::{
     ambient_claim::AmbientClaimView,
     handoff::MlMode,
     lexical::yumark::{FenceOpener, FencePrefixPolicy},
-    literal::{scan_string_opener_witness, string_literal_with_virtual_statements_normalized},
+    literal::{
+        StringLiteralExit, scan_string_opener_witness,
+        string_literal_with_virtual_statements_normalized, string_literal_witness,
+    },
     pattern::pattern_normalized,
     recovery_record::{
         Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, LiteralExpected,
@@ -96,6 +99,345 @@ fn parse<'s>(
     output.finish_node();
     let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, input)
+}
+
+fn range(node: &SyntaxNode) -> Range<usize> {
+    usize::from(node.text_range().start())..usize::from(node.text_range().end())
+}
+
+fn string_literal(root: &SyntaxNode) -> SyntaxNode {
+    root.descendants()
+        .find(|node| node.kind() == SyntaxKind::StringLiteral)
+        .expect("fixture admits a StringLiteral")
+}
+
+fn direct_kinds(node: &SyntaxNode) -> Vec<SyntaxKind> {
+    node.children_with_tokens()
+        .map(|element| element.kind())
+        .collect()
+}
+
+fn final_missing(literal: &SyntaxNode) -> SyntaxNode {
+    let missing = literal
+        .children_with_tokens()
+        .last()
+        .and_then(|element| element.into_node())
+        .expect("StringLiteral final child is a Missing node");
+    assert_eq!(missing.kind(), SyntaxKind::Missing);
+    missing
+}
+
+fn unreachable_interpolation_body(_: SyntaxIn) -> crate::lexical::item::Item {
+    panic!("the string-terminator fixture has no interpolation")
+}
+
+fn parse_string_driver<'s>(
+    source: &'s str,
+    boundary: &FenceBoundary,
+) -> (GreenNode, StringLiteralExit, &'s str) {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut input = source;
+    let (opener, mode) = scan_string_opener_witness(chasa_recover::In::new(
+        &mut input,
+        &mut crate::cursor::LexRecover::new_for_test(recover.operators()),
+        (),
+    ))
+    .expect("string opener");
+    let interior_origin = source.len() - input.len();
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let exit = string_literal_witness(
+        SyntaxIn::new(&mut input, &mut recover, &mut output),
+        opener,
+        mode,
+        interior_origin,
+        boundary,
+        unreachable_interpolation_body,
+    );
+    output.finish_node();
+    let (green, _) = (output.finish(), recover.finish_recoveries_for_test());
+    (green, exit, input)
+}
+
+#[test]
+fn string_terminator_slot_has_a_final_direct_rowan_child() {
+    // These assertions intentionally read only the produced Rowan tree.  The
+    // record tests below remain the compatibility control for the temporary
+    // recovery ledger.
+    for (source, expected_children, end_range) in [
+        (
+            "\"\"",
+            vec![SyntaxKind::StringStart, SyntaxKind::StringEnd],
+            1..2,
+        ),
+        (
+            "\"α\"",
+            vec![
+                SyntaxKind::StringStart,
+                SyntaxKind::StringText,
+                SyntaxKind::StringEnd,
+            ],
+            3..4,
+        ),
+        (
+            "\"\"\"α\"\"\"",
+            vec![
+                SyntaxKind::StringStart,
+                SyntaxKind::StringText,
+                SyntaxKind::StringEnd,
+            ],
+            5..8,
+        ),
+    ] {
+        let (green, _, remainder) = parse(source, 0, None, None);
+        assert_eq!(remainder, "");
+        let root = SyntaxNode::new_root(green);
+        let literal = string_literal(&root);
+        assert_eq!(direct_kinds(&literal), expected_children, "{source:?}");
+        let end = literal
+            .children_with_tokens()
+            .last()
+            .expect("StringLiteral has a terminator");
+        assert_eq!(end.kind(), SyntaxKind::StringEnd);
+        assert_eq!(
+            usize::from(end.text_range().start())..usize::from(end.text_range().end()),
+            end_range,
+        );
+    }
+
+    // A two-quote run cannot close a three-quote literal: it is text, then the
+    // outer slot itself is the final zero-width Missing child.
+    let source = "\"\"\"α\"\"";
+    let (green, _, remainder) = parse(source, 0, None, None);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let literal = string_literal(&root);
+    assert_eq!(
+        direct_kinds(&literal),
+        [
+            SyntaxKind::StringStart,
+            SyntaxKind::StringText,
+            SyntaxKind::Missing
+        ]
+    );
+    let missing = final_missing(&literal);
+    assert_eq!(missing.parent(), Some(literal.clone()));
+    assert!(missing.text_range().is_empty());
+    assert_eq!(range(&missing), source.len()..source.len());
+}
+
+#[test]
+fn string_terminator_slot_retains_prefixes_child_failures_and_boundaries() {
+    // A physical quote prefix belongs to the StringLiteral directly, before
+    // the accepted final close; it is neither text search nor a recovery node.
+    let source = "\"\n> x\"";
+    let (green, exit, remainder) = parse_string_driver(source, &fence());
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let literal = string_literal(&root);
+    assert_eq!(
+        direct_kinds(&literal),
+        [
+            SyntaxKind::StringStart,
+            SyntaxKind::StringText,
+            SyntaxKind::YmQuotePrefix,
+            SyntaxKind::StringText,
+            SyntaxKind::StringEnd,
+        ]
+    );
+    assert_eq!(
+        literal.children_with_tokens().last().unwrap().kind(),
+        SyntaxKind::StringEnd
+    );
+
+    // Child recovery remains nested before the equal-offset outer terminator.
+    let source = "\"\\u{";
+    let (green, _, remainder) = parse(source, 0, None, None);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let literal = string_literal(&root);
+    let outer = final_missing(&literal);
+    assert_eq!(range(&outer), source.len()..source.len());
+    let escape = literal
+        .children()
+        .find(|node| node.kind() == SyntaxKind::StringEscape)
+        .expect("unicode escape remains a StringLiteral child");
+    let nested = escape
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(nested.len(), 2);
+    assert!(
+        nested
+            .iter()
+            .all(|node| range(node) == (source.len()..source.len()))
+    );
+    let preorder = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(preorder, [nested[0].clone(), nested[1].clone(), outer]);
+
+    // Malformed Unicode is still owned by its escape; EOF only adds the final
+    // StringLiteral child, at the root-relative end of the UTF-8 spelling.
+    let source = "\"\\u{💥";
+    let (green, _, remainder) = parse(source, 0, None, None);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let literal = string_literal(&root);
+    let outer = final_missing(&literal);
+    assert_eq!(range(&outer), source.len()..source.len());
+    let escape = literal
+        .children()
+        .find(|node| node.kind() == SyntaxKind::StringEscape)
+        .unwrap();
+    assert!(
+        escape
+            .descendants_with_tokens()
+            .any(|element| element.kind() == SyntaxKind::Error)
+    );
+
+    // Format text treats quotes as raw content.  The quote after the completed
+    // interpolation is the only StringLiteral terminator.
+    let source = "\"%fmt\"\\}\r\n🌱{}後\"";
+    let (green, _, remainder) = parse(source, 0, None, None);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let literal = string_literal(&root);
+    assert_eq!(
+        literal.children_with_tokens().last().unwrap().kind(),
+        SyntaxKind::StringEnd
+    );
+    assert!(
+        literal
+            .descendants_with_tokens()
+            .any(|element| element.kind() == SyntaxKind::StringInterpolationFormatText)
+    );
+
+    // EOF after CRLF likewise leaves the final outer child at the exact
+    // root-relative byte coordinate, including the two physical line bytes.
+    let source = "\"α\r\n";
+    let (green, _, remainder) = parse(source, 0, None, None);
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let literal = string_literal(&root);
+    let missing = final_missing(&literal);
+    assert_eq!(range(&missing), source.len()..source.len());
+    assert_eq!(literal.to_string(), source);
+
+    // The fence Item is not emitted: the zero-width final child is at the
+    // consumed CRLF end and the exact fence suffix remains pending.
+    let source = "\"α\r\n> ```\nouter";
+    let (green, _, remainder) = parse(source, 0, Some(&fence()), None);
+    assert_eq!(remainder, "> ```\nouter");
+    let root = SyntaxNode::new_root(green);
+    let literal = string_literal(&root);
+    let missing = final_missing(&literal);
+    assert_eq!(range(&missing), 5..5);
+    assert_eq!(literal.to_string(), "\"α\r\n");
+}
+
+#[test]
+fn expression_caller_keeps_the_string_terminator_as_its_final_literal_child() {
+    let source = "\"α";
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut input = source;
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    assert!(
+        expr_normalized(
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+            None,
+            0,
+            0,
+            MlMode::All,
+            StatementLineHandoff::OrdinaryLayout,
+            0,
+            LineEntry::InLine,
+            None,
+            Some(AmbientClaimView::root_statement(0)).into(),
+            None,
+        )
+        .is_some()
+    );
+    output.finish_node();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    assert_eq!(input, "");
+    // This remains a record control; the topology proof below does not derive
+    // anything from it.
+    assert_eq!(
+        records,
+        [record(
+            0,
+            LiteralRole::StringTerminator,
+            RecoveryKind::Missing,
+            3..3
+        )]
+    );
+    let root = SyntaxNode::new_root(green);
+    let literal = string_literal(&root);
+    let missing = final_missing(&literal);
+    assert_eq!(missing.parent(), Some(literal));
+    assert_eq!(range(&missing), 3..3);
+}
+
+#[test]
+fn pattern_and_rule_callers_keep_root_relative_final_string_terminators() {
+    for (source, pattern, end_range) in [
+        ("\"\"\"\\u{}\"\"\"", true, 7..10),
+        ("~\"{a=\"\\u{}\"}\"", false, 10..11),
+    ] {
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut input = source;
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        if pattern {
+            pattern_normalized(
+                SyntaxIn::new(&mut input, &mut recover, &mut output),
+                0,
+                LineEntry::InLine,
+                None,
+                0,
+                Some(AmbientClaimView::root_statement(0)).into(),
+            );
+        } else {
+            assert!(
+                expr_normalized(
+                    SyntaxIn::new(&mut input, &mut recover, &mut output),
+                    None,
+                    0,
+                    0,
+                    MlMode::All,
+                    StatementLineHandoff::OrdinaryLayout,
+                    0,
+                    LineEntry::InLine,
+                    None,
+                    Some(AmbientClaimView::root_statement(0)).into(),
+                    None,
+                )
+                .is_some()
+            );
+        }
+        output.finish_node();
+        let (green, _) = (output.finish(), recover.finish_recoveries_for_test());
+        assert_eq!(input, "", "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let literal = string_literal(&root);
+        let end = literal
+            .children_with_tokens()
+            .last()
+            .expect("actual caller preserves StringLiteral terminator");
+        assert_eq!(end.kind(), SyntaxKind::StringEnd, "{source:?}");
+        assert_eq!(
+            usize::from(end.text_range().start())..usize::from(end.text_range().end()),
+            end_range,
+            "{source:?}"
+        );
+    }
 }
 
 #[test]
@@ -554,6 +896,30 @@ fn interpolation_child_recovery_precedes_close_and_terminator_without_relabeling
     let (green, records, remainder) = parse("\"%{  ", 100, None, None);
     assert_eq!(green.to_string(), "\"%{");
     assert_eq!(remainder, "");
+    // The existing driver intentionally stops at the interpolation body's
+    // trailing EOF-leading trivia.  The CST does not fabricate those spaces:
+    // its outer terminator remains the final StringLiteral child at byte 3.
+    let root = SyntaxNode::new_root(green.clone());
+    let literal = string_literal(&root);
+    assert_eq!(literal.to_string(), "\"%{");
+    assert!(!literal.to_string().contains("  "));
+    assert_eq!(&"\"%{  "[literal.to_string().len()..], "  ");
+    let outer = final_missing(&literal);
+    assert_eq!(range(&outer), 3..3);
+    let interpolation = literal
+        .children()
+        .find(|node| node.kind() == SyntaxKind::StringInterpolation)
+        .expect("interpolation remains the preceding StringLiteral child");
+    let nested = interpolation
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .expect("interpolation close Missing");
+    assert_eq!(range(&nested), 3..3);
+    let preorder = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(preorder, [nested, outer]);
     assert_eq!(
         records,
         [
