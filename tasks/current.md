@@ -194,6 +194,13 @@ derives lists; and SourceRoot coordinate publication. Their concrete owners,
 current-item evidence and existing controls are now a Draft closure queue.
 Its specification and compiler/recovery delta reviews were clean; it is still
 an inventory aid, not an M3 approval or materialization pilot.
+The first queue item now has an explicit but unselected Type physical-envelope
+candidate: ranges use the selected owner's actual publication, retain emitted
+recovery/owner-leading, exclude caller-emitted or unread-boundary leading, and
+never derive an endpoint from `Incomplete`, Missing or diagnostics. Type record
+fields, declaration field positions and Apply/Forall/PV boundary leaves remain
+open. This new durable candidate still requires repaired independent review,
+range controls and user approval before any API or implementation.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be

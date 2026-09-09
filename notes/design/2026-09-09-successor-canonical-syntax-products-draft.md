@@ -381,6 +381,49 @@ incomplete list position before a later apostrophe binder is admitted. The
 later binder is therefore a distinct entry, preserving source order and the
 Forall recovery authority rather than repairing the malformed entry in place.
 
+### Candidate Type physical envelopes; not yet selected
+
+The following is a coherent M3 candidate, not an implication of the
+current-Item recovery authorities. A Type product's physical range is the
+envelope of bytes actually published through its selected owner, including
+nested children and recovery emission. It begins at that owner's first actual
+publication: introductory leading counts when that owner emits it, while
+leading already emitted by its caller does not. Availability is independent:
+`Incomplete` does not mean no byte was published, while a Missing coordinate
+and a diagnostic extent never extend a product range. Actually emitted
+close-recovery/ordinary-horizontal leading counts; a protected unread Item and
+its leading never count.
+
+| product | candidate start | candidate end |
+| --- | --- | --- |
+| TypeExpression | first byte published through its admitted primary or leading BracketRow | last byte published through its primary, postfixes, arrow, recovery or owner-emitted trailing trivia |
+| TypeGroup / Call / BracketRow / TypeRecord | first delimiter-owner publication, including still-owned introductory leading | actual close end, or last byte locally published by the delimiter owner when close is unavailable |
+| EffectRowType | first owner publication, including still-owned introductory leading before its apostrophe | the same delimiter rule, while remaining distinct from a bare leading BracketRow |
+| Path postfix | first path-owner publication, including still-owned separator leading | last byte published through the path owner, falling back to its actual `::` when no later byte is published |
+| Apply postfix | first physical byte of its admitted argument boundary | last byte published through that argument child |
+| TypeArrow | first selected-tail publication, including still-owned leading before its argument-effect row or arrow | last byte published through the arrow owner, falling back to its admitted argument-effect row or actual arrow when no later byte is published |
+| ForallType | first owner publication, including still-owned introductory leading before `for` | last byte published through the owner, falling back to actual `for` when no later byte is published |
+| ForallBinder | first owned boundary-trivia byte, or apostrophe when its boundary is Missing | actual binder-token end |
+| PolyvariantType | first PV-owner publication, including still-owned leading before adjacent `:{` | actual close end, or last PV-owned emitted byte |
+| PV tag / payload | first committed tag head/recovery byte / owned payload-boundary byte, or zero-width at admitted Type start when that boundary is Missing | last tag/payload-owned byte, including nested recovery |
+
+A leading row remains inside TypeExpression when its required head is
+unavailable. An argument-effect row belongs to TypeArrow when that tail is
+admitted; neither parent is inferred from the shared BracketRow product alone.
+Terminal required-Type failure before any Type skeleton is admitted remains the
+caller's `Incomplete` product position; it does not fabricate a TypeExpression
+only to hold emitted Error bytes. Forall retry keeps the earlier incomplete
+binder position and its owner bytes before a distinct later admitted binder;
+PV tag retry likewise keeps the earlier same-tag Error bytes.
+
+This candidate deliberately leaves TypeRecordField start/end and every
+declaration field-list position open: whether a field name-slot recovery has
+committed an outer field is not yet closed across all list-admission branches.
+It also leaves the source representation of Apply/Forall/PV payload boundaries
+open. The table requires compiler/recovery and specification review, exact
+range controls, and user approval before it can authorize a product API or
+implementation.
+
 ```text
 InlineStatementBody ::= Inline(Box<Statement>) | Indented(IndentedBlock)
 InlineExpressionBody ::= Inline(OperatorChain) | Indented(IndentedBlock)
