@@ -187,6 +187,15 @@ distinguish the Rhs slot without parser records. It also shows why a generic
 `Error` child union would be inadequate: the two raw cases have different
 following children and protected-boundary behavior.
 
+Draft evidence for this direct-inline slice is complete as of 2026-09-10:
+focused Rowan assertions cover accepted RHS, protected Missing, terminal Error,
+Error-to-retry with retry-leading ancestry, a contiguous multi-fragment Error
+group, and nested FieldTail Missing ownership. Specification and
+compiler/recovery delta audits found no remaining slice finding. This records
+evidence for the Draft only; it neither promotes this slice nor closes the
+indented dependency, complete inventory, interpreter or parser-ledger
+migration.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`

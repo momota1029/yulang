@@ -116,6 +116,204 @@ fn assignment_one_character_fallback_preserves_dynamic_led_priority_and_prefix_r
 }
 
 #[test]
+fn assignment_tail_keeps_rhs_and_recovery_in_the_direct_rowan_shape() {
+    fn range(node: &SyntaxNode) -> std::ops::Range<usize> {
+        usize::from(node.text_range().start())..usize::from(node.text_range().end())
+    }
+
+    let (green, records, _, rest) = parse("x = y", None, MlMode::All, 0, None);
+    assert!(records.is_empty());
+    assert_eq!(rest, "");
+    let root = SyntaxNode::new_root(green);
+    let chain = root.first_child().expect("outer OperatorChain");
+    assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+    let children = chain.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), 3);
+    assert_eq!(
+        children[0].as_node().map(SyntaxNode::kind),
+        Some(SyntaxKind::IdentifierExpression)
+    );
+    assert_eq!(
+        children[1].as_token().map(|token| token.kind()),
+        Some(SyntaxKind::Whitespace)
+    );
+    let identifier = children[0].as_node().expect("IdentifierExpression");
+    assert_eq!(identifier.parent(), Some(chain.clone()));
+    let tail = children[2].as_node().expect("AssignmentTail");
+    assert_eq!(tail.kind(), SyntaxKind::AssignmentTail);
+    assert_eq!(range(tail), 2..5);
+    assert_eq!(tail.parent(), Some(chain.clone()));
+    let rhs = tail.children().last().expect("inline RHS OperatorChain");
+    assert_eq!(rhs.kind(), SyntaxKind::OperatorChain);
+    assert_eq!(range(&rhs), 4..5);
+    assert_eq!(rhs.parent(), Some(tail.clone()));
+    assert_eq!(
+        rhs.first_child().map(|node| node.kind()),
+        Some(SyntaxKind::IdentifierExpression)
+    );
+    let tail_children = tail.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(tail_children.len(), 3);
+    let equals = tail_children[0].as_token().expect("Equals token");
+    assert_eq!(equals.kind(), SyntaxKind::Equals);
+    assert_eq!(equals.text(), "=");
+    assert_eq!(equals.parent(), Some(tail.clone()));
+    let leading = tail_children[1].as_token().expect("RHS leading whitespace");
+    assert_eq!(leading.kind(), SyntaxKind::Whitespace);
+    assert_eq!(leading.text(), " ");
+    assert_eq!(leading.parent(), Some(tail.clone()));
+    assert_eq!(tail_children[2].as_node(), Some(&rhs));
+
+    let (green, _records, exit, rest) = parse("x = ]", None, MlMode::All, 0, None);
+    assert_eq!(rest, "");
+    let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+        panic!("protected close remains unread");
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+    assert_eq!(item.extent(5).recovery_range(), 3..5);
+    let root = SyntaxNode::new_root(green);
+    let tail = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::AssignmentTail)
+        .expect("AssignmentTail");
+    let missing = tail.children().last().expect("RHS Missing");
+    assert_eq!(missing.kind(), SyntaxKind::Missing);
+    assert_eq!(range(&missing), 3..3);
+    assert_eq!(missing.parent(), Some(tail));
+
+    let (green, _records, exit, rest) = parse("x = @ ]", None, MlMode::All, 0, None);
+    assert_eq!(rest, "");
+    let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+        panic!("protected close remains unread after Error");
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+    assert_eq!(item.extent(7).recovery_range(), 5..7);
+    let root = SyntaxNode::new_root(green);
+    let tail = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::AssignmentTail)
+        .expect("AssignmentTail");
+    let children = tail.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), 3);
+    let equals = children[0].as_token().expect("Equals token");
+    assert_eq!(equals.kind(), SyntaxKind::Equals);
+    assert_eq!(equals.text(), "=");
+    assert_eq!(equals.parent(), Some(tail.clone()));
+    let leading = children[1].as_token().expect("Error leading whitespace");
+    assert_eq!(leading.kind(), SyntaxKind::Whitespace);
+    assert_eq!(leading.text(), " ");
+    assert_eq!(leading.parent(), Some(tail.clone()));
+    let error = children[2].as_token().expect("raw Error token");
+    assert_eq!(error.kind(), SyntaxKind::Error);
+    assert_eq!(error.text(), "@");
+    assert_eq!(
+        usize::from(error.text_range().start())..usize::from(error.text_range().end()),
+        4..5
+    );
+    assert_eq!(error.parent(), Some(tail));
+
+    let (green, _records, _, rest) = parse("x = @ y", None, MlMode::All, 0, None);
+    assert_eq!(rest, "");
+    let root = SyntaxNode::new_root(green);
+    let tail = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::AssignmentTail)
+        .expect("AssignmentTail");
+    let children = tail.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), 4);
+    let equals = children[0].as_token().expect("Equals token");
+    assert_eq!(equals.kind(), SyntaxKind::Equals);
+    assert_eq!(equals.text(), "=");
+    assert_eq!(equals.parent(), Some(tail.clone()));
+    let leading = children[1].as_token().expect("Error leading whitespace");
+    assert_eq!(leading.kind(), SyntaxKind::Whitespace);
+    assert_eq!(leading.text(), " ");
+    assert_eq!(leading.parent(), Some(tail.clone()));
+    assert_eq!(
+        children[2].as_token().map(|token| token.kind()),
+        Some(SyntaxKind::Error)
+    );
+    let rhs = children[3].as_node().expect("retried RHS OperatorChain");
+    assert_eq!(rhs.kind(), SyntaxKind::OperatorChain);
+    assert_eq!(range(&rhs), 5..7);
+    assert_eq!(rhs.parent(), Some(tail));
+    let retry_leading = rhs.first_token().expect("retry leading whitespace");
+    assert_eq!(retry_leading.kind(), SyntaxKind::Whitespace);
+    assert_eq!(retry_leading.text(), " ");
+    assert_eq!(
+        usize::from(retry_leading.text_range().start())
+            ..usize::from(retry_leading.text_range().end()),
+        5..6
+    );
+    let retry_owner = retry_leading.parent().expect("retry leading owner");
+    assert_eq!(retry_owner.kind(), SyntaxKind::IdentifierExpression);
+    assert_eq!(retry_owner.parent(), Some(rhs.clone()));
+
+    let (green, _records, exit, rest) = parse("x = @  @ ]", None, MlMode::All, 0, None);
+    assert_eq!(rest, "");
+    let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+        panic!("protected close remains unread after a fragmented Error run");
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+    assert_eq!(item.extent(10).recovery_range(), 8..10);
+    let root = SyntaxNode::new_root(green);
+    let tail = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::AssignmentTail)
+        .expect("AssignmentTail");
+    let children = tail.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        children
+            .iter()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::Equals,
+            SyntaxKind::Whitespace,
+            SyntaxKind::Error,
+            SyntaxKind::Error,
+            SyntaxKind::Error,
+        ]
+    );
+    let errors = children
+        .into_iter()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 3);
+    assert_eq!(
+        errors.iter().map(|token| token.text()).collect::<Vec<_>>(),
+        ["@", "  ", "@"]
+    );
+    let ranges = errors
+        .iter()
+        .map(|token| usize::from(token.text_range().start())..usize::from(token.text_range().end()))
+        .collect::<Vec<_>>();
+    assert_eq!(ranges, [4..5, 5..7, 7..8]);
+    assert!(ranges.windows(2).all(|pair| pair[0].end == pair[1].start));
+    assert_eq!(ranges[0].start..ranges[2].end, 4..8);
+    assert_eq!(&"x = @  @ ]"[4..8], "@  @");
+    assert_eq!(errors[1].parent(), Some(tail));
+
+    let (green, _records, _, rest) = parse("x = y.", None, MlMode::All, 0, None);
+    assert_eq!(rest, "");
+    let root = SyntaxNode::new_root(green);
+    let tail = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::AssignmentTail)
+        .expect("AssignmentTail");
+    let rhs = tail.children().last().expect("RHS OperatorChain");
+    let field = rhs
+        .children()
+        .find(|node| node.kind() == SyntaxKind::FieldTail)
+        .expect("nested FieldTail");
+    assert_eq!(field.parent(), Some(rhs));
+    let missing = field.children().last().expect("FieldTail Missing");
+    assert_eq!(missing.kind(), SyntaxKind::Missing);
+    assert_eq!(range(&missing), 6..6);
+    assert_eq!(missing.parent(), Some(field));
+}
+
+#[test]
 fn assignment_single_rhs_returns_separator_without_outer_continuation() {
     let (green, records, exit, rest) = parse("x = y, z", None, MlMode::All, 0, None);
     assert_eq!(green.to_string(), "x = y");

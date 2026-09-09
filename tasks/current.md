@@ -211,6 +211,10 @@ leaf and restricted `Invalid` node shape, raw-fragment/leading ownership and
 the two structured owners. They intentionally defer construct slot schemas and
 the later CST-derived public diagnostic result. Both language books build with
 `mdbook v0.5.4`.
+The first construct-level slot Draft, AssignmentTail's direct inline RHS, now
+has direct Rowan evidence for child order, leading, Missing, Error grouping,
+retry and nested ownership. It remains Draft pending a user promotion decision;
+the indented RHS and complete inventory stay open.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
