@@ -45,8 +45,7 @@ activates Type-attached `impl` nor closes the historical owner-spec/AST-direct
 parity requirement. The product Draft now identifies that form as approved
 authority with successor promotion still pending.
 
-The next parser construction gate is the authoritative expression structural
-tails contract under
+The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
 flat CST tails, while `operator_chain` keeps dispatch and rejection. Assignment
@@ -58,6 +57,19 @@ and cannot reinterpret a Type-stopped `+`. M2 implementation, focused tests
 and regression review are complete: structural tails 8, dynamic operators 11,
 fixed-tail recovery 9, package check, format and diff passed. Benchmark use
 was zero. Canonical materialization remains separate and open.
+
+The contextual `RuleExpression` production-entry M2 gate is complete under
+`2026-09-05-direct-literal-cone-addendum.md` §§2, 4.2 and 6 / LC-8. Exact
+lexical Identifier `rule` plus one brace successor enters the shared RuleBody
+from Expression and Pattern; all other successors return unchanged to the
+ordinary owner, and registered `rule` word operators remain operators. The
+Rule body remains the sole brace/recovery owner before its host tail resumes.
+Compiler/recovery review was clean. Regression review established that this
+approved exact-form reservation wins over a caller's pending brace stop;
+`if rule {a}: body` now records that the Rule expression is the condition and
+the later colon/body remain If-owned. Focused entry 7, inherited Rule 26,
+package check, format and diff passed; benchmark use was zero. Canonical
+materialization and outer Yumark remain separate and open.
 
 The public syntax phase is now split under
 `2026-09-09-syntax-phase-topology.md`: `syntax_environment.rs` owns selected

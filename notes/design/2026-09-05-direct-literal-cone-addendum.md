@@ -50,8 +50,15 @@ RuleSequenceCore constructs `RuleBody`/alternations/sequences/items, core atoms,
 quantifiers, captures, field/path recovery, and matching paren ownership without
 production reachability. Its fence-aware RuleIntroducerTrivia construction remains
 private/test-only, but proves the same fragmented opener enters RuleBody once in
-physical order. L5 is next; all later gates retain the stated construction and
-joint-certification dependencies.
+physical order. Later private L5--L7 construction is complete as recorded in
+the design index. On 2026-09-09, the bounded production contextual
+`RuleExpression` entry was connected from both Expression and Pattern to this
+shared RuleBody owner. It accepts only a lexical Identifier `rule` whose one
+successor Item has `{` payload, preserves registered word operators and every
+non-brace successor for ordinary handling, and resumes the owning host tail
+after completion. This activates neither canonical AST/HIR products nor the
+outer Yumark document/frame; their stated construction and joint-certification
+dependencies remain open.
 
 For the isolated L4 construction, `RuleAlternation` owns the whole list of
 alternatives, rather than each branch. `RuleBody` owns its existing brace tokens

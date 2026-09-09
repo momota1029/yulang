@@ -1,4 +1,4 @@
-//! Isolated RuleSequenceCore construction before RuleExpression dispatch.
+//! Rule expressions and their shared Rule DSL interior.
 
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
@@ -102,14 +102,8 @@ pub(super) fn rule_item_unexpected_category(item: &Item) -> UnexpectedCategory {
 
 #[derive(Clone, Copy)]
 enum RuleFrame {
-    #[allow(
-        dead_code,
-        reason = "Rule DSL body owner and its typed close contract remain a deferred production gate"
-    )]
     Body,
-    Parenthesis {
-        outer_literal_quote: bool,
-    },
+    Parenthesis { outer_literal_quote: bool },
     LiteralInterpolation,
 }
 
@@ -128,8 +122,7 @@ pub(super) enum RuleWitnessExit {
     Deferred(Item),
 }
 
-#[cfg(test)]
-enum NormalizedRuleWitnessExit {
+enum NormalizedRuleBodyExit {
     Complete(LineEntry),
     Returned(Item, LineEntry),
     Deferred(Item, LineEntry),
@@ -143,6 +136,39 @@ enum SequenceExit {
 enum ItemExit {
     Continue(Item, LineEntry),
     Deferred(Item, LineEntry),
+}
+
+pub(crate) enum RuleExpressionExit {
+    Complete(LineEntry),
+    Boundary(Item, LineEntry),
+}
+
+/// Commits the contextual word and its already accepted brace successor.
+pub(crate) fn rule_expression_normalized(
+    mut i: SyntaxIn,
+    keyword: Item,
+    opener: Item,
+    mut origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> RuleExpressionExit {
+    i.state.start_node(SyntaxKind::RuleExpression.into());
+    emit_item_as(&mut i, keyword, SyntaxKind::RuleKw);
+    let (current, line_entry) = next_rule_item(i.rb(), &mut origin, line_entry, fence);
+    let exit = rule_body_normalized(i.rb(), opener, current, origin, line_entry, fence, ambient);
+    i.state.finish_node();
+    match exit {
+        NormalizedRuleBodyExit::Complete(line_entry) => RuleExpressionExit::Complete(line_entry),
+        NormalizedRuleBodyExit::Returned(item, line_entry) => {
+            RuleExpressionExit::Boundary(item, line_entry)
+        }
+        NormalizedRuleBodyExit::Deferred(item, line_entry) => {
+            unreachable!(
+                "complete Rule children enter every direct literal owner: {item:?}, {line_entry:?}"
+            )
+        }
+    }
 }
 
 /// Builds one isolated RuleBody from an already accepted `{` and one current
@@ -165,9 +191,9 @@ pub(super) fn rule_body_witness(
         fence,
         Some(AmbientClaimView::root_statement(0)).into(),
     ) {
-        NormalizedRuleWitnessExit::Complete(_) => RuleWitnessExit::Complete,
-        NormalizedRuleWitnessExit::Returned(item, _) => RuleWitnessExit::Returned(item),
-        NormalizedRuleWitnessExit::Deferred(item, _) => RuleWitnessExit::Deferred(item),
+        NormalizedRuleBodyExit::Complete(_) => RuleWitnessExit::Complete,
+        NormalizedRuleBodyExit::Returned(item, _) => RuleWitnessExit::Returned(item),
+        NormalizedRuleBodyExit::Deferred(item, _) => RuleWitnessExit::Deferred(item),
     }
 }
 
@@ -189,17 +215,16 @@ pub(super) fn rule_body_normalized_witness(
         fence,
         Some(AmbientClaimView::root_statement(0)).into(),
     ) {
-        NormalizedRuleWitnessExit::Complete(line_entry) => (RuleWitnessExit::Complete, line_entry),
-        NormalizedRuleWitnessExit::Returned(item, line_entry) => {
+        NormalizedRuleBodyExit::Complete(line_entry) => (RuleWitnessExit::Complete, line_entry),
+        NormalizedRuleBodyExit::Returned(item, line_entry) => {
             (RuleWitnessExit::Returned(item), line_entry)
         }
-        NormalizedRuleWitnessExit::Deferred(item, line_entry) => {
+        NormalizedRuleBodyExit::Deferred(item, line_entry) => {
             (RuleWitnessExit::Deferred(item), line_entry)
         }
     }
 }
 
-#[cfg(test)]
 fn rule_body_normalized(
     mut i: SyntaxIn,
     opener: Item,
@@ -208,7 +233,7 @@ fn rule_body_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
-) -> NormalizedRuleWitnessExit {
+) -> NormalizedRuleBodyExit {
     debug_assert!(is_token(&opener, TokenKind::LBrace));
     i.state.start_node(SyntaxKind::RuleBody.into());
     emit_item_as(&mut i, opener, SyntaxKind::LBrace);
@@ -225,7 +250,7 @@ fn rule_body_normalized(
     let exit = match exit {
         SequenceExit::Stop(close, line_entry) if is_token(&close, TokenKind::RBrace) => {
             emit_item_as(&mut i, close, SyntaxKind::RBrace);
-            NormalizedRuleWitnessExit::Complete(line_entry)
+            NormalizedRuleBodyExit::Complete(line_entry)
         }
         SequenceExit::Stop(pending, line_entry) => {
             emit_rule_missing(
@@ -233,10 +258,10 @@ fn rule_body_normalized(
                 LiteralRole::RuleBodyCloseBrace,
                 rule_recovery_at(&pending, origin),
             );
-            NormalizedRuleWitnessExit::Returned(pending, line_entry)
+            NormalizedRuleBodyExit::Returned(pending, line_entry)
         }
         SequenceExit::Deferred(item, line_entry) => {
-            NormalizedRuleWitnessExit::Deferred(item, line_entry)
+            NormalizedRuleBodyExit::Deferred(item, line_entry)
         }
     };
     i.state.finish_node();

@@ -24,6 +24,7 @@ mod public_boundary;
 mod recovery_output;
 mod root;
 mod rule;
+mod rule_expression;
 mod rule_expression_list_recovery;
 mod rule_literal_recovery;
 mod statement;

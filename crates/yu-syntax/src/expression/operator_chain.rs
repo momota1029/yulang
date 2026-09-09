@@ -153,6 +153,67 @@ pub(super) fn append_nud(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    if token_kind(&nud) == Some(TokenKind::Identifier)
+        && nud.payload_view().spelling() == Some("rule")
+    {
+        let (successor, mut origin, line) = expression_item(
+            i.rb(),
+            OperatorSite::Led,
+            item_origin,
+            line_entry,
+            fence,
+            baseline,
+            stops,
+        );
+        if successor.payload_view().token_kind() == Some(TokenKind::LBrace) {
+            let entry = suffix_marker(i.rb());
+            let exit = crate::rule::rule_expression_normalized(
+                i.rb(),
+                nud,
+                successor,
+                origin,
+                line,
+                fence,
+                ambient,
+            );
+            origin = advanced_origin(origin, entry, i.rb());
+            return match exit {
+                crate::rule::RuleExpressionExit::Complete(line) => {
+                    scan_tail_after_accept_normalized(
+                        i,
+                        threshold,
+                        baseline,
+                        stops,
+                        ml_mode,
+                        line_handoff,
+                        origin,
+                        line,
+                        fence,
+                        ambient,
+                        sequence,
+                    )
+                }
+                crate::rule::RuleExpressionExit::Boundary(item, line) => {
+                    complete(handoff(item), line)
+                }
+            };
+        }
+        emit_identifier_core(&mut i, nud);
+        return tail_normalized(
+            i,
+            successor,
+            threshold,
+            baseline,
+            stops,
+            ml_mode,
+            line_handoff,
+            origin,
+            line,
+            fence,
+            ambient,
+            sequence,
+        );
+    }
     if is_expression_rule_literal_opener(&nud) {
         return append_rule_literal_nud(
             i,

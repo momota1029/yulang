@@ -652,6 +652,61 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    if token_kind(&item) == Some(TokenKind::Identifier)
+        && item.payload_view().spelling() == Some("rule")
+    {
+        let (successor, origin, line) =
+            pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+        if successor.payload_view().token_kind() == Some(TokenKind::LBrace) {
+            let entry = suffix_marker(i.rb());
+            let exit = crate::rule::rule_expression_normalized(
+                i.rb(),
+                item,
+                successor,
+                origin,
+                line,
+                fence,
+                ambient,
+            );
+            let origin = advanced_origin(origin, entry, i.rb());
+            return match exit {
+                crate::rule::RuleExpressionExit::Complete(line) => scan_pattern_tail_normalized(
+                    i,
+                    minimum,
+                    baseline,
+                    stops,
+                    line_handoff,
+                    caller_closes,
+                    completion,
+                    origin,
+                    line,
+                    fence,
+                    ambient,
+                ),
+                crate::rule::RuleExpressionExit::Boundary(item, line) => {
+                    *completion = PatternCompletion::Incomplete;
+                    complete(handoff(item), line)
+                }
+            };
+        }
+        i.state.start_node(SyntaxKind::IdentifierPattern.into());
+        emit_token_item(&mut i, item);
+        i.state.finish_node();
+        return pattern_tail_normalized(
+            i,
+            successor,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            caller_closes,
+            completion,
+            origin,
+            line,
+            fence,
+            ambient,
+        );
+    }
     if item.payload_view().spelling() == Some("\"") {
         let entry = suffix_marker(i.rb());
         let exit = rule_literal_normalized(i.rb(), item, item_origin, line_entry, fence, ambient);
