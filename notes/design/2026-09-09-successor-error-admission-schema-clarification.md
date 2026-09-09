@@ -443,6 +443,26 @@ the old publisher; they are neither slot identity nor a substitute for direct
 CST child order/ranges. Equal-offset nested Missing occurrences remain
 distinguishable by their caller/child paths.
 
+Evidence correction for this Draft: independent direct Rowan matrices now
+cover all three callers for Item Error-to-Expression retry, terminal and
+comma-followed Separator Error, and LF/CRLF newline-required Item Missing.
+For a terminal rejected Item at ordinary EOF or a foreign close, each caller
+has direct ordered Error, Item Missing, then close Missing children; the two
+Missing nodes are distinct zero-width siblings and may share one range. A
+matching close after that Item has only the Item Missing. Empty and accepted
+trailing lists have no Missing, and deferred exits do not imply a close
+Missing. Adjacent Error leaves and rejected trivia are recorded only as
+present CST structure, without a diagnostic-grouping claim.
+
+The direct caller fence witness is not a completed CST proof. In all three
+contexts, the test harness stops its Green builder before the protected fence
+Item, preserving only the opener prefix and the direct caller close Missing;
+the fence remainder is unread after the preceding boundary newline. Therefore
+it cannot establish direct caller ownership of the pending leading or a
+fence-Item CST range. The shared helper witness and recovery records remain
+supplementary compatibility evidence, never slot identity. Completed direct
+caller fence CST/range proof remains open.
+
 Direct Rowan evidence is in
 `crates/yu-syntax/src/tests/rule_expression_list_recovery.rs`: it checks all
 three caller contexts, caller-owned delimiter order/ranges, empty and trailing

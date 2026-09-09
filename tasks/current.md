@@ -270,11 +270,14 @@ cover only RuleBody close, opener-selected RuleItem parenthesis close,
 RuleCapture RHS, RuleField name, RulePath name, and repeated RuleSequence Item
 Error. They retain Error-to-valid versus terminal Error-to-Missing Capture
 facts and direct Rule publisher links. The three Rule ExpressionList caller
-phases now have a bounded evidence-complete Draft: its caller-owned delimiters,
-content-only Item/Separator phases, terminal/missing-close paths, and LF/CRLF
-insertion ranges are directly witnessed in Rowan. Its diagnostic projection
-and catalog mapping remain open, so the newline callback remains outside the
-publisher census as source-navigation evidence rather than a ledger substitute.
+phases now have a bounded Draft with direct non-fence evidence: its
+caller-owned delimiters, content-only Item/Separator phases,
+terminal/missing-close paths, and LF/CRLF insertion ranges are directly
+witnessed in Rowan. The current protected-fence harness ends the Green tree
+before the pending Item, so completed caller fence CST/range proof, diagnostic
+projection, and catalog mapping remain open. The newline callback remains
+outside the publisher census as source-navigation evidence rather than a
+ledger substitute.
 Interpolation/lazy/RuleLiteral children, String, and Virtual remain delegated
 or unmapped.
 The StringInterpolationBody statement-sequence Draft is preflighted and has

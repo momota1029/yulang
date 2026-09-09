@@ -23,6 +23,16 @@ fn parse_with_fence(
     frozen: Option<&[CommittedRecoveryRecord]>,
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
+    let (green, records, _) = parse_with_fence_remainder(source, origin, frozen, fence);
+    (green, records)
+}
+
+fn parse_with_fence_remainder(
+    source: &str,
+    origin: usize,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, Vec<CommittedRecoveryRecord>, String) {
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
@@ -59,7 +69,11 @@ fn parse_with_fence(
         fence,
     );
     output.finish_node();
-    (output.finish(), recover.finish_recoveries_for_test())
+    (
+        output.finish(),
+        recover.finish_recoveries_for_test(),
+        input.to_owned(),
+    )
 }
 
 fn record(id: u32, role: GrammarRole, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
@@ -604,4 +618,316 @@ fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
             )]
         );
     }
+}
+
+#[test]
+fn direct_rowan_expression_list_recovery_is_proven_per_caller_phase() {
+    for (source, caller_kind, open, close, error_range) in [
+        (
+            "{[@x]}",
+            SyntaxKind::RuleItem,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            2..3,
+        ),
+        (
+            "{a(@x)}",
+            SyntaxKind::RuleCall,
+            SyntaxKind::LParen,
+            SyntaxKind::RParen,
+            3..4,
+        ),
+        (
+            "{a[@x]}",
+            SyntaxKind::RuleIndex,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            3..4,
+        ),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
+        assert_eq!(
+            direct_kinds(&caller),
+            [open, SyntaxKind::Error, SyntaxKind::OperatorChain, close]
+        );
+        assert_eq!(
+            direct_token_range(&caller, SyntaxKind::Error),
+            rowan::TextRange::new(error_range.start.into(), error_range.end.into())
+        );
+    }
+    for (source, caller_kind, open, close, error_range) in [
+        (
+            "{[1;]}",
+            SyntaxKind::RuleItem,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            3..4,
+        ),
+        (
+            "{a(1;)}",
+            SyntaxKind::RuleCall,
+            SyntaxKind::LParen,
+            SyntaxKind::RParen,
+            4..5,
+        ),
+        (
+            "{a[1;]}",
+            SyntaxKind::RuleIndex,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            4..5,
+        ),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
+        assert_eq!(
+            direct_kinds(&caller),
+            [open, SyntaxKind::OperatorChain, SyntaxKind::Error, close]
+        );
+        assert_eq!(
+            direct_token_range(&caller, SyntaxKind::Error),
+            rowan::TextRange::new(error_range.start.into(), error_range.end.into())
+        );
+    }
+    for (source, caller_kind, open, close, error_range) in [
+        (
+            "{[1;,x]}",
+            SyntaxKind::RuleItem,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            3..4,
+        ),
+        (
+            "{a(1;,x)}",
+            SyntaxKind::RuleCall,
+            SyntaxKind::LParen,
+            SyntaxKind::RParen,
+            4..5,
+        ),
+        (
+            "{a[1;,x]}",
+            SyntaxKind::RuleIndex,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            4..5,
+        ),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
+        assert_eq!(
+            direct_kinds(&caller),
+            [
+                open,
+                SyntaxKind::OperatorChain,
+                SyntaxKind::Error,
+                SyntaxKind::Comma,
+                SyntaxKind::OperatorChain,
+                close
+            ]
+        );
+        assert_eq!(
+            direct_token_range(&caller, SyntaxKind::Error),
+            rowan::TextRange::new(error_range.start.into(), error_range.end.into())
+        );
+    }
+}
+
+#[test]
+fn direct_rowan_expression_list_terminal_item_suffixes_are_caller_specific() {
+    for (source, caller_kind, open, missing_at) in [
+        ("{[@", SyntaxKind::RuleItem, SyntaxKind::LBracket, 3),
+        ("{a(@", SyntaxKind::RuleCall, SyntaxKind::LParen, 4),
+        ("{a[@", SyntaxKind::RuleIndex, SyntaxKind::LBracket, 4),
+        ("{[@)}", SyntaxKind::RuleItem, SyntaxKind::LBracket, 3),
+        ("{a(@]}", SyntaxKind::RuleCall, SyntaxKind::LParen, 4),
+        ("{a[@)}", SyntaxKind::RuleIndex, SyntaxKind::LBracket, 4),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
+        assert_eq!(
+            direct_kinds(&caller),
+            [
+                open,
+                SyntaxKind::Error,
+                SyntaxKind::Missing,
+                SyntaxKind::Missing
+            ]
+        );
+        let missings = caller
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missings.len(), 2);
+        assert!(
+            missings
+                .iter()
+                .all(|node| node.text_range() == rowan::TextRange::empty(missing_at.into()))
+        );
+    }
+    for (source, caller_kind, open, close, missing_at) in [
+        (
+            "{[@]}",
+            SyntaxKind::RuleItem,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            3,
+        ),
+        (
+            "{a(@)}",
+            SyntaxKind::RuleCall,
+            SyntaxKind::LParen,
+            SyntaxKind::RParen,
+            4,
+        ),
+        (
+            "{a[@]}",
+            SyntaxKind::RuleIndex,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            4,
+        ),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
+        assert_eq!(
+            direct_kinds(&caller),
+            [open, SyntaxKind::Error, SyntaxKind::Missing, close]
+        );
+        assert_eq!(
+            only_node(&caller, SyntaxKind::Missing).text_range(),
+            rowan::TextRange::empty(missing_at.into())
+        );
+    }
+}
+
+#[test]
+fn direct_rowan_expression_list_newline_missing_ranges_cover_all_callers() {
+    for (source, caller_kind, missing_at, newline) in [
+        ("{[1\n\n2]}", SyntaxKind::RuleItem, 4, "\n"),
+        ("{a(1\n\n2)}", SyntaxKind::RuleCall, 5, "\n"),
+        ("{a[1\n\n2]}", SyntaxKind::RuleIndex, 5, "\n"),
+        ("{[1\r\n\r\n2]}", SyntaxKind::RuleItem, 5, "\r\n"),
+        ("{a(1\r\n\r\n2)}", SyntaxKind::RuleCall, 6, "\r\n"),
+        ("{a[1\r\n\r\n2]}", SyntaxKind::RuleIndex, 6, "\r\n"),
+    ] {
+        let (green, _) = parse(source, 0, None);
+        let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
+        let children = caller.children_with_tokens().collect::<Vec<_>>();
+        let missing_index = children
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Missing)
+            .expect("newline-required Item Missing");
+        assert_eq!(
+            children[missing_index].as_node().unwrap().text_range(),
+            rowan::TextRange::empty(missing_at.into())
+        );
+        let newline_token = children[missing_index + 1]
+            .clone()
+            .into_token()
+            .expect("Missing precedes direct newline");
+        assert_eq!(newline_token.kind(), SyntaxKind::Newline);
+        assert_eq!(newline_token.text(), newline);
+        assert_eq!(
+            newline_token.text_range(),
+            rowan::TextRange::new(
+                missing_at.into(),
+                (missing_at + newline.len() as u32).into()
+            )
+        );
+    }
+}
+
+#[test]
+fn direct_rowan_expression_list_fence_handoff_is_caller_owned_but_not_a_complete_tree() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
+        close_column: 0,
+    };
+    for (source, caller_kind, open, prefix, missing_at) in [
+        (
+            "{[\r\n> ```\nouter",
+            SyntaxKind::RuleItem,
+            SyntaxKind::LBracket,
+            "{[",
+            2,
+        ),
+        (
+            "{a(\r\n> ```\nouter",
+            SyntaxKind::RuleCall,
+            SyntaxKind::LParen,
+            "{a(",
+            3,
+        ),
+        (
+            "{a[\r\n> ```\nouter",
+            SyntaxKind::RuleIndex,
+            SyntaxKind::LBracket,
+            "{a[",
+            3,
+        ),
+    ] {
+        let (green, _, remainder) = parse_with_fence_remainder(source, 100, None, Some(&fence));
+        assert_eq!(
+            green.to_string(),
+            prefix,
+            "the witness builder stops before the protected Item"
+        );
+        assert_eq!(
+            remainder, "> ```\nouter",
+            "the witness exposes the pending fence Item after its preceding boundary newline"
+        );
+        let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
+        assert_eq!(direct_kinds(&caller), [open, SyntaxKind::Missing]);
+        assert_eq!(
+            only_node(&caller, SyntaxKind::Missing).text_range(),
+            rowan::TextRange::empty(missing_at.into())
+        );
+    }
+}
+
+#[test]
+fn direct_rowan_expression_list_error_leaves_preserve_present_boundaries() {
+    let (green, _) = parse("{a(@ @x)}", 0, None);
+    let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
+    assert_eq!(
+        direct_kinds(&call),
+        [
+            SyntaxKind::LParen,
+            SyntaxKind::Error,
+            SyntaxKind::Error,
+            SyntaxKind::Error,
+            SyntaxKind::OperatorChain,
+            SyntaxKind::RParen
+        ]
+    );
+    let errors = call
+        .children_with_tokens()
+        .filter_map(|child| {
+            child
+                .into_token()
+                .filter(|token| token.kind() == SyntaxKind::Error)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        errors.iter().map(|token| token.text()).collect::<Vec<_>>(),
+        ["@", " ", "@"]
+    );
+    assert_eq!(
+        errors
+            .iter()
+            .map(|token| token.text_range())
+            .collect::<Vec<_>>(),
+        [
+            rowan::TextRange::new(3.into(), 4.into()),
+            rowan::TextRange::new(4.into(), 5.into()),
+            rowan::TextRange::new(5.into(), 6.into())
+        ]
+    );
 }
