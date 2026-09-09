@@ -136,6 +136,64 @@ fn parses_simple_use_forms_losslessly() {
 }
 
 #[test]
+fn public_root_keeps_string_eof_leading_after_the_literal_missing_slot() {
+    // The literal owns the zero-width terminator recovery.  Its trailing
+    // physical leading belongs to the completed Root instead: it must remain
+    // native root content rather than disappearing with the terminal Item.
+    for (source, eof_leading) in [
+        ("\"%{  ", vec![(SyntaxKind::Whitespace, "  ".to_owned())]),
+        ("\"%{\r\n", vec![(SyntaxKind::Newline, "\r\n".to_owned())]),
+        (
+            "\"%{ // trailing",
+            vec![
+                (SyntaxKind::Whitespace, " ".to_owned()),
+                (SyntaxKind::LineComment, "// trailing".to_owned()),
+            ],
+        ),
+    ] {
+        let source: Arc<SourceText> = Arc::from(source);
+        let header = Arc::new(scan_header(Arc::clone(&source)));
+        let parsed = parse_file(
+            Arc::clone(&source),
+            header,
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let literal = node_of_kind(&root, SyntaxKind::StringLiteral);
+        let missing = literal
+            .children()
+            .last()
+            .expect("StringLiteral owns its terminator Missing");
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(node_range(&missing), 3..3);
+        assert_eq!(missing.parent(), Some(literal));
+
+        let elements = root.children_with_tokens().collect::<Vec<_>>();
+        let chain = elements
+            .first()
+            .and_then(rowan::NodeOrToken::as_node)
+            .expect("the admitted expression remains an OperatorChain node");
+        assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+        assert_eq!(chain.to_string(), "\"%{");
+        assert_eq!(
+            elements[1..]
+                .iter()
+                .map(|element| {
+                    let token = element
+                        .as_token()
+                        .expect("Root EOF leading must be emitted as native tokens");
+                    (token.kind(), token.text().to_owned())
+                })
+                .collect::<Vec<_>>(),
+            eof_leading,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn discovers_infix_operator_header_fixture() {
     let header = scan_header(fixture_source(INFIX_OPERATOR_SOURCE));
 
