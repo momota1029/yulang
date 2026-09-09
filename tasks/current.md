@@ -214,7 +214,8 @@ the later CST-derived public diagnostic result. Both language books build with
 The first construct-level slot Draft, AssignmentTail's direct inline RHS, now
 has direct Rowan evidence for child order, leading, Missing, Error grouping,
 retry and nested ownership. The user approved this direct-inline slice as
-Authoritative; the indented RHS and complete inventory stay open.
+Authoritative, and its paired EN/JA public reference pages are reconstructed
+from it. The indented RHS and complete inventory stay open.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
