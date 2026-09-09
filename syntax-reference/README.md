@@ -1,14 +1,16 @@
-# yu-syntax reference
+# Yulang syntax and CST reference
 
-`yu-syntax`のgrammar、CST、AST、typed recoveryを実装・保守する人のためのbilingual internal referenceである。
+This bilingual reference specifies Yulang surface syntax and its lossless Rowan
+CST. It is a language and tree-schema reference, not a chronicle of parser
+implementation.
 
-二つの独立した軽量mdBookを持つ。gettextや`mdbook-i18n-helpers`は使わず、両bookは同じ正本をそれぞれの言語で要約する。
+The reference records both implemented CST facts and approved construction
+targets. Each affected page labels an approved target that has not yet reached
+the implementation. The Authoritative design records remain the source for
+grammar and recovery decisions.
 
-- `en/`: future Claude/Codex sessionがimplementation symbolやfixtureを横断参照しやすいEnglish book。
-- `ja/`: projectのhuman maintainerが読みやすいJapanese book。
-
-どちらも正本ではない。構文規則、CST byte range、AST、recovery契約の正本は
-`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`にある。
+- `en/` is the English book.
+- `ja/` is the Japanese book.
 
 Build either book from the repository root:
 

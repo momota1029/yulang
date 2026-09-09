@@ -1,7 +1,9 @@
 # Summary
 
 - [Introduction](index.md)
-- [Parser Conventions](conventions/index.md)
+- [CST conventions](conventions/index.md)
+  - [Rowan CST notation](conventions/rowan-cst.md)
+  - [Source root, headers, and diagnostic ownership](conventions/source-root-and-diagnostics.md)
 
 # Expressions
 

@@ -1,7 +1,9 @@
 # Summary
 
 - [はじめに](index.md)
-- [Parser共通規約](conventions/index.md)
+- [CST共通規約](conventions/index.md)
+  - [Rowan CST表記](conventions/rowan-cst.md)
+  - [Source root、header、diagnosticの責務](conventions/source-root-and-diagnostics.md)
 
 # Expressions
 

@@ -188,6 +188,13 @@ Invalid schema migration remains open.
 `syntax-reference` is rebuilt around
 the same XML-like Rowan node notation, grammar and recovery placement; parser
 internals, commits, fixtures and AST/direct parity leave that public reference.
+The reviewed first English/Japanese vertical slice now defines Rowan notation
+and Root/header/diagnostic ownership. It distinguishes implemented direct
+Rowan construction from the pending Error-token, Invalid-node and CST-derived
+diagnostic migration, and labels unconverted construct pages as legacy
+implementation material. Exact reversible escaping for XML-like `text`
+attributes remains an open notation rule; ordinary XML escaping is not claimed
+to preserve CRLF source spelling.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

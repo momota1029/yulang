@@ -1,0 +1,98 @@
+# Rowan CST notation
+
+This page defines the notation for Yulang's lossless Rowan CST. It is an
+Authoritative target specification. Direct construction with
+`rowan::GreenNodeBuilder` is implemented; the `Error`-token and `Invalid`-node
+topology, together with CST-derived diagnostics, remain an approved pending
+gate.
+
+## Documentation notation
+
+The notation is XML-like documentation, not runtime XML and not an interchange
+format. Paired tags denote Rowan nodes. A self-closing tag with a `text`
+attribute denotes a source-bearing token leaf.
+
+```xml
+<OperatorChain>
+  <PrefixOperator text="!" />
+  <Missing />
+</OperatorChain>
+```
+
+Structural nodes never contain bare character data. A source-bearing leaf
+states its spelling in `text`, so indentation and ordinary text outside a leaf
+cannot carry source bytes.
+
+The `text` attribute denotes reversible source spelling. The exact escaping
+convention for that documentation attribute is pending: this reference does
+not adopt ordinary XML attribute escaping, because it does not by itself state
+how to preserve every source spelling, including CRLF. Examples use spellings
+that need no escaping until that rule is specified.
+
+## Nodes, tokens, and trivia
+
+A node is a structural CST element and uses paired tags. A token leaf is a
+source-bearing CST element and uses a self-closing tag with `text`. Children
+appear in source order.
+
+Ordinary trivia outside a malformed run remains its own source-bearing leaf in
+the owning production. Trivia absorbed by a raw malformed run is represented
+by `Error` leaves instead. A schema must assign each token and trivia leaf to
+one grammar slot; this page does not assign individual construct slots.
+
+## Recovery elements
+
+`Missing` is a zero-width structural node in a documented grammar slot. It has
+no `text` attribute and contributes no source bytes.
+
+```xml
+<OperatorChain>
+  <PrefixOperator text="!" />
+  <Missing />
+</OperatorChain>
+```
+
+`Error` is an approved pending token topology. It is always a token leaf, not a
+node. Each leaf represents an already-emitted physical source fragment in its
+owning slot. Adjacent leaves can form one raw malformed run; the run exposes no
+invented internal grammar.
+
+```xml
+<Error text="@" />
+<Error text="/*bad*/" />
+```
+
+Raw recovery maps every remaining physical fragment of its item to `Error`,
+including interior trivia and a Yumark quote prefix. It does not absorb leading
+trivia that the owning production has already emitted, or leading trivia that
+remains with a retry or boundary owner.
+
+`Invalid` is an approved pending node topology. It is used only for a
+schema-defined structured recovery that retains nested grammar, `Missing`, or
+nested `Error` children. An ordinary raw `Error` token must not receive an
+`Invalid` wrapper.
+
+```xml
+<Invalid>
+  <Error text="@" />
+  <ParenthesizedTypeGroup>
+    <Missing />
+  </ParenthesizedTypeGroup>
+</Invalid>
+```
+
+## Source coordinates
+
+Tree ranges and diagnostic ranges use zero-based, half-open UTF-8 byte ranges.
+The range of a `Missing` node is zero-width. Source-bearing leaves preserve the
+source spelling that determines their ranges; a structural node does not add
+unrepresented source text.
+
+## Current and pending topology
+
+The direct Rowan builder is the implemented construction path. The current CST
+still has a structural `Error` node and parser-published recovery diagnostics.
+The approved target replaces that recovery shape with `Error` token leaves and
+the restricted `Invalid` node, then derives structural diagnostics from the
+CST. The [source-root and diagnostic ownership](source-root-and-diagnostics.md)
+page specifies that target's publication boundary.

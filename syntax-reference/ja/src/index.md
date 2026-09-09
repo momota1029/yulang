@@ -1,7 +1,15 @@
-# yu-syntax reference
+# Yulangの構文とCSTリファレンス
 
-このreferenceは、Yulang3の`yu-syntax`を実装・保守する人のための作業用索引である。
+このリファレンスは、受理するYulangの表層構文と、対応するsource-orderのlossless Rowan CSTを定める。
+CST共通規約のsliceは、node、token leaf、trivia、recoveryの位置を定める。
+parserの制御手順や保守作業の経緯は扱わない。
 
-各ページは、Authoritativeな設計節のgrammar、CST、AST、typed recovery契約を要約し、実装関数とfixtureへ結び付ける。ここで新しい構文規則やrecovery方針を決めない。
+[CST共通規約](conventions/index.md)は、共通のtree表記と、source root、header、recovery diagnosticの責務を定める。
+既存の構文ページは、段階的な再構成を待つlegacy implementation materialである。
+それらにはparser behavior、AST、implementation path、fixtureが残ることがある。
+まだ再構成済みの構文schemaではない。
+review済みのbatchが、これらをlanguageとCSTのreferenceへ置き換える。
 
-正本は`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`である。siteと正本または実装が食い違う場合は、siteを正規化せず、正本・実装・fixtureを先に確認する。
+このリファレンスにはAuthoritativeな設計記録を適用する。
+承認済みのCST targetがまだ実装されていないときは、ページがその状態を明記する。
+現在の実装を言語仕様として扱ってはならない。
