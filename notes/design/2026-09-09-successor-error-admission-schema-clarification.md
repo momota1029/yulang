@@ -459,6 +459,62 @@ closed a boundary-dispatch panic in the existing owner; its minimal repair was
 independently reviewed. This does not promote the slice or cover its delegated
 Type children.
 
+## Proposed schema slice: BracketRow-selected required-arrow continuation
+
+This proposed slice covers the required-arrow slot after a trailing
+`BracketRow`, including that row's incomplete exit. It is not the actual-arrow
+RHS slot: an actual `Arrow` ends this continuation and selects the separate
+`ActualArrowRhsSuffix` below. These are ordered schema productions, not new
+Rowan wrappers; their shown children are direct children of the existing
+`TypeArrowTail`.
+
+```text
+BracketArrowTail := BracketRow RequiredArrowContinuation
+
+RequiredArrowContinuation :=
+    ActualArrowRhsSuffix
+  | Missing TypeExpression
+  | Missing
+  | Error+ ActualArrowRhsSuffix
+  | Error+ TypeExpression
+  | Error+
+```
+
+Native trivia is elided from this grammar. Leading before the opening `[` is
+outside `TypeArrowTail`, with its surrounding Type expression. For an
+arrowless Type-primary retry, the retry leading is direct tail trivia before
+the required-arrow Missing and `TypeExpression`; the same is true after Error,
+without another Missing. Initial malformed-arrow leading is likewise native
+tail trivia, while its rejected payload and internal malformed leading form one
+adjacent direct Error-token group. Retry-arrow leading is direct tail trivia;
+once that Arrow is admitted, its RHS leading belongs to its nested
+`TypeExpression` under `ActualArrowRhsSuffix`.
+
+An initial protected boundary publishes the direct required-arrow Missing and
+preserves its complete Item and leading. Protection includes abstract fence,
+equal-or-shallower newline, separators/closes, caller stops and outer
+contextual boundaries; a deeper continuation can retry. Ordinary EOF
+continuation leading is emitted in the tail before an initial Missing or after
+a terminal Error, while non-continuation EOF leading remains pending. An Error
+group that reaches a boundary emits neither another required-arrow Missing nor
+an ArrowRhs Missing. A direct Missing or Error group projects one
+`Type(BracketRowArrow)` occurrence with expected punctuation Arrow and primary
+zero. A recovered actual Arrow can then separately own an ArrowRhs Missing.
+
+An incomplete `BracketRow` still receives this direct required-arrow Missing
+before returning its existing exit; the row-close Missing remains nested inside
+`BracketRow`, including at an equal offset. Nested recovery inside the row or
+the accepted `TypeExpression` belongs to that child. Accepted RHS parsing
+retains caller stops but uses its existing RHS outer-boundary setting; this
+slot does not extend the pre-arrow outer contextual boundary through the RHS.
+
+This is a Draft proposal. Direct CST evidence must cover actual-arrow and
+arrowless RHS forms, Missing/EOF leading, Error-to-arrow and Error-to-RHS
+retry, terminal Error, protected comma/close/caller/outer/fence boundaries,
+LF/CRLF shallow/equal/deeper behavior, UTF-8/comment fragments, incomplete-row
+same-offset nesting, recovered-arrow ArrowRhs separation and public Root source
+conservation before review or promotion.
+
 ## Proposed schema slice: TypeArrowTail actual-arrow RHS
 
 This proposed slice covers the required RHS after an actual `Arrow` token in a
