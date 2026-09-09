@@ -39,22 +39,23 @@ dispatch. It is therefore excluded from this current product sum and remains a
 required later document/frame promotion gate; final parser completion may not
 silently drop it.
 
-The following forms are outside this product closure.  Assignment and type
-annotation are current syntax, but their canonical fields remain unselected
-until this Draft's M3 materialization closure is approved.  Type-attached
-`impl` remains outside both successor promotion and this product closure:
+The following forms remain outside the adopted product closure. Assignment and
+type annotation are current syntax with candidate fields selected in this
+Draft, but their M3 review, user approval and implementation remain pending.
+Type-attached `impl` remains outside both successor promotion and this product
+closure:
 
 | deferred form | current evidence |
 | --- | --- |
-| generic expression assignment | Authoritative structural-tail construction is complete; its canonical product field remains pending M3 materialization approval |
-| expression `as Type` annotation | Authoritative structural-tail construction is complete; its canonical product field remains pending M3 materialization approval |
+| generic expression assignment | Authoritative structural-tail construction is complete; this Draft's candidate field selection awaits M3 review and user approval |
+| expression `as Type` annotation | Authoritative structural-tail construction is complete; this Draft's candidate field selection awaits M3 review and user approval |
 | Type-attached `impl` | approved TAI authority; Type owner still returns qualifying `impl` Item pending, so successor implementation/promotion remains deferred |
 
 Binding's actual definition `=`, Type's equality form, and Pattern's `: Type`
 annotation are included; none is an expression assignment/annotation variant.
-The final Yulang2-compatibility closure must select the two current tail
-products and separately construct the deferred Type-attached-Impl gate rather
-than treating either omission as product completion.
+The final Yulang2-compatibility closure must review and approve the two current
+tail-product candidates and separately construct the deferred Type-attached-Impl
+gate rather than treating either omission as product completion.
 
 ## Common product and recovery rules
 
@@ -83,7 +84,8 @@ ChainItem ::= PrefixUse(OperatorUse) | NullfixUse(OperatorUse)
             | InfixUse(OperatorUse) | SuffixUse(OperatorUse)
             | Primary(Primary) | FixedPostfix(FixedPostfix)
             | MlArgument { argument: Box<OperatorChain>, range }
-            | TerminalOuter(ColonApplication | WithBody)
+            | TerminalOuter(ColonApplication | WithBody | AssignmentTail
+                            | TypeAnnotationTail)
             | MissingOperand { range }
             | Error { range, purpose: RetryNoise | Operand }
 Primary ::= Identifier(WordSyntax) | Integer(IntegerSyntax)
@@ -110,13 +112,17 @@ FixedPostfix ::= Call { open, arguments: Vec<R<OperatorChain>>, close: R<Range>,
 ProjectionItem ::= Expression(OperatorChain) | Spread { marker, rhs: R<Box<OperatorChain>>, range }
 ColonApplication { colon, rhs: R<InlineArguments | IndentedBlock>, range }
 WithBody { keyword, colon: R<Range>, body: R<InlineStatement | IndentedBlock>, range }
+AssignmentTail { equals, rhs: R<AssignmentRhs>, range }
+AssignmentRhs ::= Inline(Box<OperatorChain>) | Indented(IndentedBlock)
+TypeAnnotationTail { as_keyword, type_expr: R<Box<TypeExpression>>, range }
 
 Pattern { head: R<PatternPrimary>, tails: Vec<PatternTail>,
           annotation: Option<PatternTypeAnnotation>, range }
 PatternPrimary ::= Identifier(WordSyntax) | Integer(IntegerSyntax)
                  | Symbol { colon, name: R<WordSyntax>, range }
                  | Parenthesized(PatternGroup) | List(ListPattern)
-                 | Record(RecordPattern) | RuleLiteral(RuleLiteral)
+                 | Record(RecordPattern) | String(StringLiteral)
+                 | RuleLiteral(RuleLiteral) | RuleExpression(RuleExpression)
 PatternTail ::= Alias { keyword, binding: R<WordSyntax>, range }
               | Alternation { pipe, rhs: R<Box<Pattern>>, range }
 PatternTypeAnnotation { colon, type_expr: R<Box<TypeExpression>>, range }
@@ -129,6 +135,16 @@ RecordItem ::= Field { name: PatternName, form: Shorthand
                        | Default { equals, expression: R<Box<OperatorChain>> }, range }
              | Spread { marker, rhs: R<Box<Pattern>>, range }
 ```
+
+The Assignment/TypeAnnotationTail entries are candidate products for the
+already admitted structural tails; their grammar and recovery are fixed by
+`2026-09-09-successor-expression-structural-tails-draft.md`, but these fields
+remain subject to this Draft's M3 approval. Pattern String and RuleExpression
+primaries are already admitted by the literal-cone authority, including the
+Pattern contextual `rule {}` route. Their fields reuse the companion literal
+schema rather than creating Pattern-local literal products. Case/Catch
+terminators retain the Authoritative optional semicolon range; they are not
+sequence separators.
 
 An accepted skeleton retains its variant with incomplete children. Unaccepted
 record heads are incomplete record entries; no fabricated name is permitted.
@@ -153,9 +169,10 @@ CaseBlock { colon: R<Range>, arms: R<ArmSequence<CaseArm>>, layout, range }
 CatchBlock ::= Colon { colon: R<Range>, arms: R<ArmSequence<CatchArm>>, layout, range }
              | Braced { open, arms: R<ArmSequence<CatchArm>>, close: R<Range>, range }
 ArmSequence<A> { arms: Vec<R<A>>, trailing_comma, range }
-CaseArm { pattern: R<Pattern>, guard:Option<Guard>, arrow: R<Range>, body: R<ArmBody>, range }
+CaseArm { pattern: R<Pattern>, guard:Option<Guard>, arrow: R<Range>, body: R<ArmBody>,
+          terminator:Option<Range>, range }
 CatchArm { pattern: R<Pattern>, handler: Option<R<Pattern>>, guard:Option<Guard>,
-           arrow: R<Range>, body: R<ArmBody>, range }
+           arrow: R<Range>, body: R<ArmBody>, terminator:Option<Range>, range }
 Guard { keyword: If(TextSyntax) | Where(TextSyntax),
         condition:R<Box<OperatorChain>>, range }
 ArmBody ::= Inline(Box<OperatorChain>) | Indented(IndentedBlock)
@@ -281,7 +298,7 @@ The owner-specific availability rows are:
 | Type call/group/effect/bracket item Missing | finalizes one incomplete vector entry; a later item starts a distinct entry |
 | Type item Error ending at local terminal | current vector entry incomplete; separator Error creates no entry |
 | Forall keyword then no first binder | `binders = [Incomplete]`; colon may still be accepted without fabricating a name |
-| Forall binder Error then admitted retry | current binder entry complete; boundary leaves it incomplete |
+| Forall binder Error then admitted retry | retain the malformed binder entry incomplete; append the admitted binder as a distinct complete entry |
 | Forall colon/body unavailable | their own fields incomplete without extra record |
 | PV malformed tag run ending at boundary / published Tag Missing | current tag vector entry incomplete |
 | PV malformed tag run then accepted name | complete tag entry with complete name and retained later payloads |
@@ -295,6 +312,11 @@ list position is incomplete. PV tag/payload ranges start with their committed
 head/boundary, exclude outer-list leading already emitted, and end at their last
 owned byte; a missing payload boundary is zero-width at the admitted Type
 start. Nested Type recovery remains its own owner.
+
+Forall differs from a tag retry: a malformed first-binder run is a completed
+incomplete list position before a later apostrophe binder is admitted. The
+later binder is therefore a distinct entry, preserving source order and the
+Forall recovery authority rather than repairing the malformed entry in place.
 
 ```text
 InlineStatementBody ::= Inline(Box<Statement>) | Indented(IndentedBlock)
@@ -461,14 +483,17 @@ OperatorSignature ::= Prefix{name:R<OperatorName>,right:R<BindingPower>,equals:R
                     | Infix{name:R<OperatorName>,left:R<BindingPower>,right:R<BindingPower>,equals:R<Range>}
                     | Suffix{name:R<OperatorName>,left:R<BindingPower>,equals:R<Range>}
                     | Nullfix{name:R<OperatorName>,equals:R<Range>}
-OperatorName { spelling:R<TextSyntax>, close:R<Range>, range }
+OperatorName { spelling:TextSyntax, close:Range, range }
 BindingPower { components:Vec<NumberSyntax>, range }
 ```
 
 No actual `=` means `NotEntered` body, not a fabricated body Missing. An
 accepted header fact survives malformed/missing body; cell headers never enter
-table compilation. Exact header-failure completeness and body Error→boundary
-mapping are:
+table compilation. Under current admission an `OperatorName` is an all-or-none
+parenthesized atom: incomplete name recovery belongs to its enclosing
+`OperatorSignature`, not to fabricated inner spelling or close slots. Any
+partial-name product needs a separate admission and product decision. Exact
+header-failure completeness and body Error→boundary mapping are:
 
 | header/body event | candidate availability |
 | --- | --- |

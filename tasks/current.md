@@ -161,9 +161,8 @@ Statement sum or its field/recovery mappings: historical candidate AST prose
 cannot be adopted implicitly from current-item record roles. A combined M3
 canonical syntax-product Draft now selects a candidate closure for the actual
 currently admitted surface. Generic expression assignment and `as Type` are
-now admitted, while their canonical product fields remain explicitly
-unselected pending the M3 materialization closure; the Type-attached-Impl form
-remains not-yet-promoted. It must select its
+now admitted with candidate product fields pending M3 review and user approval;
+the Type-attached-Impl form remains not-yet-promoted. It must close its
 still-open Type/body/list/chain/header field maps together with the seam and
 literal schema, complete
 compiler/recovery, specification and static performance review, then record
@@ -175,6 +174,13 @@ publication requirement for Item parts, verified source subslices and raw Error
 segments. The Rule leading-fragment batch now has a one-cursor/control proof
 obligation. These slices do not constitute review of the incomplete total
 product closure or implementation authority.
+The active M3 inventory refinement adds candidate Assignment/TypeAnnotation
+tail fields, Pattern String/RuleExpression primaries, and arm terminators; it
+also corrects Forall malformed-binder retry to separate incomplete/complete
+entries and keeps OperatorName availability at its enclosing signature. Exact
+conformance and recovery reviews found no blocking defect. Undefined helper
+leaf shapes, complete authority locators, output API/coordinate publication,
+static performance review and user approval remain open.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be
