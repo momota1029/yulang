@@ -221,8 +221,8 @@ existing recovery authority and has direct CST proof; user promotion remains
 open.
 The outer StringLiteral terminator has a preflighted Draft. Its isolated
 interpolation-EOF evidence retains trailing spaces in the pending EOF Item;
-SourceRoot is the terminal-leading owner. A full-Root losslessness witness is
-required before promotion or any literal-boundary correction.
+SourceRoot is the terminal-leading owner. Full-Root losslessness evidence is
+complete; user promotion remains required before public reconstruction.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

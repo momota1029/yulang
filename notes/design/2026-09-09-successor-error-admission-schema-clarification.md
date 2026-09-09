@@ -315,6 +315,12 @@ mismatched quote runs, UTF-8/CRLF EOF, fence boundaries, accepted prefixes,
 nested equal-offset Missing, malformed Unicode then EOF, format quotes and
 actual Expression/Pattern/Rule-string callers before review or promotion.
 
+Draft evidence is complete as of 2026-09-10. It includes the isolated
+interpolation-EOF case whose outer Missing is at the literal CST end while its
+trailing leading remains in the pending EOF Item, plus public Root witnesses
+that emit that leading as native source-order tokens and preserve full-source
+losslessness. This does not promote the slice or specify child recovery slots.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`
