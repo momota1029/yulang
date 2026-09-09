@@ -145,101 +145,28 @@ facts. It is deliberately not production code: no outer Yumark document owner
 exists to reach it, and exposing an unused crate-private wrapper would add
 dead-code warnings. The historical injected-item witness remains separate.
 
-The next actual parser gate is blocked only at its new representation
-prerequisite. `2026-09-09-successor-canonical-materialization-seam-draft.md`
-records the missing private canonical AST/direct-CST materialization boundary:
-shared recovery ledger/physical accounting, mode-specific thin materializers,
-and owned products independent from unread Item handoff. It is Draft, not
-implementation authority: first complete its field-level canonical product and
-literal-product authority inventory. The inventory now proves that the
-Authoritative literal cone deliberately excludes AST/HIR products; a companion
-M3 literal syntax-product Draft now records the candidate String/Rule fields
-and immediate recovery-slot mapping. It is not a range/CST handle/placeholder
-substitute. The completed authority inventory also proves that Yumark's
-authoritative `Vec<Recovered<Statement>>` does not define the canonical
-Statement sum or its field/recovery mappings: historical candidate AST prose
-cannot be adopted implicitly from current-item record roles. A combined M3
-canonical syntax-product Draft now selects a candidate closure for the actual
-currently admitted surface. Generic expression assignment and `as Type` are
-now admitted with candidate product fields pending M3 review and user approval;
-the Type-attached-Impl form remains not-yet-promoted. It must close its
-still-open Type/body/list/chain/header field maps together with the seam and
-literal schema, complete
-compiler/recovery, specification and static performance review, then record
-user approval before its shared-output pilot.
-Focused Draft deltas have so far closed the Act implicit-bodyless/companion and
-Impl first-colon product mapping; guard/Use/root/Pattern/ExpressionList and PV
-availability; literal empty-leaf and capture-boundary mapping; and the common
-publication requirement for Item parts, verified source subslices and raw Error
-segments. The Rule leading-fragment batch now has a one-cursor/control proof
-obligation. These slices do not constitute review of the incomplete total
-product closure or implementation authority.
-The active M3 inventory refinement adds candidate Assignment/TypeAnnotation
-tail fields, Pattern String/RuleExpression primaries, arm terminators, and the
-owner-local helper leaves needed to state those products: operator use/path,
-inline chain/statement, PatternName/record defaults, CaseLike labels/layout,
-explicit visibility/declaration parameters, and operator-header spelling.
-It also corrects Forall malformed-binder retry to separate incomplete/complete
-entries and keeps OperatorName availability at its enclosing signature. Exact
-conformance and recovery review removed an unadmitted Struct parameter and
-made all newly selected incomplete physical endpoints explicit, including
-block close-recovery leading; no production authority follows from that Draft
-repair. Undefined remaining helper maps, complete authority locators, output
-API/coordinate publication, static performance review and user approval remain
-open.
-The next evidence pass made that remainder finite without selecting those
-choices: Type core/delimited/recursive physical envelopes and Apply boundary;
-InlineArguments and Pattern sequence slots; declaration parameter/field/variant/
-derives lists; and SourceRoot coordinate publication. Their concrete owners,
-current-item evidence and existing controls are now a Draft closure queue.
-Its specification and compiler/recovery delta reviews were clean; it is still
-an inventory aid, not an M3 approval or materialization pilot.
-The first queue item now has an explicit but unselected Type physical-envelope
-candidate: ranges use the selected owner's actual publication, retain emitted
-recovery/owner-leading, exclude caller-emitted or unread-boundary leading, and
-never derive an endpoint from `Incomplete`, Missing or diagnostics. Type record
-fields, declaration field positions and Apply/Forall/PV boundary leaves remain
-open. Repair-focused specification and compiler/recovery review is clean. The
-candidate still requires exact range controls and user approval before any API
-or implementation.
-The next queue slice now has unselected InlineArguments and Pattern sequence
-contracts. They preserve initial versus subsequent inline slots, owner-local
-separator advancement, Pattern pending-entry retry, local close and protected
-handoff distinctions, plus physical-error envelopes. A consumed unclaimed
-Record wrong close keeps its pending entry rather than fabricating a sibling.
-Specification and compiler/recovery review is clean after that repair. Exact
-controls, unresolved trailing-comma-after-recovery behavior and user approval
-remain required before any API or implementation.
-Declaration parameters, fields, variants and derives now also have unselected
-sequence candidates that retain their owner-specific separator and close-borrow
-rules. Review corrected Variant/Derives introducer-only physical endpoints;
-tuple availability, empty entered sequences, interior separator retention and
-some malformed-field/parameter branches remain open. Exact controls and user
-approval remain required before any API or implementation.
-SourceRoot and coordinate publication now have unselected physical-envelope
-and entry-frontier candidates. Full root includes its whole source input;
-selected cells exclude outer fence/boundary text and preserve terminal leading
-inside the cell. Shifted inputs require an explicit absolute region/frontier;
-frontier-to-boundary equality remains unproven. Specification and
-compiler/recovery review is clean. Exact controls, materialization API,
-performance review and user approval remain required before implementation.
-The TypeRecordField/NamedField/TupleField branch now has an unselected recovery
-product candidate: grammar admission, rather than a recovery record, controls
-outer skeleton availability; field ranges retain field-owned retry bytes but
-exclude enclosing-sequence and unread-successor publication. Record, Struct and
-Variant close ownership stays distinct. Specification and compiler/recovery
-review is clean after one sequence-leading clarification. Focused range
-controls and user approval remain required before any API or implementation.
-Apply, Forall and PV recursive boundary leaves now have unselected candidates:
-their source ranges reflect owner publication, while grammar admission and
-recovery roles remain unchanged. The Forall vector keeps an extra incomplete
-entry only for first-binder retry, never later colon-role Error. Specification
-and compiler/recovery review is clean after that correction. Exact controls and
-user approval remain required before any API or implementation.
-Once approved, successor Yumark document/frame construction owns raw/selected
-fence dispatch, Frame/quote continuation, close suffix/newline ownership,
-host-table cell call, and following-document continuation. It must not be
-approximated by an artificial caller or a standalone fence entry.
+The next actual parser gate is the user-selected Rowan CST-only migration under
+`2026-09-09-successor-rowan-cst-only-amendment-draft.md`. AST products,
+materializers, recovery/account ledgers and canonical-product inventories are
+not prerequisites and receive no further construction. One parse produces the
+direct Rowan tree plus existing individual syntax diagnostics; `CstOutput` is
+removed rather than renamed. Raw malformed source becomes an `Error` token,
+while a structural `Invalid` node appears only for recovery that actually
+retains nested grammar, Missing or nested Error children. Expected syntax is
+specified by parent production and recovery slot, not by synthetic tree nodes.
+
+The direct-Rowan design is independently reviewed. Its bounded first migration
+removes `CstOutput` while preserving the current tree topology, so direct
+builder/recovery ownership, frozen reconciliation and effect-free lexical
+probes have an isolated regression boundary. The following schema migration
+makes `Error` token-only and adds node-only `Invalid`: all raw-recovery Item
+fragments, including its interior trivia and quote-prefix fragments, become
+adjacent `Error` leaves; already-emitted and retry/boundary leading remain with
+their owner. `Invalid` is limited to the two reviewed structured recovery
+owners. Recorded approval of the reviewed supersession and notation remains
+required before either construction step. `syntax-reference` is rebuilt around
+the same XML-like Rowan node notation, grammar and recovery placement; parser
+internals, commits, fixtures and AST/direct parity leave that public reference.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
