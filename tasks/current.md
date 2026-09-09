@@ -185,6 +185,12 @@ and independently audited from its existing Authoritative close-node and
 residual-policy amendments. Its TypeCallClose Error/Missing grouping, leading
 and boundary ownership, and direct source links are complete only for that
 slot; argument, separator and other TypeCall rows remain open.
+RecordPattern's structured separator Invalid now has a user-selected
+CST-visible discriminator under
+`notes/design/2026-09-10-successor-record-pattern-separator-slot.md`:
+`RecordPatternSeparator` wraps only the separator-phase Invalid, while the
+item-phase Invalid remains direct. Private construction and M2 review are
+pending; no parser/API test contract has changed yet.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The
