@@ -155,7 +155,7 @@ close, and nested Type rows remain unmapped.
 #### RecordPattern separator-phase structured Invalid row link
 
 Only the existing structured-recovery emission at
-`crates/yu-syntax/src/pattern/delimited.rs:496`, in its
+`crates/yu-syntax/src/pattern/delimited.rs:500`, in its
 `RecordPatternSeparator` separator-phase context, is linked to the referenced
 catalog row `(RecordPattern, separator phase, RecordPattern sequence context)`.
 Status: `linked`; linked fact: separator-phase `Invalid(Pattern(...))` is
