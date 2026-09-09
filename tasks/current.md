@@ -225,8 +225,8 @@ SourceRoot is the terminal-leading owner. Full-Root losslessness evidence is
 complete; user promotion remains required before public reconstruction.
 The dedicated Rule-slot Draft is preflighted; direct CST proof and promotion
 is complete; user promotion remains open.
-The StringInterpolationBody statement-sequence Draft is preflighted; direct
-CST proof and promotion remain open.
+The StringInterpolationBody statement-sequence Draft is preflighted and has
+direct CST proof; user promotion remains open.
 The TypePathTail segment Draft and direct CST evidence are complete; its
 post-Error fence boundary repair is reviewed, while user promotion remains
 open.

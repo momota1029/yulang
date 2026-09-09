@@ -411,10 +411,12 @@ Missing. Nested statements retain their own slots. `StringInterpolationBody`
 has no close node: interpolation owns the borrowed `}`, then its own close and
 outer terminator recovery follow in preorder.
 
-This is a Draft proposal. Direct CST evidence must cover explicit/newline and
-leading/repeated/trailing separators, direct Missing versus nested child
-Missing, Error retry/newline behavior, UTF-8/fence and public Root source
-conservation before review or promotion.
+Draft evidence is complete as of 2026-09-10. Focused Rowan tests cover
+explicit/newline and leading/repeated/trailing separators, direct Missing
+versus nested child Missing, Error retry/newline behavior, UTF-8/fence and
+public Root source conservation. Specification and compiler/recovery delta
+reviews are closed. This does not promote the slice or cover its nested
+statement schemas.
 
 ## Proposed schema slice: TypePathTail segment
 
@@ -449,10 +451,13 @@ After Error its contextual boundary priority resumes. Repeated `::` finishes
 one tail and starts a sibling tail. Active closes/stops, shallow newline, EOF
 and fence follow the phase-specific leading rules above.
 
-This is a Draft proposal. Direct CST evidence must cover accepted/sigil/integer
-forms, comment-prefix variants, contextual and close priority, retry versus
-outer TypeApply, repeated tails, UTF-8/CRLF/fence and public Root conservation
-before review or promotion.
+Draft evidence is complete as of 2026-09-10. Focused Rowan tests cover
+accepted/sigil/integer forms, comment-prefix variants, contextual and close
+priority before and after Error, retry versus outer TypeApply, repeated tails,
+UTF-8/CRLF/fence and public Root conservation. The post-Error fence case also
+closed a boundary-dispatch panic in the existing owner; its minimal repair was
+independently reviewed. This does not promote the slice or cover its delegated
+Type children.
 
 ## Construction and proof gates
 
