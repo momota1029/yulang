@@ -133,7 +133,7 @@ pub(super) fn type_delimited_normalized(
             return complete(handoff(item), line_entry);
         }
         if token_kind(&item) == Some(close) {
-            emit_token_item(&mut i, item);
+            emit_delimited_close_token(&mut i, owner, item);
             return complete(Ok(()), line_entry);
         }
         if matches!(
@@ -351,7 +351,7 @@ pub(super) fn type_delimited_normalized(
                     return complete(handoff(next), line_entry);
                 }
                 if token_kind(&next) == Some(close) {
-                    emit_token_item(&mut i, next);
+                    emit_delimited_close_token(&mut i, owner, next);
                     return complete(Ok(()), line_entry);
                 }
                 if matches!(
@@ -532,6 +532,20 @@ pub(super) fn type_delimited_normalized(
                         }
                         Err(exit) => return exit,
                     }
+                } else if owner == TypeDelimitedOwner::Call {
+                    return retry_type_call_close_normalized(
+                        i,
+                        next,
+                        close,
+                        baseline,
+                        caller_stops,
+                        outer_closes,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        pipe_lexical,
+                        ambient,
+                    );
                 } else {
                     if matches!(
                         owner,
@@ -876,7 +890,7 @@ fn retry_type_call_argument_normalized(
         return Err(complete(handoff(item), line_entry));
     }
     if token_kind(&item) == Some(close) {
-        emit_token_item(&mut i, item);
+        emit_delimited_close_token(&mut i, TypeDelimitedOwner::Call, item);
         return Err(complete(Ok(()), line_entry));
     }
     if is_delimited_boundary(&item, TypeDelimitedOwner::Call, caller_stops, outer_closes) {
@@ -927,6 +941,37 @@ fn retry_type_call_argument_normalized(
 #[allow(clippy::too_many_arguments)]
 fn retry_type_call_close_normalized(
     mut i: SyntaxIn,
+    item: Item,
+    close: TokenKind,
+    baseline: usize,
+    caller_stops: Stops,
+    outer_closes: u8,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    pipe_lexical: bool,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    with_type_call_close(&mut i, TypeDelimitedOwner::Call, |i| {
+        retry_type_call_close_contents_normalized(
+            i.rb(),
+            item,
+            close,
+            baseline,
+            caller_stops,
+            outer_closes,
+            item_origin,
+            line_entry,
+            fence,
+            pipe_lexical,
+            ambient,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn retry_type_call_close_contents_normalized(
+    mut i: SyntaxIn,
     mut item: Item,
     close: TokenKind,
     baseline: usize,
@@ -938,7 +983,7 @@ fn retry_type_call_close_normalized(
     pipe_lexical: bool,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    debug_assert!(is_type_mismatched_close(&item, close));
+    debug_assert!(!item.payload_view().is_boundary());
     loop {
         item.emit_all_remaining_leading(&mut *i.state);
         let range = item.extent(item_origin).recovery_range();
@@ -963,7 +1008,12 @@ fn retry_type_call_close_normalized(
             ambient,
         );
         if item.payload_view().is_boundary() {
-            emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
+            emit_delimited_close_missing_contents(
+                &mut i,
+                TypeDelimitedOwner::Call,
+                &item,
+                item_origin,
+            );
             return complete(handoff(item), line_entry);
         }
         if token_kind(&item) == Some(close) {
@@ -971,15 +1021,25 @@ fn retry_type_call_close_normalized(
             return complete(Ok(()), line_entry);
         }
         if is_delimited_boundary(&item, TypeDelimitedOwner::Call, caller_stops, outer_closes) {
-            emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
+            emit_delimited_close_missing_contents(
+                &mut i,
+                TypeDelimitedOwner::Call,
+                &item,
+                item_origin,
+            );
             return complete(handoff(item), line_entry);
         }
         if item.payload_view().is_eof() {
-            let exit =
-                missing_delimited_close(i, item, TypeDelimitedOwner::Call, baseline, item_origin);
+            let exit = missing_delimited_close_contents(
+                i,
+                item,
+                TypeDelimitedOwner::Call,
+                baseline,
+                item_origin,
+            );
             return complete(exit, line_entry);
         }
-        // Once a local mismatched close transfers control to the Call close
+        // Once a mismatched close or post-argument residual enters the Call close
         // slot, every non-boundary Item before the actual close is malformed
         // close content owned by that slot.  Keep advancing here so an
         // ordinary malformed Item cannot manufacture an early Missing close
@@ -1117,7 +1177,7 @@ fn type_after_separator_normalized(
     }
     if token_kind(&next) == Some(close) {
         next.emit_all_remaining_leading(&mut *i.state);
-        emit_token_item(&mut i, next);
+        emit_delimited_close_token(&mut i, owner, next);
         return Err(complete(Ok(()), line_entry));
     }
     if owner == TypeDelimitedOwner::ParenthesizedGroup && is_type_mismatched_close(&next, close) {
@@ -1181,6 +1241,18 @@ fn type_after_separator_normalized(
 
 fn missing_delimited_close(
     mut i: SyntaxIn,
+    item: Item,
+    owner: TypeDelimitedOwner,
+    baseline: usize,
+    item_origin: usize,
+) -> crate::handoff::TailExit {
+    with_type_call_close(&mut i, owner, |i| {
+        missing_delimited_close_contents(i.rb(), item, owner, baseline, item_origin)
+    })
+}
+
+fn missing_delimited_close_contents(
+    mut i: SyntaxIn,
     mut item: Item,
     owner: TypeDelimitedOwner,
     baseline: usize,
@@ -1191,7 +1263,7 @@ fn missing_delimited_close(
     {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    emit_delimited_close_missing(&mut i, owner, &item, item_origin);
+    emit_delimited_close_missing_contents(&mut i, owner, &item, item_origin);
     handoff(item)
 }
 
@@ -1278,6 +1350,36 @@ fn is_delimited_boundary(
 }
 
 fn emit_delimited_close_missing(
+    i: &mut SyntaxIn,
+    owner: TypeDelimitedOwner,
+    item: &Item,
+    item_origin: usize,
+) {
+    with_type_call_close(i, owner, |i| {
+        emit_delimited_close_missing_contents(i, owner, item, item_origin);
+    });
+}
+
+fn emit_delimited_close_token(i: &mut SyntaxIn, owner: TypeDelimitedOwner, item: Item) {
+    with_type_call_close(i, owner, |i| emit_token_item(i, item));
+}
+
+fn with_type_call_close<T>(
+    i: &mut SyntaxIn,
+    owner: TypeDelimitedOwner,
+    emit: impl FnOnce(&mut SyntaxIn) -> T,
+) -> T {
+    if owner == TypeDelimitedOwner::Call {
+        i.state.start_node(SyntaxKind::TypeCallClose.into());
+    }
+    let result = emit(i);
+    if owner == TypeDelimitedOwner::Call {
+        i.state.finish_node();
+    }
+    result
+}
+
+fn emit_delimited_close_missing_contents(
     i: &mut SyntaxIn,
     owner: TypeDelimitedOwner,
     item: &Item,

@@ -38,6 +38,19 @@ fn top_type_expression(green: &GreenNode) -> SyntaxNode {
         .expect("top-level type expression")
 }
 
+fn delimited_slot_children(
+    node: &SyntaxNode,
+) -> impl Iterator<Item = rowan::NodeOrToken<SyntaxNode, rowan::SyntaxToken<crate::YulangLanguage>>>
+{
+    node.children_with_tokens()
+        .flat_map(|element| match element {
+            rowan::NodeOrToken::Node(node) if node.kind() == SyntaxKind::TypeCallClose => {
+                node.children_with_tokens().collect::<Vec<_>>()
+            }
+            element => vec![element],
+        })
+}
+
 fn expected_type_error(id: u32, role: TypeRole, range: Range<usize>) -> CommittedRecoveryRecord {
     let role = GrammarRole::Type(role);
     CommittedRecoveryRecord {
@@ -1471,7 +1484,7 @@ fn type_call_and_group_keep_explicit_and_implicit_boundaries() {
         3
     );
     assert_eq!(
-        call.children_with_tokens()
+        delimited_slot_children(&call)
             .filter_map(|element| element.into_token())
             .map(|token| (token.kind(), token.text().to_owned()))
             .collect::<Vec<_>>(),
@@ -3294,7 +3307,7 @@ fn type_call_t3a_missing_slots_publish_fresh_and_frozen_records_with_exact_cst_a
             .find(|node| node.kind() == SyntaxKind::TypeCallTail)
             .expect("TypeCallTail");
         assert_eq!(
-            call.children()
+            delimited_slot_children(&call)
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .map(|node| {
                     usize::from(node.text_range().start())..usize::from(node.text_range().end())
@@ -5019,9 +5032,13 @@ fn type_call_t3b_close_errors_retry_matching_close_and_preserve_native_leading()
             .descendants()
             .find(|node| node.kind() == SyntaxKind::TypeCallTail)
             .expect("TypeCallTail");
-        let errors = recovery_groups(&call)
+        let close = call
+            .children()
+            .find(|node| node.kind() == SyntaxKind::TypeCallClose)
+            .expect("TypeCallClose");
+        let errors = recovery_groups(&close)
             .into_iter()
-            .filter(|group| group.parent().as_ref() == Some(&call))
+            .filter(|group| group.parent().as_ref() == Some(&close))
             .collect::<Vec<_>>();
         assert_eq!(
             errors
@@ -5165,8 +5182,7 @@ fn type_delimited_owner_recovers_missing_items_and_close_at_eof() {
             .find(|node| node.kind() == owner)
             .expect("type delimited owner");
         assert_eq!(
-            owner
-                .children()
+            delimited_slot_children(&owner)
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
             missing,
@@ -5237,7 +5253,7 @@ fn type_delimited_owner_retries_malformed_initial_items() {
         .find(|node| node.kind() == SyntaxKind::TypeCallTail)
         .expect("type call tail");
     assert_eq!(
-        call.children()
+        delimited_slot_children(&call)
             .filter(|node| node.kind() == SyntaxKind::Missing)
             .count()
             + recovery_groups(&call).len(),
@@ -6724,8 +6740,7 @@ fn shared_delimited_pv_carriers_preserve_extent_and_outer_continuation() {
                         .expect("delimited owner inside TagName Error");
                     assert_eq!(delimited.text().to_string(), &base[owner_start..end]);
                     assert_eq!(usize::from(delimited.text_range().start()), 8 + owner_start);
-                    let gaps = delimited
-                        .children_with_tokens()
+                    let gaps = delimited_slot_children(&delimited)
                         .filter(|child| child.kind() == SyntaxKind::Whitespace)
                         .collect::<Vec<_>>();
                     assert_eq!(gaps.len(), usize::from(gap_start.is_some()));
@@ -6734,8 +6749,7 @@ fn shared_delimited_pv_carriers_preserve_extent_and_outer_continuation() {
                         assert_eq!(usize::from(gaps[0].text_range().start()), 8 + start);
                         assert_eq!(usize::from(gaps[0].text_range().end()), 8 + start + 1);
                     }
-                    let missing = delimited
-                        .children()
+                    let missing = delimited_slot_children(&delimited)
                         .filter(|node| node.kind() == SyntaxKind::Missing)
                         .collect::<Vec<_>>();
                     assert_eq!(missing.len(), missing_count, "{source:?}");
@@ -6749,7 +6763,7 @@ fn shared_delimited_pv_carriers_preserve_extent_and_outer_continuation() {
                         } else {
                             SyntaxKind::RParen
                         };
-                        assert!(delimited.children_with_tokens().any(|child| {
+                        assert!(delimited_slot_children(&delimited).any(|child| {
                             child.kind() == close
                                 && usize::from(child.text_range().start()) == 8 + end - 1
                                 && usize::from(child.text_range().end()) == 8 + end
@@ -7446,8 +7460,7 @@ fn shared_delimited_horizontal_boundary_phases_are_fresh_frozen_exact() {
                             .descendants()
                             .find(|node| node.kind() == owner)
                             .expect("immediate owner");
-                        let children = node
-                            .children_with_tokens()
+                        let children = delimited_slot_children(&node)
                             .filter(|child| {
                                 child.kind() == SyntaxKind::Whitespace
                                     || child.kind() == SyntaxKind::Missing
@@ -7525,7 +7538,7 @@ fn shared_delimited_horizontal_local_closes_and_fresh_else_keep_owner_admission(
                 .descendants()
                 .find(|node| node.kind() == owner)
                 .expect("immediate owner");
-            let children = node.children_with_tokens().collect::<Vec<_>>();
+            let children = delimited_slot_children(&node).collect::<Vec<_>>();
             assert_eq!(children[children.len() - 2].kind(), SyntaxKind::Whitespace);
             assert_eq!(children[children.len() - 2].to_string(), " \t");
             assert_eq!(children.last().unwrap().to_string(), close);
@@ -7767,8 +7780,7 @@ fn shared_delimited_horizontal_fresh_outer_closes_continue_in_their_actual_owner
             .descendants()
             .find(|node| node.kind() == owner)
             .unwrap();
-        let children = inner
-            .children_with_tokens()
+        let children = delimited_slot_children(&inner)
             .filter(|child| matches!(child.kind(), SyntaxKind::Whitespace | SyntaxKind::Missing))
             .collect::<Vec<_>>();
         assert_eq!(children.len(), 3, "{source:?}");
@@ -8609,7 +8621,7 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
         .find(|node| node.kind() == SyntaxKind::TypeCallTail)
         .expect("outer call");
     assert!(
-        call.children_with_tokens()
+        delimited_slot_children(&call)
             .filter_map(|element| element.into_token())
             .any(|token| token.kind() == SyntaxKind::Whitespace && token.text() == " ")
     );
@@ -8847,7 +8859,7 @@ fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
         .find(|node| node.kind() == SyntaxKind::TypeCallTail)
         .expect("type call tail");
     assert!(
-        call.children_with_tokens()
+        delimited_slot_children(&call)
             .filter_map(|element| element.into_token())
             .any(|token| token.kind() == SyntaxKind::Whitespace && token.text() == " ")
     );

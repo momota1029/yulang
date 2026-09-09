@@ -259,7 +259,11 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
         .descendants_with_tokens()
         .find(|child| child.kind() == SyntaxKind::RParen)
         .unwrap();
-    assert_eq!(native.parent().unwrap().kind(), SyntaxKind::TypeCallTail);
+    assert_eq!(native.parent().unwrap().kind(), SyntaxKind::TypeCallClose);
+    assert_eq!(
+        native.parent().unwrap().parent().unwrap().kind(),
+        SyntaxKind::TypeCallTail
+    );
 }
 
 #[test]

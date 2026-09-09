@@ -534,6 +534,16 @@ fn forall_returns_actual_call_closes_and_iterates_long_local_punctuation() {
         assert_typed_nodes(&root, &expected);
         assert_eq!(
             root.last_token().unwrap().parent().unwrap().kind(),
+            SyntaxKind::TypeCallClose
+        );
+        assert_eq!(
+            root.last_token()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .kind(),
             SyntaxKind::TypeCallTail
         );
     }

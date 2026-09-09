@@ -1,6 +1,6 @@
 # TypeCall close-slot structural boundary
 
-Status: Authoritative; private construction pending
+Status: Authoritative; private construction complete
 
 Date: 2026-09-10
 
@@ -93,3 +93,15 @@ Review the terminal-path proof with compiler/recovery and the ordered schema
 with specification review. Benchmark budget is zero samples/processes: the
 change adds one Rowan node per TypeCall with no scan, replay or allocation path
 beyond normal node construction.
+
+## Implementation status
+
+The private construction completed on 2026-09-10. `TypeCallClose` is appended
+to the syntax-kind domain and `type_expr::delimited` centralizes every existing
+Call terminal token/Missing path plus the complete close-error loop under that
+node. The generic residual fallback was found reachable, so its stop condition
+is superseded only by the later user-approved residual-policy amendment. Focused
+TypeCall controls and a package check passed; compiler/recovery and
+specification review closed the bounded delta. Public reference reconstruction,
+the complete CST diagnostic interpreter and parser-ledger retirement remain
+outside this gate.

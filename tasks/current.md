@@ -245,8 +245,9 @@ proof found a reachable `T(A@)` contradiction: Call currently returns an
 unclassified post-argument Item without any close publication. The direct CST/
 pending-Item witness is committed. The user selected policy A under
 `2026-09-10-successor-typecall-close-residual-policy.md`: the residual enters
-terminal close recovery after all existing Call dispatch declines it. Private
-construction remains pending.
+terminal close recovery after all existing Call dispatch declines it. The
+private TypeCallClose construction is complete with direct Rowan evidence;
+public reference reconstruction and CST diagnostic interpretation remain open.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.

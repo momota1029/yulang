@@ -38,7 +38,11 @@ fn leading_row_missing_head_is_distinct_from_incomplete_row_close() {
                 .filter_map(|element| element.into_token())
                 .find(|token| token.kind() == SyntaxKind::RParen)
                 .unwrap();
-            assert_eq!(close.parent().unwrap().kind(), SyntaxKind::TypeCallTail);
+            assert_eq!(close.parent().unwrap().kind(), SyntaxKind::TypeCallClose);
+            assert_eq!(
+                close.parent().unwrap().parent().unwrap().kind(),
+                SyntaxKind::TypeCallTail
+            );
         }
     }
 }

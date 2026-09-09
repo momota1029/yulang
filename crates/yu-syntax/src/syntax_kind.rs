@@ -275,6 +275,7 @@ pub enum SyntaxKind {
     RuleLiteralCloseBrace,
     RuleLiteralColon,
     Invalid,
+    TypeCallClose,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -644,6 +645,7 @@ impl Language for YulangLanguage {
             }
             value if value == SyntaxKind::RuleLiteralColon as u16 => SyntaxKind::RuleLiteralColon,
             value if value == SyntaxKind::Invalid as u16 => SyntaxKind::Invalid,
+            value if value == SyntaxKind::TypeCallClose as u16 => SyntaxKind::TypeCallClose,
             _ => SyntaxKind::Unknown,
         }
     }
@@ -716,6 +718,7 @@ mod tests {
             SyntaxKind::RuleLiteralOpenBrace,
             SyntaxKind::RuleLiteralCloseBrace,
             SyntaxKind::RuleLiteralColon,
+            SyntaxKind::TypeCallClose,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);

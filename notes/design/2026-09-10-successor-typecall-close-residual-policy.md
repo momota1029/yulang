@@ -1,6 +1,6 @@
 # TypeCall post-argument residual close recovery
 
-Status: Authoritative; private construction pending
+Status: Authoritative; private construction complete
 
 Date: 2026-09-10
 
@@ -73,3 +73,14 @@ diff. Compiler/recovery and specification review cover the changed owner and
 ordered CST schema. Benchmark budget is zero samples/processes: the rule
 reuses the existing close scan and adds no accepted-input work, replay or
 allocation beyond the approved close node.
+
+## Implementation status
+
+The private construction completed on 2026-09-10. The final Call
+post-argument fallback now enters the existing irreversible close recovery only
+after every recognized dispatch path declines it. Direct TypeCall CST tests
+prove residual, Error-group, Missing, protected-boundary, fence, Root and
+external-tail behavior; focused TypeCall controls and a package check passed.
+Specification prewrite and compiler/recovery postwrite review closed the M2
+delta. Public reference reconstruction and the later CST diagnostic interpreter
+remain separate gates.

@@ -232,7 +232,11 @@ fn record_unclaimed_closes_use_one_native_close_only_run_and_preserve_outer_tail
                     .filter_map(|element| element.into_token())
                     .find(|token| token.kind() == SyntaxKind::RParen)
                     .unwrap();
-                assert_eq!(close.parent().unwrap().kind(), SyntaxKind::TypeCallTail);
+                assert_eq!(close.parent().unwrap().kind(), SyntaxKind::TypeCallClose);
+                assert_eq!(
+                    close.parent().unwrap().parent().unwrap().kind(),
+                    SyntaxKind::TypeCallTail
+                );
             }
         }
     }
