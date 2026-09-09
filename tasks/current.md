@@ -264,8 +264,16 @@ with opener-selected normal/heredoc mode. The CST Missing for the isolated
 interpolation-EOF witness is `3..3`; its temporary shifted recovery record at
 `105..105` is evidence only, never a schema or ledger fact. The catalog row is
 evidence-complete Draft and is not promoted.
-The dedicated Rule-slot Draft is preflighted; direct CST proof and promotion
-is complete; user promotion remains open.
+The dedicated Rule-slot Draft is preflighted and its direct CST proof is
+complete; user promotion remains open. Its six bounded catalog rows now
+cover only RuleBody close, opener-selected RuleItem parenthesis close,
+RuleCapture RHS, RuleField name, RulePath name, and repeated RuleSequence Item
+Error. They retain Error-to-valid versus terminal Error-to-Missing Capture
+facts and direct Rule publisher links. ExpressionList (including every
+caller-specific bracket Item/Separator/close phase), interpolation/lazy/
+RuleLiteral children, String, and Virtual remain delegated or unmapped; the
+manual ExpressionList newline callback remains an unlinked/unmapped
+record-versus-CST exception.
 The StringInterpolationBody statement-sequence Draft is preflighted and has
 direct CST proof; user promotion remains open.
 The TypePathTail segment Draft and direct CST evidence are complete; its

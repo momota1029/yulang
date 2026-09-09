@@ -24,9 +24,10 @@ count of semantic slots.
 There is one known exception outside this four-emitter census:
 `rule/expression_list.rs::emit_leading_newline_separators` calls
 `emit_required_slots_before_newlines` with a callback which creates
-`ExpressionList(Item)` Missing. It is a required evidence link and must be
-mapped with its separator/newline phase; it is intentionally excluded from the
-123-call census.
+`ExpressionList(Item)` Missing. It remains an intentionally unlinked,
+unmapped `exception`: its committed recovery record is evidence of the callback
+only, not a CST slot identity or a substitute for its caller-specific
+separator/newline phase. It is intentionally excluded from the 123-call census.
 
 ## Matching rule
 
@@ -53,8 +54,9 @@ No status means a call count, file count, or family count equals semantic slots.
 
 ## Family-level source coverage
 
-All 39 files below are `untriaged` evidence links at catalog-scaffold start.
-The groups are source-navigation families, not semantic schema families.
+All 39 files below began as `untriaged` evidence links at catalog-scaffold
+start. The explicitly linked rows below are bounded exceptions; the groups are
+source-navigation families, not semantic schema families.
 
 | Family | Files | Census calls |
 | --- | ---: | ---: |
@@ -181,6 +183,29 @@ evidence link does not classify the temporary shifted recovery record
 `3..3`. All StringPiece/escape/interpolation, Rule, caller, and Root
 terminal-leading evidence remains delegated or unmapped.
 
+#### Dedicated Rule-owned row links
+
+Only direct Rule publishers in `crates/yu-syntax/src/rule/mod.rs` are linked to
+the six evidence-complete Draft catalog rows below. The shared helper sites are
+linked only with their caller contexts; they do not turn a helper or record role
+into a slot identity.
+
+| Catalog row | Direct source evidence | Status | Linked fact |
+| --- | --- | --- | --- |
+| `(RuleBody, final close phase, LBrace-selected Rule body context)` | `250–261` | `linked` | matching close versus direct Body close Missing and returned pending Item |
+| `(RuleItem, final parenthesis close phase, RuleItem whose first atom is LParen)` | `474–490` | `linked` | opener-selected matching close versus terminating parenthesis Missing |
+| `(RuleCapture, required RHS after Equals, enclosing RuleItem after non-capture postfixes)` | `545–568`, `653–679`, `864–878`, `891–894` | `linked` | terminal Error-to-valid / Error-to-Missing RHS ownership |
+| `(RuleField, required name after Dot, RuleItem named-postfix phase)` | `691–720`, `864–878`, `891–894` | `linked` | one-item Error or Missing then outer-RuleItem continuation |
+| `(RulePath, required name after ColonColon, RuleItem named-postfix phase)` | `691–720`, `864–878`, `891–894` | `linked` | one-item Error or Missing then outer-RuleItem continuation |
+| `(RuleSequence, repeated RuleItem phase, RuleAlternation Body or Parenthesis frame)` | `334–375`, `412–447`, `864–878` | `linked` | repeated direct Error grouping and frame-stop handoff |
+
+`crates/yu-syntax/src/rule/expression_list.rs` is deliberately not linked by
+these rows. Its bracket Item/Separator/close slots, plus every RuleCall,
+RuleIndex, and bracket-RuleItem caller-specific phase, remain delegated and
+unmapped. The special newline callback remains the `exception` above: its
+record publication must not be mistaken for CST evidence, because its direct
+child placement and caller-selected separator/newline phase are still open.
+
 ### Root, statement, and virtual layout — 3 files / 11 calls
 
 - `crates/yu-syntax/src/root_statement.rs`
@@ -188,8 +213,9 @@ terminal-leading evidence remains delegated or unmapped.
 - `crates/yu-syntax/src/virtual_statement_block.rs`
 
 `rule/expression_list.rs` contributes two census calls and the separate
-newline-Missing `exception` above. Its placement in this source-navigation
-group does not classify the exception as a root/layout semantic slot.
+unlinked/unmapped newline-Missing `exception` above. Its placement in this
+source-navigation group does not classify that record-producing callback as a
+root/layout CST slot.
 
 ## Boundaries
 

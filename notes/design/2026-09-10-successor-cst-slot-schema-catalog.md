@@ -108,7 +108,7 @@ coverage manifest names the corresponding evidence files.
 | expression forms and statement/layout containers | case/if/for, source-root, statement and virtual-statement sequences | unmapped except for delegated evidence links |
 | pattern and structured delimiters | Pattern entries, delimited sequences, RecordPattern Item/Separator structured recovery | unmapped; preserve the designated Invalid row below |
 | type entries, tails and delimiters | type expression, paths, rows, variants, forall, delimited closes and TypeCall close | partial: listed evidence-complete Draft slices and TypeCall mapping below |
-| literal, interpolation and rule | String terminator, interpolation sequence, Rule-owned slots, ExpressionList delegation | partial: listed evidence-complete Draft slices; ExpressionList newline exception remains to map |
+| literal, interpolation and rule | String terminator, interpolation sequence, Rule-owned slots, ExpressionList delegation | partial: listed evidence-complete Draft slices; ExpressionList newline exception remains unlinked/unmapped |
 | declarations and headers | declaration heads, fields, variants, companions, imports, operator headers and payloads | unmapped |
 
 ## Fixed topology references
@@ -205,6 +205,78 @@ by this wrapper.
 | transition/handoff | `RecordPattern separator slot entry → after matching-close/comma priority, existing separator-phase structured recovery selects a wrong-kind Pattern → consume the existing Invalid and nested Pattern beneath one transparent RecordPatternSeparator, without independently consuming or emitting source; initial leading has already been emitted by RecordPattern and stays outside the wrapper → retry the sequence without a duplicate separator Missing, consuming a returned comma in the outer sequence; a returned close stays outside, while a protected caller/fence Item and its leading remain pending → the nested Invalid witnesses DelimitedSequenceSeparator, primary zero, over its unchanged text range before nested Pattern traversal`. |
 | diagnostic projection | The transparent wrapper has no diagnostic, range, or expectation metadata. The enclosed `Invalid` projects `DelimitedSequenceSeparator`, primary zero, over `Invalid.text_range()` before recursively visiting its Pattern child. By contrast, the direct item-phase Invalid remains its unmapped `(RecordPattern, item phase, RecordPattern sequence context)` slot with `Identifier`, primary zero. |
 | proof and status | Governing authority: [RecordPattern separator-slot amendment](2026-09-10-successor-record-pattern-separator-slot.md), including its `{a)1}` separator versus `{a@1}` item collision witnesses; private construction: `8f99e18d`. Status: `mapped`. This is a referenced/mapped discriminator only, not a complete RecordPattern schema or a claim that the preceding raw Error is resolved. |
+
+### Dedicated Rule-owned slot map
+
+This bounded Draft/evidence-complete section instantiates only the six
+Rule-owned slots in the [dedicated Rule literal slice](2026-09-09-successor-error-admission-schema-clarification.md#proposed-schema-slice-dedicated-rule-literal-slots).
+It preserves that slice's opener discriminator, direct-parent leading and
+Error ownership, explicit caller stops, and terminal-owner boundary handoff.
+It does not promote the slice or map RuleLiteral terminator/interpolation/lazy
+children, String or Virtual children, or `ExpressionList` and any of its
+caller-specific Item/Separator/close phases. In particular, bracket RuleItem
+interiors and RuleCall/RuleIndex continue to delegate all such slots to
+`ExpressionList`; no `Invalid` is admitted by any row here.
+
+| Fact | RuleBody close row |
+| --- | --- |
+| identity | `(RuleBody, final close phase, LBrace-selected Rule body context)` |
+| ordered Rowan grammar | `RuleBody := LBrace RuleAlternation (RBrace | Missing)`. Native trivia is elided; opener-leading, alternation content, and matching-close leading are direct RuleBody content. |
+| malformed admission and completion | A matching `RBrace` completes. EOF, fence, or any Body stop other than the matching close emits exactly one zero-width close `Missing`; it admits no raw Error, retry, `Invalid`, or nested child in this close phase. |
+| nested ownership | `RuleAlternation` and its sequences/items retain their own schemas. The enclosing RuleLiteral, callers, and terminal leading owner remain outside this row. |
+| transition/handoff | `RuleBody close entry → matching RBrace has priority; otherwise the Body frame has already selected a stop → consume the matching RBrace as the final direct child, or emit the direct close Missing without consuming the pending Item → complete locally after RBrace; on EOF/fence/other protected stop hand off the pending Item with its leading, origin, line, and remainder unchanged → the final RBrace/Missing witnesses Close(Brace), primary zero`. |
+| diagnostic projection | `Missing` projects singleton `Close(Brace)`, primary zero, at its direct zero-width CST range; `RBrace` projects none. A same-offset nested Missing remains distinct by its parent path. |
+| proof and status | Governing slice above; direct publisher: `crates/yu-syntax/src/rule/mod.rs:250–261`. Status: `evidence-complete Draft`; only this close phase is recorded. |
+
+| Fact | opener-selected RuleItem parenthesis-close row |
+| --- | --- |
+| identity | `(RuleItem, final parenthesis close phase, RuleItem whose first atom is LParen)` |
+| ordered Rowan grammar | `RuleItem[LParen] := LParen RuleAlternation (RParen | Missing)`; only after a real `RParen` may the existing `RuleNonCapturePostfix* RuleCapture?` follow. A Missing parenthesis close terminates this RuleItem. |
+| malformed admission and completion | The matching `RParen` completes before postfix selection. Any other parenthesis-frame stop, including EOF/fence, emits one close `Missing`; it admits no close Error, retry, `Invalid`, postfix, or Capture after that Missing. |
+| nested ownership | The nested `RuleAlternation` owns sequence/item recovery. Non-capture postfixes and a later Capture are separate RuleItem phases; bracket interiors are delegated to `ExpressionList`. |
+| transition/handoff | `LParen-selected RuleItem close entry → matching RParen has priority in the Parenthesis frame → consume RParen, then enter the existing postfix/Capture continuation; or emit one direct Missing → complete locally to postfix/Capture only after RParen; otherwise return the pending stop unchanged with pending leading/origin/line/remainder and terminate this RuleItem → the RParen/Missing witnesses Close(Parenthesis), primary zero`. |
+| diagnostic projection | `Missing` projects singleton `Close(Parenthesis)`, primary zero, at its direct CST insertion range; `RParen` projects none. Nested same-offset Missing occurrences remain identified by parent path. |
+| proof and status | Governing slice above; direct publisher: `crates/yu-syntax/src/rule/mod.rs:474–490`. Status: `evidence-complete Draft`; Body-close, bracket-list, and postfix schemas are excluded. |
+
+| Fact | RuleCapture required-RHS row |
+| --- | --- |
+| identity | `(RuleCapture, required RHS after Equals, enclosing RuleItem after non-capture postfixes)` |
+| ordered Rowan grammar | `RuleCapture := Equals (Error* RuleItem | Error* Missing)`, terminal. Adjacent direct `Error` leaves belong to this parent and one RHS occurrence while contiguous. |
+| malformed admission and completion | An atom-start after zero or more rejected lexical Items enters one RHS RuleItem: Error-to-valid retries the required RHS without a duplicate Missing. Newline, matching frame stop, EOF, or fence after zero or more Errors emits the final required RHS Missing: Error-to-Missing is terminal and no later postfix/sequence admission is reconsidered by Capture. |
+| nested ownership | The admitted RHS RuleItem owns all of its own children and recovery. RuleCapture owns only its direct Error group and RHS Missing; RuleSequence, bracket ExpressionList, String, Virtual, interpolation, lazy, and RuleLiteral child slots stay delegated or outside scope. |
+| transition/handoff | `RuleCapture RHS entry → newline/frame stop has priority for Missing; otherwise an atom starts the RHS and rejected lexical Items form the immediate Capture Error group → consume Errors and then one nested RuleItem, or consume Errors and emit the one final RHS Missing → after Error-to-valid complete locally by terminating Capture/its enclosing item; after Error-to-Missing also terminate, returning the stop unchanged with pending leading/origin/line/remainder → the direct Error group and/or RHS Missing witnesses Literal(RuleItem), primary zero`. |
+| diagnostic projection | Each maximal adjacent direct Capture Error group is one `Literal(RuleItem)` occurrence over its combined UTF-8 range; the final Missing is a separate singleton occurrence at its zero-width range. In source order the Error occurrence precedes the later valid child or final Missing. |
+| proof and status | Governing slice above; direct publishers: `crates/yu-syntax/src/rule/mod.rs:545–568, 653–679, 864–878, 891–894`. Status: `evidence-complete Draft`; capture remains terminal and is not a general retry policy. |
+
+| Fact | RuleField name row |
+| --- | --- |
+| identity | `(RuleField, required name after Dot, RuleItem named-postfix phase)` |
+| ordered Rowan grammar | `RuleField := Dot (Identifier | Error+ | Missing)`. The direct name owner closes after exactly one accepted Identifier, one malformed lexical Item/Error group, or Missing. |
+| malformed admission and completion | A non-stop Identifier completes. Newline, frame stop, EOF, or fence emits one Missing. One rejected lexical Item becomes direct Error and closes RuleField; a following valid name or postfix belongs to the outer RuleItem, never a name-slot retry. |
+| nested ownership | There is no nested child production in this row. RuleItem owns following postfixes/Capture and any later sequence handling; ExpressionList caller phases remain delegated. |
+| transition/handoff | `RuleField name entry → newline/frame stop selects Missing; otherwise non-stop Identifier has priority, with one other lexical Item admitted as Error → consume Identifier, one Error, or direct Missing → complete locally to the outer RuleItem in all three cases, returning its next/pending Item and its leading/origin/line/remainder unchanged → Identifier projects none; Error or Missing witnesses Identifier, primary zero`. |
+| diagnostic projection | A maximal direct Field Error group (one lexical Item in this bounded owner) projects one `Identifier` occurrence over its UTF-8 range; Missing projects singleton `Identifier` at its direct zero-width range. The Dot has no occurrence. |
+| proof and status | Governing slice above; direct publishers: `crates/yu-syntax/src/rule/mod.rs:691–720, 864–878, 891–894`. Status: `evidence-complete Draft`; no following-name retry is implied. |
+
+| Fact | RulePath name row |
+| --- | --- |
+| identity | `(RulePath, required name after ColonColon, RuleItem named-postfix phase)` |
+| ordered Rowan grammar | `RulePath := ColonColon (Identifier | Error+ | Missing)`. The direct name owner closes after exactly one accepted Identifier, one malformed lexical Item/Error group, or Missing. |
+| malformed admission and completion | A non-stop Identifier completes. Newline, frame stop, EOF, or fence emits one Missing. One rejected lexical Item becomes direct Error and closes RulePath; a following valid name or postfix belongs to the outer RuleItem, never a name-slot retry. |
+| nested ownership | There is no nested child production in this row. RuleItem owns following postfixes/Capture and any later sequence handling; ExpressionList caller phases remain delegated. |
+| transition/handoff | `RulePath name entry → newline/frame stop selects Missing; otherwise non-stop Identifier has priority, with one other lexical Item admitted as Error → consume Identifier, one Error, or direct Missing → complete locally to the outer RuleItem in all three cases, returning its next/pending Item and its leading/origin/line/remainder unchanged → Identifier projects none; Error or Missing witnesses Identifier, primary zero`. |
+| diagnostic projection | A maximal direct Path Error group (one lexical Item in this bounded owner) projects one `Identifier` occurrence over its UTF-8 range; Missing projects singleton `Identifier` at its direct zero-width range. The ColonColon has no occurrence. |
+| proof and status | Governing slice above; direct publishers: `crates/yu-syntax/src/rule/mod.rs:691–720, 864–878, 891–894`. Status: `evidence-complete Draft`; no following-name retry is implied. |
+
+| Fact | RuleSequence repeated-Item Error row |
+| --- | --- |
+| identity | `(RuleSequence, repeated RuleItem phase, RuleAlternation Body or Parenthesis frame)` |
+| ordered Rowan grammar | `RuleSequence := (RuleItem | Error+)*`; adjacent direct raw Error leaves are one occurrence only while their immediate RuleSequence parent and repeated-Item slot agree. Separators and newline split/continue sequence structure outside an Error group. |
+| malformed admission and completion | A Rule atom admits one RuleItem. A rejected lexical Item, including its leading, is direct sequence Error; consecutive rejected Items extend its group until an admitted item or frame stop. Matching close, separator, newline, EOF, fence, and inherited outer RuleLiteral quote context stop before name/RHS admission; this row emits no Missing and no Invalid. |
+| nested ownership | Each admitted RuleItem owns its close, Capture, names, postfixes, and delegated bracket ExpressionList phases. RuleBody/parenthesis frame owns matching close and stop interpretation; RuleLiteral quote context remains outer-owned. |
+| transition/handoff | `RuleSequence repeated-Item entry → explicit frame close/separator/newline/protected boundary stops have priority; otherwise atom admits RuleItem and other lexical Item selects the sequence Error group → consume each rejected Item and its leading as adjacent direct Error leaves, or consume one nested RuleItem → retry the same repeated sequence phase after Error without Missing; matching close/separator/newline stops return unchanged, and EOF/fence/protected boundaries hand off with pending leading/origin/line/remainder → each maximal direct Error group witnesses Literal(RuleItem), primary zero, before the next admitted child`. |
+| diagnostic projection | One maximal adjacent direct RuleSequence Error group projects one `Literal(RuleItem)` occurrence over its combined UTF-8 range; each admitted nested RuleItem projects only through its own slots. No diagnostic is inferred from separator/newline/close handoff. |
+| proof and status | Governing slice above; enclosing alternation context and direct sequence publisher: `crates/yu-syntax/src/rule/mod.rs:334–375, 412–447, 864–878`. Status: `evidence-complete Draft`; no separator/newline or caller-specific `ExpressionList` phase is mapped. |
 
 ### External authoritative slice
 
