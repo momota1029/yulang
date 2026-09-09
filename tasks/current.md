@@ -148,8 +148,10 @@ authoritative `Vec<Recovered<Statement>>` does not define the canonical
 Statement sum or its field/recovery mappings: historical candidate AST prose
 cannot be adopted implicitly from current-item record roles. A combined M3
 canonical syntax-product Draft now selects a candidate closure for the actual
-currently admitted surface, explicitly excluding generic expression
-assignment/`as Type` and the not-yet-promoted Type-attached-Impl form. It must select its
+currently admitted surface. Generic expression assignment and `as Type` are
+now admitted, while their canonical product fields remain explicitly
+unselected pending the M3 materialization closure; the Type-attached-Impl form
+remains not-yet-promoted. It must select its
 still-open Type/body/list/chain/header field maps together with the seam and
 literal schema, complete
 compiler/recovery, specification and static performance review, then record

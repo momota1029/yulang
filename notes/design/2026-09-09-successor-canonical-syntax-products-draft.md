@@ -39,19 +39,22 @@ dispatch. It is therefore excluded from this current product sum and remains a
 required later document/frame promotion gate; final parser completion may not
 silently drop it.
 
-These are explicitly outside this product closure until their own
-acceptance/recovery/product gates are approved:
+The following forms are outside this product closure.  Assignment and type
+annotation are current syntax, but their canonical fields remain unselected
+until this Draft's M3 materialization closure is approved.  Type-attached
+`impl` remains outside both successor promotion and this product closure:
 
 | deferred form | current evidence |
 | --- | --- |
-| generic expression assignment | no `=` tail in `expression/operator_chain.rs`; historical reservation only |
-| expression `as Type` annotation | no tail/node/current test; historical reservation only |
+| generic expression assignment | Authoritative structural-tail construction is complete; its canonical product field remains pending M3 materialization approval |
+| expression `as Type` annotation | Authoritative structural-tail construction is complete; its canonical product field remains pending M3 materialization approval |
 | Type-attached `impl` | approved TAI authority; Type owner still returns qualifying `impl` Item pending, so successor implementation/promotion remains deferred |
 
 Binding's actual definition `=`, Type's equality form, and Pattern's `: Type`
 annotation are included; none is an expression assignment/annotation variant.
-The final Yulang2-compatibility closure must construct the deferred gates
-separately rather than treating their absence as product completion.
+The final Yulang2-compatibility closure must select the two current tail
+products and separately construct the deferred Type-attached-Impl gate rather
+than treating either omission as product completion.
 
 ## Common product and recovery rules
 
