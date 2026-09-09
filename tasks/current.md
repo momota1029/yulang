@@ -180,6 +180,11 @@ non-authoritative source coverage manifest at
 `notes/progress/successor-cst-slot-schema-coverage.md`. Full semantic mapping,
 ordered schemas and independent audit remain open; this record-only step made
 no parser, API, test or benchmark change.
+The first bounded catalog row, TypeCall's terminal close phase, is now mapped
+and independently audited from its existing Authoritative close-node and
+residual-policy amendments. Its TypeCallClose Error/Missing grouping, leading
+and boundary ownership, and direct source links are complete only for that
+slot; argument, separator and other TypeCall rows remain open.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

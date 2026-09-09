@@ -96,21 +96,23 @@ its children in future interpretation.
 
 ### TypeCall close-slot map
 
-`2026-09-10-successor-typecall-close-slot-node.md` is Authoritative and its
-private construction is complete. Its catalog target is:
+This is one bounded Draft row. It records the already-Authoritative terminal
+close semantic slot from the [close-node amendment](2026-09-10-successor-typecall-close-slot-node.md)
+and [residual-policy amendment](2026-09-10-successor-typecall-close-residual-policy.md),
+for the later CST-derived diagnostic interpreter described by the
+[diagnostics amendment](2026-09-09-successor-cst-derived-diagnostics-amendment-draft.md). It neither
+maps nor changes TypeCall argument, separator, caller/boundary, or nested-child
+slots.
 
-```text
-(TypeCallTail, terminal close after all argument/separator children,
- TypeCall context)
-
-TypeCallTail := LParen <argument/separator children> TypeCallClose
-TypeCallClose := NativeTrivia* (Error NativeTrivia*)* (RParen | Missing)
-```
-
-`TypeCallClose` distinguishes terminal-close Error from direct `TypeCallTail`
-argument Error. This is a referenced topology, not a complete TypeCall
-schema: argument, separator, caller/boundary, and nested child rows remain
-separate catalog work.
+| Fact | Draft catalog row |
+| --- | --- |
+| identity | `(TypeCallTail, terminal close after all argument/separator children, TypeCall context)` |
+| ordered Rowan grammar | `TypeCallTail := LParen <argument/separator children delegated to their own rows> TypeCallClose`; `TypeCallClose := NativeTrivia* (Error NativeTrivia*)* (RParen \| Missing)`. It contains native trivia, zero or more raw `Error` leaves, and exactly one terminal native `RParen` or zero-width `Missing`. It admits no `Invalid`, structured child, separator, argument, or further-argument retry. |
+| malformed admission and completion | A matching close completes normally. An unprotected mismatched close enters existing irreversible close recovery. Separately, only after every recognized Call dispatch declines it, a residual post-argument Item enters that same recovery. Subsequent nonboundary Items are close `Error` content until, but not including, matching close, EOF, or a protected exit. EOF or protected exit emits exactly one close `Missing`. |
+| nested ownership | The parent delegates argument and separator grammar; their Missing/Error and all nested production schemas remain child-owned. Argument `Error` leaves remain direct `TypeCallTail` children, distinct from close Error leaves beneath the immediate `TypeCallClose` parent. |
+| source and boundary ownership | Leading already emitted by opening, argument, or separator ownership remains outside `TypeCallClose`; after close construction begins, remaining leading is native inside it. Ordinary horizontal raw caller/outer-boundary leading may be emitted outside the node by `emit_horizontal_delimited_boundary`, which completes its terminal Missing and hands the boundary out before close-recovery entry. Protected leading encountered during close retry remains pending; a matching close consumes its leading, a protected Item returns with its leading, origin, line, and remainder, and ordinary EOF completion emits remaining leading. |
+| diagnostic projection | Project singleton `Close(Parenthesis)` with primary alternative zero. A Missing is zero-width. A diagnostic's one maximal adjacent `Error` group under the immediate `TypeCallClose` parent has its combined UTF-8 range; native trivia or final Missing ends the group. Occurrence order includes a preceding argument Missing at the same range. `TypeCallClose` itself has no diagnostic. |
+| proof and status | Direct proofs: `tests/type_expr/type_call_fallback.rs:33,62,120,154,170,208,226`; `tests/type_expr.rs:3361,4503,4588,5062,5179`. Governing amendments above are Authoritative; retained recovery records are temporary evidence only, not catalog identity or a future ledger. Status: `mapped`; the independently audited catalog row and its governing behavior remain Draft and Authoritative respectively. |
 
 ### External authoritative slice
 

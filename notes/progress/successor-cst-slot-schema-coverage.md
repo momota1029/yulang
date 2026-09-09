@@ -106,6 +106,24 @@ The groups are source-navigation families, not semantic schema families.
 - `crates/yu-syntax/src/type_expr/record.rs`
 - `crates/yu-syntax/src/type_expr/variants.rs`
 
+#### TypeCall terminal-close row links
+
+Only the following census emissions are linked to the Draft catalog row
+`(TypeCallTail, terminal close after all argument/separator children, TypeCall
+context)`:
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/type_expr/delimited.rs:993` | `linked` | close Error contents |
+| `crates/yu-syntax/src/type_expr/delimited.rs:1393` | `linked` | close Missing contexts when `owner == Call` |
+
+Non-census support for that row: close-node wrappers at `1352–1380`, ordinary
+EOF completion at `1243–1268`, and dispatch references at `99–213`,
+`337–370`, `535`, and `568`, all in
+`crates/yu-syntax/src/type_expr/delimited.rs`. These are support links, not
+census assignments. Argument/separator emissions and every other owner
+emission in this file remain `untriaged` and unmapped.
+
 ### Pattern — 2 files / 8 calls
 
 - `crates/yu-syntax/src/pattern/delimited.rs`
