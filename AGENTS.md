@@ -126,6 +126,20 @@ Subagent-to-primary reports are internal working communication and use concise
 technical English unless the delegated artifact itself requires another
 language.
 
+### Command-output visibility
+
+Do not relay raw command output, tool output, build logs, or subagent work
+inspection to the user by default. User-visible progress updates summarize only
+the decision-relevant result: changed paths, verification outcome, findings,
+blockers, and remaining risk. Keep command output internal and bound any tool
+capture to the smallest amount needed for the task.
+
+Inspecting a subagent's work must use its concise report and narrow diff/status
+evidence; never print command output merely to establish what the subagent
+did. Show raw output only when the user explicitly requests it, or when a
+short, directly relevant excerpt is necessary to explain a failure. State why
+the excerpt is needed and redact or omit unrelated material.
+
 Generated artifacts do not inherit the conversation style. Documentation,
 README files, specifications, release notes, diagnostics, UI text, code
 comments, and design records use the register required by their audience and
