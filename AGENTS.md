@@ -98,6 +98,11 @@ work when possible.
 - Do not repeat broad checks after record-only or comment-only updates.
 - Do not blanket-stash, hard-reset, or clean a working tree that may contain valuable concurrent work.
 - Do not run two write-capable agents in the same working tree.
+- Every agent must explicitly set `fork_turns: "none"` on every
+  `spawn_agent` call, including nested delegation. Do not inherit parent
+  conversation history. Supply the required task scope, governing sources,
+  constraints, and file locators in the task message, respecting
+  `rules/agent-orchestration.md` information boundaries.
 - Do not call work complete while required task/progress/design records remain silently stale.
 - Do not edit compiler code while performing this repository-policy migration unless a later task explicitly authorizes it.
 
