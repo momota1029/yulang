@@ -472,13 +472,57 @@ only to hold emitted Error bytes. Forall retry keeps the earlier incomplete
 binder position and its owner bytes before a distinct later admitted binder;
 PV tag retry likewise keeps the earlier same-tag Error bytes.
 
-This candidate deliberately leaves TypeRecordField start/end and every
-declaration field-list position open: whether a field name-slot recovery has
-committed an outer field is not yet closed across all list-admission branches.
-It also leaves the source representation of Apply/Forall/PV payload boundaries
-open. The table requires compiler/recovery and specification review, exact
-range controls, and user approval before it can authorize a product API or
+This candidate leaves the source representation of Apply/Forall/PV payload
+boundaries open. TypeRecordField and declaration field mapping follows below.
+The table requires compiler/recovery and specification review, exact range
+controls, and user approval before it can authorize a product API or
 implementation.
+
+### Candidate recovered field products; not yet selected
+
+This narrows and supersedes the preceding open TypeRecordField and later
+NamedField/TupleField availability/envelope rows. List-position availability
+follows grammar admission; recovery records alone establish neither a completed
+field nor its range.
+
+| current owner event | candidate product effect |
+| --- | --- |
+| TypeRecordField/NamedField actual name | complete field; colon and Type remain independently recovered |
+| initial actual colon | complete field with unavailable name, actual colon and required Type |
+| malformed name reaching owner-authorized colon | complete colon-bearing field with unavailable name; initial Error remains field-owned |
+| whole-field Error stops at a new name/head or at boundary | one incomplete list position; a later admitted head begins a distinct field; no empty completed field |
+| Tuple required-Type retries to an admitted Type skeleton | one complete TupleField containing that Type |
+| Tuple required-Type never admits a skeleton | one incomplete list position; no complete empty TupleField |
+| admitted Type with failed inner child | complete outer field/Type skeleton with recovered child |
+
+Every completed TypeRecordField, NamedField and TupleField ranges from its
+field owner's first physical publication through that owner's last, including
+internal leading, recovery and child output. A completed TupleField therefore
+includes a field-owned required-Type Error before its later admitted Type child;
+its child range begins only at that child's own first publication. Sequence
+introductory leading and every byte published by the enclosing sequence are
+excluded. A field owner never subtracts or reconstructs already emitted
+field-owned leading; the still-unread Item and its remaining leading are also
+excluded. Missing coordinates and diagnostic extents do not extend any field
+envelope.
+
+Record RHS recovery retains the RecordFieldType role, while declaration
+required-Type malformed recovery retains native Type(Primary) ownership.
+Actual colon followed by terminal malformed RHS leaves Type unavailable while
+retaining its emitted field bytes; colon failure at a boundary adds no invented
+second diagnostic. Actual matching closes remain list-owned. Struct local
+mismatched-close recovery may retry a field; Variant borrowed close remains
+unread with unavailable local close; TypeRecord wrong-close recovery remains
+close-only and cannot acquire declaration-list retry behavior. Close-recovery
+bytes extend a list envelope, never its preceding completed field.
+
+For indented named fields, valid deeper indentation admits its nested sequence;
+failed indentation leaves that sequence unavailable while retaining the
+colon-bearing Struct form. An entered sequence containing only an incomplete
+position retains its actual sequence-emitted bytes. Its enclosing body ends at
+the last published body byte, falling back to its colon if there was none.
+These remain M3 candidates requiring focused product controls, review and user
+approval; they change no existing admission, record or Item handoff rule.
 
 ```text
 InlineStatementBody ::= Inline(Box<Statement>) | Indented(IndentedBlock)

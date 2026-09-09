@@ -223,6 +223,13 @@ inside the cell. Shifted inputs require an explicit absolute region/frontier;
 frontier-to-boundary equality remains unproven. Specification and
 compiler/recovery review is clean. Exact controls, materialization API,
 performance review and user approval remain required before implementation.
+The TypeRecordField/NamedField/TupleField branch now has an unselected recovery
+product candidate: grammar admission, rather than a recovery record, controls
+outer skeleton availability; field ranges retain field-owned retry bytes but
+exclude enclosing-sequence and unread-successor publication. Record, Struct and
+Variant close ownership stays distinct. Specification and compiler/recovery
+review is clean after one sequence-leading clarification. Focused range
+controls and user approval remain required before any API or implementation.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be
