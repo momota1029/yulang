@@ -2771,6 +2771,93 @@ fn type_arrow_rhs_record_extension_obeys_retry_leading_eligibility() {
 }
 
 #[test]
+fn type_arrow_rhs_error_keeps_shallow_newline_item_and_accepts_deeper_retry() {
+    let operators = OperatorTable::empty();
+    for newline in ["\n", "\r\n"] {
+        for indentation in ["", "  ", "    "] {
+            let source = format!("A ->@{newline}{indentation}B");
+            let mut input = source.as_str();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = GreenNodeBuilder::new();
+            output.start_node(SyntaxKind::Root.into());
+            let (primary, origin, line) = crate::type_expr::type_nud_item_normalized(
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+                0,
+                LineEntry::InLine,
+                None,
+            );
+            let (exit, accepted) =
+                crate::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized(
+                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+                    primary,
+                    2,
+                    0,
+                    crate::type_expr::TypeOuterBoundary::NONE,
+                    origin,
+                    line,
+                    None,
+                );
+            assert!(accepted);
+            let successor_origin = source.len() - input.len();
+            output.finish_node();
+            let green = finish_with_discarded_recoveries(output, recover);
+            let root = SyntaxNode::new_root(green);
+            let arrow = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+                .expect("TypeArrowTail");
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Invalid))
+            );
+            if indentation.len() <= 2 {
+                assert_eq!(root.to_string(), "A ->@", "{source:?}");
+                assert_eq!(
+                    arrow
+                        .children_with_tokens()
+                        .map(|element| (element.kind(), element.to_string()))
+                        .collect::<Vec<_>>(),
+                    [
+                        (SyntaxKind::Whitespace, " ".to_owned()),
+                        (SyntaxKind::Arrow, "->".to_owned()),
+                        (SyntaxKind::Error, "@".to_owned()),
+                    ],
+                    "{source:?}"
+                );
+                let NormalizedExit::Complete(Err(Either::Left(item)), line) = exit else {
+                    panic!("shallow newline and its identifier must remain pending: {source:?}")
+                };
+                let (control, origin, control_line, remainder, _, _) =
+                    scan_type_item_control(&source[5..], 5, &operators);
+                assert_eq!(item, control, "{source:?}");
+                assert_eq!(
+                    item.extent(successor_origin).recovery_range(),
+                    5..source.len()
+                );
+                assert_eq!(successor_origin, origin);
+                assert_eq!(line, control_line);
+                assert_eq!(input, remainder);
+            } else {
+                assert_eq!(root.to_string(), source);
+                assert!(matches!(
+                    exit,
+                    NormalizedExit::Complete(Err(Either::Right(_)), _)
+                ));
+                let rhs = arrow
+                    .children()
+                    .find(|node| node.kind() == SyntaxKind::TypeExpression)
+                    .expect("deeper retry remains the Arrow RHS");
+                assert!(rhs.descendants_with_tokens().any(|element| {
+                    element.kind() == SyntaxKind::Identifier && element.to_string() == "B"
+                }));
+                assert_eq!(input, "");
+            }
+        }
+    }
+}
+
+#[test]
 fn type_arrow_rhs_preserves_pending_boundaries_after_error() {
     let operators = OperatorTable::empty();
     for (source, error_text, error_range) in [("A ->@ )", "@", 4..5), ("A ->@ . )", "@ .", 4..7)] {

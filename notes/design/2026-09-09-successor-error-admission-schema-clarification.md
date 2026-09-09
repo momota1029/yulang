@@ -459,6 +459,48 @@ closed a boundary-dispatch panic in the existing owner; its minimal repair was
 independently reviewed. This does not promote the slice or cover its delegated
 Type children.
 
+## Proposed schema slice: TypeArrowTail actual-arrow RHS
+
+This proposed slice covers the required RHS after an actual `Arrow` token in a
+`TypeArrowTail`. It excludes the distinct BracketRowArrow required-arrow slot:
+that owner can recover an omitted arrow before it reaches an RHS, so parent
+kind alone is not enough to identify this slot.
+
+```text
+ActualArrowRhsSuffix := Arrow
+    (TypeExpression | Missing | Error+ TypeExpression | Error+)
+```
+
+This is an ordered suffix of `TypeArrowTail`, not its complete production:
+preceding BracketRow and required-arrow-slot children remain excluded context.
+The suffix grammar elides native trivia. The Arrow's leading is a direct tail
+child; initial accepted-RHS leading belongs inside its `TypeExpression`. An
+initially rejected Item's leading and every internal rejected fragment are
+direct, adjacent `Error` tokens in the tail. A valid retry's leading instead
+belongs to the retried `TypeExpression`. Full RHS recursion, including a
+following arrow, is nested under that expression and keeps right association.
+Its nested recovery is not an outer RHS occurrence. `Invalid` is not admitted.
+
+At initial ordinary EOF, a close/separator, caller stop, or a
+non-continuation indentation, the tail emits the RHS Item's owned leading
+before its direct Missing and returns the Item. An abstract fence boundary and
+an outer contextual boundary retain the complete Item and its leading while
+publishing the zero-width Missing at the inspected coordinate. A nonempty
+Error group that reaches any boundary returns it with its pending leading and
+without a second Missing. After Error, an equal-or-shallower physical newline
+also terminates the RHS: the entire remaining leading and Item stay pending;
+only a deeper continuation may retry a Type primary, subject to active caller,
+outer and abstract boundaries. A Missing or maximal direct Error group projects
+one `Type(ArrowRhs)` occurrence with expected `TypeExpression` and primary
+zero.
+
+This is a Draft proposal. Direct CST evidence must cover accepted
+right-associative RHS, Missing and native leading, initial/internal Error
+leading, retry ownership, Error-only EOF/close/context/fence exits, initial and
+post-Error LF/CRLF shallow/equal/deeper behavior, UTF-8/comment/foreign-prefix
+runs, actual BracketRowArrow discrimination, nested RHS recovery and public
+Root source conservation before review or promotion.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`

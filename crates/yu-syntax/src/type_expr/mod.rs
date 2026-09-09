@@ -2534,6 +2534,7 @@ fn type_arrow_rhs_normalized(
         );
     }
     if rhs.payload_view().is_boundary()
+        || !type_chain_trivia(rhs.leading_view(), baseline)
         || is_type_caller_boundary(&rhs, caller_stops)
         || is_type_outer_boundary(&rhs, outer_boundary)
         || !is_type_nud(&rhs)
