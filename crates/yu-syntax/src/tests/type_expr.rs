@@ -16,6 +16,7 @@ use crate::recovery_record::{
 use chasa_recover::Recoverable as _;
 
 mod arrow_rhs_cst;
+mod bracket_arrow_cst;
 mod bracket_arrow_recovery;
 mod bracket_recovery;
 mod equals_recovery;

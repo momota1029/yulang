@@ -508,12 +508,14 @@ the accepted `TypeExpression` belongs to that child. Accepted RHS parsing
 retains caller stops but uses its existing RHS outer-boundary setting; this
 slot does not extend the pre-arrow outer contextual boundary through the RHS.
 
-This is a Draft proposal. Direct CST evidence must cover actual-arrow and
-arrowless RHS forms, Missing/EOF leading, Error-to-arrow and Error-to-RHS
-retry, terminal Error, protected comma/close/caller/outer/fence boundaries,
-LF/CRLF shallow/equal/deeper behavior, UTF-8/comment fragments, incomplete-row
-same-offset nesting, recovered-arrow ArrowRhs separation and public Root source
-conservation before review or promotion.
+Draft evidence is complete as of 2026-09-10. Focused Rowan tests cover
+actual-arrow and arrowless RHS forms, Missing/EOF leading, Error-to-arrow and
+Error-to-RHS retry, terminal Error, protected comma/close/caller/outer/fence
+boundaries, LF/CRLF shallow/equal/deeper behavior, UTF-8/comment fragments and
+byte ranges, incomplete-row same-offset nesting, recovered-arrow ArrowRhs
+separation and public Root source conservation. Specification and regression
+delta reviews are closed. This does not promote the slice or cover its
+delegated Type children.
 
 ## Proposed schema slice: TypeArrowTail actual-arrow RHS
 
