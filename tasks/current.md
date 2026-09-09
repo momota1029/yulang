@@ -150,20 +150,27 @@ facts. It is deliberately not production code: no outer Yumark document owner
 exists to reach it, and exposing an unused crate-private wrapper would add
 dead-code warnings. The historical injected-item witness remains separate.
 
-The next actual parser gate is the user-selected Rowan CST-only migration under
-`2026-09-09-successor-rowan-cst-only-amendment-draft.md`. AST products,
-materializers, recovery/account ledgers and canonical-product inventories are
-not prerequisites and receive no further construction. One parse produces the
-direct Rowan tree plus existing individual syntax diagnostics; `CstOutput` is
-removed rather than renamed. Raw malformed source becomes an `Error` token,
-while a structural `Invalid` node appears only for recovery that actually
-retains nested grammar, Missing or nested Error children. Expected syntax is
-specified by parent production and recovery slot, not by synthetic tree nodes.
+The direct Rowan construction phase is active under
+`2026-09-09-successor-rowan-cst-only-amendment-draft.md`: AST products,
+materializers, event tapes and second output trees are excluded, and
+`CstOutput` is removed rather than renamed. The first direct-builder migration
+is complete. The next schema/API migration is governed by the reviewed,
+approval-pending
+`2026-09-09-successor-cst-derived-diagnostics-amendment-draft.md`: parsing
+will return only the lossless direct Rowan tree and its selected syntax inputs;
+structural `Missing`/`Error`/`Invalid` diagnostics and environment conflicts
+will be derived during a frontend CST walk. No parser recovery ledger, frozen
+reconciliation, diagnostic array or synthetic Expected node remains after that
+approved migration. Raw malformed source becomes an `Error` token, while an
+`Invalid` node appears only for recovery that actually retains nested grammar,
+Missing or nested Error children. Expected syntax is specified by the
+documented grammar slot.
 
 The direct-Rowan design is independently reviewed. Its bounded first migration
 removes `CstOutput` while preserving the current tree topology, so direct
 builder/recovery ownership, frozen reconciliation and effect-free lexical
-probes have an isolated regression boundary. The following schema migration
+probes have an isolated regression boundary. After the pending amendment is
+approved, the following schema migration
 makes `Error` token-only and adds node-only `Invalid`: all raw-recovery Item
 fragments, including its interior trivia and quote-prefix fragments, become
 adjacent `Error` leaves; already-emitted and retry/boundary leading remain with
@@ -172,8 +179,9 @@ owners. The reviewed supersession and notation are user-approved;
 direct-builder construction has passed its focused implementation controls and
 independent delta review. The sealed cursor removes the generic-input
 reconstruction route: `Recover` has no `Recoverable` implementation, production
-construction/finalization is cursor-private, and header reconciliation requires
-the concrete committed cursor. The final focused cursor/recovery/header/root/
+construction/finalization is cursor-private. Header reconciliation is a
+temporary direct-builder control and is retired by the pending amendment. The
+final focused cursor/recovery/header/root/
 lexical/literal/slot set passed 175 tests. Full-package behavior certification
 ran once: 1,067 tests passed and the only failure was the pre-existing
 `SyntaxKind::Unknown` discriminant assertion (`231` actual, `229` expected) in
