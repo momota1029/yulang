@@ -165,6 +165,12 @@ migration. Raw malformed source becomes an `Error` token, while an
 Missing or nested Error children. Expected syntax is specified by the
 documented grammar slot.
 
+The Authoritative Error/Invalid topology-ordering addendum selects the bounded
+topology-only migration now: ordinary raw fragments become Error tokens and the
+two structured owners become Invalid nodes, while recovery records, frozen
+reconciliation and public diagnostics remain temporarily unchanged. The full
+per-slot schema still blocks their later removal.
+
 The direct-Rowan design is independently reviewed. Its bounded first migration
 removes `CstOutput` while preserving the current tree topology, so direct
 builder/recovery ownership, frozen reconciliation and effect-free lexical
