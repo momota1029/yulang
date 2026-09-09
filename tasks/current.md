@@ -243,8 +243,10 @@ construction will use `TypeCallClose`, separating close Error from direct
 CallArgument Error without relexing or a ledger. Its required generic-fallback
 proof found a reachable `T(A@)` contradiction: Call currently returns an
 unclassified post-argument Item without any close publication. The direct CST/
-pending-Item witness is committed; TypeCallClose construction is blocked on a
-user-selected Call-owned recovery policy for that path.
+pending-Item witness is committed. The user selected policy A under
+`2026-09-10-successor-typecall-close-residual-policy.md`: the residual enters
+terminal close recovery after all existing Call dispatch declines it. Private
+construction remains pending.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
