@@ -116,7 +116,7 @@ grammar; they do not reproduce a compiler-internal coverage ledger.
 ## Representative schema slice: AssignmentTail inline RHS
 
 The direct inline `Assignment(Rhs)` position of `AssignmentTail` is the
-representative completed slice for this clarification.
+representative proposed slice for this clarification.
 Its governing authority is
 `2026-09-09-successor-expression-structural-tails-draft.md`, **Owner topology
 and admission** and **Assignment**; its M2 construction handoff confirms the
@@ -124,35 +124,50 @@ flat tail topology, one-character acquisition, one RHS, terminal exit, and
 focused recovery verification. This is evidence for the schema method only. It
 does not make other expression slots complete or infer their malformed forms.
 
-The ordered CST position is:
+The ordered direct-inline CST alternatives are:
 
 ```text
 OperatorChain := <left-expression children and pre-`=` trivia> AssignmentTail
-AssignmentTail := "=" <accepted post-`=` leading> (InlineRhs | <delegated indented Statement block>)
+AssignmentTail := Equals (Missing | Error+ | Error+ OperatorChain | OperatorChain
+                          | <delegated IndentedStatementBlock>)
+Equals := "="
 ```
 
-`AssignmentTail` never owns or wraps the left expression. The tail is admitted
+This grammar elides trivia only to make the child alternatives legible. Initial
+leading before both an accepted and an initially rejected direct RHS is native
+trivia directly under `AssignmentTail`, before its `OperatorChain` or raw
+Error children. Leading at an admitted retry is instead native trivia in the
+new `OperatorChain` child. The boundary/missing rule owns only the leading it
+explicitly selects.
+
+`AssignmentTail` never owns or wraps the left expression. In the accepted
+direct alternative, and after a raw-group retry, the RHS is a concrete
+`OperatorChain` child; `InlineRhs` is not a Rowan node. A raw group is direct
+`Error` token children of `AssignmentTail`. Its initial rejected-Item leading
+is direct `AssignmentTail` trivia outside the raw group. The tail is admitted
 only at the outer, enabled non-ML continuation after an admitted dynamic LED
 has declined; lower-threshold and ML candidates have no source, CST, or
-recovery effect. This representative proof covers only `InlineRhs`. The deeper
-line alternative delegates to the existing `Assignment(IndentedStatement)`
-block contract with a `Statement` expectation; its block-entry and child-slot
-schema remain an explicitly open dependency rather than an implied
-recovery-free child.
+recovery effect. This representative proof covers only that direct-inline
+alternative.
+The deeper-line alternative delegates to the existing
+`Assignment(IndentedStatement)` block contract with a concrete
+`IndentedStatementBlock` child and a `Statement` expectation; its block-entry
+and child-slot schema remain an explicitly open dependency rather than an
+implied recovery-free child.
 
-For the direct inline slot, `Assignment(Rhs)` has `Expression` as its expected
-alternative and primary index zero when it emits `Missing`. A raw Error group
-instead projects the existing malformed-input category for this same slot; it
-does not manufacture a second Missing or a retired parser unexpected payload.
-In both raw alternatives below, initial leading remains outside the raw group,
-interior leading belongs to it, and leading before an admitted retry or a
-protected boundary remains outside it.
+For the direct inline slot, both `Missing` and one maximal raw Error group
+project `Assignment(Rhs)` with expected `Expression` and primary index zero.
+The raw group is one malformed-input occurrence for this slot, not a parser
+unexpected payload or a second Missing. In both raw alternatives below,
+initial rejected-Item leading remains outside the raw group, interior leading
+belongs to it, and leading before an admitted retry or a protected boundary
+remains outside it according to the direct-child placement above.
 
 | `Rhs` sequence | Structural admission and ownership | Diagnostic / continuation fact |
 | --- | --- | --- |
-| inline `Expression` | one required inline child | no recovery element |
+| inline `OperatorChain` | one required direct inline child | no recovery element |
 | required RHS absent at an admitted stop, boundary, separator, close, non-NUD bracket opener, non-continuing layout, or EOF | one zero-width `Missing` in `Assignment(Rhs)` | expected syntax is `Expression`; protected Item/leading stays pending; ordinary EOF may first emit owner-leading and anchors at physical EOF |
-| non-boundary non-NUD run followed by an admitted inline expression | one nonempty raw Error group, then the same required inline Expression child | one malformed episode retries the same Rhs position; nested Expression recovery remains Expression-owned |
+| non-boundary non-NUD run followed by an admitted inline expression | one nonempty direct raw Error group, then one `OperatorChain` child | expected syntax is `Expression`, primary zero; one malformed episode retries the same Rhs position; nested recovery retains its own grammar-owner slots within the RHS child |
 | non-boundary non-NUD run reaching a protected boundary | one nonempty terminal raw Error group | terminal raw group returns the boundary unchanged and adds no same-cause `Missing` |
 
 The current temporary parser-record compatibility path distinguishes an
@@ -165,21 +180,23 @@ node's zero-width CST range as already specified by the governing amendment;
 the current record-coordinate compatibility is then retired rather than
 preserved as hidden schema provenance.
 
-The raw group is rendered according to the current Error-token/Invalid-node
-topology status; it does not authorize an `Invalid` child. The table's ordered
-alternatives, direct tail ownership, and boundary facts distinguish the Rhs
-slot without parser records. It also shows why a generic `Error` child union
-would be inadequate: the two raw cases have different following children and
-protected-boundary behavior.
+The raw group uses the implemented Error-token/Invalid-node topology; it does
+not authorize an `Invalid` child. The table's ordered alternatives, concrete
+direct children, leading placement, direct-tail ownership, and boundary facts
+distinguish the Rhs slot without parser records. It also shows why a generic
+`Error` child union would be inadequate: the two raw cases have different
+following children and protected-boundary behavior.
 
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`
-   slice above for
-   exact slot identity, malformed sequence, continuation, and boundary
-   preservation. No parser change occurs in this gate. A clean review closes
-   only this representative direct-inline proof, not the indented-block
-   dependency or the whole-slot inventory.
+   slice above for exact direct-child topology, leading placement, expected
+   projection, malformed sequence, continuation, range and boundary
+   preservation. Add exact CST evidence for accepted RHS, Missing, terminal
+   raw Error, Error-to-retry with retry leading, and nested recovery. No parser
+   change occurs in this gate. A clean review and that evidence close only this
+   representative direct-inline proof, not the indented-block dependency or
+   the whole-slot inventory.
 2. Inventory every recovery-bearing slot and publish its ordered schema before
    the existing parser-ledger/public-diagnostic migration. An unmapped slot
    remains explicitly open; it is not inferred from a parent kind or current
