@@ -132,8 +132,10 @@ RecordItem ::= Field { name: PatternName, form: Shorthand
 
 An accepted skeleton retains its variant with incomplete children. Unaccepted
 record heads are incomplete record entries; no fabricated name is permitted.
-The exact policy for a missing Pattern head followed by accepted tails requires
-one explicit product-table row before approval.
+The candidate availability rule for a missing Pattern head followed by an
+accepted tail is stated below; before approval it still needs its exact
+current-authority/evidence locator and review, rather than a second invented
+policy row.
 
 ```text
 BracedBlock { open, statements: Vec<R<Statement>>, close: R<Range>, range }
@@ -504,14 +506,17 @@ root-owned Error become a fabricated Error-statement product.
 
 1. Give every row above a field-to-current-authority/evidence locator and
    resolve historical local-authority versus Proposal status.
-2. Define every currently reachable omitted product: TypeExpression and its
+2. Close every currently reachable candidate product: TypeExpression and its
    record/forall/effect-row/polyvariant/bracket families; all declaration body,
    form, parameter, derives, companion, variant and field products; and every
-   recursive list's exact range/recovery mapping.
-3. Close the explicitly named product choices: missing Pattern head with tails,
-   ordinary delimited expression entries, ExpressionList separator
+   recursive list's exact range/recovery mapping. Candidate prose is not an
+   adopted product until its field-to-authority/evidence locator is reviewed.
+3. Adjudicate and mark the candidate choices for missing Pattern heads with
+   tails, ordinary delimited expression entries, ExpressionList separator
    correspondence, exact Type/PV availability, operator-header
-   signature/failure mapping, and every field-to-authority locator.
+   signature/failure mapping, and every field-to-authority locator. The first
+   four have candidate mappings in this Draft; their open state is approval,
+   locator and review, not an absence of proposed shape.
 4. For flat chains, distinguish wholly unavailable initial expressions from
    accepted chains whose operand is missing or terminally malformed; define
    successful retry and nested-operand outcomes without deriving them from an
