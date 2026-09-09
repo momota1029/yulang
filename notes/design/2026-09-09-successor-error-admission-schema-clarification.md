@@ -115,8 +115,24 @@ grammar; they do not reproduce a compiler-internal coverage ledger.
 
 ## Representative schema slice: AssignmentTail inline RHS
 
-The direct inline `Assignment(Rhs)` position of `AssignmentTail` is the
-representative proposed slice for this clarification.
+### Authority and boundary
+
+Status: Authoritative for this direct-inline slice only
+
+Approved-by: user
+
+Approved-at: 2026-09-10
+
+The user approved this slice after its focused Rowan evidence and independent
+specification and compiler/recovery audits. The approval covers the concrete
+child topology, leading ownership, recovery admission and diagnostic
+projection stated in this section. It does not promote this document's other
+proposal material, the delegated `IndentedStatementBlock` alternative, any
+other slot, the inventory, CST interpreter, parser-ledger retirement or public
+diagnostic API.
+
+The direct inline `Assignment(Rhs)` position of `AssignmentTail` is the first
+specified slice for this clarification.
 Its governing authority is
 `2026-09-09-successor-expression-structural-tails-draft.md`, **Owner topology
 and admission** and **Assignment**; its M2 construction handoff confirms the
