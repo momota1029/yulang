@@ -23,11 +23,23 @@ Structural nodes never contain bare character data. A source-bearing leaf
 states its spelling in `text`, so indentation and ordinary text outside a leaf
 cannot carry source bytes.
 
-The `text` attribute denotes reversible source spelling. The exact escaping
-convention for that documentation attribute is pending: this reference does
-not adopt ordinary XML attribute escaping, because it does not by itself state
-how to preserve every source spelling, including CRLF. Examples use spellings
-that need no escaping until that rule is specified.
+The `text` attribute denotes reversible source spelling. This documentation
+notation is not XML: it does not use XML entities. It uses these canonical
+backslash escapes:
+
+| Source character | `text` spelling |
+| --- | --- |
+| reverse solidus | `\\` |
+| quotation mark | `\"` |
+| carriage return | `\r` |
+| line feed | `\n` |
+| horizontal tab | `\t` |
+| another U+0000--U+001F control character | `\u{XXXX}` with four uppercase hexadecimal digits |
+
+Every other Unicode scalar value is literal. Decoding the attribute is exact:
+the decoded spelling, rather than its visual notation, determines the leaf's
+UTF-8 byte range. Thus CRLF remains distinct from LF, and a literal `\r`
+remains distinct from a carriage return.
 
 ## Nodes, tokens, and trivia
 

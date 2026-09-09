@@ -24,9 +24,22 @@ sourceを持つleafは`text`にspellingを置く。
 そのため、indentationやleafの外側にある通常のtextはsource byteを表せない。
 
 `text` attributeは可逆なsource spellingを表す。
-この文書attributeの正確なescaping conventionは未決定である。
-CRLFを含むすべてのsource spellingを保存する方法を標準XMLのattribute escapingだけからは定められないため、このリファレンスはそれを採用しない。
-その規則を定めるまでは、exampleにescapingを必要としないspellingだけを使う。
+この文書記法はXMLではないため、XML entityを使わない。
+次のcanonical backslash escapeを使う。
+
+| Source character | `text` spelling |
+| --- | --- |
+| reverse solidus | `\\` |
+| quotation mark | `\"` |
+| carriage return | `\r` |
+| line feed | `\n` |
+| horizontal tab | `\t` |
+| ほかのU+0000--U+001F control character | 4桁の大文字hexadecimal digitを使う`\u{XXXX}` |
+
+それ以外のUnicode scalar valueはliteralに書く。
+attributeのdecodeは正確である。
+visual notationではなくdecode後のspellingがleafのUTF-8 byte rangeを決める。
+そのためCRLFとLFは区別され、literalな`\r`とcarriage returnも区別される。
 
 ## Node、token、trivia
 

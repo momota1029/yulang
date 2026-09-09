@@ -193,8 +193,8 @@ and Root/header/diagnostic ownership. It distinguishes implemented direct
 Rowan construction from the pending Error-token, Invalid-node and CST-derived
 diagnostic migration, and labels unconverted construct pages as legacy
 implementation material. Exact reversible escaping for XML-like `text`
-attributes remains an open notation rule; ordinary XML escaping is not claimed
-to preserve CRLF source spelling.
+attributes is defined by the text-attribute escaping addendum: canonical
+backslash/control escapes preserve CRLF, and the notation uses no XML entities.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
