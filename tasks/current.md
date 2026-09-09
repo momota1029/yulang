@@ -173,7 +173,13 @@ construction is complete: focused owner/output controls and the final
 single-threaded library run passed 1,070 tests with one existing manual harness
 ignored. The sole then-observed failure was the pre-existing `SyntaxKind::Unknown`
 discriminant assertion (`231` actual, `229` expected) in an unmodified test.
-The full per-slot schema still blocks removal of that temporary machinery.
+The full per-slot schema still blocks removal of that temporary machinery. Its
+two-layer scaffolding now exists: the Draft internal catalog at
+`notes/design/2026-09-10-successor-cst-slot-schema-catalog.md` and the separate
+non-authoritative source coverage manifest at
+`notes/progress/successor-cst-slot-schema-coverage.md`. Full semantic mapping,
+ordered schemas and independent audit remain open; this record-only step made
+no parser, API, test or benchmark change.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

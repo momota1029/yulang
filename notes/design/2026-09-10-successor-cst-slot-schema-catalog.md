@@ -1,0 +1,176 @@
+# Successor CST slot-schema catalog
+
+Status: Draft
+
+Date: 2026-09-10
+
+Scope: a non-normative catalog scaffold for the complete successor Rowan CST
+slot schema required before CST-derived diagnostic/API migration. It records
+where authoritative or evidence-complete slices can be located and where
+mapping remains to be done. It does not select a new grammar, recovery,
+diagnostic, API, or implementation policy.
+
+Supersedes: none
+
+## Relationship and authority
+
+The governing authority is
+`2026-09-09-successor-cst-derived-diagnostics-amendment-draft.md`. Its complete
+per-slot schema gate remains a prerequisite to removing parser recovery-record
+state, reservations, frozen reconciliation, diagnostic IDs, or public
+diagnostic storage. This catalog is an organizing artifact for that prerequisite;
+it is not the schema and is not authority for a missing row.
+
+`2026-09-09-successor-error-invalid-topology-ordering-addendum.md` remains
+Authoritative for the completed topology-only Error-token/Invalid-node gate.
+`2026-09-09-successor-error-admission-schema-clarification.md` remains Draft,
+except for its AssignmentTail direct-inline slice, which is Authoritative. The
+catalog links that slice rather than copying or extending it. Existing accepted
+syntax, recovery continuation, current-Item and fence handoff, lossless-source,
+and direct-Rowan contracts retain their governing authorities.
+
+This is internal schema work. The public `syntax-reference` remains
+reader-facing XML-like Rowan grammar and explanation; it must not contain this
+catalog's source/callsite coverage.
+
+## Catalog identity and required row facts
+
+A semantic slot identity is:
+
+```text
+(production, ordered child phase, necessary ancestor context)
+```
+
+Neither a source helper/caller nor a parent `SyntaxKind` alone identifies a
+slot. `necessary ancestor context` is present only when it is required to
+distinguish otherwise identical child placement, such as an opener-selected
+close, a parent sequence phase, or a caller-selected boundary.
+
+Each completed catalog row must state all of the following:
+
+| Fact | Required content |
+| --- | --- |
+| identity | production, ordered child phase, and necessary ancestor context |
+| ordered Rowan grammar | valid children, punctuation, optionality, repetition, and trivia placement |
+| malformed admission | exact Missing, raw Error-group, retry, terminal, and structured-child alternatives |
+| nested ownership | child productions which retain their own slot schemas |
+| source/boundary ownership | ordinary, malformed-run, retry, and protected-boundary leading; consumed/returned Item facts |
+| diagnostic projection | recovery category, expected alternatives, primary alternative, range/grouping, and occurrence order |
+| proof/status | governing authority, direct CST evidence, review/promotion state, and any excluded dependency |
+
+An omitted row grants no malformed admission. This catalog does not infer one
+from a sibling, common helper, or matching source spelling.
+
+## Source-family catalog map
+
+The map is a planning index, not a claim that a family is complete or that a
+file/call count equals a semantic-slot count. The non-authoritative source
+coverage manifest names the corresponding evidence files.
+
+| Catalog family | Row scope to map | Current catalog state |
+| --- | --- | --- |
+| expression tails and required operands | assignment, annotation, colon/with, fixed access, required operands, delimited expression phases | partial: AssignmentTail direct-inline is externally Authoritative; dedicated Field/Path evidence-complete Draft slices are referenced below |
+| expression forms and statement/layout containers | case/if/for, source-root, statement and virtual-statement sequences | unmapped except for delegated evidence links |
+| pattern and structured delimiters | Pattern entries, delimited sequences, RecordPattern Item/Separator structured recovery | unmapped; preserve the designated Invalid row below |
+| type entries, tails and delimiters | type expression, paths, rows, variants, forall, delimited closes and TypeCall close | partial: listed evidence-complete Draft slices and TypeCall mapping below |
+| literal, interpolation and rule | String terminator, interpolation sequence, Rule-owned slots, ExpressionList delegation | partial: listed evidence-complete Draft slices; ExpressionList newline exception remains to map |
+| declarations and headers | declaration heads, fields, variants, companions, imports, operator headers and payloads | unmapped |
+
+## Fixed topology references
+
+### The two and only two current structured `Invalid` rows
+
+These are topology references, not new admissions. The Error/Invalid ordering
+addendum permits only these two structured owners. Their nested syntax remains
+child-owned and must be cataloged in its own row before ledger retirement.
+
+| Semantic slot identity | Exact structural nesting | Status |
+| --- | --- | --- |
+| `(PolymorphicVariantTag, TagName after the variant introducer, polymorphic-variant head context)` | `PolymorphicVariantType(PolymorphicVariantTag(Invalid(TypeExpression(...))))` | fixed existing structured owner; slot schema unmapped |
+| `(RecordPattern, Item or Separator in its record sequence phase, RecordPattern sequence context)` | `RecordPattern(Invalid(Pattern(...)))` | fixed existing structured owner; slot schema unmapped |
+
+No other row may obtain `Invalid` by analogy. The nested `TypeExpression` or
+`Pattern` can itself contain its own documented Missing/Error/Invalid topology;
+the enclosing `Invalid` remains a distinct structured occurrence and precedes
+its children in future interpretation.
+
+### TypeCall close-slot map
+
+`2026-09-10-successor-typecall-close-slot-node.md` is Authoritative and its
+private construction is complete. Its catalog target is:
+
+```text
+(TypeCallTail, terminal close after all argument/separator children,
+ TypeCall context)
+
+TypeCallTail := LParen <argument/separator children> TypeCallClose
+TypeCallClose := NativeTrivia* (Error NativeTrivia*)* (RParen | Missing)
+```
+
+`TypeCallClose` distinguishes terminal-close Error from direct `TypeCallTail`
+argument Error. This is a referenced topology, not a complete TypeCall
+schema: argument, separator, caller/boundary, and nested child rows remain
+separate catalog work.
+
+### External authoritative slice
+
+The direct-inline `AssignmentTail` RHS slice is Authoritative only in
+`2026-09-09-successor-error-admission-schema-clarification.md`,
+**Representative schema slice: AssignmentTail inline RHS**. Its ordered
+children, leading, Missing/raw Error admission, retry, projection and nested
+ownership are not copied here. The indented `Assignment(IndentedStatement)`
+alternative remains an excluded open dependency.
+
+## Existing evidence-complete Draft slices
+
+The following references report Draft evidence complete, not promotion to
+Authoritative status. They remain bounded slices and do not complete their
+families or the global catalog.
+
+| Slice | Reference | Promotion |
+| --- | --- | --- |
+| FieldTail Name / PathTail Segment | error-admission clarification, **Proposed schema slice: fixed FieldTail and PathTail names** | user promotion open |
+| StringLiteral terminator | error-admission clarification, **Proposed schema slice: StringLiteral terminator** | user promotion open |
+| Rule-owned closes/capture/names/sequence | error-admission clarification, **Proposed schema slice: dedicated Rule literal slots** | user promotion open |
+| StringInterpolationBody statement sequence | error-admission clarification, **Proposed schema slice: StringInterpolationBody statement sequence** | user promotion open |
+| TypePathTail segment | error-admission clarification, **Proposed schema slice: TypePathTail segment** | user promotion open |
+| LeadingEffectTypeHead | error-admission clarification, **Proposed schema slice: LeadingEffectTypeHead** | user promotion open |
+| BracketRow required-arrow continuation | error-admission clarification, **Proposed schema slice: BracketRow-selected required-arrow continuation** | user promotion open |
+| actual-arrow TypeArrowTail RHS | error-admission clarification, **Proposed schema slice: TypeArrowTail actual-arrow RHS** | user promotion open |
+
+The AssignmentTail direct-inline slice is intentionally absent from this table:
+it is externally Authoritative, rather than an evidence-complete Draft.
+
+## Open, delegated, and unmapped policy
+
+Use these statuses for catalog rows:
+
+| Status | Meaning |
+| --- | --- |
+| `unmapped` | no semantic-slot row has yet been written |
+| `delegated` | the parent row intentionally relies on a separately named child slot; that child is not thereby complete |
+| `referenced` | a governing authority or bounded slice exists elsewhere; the catalog has not duplicated it |
+| `evidence-complete Draft` | direct CST proof is reported complete, but promotion remains open |
+| `Authoritative slice` | user-approved bounded schema authority; surrounding rows remain independent |
+| `mapped` | all mandatory row facts have been recorded and independently audited; this scaffold currently claims no such global completion |
+
+Source sites are evidence links only. Map a helper/caller to a semantic slot
+only after its produced direct-child phase and all necessary parent/caller
+context are identified. A shared helper may evidence multiple rows; a single
+row may require multiple source sites. The coverage manifest is neither a
+future parser diagnostic ledger nor a substitute identity field.
+
+Stop the affected mapping and return to the owning schema/design gate if any
+required diagnostic cannot be selected from CST plus documented slot context;
+two distinct expected roles have indistinguishable topology; a row would need
+opaque Error relexing, hidden recovery provenance, or a parallel ledger; a
+new `Invalid` owner would be needed; or an authority/continuation/boundary
+contract conflicts. Do not manufacture a Missing, collapse alternatives, or
+promote the catalog to resolve such a contradiction.
+
+## Completion boundary
+
+This catalog scaffold is not the complete per-slot schema. Full mapping,
+ordered schemas, direct evidence where required, independent audit, and any
+later CST interpreter/parser-ledger/API migration remain open. It authorizes no
+parser, API, test, benchmark, or public-reference change.
