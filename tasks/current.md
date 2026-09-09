@@ -175,12 +175,18 @@ segments. The Rule leading-fragment batch now has a one-cursor/control proof
 obligation. These slices do not constitute review of the incomplete total
 product closure or implementation authority.
 The active M3 inventory refinement adds candidate Assignment/TypeAnnotation
-tail fields, Pattern String/RuleExpression primaries, and arm terminators; it
-also corrects Forall malformed-binder retry to separate incomplete/complete
+tail fields, Pattern String/RuleExpression primaries, arm terminators, and the
+owner-local helper leaves needed to state those products: operator use/path,
+inline chain/statement, PatternName/record defaults, CaseLike labels/layout,
+explicit visibility/declaration parameters, and operator-header spelling.
+It also corrects Forall malformed-binder retry to separate incomplete/complete
 entries and keeps OperatorName availability at its enclosing signature. Exact
-conformance and recovery reviews found no blocking defect. Undefined helper
-leaf shapes, complete authority locators, output API/coordinate publication,
-static performance review and user approval remain open.
+conformance and recovery review removed an unadmitted Struct parameter and
+made all newly selected incomplete physical endpoints explicit, including
+block close-recovery leading; no production authority follows from that Draft
+repair. Undefined remaining helper maps, complete authority locators, output
+API/coordinate publication, static performance review and user approval remain
+open.
 Once approved, successor Yumark document/frame construction owns raw/selected
 fence dispatch, Frame/quote continuation, close suffix/newline ownership,
 host-table cell call, and following-document continuation. It must not be

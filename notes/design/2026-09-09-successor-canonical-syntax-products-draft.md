@@ -95,6 +95,10 @@ Primary ::= Identifier(WordSyntax) | Integer(IntegerSyntax)
           | BracedStatementBlock(BracedBlock)
           | String(StringLiteral) | RuleLiteral(RuleLiteral)
           | RuleExpression(RuleExpression)
+
+OperatorUse { spelling: TextSyntax,
+              role: Prefix | Infix | Suffix | Nullfix, range }
+PathSegment ::= Identifier(WordSyntax) | SigilIdentifier(WordSyntax)
 ```
 
 `Error.purpose` is supplied by the recovery owner: a run followed by an
@@ -115,10 +119,13 @@ WithBody { keyword, colon: R<Range>, body: R<InlineStatement | IndentedBlock>, r
 AssignmentTail { equals, rhs: R<AssignmentRhs>, range }
 AssignmentRhs ::= Inline(Box<OperatorChain>) | Indented(IndentedBlock)
 TypeAnnotationTail { as_keyword, type_expr: R<Box<TypeExpression>>, range }
+InlineArguments { arguments: Vec<R<OperatorChain>>, range }
+InlineChain ::= Box<OperatorChain>
+InlineStatement ::= Box<Statement>
 
 Pattern { head: R<PatternPrimary>, tails: Vec<PatternTail>,
           annotation: Option<PatternTypeAnnotation>, range }
-PatternPrimary ::= Identifier(WordSyntax) | Integer(IntegerSyntax)
+PatternPrimary ::= Identifier(PatternName) | Integer(IntegerSyntax)
                  | Symbol { colon, name: R<WordSyntax>, range }
                  | Parenthesized(PatternGroup) | List(ListPattern)
                  | Record(RecordPattern) | String(StringLiteral)
@@ -130,10 +137,14 @@ PatternGroup { open, elements: Vec<R<Pattern>>, trailing_comma, close: R<Range>,
 ListPattern { open, items: Vec<R<ListItem>>, trailing_comma, close: R<Range>, range }
 ListItem ::= Pattern(Pattern) | Spread { marker, rhs: R<Box<Pattern>>, range }
 RecordPattern { open, items: Vec<R<RecordItem>>, trailing_comma, close: R<Range>, range }
-RecordItem ::= Field { name: PatternName, form: Shorthand
-                       | Nested { colon, pattern: R<Box<Pattern>>, default }
-                       | Default { equals, expression: R<Box<OperatorChain>> }, range }
+PatternName { kind: Ordinary | Sigil, text: WordSyntax, range }
+RecordItem ::= Field { name: PatternName, form: RecordFieldForm, range }
              | Spread { marker, rhs: R<Box<Pattern>>, range }
+RecordFieldForm ::= Shorthand
+                  | Nested { colon, pattern: R<Box<Pattern>>,
+                             default: Option<RecordDefault> }
+                  | Default(RecordDefault)
+RecordDefault { equals, expression: R<Box<OperatorChain>>, range }
 ```
 
 The Assignment/TypeAnnotationTail entries are candidate products for the
@@ -145,6 +156,33 @@ Pattern contextual `rule {}` route. Their fields reuse the companion literal
 schema rather than creating Pattern-local literal products. Case/Catch
 terminators retain the Authoritative optional semicolon range; they are not
 sequence separators.
+
+`OperatorUse` excludes leading/trailing trivia, table identity, binding power
+and operand association; the enclosing role-specific ChainItem records its
+source position. A PathSegment has no independent recovered separator: its
+FixedPostfix Path owner owns that slot, and a successful retry is the next
+outer continuation. InlineArguments owns the colon application's nonempty
+inline chain vector but no comma products; InlineChain and InlineStatement
+are transparent single-child helpers, not list wrappers. These are candidate
+products grounded in the existing owner topology. In particular, the proposed
+range of an admitted AssignmentTail starts at `=` and ends at the last physical
+byte locally published through its RHS, whether that child is complete or
+incomplete; when the RHS publishes no physical byte, it ends at `=`. A
+TypeAnnotationTail applies the same rule from `as` through its Type child.
+Neither range absorbs a Missing coordinate, terminal Error diagnostic extent,
+or protected unread successor: physically emitted Error bytes are included by
+the publication rule, but no endpoint is inferred from a diagnostic extent.
+
+PatternName preserves the currently accepted ordinary/sigil distinction in
+both primary and record-field positions. A committed record name completes its
+field skeleton; Default and a Nested default own their actual `=` and required
+expression separately. The proposed RecordDefault range begins at `=` and ends
+at the last physical byte locally published through its expression, whether
+complete or incomplete; it ends at `=` only when that expression publishes no
+physical byte.
+List/record spread markers similarly commit their outer item while their RHS
+remains recovered. These range rules are candidates for M3 review, not a
+change to Pattern recovery or CST ownership.
 
 An accepted skeleton retains its variant with incomplete children. Unaccepted
 record heads are incomplete record entries; no fabricated name is permitted.
@@ -163,10 +201,18 @@ IfArm { keyword, condition: R<OperatorChain>, body: R<ColonArmBody>, range }
 ElseArm { keyword, body: R<ColonArmBody | Box<OperatorChain>>, range }
 ColonArmBody { colon: R<Range>, rhs: R<InlineChain | IndentedBlock>, range }
 
-CaseExpression/CatchExpression { keyword, label, scrutinee: R<Box<OperatorChain>>,
-                                  block: R<CaseBlock/CatchBlock>, base_indent, range }
-CaseBlock { colon: R<Range>, arms: R<ArmSequence<CaseArm>>, layout, range }
-CatchBlock ::= Colon { colon: R<Range>, arms: R<ArmSequence<CatchArm>>, layout, range }
+CaseExpression { keyword, label: Option<CaseLikeLabel>,
+                 scrutinee: R<Box<OperatorChain>>, block: R<CaseBlock>,
+                 base_indent, range }
+CatchExpression { keyword, label: Option<CaseLikeLabel>,
+                  scrutinee: R<Box<OperatorChain>>, block: R<CatchBlock>,
+                  base_indent, range }
+CaseLikeLabel { text: TextSyntax, range }
+ColonArmLayout ::= Inline | Indented { base_indent, arm_indent }
+CaseBlock { colon: R<Range>, arms: R<ArmSequence<CaseArm>>,
+            layout: ColonArmLayout, range }
+CatchBlock ::= Colon { colon: R<Range>, arms: R<ArmSequence<CatchArm>>,
+                       layout: ColonArmLayout, range }
              | Braced { open, arms: R<ArmSequence<CatchArm>>, close: R<Range>, range }
 ArmSequence<A> { arms: Vec<R<A>>, trailing_comma, range }
 CaseArm { pattern: R<Pattern>, guard:Option<Guard>, arrow: R<Range>, body: R<ArmBody>,
@@ -177,6 +223,23 @@ Guard { keyword: If(TextSyntax) | Where(TextSyntax),
         condition:R<Box<OperatorChain>>, range }
 ArmBody ::= Inline(Box<OperatorChain>) | Indented(IndentedBlock)
 ```
+
+A CaseLikeLabel is one accepted sigil-identifier token; `None` is the only
+unentered label state. Colon-form block ranges are proposed to start at their
+colon and end at the last physical byte locally published through their arm
+sequence, including an accepted trailing comma; with no such byte, they end at
+the colon. A braced block starts at its opener and ends at a complete close or
+the last physical byte locally published by that block, including its arm
+sequence, accepted separators and close-recovery leading; returned boundary
+leading remains excluded. With neither, it ends at the opener. ArmSequence
+excludes the block introducer/close. An arm starts at its first locally
+published physical byte, or at its owning recovery anchor when it has none,
+and ends at its terminator when present, otherwise at its last locally
+published physical byte; an entirely unpopulated arm is zero-width at that
+anchor. Inter-arm comma/newline remains list ownership, not arm range. These
+candidate physical envelopes preserve the existing distinct
+inline/indented/braced forms and do not derive availability from separator
+diagnostics.
 
 The optional guard keyword is positive committed evidence. No keyword gives
 `None`; an admitted `if` or `where` gives `Some(Guard)` and only its mandatory
@@ -405,18 +468,31 @@ All declaration slots below use the common `R` rule; current typed recovery
 roles map directly to the named required field. Inline/indented bodies retain
 their distinct accepted form.
 
+```text
+VisibilitySyntax ::= ImplicitPrivate
+                   | Explicit { value: Private | Our | Public, keyword, range }
+DeclarationParameter ::= Identifier(WordSyntax) | SigilIdentifier(WordSyntax)
+```
+
+Implicit private visibility carries no synthetic range or token. `my` must
+remain explicit even where its semantic visibility equals private. Where a
+declaration admits parameters, they are actual leaves in source order; an
+absent list is empty and neither creates a zero-width list nor an incomplete
+placeholder. These are candidate lossless syntax leaves; owner-specific
+malformed/range mappings remain in the pre-approval locator closure.
+
 | statement | candidate fields |
 | --- | --- |
 | Binding | `visibility, target:R<Pattern>, definition: Option<{equals, body:R<InlineChain\|IndentedBlock>}>, range` |
 | Use | `visibility, tree:R<UseTree>, range`; see dedicated tree below |
 | Mod | `visibility, test_marker, name:Option<R<WordSyntax>>, body:R<ModBody>, range` |
 | Struct | `visibility, name:R<WordSyntax>, derives, body:R<StructBody>, companion, range` |
-| Type | `visibility, name:R<WordSyntax>, parameters, derives, form:R<Nominal\|Equality{equals:R<Range>,rhs:R<Box<TypeExpression>>}>, companion, range` |
+| Type | `visibility, name:R<WordSyntax>, parameters:Vec<DeclarationParameter>, derives, form:R<Nominal\|Equality{equals:R<Range>,rhs:R<Box<TypeExpression>>}>, companion, range` |
 | Impl | `visibility, head:R<Box<TypeExpression>>, description, body:R<ImplBody>, range` |
 | Cast | `visibility, pattern:R<CastPattern>, target:R<CastTarget>, form:R<CastForm>, range` |
 | Role | `visibility, head:R<Box<TypeExpression>>, body:R<RoleBody>, range` |
 | Act | `visibility, head:R<Box<TypeExpression>>, derives:Vec<DerivesAttachment>, source, body:R<ActBody>, companion, range` |
-| Enum / Error | distinct declarations with `visibility, name:R<WordSyntax>, parameters, derives, body:R<VariantBody>, companion, range` |
+| Enum / Error | distinct declarations with `visibility, name:R<WordSyntax>, parameters:Vec<DeclarationParameter>, derives, body:R<VariantBody>, companion, range` |
 | For | `label, pattern:R<Box<Pattern>>, in_keyword:R<Range>, iterable:R<OperatorChain>, body:R<ForBody>, range` |
 
 Named fields retain `name:R<WordSyntax>, colon:R<Range>, type_expr:R<Box<TypeExpression>>`;
@@ -426,6 +502,15 @@ accepted trailing punctuation, recovered close and range. Variants retain
 their recovered child lists. Derives retains its clause and recovered type
 entries. Declaration companions retain their already-authoritative companion
 shape, using owned leaves only.
+
+An attachment's candidate range equals its sole DerivesClause range; attachment
+position is chosen only at its owner entrypoint, never reconstructed from CST
+order. Actual body introducers begin their selected helper range and that range
+ends at the last locally owned child/recovery byte, excluding returned
+separator/dedent Items. This preserves Mod's recovered-colon distinction,
+actual-only Impl/Role/Act/For colons, and Struct's accepted
+CompanionIntroduced variant without fabricating a semicolon. The exact range
+row for each body branch remains a review obligation.
 
 `UseTree` is structural syntax, never flattened header projection:
 
@@ -478,11 +563,12 @@ approved sibling CST topology:
 
 ```text
 OperatorDefinition { header:R<OperatorHeaderSyntax>, body: NotEntered | R<OperatorChain>, range }
-OperatorHeaderSyntax { visibility, lazy, signature:R<OperatorSignature>, range }
-OperatorSignature ::= Prefix{name:R<OperatorName>,right:R<BindingPower>,equals:R<Range>}
-                    | Infix{name:R<OperatorName>,left:R<BindingPower>,right:R<BindingPower>,equals:R<Range>}
-                    | Suffix{name:R<OperatorName>,left:R<BindingPower>,equals:R<Range>}
-                    | Nullfix{name:R<OperatorName>,equals:R<Range>}
+OperatorHeaderSyntax { visibility:VisibilitySyntax, lazy:Option<Range>,
+                       signature:R<OperatorSignature>, range }
+OperatorSignature ::= Prefix{fixity,name:R<OperatorName>,right:R<BindingPower>,equals:R<Range>}
+                    | Infix{fixity,name:R<OperatorName>,left:R<BindingPower>,right:R<BindingPower>,equals:R<Range>}
+                    | Suffix{fixity,name:R<OperatorName>,left:R<BindingPower>,equals:R<Range>}
+                    | Nullfix{fixity,name:R<OperatorName>,equals:R<Range>}
 OperatorName { spelling:TextSyntax, close:Range, range }
 BindingPower { components:Vec<NumberSyntax>, range }
 ```
@@ -494,6 +580,17 @@ parenthesized atom: incomplete name recovery belongs to its enclosing
 `OperatorSignature`, not to fabricated inner spelling or close slots. Any
 partial-name product needs a separate admission and product decision. Exact
 header-failure completeness and body Error→boundary mapping are:
+
+`fixity` is an actual keyword range and `lazy` is absent or its actual keyword
+range, never a semantic boolean. The header range is proposed to start at an
+explicit visibility keyword when present, otherwise at `lazy` or `fixity`, and
+to end at its last locally published actual header byte: the actual `=` when
+present, otherwise whichever visibility, `lazy`, fixity, signature or recovery
+byte it last publishes. It excludes following trivia/body and does not borrow a
+Missing coordinate or unread successor. Operator-name subfragments and
+binding-power digits/dots must enter the later materializer as verified source
+partitions, not copied spellings or assumed contiguous tokens. Their exact
+coordinate publication remains a seam-review obligation.
 
 | header/body event | candidate availability |
 | --- | --- |
