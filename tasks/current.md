@@ -240,8 +240,11 @@ promotion remains open.
 The user selected the TypeCall close-slot structural boundary under
 `2026-09-10-successor-typecall-close-slot-node.md`: terminal Call close
 construction will use `TypeCallClose`, separating close Error from direct
-CallArgument Error without relexing or a ledger. Private construction is
-pending its required generic-fallback reachability proof.
+CallArgument Error without relexing or a ledger. Its required generic-fallback
+proof found a reachable `T(A@)` contradiction: Call currently returns an
+unclassified post-argument Item without any close publication. The direct CST/
+pending-Item witness is committed; TypeCallClose construction is blocked on a
+user-selected Call-owned recovery policy for that path.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
