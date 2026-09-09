@@ -2,9 +2,9 @@
 
 This page defines the approved target for source-root, header, and diagnostic
 ownership. Direct Rowan construction and header discovery/selection are
-implemented. Retaining the selected effective table with the CST, the
-`Error`-token and `Invalid`-node topology, and CST-derived diagnostic
-publication are one pending migration gate.
+implemented. The `Error`-token and `Invalid`-node topology is a distinct,
+approved topology-only migration that may precede CST-derived diagnostic
+publication. The later diagnostic migration remains pending.
 
 ## Source root
 
@@ -37,10 +37,15 @@ but it publishes no header recovery diagnostics. Full-CST analysis is the only
 syntax-diagnostic publication path. Header and full parses do not reconcile or
 compare diagnostic streams.
 
-## Structural diagnostic ownership
+## CST-derived diagnostic ownership
 
-In the target topology, the parser records structural recovery in `Missing`,
-`Error`, and `Invalid`.
+The topology-only migration changes only CST shape. It records raw malformed
+source with `Error` tokens and uses `Invalid` only for the approved structured
+owners. Existing parser recovery records, frozen-header reconciliation, and
+published diagnostics remain as temporary compatibility machinery.
+
+In the later CST-derived diagnostic target, the parser records structural
+recovery in `Missing`, `Error`, and `Invalid`.
 The syntax-schema interpreter derives structural diagnostics while a frontend
 walks the red CST. Until a frontend/type traversal exists, a whole-tree
 collector performs that same interpretation for tools and tests.
@@ -92,7 +97,10 @@ whole source revision and its effective syntax-table identity.
 ## Current and pending publication
 
 The current implementation still publishes parser-produced recovery
-diagnostics. The approved target removes that parser ledger and derives both
-structural recovery diagnostics and environment conflict diagnostics during the
-single CST walk described above. The remaining schema audit and implementation
-migration are required before that target replaces current publication.
+diagnostics. The approved topology-only migration may replace the structural
+`Error` wrapper with `Error` tokens and restricted `Invalid` nodes while
+leaving that publication intact. A later target removes the parser ledger and
+derives both structural recovery diagnostics and environment conflict
+diagnostics during the single CST walk described above. The remaining per-slot
+schema audit and implementation migration are required before that later target
+replaces current publication.
