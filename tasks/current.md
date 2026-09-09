@@ -849,7 +849,7 @@ independent callers, not just shorter syntax at one site.
 - Replacement gates: `notes/design/2026-09-02-yu-syntax-recursive-descent-rewrite-plan.md`.
 - Typed output: `notes/design/2026-09-06-successor-typed-output-recovery-amendment.md`.
 - Callsite/RB ledger: `notes/progress/successor-typed-recovery-ledger.md`.
-- Current progress: `notes/progress/daily/2026-09-08.md`.
+- Current progress: `notes/progress/daily/2026-09-10.md`.
 - The former 2,710-line task log is preserved at
   `notes/progress/rewrite-state-before-recovery-authority-2026-09-08.md`.
   Consult it for completed gates, older residual context, and syntax-reference
