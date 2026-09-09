@@ -21,6 +21,7 @@ pub(crate) enum GrammarRole {
     Expression(ExpressionRole),
     ExpressionList(ExpressionListRole),
     ColonApplication(ColonApplicationRole),
+    Assignment(AssignmentRole),
     WithBody(WithBodyRole),
     IfExpression(IfExpressionRole),
     CaseLike(CaseLikeRole),
@@ -332,6 +333,7 @@ pub(crate) enum ExpressionListRole {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ExpressionRole {
     Nud,
+    TypeAnnotation,
     ParenthesizedSeparator,
     CallArgument,
     CallArgumentSeparator,
@@ -355,6 +357,12 @@ pub(crate) enum ExpressionRole {
 pub(crate) enum ColonApplicationRole {
     Rhs,
     InlineArgument,
+    IndentedStatement,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum AssignmentRole {
+    Rhs,
     IndentedStatement,
 }
 

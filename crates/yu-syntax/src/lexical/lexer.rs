@@ -128,6 +128,10 @@ pub(crate) fn scan_expression_payload(
     }) {
         CurrentPayload::Operator(operator)
     } else if matches!(site, OperatorSite::Led)
+        && let Some(equals) = i.token(scan_assignment_equals)
+    {
+        CurrentPayload::Token(equals)
+    } else if matches!(site, OperatorSite::Led)
         && let Some(operator) = i.token(|lex| {
             scan_dangling_operator_fenced(
                 lex,
@@ -1050,7 +1054,17 @@ pub(crate) fn scan_exact_pipe(mut i: LexIn) -> Option<Token> {
     })
 }
 
-/// Fixed `=` spellings accept only the maximal operator-shaped spelling `=`.
+/// Expression assignment falls back to one character after dynamic LED admission.
+fn scan_assignment_equals(i: LexIn) -> Option<Token> {
+    i.remainder().starts_with('=').then_some(())?;
+    let (_, text) = i.with_str(|mut lex| lex.next());
+    Some(Token {
+        kind: TokenKind::Equals,
+        text: text.into(),
+    })
+}
+
+/// Fixed declaration `=` requires the whole operator-shaped spelling.
 pub(crate) fn scan_exact_equals(i: LexIn) -> Option<Token> {
     is_exact_equals_source(i.remainder()).then_some(())?;
     let (accepted, text) = i.with_str(|mut equals| {

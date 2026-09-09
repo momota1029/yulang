@@ -45,6 +45,20 @@ activates Type-attached `impl` nor closes the historical owner-spec/AST-direct
 parity requirement. The product Draft now identifies that form as approved
 authority with successor promotion still pending.
 
+The next parser construction gate is the authoritative expression structural
+tails contract under
+`2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
+canonical AST product: `assignment` and `type_annotation` own their distinct
+flat CST tails, while `operator_chain` keeps dispatch and rejection. Assignment
+uses one-character `=` only after an admitted dynamic LED loses, owns one
+inline Expression or indented Statement RHS and terminates the chain. `as`
+delegates to full Type with an annotation-specific Missing and Type-owned Error,
+then propagates its exact Type exit; it does not re-enter expression scanning
+and cannot reinterpret a Type-stopped `+`. M2 implementation, focused tests
+and regression review are complete: structural tails 8, dynamic operators 11,
+fixed-tail recovery 9, package check, format and diff passed. Benchmark use
+was zero. Canonical materialization remains separate and open.
+
 The public syntax phase is now split under
 `2026-09-09-syntax-phase-topology.md`: `syntax_environment.rs` owns selected
 inputs/provenance, `syntax_diagnostic.rs` owns diagnostic data, and

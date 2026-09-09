@@ -154,6 +154,8 @@ pub enum SyntaxKind {
     Condition,
     OperatorChain,
     ColonApplicationTail,
+    AssignmentTail,
+    TypeAnnotationTail,
     WithBodyTail,
     CallTail,
     IndexTail,
@@ -478,6 +480,10 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::OperatorChain as u16 => SyntaxKind::OperatorChain,
             value if value == SyntaxKind::ColonApplicationTail as u16 => {
                 SyntaxKind::ColonApplicationTail
+            }
+            value if value == SyntaxKind::AssignmentTail as u16 => SyntaxKind::AssignmentTail,
+            value if value == SyntaxKind::TypeAnnotationTail as u16 => {
+                SyntaxKind::TypeAnnotationTail
             }
             value if value == SyntaxKind::CallTail as u16 => SyntaxKind::CallTail,
             value if value == SyntaxKind::IndexTail as u16 => SyntaxKind::IndexTail,

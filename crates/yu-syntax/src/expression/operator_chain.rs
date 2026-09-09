@@ -515,6 +515,43 @@ pub(crate) fn tail_normalized(
     if is_active_stop(i.rb(), &item, stops) || is_line_stop(&item, stops) {
         return complete(handoff(item), line_entry);
     }
+    let assignment = token_kind(&item) == Some(TokenKind::Equals);
+    let annotation = is_contextual_word(i.rb(), &item, "as");
+    if assignment || annotation {
+        if threshold.is_some()
+            || matches!(ml_mode, MlMode::None)
+            || !chain_continuation(item.leading_view(), baseline)
+        {
+            return complete(handoff(item), line_entry);
+        }
+        if assignment {
+            return super::tails::assignment_tail_normalized(
+                i,
+                item,
+                baseline,
+                stops,
+                ml_mode,
+                line_handoff,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+                sequence,
+            );
+        }
+        if annotation {
+            return super::tails::type_annotation_tail_normalized(
+                i,
+                item,
+                baseline,
+                stops,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            );
+        }
+    }
     if is_with_tail_item(i.rb(), &item, baseline, ml_mode) {
         return with_tail_normalized(
             i,

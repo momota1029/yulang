@@ -7,6 +7,7 @@ mod colon_with_recovery;
 mod declaration;
 mod delimited_recovery;
 mod expression_recovery;
+mod expression_structural_tails;
 mod fixed_tail_recovery;
 mod for_statement;
 mod header;
