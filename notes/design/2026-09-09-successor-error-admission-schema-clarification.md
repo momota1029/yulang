@@ -277,6 +277,44 @@ successor coordinate for unread CRLF leading. Specification and
 compiler/recovery reviews closed after bounded test-only repairs. This does not
 promote the slice or close any other inventory row.
 
+## Proposed schema slice: StringLiteral terminator
+
+This proposed slice covers only the outer ordinary/heredoc terminator of a
+non-Rule `StringLiteral`, under the existing
+`Literal(StringTerminator)` recovery authority. Escape and interpolation
+recovery remain children of their own literal productions.
+
+```text
+StringLiteral := StringStart StringPiece* (StringEnd | Missing)
+```
+
+This production elides opener-leading native trivia, which is direct
+`StringLiteral` content before `StringStart`. `StringPiece` includes accepted
+text, interpolation and escape children, and
+the physical Yumark quote-prefix leaves that ordinary scanning emits. Opener
+leading remains before `StringStart`. The terminator is the final direct child:
+an accepted `StringEnd` token or one zero-width `Missing` node. There is no
+direct outer raw Error or `Invalid` alternative for this slot.
+
+The opener's spelling determines normal versus heredoc close width. In ordinary
+text scanning, a mismatched heredoc quote run remains `StringText`; Unicode
+malformed recovery and interpolation-format text retain their own Error and
+FormatText ownership respectively. Thus a CST walk identifies this slot from
+the final direct child and opener, never by source quote search.
+At EOF or a fence boundary, the outer Missing projects one
+`Literal(StringTerminator)` expectation at its zero-width CST range and leaves
+the protected pending Item unchanged. Accepted quote-prefix leaves before an
+actual close remain native direct children. Nested escape/interpolation
+recovery is visited before the final outer terminator occurrence, and an
+equal-offset nested Missing is distinguished by its child path.
+
+Exact terminator spelling can be derived from `StringStart` for presentation;
+the existing StringTerminator expectation vocabulary remains unchanged. This
+is a Draft proposal. Direct CST proof must cover normal and heredoc close,
+mismatched quote runs, UTF-8/CRLF EOF, fence boundaries, accepted prefixes,
+nested equal-offset Missing, malformed Unicode then EOF, format quotes and
+actual Expression/Pattern/Rule-string callers before review or promotion.
+
 ## Construction and proof gates
 
 1. Independently review the representative direct inline `Assignment(Rhs)`

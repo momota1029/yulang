@@ -219,6 +219,8 @@ from it. The indented RHS and complete inventory stay open.
 The dedicated FieldTail/PathTail name-slot Draft is preflighted against the
 existing recovery authority and has direct CST proof; user promotion remains
 open.
+The outer StringLiteral terminator has a preflighted Draft; its direct CST proof
+and promotion remain open.
 
 The Cast PatternIntroducer gate is complete under
 `2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md`.
