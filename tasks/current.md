@@ -259,9 +259,13 @@ source, frozen replay and continuation. This is a schema gap, not a parser
 defect; topology remains unselected pending a bounded Draft and review.
 The Draft `2026-09-10-successor-braced-statement-slot-draft.md` proposes
 existing `BlockStatementSeparator` around Separator Missing plus one terminal
-`BracedStatementBlockClose` for accepted local `}` or Close Missing. It is
-under independent review; do not change CST topology, SyntaxKinds, records or
-collision expectations until user approval.
+`BracedStatementBlockClose` for accepted local `}` or Close Missing. Its
+separate nested-For continuation prerequisite is repaired: a completed child
+now makes the enclosing braced sequence acquire and dispatch one successor,
+leaving the outer `}` to its owner. The Draft remains unapproved and requires
+renewed specification/compiler-recovery review of its corrected leading and
+narrow-supersession contract; do not change CST topology, SyntaxKinds, records
+or collision expectations until user approval.
 The Draft additionally exposed and focused tests now prove an existing braced
 owner defect: after a completed nested `for` braced body, `{for x in xs {}}`
 and `{for x in xs {} use a}` drop the final enclosing `}` from the CST and

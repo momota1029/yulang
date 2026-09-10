@@ -1171,11 +1171,21 @@ fn braced_statement_successor_normalized(
     item_origin: usize,
     fence: Option<&FenceBoundary>,
 ) -> Result<(Item, LineEntry, usize, Option<Option<StatementAdmission>>), NormalizedExit> {
+    let (exit, item_origin) = match exit {
+        NormalizedExit::Complete(Ok(()), line_entry) => {
+            let (item, item_origin, line_entry) =
+                statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
+            (complete(handoff(item), line_entry), item_origin)
+        }
+        exit => (exit, item_origin),
+    };
     match exit {
         NormalizedExit::Deferred(_, _) => {
             unreachable!("normalized canonical statements do not defer declaration owners")
         }
-        NormalizedExit::Complete(Ok(()), line_entry) => Err(complete(Ok(()), line_entry)),
+        NormalizedExit::Complete(Ok(()), _) => {
+            unreachable!("completed child has acquired its enclosing sequence successor")
+        }
         NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
             if implicit_delimited_newline(baseline, end.item.leading_view()) {
                 emit_separator_leading(&mut i, &mut end.item);

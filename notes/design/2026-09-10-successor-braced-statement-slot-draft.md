@@ -1,6 +1,6 @@
 # BracedStatementBlock recovery-slot CST draft
 
-Status: Draft; no implementation authorization
+Status: Draft; no implementation authorization; continuation prerequisite repaired
 
 Date: 2026-09-10
 
@@ -75,11 +75,12 @@ outside; no node consumes or emits their leading/payload/suffix.
 
 Separator Missing is opened only at the existing successor slot and finishes
 before the admitted following Statement. Its present separator leading retains
-the existing separator owner. Both accepted-close paths use the same terminal
-Close construction; accepted close leading is native Close content. Ordinary
-EOF leading remains direct block content before opening the zero-width Close
-node. Statement Error initial leading remains outside Error; Error-internal
-leading remains inside; retry/boundary leading retains its existing owner.
+the existing separator owner. An accepted local close's native leading is
+Close content only when no separator already owns it; separator-owned leading
+remains in `BlockStatementSeparator`. Fresh ordinary-EOF remaining leading
+stays direct block content before opening the zero-width Close node. Statement
+Error initial leading remains outside Error; Error-internal leading remains
+inside; retry/boundary leading retains its existing owner.
 
 No wrapper creates a scan, builder state, source replay, layout decision,
 expectation payload, `Invalid`, Error node or generic recovery operation. The
@@ -100,11 +101,19 @@ frozen reconciliation remain unchanged during this topology gate.
 
 ## Required approval and construction gate
 
-Before implementation, independent specification and compiler/recovery review
-must validate this Draft. The user must approve the `BracedStatementBlockClose`
-name, one terminal node on every braced block including accepted `RBrace`, reuse
-of `BlockStatementSeparator` for Separator Missing, accepted-close leading
-containment and narrow supersession of direct Missing placement on these paths.
+The prior nested-For continuation defect is repaired separately: a completed
+braced For body now makes the enclosing sequence acquire and dispatch its own
+successor, so the enclosing local `RBrace` remains owned by this block. That
+repair changes no CST topology or SyntaxKind and does not authorize this Draft.
+
+Before implementation, renewed independent specification and compiler/recovery
+review must validate this Draft. The user must approve the
+`BracedStatementBlockClose` name, one terminal node on every braced block
+including accepted `RBrace`, reuse of `BlockStatementSeparator` for Separator
+Missing, the leading-containment rule above, and this narrow supersession only:
+the accepted local-close ancestry/remaining-leading containment and the
+Separator/Close Missing placements for these paths. All other legacy direct
+children remain unchanged.
 
 After approval, use M2: append one SyntaxKind without renumbering existing
 values; one owner-local implementation/repair bundle; focused evidence for all
