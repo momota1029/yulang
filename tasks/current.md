@@ -276,8 +276,12 @@ yet prove a full ordered-CST collision or authorize a new node. Complete the
 root ordered-context proof before selecting any topology; ledger retirement
 remains blocked on the complete global schema.
 The root inventory identifies direct raw runs for Starter, expression Separator,
-declaration/OperatorDefinition trailing input and OperatorDefinitionBody. Their
-full ordered contexts appear distinguishable but require caller-matrix evidence.
+declaration/OperatorDefinition trailing input and OperatorDefinitionBody. Its
+16-context caller matrix now proves their ordered direct-child neighborhoods;
+separate controls prove repeated Error groups across a native semicolon and
+UTF-8 opaque Error-fragment byte ranges. Root trivia/repetition grammar,
+LF/EOF/fence handoff, retry/separator progression and CST projection ordering
+remain partial evidence, not a mapped row.
 The legacy spelling-derived `RootUnexpectedHead` payload is explicitly retired
 by the Authoritative CST-derived-diagnostics migration: raw Error text remains
 displayable, never a diagnostic classifier. It remains only in the temporary
