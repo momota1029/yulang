@@ -287,66 +287,208 @@ fn root_error_keeps_undeclared_operator_as_raw_token() {
 
 #[test]
 fn root_direct_raw_error_requires_ordered_context() {
-    use crate::recovery_record::{
-        Delimiter, ExpectedSyntax, KeywordEvidence, PunctuationEvidence, RecoveryKind,
-        RootUnexpected, RootUnexpectedHead, StatementKind, UnexpectedSyntax,
+    use crate::recovery_record::{ExpectedSyntax, KeywordEvidence, RecoveryKind, StatementKind};
+
+    const ROOT_EXPECTATIONS: &[ExpectedSyntax] = &[
+        ExpectedSyntax::Keyword(KeywordEvidence::Use),
+        ExpectedSyntax::Keyword(KeywordEvidence::Lazy),
+        ExpectedSyntax::Keyword(KeywordEvidence::Prefix),
+        ExpectedSyntax::Keyword(KeywordEvidence::Infix),
+        ExpectedSyntax::Keyword(KeywordEvidence::Suffix),
+        ExpectedSyntax::Keyword(KeywordEvidence::Nullfix),
+    ];
+    const SEPARATOR_EXPECTATIONS: &[ExpectedSyntax] = &[ExpectedSyntax::StatementSeparator];
+    const BODY_EXPECTATIONS: &[ExpectedSyntax] = &[ExpectedSyntax::Expression];
+
+    struct Row {
+        prefix: &'static str,
+        before_error: &'static str,
+        malformed: &'static str,
+        after_error: &'static str,
+        role: GrammarRole,
+        expectations: &'static [ExpectedSyntax],
+        before_group: Vec<SyntaxKind>,
+        after_group: Vec<(SyntaxKind, &'static str)>,
+    }
+
+    let trailing = |owner, accepted_owner| Row {
+        prefix: "",
+        before_error: " ",
+        malformed: "]",
+        after_error: "",
+        role: GrammarRole::Statement(StatementRole::TrailingInput { owner }),
+        expectations: ROOT_EXPECTATIONS,
+        before_group: if owner == StatementKind::OperatorDefinition {
+            vec![SyntaxKind::OperatorHeader, SyntaxKind::OperatorChain]
+        } else {
+            vec![accepted_owner]
+        },
+        after_group: vec![(SyntaxKind::OperatorChain, "next")],
     };
 
-    for (source, role, expected, unexpected) in [
+    let mut rows = vec![
+        Row {
+            prefix: "",
+            before_error: "",
+            malformed: "]",
+            after_error: "",
+            role: GrammarRole::Statement(StatementRole::Starter),
+            expectations: ROOT_EXPECTATIONS,
+            before_group: vec![],
+            after_group: vec![(SyntaxKind::OperatorChain, "next")],
+        },
+        Row {
+            prefix: "abc",
+            before_error: "   ",
+            malformed: "]",
+            after_error: "",
+            role: GrammarRole::Statement(StatementRole::Separator),
+            expectations: SEPARATOR_EXPECTATIONS,
+            before_group: vec![SyntaxKind::OperatorChain],
+            after_group: vec![(SyntaxKind::OperatorChain, "next")],
+        },
+    ];
+    for (prefix, owner, accepted_owner) in [
         (
-            "abc   ]\r\nnext",
-            GrammarRole::Statement(StatementRole::Separator),
-            ExpectedSyntax::StatementSeparator,
-            None,
+            "use a",
+            StatementKind::UseDeclaration,
+            SyntaxKind::UseDeclaration,
         ),
         (
-            "use a ]\r\nnext",
-            GrammarRole::Statement(StatementRole::TrailingInput {
-                owner: StatementKind::UseDeclaration,
-            }),
-            ExpectedSyntax::Keyword(KeywordEvidence::Use),
-            Some(UnexpectedSyntax::Root(RootUnexpected::TrailingInput {
-                owner: StatementKind::UseDeclaration,
-                range: 6..7,
-                head: RootUnexpectedHead::Punctuation(PunctuationEvidence::Close(
-                    Delimiter::Bracket,
-                )),
-            })),
+            "my x = value",
+            StatementKind::BindingDeclaration,
+            SyntaxKind::BindingStatement,
+        ),
+        (
+            "mod M {x}",
+            StatementKind::ModDeclaration,
+            SyntaxKind::ModDeclaration,
+        ),
+        (
+            "struct S {}",
+            StatementKind::StructDeclaration,
+            SyntaxKind::StructDeclaration,
+        ),
+        (
+            "enum E {A}",
+            StatementKind::EnumDeclaration,
+            SyntaxKind::EnumDeclaration,
+        ),
+        (
+            "error E {A}",
+            StatementKind::ErrorDeclaration,
+            SyntaxKind::ErrorDeclaration,
+        ),
+        (
+            "type T = A",
+            StatementKind::TypeDeclaration,
+            SyntaxKind::TypeDeclaration,
+        ),
+        (
+            "role R {}",
+            StatementKind::RoleDeclaration,
+            SyntaxKind::RoleDeclaration,
+        ),
+        (
+            "impl T {}",
+            StatementKind::ImplDeclaration,
+            SyntaxKind::ImplDeclaration,
+        ),
+        (
+            "cast(x): A = value",
+            StatementKind::CastDeclaration,
+            SyntaxKind::CastDeclaration,
+        ),
+        (
+            "act A {}",
+            StatementKind::ActDeclaration,
+            SyntaxKind::ActDeclaration,
+        ),
+        (
+            "for x in xs: x",
+            StatementKind::ForStatement,
+            SyntaxKind::ForStatement,
+        ),
+        (
+            "prefix (?) 70 = value",
+            StatementKind::OperatorDefinition,
+            SyntaxKind::OperatorHeader,
         ),
     ] {
-        let fresh = parse_root_candidate(source, &OperatorTable::empty(), &[]);
-        assert_eq!(fresh.green.to_string(), source);
+        let mut row = trailing(owner, accepted_owner);
+        row.prefix = prefix;
+        rows.push(row);
+    }
+    rows.push(Row {
+        prefix: "prefix (?) 70 = ",
+        before_error: "",
+        malformed: "@@",
+        after_error: "value",
+        role: GrammarRole::Statement(StatementRole::OperatorDefinitionBody),
+        expectations: BODY_EXPECTATIONS,
+        before_group: vec![SyntaxKind::OperatorHeader],
+        after_group: vec![
+            (SyntaxKind::OperatorChain, "value"),
+            (SyntaxKind::OperatorChain, "next"),
+        ],
+    });
+
+    for row in rows {
+        let source = format!(
+            "{}{}{}{}\r\nnext",
+            row.prefix, row.before_error, row.malformed, row.after_error
+        );
+        let error_start = source.find(row.malformed).unwrap();
+        let error_end = error_start + row.malformed.len();
+        let header = discover_header(&source);
+        let fresh = parse_root_candidate(&source, &OperatorTable::empty(), &header.recoveries);
+        assert_eq!(fresh.green.to_string(), source, "{source:?}");
         assert_eq!(fresh.committed_recoveries.len(), 1, "{source:?}");
         let record = &fresh.committed_recoveries[0];
         assert_eq!(record.kind, RecoveryKind::Error, "{source:?}");
-        assert_eq!(record.site.role, role, "{source:?}");
-        assert_eq!(record.site.range, 6..7, "{source:?}");
-        assert_eq!(record.expectations[0].expected, expected, "{source:?}");
-        if let Some(unexpected) = unexpected {
-            assert_eq!(record.unexpected.as_ref(), [unexpected], "{source:?}");
+        assert_eq!(record.site.role, row.role, "{source:?}");
+        assert_eq!(record.site.range, error_start..error_end, "{source:?}");
+        assert_eq!(
+            record.expectations.len(),
+            row.expectations.len(),
+            "{source:?}"
+        );
+        for (expectation, expected) in record.expectations.iter().zip(row.expectations) {
+            assert_eq!(expectation.role, row.role, "{source:?}");
+            assert_eq!(expectation.range, error_start..error_end, "{source:?}");
+            assert_eq!(expectation.expected, *expected, "{source:?}");
         }
 
-        let syntax = SyntaxNode::new_root(fresh.green.clone());
+        let syntax = SyntaxNode::new_root(fresh.green);
         let groups = recovery_groups(&syntax);
         assert_eq!(groups.len(), 1, "{source:?}: {groups:#?}");
         let error = &groups[0];
         assert_eq!(error.parent(), Some(syntax.clone()), "{source:?}");
         assert_eq!(
             error.text_range(),
-            rowan::TextRange::new(6.into(), 7.into())
+            rowan::TextRange::new((error_start as u32).into(), (error_end as u32).into()),
+            "{source:?}"
         );
-        assert_eq!(error.to_string(), "]");
-        let raw_error = syntax
+        assert_eq!(error.to_string(), row.malformed, "{source:?}");
+        let raw_error = error
             .children_with_tokens()
             .filter_map(|element| element.into_token())
-            .filter(|token| token.kind() == SyntaxKind::Error)
             .collect::<Vec<_>>();
-        assert_eq!(raw_error.len(), 1, "{source:?}: {raw_error:#?}");
-        assert_eq!(raw_error[0].parent(), Some(syntax.clone()), "{source:?}");
-        assert_eq!(raw_error[0].text(), "]");
+        assert!(!raw_error.is_empty(), "{source:?}");
+        assert!(
+            raw_error
+                .iter()
+                .all(|token| token.kind() == SyntaxKind::Error
+                    && token.parent() == Some(syntax.clone())),
+            "{source:?}: {raw_error:#?}"
+        );
         assert_eq!(
-            raw_error[0].text_range(),
-            rowan::TextRange::new(6.into(), 7.into())
+            raw_error
+                .iter()
+                .map(|token| token.text())
+                .collect::<String>(),
+            row.malformed,
+            "{source:?}"
         );
         assert!(
             syntax
@@ -354,14 +496,50 @@ fn root_direct_raw_error_requires_ordered_context() {
                 .all(|node| node.kind() != SyntaxKind::Invalid),
             "{source:?}: {syntax:#?}"
         );
+        let mut root_order = Vec::new();
+        for element in syntax.children_with_tokens() {
+            match element {
+                rowan::NodeOrToken::Node(node) => {
+                    root_order.push(Some((node.kind(), node.text().to_string())))
+                }
+                rowan::NodeOrToken::Token(token) if token.kind() == SyntaxKind::Error => {
+                    if root_order.last().is_none_or(|element| element.is_some()) {
+                        root_order.push(None);
+                    }
+                }
+                rowan::NodeOrToken::Token(_) => {}
+            }
+        }
+        let expected_order = row
+            .before_group
+            .iter()
+            .copied()
+            .map(|kind| Some((kind, "".to_owned())))
+            .chain(std::iter::once(None))
+            .chain(
+                row.after_group
+                    .iter()
+                    .map(|&(kind, text)| Some((kind, text.to_owned()))),
+            )
+            .collect::<Vec<_>>();
         assert_eq!(
-            syntax
-                .children()
-                .filter(|node| node.kind() == SyntaxKind::OperatorChain && node.text() == "next")
-                .count(),
-            1,
-            "{source:?}"
+            root_order
+                .iter()
+                .map(|element| element.as_ref().map(|(kind, _)| *kind))
+                .collect::<Vec<_>>(),
+            expected_order
+                .iter()
+                .map(|element| element.as_ref().map(|(kind, _)| *kind))
+                .collect::<Vec<_>>(),
+            "{source:?}: {syntax:#?}"
         );
+        for (actual, expected) in root_order.iter().zip(expected_order) {
+            if let (Some((_, actual)), Some((_, expected))) = (actual, expected) {
+                if !expected.is_empty() {
+                    assert_eq!(actual, &expected, "{source:?}");
+                }
+            }
+        }
     }
 }
 
