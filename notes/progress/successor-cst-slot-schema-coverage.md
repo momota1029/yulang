@@ -260,6 +260,15 @@ EOF completion at `1243–1268`, and dispatch references at `99–213`,
 census assignments. Argument/separator emissions and every other owner
 emission in this file remain `untriaged` and unmapped.
 
+#### TypeCall CallArgument item-phase candidate links
+
+`crates/yu-syntax/src/type_expr/delimited.rs:108–130,568–609,814–931,1164–1176`
+is linked as the CallArgument entry, boundary and Error-retry evidence. Direct phase/order proof is
+`crates/yu-syntax/src/tests/type_expr/type_call_fallback.rs:120–206`; broader
+existing missing/retry/boundary/fence controls are cited in its candidate
+catalog row. This is an evidence-complete candidate only: separator, close,
+caller and nested Type rows remain separately owned and unmapped here.
+
 #### Polymorphic-variant wrong-kind TagName-head row link
 
 Only the following census emission is linked to the Draft catalog row

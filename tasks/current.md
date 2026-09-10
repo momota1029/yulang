@@ -180,11 +180,13 @@ non-authoritative source coverage manifest at
 `notes/progress/successor-cst-slot-schema-coverage.md`. Full semantic mapping,
 ordered schemas and independent audit remain open; this record-only step made
 no parser, API, test or benchmark change.
-The first bounded catalog row, TypeCall's terminal close phase, is now mapped
-and independently audited from its existing Authoritative close-node and
-residual-policy amendments. Its TypeCallClose Error/Missing grouping, leading
-and boundary ownership, and direct source links are complete only for that
-slot; argument, separator and other TypeCall rows remain open.
+The bounded TypeCall terminal-close and required CallArgument item rows are now
+mapped and independently audited from their existing Authoritative T3,
+close-node and boundary-priority amendments. CallArgument's direct
+Missing/Error/TypeExpression order is distinct from the TypeCallClose parent;
+its initial-leading and fresh-horizontal-boundary ownership are also mapped.
+Separator, every other TypeCall row, nested Type, global projection and ledger
+retirement remain open.
 The user approved a bounded transition-vocabulary convention for catalog
 documentation: every mapped row records its owner transition or handoff from
 entry/priority through consumed CST extent to continuation and diagnostic-slot
