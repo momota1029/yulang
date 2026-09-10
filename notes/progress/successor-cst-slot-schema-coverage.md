@@ -87,6 +87,19 @@ source-navigation families, not semantic schema families.
 - `crates/yu-syntax/src/declaration/type_decl.rs`
 - `crates/yu-syntax/src/declaration/use_decl.rs`
 
+#### OperatorHeader required-slot Draft links
+
+Only `crates/yu-syntax/src/declaration/operator_header.rs:73–114,261–433` is
+linked to the catalog-audited bounded OperatorHeader required-slot Draft: finite
+fixity-selected phase order, direct Error/Missing emission, safe-point and
+boundary priority, Error-retry/next-phase current-Item preservation,
+actual-Equals completion, and terminal pending-Item handoff.
+Direct Rowan proof is
+`crates/yu-syntax/src/tests/declaration/operator_header.rs:367–536`; it proves
+the four slot phases, direct parentage/no Invalid, and the pending safe-point
+leading partition. Visibility/lazy prelude, Root body, header facts/conflicts,
+fences, and every other declaration/header row remain separate.
+
 ### Expression forms and tails — 10 files / 18 calls
 
 - `crates/yu-syntax/src/expression/case_like.rs`

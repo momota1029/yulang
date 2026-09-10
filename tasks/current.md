@@ -307,6 +307,14 @@ body Missing and nested successor recovery remain separate direct occurrences.
 The bounded direct-Root raw-Error row now records only those groups and the
 body Missing; it is catalog-audited evidence-complete Draft and does not claim
 full Root grammar, outer Yumark, parser/API migration or ledger retirement.
+The bounded OperatorHeader required-slot row now records direct
+Fixity/Name/fixity-selected binding-power/DefinitionIntroducer Error and Missing
+occurrences by replaying its finite direct-child phase sequence. Actual Equals
+is completion rather than an Error classifier; a stopped Item is preserved
+between phases and remains outside the header only when terminally handed off.
+It is catalog-audited evidence-complete Draft and does not map
+visibility/lazy, Root body, header facts/conflicts, the remaining declaration
+family, global projection, or ledger retirement.
 The test-only active-prefix cell now proves all 16 contexts
 stop direct Error leaves before close/transition/EOF boundaries across LF/CRLF,
 return the judged pending boundary untouched, and keep OperatorDefinitionBody
