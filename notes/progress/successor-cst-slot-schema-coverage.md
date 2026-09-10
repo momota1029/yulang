@@ -354,6 +354,33 @@ newline-Missing `exception` above. Its placement in this source-navigation
 group does not classify that record-producing callback as a root/layout CST
 slot.
 
+#### StringInterpolationBody root-style statement-sequence row links
+
+Only the following `virtual_statement_block.rs` sites, in the direct
+`StringInterpolationBody` caller context, are linked to the mapped Draft row
+`(StringInterpolationBody, repeated root-style Statement sequence, direct
+child of an accepted StringInterpolation open brace)`. They establish only
+the three cataloged recovery roles: `Statement(Missing)`/Starter, direct body
+`Missing`/Separator, and direct body `Error+`/Starter. They do not assign a
+schema to nested Statements, another block owner, the interpolation close, or
+the literal terminator.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/virtual_statement_block.rs:67` | `linked` | root-style sequence entry; boundary and borrowed-`}` handoff precede sequence classification |
+| `crates/yu-syntax/src/virtual_statement_block.rs:225` | `linked` | maximal direct body Error-run and admitted-Statement retry |
+| `crates/yu-syntax/src/virtual_statement_block.rs:298` | `linked` | Error-run stop/boundary priority, including separator/newline/borrowed-close preservation |
+| `crates/yu-syntax/src/virtual_statement_block.rs:309` | `linked` | explicit separator direct node and eligible successor-leading absorption |
+| `crates/yu-syntax/src/virtual_statement_block.rs:347` | `linked` | newline separator direct node and successor-leading ownership |
+| `crates/yu-syntax/src/virtual_statement_block.rs:354` | `linked` | required `Statement(Missing)` starter after leading/repeated explicit separator |
+| `crates/yu-syntax/src/virtual_statement_block.rs:368` | `linked` | direct Missing/Error recovery role, expected syntax, range, and primary-alternative projection facts |
+| `crates/yu-syntax/src/literal/mod.rs:460` | `linked` | direct `StringInterpolationBody` wrapper; enclosing interpolation retains close/Missing ownership |
+
+Focused direct CST proof is
+`crates/yu-syntax/src/tests/virtual_statement_block.rs:617–873`. Every other
+root, statement, virtual-layout, literal, and Rule evidence site remains
+untriaged, delegated, or unmapped unless separately linked above.
+
 ## Boundaries
 
 The manifest deliberately excludes `cursor/recovery` implementation sites and
