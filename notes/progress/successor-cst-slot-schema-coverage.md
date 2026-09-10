@@ -170,15 +170,16 @@ separator placeholder Error and successor dispatch. Direct Rowan proof is
 binder, colon/body, other malformed head content, nested Type and caller
 boundary handling remain separate rows.
 
-#### ForallType terminal literal-colon/body candidate links
+#### ForallType terminal emitted-colon/body candidate links
 
 Only `crates/yu-syntax/src/type_expr/forall.rs:142–258,269–315,407–496,
-498–542` is linked to the bounded ordinary-colon/body candidate: terminal
+498–542` is linked to the bounded emitted-colon/body candidate: terminal
 colon classification, direct colon/body Missing, direct raw Error retry and
 protected body handoff. Direct Rowan proof is
-`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:186–286`. The
-polymorphic-variant colon, recovered binders, first/later binder phases, nested
-Type and caller-boundary handling remain separate rows.
+`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:186–286`. The lexical
+ordinary/polymorphic-variant-colon distinction is intentionally not a separate
+row because both emit `SyntaxKind::Colon`; recovered binders, first/later binder
+phases, nested Type and caller-boundary handling remain separate rows.
 
 #### LeadingEffectTypeHead required-head row links
 

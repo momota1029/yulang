@@ -198,11 +198,12 @@ post-accepted-binder phase: a grammar-empty next binder contains its Missing,
 while a separator is a one-item placeholder Error that may precede either a
 retried binder or the separately owned colon/body phase. It is a
 catalog-audited evidence-complete Draft; no global Forall completion follows.
-The direct terminal ordinary-colon/body candidate is separately evidence-backed:
+The direct terminal emitted-colon/body candidate is separately evidence-backed:
 its colon and body Missing/Error cases are distinguished only by direct
-ForallType sibling order around `Colon`, never Error spelling. It excludes the
-polymorphic-variant colon, recovered binders, nested Type and caller handoff,
-and is a catalog-audited evidence-complete Draft.
+ForallType sibling order around `Colon`, never Error spelling. Ordinary and
+polymorphic-variant lexical colons share that emitted token and have no separate
+CST row; recovered binders, nested Type and caller handoff remain excluded. It
+is a catalog-audited evidence-complete Draft.
 The user approved a bounded transition-vocabulary convention for catalog
 documentation: every mapped row records its owner transition or handoff from
 entry/priority through consumed CST extent to continuation and diagnostic-slot
