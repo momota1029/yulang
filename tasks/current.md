@@ -193,6 +193,11 @@ ForallType's first required binder is likewise catalog-mapped: the direct
 ForallTypeBinder slot precedes every accepted binder, so its Missing/Error is
 distinct from later BinderBoundary without new topology. Later binders,
 colon/body, nested Type and caller continuation remain separate open rows.
+The bounded later BinderBoundary candidate now records the complementary
+post-accepted-binder phase: a grammar-empty next binder contains its Missing,
+while a separator is a one-item placeholder Error that may precede either a
+retried binder or the separately owned colon/body phase. It is a
+catalog-audited evidence-complete Draft; no global Forall completion follows.
 The user approved a bounded transition-vocabulary convention for catalog
 documentation: every mapped row records its owner transition or handoff from
 entry/priority through consumed CST extent to continuation and diagnostic-slot

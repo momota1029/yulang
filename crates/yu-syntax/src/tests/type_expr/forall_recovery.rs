@@ -183,6 +183,130 @@ fn forall_first_binder_slot_is_ordered_directly_in_rowan() {
 }
 
 #[test]
+fn forall_later_binder_boundary_is_ordered_directly_in_rowan() {
+    use SyntaxKind::*;
+
+    let parse_forall = |source| {
+        let (green, _) = run_type(source);
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), source, "{source:?}");
+        assert!(
+            !root
+                .descendants()
+                .any(|node| matches!(node.kind(), Error | Invalid)),
+            "{source:?}"
+        );
+        let forall = root
+            .descendants()
+            .find(|node| node.kind() == ForallType)
+            .expect("forall type");
+        (root, forall)
+    };
+    let children = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| (child.kind(), child.to_string()))
+            .collect::<Vec<_>>()
+    };
+
+    let (root, forall) = parse_forall("for 'a'b:T");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (ForallTypeBinder, "'b".into()),
+            (Colon, ":".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    let binders = forall
+        .children()
+        .filter(|node| node.kind() == ForallTypeBinder)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        children(&binders[1]),
+        vec![(Missing, "".into()), (SigilIdentifier, "'b".into())]
+    );
+    drop(root);
+
+    let (root, forall) = parse_forall("for 'a,'b:T");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (ForallTypeBinder, ",".into()),
+            (ForallTypeBinder, "'b".into()),
+            (Colon, ":".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    let binders = forall
+        .children()
+        .filter(|node| node.kind() == ForallTypeBinder)
+        .collect::<Vec<_>>();
+    assert_eq!(children(&binders[1]), vec![(Error, ",".into())]);
+    assert_eq!(
+        children(&binders[2]),
+        vec![(Missing, "".into()), (SigilIdentifier, "'b".into())]
+    );
+    drop(root);
+
+    let (root, forall) = parse_forall("for 'a, 'b:T");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (ForallTypeBinder, ",".into()),
+            (ForallTypeBinder, " 'b".into()),
+            (Colon, ":".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    let binders = forall
+        .children()
+        .filter(|node| node.kind() == ForallTypeBinder)
+        .collect::<Vec<_>>();
+    assert_eq!(children(&binders[1]), vec![(Error, ",".into())]);
+    assert!(
+        !binders[2].descendants().any(|node| node.kind() == Missing),
+        "the retried binder has no boundary Missing"
+    );
+    drop(root);
+
+    let (_root, forall) = parse_forall("for 'a,:T");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (ForallTypeBinder, ",".into()),
+            (Colon, ":".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+
+    let (_root, forall) = parse_forall("for 'a, T");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (ForallTypeBinder, ",".into()),
+            (Whitespace, " ".into()),
+            (Missing, "".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    let binders = forall
+        .children()
+        .filter(|node| node.kind() == ForallTypeBinder)
+        .collect::<Vec<_>>();
+    assert_eq!(children(&binders[1]), vec![(Error, ",".into())]);
+}
+
+#[test]
 fn forall_missing_records_cover_only_the_current_mandatory_slot() {
     use TypeRole::{
         ForallBinder as B, ForallBinderBoundary as G, ForallBody as T, ForallColon as C,
