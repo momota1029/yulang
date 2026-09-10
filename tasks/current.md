@@ -204,6 +204,14 @@ separator wrapper selects `DelimitedSequenceSeparator`. The preceding raw Error
 and every other RecordPattern sequence/Pattern row remain unresolved; only
 separator-phase CST topology changed, with parser diagnostic/API migration
 still pending.
+The direct-Rowan schema audit has now exposed an unresolvable raw-Error
+collision for RecordPattern: a foreign close and an Item error can have the
+same current tree shape but require distinct expected slots. The unapproved
+Draft `2026-09-10-successor-record-pattern-foreign-close-slot-draft.md`
+records the minimal proposed transparent close-slot node, its one-close
+cardinality and exact non-goals. Do not construct it, add a SyntaxKind, or
+change fixtures until user approval is recorded; the recovery ledger remains
+required evidence for this unresolved schema gap.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The
