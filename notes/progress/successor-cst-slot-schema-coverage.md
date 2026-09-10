@@ -364,6 +364,26 @@ evidence link does not classify the temporary shifted recovery record
 `3..3`. All StringPiece/escape/interpolation, Rule, caller, and Root
 terminal-leading evidence remains delegated or unmapped.
 
+#### StringEscape and StringInterpolation brace row links
+
+Only the following literal sites are linked to the bounded catalog row
+`(StringEscape simple/Unicode slot or StringInterpolation brace slot, direct
+StringLiteral piece context)`. They do not map StringPiece scanning,
+InterpolationBody, the StringLiteral terminator or caller-owned boundaries.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/literal/mod.rs:420–490` | `linked` | optional/fragmented interpolation format, open Missing, Body delegation, accepted-close leading before close token, and boundary close-Missing order |
+| `crates/yu-syntax/src/literal/mod.rs:627–656` | `linked` | direct simple-target token versus Missing after StringEscapeLead |
+| `crates/yu-syntax/src/literal/mod.rs:671–794` | `linked` | ordered Unicode hex Error/Missing and final Unicode-end token/Missing paths |
+| `crates/yu-syntax/src/literal/mod.rs:805–816` | `linked` | five existing LiteralRole-to-expected mappings |
+
+Direct Rowan and fresh/frozen/shifted evidence is
+`crates/yu-syntax/src/tests/literal.rs:819–1063, 1094–1200, 1387–1396` and
+`crates/yu-syntax/src/tests/string_literal_recovery.rs:450–503, 570–620`.
+Every other StringPiece/interpolation/literal row remains untriaged, delegated
+or unmapped.
+
 #### Dedicated Rule-owned row links
 
 Only direct Rule publishers in `crates/yu-syntax/src/rule/mod.rs` are linked to
