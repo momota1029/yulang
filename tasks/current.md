@@ -275,6 +275,13 @@ CST children differ (`OperatorChain` versus `UseDeclaration`), so this does not
 yet prove a full ordered-CST collision or authorize a new node. Complete the
 root ordered-context proof before selecting any topology; ledger retirement
 remains blocked on the complete global schema.
+The root inventory identifies direct raw runs for Starter, expression Separator,
+declaration/OperatorDefinition trailing input and OperatorDefinitionBody. Their
+full ordered contexts appear distinguishable but require caller-matrix evidence.
+The legacy spelling-derived `RootUnexpectedHead` payload is explicitly retired
+by the Authoritative CST-derived-diagnostics migration: raw Error text remains
+displayable, never a diagnostic classifier. It remains only in the temporary
+ledger contract until that migration, and does not require CST topology.
 The Draft additionally exposed and focused tests now prove an existing braced
 owner defect: after a completed nested `for` braced body, `{for x in xs {}}`
 and `{for x in xs {} use a}` drop the final enclosing `}` from the CST and
