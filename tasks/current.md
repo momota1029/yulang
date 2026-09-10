@@ -233,10 +233,11 @@ The next discovered direct-Rowan schema gap is NamedRecordType: current
 Close records, and fresh semicolon makes Separator distinct from Field too.
 The Draft `2026-09-10-successor-named-record-type-slot-draft.md` proposes
 transparent `NamedRecordTypeSeparator` recovery occurrences and one terminal
-`NamedRecordTypeClose` per committed record. It is under independent review;
-do not add kinds, change production topology or update expectations until the
-user approves its names, accepted-close ancestor change, cardinality, leading
-contract and narrow raw-placement supersession.
+`NamedRecordTypeClose` per committed record. Its architecture, specification
+and recovery reviews are closed. Do not add kinds, change production topology
+or update expectations until the user approves its names, accepted-close
+ancestor change, cardinality, leading contract and narrow raw-placement
+supersession.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

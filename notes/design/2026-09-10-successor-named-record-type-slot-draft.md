@@ -54,13 +54,13 @@ The intended XML-like Rowan grammar is:
 ```xml
 <NamedRecordType>
   <LBrace text="{"/>
-  <!-- direct native trivia, comma, accepted TypeRecordField,
-       whole-Field Missing, or whole-Field Error may repeat -->
-  <NamedRecordTypeSeparator>
-    <Missing/> | <Error text="..."/>
-  </NamedRecordTypeSeparator>
+  <!-- the following direct children may repeat/interleave -->
+  <NativeTrivia text="..."/> | <Comma text=","/> | <TypeRecordField>...</TypeRecordField>
+  | <Missing/> | <Error text="..."/> <!-- whole Field only -->
+  | <NamedRecordTypeSeparator><Missing/> | <Error text="..."/>+</NamedRecordTypeSeparator>
   <NamedRecordTypeClose>
-    <RBrace text="}"/> | <Missing/>
+    <NativeTrivia text="..."/>* (<Error text="..."/> <NativeTrivia text="..."/>*)*
+    (<RBrace text="}"/> | <Missing/>)
   </NamedRecordTypeClose>
 </NamedRecordType>
 ```
@@ -81,13 +81,17 @@ Missing retains two diagnostics from its Error group and direct Missing. A
 pending whole-Field Missing stays outside and precedes this close node even at
 the same coordinate.
 
-The wrapper range is determined only by its contained tokens/nodes. Initial
-leading already emitted by Field/Separator ownership stays outside a wrapper.
-Leading attached to the terminal close is native close content; Error-internal
-leading stays Error content. Protected caller/fence/outer-close Item and its
-leading remain pending and outside. No extra parser state, scan, source replay,
-Error spelling, provenance, generic recovery facility or Invalid node is
-introduced.
+The wrapper range is determined only by its contained tokens/nodes. Separator
+Error initial leading is emitted by the sequence before its wrapper; its
+Error-internal leading stays Error content. A fresh boundary/ordinary-EOF close
+that has not committed close recovery leaves eligible list-leading outside both
+the direct Field Missing and the Close node. By contrast, an accepted local
+close or an already committed terminal close recovery opens Close before its
+close-leading: that native leading, all close Error-internal/terminal EOF
+leading and the terminal `RBrace`/Missing stay inside Close in source order.
+Protected caller/fence/outer-close Item and its leading remain pending and
+outside. No extra parser state, scan, source replay, Error spelling, provenance,
+generic recovery facility or Invalid node is introduced.
 
 ## Required implementation boundary
 
@@ -96,14 +100,16 @@ The only candidate owner is `type_expr::record::type_record_fields_normalized`:
 - the matching local `RBrace` path emits the one Close node around its accepted
   close;
 - same-line next-field Separator Missing is enclosed after its existing native
-  leading emission;
+  leading emission; Separator Error likewise emits its initial leading before
+  opening its wrapper;
 - every existing Separator Error publication, including a fresh semicolon, is
   enclosed without wrapping whole-Field Error;
 - mismatched-close recovery opens one Close node only after a pending Field
   Missing has been published, and retains the complete existing close run plus
   its terminal `RBrace`/Missing;
-- boundary/EOF close Missing enters the Close node after eligible list leading
-  and any pending Field Missing; and
+- fresh boundary/EOF close Missing enters the Close node after eligible list
+  leading and any pending Field Missing, while the already-open committed close
+  recovery retains its terminal EOF leading inside that same Close; and
 - generic Field/Name recovery remains outside these nodes.
 
 Do not make an empty layout node, wrap accepted comma, wrap every field,
