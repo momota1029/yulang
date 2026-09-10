@@ -392,6 +392,7 @@ fn delimited_fence_and_nonzero_utf8_extents_reconcile() {
             )]
         );
         assert_eq!(green.to_string(), "é");
+        assert_raw_slots(&SyntaxNode::new_root(green.clone()), &[]);
         assert_eq!(remainder, "```\nouter");
         assert!(matches!(
             exit,
@@ -436,10 +437,11 @@ fn full(
 }
 
 #[test]
-fn parenthesized_collision_literals_keep_distinct_records_and_one_raw_topology() {
-    for (source, expected) in [
+fn parenthesized_collision_literals_keep_distinct_records_and_raw_slots() {
+    for (source, slot, expected) in [
         (
             "(@)",
+            SyntaxKind::Error,
             record(
                 GrammarRole::Expression(ExpressionRole::Nud),
                 RecoveryKind::Error,
@@ -449,6 +451,7 @@ fn parenthesized_collision_literals_keep_distinct_records_and_one_raw_topology()
         ),
         (
             "(;)",
+            SyntaxKind::ExpressionDelimitedSeparator,
             record(
                 GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
                 RecoveryKind::Error,
@@ -458,6 +461,7 @@ fn parenthesized_collision_literals_keep_distinct_records_and_one_raw_topology()
         ),
         (
             "(])",
+            SyntaxKind::ExpressionDelimitedForeignClose,
             record(
                 GrammarRole::ClosingDelimiter {
                     owner: ConstructRole::ExpressionGroup,
@@ -491,15 +495,22 @@ fn parenthesized_collision_literals_keep_distinct_records_and_one_raw_topology()
                 .collect::<Vec<_>>(),
             [
                 (SyntaxKind::LParen, 0..1),
-                (SyntaxKind::Error, 1..2),
+                (slot, 1..2),
                 (SyntaxKind::RParen, 2..3),
             ],
             "{source:?}"
         );
         let middle = group.children_with_tokens().nth(1).unwrap();
-        let error = middle
+        let leaf = if slot == SyntaxKind::Error {
+            middle
+        } else {
+            let wrapper = middle.as_node().expect("transparent raw slot");
+            assert_eq!(wrapper.children_with_tokens().count(), 1);
+            wrapper.children_with_tokens().next().unwrap()
+        };
+        let error = leaf
             .as_token()
-            .expect("the raw collision leaf must remain an Error token");
+            .expect("raw slot content remains an Error token");
         assert_eq!(error.kind(), SyntaxKind::Error, "{source:?}");
         assert_eq!(
             error.text_range(),
@@ -749,6 +760,26 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             )
         );
         let expected = record(role, RecoveryKind::Error, range.clone(), category);
+        let slot = if separator {
+            SyntaxKind::ExpressionDelimitedSeparator
+        } else if matches!(role, GrammarRole::ClosingDelimiter { .. }) {
+            SyntaxKind::ExpressionDelimitedForeignClose
+        } else {
+            SyntaxKind::Error
+        };
+        let direct = direct
+            .into_iter()
+            .map(|(kind, range)| {
+                (
+                    if kind == SyntaxKind::Error {
+                        slot
+                    } else {
+                        kind
+                    },
+                    range,
+                )
+            })
+            .collect::<Vec<_>>();
         let (green, records) = full(source, None);
         assert_eq!(records, [expected], "{source:?}");
         assert_eq!(green.to_string(), source, "{source:?}");
@@ -779,12 +810,21 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             "{source:?}"
         );
         let error = owner_node
-            .children_with_tokens()
+            .descendants_with_tokens()
             .find(|element| element.kind() == SyntaxKind::Error)
             .expect("owner-local raw Error");
         let error = error
             .as_token()
             .expect("owner-local raw Error must be a token");
+        if slot == SyntaxKind::Error {
+            assert_eq!(error.parent().unwrap(), owner_node);
+        } else {
+            let wrapper = error.parent().unwrap();
+            assert_eq!(wrapper.kind(), slot);
+            assert_eq!(wrapper.parent().unwrap(), owner_node);
+            assert_eq!(wrapper.children_with_tokens().count(), 1);
+            assert_eq!(wrapper.text_range(), error.text_range());
+        }
         assert_eq!(
             error.text_range(),
             rowan::TextRange::new((range.start as u32).into(), (range.end as u32).into()),
@@ -851,6 +891,7 @@ fn outer_index_close_survives_parenthesized_and_call_nesting() {
         assert_eq!(records, expected, "{source:?}");
         assert_eq!(green.to_string(), source);
         let root = SyntaxNode::new_root(green.clone());
+        assert_raw_slots(&root, &[]);
         let bracket = root
             .descendants_with_tokens()
             .filter_map(|it| it.into_token())
@@ -864,6 +905,135 @@ fn outer_index_close_survives_parenthesized_and_call_nesting() {
         assert_eq!(again, green);
         assert_eq!(frozen, records);
     }
+}
+
+fn assert_raw_slots(root: &SyntaxNode, expected: &[(SyntaxKind, Range<usize>, &str)]) {
+    let wrappers = root
+        .descendants()
+        .filter(|node| {
+            matches!(
+                node.kind(),
+                SyntaxKind::ExpressionDelimitedSeparator
+                    | SyntaxKind::ExpressionDelimitedForeignClose
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(wrappers.len(), expected.len(), "{root:#?}");
+    for (wrapper, (kind, range, text)) in wrappers.iter().zip(expected) {
+        assert_eq!(wrapper.kind(), *kind);
+        assert_eq!(
+            usize::from(wrapper.text_range().start())..usize::from(wrapper.text_range().end()),
+            *range
+        );
+        assert_eq!(wrapper.to_string(), *text);
+        let children = wrapper.children_with_tokens().collect::<Vec<_>>();
+        assert!(!children.is_empty());
+        assert!(
+            children
+                .iter()
+                .all(|child| { child.kind() == SyntaxKind::Error && child.as_token().is_some() })
+        );
+        assert_eq!(
+            children.first().unwrap().text_range().start(),
+            wrapper.text_range().start()
+        );
+        assert_eq!(
+            children.last().unwrap().text_range().end(),
+            wrapper.text_range().end()
+        );
+    }
+}
+
+#[test]
+fn raw_slots_preserve_mixed_repeated_runs_and_recovered_phase_for_every_owner() {
+    for (form, close, wrong) in [
+        (Form::Group, ')', ']'),
+        (Form::Call, ')', ']'),
+        (Form::Index, ']', ')'),
+        (Form::Tuple, ')', ']'),
+        (Form::Record, '}', ')'),
+    ] {
+        // The foreign close preserves Separator, then Recovered, then Item.
+        let source = format!("a{wrong}@{wrong}@,{wrong}@{close}");
+        let (green, _, remainder, records) = parse(&source, form, 0, None, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        let root = SyntaxNode::new_root(green.clone());
+        let wrong = wrong.to_string();
+        assert_raw_slots(
+            &root,
+            &[
+                (SyntaxKind::ExpressionDelimitedForeignClose, 1..2, &wrong),
+                (SyntaxKind::ExpressionDelimitedSeparator, 2..3, "@"),
+                (SyntaxKind::ExpressionDelimitedForeignClose, 3..4, &wrong),
+                (SyntaxKind::ExpressionDelimitedForeignClose, 6..7, &wrong),
+            ],
+        );
+        let direct = root
+            .children_with_tokens()
+            .filter(|child| child.kind() == SyntaxKind::Error)
+            .map(|child| {
+                usize::from(child.text_range().start())..usize::from(child.text_range().end())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(direct, [4..5, 7..8]);
+        assert_eq!(
+            records
+                .iter()
+                .map(|record| record.site.role)
+                .collect::<Vec<_>>(),
+            [
+                form.closing(),
+                GrammarRole::Expression(form.separator()),
+                form.closing(),
+                GrammarRole::Expression(form.item()),
+                form.closing(),
+                GrammarRole::Expression(form.item()),
+            ]
+        );
+        let (again, _, _, frozen) = parse(&source, form, 0, None, Some(&records));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+    }
+}
+
+#[test]
+fn raw_separator_slots_keep_semicolons_leading_comments_utf8_and_newline_retry() {
+    for (source, expected) in [
+        (
+            ";a;@;;)",
+            vec![(0..1, ";"), (2..3, ";"), (4..5, ";"), (5..6, ";")],
+        ),
+        ("a @ /*c*/ 💥 b)", vec![(2..14, "@ /*c*/ 💥")]),
+        ("a ;)", vec![(1..3, " ;")]),
+        ("a @\n@)", vec![(2..3, "@")]),
+        ("a @\r\n@)", vec![(2..3, "@")]),
+    ] {
+        let (green, _, remainder, records) = parse(source, Form::Group, 0, None, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        assert_raw_slots(
+            &SyntaxNode::new_root(green.clone()),
+            &expected
+                .into_iter()
+                .map(|(range, text)| (SyntaxKind::ExpressionDelimitedSeparator, range, text))
+                .collect::<Vec<_>>(),
+        );
+        let (again, _, _, frozen) = parse(source, Form::Group, 0, None, Some(&records));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+    }
+    let (green, _) = full("x.{..@ x}", None);
+    let root = SyntaxNode::new_root(green);
+    assert_raw_slots(&root, &[]);
+    let error = root
+        .descendants_with_tokens()
+        .find(|child| child.kind() == SyntaxKind::Error)
+        .unwrap();
+    assert_eq!(
+        error.parent().unwrap().kind(),
+        SyntaxKind::ProjectionRecordSpreadItem
+    );
 }
 
 #[test]
@@ -1003,6 +1173,7 @@ fn accepted_delimiters_shield_contextual_stops_and_keep_ml_items() {
         let (green, records) = full(source, None);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(records.is_empty(), "{source:?}: {records:?}");
+        assert_raw_slots(&SyntaxNode::new_root(green.clone()), &[]);
         assert!(
             !SyntaxNode::new_root(green.clone())
                 .descendants_with_tokens()
@@ -1054,6 +1225,7 @@ fn quoted_prefix_and_utf8_error_ranges_stay_physical_and_reconcile() {
         NormalizedExit::Complete(Ok(()), LineEntry::InLine)
     ));
     let root = SyntaxNode::new_root(green.clone());
+    assert_raw_slots(&root, &[]);
     assert_eq!(
         root.descendants_with_tokens()
             .filter_map(|node| node.into_token())
@@ -1067,6 +1239,22 @@ fn quoted_prefix_and_utf8_error_ranges_stay_physical_and_reconcile() {
             .map(|node| node.to_string())
             .collect::<Vec<_>>(),
         ["@", "💥"]
+    );
+    let (again, _, _, frozen) = parse(source, Form::Group, 100, Some(&fence), Some(&records));
+    assert_eq!(again, green);
+    assert_eq!(frozen, records);
+
+    let source = "@\r\n> > ])";
+    let (green, _, remainder, records) = parse(source, Form::Group, 100, Some(&fence), None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    assert_raw_slots(
+        &SyntaxNode::new_root(green.clone()),
+        &[(
+            SyntaxKind::ExpressionDelimitedForeignClose,
+            1..8,
+            "\r\n> > ]",
+        )],
     );
     let (again, _, _, frozen) = parse(source, Form::Group, 100, Some(&fence), Some(&records));
     assert_eq!(again, green);

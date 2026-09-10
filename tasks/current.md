@@ -222,9 +222,12 @@ schema gap, not a parser defect. The user-approved Authoritative
 `ExpressionDelimitedSeparator` and `ExpressionDelimitedForeignClose` wrappers
 for the five expression-delimited owners only. Direct Item Error and
 ProjectionRecord spread-RHS Error remain direct. The 15-case current-contract
-matrix proves every owner × Item/Separator/foreign-close role before topology
-construction. M2 implementation is the immediate action; do not inspect Error
-spelling, collapse expectations, or alter current records.
+matrix and M2 construction are complete: the append-only kinds are 276/277,
+and recovery records/frozen replay remain unchanged. The three bounded raw
+slots are catalog-mapped; the rest of every delimited owner, the global schema,
+CST diagnostic interpreter, recovery-ledger retirement and API migration remain
+open. Do not inspect Error spelling, collapse expectations, or alter current
+records.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

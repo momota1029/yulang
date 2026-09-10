@@ -449,6 +449,29 @@ Focused direct Rowan proof is
 are `crates/yu-syntax/src/tests/delimited_recovery.rs:304–335, 517–555`.
 Every other delimited owner/phase remains untriaged, delegated, or unmapped.
 
+#### Expression-delimited raw Item/Separator/foreign-close row links
+
+Only the following expression-delimited sites are linked to the bounded
+Authoritative catalog row `(one of five expression-delimited owners, raw Item /
+raw Separator / one consumed foreign close, direct delimited-sequence context)`.
+They do not assign accepted children, Missing, matching/protected close, fence,
+or ProjectionRecord spread-RHS schemas.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/delimited.rs:154–173` | `linked` | inherited-close priority precedes one ForeignClose wrapper around exactly one existing foreign-close Error emission |
+| `crates/yu-syntax/src/expression/delimited.rs:180–198` | `linked` | Parenthesized rejected semicolon is a Separator wrapper before unchanged Item-phase reset |
+| `crates/yu-syntax/src/expression/delimited.rs:229–258` | `linked` | only Separator-phase lexical Error run is wrapped after initial leading; Item run remains direct and the existing Recovered transition remains intact |
+| `crates/yu-syntax/src/expression/tails/delimited_tail.rs:36–79` | `linked` | the shared sequence is called only by Call, Index, ProjectionTuple and ProjectionRecord tails in addition to Parenthesized |
+| `crates/yu-syntax/src/syntax_kind.rs:281–282, 500–504` | `linked` | append-only Rowan kinds and raw conversion are `ExpressionDelimitedSeparator = 276` and `ExpressionDelimitedForeignClose = 277` |
+
+Focused direct Rowan proof is
+`crates/yu-syntax/src/tests/delimited_recovery.rs:433–1258`; it covers the
+five-owner Item/Separator/foreign-close matrix, mixed/repeated phases,
+semicolon, comments, UTF-8, LF/CRLF, quote prefixes, protected closes/fence,
+accepted controls and direct ProjectionRecord spread RHS. Every other
+expression-delimited row remains untriaged, delegated, or unmapped.
+
 ## Boundaries
 
 The manifest deliberately excludes `cursor/recovery` implementation sites and

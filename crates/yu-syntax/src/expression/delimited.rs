@@ -156,6 +156,8 @@ pub(crate) fn delimited_items_normalized(
                 return missing_close(i, item, owner, item_origin, line_entry);
             }
             let actual = delimiter_for_close(token_kind(&item).unwrap());
+            i.state
+                .start_node(SyntaxKind::ExpressionDelimitedForeignClose.into());
             error_item(
                 i.rb(),
                 item,
@@ -163,6 +165,7 @@ pub(crate) fn delimited_items_normalized(
                 owner.close_role(),
                 UnexpectedCategory::Punctuation(PunctuationEvidence::Close(actual)),
             );
+            i.state.finish_node();
             (item, item_origin, line_entry) = expression_item(
                 i.rb(),
                 OperatorSite::Nud,
@@ -177,6 +180,8 @@ pub(crate) fn delimited_items_normalized(
         if matches!(owner, DelimitedOwner::Parenthesized)
             && token_kind(&item) == Some(TokenKind::Semicolon)
         {
+            i.state
+                .start_node(SyntaxKind::ExpressionDelimitedSeparator.into());
             error_item(
                 i.rb(),
                 item,
@@ -184,6 +189,7 @@ pub(crate) fn delimited_items_normalized(
                 owner.separator_role(),
                 UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
             );
+            i.state.finish_node();
             phase = Phase::Item;
             (item, item_origin, line_entry) = expression_item(
                 i.rb(),
@@ -228,6 +234,10 @@ pub(crate) fn delimited_items_normalized(
                 owner.item_role()
             };
             item.emit_all_remaining_leading(&mut *i.state);
+            if matches!(phase, Phase::Separator) {
+                i.state
+                    .start_node(SyntaxKind::ExpressionDelimitedSeparator.into());
+            }
             (item, item_origin, line_entry) = error_run(
                 i.rb(),
                 item,
@@ -239,6 +249,9 @@ pub(crate) fn delimited_items_normalized(
                 fence,
                 owner.is_record(),
             );
+            if matches!(phase, Phase::Separator) {
+                i.state.finish_node();
+            }
             phase = Phase::Recovered;
             continue;
         }

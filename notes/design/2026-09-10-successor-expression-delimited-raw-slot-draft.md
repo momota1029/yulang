@@ -1,6 +1,6 @@
 # Expression-delimited raw-slot CST draft
 
-Status: Authoritative; private construction pending
+Status: Authoritative; private construction complete
 
 Date: 2026-09-10
 
@@ -100,9 +100,10 @@ The XML-like notation is:
 
 The user approved both node names, all five owner contexts, the stated
 one-wrapper cardinality and this narrow supersession of direct raw Error
-placement on 2026-09-10. Use M2 with the completed specification and
-compiler/recovery pre-write reviews, one implementation/repair bundle and one
-scoped closure review. Append new SyntaxKinds without changing existing values.
+placement on 2026-09-10. M2 construction, focused proof and scoped closure
+review are complete. The append-only SyntaxKinds are
+`ExpressionDelimitedSeparator = 276` and
+`ExpressionDelimitedForeignClose = 277`; existing values are unchanged.
 Required proof covers all owners and phases; repeated/mixed runs; semicolon;
 accepted separators; retry; UTF-8/CRLF/comments/quote prefixes; spread RHS;
 protected close/fence handoff; source flattening; exact wrapper range/order;
