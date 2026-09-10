@@ -19,7 +19,8 @@ implementation authority.
 
 ## Proven collision
 
-The focused current-contract test fixes two accepted full type inputs:
+The focused current-contract test fixes two fully consumed malformed/recovered
+type inputs:
 
 ```text
 :{;} -> PolymorphicVariantTagSeparator / DelimitedSequenceSeparator
@@ -51,15 +52,26 @@ native trivia, Missing, Invalid, accepted tag/payload/punctuation, returned
 Item or retry leading. Its range is exactly the combined UTF-8 range of its
 Error children. It produces no independent diagnostic.
 
-The XML-like grammar is:
+The exact ordered grammar skeleton is:
+
+```text
+PolymorphicVariantType := Colon LBrace
+  (NativeTrivia | Comma | PolymorphicVariantTag | Missing(Tag)
+   | Error+(Separator) | PolymorphicVariantForeignClose)*
+  (RBrace | Missing(Close) | Missing(Tag) Missing(Close))
+```
+
+The XML-like notation for its optional/repeated foreign-close alternative is:
 
 ```xml
 <PolymorphicVariantType>
   <Colon text=":"/><LBrace text="{"/>
-  <!-- existing direct trivia, commas, tags, comma-associated Missing(Tag),
-       and direct separator Error groups repeat in their existing order -->
-  <PolymorphicVariantForeignClose><Error text="..."/>+</PolymorphicVariantForeignClose>
-  <!-- existing terminal RBrace, and existing Missing(Tag)/Missing(Close), remain direct -->
+  <!-- the following direct children may repeat and interleave in existing phase order -->
+  <NativeTrivia text="..."/> | <Comma text=","/> | <PolymorphicVariantTag>...</PolymorphicVariantTag>
+  | <Missing/> <!-- existing comma-associated Tag vacancy -->
+  | <Error text="..."/> <!-- existing Separator occurrence -->
+  | <PolymorphicVariantForeignClose><Error text="..."/>+</PolymorphicVariantForeignClose>
+  <!-- existing terminal RBrace or ordered existing Missing(Tag)/Missing(Close) remains direct -->
 </PolymorphicVariantType>
 ```
 
@@ -117,6 +129,13 @@ mixed errors, source/leading/CRLF/UTF-8/fence/caller handoff, accepted/type-tail
 controls and unchanged records/frozen replay; one scoped closure review; one
 package check, format and diff. No benchmark samples/processes are planned
 unless material cost uncertainty appears.
+
+The topology/name assertions in
+`pv_separator_and_foreign_close_errors_currently_collide_as_raw_cst_leaves`
+are current-contract evidence, not stale tests. This approval narrowly
+authorizes changing only its foreign-close ancestry and its identical-shape
+claim to the new wrapper shape; source, record role/range/category,
+fresh/frozen and direct separator controls remain unchanged.
 
 Stop if a direct PV Error cause is not Separator-owned, an accepted tree changes,
 records/ranges/current Item/leading/continuation change, a wrapper gains a
