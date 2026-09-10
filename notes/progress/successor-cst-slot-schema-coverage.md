@@ -381,6 +381,29 @@ Focused direct CST proof is
 root, statement, virtual-layout, literal, and Rule evidence site remains
 untriaged, delegated, or unmapped unless separately linked above.
 
+#### ProjectionRecordSpreadItem required-RHS row links
+
+Only the following direct record-projection sites are linked to the bounded
+Draft catalog row `(ProjectionRecordSpreadItem, required RHS immediately after
+direct DotDot, direct ProjectionRecordTail spread-item context)`. They
+establish the dedicated wrapper, direct marker, Missing/Error/retry alternatives
+and handoff; they do not assign ordinary ProjectionRecord Item/Separator/Close
+slots or the nested `OperatorChain` schema.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/delimited.rs:396` | `linked` | opens `ProjectionRecordSpreadItem`, emits direct `DotDot`, classifies its RHS and closes the wrapper before returning its exit |
+| `crates/yu-syntax/src/expression/delimited.rs:425` | `linked` | initial malformed leading and maximal direct RHS Error-run entry |
+| `crates/yu-syntax/src/expression/delimited.rs:440` | `linked` | admitted/retried RHS enters the nested `OperatorChain` path |
+| `crates/yu-syntax/src/expression/delimited.rs:456` | `linked` | direct Missing only when Error has not already represented the failed RHS, followed by unchanged handoff |
+| `crates/yu-syntax/src/expression/delimited.rs:476` | `linked` | phase-specific Missing boundary/ordinary-EOF leading publication |
+| `crates/yu-syntax/src/expression/delimited.rs:519` | `linked` | lexical Error-run and its exact spread-marker/boundary stop conditions |
+
+Focused direct Rowan proof is
+`crates/yu-syntax/src/tests/owners.rs:553–906`; exact retained-role controls
+are `crates/yu-syntax/src/tests/delimited_recovery.rs:304–335, 517–555`.
+Every other delimited owner/phase remains untriaged, delegated, or unmapped.
+
 ## Boundaries
 
 The manifest deliberately excludes `cursor/recovery` implementation sites and

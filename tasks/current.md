@@ -311,6 +311,12 @@ does not consume protected Item leading, and an Error ends its tail rather than
 retrying a later name. They remain distinct from TypePathTail.
 The Authoritative AssignmentTail direct-inline RHS is mapped separately; its
 indented Statement branch remains delegated and open.
+The bounded ProjectionRecordSpreadItem RHS is mapped as Draft: the direct
+spread node distinguishes its Missing and raw Error leaves from parent record
+items, separators and close slots. A lexical Error run is not reconstructed as
+one parser record: CST adjacency determines its future Error groups, while
+native initial/retry/boundary leading remains in its documented direct owner.
+Every other record-projection phase and nested expression row remains open.
 The actual-arrow TypeArrowTail RHS Draft is preflighted and has direct CST
 proof. Its post-Error shallow-newline admission now follows the existing
 authority; user promotion remains open.

@@ -551,7 +551,7 @@ fn record_projection_spread_owns_exact_marker_and_rhs() {
 
 #[test]
 fn record_projection_spread_recovers_its_mandatory_rhs() {
-    for source in ["a.{..}", "a.{.., next}"] {
+    for (source, boundary_at) in [("a.{..}", 5), ("a.{.., next}", 5)] {
         let (green, exit) = run(source);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
@@ -566,10 +566,36 @@ fn record_projection_spread_recovers_its_mandatory_rhs() {
             .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
             .expect("record spread item");
         assert_eq!(
+            spread
+                .children_with_tokens()
+                .map(|element| element.kind())
+                .collect::<Vec<_>>(),
+            [SyntaxKind::DotDot, SyntaxKind::Missing],
+            "{source:?}"
+        );
+        assert_eq!(
             spread.children().last().map(|node| node.kind()),
             Some(SyntaxKind::Missing),
             "{source:?}"
         );
+        assert_eq!(
+            spread
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Missing)
+                .expect("required spread RHS Missing")
+                .text_range(),
+            rowan::TextRange::empty(boundary_at.into()),
+            "{source:?}"
+        );
+        assert_eq!(
+            spread
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert_eq!(spread.parent().as_ref(), Some(&record), "{source:?}");
         assert!(
             !record
                 .descendants_with_tokens()
@@ -580,8 +606,222 @@ fn record_projection_spread_recovers_its_mandatory_rhs() {
 }
 
 #[test]
-fn record_projection_spread_retries_one_invalid_rhs_run() {
-    let source = "a.{..@rest}";
+fn record_projection_spread_emits_ordinary_eof_leading_before_rhs_missing() {
+    let source = "a.{.. ";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let spread = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+        .expect("record spread item");
+    let direct = spread.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        direct
+            .iter()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::DotDot,
+            SyntaxKind::Whitespace,
+            SyntaxKind::Missing
+        ]
+    );
+    assert_eq!(
+        direct[1].text_range(),
+        rowan::TextRange::new(5.into(), 6.into())
+    );
+    assert_eq!(direct[2].text_range(), rowan::TextRange::empty(6.into()));
+    assert_eq!(direct[1].parent().as_ref(), Some(&spread));
+    assert_eq!(direct[2].parent().as_ref(), Some(&spread));
+}
+
+#[test]
+fn record_projection_spread_emits_initial_malformed_leading_before_rhs_error() {
+    let source = "a.{.. @}";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let spread = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+        .expect("record spread item");
+    let direct = spread.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        direct
+            .iter()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::DotDot,
+            SyntaxKind::Whitespace,
+            SyntaxKind::Error
+        ]
+    );
+    assert_eq!(
+        direct[1].text_range(),
+        rowan::TextRange::new(5.into(), 6.into())
+    );
+    assert_eq!(
+        direct[2].text_range(),
+        rowan::TextRange::new(6.into(), 7.into())
+    );
+    assert_eq!(direct[1].parent().as_ref(), Some(&spread));
+    assert_eq!(direct[2].parent().as_ref(), Some(&spread));
+}
+
+#[test]
+fn record_projection_spread_raw_error_group_includes_internal_trivia_before_retry() {
+    let source = "a.{..@ @ rest}";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let spread = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+        .expect("record spread item");
+    let direct = spread.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        direct
+            .iter()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::DotDot,
+            SyntaxKind::Error,
+            SyntaxKind::Error,
+            SyntaxKind::Error,
+            SyntaxKind::OperatorChain,
+        ]
+    );
+    assert_eq!(
+        direct[1].text_range(),
+        rowan::TextRange::new(5.into(), 6.into())
+    );
+    assert_eq!(
+        direct[2].text_range(),
+        rowan::TextRange::new(6.into(), 7.into())
+    );
+    assert_eq!(
+        direct[3].text_range(),
+        rowan::TextRange::new(7.into(), 8.into())
+    );
+    assert_eq!(direct[2].parent().as_ref(), Some(&spread));
+    let rhs = direct[4].as_node().expect("retried spread RHS");
+    assert_eq!(rhs.text_range(), rowan::TextRange::new(8.into(), 13.into()));
+    assert!(!rhs.text_range().contains_range(direct[2].text_range()));
+    assert!(!rhs.text_range().contains_range(direct[3].text_range()));
+}
+
+#[test]
+fn record_projection_spread_rejected_marker_orders_rhs_missing_before_parent_recovery() {
+    let source = "a.{.. ..rest}";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let record = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordTail)
+        .expect("record projection tail");
+    let spreads = record
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+        .collect::<Vec<_>>();
+    assert_eq!(spreads.len(), 2);
+    let first_direct = spreads[0].children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        first_direct
+            .iter()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::DotDot, SyntaxKind::Missing]
+    );
+    let first_missing = first_direct[1].as_node().expect("first spread RHS Missing");
+    assert_eq!(
+        first_missing.text_range(),
+        rowan::TextRange::empty(5.into())
+    );
+    let parent_missing = record
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .find(|node| node.text_range() == first_missing.text_range())
+        .expect("parent separator recovery at rejected marker");
+    assert_eq!(parent_missing.parent().as_ref(), Some(&record));
+    let preorder = record
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .collect::<Vec<_>>();
+    let first = preorder
+        .iter()
+        .position(|node| node.parent().as_ref() == Some(&spreads[0]))
+        .expect("first spread RHS Missing in preorder");
+    let later = preorder
+        .iter()
+        .position(|node| node.parent().as_ref() == Some(&record))
+        .expect("parent recovery in preorder");
+    assert!(first < later);
+}
+
+#[test]
+fn record_projection_spread_hands_abstract_boundary_out_after_rhs_missing() {
+    let fence = crate::lexical::yumark::FenceBoundary {
+        opener: crate::lexical::yumark::FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: crate::lexical::yumark::FencePrefixPolicy::ActivePrefixQuote {
+            depth: 2,
+            base: 0,
+        },
+        close_column: 0,
+    };
+    let source = "> > a.{.. \n> > ```\nouter";
+    let (green, exit, remainder) = run_normalized(
+        source,
+        &OperatorTable::empty(),
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    assert_eq!(green.to_string(), "> > a.{..");
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
+        exit
+    else {
+        panic!("record spread must preserve the abstract boundary")
+    };
+    assert!(boundary.payload_view().is_boundary());
+    assert!(boundary.leading_view().has_ordinary_newline());
+    assert_eq!(remainder, "> > ```\nouter");
+
+    let root = SyntaxNode::new_root(green);
+    let spread = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+        .expect("record spread item");
+    let direct = spread.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        direct
+            .iter()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::DotDot, SyntaxKind::Missing]
+    );
+    assert_eq!(direct[1].text_range(), rowan::TextRange::empty(9.into()));
+    assert_eq!(direct[1].parent().as_ref(), Some(&spread));
+}
+
+#[test]
+fn record_projection_spread_retains_a_raw_terminal_rhs_error_at_close() {
+    let source = "a.{..@}";
     let (green, exit) = run(source);
     assert_eq!(green.to_string(), source);
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
@@ -592,19 +832,72 @@ fn record_projection_spread_retries_one_invalid_rhs_run() {
         .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
         .expect("record spread item");
     assert_eq!(
-        crate::tests::recovery_output::recovery_groups(&spread)
-            .into_iter()
-            .filter(|group| group.parent().as_ref() == Some(&spread))
-            .count(),
-        1
+        spread
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::DotDot, SyntaxKind::Error]
     );
     assert_eq!(
         spread
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::OperatorChain)
-            .count(),
-        1
+            .children_with_tokens()
+            .find(|element| element.kind() == SyntaxKind::Error)
+            .expect("raw terminal RHS Error")
+            .text_range(),
+        rowan::TextRange::new(5.into(), 6.into())
     );
+    assert!(
+        !spread
+            .children()
+            .any(|node| node.kind() == SyntaxKind::Missing)
+    );
+}
+
+#[test]
+fn record_projection_spread_retries_one_raw_error_rhs_run_with_nested_leading() {
+    let source = "a.{..@ rest}";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+
+    let root = SyntaxNode::new_root(green);
+    let spread = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ProjectionRecordSpreadItem)
+        .expect("record spread item");
+    assert_eq!(
+        spread
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::DotDot,
+            SyntaxKind::Error,
+            SyntaxKind::OperatorChain,
+        ]
+    );
+    let error = spread
+        .children_with_tokens()
+        .find(|element| element.kind() == SyntaxKind::Error)
+        .expect("spread RHS Error");
+    assert_eq!(
+        error.text_range(),
+        rowan::TextRange::new(5.into(), 6.into())
+    );
+    let rhs = spread
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .expect("retried spread RHS");
+    let leading = rhs
+        .descendants_with_tokens()
+        .find(|element| element.kind() == SyntaxKind::Whitespace)
+        .expect("retried RHS leading");
+    assert_eq!(
+        leading.text_range(),
+        rowan::TextRange::new(6.into(), 7.into())
+    );
+    assert!(!error.text_range().contains_range(leading.text_range()));
+    assert!(rhs.text_range().contains_range(leading.text_range()));
     assert!(
         !spread
             .children()
