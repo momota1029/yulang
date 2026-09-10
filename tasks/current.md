@@ -280,8 +280,13 @@ outside the publisher census as source-navigation evidence rather than a
 ledger substitute.
 Interpolation/lazy/RuleLiteral children, String, and Virtual remain delegated
 or unmapped.
-The StringInterpolationBody statement-sequence Draft is preflighted and has
-direct CST proof; user promotion remains open.
+The bounded StringInterpolationBody root-style statement-sequence row is now
+mapped as Draft: nested `Statement(Missing)` owns a required starter, while
+direct body Missing and raw Error own separator and starter expectations
+respectively. Comma and semicolon end leading absorption but do not terminate
+the sequence, so a repeated separator first produces the next statement's
+Missing. Nested Statement contexts, interpolation close and string terminator
+remain delegated; user promotion remains open.
 The TypePathTail segment Draft and direct CST evidence are complete; its
 post-Error fence boundary repair is reviewed. Its bounded catalog row is now
 mapped: it distinguishes Type continuation from expression PathTail, including
