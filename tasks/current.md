@@ -220,6 +220,12 @@ retain respectively Expression, Separator and Close expectations. This is a
 schema gap, not a parser defect. Do not inspect Error spelling, collapse the
 expectations, or alter current records; an owner-specific structural proposal
 and user approval are required before topology construction.
+The unapproved Draft
+`2026-09-10-successor-expression-delimited-raw-slot-draft.md` records the
+evidence-backed candidate shared Separator and ForeignClose wrappers across
+five expression-delimited owners. Do not add a SyntaxKind, change production
+topology or modify collision expectations until the user approves its names,
+scope, cardinality and narrow raw-placement supersession.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The
