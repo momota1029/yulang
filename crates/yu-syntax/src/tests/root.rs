@@ -286,7 +286,7 @@ fn root_error_keeps_undeclared_operator_as_raw_token() {
 }
 
 #[test]
-fn root_direct_raw_error_collision_keeps_distinct_record_slots() {
+fn root_direct_raw_error_requires_ordered_context() {
     use crate::recovery_record::{
         Delimiter, ExpectedSyntax, KeywordEvidence, PunctuationEvidence, RecoveryKind,
         RootUnexpected, RootUnexpectedHead, StatementKind, UnexpectedSyntax,
