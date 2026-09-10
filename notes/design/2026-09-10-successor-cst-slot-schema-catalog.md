@@ -187,7 +187,7 @@ continuation, or close/stop ownership. It adds no node: the existing ordered
 | diagnostic projection | `ForallTypeBinder(Missing, SigilIdentifier)` projects singleton `TypeBinderBoundary` when it follows an accepted binder in this direct head sequence, including after a separator placeholder. An immediate placeholder `ForallTypeBinder(Error)` in the same ordered context projects its own BinderBoundary occurrence over its Error-token range, whether its successor is a later binder or the separately owned colon/body phase. The direct ForallType Missing after that placeholder projects no BinderBoundary occurrence, and an admitted literal colon projects none in this row. The interpreter uses wrapper/child/sibling context and Rowan order only; Error spelling and temporary recovery records are not inputs. |
 | proof and status | Governing authority: [Forall current-Item recovery](2026-09-08-successor-forall-current-item-recovery.md). Publishers: `crates/yu-syntax/src/type_expr/forall.rs:142–258,326–357,379–381,498–542`. Direct ordered CST proof: `crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:288–410`; existing role/range/frozen/boundary controls: `:412–543,594–650,652–827,867–908`. Status: catalog-audited evidence-complete Draft for this bounded later BinderBoundary row only; no parser/API/SyntaxKind or ledger-retirement claim. |
 
-### ForallType terminal literal-colon/body candidate
+### ForallType terminal emitted-colon/body candidate
 
 This bounded candidate maps the direct terminal colon/body phase after one or
 more accepted binder siblings, for the emitted `Colon` token. Ordinary colon
