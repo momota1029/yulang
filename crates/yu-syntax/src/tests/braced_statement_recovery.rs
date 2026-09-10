@@ -134,6 +134,106 @@ fn braced_slots_have_exact_shifted_and_frozen_records() {
 }
 
 #[test]
+fn braced_missing_slots_collide_at_the_same_direct_rowan_occurrence_path() {
+    let statement = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
+    let separator = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator);
+    let close = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::BracedStatementBlockExpression,
+        delimiter: Delimiter::Brace,
+    };
+    let cases = [
+        // The comma and semicolon remain in their explicit separator phase.
+        (
+            "{,;}",
+            statement,
+            1..1,
+            vec![
+                record(0, statement, 1..1, false),
+                record(1, statement, 2..2, false),
+            ],
+        ),
+        // The second statement is admitted after the missing separator.
+        (
+            "{use a use b}",
+            separator,
+            6..6,
+            vec![record(0, separator, 6..6, false)],
+        ),
+        // EOF reaches the local close phase after its horizontal leading.
+        ("{  ", close, 3..3, vec![record(0, close, 3..3, false)]),
+    ];
+
+    let mut paths = Vec::new();
+    for (source, role, range, expected) in cases {
+        let (green, records, exit, suffix) = parse(source, 0, None, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(records, expected, "{source:?}");
+        assert!(matches!(exit, NormalizedExit::Complete(_, _)), "{source:?}");
+        assert_eq!(suffix, "", "{source:?}");
+
+        let root = SyntaxNode::new_root(green.clone());
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .unwrap_or_else(|| panic!("braced block for {source:?}"));
+        let missing = block
+            .children()
+            .find(|node| {
+                node.kind() == SyntaxKind::Missing
+                    && node.text_range() == rowan::TextRange::empty(range.start.into())
+            })
+            .unwrap_or_else(|| panic!("{role:?} Missing for {source:?}"));
+        assert_eq!(missing.parent(), Some(block.clone()), "{source:?}");
+        paths.push(
+            missing
+                .ancestors()
+                .take(2)
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+        );
+
+        if role == separator {
+            assert_eq!(
+                block
+                    .children()
+                    .filter(|node| node.kind() == SyntaxKind::Statement)
+                    .count(),
+                2,
+                "the second Statement follows its missing separator: {source:?}",
+            );
+        }
+
+        let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+        assert_eq!(again, green, "{source:?}");
+        assert_eq!(frozen, records, "{source:?}");
+        assert!(
+            matches!(frozen_exit, NormalizedExit::Complete(_, _)),
+            "{source:?}"
+        );
+        assert_eq!(frozen_suffix, suffix, "{source:?}");
+    }
+
+    assert_eq!(
+        paths,
+        vec![
+            vec![
+                SyntaxKind::Missing,
+                SyntaxKind::BracedStatementBlockExpression
+            ],
+            vec![
+                SyntaxKind::Missing,
+                SyntaxKind::BracedStatementBlockExpression
+            ],
+            vec![
+                SyntaxKind::Missing,
+                SyntaxKind::BracedStatementBlockExpression
+            ],
+        ],
+        "the roles have no CST-visible wrapper between the block and Missing",
+    );
+}
+
+#[test]
 fn protected_nonlocal_closes_keep_horizontal_and_crlf_leading() {
     for prefix in ["{", "{@", "{x;", "{x"] {
         for leading in ["  ", "\r\n  "] {

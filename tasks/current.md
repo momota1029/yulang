@@ -250,6 +250,13 @@ locally consumed foreign close while direct raw PV Error remains Separator.
 Its architecture, specification and recovery reviews are closed. Do not add a
 SyntaxKind or alter PV topology, records or collision expectations until user
 approval.
+The next current-contract Statement collision is independently fixed as
+evidence: BracedStatementBlock's required Statement, Separator and local Brace
+Close Missing occurrences all use direct
+`BracedStatementBlockExpression > Missing`, without a role wrapper. The
+focused `{,;}`, `{use a use b}` and `{  ` controls retain their exact records,
+source, frozen replay and continuation. This is a schema gap, not a parser
+defect; topology remains unselected pending a bounded Draft and review.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The
