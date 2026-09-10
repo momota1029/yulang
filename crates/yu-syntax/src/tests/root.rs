@@ -1035,6 +1035,26 @@ fn root_operator_header_body_and_trailing_errors_are_direct_and_ordered() {
     );
     assert_no_invalid(&syntax);
 
+    let syntax = parse("prefix (?) 70 =value");
+    assert_eq!(
+        direct(&syntax),
+        [
+            (SyntaxKind::OperatorHeader, 0..15),
+            (SyntaxKind::Missing, 15..15),
+            (SyntaxKind::OperatorChain, 15..20),
+        ]
+    );
+    let missing = syntax
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .unwrap();
+    assert_eq!(
+        missing.text_range(),
+        rowan::TextRange::new(15.into(), 15.into())
+    );
+    assert_eq!(missing.parent(), Some(syntax.clone()));
+    assert_no_invalid(&syntax);
+
     let operator = parse("prefix (?) 70 = value @@");
     let standalone = parse("value @@");
     assert_eq!(

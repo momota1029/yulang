@@ -484,6 +484,16 @@ to direct Root publishers `crates/yu-syntax/src/root_statement.rs:174,261,338,
 mapped row; trivia/repetition, multi-fragment, boundary, retry and projection
 evidence remains open.
 
+#### Root direct raw Error bounded candidate links
+
+Only `crates/yu-syntax/src/root_statement.rs:174,261,316–332,338,431–552` is linked to
+the bounded Root raw-error candidate: root-entry phase selection, direct raw
+Error emission, actual-Equals body dispatch and direct body Missing. Direct
+proof is `crates/yu-syntax/src/tests/root.rs:148–883,884–1094`; test-only
+cell-boundary support is `root_statement.rs:853–951`. Ordinary Root Missing,
+nested statement/header recovery, outer Yumark and full Root grammar remain
+separate rows.
+
 #### StringInterpolationBody root-style statement-sequence row links
 
 Only the following `virtual_statement_block.rs` sites, in the direct

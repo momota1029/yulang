@@ -304,6 +304,9 @@ not a mapped row. The operator-header/body boundary now has direct CST proof:
 an actual `=` selects direct Root body Error/Missing even after an earlier
 header error, while absent `=` leaves subsequent Error in the trailing phase;
 body Missing and nested successor recovery remain separate direct occurrences.
+The bounded direct-Root raw-Error row now records only those groups and the
+body Missing; it is catalog-audited evidence-complete Draft and does not claim
+full Root grammar, outer Yumark, parser/API migration or ledger retirement.
 The test-only active-prefix cell now proves all 16 contexts
 stop direct Error leaves before close/transition/EOF boundaries across LF/CRLF,
 return the judged pending boundary untouched, and keep OperatorDefinitionBody
