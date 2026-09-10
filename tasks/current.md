@@ -228,6 +228,15 @@ slots are catalog-mapped; the rest of every delimited owner, the global schema,
 CST diagnostic interpreter, recovery-ledger retirement and API migration remain
 open. Do not inspect Error spelling, collapse expectations, or alter current
 records.
+The next discovered direct-Rowan schema gap is NamedRecordType: current
+`{([)]:A}` has one direct raw Error group across distinct Field and terminal
+Close records, and fresh semicolon makes Separator distinct from Field too.
+The Draft `2026-09-10-successor-named-record-type-slot-draft.md` proposes
+transparent `NamedRecordTypeSeparator` recovery occurrences and one terminal
+`NamedRecordTypeClose` per committed record. It is under independent review;
+do not add kinds, change production topology or update expectations until the
+user approves its names, accepted-close ancestor change, cardinality, leading
+contract and narrow raw-placement supersession.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

@@ -1,0 +1,143 @@
+# NamedRecordType recovery-slot CST draft
+
+Status: Draft; no implementation authorization
+
+Date: 2026-09-10
+
+Drafted-by: primary from the NamedRecordType collision investigation
+
+Scope: a proposed CST topology distinction for the existing
+`NamedRecordType` sequence only. It covers direct whole-Field recovery,
+separator recovery and final close ownership. It does not change accepted type
+grammar, current-Item scanning, field Name/Colon/RHS ownership, operator/type
+tail selection, Error/Invalid meaning, parser records, frozen reconciliation,
+public diagnostics, API migration or recovery-ledger retirement.
+
+Governing authority: the Authoritative CST-derived diagnostics amendment,
+Error/Invalid topology-ordering addendum, record sequence current-Item recovery
+and record field current-Item recovery. This Draft records a proven schema gap;
+it adds no implementation authority.
+
+## Proven collision
+
+The existing direct Rowan test with `{([)]:A}` retains two temporary Error
+records:
+
+```text
+Type(RecordField), Identifier,       1..3   // "(["
+Close(NamedRecordType, Brace), `}`,  3..7   // ")]:A"
+```
+
+Yet its lossless CST has one immediate `NamedRecordType` run of six adjacent
+`Error` tokens over `1..7`, with no `TypeRecordField`, `Missing` or other node
+between the Field and Close portions. The existing raw-group utility expressly
+coalesces adjacent Error leaves of one immediate parent across separately
+asserted recovery records. A future CST walker can neither inspect Error
+spelling nor retain parser phase, so it cannot infer the boundary at `3`.
+
+A close node alone is insufficient: the existing Initial, AfterComma and
+AfterError positions admit a semicolon as a Separator Error, while ordinary
+raw material at the same direct parent is a Field Error. The source role
+selection must therefore also be structural before temporary records vanish.
+
+## Candidate decision requiring user approval
+
+Add two transparent grammar-slot nodes:
+
+```text
+NamedRecordTypeSeparator := Missing | Error+
+NamedRecordTypeClose     := NativeTrivia* (Error NativeTrivia*)* (RBrace | Missing)
+```
+
+The intended XML-like Rowan grammar is:
+
+```xml
+<NamedRecordType>
+  <LBrace text="{"/>
+  <!-- direct native trivia, comma, accepted TypeRecordField,
+       whole-Field Missing, or whole-Field Error may repeat -->
+  <NamedRecordTypeSeparator>
+    <Missing/> | <Error text="..."/>
+  </NamedRecordTypeSeparator>
+  <NamedRecordTypeClose>
+    <RBrace text="}"/> | <Missing/>
+  </NamedRecordTypeClose>
+</NamedRecordType>
+```
+
+The notation describes structural alternatives, not a new grammar or uniform
+list layout. Accepted commas and implicit-newline separators remain direct
+native children. `NamedRecordTypeSeparator` occurs once per existing Separator
+Missing/Error publication only; it has exactly that recovery occurrence and no
+independent diagnostic. Direct `NamedRecordType` Missing/Error remains the
+whole-Field occurrence. Existing `TypeRecordField` ordered native
+name/colon/Type structure continues to distinguish Name, Colon and RHS slots.
+
+Exactly one `NamedRecordTypeClose` is emitted for every committed record. It
+contains the accepted `RBrace`, or the existing zero-width close `Missing`, and
+all native close-owned trivia/Error material during its irreversible close
+recovery. It has no independent diagnostic. A Close Error followed by a Close
+Missing retains two diagnostics from its Error group and direct Missing. A
+pending whole-Field Missing stays outside and precedes this close node even at
+the same coordinate.
+
+The wrapper range is determined only by its contained tokens/nodes. Initial
+leading already emitted by Field/Separator ownership stays outside a wrapper.
+Leading attached to the terminal close is native close content; Error-internal
+leading stays Error content. Protected caller/fence/outer-close Item and its
+leading remain pending and outside. No extra parser state, scan, source replay,
+Error spelling, provenance, generic recovery facility or Invalid node is
+introduced.
+
+## Required implementation boundary
+
+The only candidate owner is `type_expr::record::type_record_fields_normalized`:
+
+- the matching local `RBrace` path emits the one Close node around its accepted
+  close;
+- same-line next-field Separator Missing is enclosed after its existing native
+  leading emission;
+- every existing Separator Error publication, including a fresh semicolon, is
+  enclosed without wrapping whole-Field Error;
+- mismatched-close recovery opens one Close node only after a pending Field
+  Missing has been published, and retains the complete existing close run plus
+  its terminal `RBrace`/Missing;
+- boundary/EOF close Missing enters the Close node after eligible list leading
+  and any pending Field Missing; and
+- generic Field/Name recovery remains outside these nodes.
+
+Do not make an empty layout node, wrap accepted comma, wrap every field,
+reclassify/merge records, change current-Item continuation, move direct field
+leading, alter Error tokenization or apply these nodes to another record/type
+owner.
+
+## Alternatives not selected by this draft
+
+- Close-only topology fixes the demonstrated Field→Close split but leaves
+  Separator-versus-Field raw Error ambiguous.
+- A wrapper around every Field/Separator/Close creates needless accepted-tree
+  topology; direct Field context and existing `TypeRecordField` grammar suffice.
+- Uniform accepted separator wrappers introduce unneeded nodes where direct
+  comma punctuation already determines the slot.
+- `Invalid`, Error nodes, spelling/provenance inspection, expected payloads or
+  retaining the parser ledger conflict with governing authority.
+
+## Required approval and construction gate
+
+Before implementation, an independent specification review and compiler/recovery
+review must validate the full terminal and separator paths. The user must then
+approve both names, the asymmetric separator cardinality, one Close node for
+every committed record including accepted records, the described close-leading
+ancestor change, and narrow supersession of direct raw placement only for these
+existing slots.
+
+After approval, use M2: append SyntaxKinds without renumbering existing values;
+one implementation/repair bundle; focused tests for Field/Separator/Close
+splits, accepted records, source/range/leading/boundary/frozen behavior; one
+scoped closure review; package check, format and diff. No benchmark
+samples/processes are planned unless material uncertainty appears.
+
+Stop if any terminal route lacks exactly one close child, a Field recovery is
+enclosed by Close, range/record facts or current Item change, the field-internal
+schema proves ambiguous, accepted syntax changes beyond the approved ancestor,
+or a sibling owner would need either node.
