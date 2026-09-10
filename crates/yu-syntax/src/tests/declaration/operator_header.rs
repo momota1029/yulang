@@ -365,6 +365,177 @@ fn missing_header_slots_preserve_the_next_crlf_statement() {
 }
 
 #[test]
+fn operator_header_slots_are_direct_ordered_rowan_children() {
+    let parse = |source| {
+        let operators = OperatorTable::empty();
+        let mut input = source;
+        let mut recover = Recover::new_for_test(&operators);
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+        let (item, origin, line) = i
+            .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
+            .unwrap();
+        let (pending, _, _, _) = operator_header_normalized(i, item, origin, line, None);
+        output.finish_node();
+        (
+            SyntaxNode::new_root(output.finish()),
+            pending,
+            input.to_owned(),
+        )
+    };
+    let direct = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|element| {
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let assert_direct_errors = |header: &SyntaxNode, ranges: &[std::ops::Range<usize>]| {
+        let errors = header
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors
+                .iter()
+                .map(|token| {
+                    usize::from(token.text_range().start())..usize::from(token.text_range().end())
+                })
+                .collect::<Vec<_>>(),
+            ranges
+        );
+        assert!(
+            errors
+                .iter()
+                .all(|token| token.parent() == Some(header.clone()))
+        );
+        assert!(
+            header
+                .descendants()
+                .all(|node| node.kind() != SyntaxKind::Invalid),
+            "{header:#?}"
+        );
+    };
+
+    let (root, pending, input) = parse("lazy @ infix (<+>) 50 51 = body");
+    assert_eq!(root.to_string(), "lazy @ infix (<+>) 50 51 =");
+    assert!(pending.is_none());
+    assert_eq!(input, " body");
+    let header = root.children().next().unwrap();
+    assert_eq!(header.kind(), SyntaxKind::OperatorHeader);
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::LazyKw, 0..4),
+            (SyntaxKind::Whitespace, 4..5),
+            (SyntaxKind::Error, 5..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::InfixKw, 7..12),
+            (SyntaxKind::Whitespace, 12..13),
+            (SyntaxKind::OperatorName, 13..18),
+            (SyntaxKind::Whitespace, 18..19),
+            (SyntaxKind::BindingPower, 19..21),
+            (SyntaxKind::Whitespace, 21..22),
+            (SyntaxKind::BindingPower, 22..24),
+            (SyntaxKind::Whitespace, 24..25),
+            (SyntaxKind::Equals, 25..26),
+        ]
+    );
+    assert_direct_errors(&header, &[5..6]);
+
+    let (root, pending, input) = parse("prefix 70 = body");
+    assert_eq!(root.to_string(), "prefix 70 =");
+    assert!(pending.is_none());
+    assert_eq!(input, " body");
+    let header = root.children().next().unwrap();
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::PrefixKw, 0..6),
+            (SyntaxKind::Missing, 6..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::BindingPower, 7..9),
+            (SyntaxKind::Whitespace, 9..10),
+            (SyntaxKind::Equals, 10..11),
+        ]
+    );
+    let missing = header
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .unwrap();
+    assert_eq!(missing.parent(), Some(header.clone()));
+    assert_direct_errors(&header, &[]);
+
+    let (root, pending, input) = parse("prefix (!)70 = body");
+    assert_eq!(root.to_string(), "prefix (!)70 =");
+    assert!(pending.is_none());
+    assert_eq!(input, " body");
+    let header = root.children().next().unwrap();
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::PrefixKw, 0..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::OperatorName, 7..10),
+            (SyntaxKind::Error, 10..12),
+            (SyntaxKind::Whitespace, 12..13),
+            (SyntaxKind::Equals, 13..14),
+        ]
+    );
+    assert_direct_errors(&header, &[10..12]);
+
+    let (root, pending, input) = parse("prefix (!) 128 = body");
+    assert_eq!(root.to_string(), "prefix (!) 128 =");
+    assert!(pending.is_none());
+    assert_eq!(input, " body");
+    let header = root.children().next().unwrap();
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::PrefixKw, 0..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::OperatorName, 7..10),
+            (SyntaxKind::Whitespace, 10..11),
+            (SyntaxKind::Error, 11..14),
+            (SyntaxKind::Whitespace, 14..15),
+            (SyntaxKind::Equals, 15..16),
+        ]
+    );
+    assert_direct_errors(&header, &[11..14]);
+
+    let (root, pending, input) = parse("suffix (!) 128 body + tail");
+    assert_eq!(root.to_string(), "suffix (!) 128");
+    assert_eq!(input, " + tail");
+    let mut pending = pending.unwrap();
+    assert_eq!(emit_pending_leading_text(&mut pending), " ");
+    assert_eq!(pending.payload_view().spelling(), Some("body"));
+    let header = root.children().next().unwrap();
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::SuffixKw, 0..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::OperatorName, 7..10),
+            (SyntaxKind::Whitespace, 10..11),
+            (SyntaxKind::Error, 11..14),
+            (SyntaxKind::Missing, 14..14),
+        ]
+    );
+    let missing = header
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .unwrap();
+    assert_eq!(missing.parent(), Some(header.clone()));
+    assert_direct_errors(&header, &[11..14]);
+}
+
+#[test]
 fn quoted_fence_keeps_pending_crlf_and_anchors_at_abstract_coordinate() {
     use crate::lexical::yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy};
     use crate::recovery_record::{OperatorHeaderRole as R, RecoveryKind as K};
