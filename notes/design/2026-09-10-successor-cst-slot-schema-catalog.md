@@ -105,7 +105,7 @@ coverage manifest names the corresponding evidence files.
 | Catalog family | Row scope to map | Current catalog state |
 | --- | --- | --- |
 | expression tails and required operands | assignment, annotation, colon/with, fixed access, required operands, delimited expression phases | partial: the authoritative AssignmentTail direct-inline RHS row, the dedicated Field/Path evidence-complete Draft slices, bounded ProjectionRecordSpreadItem RHS row, and bounded expression-delimited raw Item/Separator/foreign-close rows are mapped; all other rows remain open |
-| expression forms and statement/layout containers | case/if/for, source-root, statement and virtual-statement sequences | unmapped except for delegated evidence links |
+| expression forms and statement/layout containers | case/if/for, source-root, statement and virtual-statement sequences | partial: Root direct raw-Error ordered-context matrix is recorded as candidate evidence only; all source-root, statement and virtual-statement schema rows remain open except listed delegated links |
 | pattern and structured delimiters | Pattern entries, delimited sequences, RecordPattern Item/Separator structured recovery | partial: the bounded item/separator structured Invalid rows and foreign-close raw Error row are mapped; every other Pattern row remains open |
 | type entries, tails and delimiters | type expression, paths, rows, variants, forall, delimited closes and TypeCall close | partial: the bounded LeadingEffectTypeHead, `TypePathTail` segment, and TypeCall-close rows are mapped below; all other Type production contexts remain open |
 | literal, interpolation and rule | String terminator, escape/interpolation braces, interpolation sequence, Rule-owned slots, ExpressionList delegation | partial: listed evidence-complete Draft slices, including audited StringEscape/interpolation-brace and Rule ExpressionList caller slots; direct-caller fence evidence remains open |
@@ -534,6 +534,25 @@ fence handoff, nested OperatorChain recovery, or ProjectionRecordSpreadItem.
 | transition/handoff | `owner sequence entry → existing close/item/separator priority → consume direct Item Error, transparent Separator Error, or one transparent ForeignClose Error → preserve the existing loop phase/next Item/line/fence/ambient context → retry an admitted child, consume local punctuation, or hand off protected boundary unchanged`. No wrapper has independent recovery state or diagnostic. |
 | diagnostic projection | A direct raw Item Error group projects its owner-specific Item expectation (`Expression`). An Error group under `ExpressionDelimitedSeparator` projects that owner's existing separator expectation (`DelimitedSequenceSeparator`). An Error group under `ExpressionDelimitedForeignClose` projects its immediate parent's existing matching close expectation. Each is one maximal adjacent group over its combined UTF-8 range, primary zero, in Rowan preorder. Neither Error spelling nor parser provenance is consulted. |
 | proof and status | Governing authority: [expression-delimited raw-slot topology](2026-09-10-successor-expression-delimited-raw-slot-draft.md) and [expression delimited current-Item recovery](2026-09-08-successor-expression-delimited-current-item-recovery.md). Direct owner/emission source: `crates/yu-syntax/src/expression/delimited.rs:154–258`; append-only kinds: `crates/yu-syntax/src/syntax_kind.rs:281–282, 500–504, 745–767`; direct Rowan proof: `crates/yu-syntax/src/tests/delimited_recovery.rs:433–1258`. Status: `mapped` after M2 pre-write and closure audits. All non-raw delimited slots, global interpreter, recovery ledger and API migration remain open. |
+
+### Root direct raw Error ordered-context evidence
+
+This is partial candidate evidence, not a mapped or evidence-complete Draft
+row. The current Root matrix distinguishes 16 direct raw `Error+` contexts by
+their ordered sibling grammar without a new node: initial Starter; Separator
+after an `OperatorChain`; 13 trailing-input contexts after their accepted
+statement child; and required OperatorDefinition body after `OperatorHeader`.
+Every witness has direct `Root` Error-token leaves, no `Invalid`, and a direct
+next-statement sibling. Starter/trailing retain the ordered root-keyword set,
+Separator retains singleton StatementSeparator, and operator body retains
+singleton Expression. Error spelling is not classification input.
+
+The matrix does not yet specify full Root trivia/repetition grammar, multi-run
+or UTF-8/opaque extent, LF/EOF/fence handoff, retry/separator progression,
+preorder/same-offset behavior, or independently audited CST projection.
+Accordingly it neither selects topology nor supports ledger retirement.
+Evidence: `crates/yu-syntax/src/tests/root.rs:289–535`; publishers:
+`crates/yu-syntax/src/root_statement.rs:174,261,338,431–552`.
 
 ### StringInterpolationBody root-style statement-sequence map
 

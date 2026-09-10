@@ -427,6 +427,15 @@ newline-Missing `exception` above. Its placement in this source-navigation
 group does not classify that record-producing callback as a root/layout CST
 slot.
 
+#### Root direct raw Error ordered-context matrix
+
+The partial candidate evidence links `crates/yu-syntax/src/tests/root.rs:289–535`
+to direct Root publishers `crates/yu-syntax/src/root_statement.rs:174,261,338,
+431–552`. It proves ordered-neighbor distinguishability for Starter, Separator,
+13 trailing statement owners and OperatorDefinitionBody only. It is not a
+mapped row; trivia/repetition, multi-fragment, boundary, retry and projection
+evidence remains open.
+
 #### StringInterpolationBody root-style statement-sequence row links
 
 Only the following `virtual_statement_block.rs` sites, in the direct
