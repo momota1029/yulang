@@ -286,6 +286,86 @@ fn root_error_keeps_undeclared_operator_as_raw_token() {
 }
 
 #[test]
+fn root_direct_raw_error_collision_keeps_distinct_record_slots() {
+    use crate::recovery_record::{
+        Delimiter, ExpectedSyntax, KeywordEvidence, PunctuationEvidence, RecoveryKind,
+        RootUnexpected, RootUnexpectedHead, StatementKind, UnexpectedSyntax,
+    };
+
+    for (source, role, expected, unexpected) in [
+        (
+            "abc   ]\r\nnext",
+            GrammarRole::Statement(StatementRole::Separator),
+            ExpectedSyntax::StatementSeparator,
+            None,
+        ),
+        (
+            "use a ]\r\nnext",
+            GrammarRole::Statement(StatementRole::TrailingInput {
+                owner: StatementKind::UseDeclaration,
+            }),
+            ExpectedSyntax::Keyword(KeywordEvidence::Use),
+            Some(UnexpectedSyntax::Root(RootUnexpected::TrailingInput {
+                owner: StatementKind::UseDeclaration,
+                range: 6..7,
+                head: RootUnexpectedHead::Punctuation(PunctuationEvidence::Close(
+                    Delimiter::Bracket,
+                )),
+            })),
+        ),
+    ] {
+        let fresh = parse_root_candidate(source, &OperatorTable::empty(), &[]);
+        assert_eq!(fresh.green.to_string(), source);
+        assert_eq!(fresh.committed_recoveries.len(), 1, "{source:?}");
+        let record = &fresh.committed_recoveries[0];
+        assert_eq!(record.kind, RecoveryKind::Error, "{source:?}");
+        assert_eq!(record.site.role, role, "{source:?}");
+        assert_eq!(record.site.range, 6..7, "{source:?}");
+        assert_eq!(record.expectations[0].expected, expected, "{source:?}");
+        if let Some(unexpected) = unexpected {
+            assert_eq!(record.unexpected.as_ref(), [unexpected], "{source:?}");
+        }
+
+        let syntax = SyntaxNode::new_root(fresh.green.clone());
+        let groups = recovery_groups(&syntax);
+        assert_eq!(groups.len(), 1, "{source:?}: {groups:#?}");
+        let error = &groups[0];
+        assert_eq!(error.parent(), Some(syntax.clone()), "{source:?}");
+        assert_eq!(
+            error.text_range(),
+            rowan::TextRange::new(6.into(), 7.into())
+        );
+        assert_eq!(error.to_string(), "]");
+        let raw_error = syntax
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(raw_error.len(), 1, "{source:?}: {raw_error:#?}");
+        assert_eq!(raw_error[0].parent(), Some(syntax.clone()), "{source:?}");
+        assert_eq!(raw_error[0].text(), "]");
+        assert_eq!(
+            raw_error[0].text_range(),
+            rowan::TextRange::new(6.into(), 7.into())
+        );
+        assert!(
+            syntax
+                .descendants()
+                .all(|node| node.kind() != SyntaxKind::Invalid),
+            "{source:?}: {syntax:#?}"
+        );
+        assert_eq!(
+            syntax
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::OperatorChain && node.text() == "next")
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn root_operator_body_missing_gap_and_empty_body_keep_typed_owner() {
     use crate::recovery_record::{ExpectedSyntax, LayoutRole, RecoveryKind};
     for (source, role, at, expected) in [

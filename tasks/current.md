@@ -266,6 +266,13 @@ leaving the outer `}` to its owner. The Draft remains unapproved and requires
 renewed specification/compiler-recovery review of its corrected leading and
 narrow-supersession contract; do not change CST topology, SyntaxKinds, records
 or collision expectations until user approval.
+The next source-root evidence fixes a raw-Error schema collision: `abc   ]\r\nnext`
+and `use a ]\r\nnext` each contain exactly one direct `Root` child
+`Error("]")` at `6..7`, with no `Invalid` wrapper and the same resumed `next`
+statement, but their retained roles/expectations are respectively Statement
+Separator and UseDeclaration trailing input. This is a CST-schema blocker, not
+authority for a new node or for retiring the ledger; topology selection remains
+open.
 The Draft additionally exposed and focused tests now prove an existing braced
 owner defect: after a completed nested `for` braced body, `{for x in xs {}}`
 and `{for x in xs {} use a}` drop the final enclosing `}` from the CST and
