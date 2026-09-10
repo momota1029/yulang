@@ -835,6 +835,7 @@ mod sequence_fence_tests {
         yumark::{FenceLineDecision, FenceOpener, FencePrefixPolicy, judge_fence_line},
     };
     use crate::operator_table::OperatorTable;
+    use crate::syntax_kind::SyntaxNode;
 
     fn fence() -> FenceBoundary {
         FenceBoundary {
@@ -845,6 +846,182 @@ mod sequence_fence_tests {
             },
             prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
             close_column: 0,
+        }
+    }
+
+    #[test]
+    fn root_direct_error_catalog_hands_close_transition_and_eof_untouched() {
+        struct Row {
+            name: &'static str,
+            prefix: &'static str,
+            before_error: &'static str,
+            malformed: &'static str,
+            after_error: &'static str,
+        }
+
+        let mut rows = vec![
+            Row {
+                name: "starter",
+                prefix: "",
+                before_error: "",
+                malformed: "]",
+                after_error: "",
+            },
+            Row {
+                name: "separator",
+                prefix: "abc",
+                before_error: "   ",
+                malformed: "]",
+                after_error: "",
+            },
+        ];
+        for (name, prefix) in [
+            ("use", "use a "),
+            ("binding", "my x = value "),
+            ("mod", "mod M {x} "),
+            ("struct", "struct S {} "),
+            ("enum", "enum E {A} "),
+            ("error", "error E {A} "),
+            ("type", "type T = A "),
+            ("role", "role R {} "),
+            ("impl", "impl T {} "),
+            ("cast", "cast(x): A = value "),
+            ("act", "act A {} "),
+            ("for", "for x in xs: x "),
+            ("operator", "prefix (?) 70 = value "),
+        ] {
+            rows.push(Row {
+                name,
+                prefix,
+                before_error: "",
+                malformed: "]",
+                after_error: "",
+            });
+        }
+        rows.push(Row {
+            name: "operator-body",
+            prefix: "prefix (?) 70 = ",
+            before_error: "",
+            malformed: "@@",
+            after_error: "value",
+        });
+
+        for newline in ["\n", "\r\n"] {
+            for terminal in ["close", "transition", "eof"] {
+                let suffix = match terminal {
+                    "close" => format!("> ``` \t{newline}rest"),
+                    "transition" => format!(">> outer{newline}rest"),
+                    "eof" => String::new(),
+                    _ => unreachable!(),
+                };
+                for row in &rows {
+                    let body = format!(
+                        "> {}{}{}{}{}",
+                        row.prefix, row.before_error, row.malformed, row.after_error, newline
+                    );
+                    let source = format!("{body}{suffix}");
+                    let error_start = body.find(row.malformed).unwrap();
+                    let error_end = error_start + row.malformed.len();
+                    let mut remaining = source.as_str();
+                    let operators = OperatorTable::empty();
+                    let mut recover = Recover::new_for_test(&operators);
+                    let mut output = GreenNodeBuilder::new();
+                    output.start_node(SyntaxKind::Root.into());
+                    let fence = fence();
+                    let (boundary, origin, _) = parse_yulang_code_cell(
+                        source.len(),
+                        &mut remaining,
+                        &mut recover,
+                        &mut output,
+                        0,
+                        LineEntry::PhysicalStart,
+                        &fence,
+                    );
+                    output.finish_node();
+                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                    let label = format!("{} / {terminal} / {newline:?}", row.name);
+
+                    assert_eq!(remaining, suffix, "{label}");
+                    assert_eq!(origin, body.len(), "{label}");
+                    let FenceLineDecision::Boundary(expected) =
+                        judge_fence_line(remaining, origin, &fence)
+                    else {
+                        panic!("expected terminal boundary: {label}");
+                    };
+                    assert_eq!(boundary, expected, "{label}");
+                    assert_eq!(boundary.coordinate(), origin, "{label}");
+                    assert_eq!(green.to_string(), body, "{label}");
+
+                    let syntax = SyntaxNode::new_root(green);
+                    let cell = syntax.children().next().unwrap();
+                    assert_eq!(cell.kind(), SyntaxKind::YmYulangCodeCell, "{label}");
+                    assert!(
+                        !cell
+                            .descendants()
+                            .any(|node| node.kind() == SyntaxKind::Invalid),
+                        "{label}"
+                    );
+                    let errors: Vec<_> = cell
+                        .descendants_with_tokens()
+                        .filter_map(|element| element.into_token())
+                        .filter(|token| token.kind() == SyntaxKind::Error)
+                        .map(|token| {
+                            assert_eq!(token.parent().as_ref(), Some(&cell), "{label}");
+                            (
+                                usize::from(token.text_range().start())
+                                    ..usize::from(token.text_range().end()),
+                                token.text().to_owned(),
+                            )
+                        })
+                        .collect();
+                    assert!(!errors.is_empty(), "{label}");
+                    assert_eq!(errors.first().unwrap().0.start, error_start, "{label}");
+                    assert_eq!(errors.last().unwrap().0.end, error_end, "{label}");
+                    assert_eq!(
+                        errors
+                            .iter()
+                            .map(|(_, text)| text.as_str())
+                            .collect::<String>(),
+                        row.malformed,
+                        "{label}"
+                    );
+                    assert!(
+                        cell.children_with_tokens().any(|element| {
+                            element.kind() != SyntaxKind::Error
+                                && element.to_string() == newline
+                                && usize::from(element.text_range().start())
+                                    == body.len() - newline.len()
+                        }),
+                        "{label}"
+                    );
+                    if !suffix.is_empty() {
+                        assert!(!cell.to_string().contains(&suffix), "{label}");
+                    }
+                    if row.name == "operator-body" {
+                        assert_eq!(records.len(), 1, "{label}");
+                        assert_eq!(records[0].kind, RecoveryKind::Error, "{label}");
+                        assert_eq!(
+                            records[0].site.role,
+                            GrammarRole::Statement(StatementRole::OperatorDefinitionBody),
+                            "{label}"
+                        );
+                        assert_eq!(records[0].site.range, error_start..error_end, "{label}");
+                        let value = cell
+                            .children()
+                            .find(|node| {
+                                node.kind() == SyntaxKind::OperatorChain
+                                    && node.to_string() == row.after_error
+                            })
+                            .unwrap();
+                        assert_eq!(value.parent().as_ref(), Some(&cell), "{label}");
+                        assert_eq!(
+                            usize::from(value.text_range().start()),
+                            error_end,
+                            "{label}"
+                        );
+                    }
+                }
+            }
         }
     }
 

@@ -280,8 +280,12 @@ declaration/OperatorDefinition trailing input and OperatorDefinitionBody. Its
 16-context caller matrix now proves their ordered direct-child neighborhoods;
 separate controls prove repeated Error groups across a native semicolon and
 UTF-8 opaque Error-fragment byte ranges. Root trivia/repetition grammar,
-LF/EOF/fence handoff, retry/separator progression and CST projection ordering
-remain partial evidence, not a mapped row.
+retry/separator progression and CST projection ordering remain partial evidence,
+not a mapped row. The test-only active-prefix cell now proves all 16 contexts
+stop direct Error leaves before close/transition/EOF boundaries across LF/CRLF,
+return the judged pending boundary untouched, and keep OperatorDefinitionBody
+recovery/value ownership. It does not establish an outer Yumark document owner
+or public fence topology.
 The legacy spelling-derived `RootUnexpectedHead` payload is explicitly retired
 by the Authoritative CST-derived-diagnostics migration: raw Error text remains
 displayable, never a diagnostic classifier. It remains only in the temporary
