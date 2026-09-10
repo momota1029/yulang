@@ -300,7 +300,11 @@ declaration/OperatorDefinition trailing input and OperatorDefinitionBody. Its
 separate controls prove repeated Error groups across a native semicolon and
 UTF-8 opaque Error-fragment byte ranges. Root trivia/repetition grammar,
 retry/separator progression and CST projection ordering remain partial evidence,
-not a mapped row. The test-only active-prefix cell now proves all 16 contexts
+not a mapped row. The operator-header/body boundary now has direct CST proof:
+an actual `=` selects direct Root body Error/Missing even after an earlier
+header error, while absent `=` leaves subsequent Error in the trailing phase;
+body Missing and nested successor recovery remain separate direct occurrences.
+The test-only active-prefix cell now proves all 16 contexts
 stop direct Error leaves before close/transition/EOF boundaries across LF/CRLF,
 return the judged pending boundary untouched, and keep OperatorDefinitionBody
 recovery/value ownership. It does not establish an outer Yumark document owner

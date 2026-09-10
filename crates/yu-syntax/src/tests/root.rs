@@ -879,3 +879,196 @@ fn operator_body_error_is_root_sibling_and_cannot_retry_into_later_header() {
         );
     }
 }
+
+#[test]
+fn root_operator_header_body_and_trailing_errors_are_direct_and_ordered() {
+    let parse = |source| {
+        let header = discover_header(source);
+        let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
+        assert_eq!(root.green.to_string(), source, "{source:?}");
+        SyntaxNode::new_root(root.green)
+    };
+    let direct = |syntax: &SyntaxNode| {
+        syntax
+            .children_with_tokens()
+            .map(|element| {
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let assert_no_invalid = |syntax: &SyntaxNode| {
+        assert!(
+            syntax
+                .descendants()
+                .all(|node| node.kind() != SyntaxKind::Invalid),
+            "{syntax:#?}"
+        );
+    };
+
+    let syntax = parse("prefix (?) @@ = @@");
+    assert_eq!(
+        direct(&syntax),
+        [
+            (SyntaxKind::OperatorHeader, 0..15),
+            (SyntaxKind::Whitespace, 15..16),
+            (SyntaxKind::Error, 16..17),
+            (SyntaxKind::Error, 17..18),
+            (SyntaxKind::Missing, 18..18),
+        ]
+    );
+    let header = syntax.children().next().unwrap();
+    assert_eq!(header.kind(), SyntaxKind::OperatorHeader);
+    assert_eq!(
+        direct(&header),
+        [
+            (SyntaxKind::PrefixKw, 0..6),
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::OperatorName, 7..10),
+            (SyntaxKind::Whitespace, 10..11),
+            (SyntaxKind::Error, 11..12),
+            (SyntaxKind::Error, 12..13),
+            (SyntaxKind::Whitespace, 13..14),
+            (SyntaxKind::Equals, 14..15),
+        ]
+    );
+    let groups = recovery_groups(&syntax);
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].parent(), Some(header));
+    assert_eq!(
+        groups[0].text_range(),
+        rowan::TextRange::new(11.into(), 13.into())
+    );
+    assert_eq!(groups[1].parent(), Some(syntax.clone()));
+    assert_eq!(
+        groups[1].text_range(),
+        rowan::TextRange::new(16.into(), 18.into())
+    );
+    let missing = syntax
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .unwrap();
+    assert_eq!(
+        missing.text_range(),
+        rowan::TextRange::new(18.into(), 18.into())
+    );
+    assert_eq!(missing.parent(), Some(syntax.clone()));
+    assert_no_invalid(&syntax);
+
+    let syntax = parse("prefix (?) 70 @@ value");
+    assert_eq!(
+        direct(&syntax),
+        [
+            (SyntaxKind::OperatorHeader, 0..16),
+            (SyntaxKind::Whitespace, 16..17),
+            (SyntaxKind::Error, 17..22),
+        ]
+    );
+    let header = syntax.children().next().unwrap();
+    assert!(
+        header
+            .children_with_tokens()
+            .all(|element| element.kind() != SyntaxKind::Equals)
+    );
+    let groups = recovery_groups(&syntax);
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].parent(), Some(header));
+    assert_eq!(
+        groups[0].text_range(),
+        rowan::TextRange::new(14.into(), 16.into())
+    );
+    assert_eq!(groups[1].parent(), Some(syntax.clone()));
+    assert_eq!(
+        groups[1].text_range(),
+        rowan::TextRange::new(17.into(), 22.into())
+    );
+    assert!(
+        syntax
+            .descendants()
+            .all(|node| node.kind() != SyntaxKind::Missing)
+    );
+    assert_no_invalid(&syntax);
+
+    let syntax = parse("prefix (?) 70 = @@\nuse a as");
+    assert_eq!(
+        direct(&syntax),
+        [
+            (SyntaxKind::OperatorHeader, 0..15),
+            (SyntaxKind::Whitespace, 15..16),
+            (SyntaxKind::Error, 16..17),
+            (SyntaxKind::Error, 17..18),
+            (SyntaxKind::Missing, 18..18),
+            (SyntaxKind::Newline, 18..19),
+            (SyntaxKind::UseDeclaration, 19..27),
+        ]
+    );
+    let groups = recovery_groups(&syntax);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].parent(), Some(syntax.clone()));
+    assert_eq!(
+        groups[0].text_range(),
+        rowan::TextRange::new(16.into(), 18.into())
+    );
+    let missing = syntax
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        missing
+            .iter()
+            .map(|node| node.text_range())
+            .collect::<Vec<_>>(),
+        [
+            rowan::TextRange::new(18.into(), 18.into()),
+            rowan::TextRange::new(27.into(), 27.into()),
+        ]
+    );
+    assert_eq!(missing[0].parent(), Some(syntax.clone()));
+    assert_eq!(missing[1].parent().unwrap().kind(), SyntaxKind::UseAlias);
+    assert!(
+        missing[1]
+            .ancestors()
+            .any(|node| node.kind() == SyntaxKind::UseDeclaration)
+    );
+    assert_no_invalid(&syntax);
+
+    let operator = parse("prefix (?) 70 = value @@");
+    let standalone = parse("value @@");
+    assert_eq!(
+        direct(&operator),
+        [
+            (SyntaxKind::OperatorHeader, 0..15),
+            (SyntaxKind::Whitespace, 15..16),
+            (SyntaxKind::OperatorChain, 16..21),
+            (SyntaxKind::Whitespace, 21..22),
+            (SyntaxKind::Error, 22..23),
+            (SyntaxKind::Error, 23..24),
+        ]
+    );
+    assert_eq!(
+        direct(&standalone),
+        [
+            (SyntaxKind::OperatorChain, 0..5),
+            (SyntaxKind::Whitespace, 5..6),
+            (SyntaxKind::Error, 6..7),
+            (SyntaxKind::Error, 7..8),
+        ]
+    );
+    for syntax in [&operator, &standalone] {
+        let errors = syntax
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 2);
+        assert!(
+            errors
+                .iter()
+                .all(|token| token.parent() == Some(syntax.clone()))
+        );
+        assert_no_invalid(syntax);
+    }
+}
