@@ -102,6 +102,27 @@ source-navigation families, not semantic schema families.
 - `crates/yu-syntax/src/expression/tails/inline_slot.rs`
 - `crates/yu-syntax/src/expression/tails/with_body.rs`
 
+#### AssignmentTail direct-inline RHS row links
+
+Only the following verified locations are linked to the mapped Authoritative
+catalog row `(AssignmentTail, direct inline required Rhs immediately after
+Equals, enabled outer non-ML expression-tail continuation)`. They establish
+the direct tail/Equals wrapper and terminal exit, inline RHS
+Missing/Error/retry/handoff, shared protected-boundary and leading rule, and
+the expression-tail priority that admits Equals only after dynamic LED
+declines. They do not assign the left expression, `Assignment(IndentedStatement)`,
+any other AssignmentTail context, or nested `OperatorChain` slots.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/tails/assignment.rs:29` | `linked` | direct `AssignmentTail`/`Equals` owner selects inline versus delegated indented RHS and returns the RHS exit after finishing the tail |
+| `crates/yu-syntax/src/expression/tails/assignment.rs:90` | `linked` | direct inline Rhs classification owns Missing, maximal raw Error-run, retry to an admitted RHS, and terminal protected-boundary handoff |
+| `crates/yu-syntax/src/expression/tails/inline_slot.rs:34` | `linked` | shared inline boundary/leading classification preserves protected Item leading and governs the direct Missing coordinate rule |
+| `crates/yu-syntax/src/expression/operator_chain.rs:579` | `linked` | enabled outer expression-tail priority recognizes Equals only after dynamic LED processing has declined it |
+
+Every other emission and helper in `assignment.rs`, `inline_slot.rs`, and
+`operator_chain.rs` remains untriaged and unmapped unless separately linked.
+
 #### Fixed FieldTail Name and PathTail Segment row links
 
 Only the following verified `fixed_access.rs` locations are linked to the

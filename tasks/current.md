@@ -304,6 +304,8 @@ Expression FieldTail and PathTail are now mapped as separate bounded Draft rows:
 their introducer trivia remains direct tail content, Path's conditional leading
 does not consume protected Item leading, and an Error ends its tail rather than
 retrying a later name. They remain distinct from TypePathTail.
+The Authoritative AssignmentTail direct-inline RHS is mapped separately; its
+indented Statement branch remains delegated and open.
 The actual-arrow TypeArrowTail RHS Draft is preflighted and has direct CST
 proof. Its post-Error shallow-newline admission now follows the existing
 authority; user promotion remains open.

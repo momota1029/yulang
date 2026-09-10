@@ -24,8 +24,8 @@ it is not the schema and is not authority for a missing row.
 `2026-09-09-successor-error-invalid-topology-ordering-addendum.md` remains
 Authoritative for the completed topology-only Error-token/Invalid-node gate.
 `2026-09-09-successor-error-admission-schema-clarification.md` remains Draft,
-except for its AssignmentTail direct-inline slice, which is Authoritative. The
-catalog links that slice rather than copying or extending it. Existing accepted
+except for its AssignmentTail direct-inline slice, which is Authoritative. Its
+bounded catalog row faithfully maps that slice without extending it. Existing accepted
 syntax, recovery continuation, current-Item and fence handoff, lossless-source,
 and direct-Rowan contracts retain their governing authorities.
 
@@ -104,7 +104,7 @@ coverage manifest names the corresponding evidence files.
 
 | Catalog family | Row scope to map | Current catalog state |
 | --- | --- | --- |
-| expression tails and required operands | assignment, annotation, colon/with, fixed access, required operands, delimited expression phases | partial: AssignmentTail direct-inline is externally Authoritative; dedicated Field/Path evidence-complete Draft slices are referenced below |
+| expression tails and required operands | assignment, annotation, colon/with, fixed access, required operands, delimited expression phases | partial: the authoritative AssignmentTail direct-inline RHS row and dedicated Field/Path evidence-complete Draft slices are mapped; all other rows remain open |
 | expression forms and statement/layout containers | case/if/for, source-root, statement and virtual-statement sequences | unmapped except for delegated evidence links |
 | pattern and structured delimiters | Pattern entries, delimited sequences, RecordPattern Item/Separator structured recovery | unmapped; preserve the designated Invalid row below |
 | type entries, tails and delimiters | type expression, paths, rows, variants, forall, delimited closes and TypeCall close | partial: the bounded LeadingEffectTypeHead, `TypePathTail` segment, and TypeCall-close rows are mapped below; all other Type production contexts remain open |
@@ -397,14 +397,22 @@ continuations.
 | diagnostic projection | A direct Missing or one maximal adjacent direct Error group under the immediate `PathTail` parent projects singleton `Identifier`, primary alternative zero, at its direct CST range (zero-width for Missing; combined UTF-8 range for Error). Conditional native leading, accepted Identifier/SigilIdentifier, retained leading/Item handoff, and a sibling PathTail split groups. Source order places an Error occurrence before later outer-tail occurrences. |
 | proof and status | Governing behavior: [fixed-tail current-Item recovery](2026-09-08-successor-expression-fixed-tail-current-item-recovery.md) and the proposed fixed-tail schema slice above. Direct CST evidence covers accepted normal/sigil/Missing/Error alternatives, conditional native leading, `::{` raw recovery, protected/retry handoff, outer-tail siblings, UTF-8/CRLF/fence range, and threshold/ML handoff. Status: `mapped` for this evidence-complete Draft row only; `TypePathTail`, promotion, the global interpreter, and ledger retirement remain open. |
 
-### External authoritative slice
+### AssignmentTail direct-inline RHS map
 
-The direct-inline `AssignmentTail` RHS slice is Authoritative only in
-`2026-09-09-successor-error-admission-schema-clarification.md`,
-**Representative schema slice: AssignmentTail inline RHS**. Its ordered
-children, leading, Missing/raw Error admission, retry, projection and nested
-ownership are not copied here. The indented `Assignment(IndentedStatement)`
-alternative remains an excluded open dependency.
+This bounded row records the externally Authoritative direct-inline slice from
+the [error-admission clarification](2026-09-09-successor-error-admission-schema-clarification.md#representative-schema-slice-assignmenttail-inline-rhs).
+It maps neither the left expression nor the separately delegated
+`Assignment(IndentedStatement)` alternative.
+
+| Fact | Authoritative catalog row |
+| --- | --- |
+| identity | `(AssignmentTail, direct inline required Rhs immediately after Equals, enabled outer non-ML expression-tail continuation)` |
+| ordered Rowan grammar | `AssignmentTail := Equals NativeTrivia* (Missing \| Error+ \| Error+ OperatorChain \| OperatorChain)` for this direct-inline position. `Equals := "="`; it is a direct child and is acquired as the one-character assignment tail only after an admitted dynamic LED declines. `OperatorChain` is the concrete direct RHS child; there is no `InlineRhs` node. Initial leading before an accepted or initially rejected direct RHS is native `AssignmentTail` trivia after `Equals` and before that child or raw Error group. No `Invalid` is admitted. |
+| malformed admission and completion | An admitted inline expression completes with one direct `OperatorChain`. An admitted stop, boundary, separator, close, non-NUD bracket opener, non-continuing layout, or EOF emits exactly one zero-width direct `Missing`. A non-boundary non-NUD run emits one nonempty maximal direct `Error+` group; it either retries this same Rhs position to an admitted inline `OperatorChain`, or terminates on a protected boundary. The terminal Error group returns that boundary unchanged and adds no duplicate Missing. |
+| nested ownership | The direct RHS `OperatorChain` owns the full expression grammar and every nested recovery slot, including recovery reached after an Error retry. The raw Error group contains only direct Error tokens; it does not retain nested grammar. The left expression, dynamic-LED selection, and all later outer-tail processing are not children of this row. |
+| transition/handoff | `enabled outer non-ML tail sees Equals after dynamic LED declines → consume direct Equals and classify the direct Rhs as admitted OperatorChain, one Missing, or one maximal Error group → consume the RHS child, emit the zero-width Missing, or consume direct Error leaves → Assignment is terminal and returns its resulting Item/exit without same-chain continuation; Error retry admits a new direct OperatorChain, whose retry leading is native inside that child, while protected-boundary leading remains pending on the returned Item → the direct Missing or maximal direct Error group witnesses Assignment(Rhs), Expression, primary zero`. Initial rejected-Item leading stays outside its Error group under `AssignmentTail`; Error interior leading belongs to that group. Ordinary EOF may emit selected owner-leading before Missing and anchors at physical EOF. |
+| diagnostic projection | A direct Missing or one maximal adjacent direct Error-token group under the immediate `AssignmentTail` parent projects one `Assignment(Rhs)` occurrence with expected `Expression`, primary alternative zero. Missing uses its direct zero-width Rowan range; Error uses the combined UTF-8 range of that maximal group. Initial/retry/protected-boundary leading, Equals, and the direct `OperatorChain` split the group. Projection is preorder: this direct Rhs occurrence precedes recovery projected by a nested RHS `OperatorChain`; no parser-record coordinate relocates the Rowan range. |
+| proof and status | Governing slice: [error-admission clarification](2026-09-09-successor-error-admission-schema-clarification.md#representative-schema-slice-assignmenttail-inline-rhs), Authoritative for this direct-inline slice only. Verified source links: `crates/yu-syntax/src/expression/tails/assignment.rs:29` (AssignmentTail/Equals and terminal exit), `:90` (inline Rhs classification, Missing/Error/retry and handoff), `crates/yu-syntax/src/expression/tails/inline_slot.rs:34` (shared inline protected-boundary and leading rule), and `crates/yu-syntax/src/expression/operator_chain.rs:579` (Equals admission after enabled continuation/LED priority). Status: `mapped` for this Authoritative direct-inline RHS row only; `Assignment(IndentedStatement)`, the left expression, all other AssignmentTail contexts, the CST interpreter, recovery-ledger retirement, and API migration remain open. |
 
 ## Existing evidence-complete Draft slices
 
@@ -423,8 +431,9 @@ families or the global catalog.
 | BracketRow required-arrow continuation | error-admission clarification, **Proposed schema slice: BracketRow-selected required-arrow continuation** | user promotion open |
 | actual-arrow TypeArrowTail RHS | error-admission clarification, **Proposed schema slice: TypeArrowTail actual-arrow RHS** | user promotion open |
 
-The AssignmentTail direct-inline slice is intentionally absent from this table:
-it is externally Authoritative, rather than an evidence-complete Draft.
+The AssignmentTail direct-inline RHS slice is intentionally absent from this
+table because its mapped row above is externally Authoritative, rather than an
+evidence-complete Draft.
 
 ## Open, delegated, and unmapped policy
 
