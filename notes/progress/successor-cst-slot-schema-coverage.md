@@ -102,6 +102,28 @@ source-navigation families, not semantic schema families.
 - `crates/yu-syntax/src/expression/tails/inline_slot.rs`
 - `crates/yu-syntax/src/expression/tails/with_body.rs`
 
+#### Fixed FieldTail Name and PathTail Segment row links
+
+Only the following verified `fixed_access.rs` locations are linked to the
+mapped Draft rows `(FieldTail, required Name immediately after Dot, expression
+fixed-postfix continuation context)` and `(PathTail, required Segment
+immediately after ColonColon, expression fixed-postfix continuation context)`.
+They establish direct wrappers, preserved scanner state, Missing-coordinate
+ownership, and shared boundary classification. They do not assign projection,
+outer-tail, ML, or nested-child rows.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/tails/fixed_access.rs:115` | `linked` | FieldTail entry owns direct Dot/name-slot construction and hands incomplete exits to the outer tail |
+| `crates/yu-syntax/src/expression/tails/fixed_access.rs:194` | `linked` | PathTail entry owns direct ColonColon/segment-slot construction and hands incomplete exits to the outer tail |
+| `crates/yu-syntax/src/expression/tails/fixed_access.rs:325` | `linked` | path payload scanner preserves the returned Item, origin, and line-entry state used by the later handoff |
+| `crates/yu-syntax/src/expression/tails/fixed_access.rs:392` | `linked` | shared Missing helper selects the direct zero-width recovery coordinate and preserves protected boundary Items |
+| `crates/yu-syntax/src/expression/tails/fixed_access.rs:433` | `linked` | shared fixed-tail boundary classification terminates name/segment admission before outer continuation |
+
+Every other `fixed_access.rs` location remains `untriaged` and unmapped unless
+separately linked. These are source-evidence links only; direct Rowan tests and
+the governing fixed-tail authority establish the rows' CST and recovery facts.
+
 ### Type expression — 5 files / 34 calls
 
 - `crates/yu-syntax/src/type_expr/delimited.rs`

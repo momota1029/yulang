@@ -359,6 +359,44 @@ interiors and RuleCall/RuleIndex continue to delegate all such slots to
 | diagnostic projection | One maximal adjacent direct RuleSequence Error group projects one `Literal(RuleItem)` occurrence over its combined UTF-8 range; each admitted nested RuleItem projects only through its own slots. No diagnostic is inferred from separator/newline/close handoff. |
 | proof and status | Governing slice above; enclosing alternation context and direct sequence publisher: `crates/yu-syntax/src/rule/mod.rs:334–375, 412–447, 864–878`. Status: `evidence-complete Draft`; no separator/newline or caller-specific `ExpressionList` phase is mapped. |
 
+### FieldTail required-name map
+
+This bounded Draft row records only the required name after an accepted
+expression dot. It is governed by the fixed-tail current-Item recovery
+authority and the fixed-tail proposed schema slice in the
+[error-admission clarification](2026-09-09-successor-error-admission-schema-clarification.md#proposed-schema-slice-fixed-fieldtail-and-pathtail-names).
+It neither changes the higher-priority projection judges nor maps a later
+outer continuation.
+
+| Fact | Draft catalog row |
+| --- | --- |
+| identity | `(FieldTail, required Name immediately after Dot, expression fixed-postfix continuation context)` |
+| ordered Rowan grammar | `FieldTail := NativeTrivia* Dot (Identifier \| Missing \| Error+)`. The initial native trivia and `Dot` are direct `FieldTail` content in source order. There is no name-leading trivia: an accepted `Identifier` is immediately adjacent to `Dot`; `Missing` is zero-width; and every raw `Error` leaf is a direct child. It admits no `SigilIdentifier`, `Invalid`, or nested production. |
+| malformed admission and completion | After the already-admitted FieldTail, an adjacent Identifier completes its Name. A protected boundary, stop, separator, close, accepted dynamic LED, `(`, `[`, later fixed/dynamic tail introducer, colon boundary, or any candidate with leading trivia selects its one direct Missing. Any other non-name Item starts the maximal direct `Error+` group. `.{` and `.(` remain projection dispatches before this tail exists. |
+| nested ownership | This row owns no nested syntax. The enclosing expression tail loop owns every retained Item after this tail, including its later fixed/dynamic or ML continuation; the projection owners retain their own rows. |
+| source and boundary ownership | The FieldTail owns native trivia before its `Dot` only. It owns no candidate-name leading: both protected leading and retry leading stay attached to the retained Item and remain unemitted by this tail. |
+| transition/handoff | `required FieldTail Name entry → projection priority has already declined and the FieldTail boundary judge selects adjacent Identifier, Missing, or raw non-name Error → consume the direct Identifier, emit one zero-width Missing, or consume one maximal direct Error group → complete locally after an accepted name; after Missing or Error finish this tail and hand off the retained Item unchanged, including protected/retry leading, threshold, ML mode, stops, baseline, line/fence, and ambient context → the direct Missing or maximal direct Error group witnesses FieldName, primary zero`. No post-Error same-tail name retry occurs. |
+| diagnostic projection | A direct Missing or one maximal adjacent direct Error group under the immediate `FieldTail` parent projects singleton `Identifier`, primary alternative zero, at its direct CST range (zero-width for Missing; combined UTF-8 range for Error). Native trivia, the accepted Identifier, a retained Item/leading handoff, and sibling tails split groups. Source order places the Error occurrence before all later outer-tail occurrences. |
+| proof and status | Governing behavior: [fixed-tail current-Item recovery](2026-09-08-successor-expression-fixed-tail-current-item-recovery.md) and the proposed fixed-tail schema slice above. Direct CST evidence covers accepted/Missing/Error alternatives, no name-leading, projection priority, protected/retry handoff, sibling continuation, UTF-8/CRLF/fence range, and threshold/ML handoff. Status: `mapped` for this evidence-complete Draft row only; promotion, the global interpreter, and ledger retirement remain open. |
+
+### PathTail required-segment map
+
+This bounded Draft row records only the required segment after an accepted
+expression `ColonColon`. It is distinct from `TypePathTail`: shared spelling
+does not merge their slot identities, leading rules, retry behavior, or
+continuations.
+
+| Fact | Draft catalog row |
+| --- | --- |
+| identity | `(PathTail, required Segment immediately after ColonColon, expression fixed-postfix continuation context)` |
+| ordered Rowan grammar | `PathTail := NativeTrivia* ColonColon [NativeTrivia*] (Identifier \| SigilIdentifier \| Missing \| Error+)`. Initial native trivia and `ColonColon` are direct content; native trivia between `ColonColon` and the selected direct alternative is conditional on the existing path-leading rules. An accepted `Identifier` or `SigilIdentifier`, zero-width `Missing`, and raw `Error` leaves are direct `PathTail` children in source order. It admits no `Invalid` or nested production. |
+| malformed admission and completion | Initial Identifier or SigilIdentifier completes the Segment. The fixed-tail boundary/stops select one direct Missing; ordinary Path EOF may first emit its owned leading. A non-name, including `::{`, starts maximal direct `Error+`. A lone `:` remains the terminal outer-tail continuation. |
+| nested ownership | This row owns no nested syntax. The outer expression tail loop owns all retained Items, later fixed/dynamic or ML continuations, and sibling `PathTail` nodes. In particular, a repeated `::` is a later sibling tail, not a nested segment or retry. |
+| source and boundary ownership | Path owns its existing conditional native leading before initial segment admission, including a physical newline when no line stop applies. Protected boundary leading remains pending. After an Error group, retry leading remains attached to the retained Item; it is neither native PathTail trivia nor Error content. |
+| transition/handoff | `required PathTail Segment entry → fixed-tail boundary judge selects Missing before payload admission; otherwise Identifier/SigilIdentifier completes, and another payload starts direct Error → consume the accepted segment, emit one zero-width Missing, or consume one maximal direct Error group → complete locally after an accepted segment; after Missing or Error finish this tail and hand off the retained Item unchanged, including protected/retry leading, threshold, ML mode, stops, baseline, line/fence, and ambient context → the direct Missing or maximal direct Error group witnesses PathSegment, primary zero`. No post-Error same-tail segment retry occurs. |
+| diagnostic projection | A direct Missing or one maximal adjacent direct Error group under the immediate `PathTail` parent projects singleton `Identifier`, primary alternative zero, at its direct CST range (zero-width for Missing; combined UTF-8 range for Error). Conditional native leading, accepted Identifier/SigilIdentifier, retained leading/Item handoff, and a sibling PathTail split groups. Source order places an Error occurrence before later outer-tail occurrences. |
+| proof and status | Governing behavior: [fixed-tail current-Item recovery](2026-09-08-successor-expression-fixed-tail-current-item-recovery.md) and the proposed fixed-tail schema slice above. Direct CST evidence covers accepted normal/sigil/Missing/Error alternatives, conditional native leading, `::{` raw recovery, protected/retry handoff, outer-tail siblings, UTF-8/CRLF/fence range, and threshold/ML handoff. Status: `mapped` for this evidence-complete Draft row only; `TypePathTail`, promotion, the global interpreter, and ledger retirement remain open. |
+
 ### External authoritative slice
 
 The direct-inline `AssignmentTail` RHS slice is Authoritative only in

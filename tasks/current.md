@@ -300,6 +300,10 @@ The actual-arrow RHS itself is now mapped as its own Draft suffix. Its
 diagnostic range is always the direct Rowan Missing/Error range, not a pending
 fence coordinate; post-Error retry admits same-line and deeper-newline RHS
 primaries, while shallow/equal newline and protected boundaries hand off.
+Expression FieldTail and PathTail are now mapped as separate bounded Draft rows:
+their introducer trivia remains direct tail content, Path's conditional leading
+does not consume protected Item leading, and an Error ends its tail rather than
+retrying a later name. They remain distinct from TypePathTail.
 The actual-arrow TypeArrowTail RHS Draft is preflighted and has direct CST
 proof. Its post-Error shallow-newline admission now follows the existing
 authority; user promotion remains open.
