@@ -519,6 +519,308 @@ fn parenthesized_collision_literals_keep_distinct_records_and_one_raw_topology()
 }
 
 #[test]
+fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
+    for (form, owner, source, role, range, category, direct) in [
+        (
+            Form::Group,
+            SyntaxKind::ParenthesizedExpression,
+            "(@)",
+            GrammarRole::Expression(ExpressionRole::Nud),
+            1..2,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::LParen, 0..1),
+                (SyntaxKind::Error, 1..2),
+                (SyntaxKind::RParen, 2..3),
+            ],
+        ),
+        (
+            Form::Group,
+            SyntaxKind::ParenthesizedExpression,
+            "(a @ b)",
+            GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
+            3..4,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::LParen, 0..1),
+                (SyntaxKind::OperatorChain, 1..2),
+                (SyntaxKind::Whitespace, 2..3),
+                (SyntaxKind::Error, 3..4),
+                (SyntaxKind::OperatorChain, 4..6),
+                (SyntaxKind::RParen, 6..7),
+            ],
+        ),
+        (
+            Form::Group,
+            SyntaxKind::ParenthesizedExpression,
+            "(])",
+            Form::Group.closing(),
+            1..2,
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
+            vec![
+                (SyntaxKind::LParen, 0..1),
+                (SyntaxKind::Error, 1..2),
+                (SyntaxKind::RParen, 2..3),
+            ],
+        ),
+        (
+            Form::Call,
+            SyntaxKind::CallTail,
+            "f(@)",
+            GrammarRole::Expression(ExpressionRole::CallArgument),
+            2..3,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::LParen, 1..2),
+                (SyntaxKind::Error, 2..3),
+                (SyntaxKind::RParen, 3..4),
+            ],
+        ),
+        (
+            Form::Call,
+            SyntaxKind::CallTail,
+            "f(a @ b)",
+            GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
+            4..5,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::LParen, 1..2),
+                (SyntaxKind::OperatorChain, 2..3),
+                (SyntaxKind::Whitespace, 3..4),
+                (SyntaxKind::Error, 4..5),
+                (SyntaxKind::OperatorChain, 5..7),
+                (SyntaxKind::RParen, 7..8),
+            ],
+        ),
+        (
+            Form::Call,
+            SyntaxKind::CallTail,
+            "f(])",
+            Form::Call.closing(),
+            2..3,
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
+            vec![
+                (SyntaxKind::LParen, 1..2),
+                (SyntaxKind::Error, 2..3),
+                (SyntaxKind::RParen, 3..4),
+            ],
+        ),
+        (
+            Form::Index,
+            SyntaxKind::IndexTail,
+            "x[@]",
+            GrammarRole::Expression(ExpressionRole::IndexItem),
+            2..3,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::LBracket, 1..2),
+                (SyntaxKind::Error, 2..3),
+                (SyntaxKind::RBracket, 3..4),
+            ],
+        ),
+        (
+            Form::Index,
+            SyntaxKind::IndexTail,
+            "x[a @ b]",
+            GrammarRole::Expression(ExpressionRole::IndexSeparator),
+            4..5,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::LBracket, 1..2),
+                (SyntaxKind::IndexItem, 2..3),
+                (SyntaxKind::Whitespace, 3..4),
+                (SyntaxKind::Error, 4..5),
+                (SyntaxKind::IndexItem, 5..7),
+                (SyntaxKind::RBracket, 7..8),
+            ],
+        ),
+        (
+            Form::Index,
+            SyntaxKind::IndexTail,
+            "x[)]",
+            Form::Index.closing(),
+            2..3,
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            vec![
+                (SyntaxKind::LBracket, 1..2),
+                (SyntaxKind::Error, 2..3),
+                (SyntaxKind::RBracket, 3..4),
+            ],
+        ),
+        (
+            Form::Tuple,
+            SyntaxKind::ProjectionTupleTail,
+            "x.(@)",
+            GrammarRole::Expression(ExpressionRole::ProjectionTupleItem),
+            3..4,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::Dot, 1..2),
+                (SyntaxKind::LParen, 2..3),
+                (SyntaxKind::Error, 3..4),
+                (SyntaxKind::RParen, 4..5),
+            ],
+        ),
+        (
+            Form::Tuple,
+            SyntaxKind::ProjectionTupleTail,
+            "x.(a @ b)",
+            GrammarRole::Expression(ExpressionRole::ProjectionTupleSeparator),
+            5..6,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::Dot, 1..2),
+                (SyntaxKind::LParen, 2..3),
+                (SyntaxKind::OperatorChain, 3..4),
+                (SyntaxKind::Whitespace, 4..5),
+                (SyntaxKind::Error, 5..6),
+                (SyntaxKind::OperatorChain, 6..8),
+                (SyntaxKind::RParen, 8..9),
+            ],
+        ),
+        (
+            Form::Tuple,
+            SyntaxKind::ProjectionTupleTail,
+            "x.(])",
+            Form::Tuple.closing(),
+            3..4,
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
+            vec![
+                (SyntaxKind::Dot, 1..2),
+                (SyntaxKind::LParen, 2..3),
+                (SyntaxKind::Error, 3..4),
+                (SyntaxKind::RParen, 4..5),
+            ],
+        ),
+        (
+            Form::Record,
+            SyntaxKind::ProjectionRecordTail,
+            "x.{@}",
+            GrammarRole::Expression(ExpressionRole::ProjectionRecordItem),
+            3..4,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::Dot, 1..2),
+                (SyntaxKind::LBrace, 2..3),
+                (SyntaxKind::Error, 3..4),
+                (SyntaxKind::RBrace, 4..5),
+            ],
+        ),
+        (
+            Form::Record,
+            SyntaxKind::ProjectionRecordTail,
+            "x.{a @ b}",
+            GrammarRole::Expression(ExpressionRole::ProjectionRecordSeparator),
+            5..6,
+            UnexpectedCategory::OtherCharacter,
+            vec![
+                (SyntaxKind::Dot, 1..2),
+                (SyntaxKind::LBrace, 2..3),
+                (SyntaxKind::OperatorChain, 3..4),
+                (SyntaxKind::Whitespace, 4..5),
+                (SyntaxKind::Error, 5..6),
+                (SyntaxKind::OperatorChain, 6..8),
+                (SyntaxKind::RBrace, 8..9),
+            ],
+        ),
+        (
+            Form::Record,
+            SyntaxKind::ProjectionRecordTail,
+            "x.{)}",
+            Form::Record.closing(),
+            3..4,
+            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            vec![
+                (SyntaxKind::Dot, 1..2),
+                (SyntaxKind::LBrace, 2..3),
+                (SyntaxKind::Error, 3..4),
+                (SyntaxKind::RBrace, 4..5),
+            ],
+        ),
+    ] {
+        let separator = matches!(
+            role,
+            GrammarRole::Expression(
+                ExpressionRole::ParenthesizedSeparator
+                    | ExpressionRole::CallArgumentSeparator
+                    | ExpressionRole::IndexSeparator
+                    | ExpressionRole::ProjectionTupleSeparator
+                    | ExpressionRole::ProjectionRecordSeparator
+            )
+        );
+        let expected = record(role, RecoveryKind::Error, range.clone(), category);
+        let (green, records) = full(source, None);
+        assert_eq!(records, [expected], "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+
+        let root = SyntaxNode::new_root(green.clone());
+        let owner_node = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .expect("expression-delimited owner");
+        assert_eq!(
+            owner_node
+                .children_with_tokens()
+                .map(|element| {
+                    (
+                        element.kind(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            direct,
+            "{source:?}"
+        );
+        assert!(
+            !owner_node
+                .descendants_with_tokens()
+                .any(|element| matches!(element.kind(), SyntaxKind::Missing | SyntaxKind::Invalid)),
+            "{source:?}"
+        );
+        let error = owner_node
+            .children_with_tokens()
+            .find(|element| element.kind() == SyntaxKind::Error)
+            .expect("owner-local raw Error");
+        let error = error
+            .as_token()
+            .expect("owner-local raw Error must be a token");
+        assert_eq!(
+            error.text_range(),
+            rowan::TextRange::new((range.start as u32).into(), (range.end as u32).into()),
+            "{source:?}"
+        );
+        let admitted = owner_node
+            .children()
+            .filter(|node| {
+                matches!(
+                    node.kind(),
+                    SyntaxKind::IndexItem | SyntaxKind::OperatorChain
+                )
+            })
+            .collect::<Vec<_>>();
+        if separator {
+            assert_eq!(admitted.len(), 2, "{source:?}");
+            assert!(
+                admitted.iter().all(|node| node.kind()
+                    == if matches!(form, Form::Index) {
+                        SyntaxKind::IndexItem
+                    } else {
+                        SyntaxKind::OperatorChain
+                    }),
+                "{source:?}"
+            );
+        } else {
+            assert!(admitted.is_empty(), "{source:?}");
+        }
+
+        let (frozen, frozen_records) = full(source, Some(&records));
+        assert_eq!(frozen, green, "{source:?}");
+        assert_eq!(frozen_records, records, "{source:?}");
+    }
+}
+
+#[test]
 fn outer_index_close_survives_parenthesized_and_call_nesting() {
     for source in ["a[(f(x ]", "a[(f(@ ]"] {
         let (green, records) = full(source, None);

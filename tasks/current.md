@@ -213,19 +213,18 @@ Error leaves emitted for one consumed RecordPattern foreign close. Direct raw
 Item and Separator groups retain their existing phase-selected slots. M2
 construction, focused proof and closure review are complete. The recovery
 ledger remains blocked on the complete global schema.
-Direct Rowan evidence now also proves the next unresolved expression-delimiter
+Direct Rowan evidence now also proves the expression-delimiter
 collision: `(@)`, `(;)` and `(])` each have direct
 `ParenthesizedExpression(LParen, Error-token, RParen)` at the same ranges but
 retain respectively Expression, Separator and Close expectations. This is a
-schema gap, not a parser defect. Do not inspect Error spelling, collapse the
-expectations, or alter current records; an owner-specific structural proposal
-and user approval are required before topology construction.
-The unapproved Draft
-`2026-09-10-successor-expression-delimited-raw-slot-draft.md` records the
-evidence-backed candidate shared Separator and ForeignClose wrappers across
-five expression-delimited owners. Do not add a SyntaxKind, change production
-topology or modify collision expectations until the user approves its names,
-scope, cardinality and narrow raw-placement supersession.
+schema gap, not a parser defect. The user-approved Authoritative
+`2026-09-10-successor-expression-delimited-raw-slot-draft.md` selects shared
+`ExpressionDelimitedSeparator` and `ExpressionDelimitedForeignClose` wrappers
+for the five expression-delimited owners only. Direct Item Error and
+ProjectionRecord spread-RHS Error remain direct. The 15-case current-contract
+matrix proves every owner × Item/Separator/foreign-close role before topology
+construction. M2 implementation is the immediate action; do not inspect Error
+spelling, collapse expectations, or alter current records.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The
