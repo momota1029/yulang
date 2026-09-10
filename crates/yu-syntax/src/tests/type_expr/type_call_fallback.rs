@@ -30,6 +30,195 @@ fn children(node: &SyntaxNode) -> Vec<(SyntaxKind, String)> {
 }
 
 #[test]
+fn type_call_separator_matrix_keeps_direct_phase_ownership() {
+    fn type_call(root: &SyntaxNode) -> SyntaxNode {
+        root.descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+            .expect("TypeCallTail")
+    }
+
+    fn assert_no_invented_wrapper(call: &SyntaxNode) {
+        assert!(call.children().all(|node| matches!(
+            node.kind(),
+            SyntaxKind::TypeExpression | SyntaxKind::Missing | SyntaxKind::TypeCallClose
+        )));
+        assert!(
+            !call
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Invalid)
+        );
+    }
+
+    for (source, punctuation) in [
+        ("T(A,B)", SyntaxKind::Comma),
+        ("T(A;B)", SyntaxKind::Semicolon),
+    ] {
+        let (green, _, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source);
+        assert!(records.is_empty());
+        let call = type_call(&SyntaxNode::new_root(green));
+        let direct = call.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(
+            direct.iter().map(|child| child.kind()).collect::<Vec<_>>(),
+            [
+                SyntaxKind::LParen,
+                SyntaxKind::TypeExpression,
+                punctuation,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::TypeCallClose,
+            ],
+            "{source}",
+        );
+        assert_eq!(
+            direct[3].as_node().map(ToString::to_string).as_deref(),
+            Some("B")
+        );
+        assert_no_invented_wrapper(&call);
+    }
+
+    for (source, expected_direct) in [
+        (
+            "G T(F A)",
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Whitespace,
+                SyntaxKind::Missing,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::TypeCallClose,
+            ],
+        ),
+        (
+            "G T(F\n  A)",
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Newline,
+                SyntaxKind::Whitespace,
+                SyntaxKind::Missing,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::TypeCallClose,
+            ],
+        ),
+        (
+            "G T(F\r\n  A)",
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Newline,
+                SyntaxKind::Whitespace,
+                SyntaxKind::Missing,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::TypeCallClose,
+            ],
+        ),
+    ] {
+        let (green, _, records) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(records.len(), 1, "{source}");
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Type(TypeRole::CallArgumentSeparator),
+            "{source}",
+        );
+        assert_eq!(records[0].kind, RecoveryKind::Missing, "{source}");
+        let root = SyntaxNode::new_root(green.clone());
+        let call = type_call(&root);
+        assert_eq!(
+            call.children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            expected_direct,
+            "{source}",
+        );
+        assert_no_invented_wrapper(&call);
+
+        let frozen = frozen_recovery_ids(&records);
+        let (frozen_green, _, frozen_records) = run_type_with_recoveries(source, Some(&frozen));
+        assert_eq!(frozen_green, green, "{source}");
+        assert_eq!(frozen_records, frozen, "{source}");
+    }
+
+    let expected = vec![expected_type_call_argument_error(0, 2..3)];
+    let (green, _, records) = run_type_with_recoveries("T(@, A)", None);
+    assert_eq!(green.to_string(), "T(@, A)");
+    assert_eq!(records, expected);
+    let call = type_call(&SyntaxNode::new_root(green.clone()));
+    assert!(
+        call.children_with_tokens()
+            .any(|child| child.kind() == SyntaxKind::Error)
+    );
+    assert_no_invented_wrapper(&call);
+    let frozen = frozen_recovery_ids(&expected);
+    let (frozen_green, _, frozen_records) = run_type_with_recoveries("T(@, A)", Some(&frozen));
+    assert_eq!(frozen_green, green);
+    assert_eq!(frozen_records, frozen);
+
+    let expected = vec![
+        expected_type_call_close_error(0, 3..4),
+        expected_type_call_close_error(1, 4..5),
+        expected_type_call_close_error(2, 5..6),
+    ];
+    let (green, _, records) = run_type_with_recoveries("T(A@,B)", None);
+    assert_eq!(green.to_string(), "T(A@,B)");
+    assert_eq!(records, expected);
+    let call = type_call(&SyntaxNode::new_root(green.clone()));
+    assert_eq!(
+        call.children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::LParen,
+            SyntaxKind::TypeExpression,
+            SyntaxKind::TypeCallClose,
+        ]
+    );
+    assert_eq!(
+        children(&close_node(&SyntaxNode::new_root(green.clone()))),
+        [
+            (SyntaxKind::Error, "@".into()),
+            (SyntaxKind::Error, ",".into()),
+            (SyntaxKind::Error, "B".into()),
+            (SyntaxKind::RParen, ")".into()),
+        ]
+    );
+    assert_no_invented_wrapper(&call);
+    let frozen = frozen_recovery_ids(&expected);
+    let (frozen_green, _, frozen_records) = run_type_with_recoveries("T(A@,B)", Some(&frozen));
+    assert_eq!(frozen_green, green);
+    assert_eq!(frozen_records, frozen);
+
+    let expected = vec![expected_type_expression_missing(
+        0,
+        TypeRole::CallArgument,
+        4,
+    )];
+    let (green, _, records) = run_type_with_recoveries("T(A,,B)", None);
+    assert_eq!(green.to_string(), "T(A,,B)");
+    assert_eq!(records, expected);
+    let call = type_call(&SyntaxNode::new_root(green.clone()));
+    assert_eq!(
+        call.children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::LParen,
+            SyntaxKind::TypeExpression,
+            SyntaxKind::Comma,
+            SyntaxKind::Missing,
+            SyntaxKind::Comma,
+            SyntaxKind::TypeExpression,
+            SyntaxKind::TypeCallClose,
+        ]
+    );
+    assert_no_invented_wrapper(&call);
+    let frozen = frozen_recovery_ids(&expected);
+    let (frozen_green, _, frozen_records) = run_type_with_recoveries("T(A,,B)", Some(&frozen));
+    assert_eq!(frozen_green, green);
+    assert_eq!(frozen_records, frozen);
+}
+
+#[test]
 fn type_call_post_argument_residual_enters_irreversible_close() {
     for (source, errors) in [
         ("T(A@)", vec!["@"]),
