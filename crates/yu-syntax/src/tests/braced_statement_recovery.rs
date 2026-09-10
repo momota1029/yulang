@@ -404,3 +404,46 @@ fn optional_statement_rejection_is_effect_free() {
     ));
     assert_eq!(suffix, " rest");
 }
+
+#[test]
+fn nested_for_braced_body_success_exits_before_the_enclosing_brace_is_handled() {
+    // The inner body emits its own `}`, but the enclosing block does not emit
+    // its matching close. It returns that close as its successor Item instead.
+    for (source, expected_cst, expected_suffix) in [
+        ("{for x in xs {}}", "{for x in xs {}", ""),
+        ("{for x in xs {} use a}", "{for x in xs {} use a", ""),
+    ] {
+        let (green, records, exit, suffix) = parse(source, 0, None, None);
+        assert_eq!(green.to_string(), expected_cst, "{source:?}");
+        assert_eq!(records, [], "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+            panic!("the enclosing close was not returned as an unhandled Item: {source:?}")
+        };
+        assert_eq!(token_kind(&item), Some(TokenKind::RBrace), "{source:?}");
+        let close_at = source.len() - suffix.len();
+        assert_eq!(
+            item.extent(close_at).recovery_range(),
+            close_at - 1..close_at,
+            "{source:?}"
+        );
+        assert_eq!(suffix, expected_suffix, "{source:?}");
+
+        let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+        assert_eq!(again, green, "{source:?}");
+        assert_eq!(frozen, records, "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(frozen_item)), _) = frozen_exit else {
+            panic!("frozen parse did not return the enclosing close: {source:?}")
+        };
+        assert_eq!(
+            token_kind(&frozen_item),
+            Some(TokenKind::RBrace),
+            "{source:?}"
+        );
+        assert_eq!(
+            frozen_item.extent(close_at).recovery_range(),
+            close_at - 1..close_at,
+            "{source:?}"
+        );
+        assert_eq!(frozen_suffix, suffix, "{source:?}");
+    }
+}

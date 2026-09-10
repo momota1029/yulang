@@ -262,6 +262,12 @@ existing `BlockStatementSeparator` around Separator Missing plus one terminal
 `BracedStatementBlockClose` for accepted local `}` or Close Missing. It is
 under independent review; do not change CST topology, SyntaxKinds, records or
 collision expectations until user approval.
+The Draft additionally exposed and focused tests now prove an existing braced
+owner defect: after a completed nested `for` braced body, `{for x in xs {}}`
+and `{for x in xs {} use a}` drop the final enclosing `}` from the CST and
+return it as a successor with no record. Resolve this owning continuation defect
+before approving or constructing the terminal Close topology; do not fabricate
+an outer Missing or assign the inner close to the outer block.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The
