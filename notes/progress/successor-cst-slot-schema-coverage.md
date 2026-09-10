@@ -309,9 +309,30 @@ nested Pattern schemas.
 | `crates/yu-syntax/src/pattern/delimited.rs:972` | `linked` | record name/spread item-start discriminator that excludes accepted field/spread entries |
 
 Focused direct Rowan proof is
-`crates/yu-syntax/src/tests/pattern/recovery/sequence.rs:40–157, 202–251,
-253–322, 417–488, 490–589, 648–751, 753–842`. Every other Pattern row remains
+`crates/yu-syntax/src/tests/pattern/recovery/sequence.rs:239–364, 408–458,
+460–529, 624–695, 697–795, 859–961, 964–1052`. Every other Pattern row remains
 untriaged, delegated, or unmapped unless separately linked below.
+
+#### RecordPattern foreign-close raw Error row links
+
+Only the consumed foreign-close path is linked to the bounded Authoritative
+catalog row `(RecordPattern, one consumed foreign close, RecordPattern sequence
+context)`. It adds `RecordPatternForeignClose(Error+)` without assigning direct
+lexical Item/Separator Error groups, Missing, accepted fields, local/caller
+close or nested Pattern schemas.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/pattern/delimited.rs:274` | `linked` | local/caller-close priority occurs before the foreign-close path and retains owner phase |
+| `crates/yu-syntax/src/pattern/delimited.rs:553` | `linked` | only Record-owned `emit_wrong_close` opens/closes the wrapper around unchanged raw Error emission |
+| `crates/yu-syntax/src/cursor/recovery/emit.rs:278` | `linked` | existing one-Item Error emission retains physical fragments and temporary record facts |
+| `crates/yu-syntax/src/syntax_kind.rs:280` | `linked` | append-only public Rowan kind is `RecordPatternForeignClose = 275` |
+
+Focused direct Rowan proof is
+`crates/yu-syntax/src/tests/pattern/recovery/sequence.rs:5–202, 239–364,
+798–856, 859–1052`. Ordinary direct Item/Separator Error groups and every
+other Pattern row remain untriaged, delegated, or unmapped unless separately
+linked below.
 
 #### RecordPattern separator-phase structured Invalid row link
 
@@ -321,8 +342,9 @@ Only the existing structured-recovery emission at
 catalog row `(RecordPattern, separator phase, RecordPattern sequence context)`.
 Status: `linked`; linked fact: separator-phase `Invalid(Pattern(...))` is
 wrapped by the authorized discriminator. Non-census implementation behavior is
-support only. The direct item-phase Invalid is linked separately above; its
-preceding raw Error and every other Pattern emission remain unmapped.
+support only. The direct item-phase Invalid and bounded foreign-close raw Error
+are linked separately above; direct lexical Item/Separator Error groups and
+every other Pattern emission remain unmapped.
 
 ### Literal and rule — 3 files / 6 calls
 

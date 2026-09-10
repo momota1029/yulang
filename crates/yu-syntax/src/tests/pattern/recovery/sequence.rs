@@ -2,6 +2,205 @@ use crate::recovery_record::{ConstructRole, Delimiter, PunctuationEvidence};
 use crate::tests::pattern::recovery::delimited::close_record;
 use crate::tests::pattern::recovery::*;
 
+fn foreign_close_record(id: u32, origin: usize, range: Range<usize>) -> CommittedRecoveryRecord {
+    let mut close = close_record(id, ConstructRole::RecordPattern, Delimiter::Brace, origin);
+    close.kind = RecoveryKind::Error;
+    close.site.range = origin + range.start..origin + range.end;
+    Arc::make_mut(&mut close.expectations)[0].range = close.site.range.clone();
+    close.unexpected = Arc::from([UnexpectedSyntax::Token {
+        range: close.site.range.clone(),
+        category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+            Delimiter::Parenthesis,
+        )),
+    }]);
+    close
+}
+
+fn assert_foreign_close_slots(green: GreenNode, source: &str, ranges: &[Range<usize>]) {
+    let root = SyntaxNode::new_root(green);
+    let slots = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::RecordPatternForeignClose)
+        .collect::<Vec<_>>();
+    assert_eq!(slots.len(), ranges.len(), "{source:?}");
+    for (slot, range) in slots.iter().zip(ranges) {
+        assert_eq!(slot.parent().unwrap().kind(), SyntaxKind::RecordPattern);
+        assert_eq!(slot.to_string(), source[range.clone()]);
+        assert_eq!(
+            usize::from(slot.text_range().start()),
+            "sentinel".len() + range.start
+        );
+        assert_eq!(
+            usize::from(slot.text_range().end()),
+            "sentinel".len() + range.end
+        );
+        let children = slot.children_with_tokens().collect::<Vec<_>>();
+        assert!(!children.is_empty());
+        assert!(
+            children
+                .iter()
+                .all(|child| child.as_token().is_some() && child.kind() == SyntaxKind::Error)
+        );
+        assert_eq!(children[0].text_range().start(), slot.text_range().start());
+        assert_eq!(
+            children.last().unwrap().text_range().end(),
+            slot.text_range().end()
+        );
+    }
+}
+
+#[test]
+fn record_foreign_close_slot_separates_raw_item_and_each_consumed_close() {
+    for origin in [0, 41] {
+        for (source, closes, raw, literal) in [
+            ("{@1}", vec![], Some(1..2), Some(2)),
+            ("{)1}", vec![1..2], None, Some(2)),
+            ("{))1}", vec![1..2, 2..3], None, Some(3)),
+            ("{)@1}", vec![1..2], Some(2..3), Some(3)),
+            ("{)@ @1}", vec![1..2], Some(2..5), Some(5)),
+            ("{),a}", vec![1..2], None, None),
+            ("{)\r\na}", vec![1..2], None, None),
+            ("{ /*é*/\r\n)}", vec![10..11], None, None),
+            ("{a /*é*/\r\n)}", vec![2..12], None, None),
+        ] {
+            let mut expected = closes
+                .iter()
+                .enumerate()
+                .map(|(index, range)| foreign_close_record(1 + index as u32, origin, range.clone()))
+                .collect::<Vec<_>>();
+            if let Some(range) = raw.clone() {
+                expected.push(record(
+                    1 + expected.len() as u32,
+                    PatternRole::RecordItem,
+                    origin + range.start..origin + range.end,
+                    true,
+                ));
+            }
+            if let Some(start) = literal {
+                expected.push(record(
+                    1 + expected.len() as u32,
+                    PatternRole::RecordItem,
+                    origin + start..origin + start + 1,
+                    true,
+                ));
+            }
+            if source == "{),a}" {
+                expected.push(record(
+                    2,
+                    PatternRole::RecordItem,
+                    origin + 2..origin + 2,
+                    false,
+                ));
+            }
+            let fresh = checked(
+                source,
+                Context {
+                    origin,
+                    ..Context::default()
+                },
+                &expected,
+                source,
+                if source == "{),a}" {
+                    PatternCompletion::Incomplete
+                } else {
+                    PatternCompletion::Complete
+                },
+            );
+            assert_foreign_close_slots(fresh.green.clone(), source, &closes);
+            if let Some(range) = raw {
+                let root = SyntaxNode::new_root(fresh.green);
+                let owner = root
+                    .descendants()
+                    .find(|node| node.kind() == SyntaxKind::RecordPattern)
+                    .unwrap();
+                let direct = owner
+                    .children_with_tokens()
+                    .filter(|child| child.kind() == SyntaxKind::Error)
+                    .map(|child| child.to_string())
+                    .collect::<String>();
+                assert_eq!(direct, source[range]);
+            }
+        }
+    }
+}
+
+#[test]
+fn record_foreign_close_slot_excludes_missing_and_protected_boundaries() {
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for origin in [0, 41] {
+        for (suffix, fence, closes, at, emitted) in [
+            ("  ", None, PatternCallerCloses::NONE, 4, "{)  "),
+            (" /*é*/ ]tail", None, PatternCallerCloses::RBRACKET, 2, "{)"),
+            (
+                "\r\n> > ```\r\nouter",
+                Some(&fence),
+                PatternCallerCloses::NONE,
+                4,
+                "{)",
+            ),
+        ] {
+            let source = format!("{{){suffix}");
+            let context = Context {
+                origin,
+                fence,
+                closes,
+                ..Context::default()
+            };
+            let fresh = checked(
+                &source,
+                context,
+                &[
+                    foreign_close_record(1, origin, 1..2),
+                    close_record(
+                        2,
+                        ConstructRole::RecordPattern,
+                        Delimiter::Brace,
+                        origin + at,
+                    ),
+                ],
+                emitted,
+                PatternCompletion::Incomplete,
+            );
+            assert_foreign_close_slots(fresh.green.clone(), &source, &[1..2]);
+            if emitted == "{)" {
+                assert_pending_control(&fresh, suffix, origin + 2, context);
+            }
+        }
+        for source in ["{a}", "[)}]", "(]})"] {
+            let fresh = run(
+                source,
+                Context {
+                    origin,
+                    ..Context::default()
+                },
+                None,
+            );
+            assert_eq!(fresh.green.to_string(), format!("sentinel{source}"));
+            assert_foreign_close_slots(fresh.green, source, &[]);
+        }
+        let source = "{a: {)}}";
+        let fresh = checked(
+            source,
+            Context {
+                origin,
+                ..Context::default()
+            },
+            &[foreign_close_record(1, origin, 5..6)],
+            source,
+            PatternCompletion::Complete,
+        );
+        assert_foreign_close_slots(fresh.green, source, &[5..6]);
+    }
+}
+
 fn assert_separator_slot(green: GreenNode, text: &str, start: usize) {
     let root = SyntaxNode::new_root(green);
     let owner = root
@@ -112,7 +311,14 @@ fn record_separator_slot_distinguishes_colliding_item_topology() {
                 .unwrap();
             assert_eq!(owner.kind(), SyntaxKind::RecordPattern);
             let mut kinds = vec![SyntaxKind::LBrace, SyntaxKind::RecordPatternField];
-            kinds.extend(std::iter::repeat_n(SyntaxKind::Error, start - 2));
+            kinds.extend(std::iter::repeat_n(
+                if separator {
+                    SyntaxKind::RecordPatternForeignClose
+                } else {
+                    SyntaxKind::Error
+                },
+                start - 2,
+            ));
             kinds.extend([
                 if separator {
                     SyntaxKind::RecordPatternSeparator
@@ -637,10 +843,14 @@ fn sequence_unclaimed_closes_publish_native_evidence_in_both_phases() {
                     _ => unreachable!(),
                 }
             );
-            assert_eq!(
-                error.next_sibling_or_token().unwrap().to_string(),
-                &source[source.len() - 1..]
-            );
+            let next = if owner == R {
+                let slot = error.parent().unwrap();
+                assert_eq!(slot.kind(), SyntaxKind::RecordPatternForeignClose);
+                slot.next_sibling_or_token()
+            } else {
+                error.next_sibling_or_token()
+            };
+            assert_eq!(next.unwrap().to_string(), &source[source.len() - 1..]);
         }
     }
 }

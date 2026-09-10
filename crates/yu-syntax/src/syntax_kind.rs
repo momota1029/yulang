@@ -277,6 +277,7 @@ pub enum SyntaxKind {
     AssignmentTail,
     TypeAnnotationTail,
     RecordPatternSeparator,
+    RecordPatternForeignClose,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -490,6 +491,9 @@ impl Language for YulangLanguage {
             }
             value if value == SyntaxKind::RecordPatternSeparator as u16 => {
                 SyntaxKind::RecordPatternSeparator
+            }
+            value if value == SyntaxKind::RecordPatternForeignClose as u16 => {
+                SyntaxKind::RecordPatternForeignClose
             }
             value if value == SyntaxKind::CallTail as u16 => SyntaxKind::CallTail,
             value if value == SyntaxKind::IndexTail as u16 => SyntaxKind::IndexTail,
@@ -738,6 +742,7 @@ mod tests {
         assert_eq!(SyntaxKind::AssignmentTail as u16, 272);
         assert_eq!(SyntaxKind::TypeAnnotationTail as u16, 273);
         assert_eq!(SyntaxKind::RecordPatternSeparator as u16, 274);
+        assert_eq!(SyntaxKind::RecordPatternForeignClose as u16, 275);
 
         for kind in [
             SyntaxKind::Unknown,
@@ -747,6 +752,7 @@ mod tests {
             SyntaxKind::AssignmentTail,
             SyntaxKind::TypeAnnotationTail,
             SyntaxKind::RecordPatternSeparator,
+            SyntaxKind::RecordPatternForeignClose,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);

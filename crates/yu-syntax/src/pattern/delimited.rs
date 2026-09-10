@@ -550,7 +550,7 @@ fn recover_record_pattern(
     exit
 }
 
-fn emit_wrong_close(i: SyntaxIn, item: Item, owner: Owner, item_origin: usize) {
+fn emit_wrong_close(mut i: SyntaxIn, item: Item, owner: Owner, item_origin: usize) {
     let actual = match token_kind(&item) {
         Some(TokenKind::RParen) => Delimiter::Parenthesis,
         Some(TokenKind::RBracket) => Delimiter::Bracket,
@@ -559,8 +559,12 @@ fn emit_wrong_close(i: SyntaxIn, item: Item, owner: Owner, item_origin: usize) {
     };
     let kind = token_syntax_kind(token_kind(&item).unwrap());
     let range = item.extent(item_origin).recovery_range();
+    if matches!(owner, Owner::Record) {
+        i.state
+            .start_node(SyntaxKind::RecordPatternForeignClose.into());
+    }
     emit_recovery_error_item(
-        i,
+        i.rb(),
         item,
         item_origin,
         kind,
@@ -570,6 +574,9 @@ fn emit_wrong_close(i: SyntaxIn, item: Item, owner: Owner, item_origin: usize) {
         },
         |range, unexpected| close_recovery_draft(owner, RecoveryKind::Error, range, unexpected),
     );
+    if matches!(owner, Owner::Record) {
+        i.state.finish_node();
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

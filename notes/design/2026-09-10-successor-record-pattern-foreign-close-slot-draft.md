@@ -1,17 +1,28 @@
 # RecordPattern foreign-close CST slot draft
 
-Status: Draft; no implementation authorization
+Status: Authoritative; private construction complete
 
 Date: 2026-09-10
 
+Approved-by: user
+
+Approved-at: 2026-09-10
+
 Drafted-by: primary from the CST-only diagnostic construction investigation
+
+Reviewed-by: specification and compiler/recovery pre-write audits
 
 Scope: one proposed Rowan topology distinction for raw foreign-close recovery
 inside `RecordPattern`. This draft neither changes accepted syntax, recovery
 continuation, source ownership, public diagnostics, temporary recovery records,
-nor the existing `RecordPatternSeparator` structured-Invalid discriminator. It
-does not authorize code, fixture, API, SyntaxKind, documentation, or ledger
-changes.
+nor the existing `RecordPatternSeparator` structured-Invalid discriminator.
+It authorizes only this bounded CST/SyntaxKind/test construction; full
+schema publication and parser-ledger retirement remain separate gates.
+
+Supersedes: the Error/Invalid topology-ordering addendum's direct raw-placement
+rule only for raw Error emitted by a consumed foreign close in RecordPattern.
+Every other raw malformed fragment remains a direct Error token under its
+existing owner slot.
 
 Governing authority: the Authoritative CST-derived diagnostics amendment and
 Error/Invalid topology-ordering addendum; the Authoritative RecordPattern
@@ -42,14 +53,13 @@ This is a schema gap, not a failure of existing recovery behavior. The current
 temporary records remain the compatibility evidence until the complete schema
 and migration gate retire them.
 
-## Candidate decision requiring user approval
+## Decision
 
-Introduce one transparent grammar-slot node, with its durable spelling still
-subject to approval:
+Introduce one transparent grammar-slot node:
 
 ```text
-RecordPatternCloseRecovery := Error+
-RecordPattern := ... RecordPatternCloseRecovery ...
+RecordPatternForeignClose := Error+
+RecordPattern := ... RecordPatternForeignClose ...
                  | ... Error+ ...
                  | ... Invalid(Pattern(...)) ...
                  | ... RecordPatternSeparator(Invalid(Pattern(...))) ...
@@ -66,18 +76,39 @@ part of that raw recovery, in source order. It excludes already-emitted source,
 accepted local close, final Missing, retry leading, returned/protected Item,
 accepted field, nested Pattern, `Invalid`, and `RecordPatternSeparator`.
 
-Its Error-token group would derive singleton
-`ClosingDelimiter(RecordPattern, Brace)`, primary alternative zero. The wrapper
-itself would project nothing. A direct raw Error group remains Item recovery;
-the existing structured separator wrapper continues to distinguish its own
-Invalid occurrence. No Error spelling, record ID, unexpected category,
-expectation-source flag, parser range, attribute, AST, side tree, or ledger
-would participate.
+Its Error-token group derives the slot
+`ClosingDelimiter(RecordPattern, Brace)` and singleton expected punctuation
+`Close(Brace)`, primary alternative zero. The wrapper itself projects nothing.
+Direct raw Error groups retain their existing Item-or-Separator slot according
+to the ordered RecordPattern sequence context; the wrapper distinguishes only
+the foreign-close slot. The existing structured separator wrapper continues to
+distinguish its own Invalid occurrence. No Error spelling, record ID,
+unexpected category, expectation-source flag, parser range, attribute, AST,
+side tree, or ledger participates.
 
 Each consumed foreign-close occurrence would get one wrapper. Thus repeated
 foreign closes are separate slot occurrences; one lexical sequence run remains
 one direct Error-token group. This cardinality is a proposed semantic rule,
 not an emitter-call accident.
+
+The XML-like CST notation for one consumed parenthesis close is:
+
+```xml
+<RecordPattern>
+  <LBrace text="{"/>
+  <RecordPatternForeignClose>
+    <Error text=")"/>
+  </RecordPatternForeignClose>
+  <Invalid><Pattern>...</Pattern></Invalid>
+  <RBrace text="}"/>
+</RecordPattern>
+```
+
+`RecordPatternForeignClose` has no attributes and no diagnostic of its own.
+The `Error` token remains the sole spelling-bearing leaf. For `{@1}`, the
+corresponding Item Error remains a direct `RecordPattern` child; for `{a@1}`
+the direct Error remains the existing Separator occurrence. The node does not
+encode either of those phase facts.
 
 ## Alternatives not selected by this draft
 
@@ -92,19 +123,16 @@ not an emitter-call accident.
 - Error spelling, parser-side metadata, and a generic expected payload all
   retain forbidden parallel state or discard the documented expected slot.
 
-## Required approval and construction gate
+## Construction gate
 
-Before any construction, the user must approve all of the following:
+The user approved the transparent foreign-close slot mechanism,
+`RecordPatternForeignClose` name, one-wrapper-per-consumed-close cardinality,
+and this narrow raw-placement supersession on 2026-09-10. The two independent
+pre-write reviews found the corrected direct Item-or-Separator distinction and
+no implementation blocker.
 
-1. the transparent foreign-close slot mechanism;
-2. its durable SyntaxKind/node name;
-3. one wrapper per consumed foreign-close occurrence and its diagnostic
-   grouping consequence; and
-4. the narrow supersession of direct raw Error placement for this owner only.
-
-After approval, use M2: independent specification and compiler/recovery
-pre-write review, one implementation/repair bundle, and one scoped closure
-review. Append the new SyntaxKind without changing existing raw values.
+Use M2: one implementation/repair bundle and one scoped closure review. Append
+the new SyntaxKind without changing existing raw values.
 Required proof includes collision, repeated and mixed close/raw inputs, both
 sequence phases, comma/layout/EOF, UTF-8/CRLF/comment leading, caller/fence
 handoff, nested recovery, source flattening, wrapper ranges and preorder, and
@@ -114,3 +142,18 @@ samples/processes are planned unless construction exposes material uncertainty.
 Stop construction if any same-CST/different-slot witness remains, source or
 handoff ownership changes, grouping relies on hidden parser history, or the
 new node reaches a sibling owner outside this scope.
+
+## Implementation status
+
+Private construction completed on 2026-09-10. `RecordPatternForeignClose` is
+append-only SyntaxKind `275`; only the Record-owned `emit_wrong_close` path
+opens it immediately around the existing one-Item Error emission. Each consumed
+foreign close therefore has one Error-only wrapper. Parenthesized/List owners,
+generic emitters, direct lexical Item/Separator Error groups, structured
+Invalid topology, parser state and temporary recovery records remain unchanged.
+
+Focused Pattern recovery controls passed 33/33; SyntaxKind controls passed
+3/3; `cargo check -p yu-syntax`, scoped rustfmt and diff checks passed.
+Independent closure review found no issue. Benchmark use: zero samples and
+zero processes. The complete RecordPattern schema, CST diagnostic interpreter,
+parser ledger retirement and API migration remain open.
