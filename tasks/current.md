@@ -238,6 +238,12 @@ and recovery reviews are closed. Do not add kinds, change production topology
 or update expectations until the user approves its names, accepted-close
 ancestor change, cardinality, leading contract and narrow raw-placement
 supersession.
+The next current-contract Type collision is independently fixed as evidence:
+`:{;}` and `:{]}` each produce
+`PolymorphicVariantType(Colon, LBrace, Error-token, RBrace)` at identical
+ranges, but retain respectively Separator and Close expectations. This proves
+another schema gap, not a parser defect. No topology or expectation change is
+authorized yet; create/review a bounded Draft before proposing new kinds.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

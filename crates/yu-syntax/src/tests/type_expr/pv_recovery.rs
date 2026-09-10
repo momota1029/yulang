@@ -196,6 +196,93 @@ fn pv_local_punctuation_errors_describe_the_actual_token_and_retry() {
 }
 
 #[test]
+fn pv_separator_and_foreign_close_errors_currently_collide_as_raw_cst_leaves() {
+    let mut direct_shapes = Vec::new();
+    for (source, record) in [
+        (
+            ":{;}",
+            expected_record(
+                0,
+                pv_role(TypeRole::PolymorphicVariantTagSeparator),
+                ExpectedSyntax::DelimitedSequenceSeparator,
+                2..3,
+                Some(UnexpectedCategory::Punctuation(
+                    PunctuationEvidence::Semicolon,
+                )),
+            ),
+        ),
+        (
+            ":{]}",
+            expected_record(
+                0,
+                close_role(),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                2..3,
+                Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                    Delimiter::Bracket,
+                ))),
+            ),
+        ),
+    ] {
+        let root = assert_complete(source, &[record]);
+        let variant = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .expect("polymorphic variant type");
+        assert!(
+            !variant.descendants().any(|node| {
+                matches!(
+                    node.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Invalid | SyntaxKind::PolymorphicVariantTag
+                )
+            }),
+            "{source:?}"
+        );
+
+        let direct = variant.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(direct.len(), 4, "{source:?}");
+        assert_eq!(direct[2].kind(), SyntaxKind::Error, "{source:?}");
+        assert!(direct[2].as_token().is_some(), "{source:?}");
+        assert!(
+            !variant
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Error),
+            "{source:?}"
+        );
+        direct_shapes.push(
+            direct
+                .into_iter()
+                .map(|child| {
+                    (
+                        child.kind(),
+                        usize::from(child.text_range().start())
+                            ..usize::from(child.text_range().end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    assert_eq!(
+        direct_shapes,
+        [
+            vec![
+                (SyntaxKind::Colon, 0..1),
+                (SyntaxKind::LBrace, 1..2),
+                (SyntaxKind::Error, 2..3),
+                (SyntaxKind::RBrace, 3..4),
+            ],
+            vec![
+                (SyntaxKind::Colon, 0..1),
+                (SyntaxKind::LBrace, 1..2),
+                (SyntaxKind::Error, 2..3),
+                (SyntaxKind::RBrace, 3..4),
+            ],
+        ]
+    );
+}
+
+#[test]
 fn pv_payload_recovery_keeps_gap_error_and_retry_at_the_payload_owner() {
     let boundary = expected_record(
         0,
