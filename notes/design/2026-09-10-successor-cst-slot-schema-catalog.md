@@ -671,9 +671,9 @@ recovery, outer Yumark ownership, or every Root terminal/trivia clause.
 | diagnostic projection | One maximal direct Root Error group projects from its reconstructed phase: Starter and trailing use their existing ordered root-keyword alternatives, Separator uses StatementSeparator, and body uses Expression. The direct Missing immediately after Equals before an adjacent body OperatorChain projects InlineTrivia; terminal BodyMissing or BodyError+ then Missing projects Expression. A direct raw group after a completed body projects OperatorDefinition trailing, not Separator; direct Error text, temporary RootUnexpectedHead and recovery records are not inputs. Traverse direct Root children in source order; nested diagnostics follow their owning child and are not absorbed. |
 | proof and status | Governing authority: [source-root statement topology](2026-09-09-root-statement-topology.md), [public-cutover priority](2026-09-08-successor-public-cutover-priority-amendment.md), and the CST-derived diagnostics amendment. Direct matrix/extent/retry evidence: `crates/yu-syntax/src/tests/root.rs:148–799`; body-Missing/inline-gap controls: `:800–883`; header/body/trailing proof: `:884–1094`; boundary-cell support: `crates/yu-syntax/src/root_statement.rs:853–951`; publishers: `root_statement.rs:174,261,316–332,338,431–552`. Status: catalog-audited evidence-complete Draft for this bounded Root raw-Error row only; no Root-wide completion, parser/API/SyntaxKind change or ledger-retirement claim. |
 
-### OperatorHeader required-slot candidate
+### OperatorHeader required-slot Draft
 
-This candidate maps only the ordered required slots directly inside one
+This bounded Draft maps only the ordered required slots directly inside one
 `OperatorHeader`: Fixity, Name, the fixity-selected binding-power slot or
 slots, and DefinitionIntroducer. It excludes the optional visibility/lazy
 prefix except as an ordered prelude, the Root operator-definition body,
@@ -691,9 +691,9 @@ other declaration/header row.
 | diagnostic projection | A direct Missing or one maximal adjacent direct Error-token group projects the reconstructed required role: Fixity expects ordered `prefix, infix, suffix, nullfix`; Name expects `OperatorName`; LeftBindingPower/RightBindingPower expects `BindingPower`; DefinitionIntroducer expects `=`. Each uses primary alternative zero and the Missing zero-width or combined Error UTF-8 range. Interpretation replays only direct child kinds, ordered phase, and selected Fixity; it neither reads Error text nor uses recovery records, parser fact state, or an environment conflict. Rowan source order places header-slot occurrences before Root's later body/trailing occurrences. |
 | proof and status | Governing authority: [CST-derived diagnostics amendment](2026-09-09-successor-cst-derived-diagnostics-amendment-draft.md) and existing operator-header recovery contract. Direct owner/emission source: `crates/yu-syntax/src/declaration/operator_header.rs:73–114, 261–433`. Direct Rowan proof: `crates/yu-syntax/src/tests/declaration/operator_header.rs:367–536`, covering Fixity Error/retry, Name Missing, binding-power Error/Equals, DefinitionIntroducer safe-point Missing, direct parentage, no Invalid, and pending-leading partition. Status: catalog-audited evidence-complete Draft for this bounded required-slot row only; no full OperatorHeader grammar, header-fact/conflict mapping, parser/API/SyntaxKind change, or ledger-retirement claim. |
 
-### DerivesClause `via` target candidate
+### DerivesClause `via` target Draft
 
-This candidate maps only the required raw identifier slot immediately after a
+This bounded Draft maps only the required raw identifier slot immediately after a
 direct `ViaKw` in one `DerivesClause`. It excludes the preceding RoleReference
 `TypeExpression`, comma/repetition progression, declaration/companion caller,
 outer stops/fence, and every nested Type recovery.
