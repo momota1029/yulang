@@ -290,6 +290,29 @@ close, and nested Type rows remain unmapped.
 - `crates/yu-syntax/src/pattern/delimited.rs`
 - `crates/yu-syntax/src/pattern/mod.rs`
 
+#### RecordPattern item-phase structured Invalid row links
+
+Only the following direct RecordPattern sites are linked to the bounded Draft
+catalog row `(RecordPattern, item phase wrong-kind Pattern, RecordPattern
+sequence context)`. They establish the direct Invalid-versus-separator-wrapper
+topology and its nested Pattern/handoff behavior. They do not assign preceding
+raw Error, comma Missing, close recovery, accepted record fields/defaults or
+nested Pattern schemas.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/pattern/delimited.rs:297` | `linked` | after close/comma priority, record item-phase role selection chooses `RecordItem` only for a non-name/non-spread Pattern NUD |
+| `crates/yu-syntax/src/pattern/delimited.rs:310` | `linked` | direct RecordPattern structured-recovery dispatch and caller-context forwarding |
+| `crates/yu-syntax/src/pattern/delimited.rs:477` | `linked` | item role selects singleton Identifier and does not open the separator wrapper |
+| `crates/yu-syntax/src/pattern/delimited.rs:500` | `linked` | existing structured Invalid emission retains the complete nested Pattern |
+| `crates/yu-syntax/src/pattern/delimited.rs:513` | `linked` | nested Pattern entry retains stops, boundary and source ownership |
+| `crates/yu-syntax/src/pattern/delimited.rs:972` | `linked` | record name/spread item-start discriminator that excludes accepted field/spread entries |
+
+Focused direct Rowan proof is
+`crates/yu-syntax/src/tests/pattern/recovery/sequence.rs:40–157, 202–251,
+253–322, 417–488, 490–589, 648–751, 753–842`. Every other Pattern row remains
+untriaged, delegated, or unmapped unless separately linked below.
+
 #### RecordPattern separator-phase structured Invalid row link
 
 Only the existing structured-recovery emission at
@@ -298,8 +321,8 @@ Only the existing structured-recovery emission at
 catalog row `(RecordPattern, separator phase, RecordPattern sequence context)`.
 Status: `linked`; linked fact: separator-phase `Invalid(Pattern(...))` is
 wrapped by the authorized discriminator. Non-census implementation behavior is
-support only. The direct item-phase Invalid, its preceding raw Error, and every
-other Pattern emission remain unmapped.
+support only. The direct item-phase Invalid is linked separately above; its
+preceding raw Error and every other Pattern emission remain unmapped.
 
 ### Literal and rule — 3 files / 6 calls
 

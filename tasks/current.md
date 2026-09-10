@@ -198,10 +198,12 @@ CST-visible discriminator under
 `notes/design/2026-09-10-successor-record-pattern-separator-slot.md`:
 `RecordPatternSeparator` wraps only the separator-phase Invalid, while the
 item-phase Invalid remains direct. Private construction and M2 review are
-complete; its bounded catalog reference is `mapped pending catalog-row audit`.
-The direct item-phase Invalid remains unmapped, and the preceding raw Error is
-not resolved by this separator discriminator. Only separator-phase CST topology
-changed, with parser diagnostic/API migration still pending.
+complete. Both bounded phase rows are now catalog-mapped and independently
+audited: the direct item Invalid projects `Identifier`, while the transparent
+separator wrapper selects `DelimitedSequenceSeparator`. The preceding raw Error
+and every other RecordPattern sequence/Pattern row remain unresolved; only
+separator-phase CST topology changed, with parser diagnostic/API migration
+still pending.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

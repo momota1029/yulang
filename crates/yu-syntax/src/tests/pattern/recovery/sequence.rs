@@ -251,6 +251,77 @@ fn record_wrong_kind_literal_keeps_its_inner_brace_and_following_field() {
 }
 
 #[test]
+fn record_item_wrong_kind_utf8_literal_is_direct_and_retries_after_comma() {
+    for origin in [0, 41] {
+        for source in ["{\"é\", a}", "{\r\n /*lead*/ \"é\", a}"] {
+            let head = "\"é\"";
+            let start = source.find(head).unwrap();
+            let fresh = checked(
+                source,
+                Context {
+                    origin,
+                    ..Context::default()
+                },
+                &[record(
+                    1,
+                    PatternRole::RecordItem,
+                    origin + start..origin + start + head.len(),
+                    true,
+                )],
+                source,
+                PatternCompletion::Complete,
+            );
+            let root = SyntaxNode::new_root(fresh.green);
+            let owner = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Pattern)
+                .unwrap()
+                .children()
+                .find(|node| node.kind() == SyntaxKind::RecordPattern)
+                .unwrap();
+            let invalid = owner
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Invalid)
+                .unwrap();
+            assert_eq!(invalid.to_string(), head);
+            assert_eq!(
+                invalid.text_range(),
+                rowan::TextRange::new(
+                    (("sentinel".len() + start) as u32).into(),
+                    (("sentinel".len() + start + head.len()) as u32).into(),
+                )
+            );
+            assert_eq!(invalid.children_with_tokens().count(), 1);
+            assert_eq!(invalid.first_child().unwrap().kind(), SyntaxKind::Pattern);
+            assert_eq!(invalid.parent(), Some(owner.clone()));
+            assert_eq!(
+                invalid.next_sibling_or_token().unwrap().kind(),
+                SyntaxKind::Comma
+            );
+            assert!(
+                !root
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::RecordPatternSeparator)
+            );
+            let field = owner
+                .children()
+                .find(|node| node.kind() == SyntaxKind::RecordPatternField)
+                .unwrap();
+            assert_eq!(field.to_string(), "a");
+            if source.contains("lead") {
+                let leading = root
+                    .descendants_with_tokens()
+                    .find(|element| element.to_string() == "/*lead*/")
+                    .unwrap();
+                assert!(leading.ancestors().any(|node| node == owner));
+                assert!(!leading.ancestors().any(|node| node == invalid));
+                assert!(leading.text_range().end() <= invalid.text_range().start());
+            }
+        }
+    }
+}
+
+#[test]
 fn delimited_literal_items_follow_the_authorized_comma_or_layout_grammar() {
     // LC-5 literal primaries and the established Pattern sequence grammar.
     for source in [
