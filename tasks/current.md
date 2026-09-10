@@ -213,6 +213,13 @@ Error leaves emitted for one consumed RecordPattern foreign close. Direct raw
 Item and Separator groups retain their existing phase-selected slots. M2
 construction, focused proof and closure review are complete. The recovery
 ledger remains blocked on the complete global schema.
+Direct Rowan evidence now also proves the next unresolved expression-delimiter
+collision: `(@)`, `(;)` and `(])` each have direct
+`ParenthesizedExpression(LParen, Error-token, RParen)` at the same ranges but
+retain respectively Expression, Separator and Close expectations. This is a
+schema gap, not a parser defect. Do not inspect Error spelling, collapse the
+expectations, or alter current records; an owner-specific structural proposal
+and user approval are required before topology construction.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The

@@ -436,6 +436,89 @@ fn full(
 }
 
 #[test]
+fn parenthesized_collision_literals_keep_distinct_records_and_one_raw_topology() {
+    for (source, expected) in [
+        (
+            "(@)",
+            record(
+                GrammarRole::Expression(ExpressionRole::Nud),
+                RecoveryKind::Error,
+                1..2,
+                UnexpectedCategory::OtherCharacter,
+            ),
+        ),
+        (
+            "(;)",
+            record(
+                GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
+                RecoveryKind::Error,
+                1..2,
+                UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
+            ),
+        ),
+        (
+            "(])",
+            record(
+                GrammarRole::ClosingDelimiter {
+                    owner: ConstructRole::ExpressionGroup,
+                    delimiter: Delimiter::Parenthesis,
+                },
+                RecoveryKind::Error,
+                1..2,
+                UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
+            ),
+        ),
+    ] {
+        let (green, records) = full(source, None);
+        assert_eq!(records, [expected], "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+
+        let root = SyntaxNode::new_root(green.clone());
+        let group = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+            .expect("parenthesized expression");
+        assert_eq!(
+            group
+                .children_with_tokens()
+                .map(|element| {
+                    (
+                        element.kind(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                (SyntaxKind::LParen, 0..1),
+                (SyntaxKind::Error, 1..2),
+                (SyntaxKind::RParen, 2..3),
+            ],
+            "{source:?}"
+        );
+        let middle = group.children_with_tokens().nth(1).unwrap();
+        let error = middle
+            .as_token()
+            .expect("the raw collision leaf must remain an Error token");
+        assert_eq!(error.kind(), SyntaxKind::Error, "{source:?}");
+        assert_eq!(
+            error.text_range(),
+            rowan::TextRange::new(1.into(), 2.into())
+        );
+        assert!(
+            !group
+                .descendants_with_tokens()
+                .any(|element| matches!(element.kind(), SyntaxKind::Missing | SyntaxKind::Invalid)),
+            "{source:?}"
+        );
+
+        let (frozen, frozen_records) = full(source, Some(&records));
+        assert_eq!(frozen, green, "{source:?}");
+        assert_eq!(frozen_records, records, "{source:?}");
+    }
+}
+
+#[test]
 fn outer_index_close_survives_parenthesized_and_call_nesting() {
     for source in ["a[(f(x ]", "a[(f(@ ]"] {
         let (green, records) = full(source, None);
