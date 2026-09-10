@@ -166,9 +166,19 @@ Only `crates/yu-syntax/src/type_expr/forall.rs:142–258,326–357,379–381,
 498–542` is linked to the bounded later BinderBoundary candidate: accepted
 binder advancement, grammar-empty Missing inside the next binder, one-item
 separator placeholder Error and successor dispatch. Direct Rowan proof is
-`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:186–307`. The first
+`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:288–410`. The first
 binder, colon/body, other malformed head content, nested Type and caller
 boundary handling remain separate rows.
+
+#### ForallType terminal literal-colon/body candidate links
+
+Only `crates/yu-syntax/src/type_expr/forall.rs:142–258,269–315,407–496,
+498–542` is linked to the bounded ordinary-colon/body candidate: terminal
+colon classification, direct colon/body Missing, direct raw Error retry and
+protected body handoff. Direct Rowan proof is
+`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:186–286`. The
+polymorphic-variant colon, recovered binders, first/later binder phases, nested
+Type and caller-boundary handling remain separate rows.
 
 #### LeadingEffectTypeHead required-head row links
 
@@ -315,7 +325,7 @@ handoff at `853–900`; malformed-run retry and pending-leading behavior at
 `crates/yu-syntax/src/type_expr/variants.rs`. Direct proof locators are
 `tests/type_expr/pv_recovery.rs:263–303`, `tests/type_expr.rs:6735–6832,
 7085–7176, 8173–8254`, `tests/type_expr/bracket_arrow_recovery.rs:216–221`,
-`tests/type_expr/forall_recovery.rs:727–762`, and
+`tests/type_expr/forall_recovery.rs:829–865`, and
 `tests/type_expr/record_field_recovery.rs:368–374`. These are support/proof
 links, not census assignments. Malformed prefix, payload/list-tag, separator,
 close, and nested Type rows remain unmapped.

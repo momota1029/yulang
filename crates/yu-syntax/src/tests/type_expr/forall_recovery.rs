@@ -183,6 +183,108 @@ fn forall_first_binder_slot_is_ordered_directly_in_rowan() {
 }
 
 #[test]
+fn forall_terminal_colon_body_phase_is_ordered_directly_in_rowan() {
+    use SyntaxKind::*;
+
+    let parse_forall = |source| {
+        let (green, _) = run_type(source);
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), source, "{source:?}");
+        let forall = root
+            .descendants()
+            .find(|node| node.kind() == ForallType)
+            .expect("forall type");
+        (root, forall)
+    };
+    let children = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| (child.kind(), child.to_string()))
+            .collect::<Vec<_>>()
+    };
+
+    let (root, forall) = parse_forall("for 'a:{b:B}");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (Colon, ":".into()),
+            (TypeExpression, "{b:B}".into()),
+        ]
+    );
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+    drop(root);
+
+    let (root, forall) = parse_forall("for 'a T");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (Whitespace, " ".into()),
+            (Missing, "".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+    drop(root);
+
+    let (root, forall) = parse_forall("for 'a:");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (Colon, ":".into()),
+            (Missing, "".into()),
+        ]
+    );
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+    drop(root);
+
+    let (root, forall) = parse_forall("for 'a:@ T");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (Colon, ":".into()),
+            (Error, "@".into()),
+            (Whitespace, " ".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    let error = forall
+        .children_with_tokens()
+        .find(|child| child.kind() == Error)
+        .expect("raw body error");
+    assert!(error.as_token().is_some());
+    assert_eq!(error.parent().map(|parent| parent.kind()), Some(ForallType));
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+    drop(root);
+
+    let (root, forall) = parse_forall("for 'a @:T");
+    assert_eq!(
+        children(&forall),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, " 'a".into()),
+            (Whitespace, " ".into()),
+            (Error, "@".into()),
+            (Colon, ":".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    let error = forall
+        .children_with_tokens()
+        .find(|child| child.kind() == Error)
+        .expect("raw colon error");
+    assert!(error.as_token().is_some());
+    assert_eq!(error.parent().map(|parent| parent.kind()), Some(ForallType));
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+}
+
+#[test]
 fn forall_later_binder_boundary_is_ordered_directly_in_rowan() {
     use SyntaxKind::*;
 
