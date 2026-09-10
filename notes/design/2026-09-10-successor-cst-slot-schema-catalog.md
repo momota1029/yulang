@@ -108,7 +108,7 @@ coverage manifest names the corresponding evidence files.
 | expression forms and statement/layout containers | case/if/for, source-root, statement and virtual-statement sequences | unmapped except for delegated evidence links |
 | pattern and structured delimiters | Pattern entries, delimited sequences, RecordPattern Item/Separator structured recovery | partial: the bounded item/separator structured Invalid rows and foreign-close raw Error row are mapped; every other Pattern row remains open |
 | type entries, tails and delimiters | type expression, paths, rows, variants, forall, delimited closes and TypeCall close | partial: the bounded LeadingEffectTypeHead, `TypePathTail` segment, and TypeCall-close rows are mapped below; all other Type production contexts remain open |
-| literal, interpolation and rule | String terminator, escape/interpolation braces, interpolation sequence, Rule-owned slots, ExpressionList delegation | partial: listed evidence-complete Draft slices, including audited StringEscape/interpolation-brace slots; ExpressionList newline exception remains unlinked/unmapped |
+| literal, interpolation and rule | String terminator, escape/interpolation braces, interpolation sequence, Rule-owned slots, ExpressionList delegation | partial: listed evidence-complete Draft slices, including audited StringEscape/interpolation-brace and Rule ExpressionList caller slots; direct-caller fence evidence remains open |
 | declarations and headers | declaration heads, fields, variants, companions, imports, operator headers and payloads | unmapped |
 
 ## Fixed topology references
@@ -413,6 +413,36 @@ interiors and RuleCall/RuleIndex continue to delegate all such slots to
 | transition/handoff | `RuleSequence repeated-Item entry → explicit frame close/separator/newline/protected boundary stops have priority; otherwise atom admits RuleItem and other lexical Item selects the sequence Error group → consume each rejected Item and its leading as adjacent direct Error leaves, or consume one nested RuleItem → retry the same repeated sequence phase after Error without Missing; matching close/separator/newline stops return unchanged, and EOF/fence/protected boundaries hand off with pending leading/origin/line/remainder → each maximal direct Error group witnesses Literal(RuleItem), primary zero, before the next admitted child`. |
 | diagnostic projection | One maximal adjacent direct RuleSequence Error group projects one `Literal(RuleItem)` occurrence over its combined UTF-8 range; each admitted nested RuleItem projects only through its own slots. No diagnostic is inferred from separator/newline/close handoff. |
 | proof and status | Governing slice above; enclosing alternation context and direct sequence publisher: `crates/yu-syntax/src/rule/mod.rs:334–375, 412–447, 864–878`. Status: `evidence-complete Draft`; no separator/newline or caller-specific `ExpressionList` phase is mapped. |
+
+### Rule ExpressionList caller-specific slots map
+
+This bounded Draft map records the existing direct Item, Separator and Close
+occurrences delegated to `rule::expression_list`. `ExpressionList` is phase
+notation only, never a Rowan node. The three caller rows are distinct and may
+not be merged merely because two use brackets:
+
+| Caller identity | Direct parent and necessary context | Delimiters |
+| --- | --- | --- |
+| `ExpressionList[RuleItem[LBracket]]` | direct RuleItem whose first atom is LBracket, within RuleSequence/RuleAlternation | LBracket … RBracket |
+| `ExpressionList[RuleCall]` | direct RuleCall in a postfix RuleItem | LParen … RParen |
+| `ExpressionList[RuleIndex]` | direct RuleIndex in a postfix RuleItem | LBracket … RBracket |
+
+For a delimited completion, the ordered grammar is
+`C := OpenC PhaseContents (CloseC | Missing(Close))`; a Deferred exit is the
+same existing prefix of `PhaseContents` without either terminal child. The
+phase table, rather than a node, restricts contents: Item phase admits direct
+Expression, Error+ retry or Missing(Item); Separator phase admits direct Comma,
+direct physical Newline, Error+, or its existing transition to Close. No Invalid
+or Separator Missing is emitted by this owner. A matching close is caller-owned
+after `ExpressionListExit::Close`; a foreign close is not consumed as Error.
+
+| Fact | Draft catalog row |
+| --- | --- |
+| identity | `(one named ExpressionList caller above, required Item / Separator / final Close, direct caller context)` |
+| malformed admission and completion | Required Item Error is a maximal adjacent direct Error group before the first completed Expression or after a direct Comma/Newline reset; it can retry one direct Expression. Separator Error is a maximal adjacent direct Error group after a completed Expression and before accepted comma/newline/close. Item Missing occurs at the existing required-item positions, including immediately before a direct physical LF/whole-CRLF Newline. At EOF, fence, boundary or foreign close, the list emits its caller Close Missing and returns the pending Item unchanged. A terminal Item Error followed by a matching close is ordered `Error+, Missing(Item), CloseC`; only boundary termination is `Error+, Missing(Item), Missing(Close)`. Equal ranges remain distinct by direct child ordinal and phase path. Empty and accepted trailing comma/newline contents introduce no Item Missing. |
+| source and boundary ownership | Rejected Item leading is Error content. Retry leading belongs to its admitted Expression; protected/boundary leading stays pending on the returned Item. Matching-close leading and accepted native trivia are direct caller content. The newline helper emits Item Missing before its direct newline token at the physical LF/CRLF start. Foreign close, fence and Deferred exits preserve their Item/leading without local close emission. |
+| diagnostic projection | A direct maximal Item Error/Missing projects singleton `Expression`; a direct maximal Separator Error projects `DelimitedSequenceSeparator`; the final direct Close Missing projects the caller's matching close punctuation. Projection is preorder. Adjacent Error leaves form one group only within the same direct parent and phase; no Error spelling or parser record is consulted. |
+| proof and status | Governing authority: [Rule ExpressionList current-Item recovery](2026-09-08-successor-rule-expression-list-current-item-recovery.md) and [error-admission clarification](2026-09-09-successor-error-admission-schema-clarification.md), Rule ExpressionList phases. Direct owner/caller links: `crates/yu-syntax/src/rule/expression_list.rs:54–223`, `crates/yu-syntax/src/rule/mod.rs:513–538, 590–635`. Direct CST evidence: `crates/yu-syntax/src/tests/rule_expression_list_recovery.rs:139–209, 624–839, 895–932`. Status: `catalog-audited evidence-complete Draft`. The direct-caller fence CST/range proof remains open at `:842–893`; it does not create a slot collision or authorize a synthetic row. |
 
 ### FieldTail required-name map
 

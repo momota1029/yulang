@@ -25,11 +25,9 @@ There is one known exception outside this four-emitter census:
 `rule/expression_list.rs::emit_leading_newline_separators` calls
 `emit_required_slots_before_newlines` with a callback which creates
 `ExpressionList(Item)` Missing. It remains an `exception` because it is outside
-the four-emitter census. The Rule ExpressionList Draft now supplies direct
-caller-specific CST placement/range evidence for the callback's newline phase;
-the callback's committed recovery record is still neither slot identity nor a
-diagnostic-ledger substitute. It is intentionally excluded from the 123-call
-census until a complete catalog row links it.
+the four-emitter census, but is now linked to the bounded Rule ExpressionList
+catalog row below. Its committed recovery record is neither slot identity nor a
+diagnostic-ledger substitute. The caller fence-tree/range proof remains open.
 
 ## Matching rule
 
@@ -400,13 +398,23 @@ into a slot identity.
 | `(RulePath, required name after ColonColon, RuleItem named-postfix phase)` | `691–720`, `864–878`, `891–894` | `linked` | one-item Error or Missing then outer-RuleItem continuation |
 | `(RuleSequence, repeated RuleItem phase, RuleAlternation Body or Parenthesis frame)` | `334–375`, `412–447`, `864–878` | `linked` | repeated direct Error grouping and frame-stop handoff |
 
-`crates/yu-syntax/src/rule/expression_list.rs` is deliberately not linked by
-these rows. Its bracket Item/Separator/close slots, plus every RuleCall,
-RuleIndex, and bracket-RuleItem caller-specific phase, have bounded Draft
-direct-CST evidence but remain unmapped pending complete catalog diagnostic
-projection. The special newline callback remains the `exception` above: its
-record publication is not slot identity, although the Draft now directly proves
-its caller-specific child placement and LF/CRLF ranges.
+#### Rule ExpressionList caller-specific row links
+
+Only the following direct caller/owner sites are linked to the bounded Draft
+catalog row for RuleItem bracket, RuleCall and RuleIndex Item/Separator/Close
+phases. The direct-caller fence tree/range proof remains open; this does not
+classify a parser record or invent a fence CST slot.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/rule/expression_list.rs:54–157` | `linked` | Item/Separator phase selection, direct Error/Missing/Expression/Comma alternatives and unchanged boundary handoff |
+| `crates/yu-syntax/src/rule/expression_list.rs:196–223` | `linked` | newline callback emits Item Missing before direct LF/CRLF Newline |
+| `crates/yu-syntax/src/rule/mod.rs:513–538, 590–635` | `linked` | bracket RuleItem, RuleCall and RuleIndex delimiter/close ownership |
+
+Direct Rowan proof is
+`crates/yu-syntax/src/tests/rule_expression_list_recovery.rs:139–209, 624–839,
+895–932`; its direct-caller fence limitation is `:842–893`. Every other Rule
+and ExpressionList-related row remains untriaged, delegated or unmapped.
 
 ### Root, statement, and virtual layout — 3 files / 11 calls
 
