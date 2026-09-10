@@ -117,6 +117,95 @@ fn type_call_close_distinguishes_argument_and_close_errors_and_missing_slots() {
 }
 
 #[test]
+fn type_call_argument_phase_keeps_direct_children_in_order() {
+    for (source, expected) in [
+        (
+            "T(",
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::Missing,
+                SyntaxKind::TypeCallClose,
+            ],
+        ),
+        (
+            "T(A,",
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Comma,
+                SyntaxKind::Missing,
+                SyntaxKind::TypeCallClose,
+            ],
+        ),
+        (
+            "T(@ A)",
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::Error,
+                SyntaxKind::Error,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::TypeCallClose,
+            ],
+        ),
+        (
+            "T(A)",
+            vec![
+                SyntaxKind::LParen,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::TypeCallClose,
+            ],
+        ),
+    ] {
+        let (green, _, _) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source, "{source}");
+        let root = SyntaxNode::new_root(green);
+        let call = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeCallTail)
+            .expect("TypeCallTail");
+        let direct = call.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(
+            direct.iter().map(|child| child.kind()).collect::<Vec<_>>(),
+            expected,
+            "{source}",
+        );
+        assert_eq!(
+            direct
+                .last()
+                .and_then(|child| child.as_node())
+                .map(SyntaxNode::kind),
+            Some(SyntaxKind::TypeCallClose)
+        );
+
+        if source == "T(@ A)" {
+            assert_eq!(
+                direct[1]
+                    .as_token()
+                    .map(|token| (token.kind(), token.text().to_owned())),
+                Some((SyntaxKind::Error, "@".into()))
+            );
+            assert_eq!(
+                direct[2]
+                    .as_token()
+                    .map(|token| (token.kind(), token.text().to_owned())),
+                Some((SyntaxKind::Error, " ".into()))
+            );
+            assert_eq!(
+                direct[3].as_node().map(SyntaxNode::kind),
+                Some(SyntaxKind::TypeExpression)
+            );
+            assert!(
+                !call
+                    .children()
+                    .any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+            );
+            let close = direct[4].as_node().expect("TypeCallClose");
+            assert_eq!(children(close), vec![(SyntaxKind::RParen, ")".into())]);
+        }
+    }
+}
+
+#[test]
 fn type_call_close_accepted_nested_and_missing_path_controls() {
     for source in [
         "T()",
