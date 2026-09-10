@@ -269,6 +269,15 @@ existing missing/retry/boundary/fence controls are cited in its candidate
 catalog row. This is an evidence-complete candidate only: separator, close,
 caller and nested Type rows remain separately owned and unmapped here.
 
+#### TypeCall separator-phase links
+
+`crates/yu-syntax/src/type_expr/delimited.rs:73–79,360–507,1140–1210,1299–1330`
+and `type_expr/mod.rs:2883–2888` are linked to the bounded separator row.
+Direct accepted/inherited-ML/error-discriminator/frozen proof is
+`crates/yu-syntax/src/tests/type_expr/type_call_fallback.rs:52–218`; boundary
+support remains separately cited by the catalog row. The mapped row excludes
+CallArgument, TypeCallClose and nested Type ownership.
+
 #### Polymorphic-variant wrong-kind TagName-head row link
 
 Only the following census emission is linked to the Draft catalog row

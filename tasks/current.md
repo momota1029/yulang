@@ -185,8 +185,10 @@ mapped and independently audited from their existing Authoritative T3,
 close-node and boundary-priority amendments. CallArgument's direct
 Missing/Error/TypeExpression order is distinct from the TypeCallClose parent;
 its initial-leading and fresh-horizontal-boundary ownership are also mapped.
-Separator, every other TypeCall row, nested Type, global projection and ledger
-retirement remain open.
+TypeCall separator now also has a catalog-audited bounded row: accepted
+punctuation, inherited-ML Missing and ordinary layout are structurally distinct,
+while residual payload remains TypeCallClose-owned. Every other TypeCall row,
+nested Type, global projection and ledger retirement remain open.
 The user approved a bounded transition-vocabulary convention for catalog
 documentation: every mapped row records its owner transition or handoff from
 entry/priority through consumed CST extent to continuation and diagnostic-slot
