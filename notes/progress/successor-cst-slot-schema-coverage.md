@@ -100,6 +100,17 @@ the four slot phases, direct parentage/no Invalid, and the pending safe-point
 leading partition. Visibility/lazy prelude, Root body, header facts/conflicts,
 fences, and every other declaration/header row remain separate.
 
+#### DerivesClause `via` target Draft links
+
+Only `crates/yu-syntax/src/declaration/derives.rs:40–101,144–232,320–356` is linked to
+the catalog-audited bounded direct ViaTarget Draft: direct ViaKw dispatch, missing/boundary
+priority, raw Error run, Identifier retry and protected-boundary handoff.
+Direct Rowan proof is
+`crates/yu-syntax/src/tests/declaration/derives.rs:609–770`; existing
+protected-boundary/retry support is `:772–918`. RoleReference Type recovery, comma
+repetition, declaration/companion callers, outer stops/fences and all other
+declaration/header rows remain separate.
+
 ### Expression forms and tails — 10 files / 18 calls
 
 - `crates/yu-syntax/src/expression/case_like.rs`

@@ -21,6 +21,7 @@ use crate::{
 #[derive(Clone, Copy)]
 enum RecoveryHandling<'a> {
     Reject,
+    Discard,
     Retain,
     Frozen(&'a [CommittedRecoveryRecord]),
     Seeded(Option<&'a [CommittedRecoveryRecord]>),
@@ -147,6 +148,10 @@ fn run_derives_with_stops<'source>(
     builder.finish_node();
     let (green, recoveries) = match recovery_handling {
         RecoveryHandling::Reject => (finish_without_recoveries(builder, recover), Vec::new()),
+        RecoveryHandling::Discard => (
+            finish_with_discarded_recoveries(builder, recover),
+            Vec::new(),
+        ),
         _ => (builder.finish(), recover.finish_recoveries_for_test()),
     };
     (green, pending, item_origin, line_entry, input, recoveries)
@@ -599,6 +604,169 @@ fn derives_slots_publish_exact_fresh_frozen_and_seeded_records() {
     );
     assert_eq!(again, green);
     assert_eq!(records, frozen);
+}
+
+#[test]
+fn derives_via_target_raw_slot_has_direct_missing_and_error_retry() {
+    struct Row {
+        source: &'static str,
+        tree: &'static str,
+        pending_leading: &'static str,
+        direct_children: Vec<(SyntaxKind, std::ops::Range<usize>)>,
+        missing: Option<std::ops::Range<usize>>,
+        errors: Vec<std::ops::Range<usize>>,
+        retry: Option<std::ops::Range<usize>>,
+    }
+
+    let operators = OperatorTable::empty();
+    for row in [
+        Row {
+            source: "derives Eq via",
+            tree: "derives Eq via",
+            pending_leading: "",
+            direct_children: vec![
+                (SyntaxKind::DerivesKw, 0..7),
+                (SyntaxKind::TypeExpression, 7..10),
+                (SyntaxKind::Whitespace, 10..11),
+                (SyntaxKind::ViaKw, 11..14),
+                (SyntaxKind::Missing, 14..14),
+            ],
+            missing: Some(14..14),
+            errors: vec![],
+            retry: None,
+        },
+        Row {
+            source: "derives Eq via  ",
+            tree: "derives Eq via",
+            pending_leading: "  ",
+            direct_children: vec![
+                (SyntaxKind::DerivesKw, 0..7),
+                (SyntaxKind::TypeExpression, 7..10),
+                (SyntaxKind::Whitespace, 10..11),
+                (SyntaxKind::ViaKw, 11..14),
+                (SyntaxKind::Missing, 14..14),
+            ],
+            missing: Some(14..14),
+            errors: vec![],
+            retry: None,
+        },
+        Row {
+            source: "derives Eq via @ target",
+            tree: "derives Eq via @ target",
+            pending_leading: "",
+            direct_children: vec![
+                (SyntaxKind::DerivesKw, 0..7),
+                (SyntaxKind::TypeExpression, 7..10),
+                (SyntaxKind::Whitespace, 10..11),
+                (SyntaxKind::ViaKw, 11..14),
+                (SyntaxKind::Error, 14..15),
+                (SyntaxKind::Error, 15..16),
+                (SyntaxKind::Whitespace, 16..17),
+                (SyntaxKind::Identifier, 17..23),
+            ],
+            missing: None,
+            errors: vec![14..15, 15..16],
+            retry: Some(17..23),
+        },
+    ] {
+        let (green, pending, origin, line, remainder, _) = run_derives_normalized(
+            row.source,
+            &operators,
+            0,
+            LineEntry::InLine,
+            None,
+            StatementLineHandoff::OrdinaryLayout,
+            header_role_boundary(),
+            RecoveryHandling::Discard,
+        );
+        assert_eq!(green.to_string(), row.tree, "{:?}", row.source);
+        let mut pending = pending;
+        assert!(pending.payload_view().is_eof(), "{:?}", row.source);
+        assert_eq!(emit_pending_leading_text(&mut pending), row.pending_leading);
+        assert!(pending.payload_view().is_eof(), "{:?}", row.source);
+        assert_eq!(origin, row.source.len(), "{:?}", row.source);
+        assert_eq!(line, LineEntry::InLine, "{:?}", row.source);
+        assert_eq!(remainder, "", "{:?}", row.source);
+
+        let root = SyntaxNode::new_root(green);
+        let clause = root.children().next().unwrap();
+        assert_eq!(clause.kind(), SyntaxKind::DerivesClause, "{:?}", row.source);
+        assert_eq!(
+            clause
+                .children_with_tokens()
+                .map(|element| {
+                    (
+                        element.kind(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            row.direct_children,
+            "{:?}",
+            row.source
+        );
+        assert!(
+            root.descendants()
+                .all(|node| node.kind() != SyntaxKind::Invalid),
+            "{:?}: {root:#?}",
+            row.source
+        );
+
+        let missing = clause
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .collect::<Vec<_>>();
+        let errors = clause
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        if let Some(range) = row.missing {
+            assert_eq!(missing.len(), 1);
+            assert_eq!(missing[0].parent(), Some(clause.clone()));
+            assert_eq!(
+                missing[0].text_range(),
+                rowan::TextRange::new((range.start as u32).into(), (range.end as u32).into())
+            );
+            assert!(errors.is_empty());
+        } else {
+            assert!(missing.is_empty());
+            assert!(
+                errors
+                    .iter()
+                    .all(|token| token.parent() == Some(clause.clone()))
+            );
+            assert_eq!(
+                errors
+                    .iter()
+                    .map(|token| token.text_range())
+                    .collect::<Vec<_>>(),
+                row.errors
+                    .iter()
+                    .map(|range| {
+                        rowan::TextRange::new(
+                            (range.start as u32).into(),
+                            (range.end as u32).into(),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            );
+            let range = row.retry.unwrap();
+            let retry = clause
+                .children_with_tokens()
+                .find(|element| {
+                    element.kind() == SyntaxKind::Identifier
+                        && element.text_range()
+                            == rowan::TextRange::new(
+                                (range.start as u32).into(),
+                                (range.end as u32).into(),
+                            )
+                })
+                .unwrap();
+            assert_eq!(retry.parent(), Some(clause.clone()));
+        }
+    }
 }
 
 #[test]

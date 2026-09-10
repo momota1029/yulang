@@ -315,6 +315,14 @@ between phases and remains outside the header only when terminally handed off.
 It is catalog-audited evidence-complete Draft and does not map
 visibility/lazy, Root body, header facts/conflicts, the remaining declaration
 family, global projection, or ledger retirement.
+The bounded DerivesClause ViaTarget row now records only the direct
+ViaKw-following raw-Identifier slot: boundary Missing, maximal direct Error
+group, direct Identifier retry and protected-boundary handoff. Its direct Rowan
+test uses an explicit discard-only harness mode, so existing `Reject` controls
+still assert that their accepted paths issue no recovery. It is
+catalog-audited evidence-complete Draft; RoleReference Type recovery,
+comma/caller/fence paths, global
+projection and ledger retirement remain open.
 The test-only active-prefix cell now proves all 16 contexts
 stop direct Error leaves before close/transition/EOF boundaries across LF/CRLF,
 return the judged pending boundary untouched, and keep OperatorDefinitionBody
