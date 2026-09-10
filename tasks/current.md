@@ -244,6 +244,11 @@ The next current-contract Type collision is independently fixed as evidence:
 ranges, but retain respectively Separator and Close expectations. This proves
 another schema gap, not a parser defect. No topology or expectation change is
 authorized yet; create/review a bounded Draft before proposing new kinds.
+The Draft `2026-09-10-successor-pv-foreign-close-slot-draft.md` proposes the
+single transparent `PolymorphicVariantForeignClose` node, wrapping only one
+locally consumed foreign close while direct raw PV Error remains Separator.
+It is under independent review; do not add a SyntaxKind or alter PV topology,
+records or collision expectations until user approval.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The
