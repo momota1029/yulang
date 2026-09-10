@@ -151,6 +151,15 @@ the governing fixed-tail authority establish the rows' CST and recovery facts.
 - `crates/yu-syntax/src/type_expr/record.rs`
 - `crates/yu-syntax/src/type_expr/variants.rs`
 
+#### ForallType first required-binder candidate links
+
+Only `crates/yu-syntax/src/type_expr/forall.rs:56–74,142–258,269–315,319–381,
+498–542` is linked to the bounded first-binder candidate: ForKw/head phase,
+priority, maximal raw run and direct Missing publication. Direct Rowan proof is
+`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:71–183`; later binder,
+colon/body, nested Type and every other forall emission remain separately
+unmapped.
+
 #### LeadingEffectTypeHead required-head row links
 
 Only the following concrete `type_expr/mod.rs` emissions are linked to the

@@ -189,6 +189,10 @@ TypeCall separator now also has a catalog-audited bounded row: accepted
 punctuation, inherited-ML Missing and ordinary layout are structurally distinct,
 while residual payload remains TypeCallClose-owned. Every other TypeCall row,
 nested Type, global projection and ledger retirement remain open.
+ForallType's first required binder is likewise catalog-mapped: the direct
+ForallTypeBinder slot precedes every accepted binder, so its Missing/Error is
+distinct from later BinderBoundary without new topology. Later binders,
+colon/body, nested Type and caller continuation remain separate open rows.
 The user approved a bounded transition-vocabulary convention for catalog
 documentation: every mapped row records its owner transition or handoff from
 entry/priority through consumed CST extent to continuation and diagnostic-slot
