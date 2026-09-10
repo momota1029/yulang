@@ -257,6 +257,11 @@ Close Missing occurrences all use direct
 focused `{,;}`, `{use a use b}` and `{  ` controls retain their exact records,
 source, frozen replay and continuation. This is a schema gap, not a parser
 defect; topology remains unselected pending a bounded Draft and review.
+The Draft `2026-09-10-successor-braced-statement-slot-draft.md` proposes
+existing `BlockStatementSeparator` around Separator Missing plus one terminal
+`BracedStatementBlockClose` for accepted local `}` or Close Missing. It is
+under independent review; do not change CST topology, SyntaxKinds, records or
+collision expectations until user approval.
 
 That observed failure was subsequently traced to `f14d9a0a` inserting
 `AssignmentTail` and `TypeAnnotationTail` before established kinds. The
