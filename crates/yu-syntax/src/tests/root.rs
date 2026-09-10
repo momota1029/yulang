@@ -230,6 +230,163 @@ fn root_raw_error_repeats_across_a_native_semicolon_and_progresses() {
 }
 
 #[test]
+fn root_raw_error_retry_and_terminal_leading_preserve_direct_ownership() {
+    use crate::recovery_record::{
+        ExpectationSources, ExpectedSyntax, KeywordEvidence, RecoveryKind, RootUnexpected,
+        UnexpectedSyntax,
+    };
+
+    const ROOT_KEYWORDS: [KeywordEvidence; 6] = [
+        KeywordEvidence::Use,
+        KeywordEvidence::Lazy,
+        KeywordEvidence::Prefix,
+        KeywordEvidence::Infix,
+        KeywordEvidence::Suffix,
+        KeywordEvidence::Nullfix,
+    ];
+
+    struct Row {
+        source: &'static str,
+        error_range: std::ops::Range<usize>,
+        direct: Vec<(SyntaxKind, std::ops::Range<usize>, &'static str)>,
+    }
+
+    let rows = [
+        Row {
+            source: "];next",
+            error_range: 0..1,
+            direct: vec![
+                (SyntaxKind::Error, 0..1, "]"),
+                (SyntaxKind::Semicolon, 1..2, ";"),
+                (SyntaxKind::OperatorChain, 2..6, "next"),
+            ],
+        },
+        Row {
+            source: "]\r\nnext",
+            error_range: 0..1,
+            direct: vec![
+                (SyntaxKind::Error, 0..1, "]"),
+                (SyntaxKind::Newline, 1..3, "\r\n"),
+                (SyntaxKind::OperatorChain, 3..7, "next"),
+            ],
+        },
+        Row {
+            source: "] next",
+            error_range: 0..6,
+            direct: vec![
+                (SyntaxKind::Error, 0..1, "]"),
+                (SyntaxKind::Error, 1..2, " "),
+                (SyntaxKind::Error, 2..6, "next"),
+            ],
+        },
+        Row {
+            source: "]\n  next",
+            error_range: 0..8,
+            direct: vec![
+                (SyntaxKind::Error, 0..1, "]"),
+                (SyntaxKind::Error, 1..2, "\n"),
+                (SyntaxKind::Error, 2..4, "  "),
+                (SyntaxKind::Error, 4..8, "next"),
+            ],
+        },
+        Row {
+            source: "]\r\n",
+            error_range: 0..1,
+            direct: vec![
+                (SyntaxKind::Error, 0..1, "]"),
+                (SyntaxKind::Newline, 1..3, "\r\n"),
+            ],
+        },
+    ];
+
+    for row in rows {
+        let root = parse_root_candidate(row.source, &OperatorTable::empty(), &[]);
+        assert_eq!(root.green.to_string(), row.source, "{:?}", row.source);
+        assert_eq!(root.committed_recoveries.len(), 1, "{:?}", row.source);
+        let record = &root.committed_recoveries[0];
+        assert_eq!(record.kind, RecoveryKind::Error, "{:?}", row.source);
+        assert_eq!(
+            record.site.role,
+            GrammarRole::Statement(StatementRole::Starter),
+            "{:?}",
+            row.source
+        );
+        assert_eq!(record.site.range, row.error_range, "{:?}", row.source);
+        assert!(
+            matches!(
+                record.unexpected.as_ref(),
+                [UnexpectedSyntax::Root(RootUnexpected::UnrecognizedStarter { range, .. })]
+                    if range == &record.site.range
+            ),
+            "{:?}: {:?}",
+            row.source,
+            record.unexpected
+        );
+        assert_eq!(record.primary_expectation, 0, "{:?}", row.source);
+        assert_eq!(
+            record.expectations.len(),
+            ROOT_KEYWORDS.len(),
+            "{:?}",
+            row.source
+        );
+        for (expectation, keyword) in record.expectations.iter().zip(ROOT_KEYWORDS) {
+            assert_eq!(expectation.role, record.site.role, "{:?}", row.source);
+            assert_eq!(
+                expectation.expected,
+                ExpectedSyntax::Keyword(keyword),
+                "{:?}",
+                row.source
+            );
+            assert_eq!(expectation.range, record.site.range, "{:?}", row.source);
+            assert_eq!(
+                expectation.sources,
+                ExpectationSources::COMMITTED_RECOVERY_RULE,
+                "{:?}",
+                row.source
+            );
+        }
+
+        let syntax = SyntaxNode::new_root(root.green);
+        let groups = recovery_groups(&syntax);
+        assert_eq!(groups.len(), 1, "{:?}: {groups:#?}", row.source);
+        assert_eq!(groups[0].parent(), Some(syntax.clone()), "{:?}", row.source);
+        assert_eq!(
+            usize::from(groups[0].text_range().start())..usize::from(groups[0].text_range().end()),
+            record.site.range,
+            "{:?}",
+            row.source
+        );
+        let direct = syntax
+            .children_with_tokens()
+            .map(|element| {
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            direct,
+            row.direct
+                .into_iter()
+                .map(|(kind, range, text)| (kind, range, text.into()))
+                .collect::<Vec<_>>(),
+            "{:?}",
+            row.source
+        );
+        assert!(
+            syntax
+                .descendants()
+                .all(|node| node.kind() != SyntaxKind::Invalid),
+            "{:?}: {syntax:#?}",
+            row.source
+        );
+    }
+}
+
+#[test]
 fn root_raw_error_opaque_utf8_fragments_preserve_byte_ranges() {
     let source = "] \"é;\n💥\"\nuse good\n";
     let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
