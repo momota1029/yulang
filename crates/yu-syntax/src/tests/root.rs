@@ -179,6 +179,102 @@ fn root_error_keeps_nested_delimiters_and_literal_newlines_inside_one_run() {
 }
 
 #[test]
+fn root_raw_error_repeats_across_a_native_semicolon_and_progresses() {
+    let source = "];]\r\nnext";
+    let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
+    assert_eq!(root.green.to_string(), source);
+    let syntax = SyntaxNode::new_root(root.green);
+    let groups = recovery_groups(&syntax);
+    assert_eq!(groups.len(), 2);
+    assert_eq!(
+        groups
+            .iter()
+            .map(|group| {
+                (
+                    usize::from(group.text_range().start())..usize::from(group.text_range().end()),
+                    group.text(),
+                    group.parent(),
+                )
+            })
+            .collect::<Vec<_>>(),
+        [
+            (0..1, "]".into(), Some(syntax.clone())),
+            (2..3, "]".into(), Some(syntax.clone()))
+        ]
+    );
+    let direct = syntax
+        .children_with_tokens()
+        .map(|element| {
+            (
+                element.kind(),
+                usize::from(element.text_range().start())..usize::from(element.text_range().end()),
+                element.to_string(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        direct,
+        [
+            (SyntaxKind::Error, 0..1, "]".into()),
+            (SyntaxKind::Semicolon, 1..2, ";".into()),
+            (SyntaxKind::Error, 2..3, "]".into()),
+            (SyntaxKind::Newline, 3..5, "\r\n".into()),
+            (SyntaxKind::OperatorChain, 5..9, "next".into()),
+        ]
+    );
+    assert!(
+        syntax
+            .descendants()
+            .all(|node| node.kind() != SyntaxKind::Invalid)
+    );
+}
+
+#[test]
+fn root_raw_error_opaque_utf8_fragments_preserve_byte_ranges() {
+    let source = "] \"é;\n💥\"\nuse good\n";
+    let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
+    assert_eq!(root.green.to_string(), source);
+    let syntax = SyntaxNode::new_root(root.green);
+    let errors = syntax
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .map(|token| {
+            (
+                usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+                token.text().to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        errors,
+        [
+            (0..1, "]".into()),
+            (1..2, " ".into()),
+            (2..3, "\"".into()),
+            (3..12, "é;\n💥\"".into()),
+        ]
+    );
+    assert_eq!(
+        errors.last().unwrap().0.end,
+        source.find("\nuse good").unwrap()
+    );
+    assert!(
+        syntax
+            .descendants()
+            .all(|node| node.kind() != SyntaxKind::Invalid)
+    );
+    assert_eq!(
+        syntax
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::UseDeclaration)
+            .map(|node| node.text().to_string())
+            .collect::<Vec<_>>(),
+        ["use good"]
+    );
+}
+
+#[test]
 fn root_operator_body_uses_expression_and_preserves_following_statement() {
     let source = "prefix (?) 70 = value\nmy next = 2\n";
     let header = discover_header(source);
