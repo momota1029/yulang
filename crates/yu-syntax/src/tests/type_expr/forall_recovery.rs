@@ -68,6 +68,121 @@ fn assert_typed_nodes(root: &SyntaxNode, expected: &[CommittedRecoveryRecord]) {
 }
 
 #[test]
+fn forall_first_binder_slot_is_ordered_directly_in_rowan() {
+    use SyntaxKind::*;
+
+    let forall = |source| {
+        let (green, _) = run_type(source);
+        let root = SyntaxNode::new_root(green);
+        root.descendants()
+            .find(|node| node.kind() == ForallType)
+            .unwrap()
+    };
+    let children = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| (child.kind(), child.to_string()))
+            .collect::<Vec<_>>()
+    };
+
+    let missing = forall("for: T");
+    assert_eq!(
+        children(&missing),
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, "".into()),
+            (Colon, ":".into()),
+            (Whitespace, " ".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    let missing_binder = missing
+        .children()
+        .find(|node| node.kind() == ForallTypeBinder)
+        .unwrap();
+    assert_eq!(children(&missing_binder), vec![(Missing, "".into())]);
+
+    let malformed = forall("for /*lead*/, T 'a:T");
+    let malformed_children = children(&malformed);
+    assert_eq!(malformed_children[0], (ForKw, "for".into()));
+    assert_eq!(
+        malformed_children[1],
+        (ForallTypeBinder, " /*lead*/, T".into())
+    );
+    assert_eq!(malformed_children[2], (ForallTypeBinder, " 'a".into()));
+    assert_eq!(malformed_children[3], (Colon, ":".into()));
+    assert_eq!(malformed_children[4], (TypeExpression, "T".into()));
+    let binder = malformed
+        .children()
+        .find(|node| node.kind() == ForallTypeBinder)
+        .unwrap();
+    let binder_children = binder.children_with_tokens().collect::<Vec<_>>();
+    let error_at = binder_children
+        .iter()
+        .position(|child| child.kind() == Error)
+        .expect("first binder raw Error");
+    assert!(error_at > 0, "leading trivia remains outside the raw Error");
+    assert!(
+        binder_children[..error_at]
+            .iter()
+            .all(|child| child.kind() != Error)
+    );
+    assert!(binder_children[error_at].as_token().is_some());
+    assert!(!malformed.descendants().any(|node| node.kind() == Invalid));
+
+    let first = forall("for,@:T");
+    let after_accepted = forall("for 'a,@:T");
+    let first_children = children(&first);
+    let after_accepted_children = children(&after_accepted);
+    assert_eq!(
+        first_children,
+        vec![
+            (ForKw, "for".into()),
+            (ForallTypeBinder, ",@".into()),
+            (Colon, ":".into()),
+            (TypeExpression, "T".into()),
+        ]
+    );
+    let first_binder = first
+        .children()
+        .find(|node| node.kind() == ForallTypeBinder)
+        .unwrap();
+    assert_eq!(
+        children(&first_binder),
+        vec![(Error, ",".into()), (Error, "@".into())]
+    );
+    assert_eq!(after_accepted_children[1], (ForallTypeBinder, " 'a".into()));
+    let first_error = first
+        .descendants_with_tokens()
+        .find(|child| child.kind() == Error)
+        .unwrap();
+    let after_accepted_error = after_accepted
+        .descendants_with_tokens()
+        .find(|child| child.kind() == Error)
+        .unwrap();
+    assert_eq!(first_error.to_string(), ",");
+    assert_eq!(after_accepted_error.to_string(), ",");
+    assert!(
+        after_accepted_error.text_range().start() > first_error.text_range().start(),
+        "the same comma leaf follows an accepted binder"
+    );
+    for node in [&first, &after_accepted] {
+        assert!(!node.descendants().any(|child| child.kind() == Invalid));
+        assert!(
+            node.descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .all(|child| child.as_token().is_some())
+        );
+    }
+
+    assert_pending_forall(
+        "for,@:T",
+        " /*é*/with tail",
+        crate::lexical::stops::STOP_WITH,
+        &[forall_record(0, TypeRole::ForallBinder, 3..5, true)],
+    );
+}
+
+#[test]
 fn forall_missing_records_cover_only_the_current_mandatory_slot() {
     use TypeRole::{
         ForallBinder as B, ForallBinderBoundary as G, ForallBody as T, ForallColon as C,
