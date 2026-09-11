@@ -112,6 +112,104 @@ fn identifier_texts(node: &SyntaxNode) -> Vec<String> {
 }
 
 #[test]
+fn declaration_variant_from_type_missing_has_direct_enum_error_cst_evidence() {
+    use SyntaxKind::{
+        EnumVariant, Error, FromKw, Identifier, Invalid, Missing, TypeExpression, Whitespace,
+    };
+
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        for active_stop in [false, true] {
+            let prefix = format!("{keyword} E = A from");
+            let source = if active_stop {
+                format!("{prefix} /*pending*/ : tail")
+            } else {
+                prefix.clone()
+            };
+            let stops = if active_stop { STOP_COLON } else { 0 };
+            let (green, exit, remainder) = if keyword == "enum" {
+                run_enum_declaration(&source, stops, 100, LineEntry::InLine, None)
+            } else {
+                run_error_declaration(&source, stops, 100, LineEntry::InLine, None)
+            };
+            assert_eq!(green.to_string(), prefix, "{source:?}");
+            if active_stop {
+                let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
+                    panic!("active Colon must remain pending: {source:?}");
+                };
+                assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+                assert_eq!(emit_pending_leading_text(&mut item), " /*pending*/ ");
+                assert_eq!(remainder, " tail");
+            } else {
+                assert_eq!(remainder, "");
+            }
+
+            let root = syntax_root(green);
+            let shell = root
+                .children()
+                .find(|node| node.kind() == declaration)
+                .unwrap();
+            assert_eq!(shell.parent(), Some(root.clone()));
+            let variants = shell
+                .children()
+                .filter(|node| node.kind() == EnumVariant)
+                .collect::<Vec<_>>();
+            assert_eq!(variants.len(), 1, "{source:?}");
+            let variant = &variants[0];
+            assert_eq!(variant.parent().as_ref(), Some(&shell));
+            let at = prefix.len();
+            assert_eq!(
+                variant
+                    .children_with_tokens()
+                    .map(|child| (
+                        child.kind(),
+                        child.as_node().is_some(),
+                        usize::from(child.text_range().start())
+                            ..usize::from(child.text_range().end()),
+                        child.to_string(),
+                    ))
+                    .collect::<Vec<_>>(),
+                [
+                    (
+                        Whitespace,
+                        false,
+                        at - " A from".len()..at - "A from".len(),
+                        " ".to_owned(),
+                    ),
+                    (Identifier, false, at - 6..at - 5, "A".to_owned()),
+                    (Whitespace, false, at - 5..at - 4, " ".to_owned()),
+                    (FromKw, false, at - 4..at, "from".to_owned()),
+                    (TypeExpression, true, at..at, String::new()),
+                ],
+                "{source:?}",
+            );
+            let payload = variant.children().next().unwrap();
+            let children = payload.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), 1);
+            let missing = children[0].as_node().unwrap();
+            assert_eq!(missing.kind(), Missing);
+            assert_eq!(missing.parent(), Some(payload.clone()));
+            assert_eq!(usize::from(missing.text_range().start()), at);
+            assert!(missing.text_range().is_empty());
+            assert_eq!(missing.children_with_tokens().count(), 0);
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == Missing)
+                    .count(),
+                1
+            );
+            assert!(
+                !root
+                    .descendants_with_tokens()
+                    .any(|child| matches!(child.kind(), Error | Invalid))
+            );
+        }
+    }
+}
+
+#[test]
 fn declaration_variant_core_slots_have_direct_enum_error_cst_evidence() {
     use SyntaxKind::{EnumVariant, Error, Identifier, Missing, Whitespace};
     // Publication and handoff selects Name only on an admitted raw-name retry.

@@ -292,6 +292,21 @@ witnessed alternatives. Payload Type/field/local-close, outer close, terminal
 handoff, additional separator-error forms, global interpreter and ledger
 retirement remain separate.
 
+#### Declaration Variant `FromType` required-payload Missing Draft links
+
+Only EOF and active-Colon Missing after an admitted direct `FromKw` are linked.
+The necessary full Enum/Error shell ancestor and the preceding FromKw select
+the owner vocabulary and distinguish `EnumVariant(TypeExpression(Missing))`
+from positional payload and field-Type shapes. Direct Rowan proof is
+`crates/yu-syntax/src/tests/declaration/declaration_variant.rs:115–213`; it
+asserts native initial leading, direct token/node order, source-local empty
+TypeExpression/Missing ranges, no Error/Invalid, and an exact pending Colon
+Item, leading and remainder. It reads no recovery record for classification.
+M1 pre-write and closure specification audits were clean, so this is a
+catalog-audited evidence-complete Draft only for those two Missing paths.
+FromType Error/retry, all other payload boundaries, positional payload,
+fields/closes, global interpreter and ledger retirement remain separate.
+
 ### Expression forms and tails — 10 files / 18 calls
 
 - `crates/yu-syntax/src/expression/case_like.rs`

@@ -189,6 +189,14 @@ avoids positional-Type ambiguity, and Enum/Error ancestors select the distinct
 vocabulary. The M1 change is test/documentation only: no parser, topology,
 diagnostic ledger or API behavior changed. Nested payload/field/local-close,
 outer-close, terminal handoff and remaining separator alternatives stay open.
+The bounded declaration Variant `FromType` required-payload Missing row is also
+catalog-audited evidence-complete Draft for EOF and active-Colon handoff. Full
+Enum/Error ancestors plus a direct preceding FromKw identify
+`TypeExpression(Missing)` without conflating positional or field Type shapes.
+The direct Rowan proof retains Variant-owned initial leading, TypeExpression
+parentage/range and the pending Colon Item/leading/remainder. This M1 change is
+test/documentation only: FromType Error/retry, other payload boundaries and all
+other excluded Type/declaration rows remain open.
 The bounded TypeCall terminal-close and required CallArgument item rows are now
 mapped and independently audited from their existing Authoritative T3,
 close-node and boundary-priority amendments. CallArgument's direct
