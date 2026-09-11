@@ -180,6 +180,13 @@ non-authoritative source coverage manifest at
 `notes/progress/successor-cst-slot-schema-coverage.md`. Full semantic mapping,
 ordered schemas and independent audit remain open; this record-only step made
 no parser, API, test or benchmark change.
+The 2026-09-11 completion-gap audit confirms that the coverage census is not
+yet a ledger-removal proof: `literal/rule_literal.rs` has four indirect
+`emit_rule_missing` publishers outside its four-emitter/family inventory, and
+several `type_expr/mod.rs` source locators are stale. Existing catalog statuses
+remain unchanged until their behavior and current links are revalidated. The
+next M2 design gate is the NamedRecordType semantic matrix; its completed
+topology alone is insufficient for semantic diagnostic projection.
 The bounded declaration Variant core Item/Name/Separator row is now
 catalog-audited evidence-complete Draft. Direct full-shell Rowan controls prove
 that `EnumVariant(Missing)` and terminal `EnumVariant(Error+)` are Item, while

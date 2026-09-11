@@ -29,6 +29,24 @@ the four-emitter census, but is now linked to the bounded Rule ExpressionList
 catalog row below. Its committed recovery record is neither slot identity nor a
 diagnostic-ledger substitute. The caller fence-tree/range proof remains open.
 
+## 2026-09-11 completion-gap audit
+
+The census command still returns 123 sites in 39 files, but it is not yet a
+complete publication inventory for ledger-retirement proof. In particular,
+`crates/yu-syntax/src/literal/rule_literal.rs` invokes `emit_rule_missing` for
+four LiteralRole occurrences and is absent from the four-emitter census/family
+table. The RuleLiteralInterpolation frame also reaches shared RuleSequence
+Error and child helpers under a distinct ancestor context. These are required
+coverage entries, not evidence that the ordinary RuleBody/Parenthesis rows
+apply to that frame.
+
+The same audit found several catalog locators under `type_expr/mod.rs` stale
+against current source line positions. Existing row statuses are not changed:
+the source behavior and topology must be revalidated before adjusting a link.
+Until every indirect/helper-mediated publisher and its ordered caller context
+is accounted for, this manifest cannot support a complete-schema or
+ledger-retirement claim.
+
 ## Matching rule
 
 Map a source helper/caller to a semantic slot only when the evidence establishes
