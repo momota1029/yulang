@@ -191,6 +191,12 @@ and Close directly from ordered Rowan context. The bounded proof covers
 no-cascade retry, nested Type ownership, Field/Separator/Close collisions and
 equal-offset Close occurrence paths without recovery-record input. It does not
 complete any other Type context, the global collector or ledger/API migration.
+The bounded PolymorphicVariantType semantic matrix is likewise now a
+catalog-audited evidence-complete Draft. Ordered direct Rowan context selects
+PV Tag, its existing TagName Invalid dependency, PayloadBoundary/Payload,
+Separator and Close; consecutive raw separator Errors remain one CST group even
+when the temporary parser ledger has several records. No new wrapper, Invalid,
+parser behavior or global-diagnostic claim is involved.
 The bounded declaration Variant core Item/Name/Separator row is now
 catalog-audited evidence-complete Draft. Direct full-shell Rowan controls prove
 that `EnumVariant(Missing)` and terminal `EnumVariant(Error+)` are Item, while

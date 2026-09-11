@@ -319,6 +319,242 @@ fn assert_foreign_closes(root: &SyntaxNode, ranges: &[Range<usize>]) {
     }
 }
 
+fn direct_kind_text(node: &SyntaxNode) -> Vec<(SyntaxKind, String)> {
+    node.children_with_tokens()
+        .map(|child| (child.kind(), child.to_string()))
+        .collect()
+}
+
+fn pv_cst(source: &str) -> SyntaxNode {
+    let (green, _) = run_type(source);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.text(), source, "{source:?}");
+    root
+}
+
+fn direct_pv(root: &SyntaxNode) -> SyntaxNode {
+    root.descendants()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+        .expect("polymorphic variant type")
+}
+
+#[test]
+fn pv_semantic_missing_slots_use_direct_ordered_siblings() {
+    use SyntaxKind::{
+        Colon, Comma, LBrace, Missing, Newline, PolymorphicVariantTag as Tag, RBrace, Whitespace,
+    };
+
+    // Direct sibling order distinguishes the repeated/unfilled Tag vacancy
+    // from the terminal Close vacancy, including equal-offset EOF cases.
+    for (source, expected) in [
+        (
+            ":{,,A}",
+            vec![Colon, LBrace, Missing, Comma, Missing, Comma, Tag, RBrace],
+        ),
+        (":{,}", vec![Colon, LBrace, Missing, Comma, RBrace]),
+        (":{A,}", vec![Colon, LBrace, Tag, Comma, RBrace]),
+        (":{A,", vec![Colon, LBrace, Tag, Comma, Missing, Missing]),
+        (":{A\n", vec![Colon, LBrace, Tag, Newline, Missing, Missing]),
+        (":{", vec![Colon, LBrace, Missing]),
+    ] {
+        let root = pv_cst(source);
+        let variant = direct_pv(&root);
+        let children = variant.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(
+            children
+                .iter()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        if source == ":{A," || source == ":{A\n" {
+            let missing = children
+                .iter()
+                .filter(|child| child.kind() == Missing)
+                .collect::<Vec<_>>();
+            assert_eq!(missing.len(), 2);
+            assert_eq!(missing[0].text_range(), missing[1].text_range());
+            assert_eq!(
+                children.iter().position(|child| child.kind() == Missing),
+                Some(children.len() - 2),
+                "the unfilled Tag precedes the final Close"
+            );
+        }
+    }
+
+    let root = pv_cst(":{A\r\n");
+    assert_eq!(
+        direct_kind_text(&direct_pv(&root)),
+        vec![
+            (Colon, ":".into()),
+            (LBrace, "{".into()),
+            (Tag, "A".into()),
+            (Newline, "\r\n".into()),
+            (Missing, "".into()),
+            (Missing, "".into()),
+        ]
+    );
+
+    let root = pv_cst(":{:{A");
+    let missing = root
+        .descendants()
+        .filter(|node| node.kind() == Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(missing.len(), 2);
+    assert_eq!(missing[0].text_range(), missing[1].text_range());
+    assert_eq!(
+        missing
+            .iter()
+            .map(|node| {
+                node.ancestors()
+                    .filter(|ancestor| ancestor.kind() == SyntaxKind::PolymorphicVariantType)
+                    .count()
+            })
+            .collect::<Vec<_>>(),
+        [2, 1],
+        "nested and outer Close occurrences use ancestry/order, not range identity"
+    );
+
+    let root = pv_cst(":{ A}");
+    assert_eq!(
+        direct_pv(&root)
+            .children_with_tokens()
+            .next()
+            .unwrap()
+            .kind(),
+        Colon
+    );
+    assert!(
+        direct_pv(&root)
+            .children_with_tokens()
+            .any(|child| child.kind() == Whitespace)
+    );
+}
+
+#[test]
+fn pv_semantic_error_slots_use_direct_groups_and_ancestry() {
+    use SyntaxKind::{
+        Error, Invalid, PolymorphicVariantForeignClose as ForeignClose,
+        PolymorphicVariantPayload as Payload, PolymorphicVariantTag as Tag, TypeExpression,
+    };
+
+    // A direct maximal raw group is Separator-owned. ForeignClose makes Close
+    // structural without consulting Error spelling or temporary records.
+    let root = pv_cst(":{ /*é*/;;])];;}");
+    let variant = direct_pv(&root);
+    let direct = variant.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        direct.iter().map(|child| child.kind()).collect::<Vec<_>>(),
+        vec![
+            SyntaxKind::Colon,
+            SyntaxKind::LBrace,
+            SyntaxKind::Whitespace,
+            SyntaxKind::BlockComment,
+            Error,
+            Error,
+            ForeignClose,
+            ForeignClose,
+            ForeignClose,
+            Error,
+            Error,
+            SyntaxKind::RBrace,
+        ]
+    );
+    assert!(direct.iter().any(|child| {
+        child.kind() == SyntaxKind::BlockComment && child.to_string() == "/*é*/"
+    }));
+    let foreign = variant
+        .children()
+        .filter(|node| node.kind() == ForeignClose)
+        .collect::<Vec<_>>();
+    assert_eq!(foreign.len(), 3);
+    for close in foreign {
+        assert_eq!(close.parent(), Some(variant.clone()));
+        assert!(
+            close
+                .children_with_tokens()
+                .all(|child| child.kind() == Error && child.as_token().is_some())
+        );
+    }
+
+    let root = pv_cst(":{A@Int}");
+    let variant = direct_pv(&root);
+    let tags = variant
+        .children()
+        .filter(|node| node.kind() == Tag)
+        .collect::<Vec<_>>();
+    assert_eq!(tags.len(), 2);
+    assert_eq!(tags[0].text(), "A");
+    assert!(
+        tags[1]
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .eq([Error, SyntaxKind::Identifier])
+    );
+    assert!(!tags[1].descendants().any(|node| node.kind() == Invalid));
+
+    let root = pv_cst(":{123::T}");
+    let tag = direct_pv(&root)
+        .children()
+        .find(|node| node.kind() == Tag)
+        .unwrap();
+    let tag_children = tag.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        tag_children
+            .iter()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [Invalid]
+    );
+    let invalid = tag_children[0].as_node().unwrap();
+    assert!(
+        invalid
+            .children()
+            .next()
+            .is_some_and(|node| node.kind() == TypeExpression)
+    );
+
+    let root = pv_cst(":{A(Int)}");
+    let variant = direct_pv(&root);
+    let tag = variant.children().find(|node| node.kind() == Tag).unwrap();
+    let tag_children = tag.children_with_tokens().collect::<Vec<_>>();
+    let payload = tag_children
+        .iter()
+        .position(|child| child.kind() == Payload)
+        .unwrap();
+    let payload = tag_children[payload].as_node().unwrap();
+    assert_eq!(payload.parent(), Some(tag));
+    assert_eq!(
+        payload
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Missing, TypeExpression]
+    );
+
+    let root = pv_cst(":{A @/*é*/Int}");
+    let payload = direct_pv(&root)
+        .descendants()
+        .find(|node| node.kind() == Payload)
+        .unwrap();
+    let children = payload.children_with_tokens().collect::<Vec<_>>();
+    let error = children
+        .iter()
+        .position(|child| child.kind() == Error)
+        .unwrap();
+    let retry = children
+        .iter()
+        .position(|child| child.kind() == TypeExpression)
+        .unwrap();
+    assert!(error < retry, "the Payload Error precedes its retry Type");
+    assert!(
+        children[error + 1..retry]
+            .iter()
+            .any(|child| child.kind() == SyntaxKind::BlockComment && child.to_string() == "/*é*/")
+    );
+}
+
 #[test]
 fn pv_foreign_close_slots_preserve_positions_leading_and_type_tails() {
     for (prefix, mut records) in [

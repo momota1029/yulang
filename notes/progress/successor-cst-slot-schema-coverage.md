@@ -493,8 +493,25 @@ other PV owners remain direct or nested as before. Direct proof is
 `crates/yu-syntax/src/tests/type_expr/pv_recovery.rs:199–689`, with dependent
 payload/outer-close ancestry controls in `tests/type_expr.rs`. It covers
 positions, repetition, mixed groups, leading, fence/caller handoff, tail and
-fresh/frozen records. This is topology construction evidence, not completion of
-the remaining PV semantic diagnostic rows.
+fresh/frozen records. This topology evidence remains distinct from the bounded
+PV semantic-row links below.
+
+#### PolymorphicVariantType semantic-slot Draft links
+
+The bounded PV rows are linked for direct Tag Missing/Error, the already-mapped
+TagName Invalid dependency, PayloadBoundary/Payload, direct Separator groups,
+and terminal or `PolymorphicVariantForeignClose` Close occurrences. Direct
+Rowan proof is `pv_semantic_missing_slots_use_direct_ordered_siblings` and
+`pv_semantic_error_slots_use_direct_groups_and_ancestry` in
+`crates/yu-syntax/src/tests/type_expr/pv_recovery.rs`. The tests use complete
+ordered sibling context for Tag versus Close, preserve separate repeated
+ForeignClose occurrences, and retain adjacent raw separator Errors as one
+semantic group even where temporary records are more numerous. Retained tests
+cover UTF-8 ranges, retry/no-cascade, boundary handoff and nested Type
+ownership. Pre-write and post-write specification audits are clean. Status:
+`evidence-complete Draft` only for these witnessed PV-owned rows; other PV
+forms, nested Type schemas, the global collector and ledger/API migration
+remain open.
 
 #### ForallType first required-binder candidate links
 
@@ -668,13 +685,12 @@ Non-census support for that row: outer-list dispatch and fresh-leading entry at
 Type-ML scope, and structured extent at `617–678`; returned head/boundary
 handoff at `853–900`; malformed-run retry and pending-leading behavior at
 `792–850`; and PV boundary ownership at `428–470`, all in
-`crates/yu-syntax/src/type_expr/variants.rs`. Direct proof locators are
-`tests/type_expr/pv_recovery.rs:263–303`, `tests/type_expr.rs:6735–6832,
-7085–7176, 8173–8254`, `tests/type_expr/bracket_arrow_recovery.rs:216–221`,
-`tests/type_expr/forall_recovery.rs:829–865`, and
-`tests/type_expr/record_field_recovery.rs:368–374`. These are support/proof
-links, not census assignments. Malformed prefix, payload/list-tag, separator,
-close, and nested Type rows remain unmapped.
+`crates/yu-syntax/src/type_expr/variants.rs`. Direct proof is
+`pv_semantic_error_slots_use_direct_groups_and_ancestry` in
+`tests/type_expr/pv_recovery.rs`, with the listed retained recursive controls
+as support. These are support/proof links, not census assignments. The bounded
+PV semantic Draft now maps the witnessed malformed prefix, payload/list-tag,
+separator and close forms; other PV and nested Type rows remain open.
 
 ### Pattern — 2 files / 8 calls
 
