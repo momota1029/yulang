@@ -197,6 +197,13 @@ The direct Rowan proof retains Variant-owned initial leading, TypeExpression
 parentage/range and the pending Colon Item/leading/remainder. This M1 change is
 test/documentation only: FromType Error/retry, other payload boundaries and all
 other excluded Type/declaration rows remain open.
+The terminal malformed `from@` payload primary is separately
+catalog-audited evidence-complete Draft at EOF. Its direct Error is Type(Primary)
+rather than Variant(FromType): direct FromKw, terminal position and the full
+Enum/Error ancestor distinguish it from core Variant Item Error. Direct Rowan
+proof asserts token order/range and absence of TypeExpression/Missing/Invalid;
+it does not use recovery records. Retry, caller boundaries, trailing trivia and
+other payload forms remain open.
 The bounded TypeCall terminal-close and required CallArgument item rows are now
 mapped and independently audited from their existing Authoritative T3,
 close-node and boundary-priority amendments. CallArgument's direct

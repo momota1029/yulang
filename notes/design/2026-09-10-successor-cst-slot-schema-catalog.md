@@ -932,6 +932,23 @@ the payload Type owner.
 | diagnostic projection | The sole `TypeExpression > Missing` projects owner-selected `Variant(FromType)` with expected `TypeExpression`, primary zero, at its zero-width Type frontier. Rowan parentage, direct preceding FromKw and full declaration ancestor are inputs; Error spelling and recovery records are not. |
 | proof and status | Governing authority: [declaration-variant current-Item recovery](2026-09-08-successor-declaration-variant-current-item-recovery.md), Publication and handoff, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/declaration_variant.rs:459–488,628–678`; shell owners: `declaration/enum_decl.rs:556–586`, `declaration/error_decl.rs:556–586`; required Type entry: `type_expr/mod.rs:required_variant_payload_type_normalized_with_ambient`. Direct full-shell Rowan proof: `crates/yu-syntax/src/tests/declaration/declaration_variant.rs:115–213`, covering Enum/Error at EOF and active Colon with source-local ranges, token/node identity and pending handoff. Existing isolated role-record controls remain compatibility evidence only. M1 pre-write and closure specification audits were clean. Status: catalog-audited evidence-complete Draft for EOF and active-Colon Missing only; all excluded payload alternatives, global interpreter, parser API and ledger retirement remain open. |
 
+### Declaration Variant `FromType` terminal Type-primary Error Draft
+
+This bounded Draft maps only a nonempty terminal malformed Type primary after
+an admitted `from` at EOF. It is deliberately distinct from the adjacent
+FromType Missing row: the caller role selects fresh absence only, while this
+raw Error remains Type-owned.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | `(EnumVariant, terminal malformed required Type primary immediately after direct FromKw at EOF, ancestor = EnumDeclaration or ErrorDeclaration variant body)`. The full declaration and direct FromKw distinguish this Error from the Variant-core terminal Item Error, positional payload and field-Type occurrences. |
+| ordered Rowan grammar | The witnessed Variant suffix is `Whitespace Identifier Whitespace FromKw Error+`, where the Error group is one maximal adjacent direct group of raw Error tokens. The single fixture token is direct `Error(@)`. No TypeExpression, Missing or Invalid node occurs before terminal return. |
+| malformed admission and completion | The required Type entry admits a nonempty malformed primary after FromKw, emits its maximal direct Error group, sees EOF and completes without a caller Missing or a retried TypeExpression. The adjacent FromKw bounds the group on the left and EOF on the right. |
+| nested ownership | The nonempty malformed primary is owned by the required Type entry as `Type(Primary)`, not Variant(FromType). FromType Missing, retried Type, positional payload, fields, payload/local and outer closes retain separate rows. |
+| transition/handoff | `accepted Identifier → native FromKw → required Type entry → raw primary Error+ → EOF → complete locally`. No protected handoff, retry, trailing-trivia or other sequence form is witnessed. |
+| diagnostic projection | The direct maximal Error group projects `Type(Primary)` with expected `TypeExpression`, primary zero, over the grouped UTF-8 Error range. Rowan order plus preceding FromKw/full declaration ancestor selects this row; Error spelling is source-conservation evidence only, and recovery records are not inputs. |
+| proof and status | Governing authority: [required Type missing roles](2026-09-08-successor-required-type-missing-roles.md), Scope and retained authority, and the CST-derived diagnostics amendment; the declaration-variant handoff supplies the caller boundary. Publisher: `crates/yu-syntax/src/type_expr/mod.rs:732–776`; FromKw transport: `declaration/declaration_variant.rs:459–488,628–678`; shells: `declaration/enum_decl.rs:556–586`, `declaration/error_decl.rs:556–586`. Direct Rowan proof: `crates/yu-syntax/src/tests/declaration/declaration_variant.rs:115–181`, covering exact terminal Enum/Error source, ancestry, direct token order and range. M1 pre-write and closure specification audits were clean. Status: catalog-audited evidence-complete Draft for this terminal EOF alternative only; retry, caller boundaries, trailing trivia, other forms, all excluded payload rows, global interpreter, parser API and ledger retirement remain open. |
+
 ### StringInterpolationBody root-style statement-sequence map
 
 This bounded Draft row maps only the root-style sequence directly beneath an

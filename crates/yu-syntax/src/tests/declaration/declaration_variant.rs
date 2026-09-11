@@ -112,6 +112,67 @@ fn identifier_texts(node: &SyntaxNode) -> Vec<String> {
 }
 
 #[test]
+fn declaration_variant_from_type_terminal_primary_has_direct_enum_error_cst_evidence() {
+    use SyntaxKind::{
+        EnumVariant, Error, FromKw, Identifier, Invalid, Missing, TypeExpression, Whitespace,
+    };
+
+    for (source, declaration) in [
+        ("enum E = A from@", SyntaxKind::EnumDeclaration),
+        ("error E = A from@", SyntaxKind::ErrorDeclaration),
+    ] {
+        let (green, _, remainder) = if declaration == SyntaxKind::EnumDeclaration {
+            run_enum_declaration(source, 0, 100, LineEntry::InLine, None)
+        } else {
+            run_error_declaration(source, 0, 100, LineEntry::InLine, None)
+        };
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        let root = syntax_root(green);
+        let shells = root.children().collect::<Vec<_>>();
+        assert_eq!(shells.len(), 1);
+        let shell = &shells[0];
+        assert_eq!(shell.kind(), declaration);
+        assert_eq!(shell.parent().as_ref(), Some(&root));
+        let variants = shell
+            .children()
+            .filter(|node| node.kind() == EnumVariant)
+            .collect::<Vec<_>>();
+        assert_eq!(variants.len(), 1);
+        let variant = &variants[0];
+        assert_eq!(variant.parent().as_ref(), Some(shell));
+        let children = variant.children_with_tokens().collect::<Vec<_>>();
+        // The full declaration shell and direct FromKw select the required
+        // FromType slot; its nonempty malformed primary remains Type::Primary.
+        // Error spelling is source-conservation evidence, not classification.
+        assert_eq!(
+            children
+                .iter()
+                .map(|child| (child.kind(), child.as_token().is_some()))
+                .collect::<Vec<_>>(),
+            [
+                (Whitespace, true),
+                (Identifier, true),
+                (Whitespace, true),
+                (FromKw, true),
+                (Error, true),
+            ]
+        );
+        // FromKw and EOF bound the sole maximal direct Error group.
+        let error = children[4].as_token().unwrap();
+        assert_eq!(error.parent().as_ref(), Some(variant));
+        let range = usize::from(error.text_range().start())..usize::from(error.text_range().end());
+        assert_eq!(range, source.len() - 1..source.len());
+        assert_eq!(error.text(), &source[range]);
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), TypeExpression | Missing | Invalid))
+        );
+    }
+}
+
+#[test]
 fn declaration_variant_from_type_missing_has_direct_enum_error_cst_evidence() {
     use SyntaxKind::{
         EnumVariant, Error, FromKw, Identifier, Invalid, Missing, TypeExpression, Whitespace,

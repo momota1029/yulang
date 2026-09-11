@@ -307,6 +307,21 @@ catalog-audited evidence-complete Draft only for those two Missing paths.
 FromType Error/retry, all other payload boundaries, positional payload,
 fields/closes, global interpreter and ledger retirement remain separate.
 
+#### Declaration Variant `FromType` terminal Type-primary Error Draft links
+
+Only the two full-shell EOF literals with a nonempty malformed primary
+immediately after `FromKw` are linked. The direct preceding FromKw, terminal
+position and Enum/Error ancestor distinguish the direct `EnumVariant(Error+)`
+group from the Variant-core Item Error; the required Type authority assigns it
+to Type(Primary), not Variant(FromType). Direct Rowan proof is
+`crates/yu-syntax/src/tests/declaration/declaration_variant.rs:115–181`; it
+asserts full ancestry, native token order, source-local Error range and the
+absence of TypeExpression/Missing/Invalid without reading recovery records.
+M1 pre-write and closure specification audits were clean, so this is a
+catalog-audited evidence-complete Draft only for terminal EOF. Retry, caller
+boundaries, trailing trivia, other forms, positional payload, fields/closes,
+global interpreter and ledger retirement remain separate.
+
 ### Expression forms and tails — 10 files / 18 calls
 
 - `crates/yu-syntax/src/expression/case_like.rs`
