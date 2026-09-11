@@ -180,6 +180,15 @@ non-authoritative source coverage manifest at
 `notes/progress/successor-cst-slot-schema-coverage.md`. Full semantic mapping,
 ordered schemas and independent audit remain open; this record-only step made
 no parser, API, test or benchmark change.
+The bounded declaration Variant core Item/Name/Separator row is now
+catalog-audited evidence-complete Draft. Direct full-shell Rowan controls prove
+that `EnumVariant(Missing)` and terminal `EnumVariant(Error+)` are Item, while
+only direct `Error+ Native* Identifier` retry is Name; a declaration-child
+Missing between completed `A()` and `B` is Separator. The completed payload
+avoids positional-Type ambiguity, and Enum/Error ancestors select the distinct
+vocabulary. The M1 change is test/documentation only: no parser, topology,
+diagnostic ledger or API behavior changed. Nested payload/field/local-close,
+outer-close, terminal handoff and remaining separator alternatives stay open.
 The bounded TypeCall terminal-close and required CallArgument item rows are now
 mapped and independently audited from their existing Authoritative T3,
 close-node and boundary-priority amendments. CallArgument's direct

@@ -111,6 +111,146 @@ fn identifier_texts(node: &SyntaxNode) -> Vec<String> {
         .collect()
 }
 
+#[test]
+fn declaration_variant_core_slots_have_direct_enum_error_cst_evidence() {
+    use SyntaxKind::{EnumVariant, Error, Identifier, Missing, Whitespace};
+    // Publication and handoff selects Name only on an admitted raw-name retry.
+    // The enclosing declaration supplies the Enum/Error distinction; records
+    // in the isolated typed harness remain compatibility evidence only.
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        for (body, name_retry) in [
+            ("{  @ $ 名}", true),
+            ("=  @ $ 名", true),
+            (":\r\n  @ $ 名", true),
+            ("=\r\n  @ $ 名", true),
+            ("{  @ $}", false),
+            ("=  @ $", false),
+            (":\r\n  @ $", false),
+            ("=\r\n  @ $", false),
+        ] {
+            let source = format!("{keyword} E{body}");
+            let (green, _) = run_statement(&source);
+            assert_eq!(green.to_string(), source);
+            let root = syntax_root(green);
+            let shell = root
+                .descendants()
+                .find(|node| node.kind() == declaration)
+                .unwrap();
+            let variants = shell
+                .children()
+                .filter(|node| node.kind() == EnumVariant)
+                .collect::<Vec<_>>();
+            assert_eq!(variants.len(), 1, "{source:?}");
+            let variant = &variants[0];
+            assert_eq!(variant.parent().as_ref(), Some(&shell));
+            let children = variant.children_with_tokens().collect::<Vec<_>>();
+            let first_error = children
+                .iter()
+                .position(|child| child.kind() == Error)
+                .unwrap();
+            let errors = &children[first_error..first_error + 3];
+            assert_eq!(
+                errors
+                    .iter()
+                    .map(|child| (child.kind(), child.to_string()))
+                    .collect::<Vec<_>>(),
+                [
+                    (Error, "@".to_owned()),
+                    (Error, " ".to_owned()),
+                    (Error, "$".to_owned())
+                ]
+            );
+            for error in errors {
+                assert!(error.as_token().is_some());
+                assert_eq!(error.parent().as_ref(), Some(variant));
+            }
+            let start = source.find('@').unwrap();
+            assert_eq!(usize::from(errors[0].text_range().start()), start);
+            assert_eq!(usize::from(errors[2].text_range().end()), start + 3);
+            assert!(
+                children[..first_error]
+                    .iter()
+                    .all(|child| matches!(child.kind(), Whitespace | SyntaxKind::Newline))
+            );
+            assert_eq!(children[first_error - 1].kind(), Whitespace);
+            assert_eq!(children[first_error - 1].to_string(), "  ");
+            let tail = children[first_error + 3..]
+                .iter()
+                .map(|child| (child.kind(), child.to_string()))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                tail,
+                if name_retry {
+                    vec![(Whitespace, " ".to_owned()), (Identifier, "名".to_owned())]
+                } else {
+                    vec![]
+                },
+                "{source:?}"
+            );
+            assert!(variant.children().all(|node| node.kind() != Missing));
+        }
+        for body in ["=", "=  ", "=\r\n", "{,A}"] {
+            let source = format!("{keyword} E{body}");
+            let (green, _) = run_statement(&source);
+            assert_eq!(green.to_string(), source);
+            let root = syntax_root(green);
+            let shell = root
+                .descendants()
+                .find(|node| node.kind() == declaration)
+                .unwrap();
+            let variant = shell
+                .children()
+                .find(|node| node.kind() == EnumVariant)
+                .unwrap();
+            let children = variant.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), 1, "{source:?}");
+            let missing = children[0].as_node().unwrap();
+            assert_eq!(missing.kind(), Missing);
+            assert_eq!(missing.parent().as_ref(), Some(&variant));
+            assert!(missing.children_with_tokens().next().is_none());
+            let at = source.find(',').unwrap_or(source.len());
+            assert_eq!(usize::from(missing.text_range().start()), at);
+            assert!(missing.text_range().is_empty());
+        }
+        // A completed payload prevents B from being admitted as A's Type.
+        let source = format!("{keyword} E{{A()B}}");
+        let (green, _) = run_statement(&source);
+        assert_eq!(green.to_string(), source);
+        let root = syntax_root(green);
+        let shell = root
+            .descendants()
+            .find(|node| node.kind() == declaration)
+            .unwrap();
+        let children = shell.children().collect::<Vec<_>>();
+        let first = children
+            .iter()
+            .position(|node| node.kind() == EnumVariant)
+            .unwrap();
+        assert_eq!(
+            children[first..]
+                .iter()
+                .map(|node| (node.kind(), node.text().to_string()))
+                .collect::<Vec<_>>(),
+            [
+                (EnumVariant, "A()".to_owned()),
+                (Missing, String::new()),
+                (EnumVariant, "B".to_owned())
+            ]
+        );
+        let missing = &children[first + 1];
+        assert_eq!(missing.parent().as_ref(), Some(&shell));
+        assert!(missing.children_with_tokens().next().is_none());
+        assert!(missing.text_range().is_empty());
+        assert_eq!(
+            usize::from(missing.text_range().start()),
+            source.find('B').unwrap()
+        );
+    }
+}
+
 fn active_fence() -> FenceBoundary {
     FenceBoundary {
         opener: FenceOpener {

@@ -274,6 +274,24 @@ catalog-audited evidence-complete Draft expanded through those protected
 handoffs. Other leading combinations, non-braced forms, remaining nested
 variant rows, interpreter and ledger retirement remain outside this row.
 
+#### Declaration Variant core Item, Name and Separator Draft links
+
+Only the direct shared Variant-core Item, Name and Separator alternatives are
+linked. `EnumVariant(Missing)` and terminal `EnumVariant(Error+)` witness Item;
+`EnumVariant(Error+)` followed by a direct native-leading/Identifier retry
+witnesses Name; and the declaration-owned Missing between completed `A()` and
+`B` witnesses Separator. Full `EnumDeclaration` and `ErrorDeclaration` shells
+are necessary to select their distinct role vocabularies, because `EnumVariant`
+alone is shared. Direct Rowan proof is
+`crates/yu-syntax/src/tests/declaration/declaration_variant.rs:115–252`; it
+covers braced, inline Equals, indented Colon and indented Equals forms,
+UTF-8, terminal raw Error, zero-width Missing and a completed-payload separator
+without reading recovery records. M1 pre-write and closure specification audits
+were clean, so this is a catalog-audited evidence-complete Draft for those
+witnessed alternatives. Payload Type/field/local-close, outer close, terminal
+handoff, additional separator-error forms, global interpreter and ledger
+retirement remain separate.
+
 ### Expression forms and tails — 10 files / 18 calls
 
 - `crates/yu-syntax/src/expression/case_like.rs`
