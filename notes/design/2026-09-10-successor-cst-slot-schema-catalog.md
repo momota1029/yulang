@@ -757,6 +757,22 @@ other declaration/header row.
 | diagnostic projection | A direct Missing or one maximal adjacent direct Error-token group projects the reconstructed required role: Fixity expects ordered `prefix, infix, suffix, nullfix`; Name expects `OperatorName`; LeftBindingPower/RightBindingPower expects `BindingPower`; DefinitionIntroducer expects `=`. Each uses primary alternative zero and the Missing zero-width or combined Error UTF-8 range. Interpretation replays only direct child kinds, ordered phase, and selected Fixity; it neither reads Error text nor uses recovery records, parser fact state, or an environment conflict. Rowan source order places header-slot occurrences before Root's later body/trailing occurrences. |
 | proof and status | Governing authority: [CST-derived diagnostics amendment](2026-09-09-successor-cst-derived-diagnostics-amendment-draft.md) and existing operator-header recovery contract. Direct owner/emission source: `crates/yu-syntax/src/declaration/operator_header.rs:73–114, 261–433`. Direct Rowan proof: `crates/yu-syntax/src/tests/declaration/operator_header.rs:367–536`, covering Fixity Error/retry, Name Missing, binding-power Error/Equals, DefinitionIntroducer safe-point Missing, direct parentage, no Invalid, and pending-leading partition. Status: catalog-audited evidence-complete Draft for this bounded required-slot row only; no full OperatorHeader grammar, header-fact/conflict mapping, parser/API/SyntaxKind change, or ledger-retirement claim. |
 
+### TypeDeclaration DefinitionIntroducer Draft
+
+This bounded Draft maps only the completed-name, no-parameter
+DefinitionIntroducer phase. It excludes nominal declarations and all
+non-exact-Equals forms.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | `(TypeDeclaration, required DefinitionIntroducer after completed direct Name and before admitted RHS Type, no-parameter structural form)`. Completed Name plus direct post-name position distinguish this slot from Name, parameter, nominal and RHS recovery. |
+| ordered Rowan grammar | Witnessed alternatives are `Name Missing TypeExpression`, `Name Error+ NativeTrivia*`, and `Name Error+ NativeTrivia* Equals TypeExpression`. Missing/Error and initial/retry/terminal leading are direct TypeDeclaration children. The first fixture's parenthesized RHS is an admitted Type continuation, not a parameter list. |
+| malformed admission and completion | At the required post-name phase an absent exact Equals emits one direct Missing before an admitted RHS. A non-Equals primary emits one direct Error group; it either ends terminally after native leading or stops before/retries exact Equals and admitted RHS. Neither terminal Error nor retry emits a second DefinitionIntroducer or RHS Missing. |
+| nested ownership | The admitted RHS TypeExpression owns its internal Type schema. Parameters, nominal form, Name, companions, attached impl and every other header path remain separate. `==` and `=>` retain their existing Error controls and are not split into Equals by this row. |
+| transition/handoff | `completed Name → post-name exact-Equals phase → Missing before admitted RHS, or Error+ → terminal completion / exact Equals retry → admitted RHS`. Leading stays direct declaration content outside Error where the existing owner emits it. |
+| diagnostic projection | The direct Missing or maximal Error group projects `Declaration(Type(DefinitionIntroducer))` with expected singleton Equals, primary zero, at its zero-width or grouped UTF-8 range. Direct ordered post-name context selects it without records or Error spelling. |
+| proof and status | Governing authority: [type-declaration header current-Item recovery](2026-09-09-successor-type-declaration-header-current-item-recovery.md), **Records and form preservation** and **Current Item and leading**, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/type_decl.rs:350–449`; direct Rowan proof: `type_definition_introducer_has_direct_post_name_cst_evidence` in `crates/yu-syntax/src/tests/declaration/type_decl.rs`. M1 pre-write and closure specification audits were clean. Status: catalog-audited evidence-complete Draft only for `type T (A)`, `type T @ ` and `type T @ = A`; parameters, nominal forms, `==`/`=>`, RHS internals, global interpreter, parser API and ledger retirement remain open. |
+
 ### DerivesClause `via` target Draft
 
 This bounded Draft maps only the required raw identifier slot immediately after a

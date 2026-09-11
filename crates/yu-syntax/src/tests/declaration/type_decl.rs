@@ -1,6 +1,113 @@
 use crate::tests::support::*;
 
 #[test]
+fn type_definition_introducer_has_direct_post_name_cst_evidence() {
+    use crate::recovery_record::{
+        DeclarationRole, ExpectedSyntax, GrammarRole, PunctuationEvidence, TypeDeclarationRole,
+    };
+    use SyntaxKind::{Equals, Error, Identifier, Missing, TypeExpression, TypeKw, Whitespace};
+
+    for (source, tail, missing) in [
+        (
+            "type T (A)",
+            vec![(Missing, ""), (TypeExpression, "(A)")],
+            1,
+        ),
+        ("type T @ ", vec![(Error, "@"), (Whitespace, " ")], 0),
+        (
+            "type T @ = A",
+            vec![
+                (Error, "@"),
+                (Whitespace, " "),
+                (Equals, "="),
+                (Whitespace, " "),
+                (TypeExpression, "A"),
+            ],
+            0,
+        ),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let declaration = type_declaration_node(&green);
+        let mut expected = vec![
+            (TypeKw, "type"),
+            (Whitespace, " "),
+            (Identifier, "T"),
+            (Whitespace, " "),
+        ];
+        expected.extend(tail);
+        let mut offset = 0;
+        let expected = expected
+            .into_iter()
+            .map(|(kind, text)| {
+                let range = offset..offset + text.len();
+                offset = range.end;
+                (kind, range, text.to_owned())
+            })
+            .collect::<Vec<_>>();
+        let children = declaration.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(
+            children
+                .iter()
+                .map(|element| {
+                    assert_eq!(element.parent().as_ref(), Some(&declaration));
+                    if element.kind() == Missing {
+                        assert_eq!(element.as_node().unwrap().children_with_tokens().count(), 0);
+                    } else if element.kind() != TypeExpression {
+                        assert!(element.as_token().is_some());
+                    }
+                    (
+                        element.kind(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                        element.to_string(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        // Classify only the bounded direct slot after the completed name;
+        // parser recovery records do not participate in this evidence.
+        let projected = children
+            .iter()
+            .enumerate()
+            .filter(|(_, element)| matches!(element.kind(), Missing | Error))
+            .map(|(index, element)| {
+                assert_eq!(index, 4);
+                assert_eq!(children[2].kind(), Identifier);
+                assert_eq!(children[2].to_string(), "T");
+                assert_eq!(declaration.kind(), SyntaxKind::TypeDeclaration);
+                (
+                    GrammarRole::Declaration(DeclarationRole::Type(
+                        TypeDeclarationRole::DefinitionIntroducer,
+                    )),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Equals),
+                    0,
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            projected,
+            [(
+                GrammarRole::Declaration(DeclarationRole::Type(
+                    TypeDeclarationRole::DefinitionIntroducer,
+                )),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Equals),
+                0,
+                if missing == 1 { 7..7 } else { 7..8 },
+            )]
+        );
+        assert_eq!(count(&declaration, Missing), missing);
+        assert_eq!(token_count(&declaration, Error), 1 - missing);
+        assert_eq!(count(&declaration, SyntaxKind::Invalid), 0);
+    }
+}
+
+#[test]
 fn type_header_records_are_exact_shifted_frozen_and_seeded() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     use crate::recovery_record::*;

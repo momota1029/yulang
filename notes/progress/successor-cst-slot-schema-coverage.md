@@ -100,6 +100,19 @@ the four slot phases, direct parentage/no Invalid, and the pending safe-point
 leading partition. Visibility/lazy prelude, Root body, header facts/conflicts,
 fences, and every other declaration/header row remain separate.
 
+#### TypeDeclaration DefinitionIntroducer Draft links
+
+Only the completed-name/no-parameter exact-Equals phase is linked. Direct
+TypeDeclaration child order distinguishes `Missing` before an admitted RHS,
+terminal raw Error and raw Error followed by exact Equals retry; declaration
+leading remains outside Error. Direct Rowan proof is
+`type_definition_introducer_has_direct_post_name_cst_evidence` in
+`crates/yu-syntax/src/tests/declaration/type_decl.rs`, without recovery-record
+classification. M1 pre-write and closure specification audits were clean. This
+is a catalog-audited evidence-complete Draft only for `type T (A)`, `type T @ `
+and `type T @ = A`; parameters, nominal forms, `==`/`=>`, RHS internals,
+global interpreter and ledger retirement remain separate.
+
 #### DerivesClause `via` target Draft links
 
 Only `crates/yu-syntax/src/declaration/derives.rs:40–101,144–232,320–356` is linked to

@@ -622,6 +622,11 @@ evidence-complete Draft for immediate absence, raw-error Identifier retry and te
 raw Error. Direct PatternAliasTail order assigns initial/retry leading outside
 Error and prevents a duplicate terminal Missing. Boundary/layout variants and
 all other Pattern rows remain open.
+TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
+Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
+direct TypeDeclaration children distinguish Missing, terminal Error and
+Error-to-Equals retry; parameters, nominal forms, `==`/`=>` and RHS internals
+remain open.
 The bounded ProjectionRecordSpreadItem RHS is mapped as Draft: the direct
 spread node distinguishes its Missing and raw Error leaves from parent record
 items, separators and close slots. A lexical Error run is not reconstructed as
