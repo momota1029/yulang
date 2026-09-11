@@ -266,6 +266,17 @@ state. M1 post-write specification audit was clean. Head/Description Type,
 braced/indented children, caller/fence suites and remaining Impl rows remain
 separate.
 
+#### Declaration Variant core Item/Name/Separator Draft links
+
+Only `crates/yu-syntax/src/declaration/declaration_variant.rs:190–438,784–811`
+and its Enum/Error shells are linked. Direct EnumVariant children distinguish
+terminal Item Error/Missing from Name Error-to-Identifier retry; direct shell
+Missing between sibling variants is Separator, while required Item before comma
+remains nested. Rowan proof in `tests/declaration/declaration_variant.rs`
+covers both declaration ancestors and four Name forms without records, Error
+spelling or scanner state. M1 specification audit was clean; payload, FromType,
+fields, close and caller/fence rows remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

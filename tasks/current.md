@@ -716,6 +716,12 @@ starter/retry forms remain a separate direct entry context. Description recovery
 and nested BindingBody recovery stay structurally distinct. Head/Description
 Type, braced/indented children, caller/fence topology and remaining Impl rows
 stay open with global collection and ledger/API migration.
+The shared Enum/Error Variant core Item, Name and Separator rows are now
+catalog-audited as an evidence-complete Draft. Direct Variant sibling order and
+declaration-shell parentage distinguish terminal Item, Identifier-retrying Name
+and shell Separator without an Error-text or ledger oracle. Payload, FromType,
+fields, close and caller/fence rows remain open with global collection and
+ledger/API migration.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

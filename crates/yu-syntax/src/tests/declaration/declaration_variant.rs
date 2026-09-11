@@ -111,6 +111,159 @@ fn identifier_texts(node: &SyntaxNode) -> Vec<String> {
         .collect()
 }
 
+fn variant_schema_shell(source: &str, declaration: SyntaxKind) -> SyntaxNode {
+    let (green, _, remainder) = if declaration == SyntaxKind::EnumDeclaration {
+        run_enum_declaration(source, 0, 100, LineEntry::InLine, None)
+    } else {
+        run_error_declaration(source, 0, 100, LineEntry::InLine, None)
+    };
+    assert_eq!(remainder, "");
+    let root = syntax_root(green);
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|child| child.kind() == SyntaxKind::Invalid)
+    );
+    let shells = root.children().collect::<Vec<_>>();
+    assert_eq!(shells.len(), 1);
+    assert_eq!(shells[0].kind(), declaration);
+    assert_eq!(shells[0].parent().as_ref(), Some(&root));
+    shells[0].clone()
+}
+
+#[test]
+fn declaration_variant_item_absence_and_terminal_error_have_direct_cst_slots() {
+    use SyntaxKind::{EnumVariant, Error, Missing};
+
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        for (suffix, expected, width) in [(" E =", Missing, 0), (" E = @", Error, 1)] {
+            let source = format!("{keyword}{suffix}");
+            let shell = variant_schema_shell(&source, declaration);
+            let variants = shell.children().collect::<Vec<_>>();
+            assert_eq!(variants.len(), 1);
+            let variant = &variants[0];
+            assert_eq!(variant.kind(), EnumVariant);
+            assert_eq!(variant.parent().as_ref(), Some(&shell));
+            // Initial leading is native trivia owned by the Variant.
+            let children = variant
+                .children_with_tokens()
+                .skip_while(|child| {
+                    matches!(child.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline)
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(children.len(), 1);
+            assert_eq!(children[0].kind(), expected);
+            assert_eq!(children[0].as_token().is_some(), expected == Error);
+            assert_eq!(children[0].parent().as_ref(), Some(variant));
+            assert_eq!(
+                usize::from(children[0].text_range().start()),
+                source.len() - width
+            );
+            assert_eq!(usize::from(children[0].text_range().end()), source.len());
+            // A terminal Error has no admitted name or second Item Missing.
+            assert!(!shell.children().any(|node| node.kind() == Missing));
+        }
+    }
+}
+
+#[test]
+fn declaration_variant_name_retry_has_direct_cst_slots_in_all_forms() {
+    use SyntaxKind::{EnumVariant, Error, Identifier, Missing, Whitespace};
+
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        for (prefix, suffix) in [
+            (" E {", "}"),
+            (" E = ", ""),
+            (" E:\n  ", ""),
+            (" E =\n  ", ""),
+        ] {
+            let source = format!("{keyword}{prefix}@ A{suffix}");
+            let shell = variant_schema_shell(&source, declaration);
+            let variants = shell.children().collect::<Vec<_>>();
+            assert_eq!(variants.len(), 1);
+            let variant = &variants[0];
+            assert_eq!(variant.kind(), EnumVariant);
+            assert_eq!(variant.parent().as_ref(), Some(&shell));
+            // Initial leading precedes the recovery slot; retry leading follows Error.
+            let children = variant
+                .children_with_tokens()
+                .skip_while(|child| {
+                    matches!(child.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline)
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                children
+                    .iter()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                [Error, Whitespace, Identifier]
+            );
+            let start = keyword.len() + prefix.len();
+            for (offset, child) in children.iter().enumerate() {
+                assert!(child.as_token().is_some());
+                assert_eq!(child.parent().as_ref(), Some(variant));
+                assert_eq!(usize::from(child.text_range().start()), start + offset);
+                assert_eq!(usize::from(child.text_range().end()), start + offset + 1);
+            }
+            // The immediate native-trivia/name continuation selects Name, not Item.
+            assert!(!shell.descendants().any(|node| node.kind() == Missing));
+        }
+    }
+}
+
+#[test]
+fn declaration_variant_separator_and_required_item_have_distinct_direct_cst_parents() {
+    use SyntaxKind::{Comma, EnumVariant, Missing};
+
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        for (suffix, required_item, offset) in [(" E {A()B}", false, 7), (" E {A,,B}", true, 6)] {
+            let source = format!("{keyword}{suffix}");
+            let shell = variant_schema_shell(&source, declaration);
+            let nodes = shell.children().collect::<Vec<_>>();
+            assert_eq!(nodes.len(), 3);
+            assert_eq!(nodes[0].kind(), EnumVariant);
+            assert_eq!(nodes[2].kind(), EnumVariant);
+            let missing = if required_item {
+                assert_eq!(nodes[1].kind(), EnumVariant);
+                let children = nodes[1].children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(children.len(), 1);
+                assert_eq!(children[0].kind(), Missing);
+                assert_eq!(children[0].parent().as_ref(), Some(&nodes[1]));
+                assert_eq!(nodes[1].next_sibling_or_token().unwrap().kind(), Comma);
+                children[0].as_node().unwrap().clone()
+            } else {
+                assert_eq!(nodes[1].kind(), Missing);
+                assert_eq!(
+                    nodes[1].prev_sibling_or_token().unwrap().as_node(),
+                    Some(&nodes[0])
+                );
+                assert_eq!(
+                    nodes[1].next_sibling_or_token().unwrap().as_node(),
+                    Some(&nodes[2])
+                );
+                nodes[1].clone()
+            };
+            for node in &nodes {
+                assert_eq!(node.parent().as_ref(), Some(&shell));
+            }
+            assert!(missing.text_range().is_empty());
+            assert_eq!(
+                usize::from(missing.text_range().start()),
+                keyword.len() + offset
+            );
+        }
+    }
+}
+
 #[test]
 fn declaration_variant_from_type_primary_retry_has_direct_enum_error_cst_evidence() {
     use SyntaxKind::{
