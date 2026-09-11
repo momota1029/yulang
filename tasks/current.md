@@ -735,6 +735,8 @@ DeclarationCompanion direct recovery is catalog-audited as a bounded Draft;
 Statement/Derives and caller-stop ownership remain separate.
 UseDeclaration Path/Alias/group-entry is catalog-audited as a bounded Draft;
 foreign/local close and OperatorName close await the selected CST topology.
+Rule ExpressionList caller-local fence close slots are catalog-audited as a
+bounded Draft; outer Yumark and pending Item identity remain separate.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

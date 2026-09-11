@@ -893,6 +893,101 @@ fn direct_rowan_expression_list_fence_handoff_is_caller_owned_but_not_a_complete
 }
 
 #[test]
+fn direct_rowan_expression_list_fence_close_slots_have_native_caller_controls() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
+        close_column: 0,
+    };
+    for (source, native, caller_kind, open, close, prefix, at) in [
+        (
+            "{[\r\n> ```\nouter",
+            "{[]}",
+            SyntaxKind::RuleItem,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            "{[",
+            2u32,
+        ),
+        (
+            "{a(\r\n> ```\nouter",
+            "{a()}",
+            SyntaxKind::RuleCall,
+            SyntaxKind::LParen,
+            SyntaxKind::RParen,
+            "{a(",
+            3,
+        ),
+        (
+            "{a[\r\n> ```\nouter",
+            "{a[]}",
+            SyntaxKind::RuleIndex,
+            SyntaxKind::LBracket,
+            SyntaxKind::RBracket,
+            "{a[",
+            3,
+        ),
+    ] {
+        for (input, fenced) in [(source, true), (native, false)] {
+            let (green, _, remainder) =
+                parse_with_fence_remainder(input, 0, None, fenced.then_some(&fence));
+            assert_eq!(green.to_string(), if fenced { prefix } else { native });
+            assert_eq!(remainder, if fenced { "> ```\nouter" } else { "" });
+            let root = SyntaxNode::new_root(green);
+            let caller = only_node(&root, caller_kind);
+            let mut ancestry = vec![caller_kind];
+            if caller_kind != SyntaxKind::RuleItem {
+                ancestry.push(SyntaxKind::RuleItem);
+            }
+            ancestry.extend([
+                SyntaxKind::RuleSequence,
+                SyntaxKind::RuleAlternation,
+                SyntaxKind::RuleBody,
+                SyntaxKind::Root,
+            ]);
+            assert_eq!(
+                caller
+                    .ancestors()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                ancestry,
+                "{input:?}"
+            );
+            assert_eq!(
+                direct_token_range(&caller, open),
+                rowan::TextRange::new((at - 1).into(), at.into())
+            );
+            assert_eq!(
+                direct_kinds(&caller),
+                [open, if fenced { SyntaxKind::Missing } else { close }]
+            );
+            if fenced {
+                // The final direct slot after this caller's opener expects its
+                // matching close; the native control supplies that same slot.
+                let missing = only_node(&caller, SyntaxKind::Missing);
+                assert_eq!(missing.parent(), Some(caller.clone()));
+                assert_eq!(missing.text_range(), rowan::TextRange::empty(at.into()));
+                assert!(missing.children_with_tokens().next().is_none());
+            } else {
+                assert_eq!(
+                    direct_token_range(&caller, close),
+                    rowan::TextRange::new(at.into(), (at + 1).into())
+                );
+            }
+            assert!(!root.descendants_with_tokens().any(|element| matches!(
+                element.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::Newline
+            )));
+        }
+    }
+}
+
+#[test]
 fn direct_rowan_expression_list_error_leaves_preserve_present_boundaries() {
     let (green, _) = parse("{a(@ @x)}", 0, None);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);

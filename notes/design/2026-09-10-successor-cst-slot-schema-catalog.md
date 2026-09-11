@@ -990,6 +990,15 @@ Rowan evidence. Foreign/local close and OperatorName close remain explicitly
 unmapped pending the Use foreign-close topology decision. M2 spec and regression
 delta audits were clean.
 
+### Rule ExpressionList direct caller fence Draft
+
+This bounded Draft maps RuleItem/RuleCall/RuleIndex fence handoff only. Direct
+caller opener plus terminal zero-width Missing selects each matching close;
+fence bytes and pending boundary remain outside CST. Native matching close stays
+recovery-free. Direct Rowan proof in `tests/rule_expression_list_recovery.rs`
+has M1 specification audit clean. Outer Yumark construction, pending Item
+identity and other list slots remain separate.
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

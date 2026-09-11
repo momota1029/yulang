@@ -304,6 +304,13 @@ slots, including nested and parenthesized routes and UTF-8. Foreign/local close
 and OperatorName close are explicitly excluded pending topology selection. M2
 specification and regression delta audits were clean.
 
+#### Rule ExpressionList direct caller fence Draft links
+
+`tests/rule_expression_list_recovery.rs` proves direct RuleItem/RuleCall/
+RuleIndex fence prefixes, matching close Missing and native close controls.
+Fence bytes remain outside CST. M1 specification audit was clean; outer Yumark,
+pending Item identity and other list slots remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct
