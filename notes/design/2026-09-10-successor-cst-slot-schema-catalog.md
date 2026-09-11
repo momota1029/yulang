@@ -457,6 +457,22 @@ owner has no such admission.
 | diagnostic projection | The direct Missing projects `Pattern(SymbolName)` with expected `Identifier`, primary zero, at `1..1`. Parentage and preceding Colon select the slot; recovery records and source spelling are not inputs. |
 | proof and status | Governing authority: [pattern primary current-Item recovery](2026-09-08-successor-pattern-primary-current-item-recovery.md), **Selected rule**, SymbolName contract, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/pattern/mod.rs:802–819`; direct Rowan proof: `symbol_name_missing_has_a_direct_colon_successor_slot` in `crates/yu-syntax/src/tests/pattern/recovery.rs`. M1 pre-write and closure specification audits were clean. Status: catalog-audited evidence-complete Draft only for `:` EOF and `: x` pending-Identifier witnesses; all broader Pattern rows, global interpreter, parser API and ledger retirement remain open. |
 
+### Pattern AliasBinding Missing and Error Draft
+
+This bounded Draft maps the immediate binding slot after accepted `as`: its
+fresh absence, a raw run followed by a recovered Identifier, and a terminal raw
+run. It does not map the accepted preceding primary or any other Pattern tail.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | `(PatternAliasTail, required AliasBinding immediately after direct AsKw, direct Pattern tail context)`. The tail ancestor and direct AsKw distinguish this Missing/Error from primary, alternation and other Identifier slots. Pre-`as` whitespace remains a direct Pattern child outside this tail. |
+| ordered Rowan grammar | Witnessed alternatives are `PatternAliasTail(AsKw Missing)`, `PatternAliasTail(AsKw Whitespace Error+ Whitespace Identifier)`, and `PatternAliasTail(AsKw Whitespace Error+)`. Initial malformed and recovered-Identifier leading are native direct tail tokens, not Error content. Missing is empty; Error is a maximal adjacent direct token group; terminal Error has no following Missing. |
+| malformed admission and completion | An immediate boundary after AsKw produces one AliasBinding Missing. A non-identifier starts one Error group; an admitted Identifier retries as a direct tail child without a duplicate Missing, while a terminal run completes with Error only. |
+| nested ownership | The preceding Pattern primary, later Pattern tail/alternation, accepted binding and every boundary/layout continuation remain separate. AliasBinding has no nested grammar in these witnesses. |
+| transition/handoff | `accepted Pattern → direct AsKw → boundary emits Missing; otherwise malformed Error+ → admitted Identifier retry or terminal completion`. Initial/retry leading is direct tail content, so it splits the Error group. |
+| diagnostic projection | The direct Missing or maximal Error group projects `Pattern(AliasBinding)` with expected `Identifier`, primary zero, at its zero-width or grouped UTF-8 range. Parentage and ordered AsKw/recovery children select the slot; records and Error spelling are not inputs. |
+| proof and status | Governing authority: [pattern primary current-Item recovery](2026-09-08-successor-pattern-primary-current-item-recovery.md), **Selected rule**, AliasBinding contract, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/pattern/mod.rs:1016–1052,1132–1194`; direct Rowan proof: `alias_binding_recovery_has_a_direct_ordered_tail_slot` in `crates/yu-syntax/src/tests/pattern/recovery.rs`. M1 pre-write and closure specification audits were clean. Status: catalog-audited evidence-complete Draft only for `A as`, `A as @ x` and `A as @`; boundary/layout variants and all other Pattern rows, global interpreter, parser API and ledger retirement remain open. |
+
 ### Dedicated Rule-owned slot map
 
 This bounded Draft/evidence-complete section instantiates only the six

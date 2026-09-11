@@ -645,6 +645,20 @@ catalog-audited evidence-complete Draft only for these two witnesses; accepted
 symbols, other primary/tail/delimited recovery, global interpreter and ledger
 retirement remain separate.
 
+#### Pattern AliasBinding Missing and Error Draft links
+
+Only the immediate `as` binding absence, raw-error retry and terminal raw-error
+alternatives are linked. `Pattern > PatternAliasTail > AsKw` and the ordered
+direct recovery children select AliasBinding; pre-`as` whitespace remains
+outside the tail, while initial/retry leading is tail-native rather than Error.
+Direct Rowan proof is `alias_binding_recovery_has_a_direct_ordered_tail_slot`
+in `crates/yu-syntax/src/tests/pattern/recovery.rs`; it asserts direct shape,
+ranges, terminal cardinality and no record-based classification. M1 pre-write
+and closure specification audits were clean. This is a catalog-audited
+evidence-complete Draft only for `A as`, `A as @ x`, and `A as @`; layout and
+boundary variants, all other Pattern rows, global interpreter and ledger
+retirement remain separate.
+
 #### RecordPattern item-phase structured Invalid row links
 
 Only the following direct RecordPattern sites are linked to the bounded Draft

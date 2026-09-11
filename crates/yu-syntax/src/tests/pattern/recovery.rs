@@ -771,6 +771,98 @@ fn symbol_name_missing_has_a_direct_colon_successor_slot() {
 }
 
 #[test]
+fn alias_binding_recovery_has_a_direct_ordered_tail_slot() {
+    for (source, expected) in [
+        (
+            "A as",
+            vec![
+                (SyntaxKind::AsKw, 2..4, "as", true),
+                (SyntaxKind::Missing, 4..4, "", false),
+            ],
+        ),
+        (
+            "A as @ x",
+            vec![
+                (SyntaxKind::AsKw, 2..4, "as", true),
+                (SyntaxKind::Whitespace, 4..5, " ", true),
+                (SyntaxKind::Error, 5..6, "@", true),
+                (SyntaxKind::Whitespace, 6..7, " ", true),
+                (SyntaxKind::Identifier, 7..8, "x", true),
+            ],
+        ),
+        (
+            "A as @",
+            vec![
+                (SyntaxKind::AsKw, 2..4, "as", true),
+                (SyntaxKind::Whitespace, 4..5, " ", true),
+                (SyntaxKind::Error, 5..6, "@", true),
+            ],
+        ),
+    ] {
+        let (green, _) = run_pattern(source);
+        assert_eq!(green.to_string(), source);
+        let pattern = pattern_node(green);
+        let pattern_children = pattern.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(pattern_children.len(), 3, "{source}");
+        let gap = pattern_children[1].as_token().expect("pre-as whitespace");
+        assert_eq!(gap.kind(), SyntaxKind::Whitespace);
+        assert_eq!(gap.text(), " ");
+        assert_eq!(usize::from(gap.text_range().start()), 1);
+        assert_eq!(usize::from(gap.text_range().end()), 2);
+        assert_eq!(gap.parent(), Some(pattern.clone()));
+        let tail = pattern_children[2].as_node().expect("PatternAliasTail");
+        assert_eq!(tail.kind(), SyntaxKind::PatternAliasTail);
+        assert_eq!(tail.parent(), Some(pattern.clone()));
+        let children = tail.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len(), "{source}");
+        for (child, (kind, range, text, token)) in children.iter().zip(expected) {
+            assert_eq!(child.kind(), kind, "{source}");
+            assert_eq!(usize::from(child.text_range().start()), range.start);
+            assert_eq!(usize::from(child.text_range().end()), range.end);
+            assert_eq!(child.to_string(), text);
+            assert_eq!(child.as_token().is_some(), token);
+            assert_eq!(child.parent().as_ref(), Some(tail));
+            if let Some(missing) = child.as_node() {
+                assert_eq!(missing.children_with_tokens().count(), 0);
+            }
+        }
+
+        // Ordered direct CST children select the binding slot; parser
+        // recovery records are not classification input.
+        let recovery = children
+            .iter()
+            .find(|child| matches!(child.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+            .expect("binding recovery");
+        let selected = match (
+            pattern.kind(),
+            tail.kind(),
+            children[0].kind(),
+            recovery.kind(),
+        ) {
+            (
+                SyntaxKind::Pattern,
+                SyntaxKind::PatternAliasTail,
+                SyntaxKind::AsKw,
+                SyntaxKind::Missing | SyntaxKind::Error,
+            ) => (
+                GrammarRole::Pattern(PatternRole::AliasBinding),
+                ExpectedSyntax::Identifier,
+                0,
+            ),
+            _ => panic!("unrecognized AliasBinding slot"),
+        };
+        assert_eq!(
+            selected,
+            (
+                GrammarRole::Pattern(PatternRole::AliasBinding),
+                ExpectedSyntax::Identifier,
+                0,
+            )
+        );
+    }
+}
+
+#[test]
 fn accepted_primary_and_tail_controls_have_no_new_recovery() {
     // Authority: Pattern primary/symbol/fixed-tail grammar and its current
     // delimiter and Type-annotation addenda, not parser success as an oracle.
