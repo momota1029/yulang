@@ -734,7 +734,9 @@ bounded Draft; Derives and child owners remain separate.
 DeclarationCompanion direct recovery is catalog-audited as a bounded Draft;
 Statement/Derives and caller-stop ownership remain separate.
 UseDeclaration Path/Alias/group-entry is catalog-audited as a bounded Draft;
-foreign/local close and OperatorName close await the selected CST topology.
+the user selected option A for foreign close. The Authoritative, independently
+pre-write-audited `UseGroupForeignClose` topology is pending private M2
+construction; local close and OperatorName close remain separate.
 Rule ExpressionList caller-local fence close slots are catalog-audited as a
 bounded Draft; outer Yumark and pending Item identity remain separate.
 BracedStatementBlock direct raw Error is catalog-audited as a bounded Draft.

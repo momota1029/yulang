@@ -987,8 +987,10 @@ This bounded Draft maps Path, Alias and group-entry/comma Missing by ordered
 UseTree/UsePath/UseAlias/group ancestry, including nested and parenthesized
 exclusion routes. UTF-8 byte ranges and same-tree Path→Alias order are direct
 Rowan evidence. Foreign/local close and OperatorName close remain explicitly
-unmapped pending the Use foreign-close topology decision. M2 spec and regression
-delta audits were clean.
+unmapped. The Authoritative `UseGroupForeignClose` topology is selected and
+pre-write-audited but still pending construction; local close and OperatorName
+remain separate. M2 spec and regression delta audits for the independent rows
+were clean.
 
 ### Rule ExpressionList direct caller fence Draft
 

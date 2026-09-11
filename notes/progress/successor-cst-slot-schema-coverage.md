@@ -301,8 +301,10 @@ and delta audits were clean; nested/caller owners remain separate.
 
 `tests/declaration/use_decl.rs` maps ordered Path, Alias and group entry/comma
 slots, including nested and parenthesized routes and UTF-8. Foreign/local close
-and OperatorName close are explicitly excluded pending topology selection. M2
-specification and regression delta audits were clean.
+and OperatorName close are explicitly excluded from these rows. The
+Authoritative `UseGroupForeignClose` topology is selected and pre-write-audited
+but pending construction; local close and OperatorName remain separate. M2
+specification and regression delta audits for the independent rows were clean.
 
 #### Rule ExpressionList direct caller fence Draft links
 
