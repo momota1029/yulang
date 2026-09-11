@@ -207,6 +207,11 @@ publishers: interpolation Close (two exits), braced lazy Close, unbraced lazy
 Name and outer terminator. Direct Rowan order selects each Missing, while a
 RuleSequence directly beneath interpolation selects its maximal RuleItem Error
 group. Nested Rule children remain delegated; this does not retire the ledger.
+The bounded required-expression/Colon/With matrix is now catalog-audited
+evidence-complete Draft. Ordered caller paths distinguish initial If/Case/Catch/
+For roles from nested Nud in a flat chain; Colon uses local comma/newline order,
+and With retains canonical Statement bodies. This does not close indented or
+other expression recursion, the global collector or ledger/API migration.
 The bounded declaration Variant core Item/Name/Separator row is now
 catalog-audited evidence-complete Draft. Direct full-shell Rowan controls prove
 that `EnumVariant(Missing)` and terminal `EnumVariant(Error+)` are Item, while

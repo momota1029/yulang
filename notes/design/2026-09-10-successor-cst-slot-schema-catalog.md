@@ -104,7 +104,7 @@ coverage manifest names the corresponding evidence files.
 
 | Catalog family | Row scope to map | Current catalog state |
 | --- | --- | --- |
-| expression tails and required operands | assignment, annotation, colon/with, fixed access, required operands, delimited expression phases | partial: the authoritative AssignmentTail direct-inline RHS row, the dedicated Field/Path evidence-complete Draft slices, bounded ProjectionRecordSpreadItem RHS row, and bounded expression-delimited raw Item/Separator/foreign-close rows are mapped; all other rows remain open |
+| expression tails and required operands | assignment, annotation, colon/with, fixed access, required operands, delimited expression phases | partial: the authoritative AssignmentTail direct-inline RHS row, bounded required-operand/Colon/With direct-CST rows, dedicated Field/Path evidence-complete Draft slices, ProjectionRecordSpreadItem RHS and expression-delimited raw rows are mapped; all other rows remain open |
 | expression forms and statement/layout containers | case/if/for, source-root, statement and virtual-statement sequences | partial: Root direct raw-Error ordered-context matrix is recorded as candidate evidence only; all source-root, statement and virtual-statement schema rows remain open except listed delegated links |
 | pattern and structured delimiters | Pattern entries, delimited sequences, RecordPattern Item/Separator structured recovery | partial: the bounded item/separator structured Invalid rows and foreign-close raw Error row are mapped; every other Pattern row remains open |
 | type entries, tails and delimiters | type expression, paths, rows, variants, forall, delimited closes and TypeCall close | partial: the bounded LeadingEffectTypeHead, `TypePathTail` segment, TypeCall-close, CallArgument, separator and Forall first-binder rows are mapped; the six NamedRecordType and the bounded PV Tag/TagName/Payload/Separator/Close rows are evidence-complete Drafts over their witnessed forms; all other Type production contexts remain open |
@@ -1083,6 +1083,39 @@ terminator slot.
 | transition/handoff | `root-style sequence entry → boundary/borrowed-close wins before statement or separator classification; otherwise explicit separator, admitted Statement, or malformed starter is selected by sequence position → emit Statement(Missing), direct body Missing, maximal direct Error leaves, accepted Statement, or BlockStatementSeparator → accepted Statement completes locally to AfterStatement; Error retries the admitted Statement without a separator Missing; newline/explicit separator returns to AfterSeparator, where a following comma/semicolon emits the next Statement(Missing) and continues; terminal EOF/fence/borrowed close is handed off unchanged with pending leading → Statement(Missing) witnesses Statement/Starter, direct body Missing witnesses Statement/Separator, and direct Error+ witnesses Statement/Starter.` Newline immediately before borrowed `}` remains interpolation-owned, not a separator node. |
 | diagnostic projection | `Statement > Missing` projects one `Statement(Starter)` occurrence with expected `Statement`, primary alternative zero, at that direct zero-width Missing range. A direct body Missing projects one `Statement(Separator)` occurrence with expected `StatementSeparator`, primary alternative zero, at its direct zero-width range. One maximal adjacent direct body Error-token group projects one `Statement(Starter)` occurrence with expected `Statement`, primary alternative zero, at the combined UTF-8 Error range. Initial/internal Error leading remains in that group; retry and protected-boundary leading remain outside it. Rowan preorder places each direct body occurrence before recovery projected by a retried/nested Statement and before the enclosing interpolation-close/literal-terminator occurrences. |
 | proof and status | Governing slice: [error-admission clarification](2026-09-09-successor-error-admission-schema-clarification.md#proposed-schema-slice-stringinterpolationbody-statement-sequence), Draft. Direct CST evidence: `crates/yu-syntax/src/virtual_statement_block.rs:67` (root-style entry and boundary/borrowed-close priority), `:225` (maximal Error-run/retry), `:298` (retry boundary), `:309` (explicit separator and successor-leading phase), `:347` (newline separator), `:354` (nested starter Missing), and `:368` (Starter/Separator projection facts); `crates/yu-syntax/src/literal/mod.rs:460` (the direct `StringInterpolationBody` wrapper and outer close ownership). Focused proof: `crates/yu-syntax/src/tests/virtual_statement_block.rs:617–873`. Status: `mapped` for these three evidence-complete Draft recovery roles only; promotion, all nested Statement rows, interpolation close, literal terminator, the global interpreter, recovery-ledger retirement, and API migration remain open. |
+
+### Required-expression, Colon and With bounded semantic rows
+
+This bounded M2 Draft maps existing recovery only; it adds no wrapper or
+admission. Initial required operands are selected by their complete caller
+path: `Condition`, Case/Catch scrutinee or guard, `ForIterable`, or direct
+`ForStatement` inline-body `OperatorChain`. After an accepted
+`PrefixOperatorUse` or `InfixOperatorUse` in that same flat chain, the next
+required operand is instead `Expression(Nud)`. Thus `if @ ? [: x` proves the
+ordered caller Error, accepted prefix and nested Nud Missing without records.
+`ForIterable` newline/fence bypass is the same direct iterable slot.
+
+`ColonApplicationTail` distinguishes initial Rhs from later InlineArgument by
+ordered direct children: first content follows its Colon; later episodes follow
+a locally owned comma or qualifying newline. A terminal local newline creates
+no argument Missing, and outer-owned commas/newlines remain outside the tail.
+`WithBodyTail` maps direct missing introducer to `WithBody(Introducer)`/Colon,
+while recovery after an actual colon maps canonical direct `Statement` body
+Missing/Error to `WithBody(Body)`/Statement. The body retains declaration,
+literal and expression admission; it is not reduced to Expression.
+
+All mapped expectations are singleton with primary zero. Missing ranges are the
+direct zero-width node range and Error ranges are maximal adjacent direct token
+groups; retry leading stays outside Error. Direct Rowan proof is
+`required_operand_cst_slots_select_initial_callers_without_recovery_records`,
+`required_operand_cst_keeps_nested_nud_and_terminal_recovery_distinct`, and
+`colon_and_with_cst_slots_are_selected_by_ordered_direct_grammar` in
+`crates/yu-syntax/src/tests/expression_recovery.rs` and
+`colon_with_recovery.rs`. M2 specification and recovery closure audits were
+clean. Status: catalog-audited evidence-complete Draft only for these witnessed
+initial/nested, inline and boundary alternatives; indented/body recursion,
+other expression forms, global interpreter and ledger/API migration remain
+open.
 
 ## Existing evidence-complete Draft slices
 

@@ -7,6 +7,7 @@ use crate::{
         PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
         UnexpectedSyntax, WithBodyRole,
     },
+    sequence::SequenceOwner,
     statement::StatementLineHandoff,
 };
 use std::{ops::Range, sync::Arc};
@@ -81,6 +82,35 @@ fn parse<'s>(
     output.finish_node();
     let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
+}
+
+fn parse_with_sequence(
+    source: &str,
+    sequence: Option<SequenceOwner>,
+) -> (GreenNode, NormalizedExit) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let exit = expr_normalized(
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+        None,
+        0,
+        0,
+        MlMode::All,
+        StatementLineHandoff::OrdinaryLayout,
+        0,
+        LineEntry::InLine,
+        None,
+        Some(AmbientClaimView::root_statement(0)).into(),
+        sequence,
+    )
+    .unwrap();
+    output.finish_node();
+    let green = output.finish();
+    let _ = recover.finish_recoveries_for_test();
+    (green, exit)
 }
 
 #[test]
@@ -530,4 +560,321 @@ fn line_deferred_with_preserves_the_whole_keyword_without_records() {
     };
     assert_eq!(item.payload_view().spelling(), Some("with"));
     assert_eq!(item.extent(6).recovery_range(), 1..6);
+}
+
+#[test]
+fn colon_and_with_cst_slots_are_selected_by_ordered_direct_grammar() {
+    colon_local_comma_slots_are_ordered_directly();
+    for (source, chains, commas, newlines, missing) in [
+        ("f:", 0, 0, 0, true),
+        ("f: @ x", 1, 0, 0, false),
+        ("f: x,", 1, 1, 0, true),
+        ("f: x,, y", 2, 2, 0, true),
+        ("f: x, @ y", 2, 1, 0, false),
+        ("f: x\ny", 2, 0, 1, false),
+        ("f: x\n, y", 2, 1, 1, false),
+        ("f: x\n", 1, 0, 1, false),
+    ] {
+        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let root = SyntaxNode::new_root(green);
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .unwrap();
+        let elements = tail.children_with_tokens().collect::<Vec<_>>();
+        let colon = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Colon)
+            .unwrap();
+        let first_chain = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::OperatorChain);
+        if let Some(first_chain) = first_chain {
+            assert!(colon < first_chain, "{source:?}");
+        } else {
+            assert!(
+                elements[colon + 1..]
+                    .iter()
+                    .any(|child| child.kind() == SyntaxKind::Missing)
+            );
+        }
+        assert_eq!(
+            elements
+                .iter()
+                .filter(|child| child.kind() == SyntaxKind::OperatorChain)
+                .count(),
+            chains,
+            "{source:?}"
+        );
+        assert_eq!(
+            elements
+                .iter()
+                .filter(|child| child.kind() == SyntaxKind::Comma)
+                .count(),
+            commas,
+            "{source:?}"
+        );
+        assert_eq!(
+            elements
+                .iter()
+                .filter(|child| child.kind() == SyntaxKind::Newline)
+                .count(),
+            newlines,
+            "{source:?}"
+        );
+        assert_eq!(
+            elements
+                .iter()
+                .filter(|child| child.kind() == SyntaxKind::Missing)
+                .count(),
+            usize::from(missing),
+            "{source:?}"
+        );
+    }
+
+    let (green, exit) = parse_with_sequence("f: x, y", Some(SequenceOwner::RootStatement));
+    let root = SyntaxNode::new_root(green);
+    let tail = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .unwrap();
+    assert_eq!(
+        tail.children()
+            .filter(|child| child.kind() == SyntaxKind::OperatorChain)
+            .count(),
+        1
+    );
+    assert!(
+        tail.children_with_tokens()
+            .all(|child| child.kind() != SyntaxKind::Comma)
+    );
+    let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
+        panic!("outer comma remains pending");
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::Comma));
+
+    for (source, expected_body) in [
+        ("f with", None),
+        ("f with: ]", None),
+        ("f with: @ x", Some(SyntaxKind::OperatorChain)),
+        ("f with: \"x\"", Some(SyntaxKind::StringLiteral)),
+        ("f with: pub x = y", Some(SyntaxKind::BindingStatement)),
+    ] {
+        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let root = SyntaxNode::new_root(green);
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+            .unwrap();
+        let elements = tail.children_with_tokens().collect::<Vec<_>>();
+        let with = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::WithKw)
+            .unwrap();
+        let colon = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Colon);
+        let missing = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Missing);
+        match expected_body {
+            None => {
+                assert!(missing.is_some(), "{source:?}");
+                if source == "f with" {
+                    assert!(colon.is_none());
+                } else {
+                    assert!(with < colon.unwrap() && colon.unwrap() < missing.unwrap());
+                }
+            }
+            Some(kind) => {
+                let statement = elements
+                    .iter()
+                    .find_map(|child| child.as_node())
+                    .filter(|node| node.kind() == SyntaxKind::Statement)
+                    .unwrap();
+                assert!(with < colon.unwrap());
+                assert!(missing.is_none());
+                assert!(statement.descendants().any(|node| node.kind() == kind));
+                if source.contains('@') {
+                    let error = elements
+                        .iter()
+                        .position(|child| child.kind() == SyntaxKind::Error)
+                        .unwrap();
+                    assert!(
+                        colon.unwrap() < error
+                            && error
+                                < elements
+                                    .iter()
+                                    .position(|child| child.kind() == SyntaxKind::Statement)
+                                    .unwrap()
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn colon_local_comma_slots_are_ordered_directly() {
+    for (source, recovery, successor) in [
+        ("f: x,", SyntaxKind::Missing, None),
+        ("f: x,, y", SyntaxKind::Missing, Some(SyntaxKind::Comma)),
+        (
+            "f: x, @ y",
+            SyntaxKind::Error,
+            Some(SyntaxKind::OperatorChain),
+        ),
+    ] {
+        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let root = SyntaxNode::new_root(green);
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .unwrap();
+        let elements = tail.children_with_tokens().collect::<Vec<_>>();
+        let comma = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Comma)
+            .unwrap();
+        let recovery = elements
+            .iter()
+            .enumerate()
+            .skip(comma + 1)
+            .find_map(|(index, child)| (child.kind() == recovery).then_some(index))
+            .unwrap();
+        assert!(comma < recovery, "{source:?}");
+        match successor {
+            Some(kind) => {
+                let successor = elements
+                    .iter()
+                    .enumerate()
+                    .skip(recovery + 1)
+                    .find_map(|(index, child)| (child.kind() == kind).then_some(index))
+                    .unwrap();
+                assert!(recovery < successor, "{source:?}");
+                if kind == SyntaxKind::Comma {
+                    let retry = elements
+                        .iter()
+                        .enumerate()
+                        .skip(successor + 1)
+                        .find_map(|(index, child)| {
+                            (child.kind() == SyntaxKind::OperatorChain).then_some(index)
+                        })
+                        .unwrap();
+                    assert!(successor < retry, "{source:?}");
+                }
+            }
+            None => assert_eq!(recovery + 1, elements.len(), "{source:?}"),
+        }
+    }
+}
+
+#[test]
+fn colon_and_with_cst_recovery_orders_are_direct_and_terminal() {
+    for (source, error_range, terminal) in [("f: @\nx", 3..4, false), ("f: x\n@", 5..6, true)] {
+        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let root = SyntaxNode::new_root(green);
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+            .unwrap();
+        let elements = tail.children_with_tokens().collect::<Vec<_>>();
+        let error = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Error)
+            .unwrap();
+        let newline = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Newline)
+            .unwrap();
+        assert_eq!(
+            elements[error].text_range(),
+            rowan::TextRange::new(error_range.start.into(), error_range.end.into())
+        );
+        if terminal {
+            assert!(newline < error);
+            assert!(
+                elements
+                    .iter()
+                    .all(|child| child.kind() != SyntaxKind::Missing)
+            );
+        } else {
+            let retry = elements
+                .iter()
+                .enumerate()
+                .skip(newline + 1)
+                .find_map(|(index, child)| {
+                    (child.kind() == SyntaxKind::OperatorChain).then_some(index)
+                })
+                .unwrap();
+            assert!(error < newline && newline < retry);
+        }
+    }
+
+    let (green, exit) = parse_with_sequence("f: x\ny", Some(SequenceOwner::RootStatement));
+    let root = SyntaxNode::new_root(green);
+    let tail = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .unwrap();
+    assert!(
+        tail.children_with_tokens()
+            .all(|child| child.kind() != SyntaxKind::Newline)
+    );
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Left(_)), _)
+    ));
+
+    for (source, expected) in [
+        ("f with @ x", Some(SyntaxKind::OperatorChain)),
+        ("f with: @", None),
+        ("f with: @ \"x\"", Some(SyntaxKind::StringLiteral)),
+        ("f with: @ pub x = y", Some(SyntaxKind::BindingStatement)),
+    ] {
+        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let root = SyntaxNode::new_root(green);
+        let tail = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::WithBodyTail)
+            .unwrap();
+        let elements = tail.children_with_tokens().collect::<Vec<_>>();
+        let with = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::WithKw)
+            .unwrap();
+        let error = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Error)
+            .unwrap();
+        let missing = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Missing);
+        assert!(with < error);
+        if source == "f with @ x" {
+            assert!(missing.unwrap() < error);
+        } else {
+            assert!(missing.is_none());
+        }
+        match expected {
+            Some(kind) => {
+                let statement = elements
+                    .iter()
+                    .position(|child| child.kind() == SyntaxKind::Statement)
+                    .unwrap();
+                assert!(error < statement);
+                assert!(
+                    elements[statement]
+                        .as_node()
+                        .unwrap()
+                        .descendants()
+                        .any(|node| node.kind() == kind)
+                );
+            }
+            None => assert!(
+                elements
+                    .iter()
+                    .all(|child| child.kind() != SyntaxKind::Statement)
+            ),
+        }
+    }
 }

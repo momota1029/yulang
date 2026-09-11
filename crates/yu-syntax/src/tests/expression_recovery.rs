@@ -552,3 +552,214 @@ fn required_operand_callers_publish_their_own_roles() {
         13..14,
     );
 }
+
+fn direct_child(node: &SyntaxNode, kind: SyntaxKind) -> SyntaxNode {
+    node.children()
+        .find(|child| child.kind() == kind)
+        .unwrap_or_else(|| panic!("{kind:?} direct child of {:#?}", node.kind()))
+}
+
+fn direct_missing_in_required_chain(slot: &SyntaxNode) -> SyntaxNode {
+    let chain = direct_child(slot, SyntaxKind::OperatorChain);
+    let missing = direct_child(&chain, SyntaxKind::Missing);
+    assert_eq!(missing.text_range(), chain.text_range());
+    missing
+}
+
+#[test]
+fn required_operand_cst_slots_select_initial_callers_without_recovery_records() {
+    for (source, slot) in [
+        ("if : x", SyntaxKind::Condition),
+        ("case : _ -> x", SyntaxKind::CaseScrutinee),
+        ("catch : _ -> x", SyntaxKind::CatchScrutinee),
+        ("case x: _ if -> y", SyntaxKind::CaseGuard),
+        ("catch x: _ if -> y", SyntaxKind::CatchGuard),
+        ("for x in ]", SyntaxKind::ForIterable),
+        ("for x in\n]", SyntaxKind::ForIterable),
+    ] {
+        let (green, _, _) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+        let root = SyntaxNode::new_root(green);
+        let owner = root.descendants().find(|node| node.kind() == slot).unwrap();
+        let missing = direct_missing_in_required_chain(&owner);
+        assert_eq!(
+            usize::from(missing.text_range().start()),
+            owner.text_range().end().into()
+        );
+    }
+
+    let (green, _, _) = run_statement_normalized(
+        "for x in\r\n> > ```\nouter",
+        0,
+        LineEntry::InLine,
+        Some(&FenceBoundary {
+            opener: crate::lexical::yumark::FenceOpener {
+                line: 0,
+                marker: 0..3,
+                marker_width: 3,
+            },
+            prefix_policy: crate::lexical::yumark::FencePrefixPolicy::ActivePrefixQuote {
+                depth: 2,
+                base: 0,
+            },
+            close_column: 0,
+        }),
+    );
+    let root = SyntaxNode::new_root(green);
+    let iterable = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::ForIterable)
+        .unwrap();
+    assert_eq!(
+        direct_missing_in_required_chain(&iterable).text_range(),
+        rowan::TextRange::new(8.into(), 8.into())
+    );
+}
+
+#[test]
+fn required_operand_cst_keeps_nested_nud_and_terminal_recovery_distinct() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "?",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        ),
+        OperatorDeclaration::new(
+            "+",
+            OperatorFixities::new().with_infix(BindingPower::scalar(50), BindingPower::scalar(50)),
+        ),
+    ])
+    .unwrap();
+    for (source, operator) in [
+        ("? @ x", SyntaxKind::PrefixOperatorUse),
+        ("a + @ x", SyntaxKind::InfixOperatorUse),
+    ] {
+        let (green, _, _) = expression_with_recoveries(source, &operators);
+        let root = SyntaxNode::new_root(green);
+        let chain = direct_child(&root, SyntaxKind::OperatorChain);
+        let children = chain.children_with_tokens().collect::<Vec<_>>();
+        assert!(children.iter().any(|child| child.kind() == operator));
+        let error = children
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Error)
+            .unwrap();
+        let retry = children
+            .iter()
+            .enumerate()
+            .skip(error + 1)
+            .find_map(|(index, child)| {
+                (child.kind() == SyntaxKind::IdentifierExpression).then_some(index)
+            })
+            .unwrap();
+        assert!(error < retry);
+        let retry = children[retry].as_node().unwrap();
+        assert_eq!(retry.parent().unwrap().kind(), SyntaxKind::OperatorChain);
+    }
+
+    for source in ["]", "@ x", "@\r\n界"] {
+        let (green, _, _, _) = direct_required_expr_with_recoveries(
+            source,
+            GrammarRole::Expression(ExpressionRole::Nud),
+            0,
+            None,
+        );
+        let root = SyntaxNode::new_root(green);
+        let chain = direct_child(&root, SyntaxKind::OperatorChain);
+        if source == "]" {
+            assert_eq!(
+                direct_child(&chain, SyntaxKind::Missing).text_range(),
+                rowan::TextRange::new(0.into(), 0.into())
+            );
+        } else {
+            let elements = chain.children_with_tokens().collect::<Vec<_>>();
+            let error = elements
+                .iter()
+                .find(|child| child.kind() == SyntaxKind::Error)
+                .unwrap();
+            assert_eq!(
+                error.text_range(),
+                rowan::TextRange::new(0.into(), 1.into())
+            );
+            assert!(
+                elements
+                    .iter()
+                    .any(|child| child.kind() == SyntaxKind::IdentifierExpression)
+            );
+        }
+    }
+}
+
+#[test]
+fn required_operand_cst_orders_caller_and_nested_nud_recovery_in_one_chain() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new(
+            "?",
+            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+        ),
+        OperatorDeclaration::new(
+            "+",
+            OperatorFixities::new().with_infix(BindingPower::scalar(50), BindingPower::scalar(50)),
+        ),
+    ])
+    .unwrap();
+    for (source, accepted, nested_kind) in [
+        (
+            "if @ ? [: x",
+            SyntaxKind::PrefixOperatorUse,
+            SyntaxKind::Missing,
+        ),
+        (
+            "if @ a + @ x: y",
+            SyntaxKind::InfixOperatorUse,
+            SyntaxKind::Error,
+        ),
+    ] {
+        let (green, _, _) = expression_with_recoveries(source, &operators);
+        let root = SyntaxNode::new_root(green);
+        let condition = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Condition)
+            .unwrap();
+        let chain = direct_child(&condition, SyntaxKind::OperatorChain);
+        let elements = chain.children_with_tokens().collect::<Vec<_>>();
+        let caller_error = elements
+            .iter()
+            .position(|child| child.kind() == SyntaxKind::Error)
+            .unwrap();
+        let accepted = elements
+            .iter()
+            .position(|child| child.kind() == accepted)
+            .unwrap();
+        let nested = elements
+            .iter()
+            .enumerate()
+            .skip(accepted + 1)
+            .find_map(|(index, child)| (child.kind() == nested_kind).then_some(index))
+            .unwrap();
+        assert!(caller_error < accepted && accepted < nested, "{source:?}");
+        assert_eq!(
+            elements
+                .iter()
+                .filter(|child| child.kind() == SyntaxKind::Missing)
+                .count(),
+            usize::from(nested_kind == SyntaxKind::Missing)
+        );
+    }
+
+    let (green, _, _, _) = direct_required_expr_with_recoveries(
+        "@",
+        GrammarRole::Expression(ExpressionRole::Nud),
+        0,
+        None,
+    );
+    let root = SyntaxNode::new_root(green);
+    let chain = direct_child(&root, SyntaxKind::OperatorChain);
+    assert!(
+        chain
+            .children_with_tokens()
+            .any(|child| child.kind() == SyntaxKind::Error)
+    );
+    assert!(
+        !chain
+            .children_with_tokens()
+            .any(|child| child.kind() == SyntaxKind::Missing)
+    );
+}
