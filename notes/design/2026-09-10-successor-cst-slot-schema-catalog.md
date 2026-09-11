@@ -441,6 +441,22 @@ local close, carried caller close, or nested Pattern recovery.
 | diagnostic projection | The transparent wrapper projects no occurrence. Its one maximal direct Error-token group projects slot `ClosingDelimiter(RecordPattern, Brace)` with singleton expected punctuation `Close(Brace)`, primary zero, over the combined UTF-8 group range. The group precedes later direct/structured children in Rowan preorder. A repeated foreign close is a new wrapper and a new occurrence; direct raw Item/Separator groups are neither merged with it nor classified by Error spelling. |
 | proof and status | Governing authority: [RecordPattern foreign-close CST slot](2026-09-10-successor-record-pattern-foreign-close-slot-draft.md); existing continuation/record authority: [Pattern sequence current-Item recovery](2026-09-08-successor-pattern-sequence-current-item-recovery.md). Direct owner: `crates/yu-syntax/src/pattern/delimited.rs:239–324, 553–577`; append-only kind: `crates/yu-syntax/src/syntax_kind.rs:275–280, 492–497, 736–760`. Direct Rowan proof: `crates/yu-syntax/src/tests/pattern/recovery/sequence.rs:5–202, 239–364, 798–856, 859–1052`. Status: `mapped` after independent closure audit for this bounded Authoritative row only; direct lexical Item/Separator Error groups, all remaining RecordPattern rows, interpreter, recovery ledger and API migration remain open. |
 
+### Pattern SymbolName Missing Draft
+
+This bounded Draft maps only the immediate required symbol name after an
+accepted pattern colon. It does not map a SymbolName Error because the selected
+owner has no such admission.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | `(SymbolPattern, required SymbolName immediately after direct Colon, direct Pattern primary context)`. `PatternSymbolColon` is a lexical distinction only; its emitted Rowan token is Colon. The SymbolPattern parent and direct predecessor distinguish this Missing from annotation and every other colon slot. |
+| ordered Rowan grammar | The witnessed form is `Pattern(SymbolPattern(Colon Missing))`. Colon is a direct native token at `0..1`; Missing is its following direct empty SymbolPattern child at `1..1`. There is no Error, Invalid or nested accepted symbol in this slot. |
+| malformed admission and completion | `:` at EOF emits the direct Missing and completes. For `: x`, the immediate identifier probe fails at colon successor, emits the same Missing, and returns the unconsumed Identifier with its leading space; later caller scanning is outside this row. |
+| nested ownership | SymbolName owns no nested grammar. Accepted symbols, all other Pattern primary/tail/delimited recovery, colon-as-TypeAnnotation and caller continuation retain their own rows. |
+| transition/handoff | `accepted pattern colon → immediate SymbolName probe → EOF or non-adjacent Identifier → direct Missing → complete or return exact pending Identifier/leading`. No Error retry or topology change occurs. |
+| diagnostic projection | The direct Missing projects `Pattern(SymbolName)` with expected `Identifier`, primary zero, at `1..1`. Parentage and preceding Colon select the slot; recovery records and source spelling are not inputs. |
+| proof and status | Governing authority: [pattern primary current-Item recovery](2026-09-08-successor-pattern-primary-current-item-recovery.md), **Selected rule**, SymbolName contract, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/pattern/mod.rs:802–819`; direct Rowan proof: `symbol_name_missing_has_a_direct_colon_successor_slot` in `crates/yu-syntax/src/tests/pattern/recovery.rs`. M1 pre-write and closure specification audits were clean. Status: catalog-audited evidence-complete Draft only for `:` EOF and `: x` pending-Identifier witnesses; all broader Pattern rows, global interpreter, parser API and ledger retirement remain open. |
+
 ### Dedicated Rule-owned slot map
 
 This bounded Draft/evidence-complete section instantiates only the six

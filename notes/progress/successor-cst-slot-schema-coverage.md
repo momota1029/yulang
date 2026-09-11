@@ -631,6 +631,20 @@ close, and nested Type rows remain unmapped.
 - `crates/yu-syntax/src/pattern/delimited.rs`
 - `crates/yu-syntax/src/pattern/mod.rs`
 
+#### Pattern SymbolName Missing Draft links
+
+Only the immediate post-colon absence at EOF and pending-Identifier control are
+linked. `Pattern > SymbolPattern > Colon Missing` selects Pattern(SymbolName)
+without conflating annotation or other colon occurrences; `: x` leaves `x` and
+its leading space pending for its caller. Direct Rowan proof is
+`symbol_name_missing_has_a_direct_colon_successor_slot` in
+`crates/yu-syntax/src/tests/pattern/recovery.rs`; it asserts parentage,
+token/node order, zero-width range and handoff without reading records. M1
+pre-write and closure specification audits were clean. This is a
+catalog-audited evidence-complete Draft only for these two witnesses; accepted
+symbols, other primary/tail/delimited recovery, global interpreter and ledger
+retirement remain separate.
+
 #### RecordPattern item-phase structured Invalid row links
 
 Only the following direct RecordPattern sites are linked to the bounded Draft

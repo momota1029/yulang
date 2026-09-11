@@ -612,6 +612,11 @@ catalog-audited evidence-complete Draft for exact `as` at EOF and protected
 RBracket handoff. Its direct `AsKw → TypeExpression(Missing)` slot projects
 Expression(TypeAnnotation); nonempty `as @` remains Type(Primary)-owned.
 Other Type alternatives, tails and ledger/API migration remain open.
+Pattern SymbolName Missing is now a catalog-audited evidence-complete Draft for
+the immediate post-colon EOF and pending-Identifier cases. `SymbolPattern`
+parentage and direct Colon select Pattern(SymbolName), while the lexical
+PatternSymbolColon distinction does not create a separate Rowan token kind.
+All broader Pattern recovery and ledger/API migration remain open.
 The bounded ProjectionRecordSpreadItem RHS is mapped as Draft: the direct
 spread node distinguishes its Missing and raw Error leaves from parent record
 items, separators and close slots. A lexical Error run is not reconstructed as

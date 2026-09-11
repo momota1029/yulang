@@ -702,6 +702,75 @@ fn symbol_name_probe_rejection_preserves_seeded_frozen_output_and_cursor() {
 }
 
 #[test]
+fn symbol_name_missing_has_a_direct_colon_successor_slot() {
+    for source in [":", ": x"] {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), ":");
+        let pattern = pattern_node(green);
+        let pattern_children = pattern.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(pattern_children.len(), 1);
+        let symbol = pattern_children[0].as_node().expect("SymbolPattern");
+        assert_eq!(symbol.kind(), SyntaxKind::SymbolPattern);
+        assert_eq!(symbol.parent(), Some(pattern.clone()));
+        let children = symbol.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), 2);
+        let colon = children[0].as_token().expect("committed colon");
+        assert_eq!(colon.kind(), SyntaxKind::Colon);
+        assert_eq!(colon.text(), ":");
+        assert_eq!(usize::from(colon.text_range().start()), 0);
+        assert_eq!(usize::from(colon.text_range().end()), 1);
+        assert_eq!(colon.parent().as_ref(), Some(symbol));
+        let missing = children[1].as_node().expect("SymbolName Missing");
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(missing.parent().as_ref(), Some(symbol));
+        assert_eq!(usize::from(missing.text_range().start()), 1);
+        assert_eq!(usize::from(missing.text_range().end()), 1);
+        assert_eq!(missing.children_with_tokens().count(), 0);
+        assert_eq!(missing.to_string(), "");
+
+        // The committed colon and direct child order select SymbolName
+        // without consulting parser recovery records.
+        let selected = match (
+            pattern.kind(),
+            symbol.kind(),
+            children[0].kind(),
+            children[1].kind(),
+        ) {
+            (
+                SyntaxKind::Pattern,
+                SyntaxKind::SymbolPattern,
+                SyntaxKind::Colon,
+                SyntaxKind::Missing,
+            ) => (
+                GrammarRole::Pattern(PatternRole::SymbolName),
+                ExpectedSyntax::Identifier,
+                0,
+            ),
+            _ => panic!("unrecognized SymbolName slot"),
+        };
+        assert_eq!(
+            selected,
+            (
+                GrammarRole::Pattern(PatternRole::SymbolName),
+                ExpectedSyntax::Identifier,
+                0,
+            )
+        );
+
+        if source == ": x" {
+            let Err(Either::Left(mut item)) = exit else {
+                panic!("Identifier x remains pending")
+            };
+            assert_eq!(token_kind(&item), Some(TokenKind::Identifier));
+            assert_eq!(item.payload_view().spelling(), Some("x"));
+            assert_eq!(emit_pending_leading_text(&mut item), " ");
+        } else {
+            assert!(matches!(exit, Err(Either::Right(_))));
+        }
+    }
+}
+
+#[test]
 fn accepted_primary_and_tail_controls_have_no_new_recovery() {
     // Authority: Pattern primary/symbol/fixed-tail grammar and its current
     // delimiter and Type-annotation addenda, not parser success as an oracle.
