@@ -570,6 +570,188 @@ fn cast_pattern_absence_records_are_exact_and_reconcile() {
 }
 
 #[test]
+fn cast_pattern_introducer_direct_rowan_slot_order_and_ranges() {
+    use SyntaxKind::{CastKw, CastPattern, Error, Missing, Whitespace};
+
+    // Stop at the first grammar child: its value/close and later phases have
+    // separate owners. Only immediate children identify this bounded slot.
+    for (source, stops, expected) in [
+        ("cast", 0, vec![(CastKw, 0..4), (Missing, 4..4)]),
+        ("cast )", 0, vec![(CastKw, 0..4), (Missing, 4..4)]),
+        (
+            "cast else tail",
+            STOP_ELSE,
+            vec![(CastKw, 0..4), (Missing, 4..4)],
+        ),
+        (
+            "cast @",
+            0,
+            vec![(CastKw, 0..4), (Whitespace, 4..5), (Error, 5..6)],
+        ),
+        (
+            "cast @   ",
+            0,
+            vec![
+                (CastKw, 0..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Error, 6..9),
+            ],
+        ),
+        (
+            "cast @\r\n",
+            0,
+            vec![(CastKw, 0..4), (Whitespace, 4..5), (Error, 5..6)],
+        ),
+        (
+            "cast @ )",
+            0,
+            vec![(CastKw, 0..4), (Whitespace, 4..5), (Error, 5..6)],
+        ),
+        (
+            "cast @ else tail",
+            STOP_ELSE,
+            vec![(CastKw, 0..4), (Whitespace, 4..5), (Error, 5..6)],
+        ),
+        (
+            "cast @ x",
+            0,
+            vec![
+                (CastKw, 0..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Whitespace, 6..7),
+                (CastPattern, 7..8),
+            ],
+        ),
+        (
+            "cast @ (x): T;",
+            0,
+            vec![
+                (CastKw, 0..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Whitespace, 6..7),
+                (CastPattern, 7..10),
+            ],
+        ),
+        ("cast(x): T;", 0, vec![(CastKw, 0..4), (CastPattern, 4..7)]),
+        (
+            "cast x",
+            0,
+            vec![(CastKw, 0..4), (Whitespace, 4..5), (CastPattern, 5..6)],
+        ),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, stops, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let mut actual = Vec::new();
+        for child in node.children_with_tokens() {
+            let kind = child.kind();
+            let range = child.text_range();
+            actual.push((kind, usize::from(range.start())..usize::from(range.end())));
+            if kind == CastPattern {
+                break;
+            }
+        }
+        assert_eq!(actual, expected, "{source:?}");
+        assert!(
+            node.children()
+                .all(|child| child.kind() != SyntaxKind::Invalid),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn cast_pattern_introducer_initial_pattern_children_distinguish_value_recovery() {
+    use SyntaxKind::{CastPattern, LParen, Missing, Pattern, RParen};
+
+    for (source, expected) in [
+        ("cast x", vec![(Missing, 5..5), (Pattern, 5..6)]),
+        (
+            "cast(x): T;",
+            vec![(LParen, 4..5), (Pattern, 5..6), (RParen, 6..7)],
+        ),
+        // The outer Error and native retry leading are witnessed above.
+        // Bare-Pattern retry starts with its value, without a second opener Missing.
+        ("cast @ x", vec![(Pattern, 7..8)]),
+        // This Missing follows the native opener: it belongs to the value slot,
+        // not the PatternIntroducer, despite having the same CastPattern parent.
+        (
+            "cast(): T;",
+            vec![(LParen, 4..5), (Missing, 5..5), (RParen, 5..6)],
+        ),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let pattern = node
+            .children()
+            .find(|child| child.kind() == CastPattern)
+            .expect("initial direct CastPattern");
+        assert_eq!(pattern.parent(), Some(node), "{source:?}");
+        let actual = pattern
+            .children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{source:?}");
+    }
+}
+
+#[test]
+fn cast_pattern_introducer_rowan_error_group_ends_before_phase_handoff() {
+    use SyntaxKind::{CastKw, CastTarget, Colon, Equals, Error, Semicolon, Whitespace};
+
+    for (source, handoff, punctuation) in [
+        ("cast @ : T;", CastTarget, Colon),
+        ("cast @ = x", Equals, Equals),
+        ("cast @ ;", Semicolon, Semicolon),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let mut children = node.children_with_tokens();
+        let prefix = children
+            .by_ref()
+            .take(4)
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            prefix,
+            [
+                (CastKw, 0..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Whitespace, 6..7)
+            ],
+            "{source:?}"
+        );
+        let next = children.next().expect("native phase handoff");
+        assert_eq!(next.kind(), handoff, "{source:?}");
+        let token = match next {
+            rowan::NodeOrToken::Node(node) => node.first_token().expect("target punctuation"),
+            rowan::NodeOrToken::Token(token) => token,
+        };
+        assert_eq!(token.kind(), punctuation, "{source:?}");
+        assert_eq!(
+            usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+            7..8,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn cast_pattern_introducer_records_are_exact_shifted_and_reconciled() {
     for origin in [100, 12_000] {
         for (source, stops, kind, relative_range) in [

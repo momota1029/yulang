@@ -118,6 +118,27 @@ the four slot phases, direct parentage/no Invalid, and the pending safe-point
 leading partition. Visibility/lazy prelude, Root body, header facts/conflicts,
 fences, and every other declaration/header row remain separate.
 
+#### Cast PatternIntroducer Draft links
+
+Only the required opening-parenthesis introducer immediately after CastKw is
+linked. Its CST identity has two authorized shapes: direct CastDeclaration
+Missing/Error+ before a CastPattern is admitted, and the initial Missing inside
+an implicit `CastPattern(Missing Pattern ...)` for a bare accepted Pattern.
+The latter is distinct from a value Missing after native LParen by direct child
+position, even though both share a CastPattern parent.
+
+Direct Rowan proof is `cast_pattern_introducer_direct_rowan_slot_order_and_ranges`,
+`cast_pattern_introducer_initial_pattern_children_distinguish_value_recovery`,
+and `cast_pattern_introducer_rowan_error_group_ends_before_phase_handoff` in
+`crates/yu-syntax/src/tests/declaration/cast_decl.rs`. It covers fresh
+Missing, terminal Error and its same-line EOF/CRLF partition, Error-to-bare
+Pattern retry without duplicate Missing, actual LParen, and Colon/Equals/
+Semicolon/close/active-stop handoff. Recovery records and Error spelling are
+not used. M1 repair and delta audit were clean. This is a catalog-audited
+evidence-complete Draft only for PatternIntroducer; Pattern value/close,
+target/form/body, nested Pattern, global interpreter and ledger retirement
+remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

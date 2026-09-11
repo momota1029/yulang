@@ -663,6 +663,14 @@ reading recovery records; protected For `in`, delimiter close, and outer
 TypeAnnotation ownership remain outside the direct Error group. Delimiter
 sequences/closes, default Expression, other Pattern rows, the global collector
 and ledger/API migration remain open.
+Cast PatternIntroducer is now separately catalog-audited as an
+evidence-complete Draft. The required opening-parenthesis role is selected by
+either direct CastDeclaration Missing/Error after CastKw or the initial Missing
+inside an implicit bare-pattern CastPattern. Direct child order distinguishes
+that inner opener absence from the later Pattern value Missing after native
+LParen; Error-to-bare retry has no duplicate opener Missing. Pattern
+value/close, target/form/body, nested Pattern, the global collector and
+ledger/API migration remain open.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and
