@@ -364,6 +364,242 @@ fn descendants(node: &SyntaxNode, kind: SyntaxKind) -> usize {
         .count()
 }
 
+// Slot evidence uses only ordered Rowan children and byte ranges. In particular,
+// Error spelling and the parser's temporary recovery ledger are not consulted.
+fn assert_mod_shell(source: &str, expected: &[(SyntaxKind, std::ops::Range<u32>)]) -> SyntaxNode {
+    let (green, _) = run_statement(source);
+    let declaration = mod_declaration(&green);
+    let actual = declaration
+        .children_with_tokens()
+        .map(|child| {
+            let range = child.text_range();
+            (
+                child.kind(),
+                u32::from(range.start())..u32::from(range.end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected, "{source:?}");
+    assert!(
+        !declaration
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Invalid)
+    );
+    declaration
+}
+
+#[test]
+fn mod_schema_identity_slots_have_direct_missing_error_and_identifier_retry() {
+    use SyntaxKind::*;
+    for (source, suffix) in [
+        ("mod  ", vec![(Whitespace, 3..5), (Missing, 5..5)]),
+        ("mod @  ", vec![(Whitespace, 3..4), (Error, 4..5)]),
+        (
+            "mod @ # 名;",
+            vec![
+                (Whitespace, 3..4),
+                (Error, 4..5),
+                (Error, 5..6),
+                (Error, 6..7),
+                (Whitespace, 7..8),
+                (Identifier, 8..11),
+                (Semicolon, 11..12),
+            ],
+        ),
+    ] {
+        let mut expected = vec![(ModKw, 0..3)];
+        expected.extend(suffix);
+        assert_mod_shell(source, &expected);
+    }
+    for (source, suffix) in [
+        ("mod test  ", vec![(Whitespace, 8..10), (Missing, 10..10)]),
+        ("mod test @  ", vec![(Whitespace, 8..9), (Error, 9..10)]),
+        (
+            "mod test @ test;",
+            vec![
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Whitespace, 10..11),
+                (Identifier, 11..15),
+                (Semicolon, 15..16),
+            ],
+        ),
+        (
+            "mod test test;",
+            vec![(Whitespace, 8..9), (Identifier, 9..13), (Semicolon, 13..14)],
+        ),
+        ("mod test;", vec![(Semicolon, 8..9)]),
+    ] {
+        let mut expected = vec![(ModKw, 0..3), (Whitespace, 3..4), (TestModuleMarker, 4..8)];
+        expected.extend(suffix);
+        assert_mod_shell(source, &expected);
+    }
+}
+
+#[test]
+fn mod_schema_anonymous_test_marker_selects_braced_and_inline_bodies() {
+    use SyntaxKind::*;
+    for (source, suffix, body_kind) in [
+        (
+            "mod test {}",
+            vec![(Whitespace, 8..9), (BracedStatementBlockExpression, 9..11)],
+            BracedStatementBlockExpression,
+        ),
+        (
+            "mod test: x",
+            vec![(Colon, 8..9), (Statement, 9..11)],
+            Statement,
+        ),
+    ] {
+        let mut expected = vec![(ModKw, 0..3), (Whitespace, 3..4), (TestModuleMarker, 4..8)];
+        expected.extend(suffix);
+        let declaration = assert_mod_shell(source, &expected);
+        assert_eq!(
+            declaration
+                .descendants()
+                .filter(|node| node.kind() == TestModuleMarker)
+                .count(),
+            1,
+            "{source:?}"
+        );
+        assert!(
+            !declaration
+                .children_with_tokens()
+                .any(|child| child.kind() == Identifier),
+            "{source:?}"
+        );
+        let body = declaration
+            .children()
+            .find(|node| node.kind() == body_kind)
+            .expect("anonymous test body");
+        assert_eq!(body.parent(), Some(declaration));
+        assert_eq!(
+            body.text_range(),
+            rowan::TextRange::new(9.into(), 11.into())
+        );
+    }
+}
+
+#[test]
+fn mod_schema_completed_identity_selects_body_introducer_before_inline_body() {
+    use SyntaxKind::*;
+    for (source, suffix) in [
+        ("mod 名;", vec![(Semicolon, 7..8)]),
+        (
+            "mod 名 {}",
+            vec![(Whitespace, 7..8), (BracedStatementBlockExpression, 8..10)],
+        ),
+        ("mod 名: x", vec![(Colon, 7..8), (Statement, 8..10)]),
+        ("mod 名  ", vec![(Whitespace, 7..9), (Missing, 9..9)]),
+        (
+            "mod 名 x",
+            vec![(Whitespace, 7..8), (Missing, 8..8), (Statement, 8..9)],
+        ),
+        ("mod 名 @  ", vec![(Whitespace, 7..8), (Error, 8..9)]),
+        (
+            "mod 名 @ ;",
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (Semicolon, 10..11),
+            ],
+        ),
+        (
+            "mod 名 @ {}",
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (BracedStatementBlockExpression, 10..12),
+            ],
+        ),
+        (
+            "mod 名 @ : x",
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (Colon, 10..11),
+                (Statement, 11..13),
+            ],
+        ),
+        (
+            "mod 名 @ x",
+            vec![(Whitespace, 7..8), (Error, 8..9), (Statement, 9..11)],
+        ),
+    ] {
+        let mut expected = vec![(ModKw, 0..3), (Whitespace, 3..4), (Identifier, 4..7)];
+        expected.extend(suffix);
+        assert_mod_shell(source, &expected);
+    }
+}
+
+#[test]
+fn mod_schema_actual_colon_selects_inline_body_and_keeps_child_recovery_nested() {
+    use SyntaxKind::*;
+    for (source, suffix) in [
+        ("mod 名:  ", vec![(Missing, 8..8)]),
+        ("mod 名:\r\nnext", vec![(Missing, 8..8)]),
+        ("mod 名: @  ", vec![(Whitespace, 8..9), (Error, 9..10)]),
+        (
+            "mod 名: @ # x;",
+            vec![
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Error, 10..11),
+                (Error, 11..12),
+                (Statement, 12..14),
+                (Semicolon, 14..15),
+            ],
+        ),
+    ] {
+        let mut expected = vec![
+            (ModKw, 0..3),
+            (Whitespace, 3..4),
+            (Identifier, 4..7),
+            (Colon, 7..8),
+        ];
+        expected.extend(suffix);
+        let declaration = assert_mod_shell(source, &expected);
+        if let Some(statement) = declaration.children().find(|node| node.kind() == Statement) {
+            let leading = statement.first_token().expect("retry leading");
+            assert_eq!(leading.kind(), Whitespace);
+            assert_eq!(
+                leading.text_range(),
+                rowan::TextRange::new(12.into(), 13.into())
+            );
+        }
+    }
+    let declaration = assert_mod_shell(
+        "mod 名: my x =",
+        &[
+            (ModKw, 0..3),
+            (Whitespace, 3..4),
+            (Identifier, 4..7),
+            (Colon, 7..8),
+            (Statement, 8..15),
+        ],
+    );
+    let statement = declaration
+        .children()
+        .find(|node| node.kind() == Statement)
+        .expect("canonical Statement");
+    let binding = statement
+        .children()
+        .find(|node| node.kind() == BindingStatement)
+        .expect("child BindingStatement");
+    let body = binding
+        .children()
+        .find(|node| node.kind() == BindingBody)
+        .expect("child BindingBody");
+    let missing = body
+        .children()
+        .find(|node| node.kind() == Missing)
+        .expect("Binding-owned body Missing");
+    assert_eq!(missing.text_range(), rowan::TextRange::empty(15.into()));
+}
+
 #[test]
 fn mod_c10_builds_named_and_test_identity_topology() {
     for (source, visibility, marker, direct_names) in [

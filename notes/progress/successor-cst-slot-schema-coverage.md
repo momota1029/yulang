@@ -205,6 +205,26 @@ Direct Rowan proof is the three `cast_body_direct_rowan_*` tests in
 parentage/ranges only. M1 post-write audit was clean. Nested Expression,
 fence and other Cast rows remain open.
 
+#### ModDeclaration Name/TestName/BodyIntroducer/inline Body Draft links
+
+Only `crates/yu-syntax/src/declaration/mod_decl.rs:76–328,760–894` is linked
+to the four bounded direct Mod rows. Rowan child order distinguishes the first
+`test` marker from a second ordinary TestName Identifier; the marker's direct
+semicolon, braced and Colon starters do not manufacture a second name. After
+completed identity, direct Missing/Error and native body starters identify
+BodyIntroducer. An actual direct Colon identifies inline Body, whose Statement
+child retains nested recovery ownership.
+
+Direct Rowan proof is `mod_schema_identity_slots_have_direct_missing_error_and_identifier_retry`,
+`mod_schema_anonymous_test_marker_selects_braced_and_inline_bodies`,
+`mod_schema_completed_identity_selects_body_introducer_before_inline_body`,
+and `mod_schema_actual_colon_selects_inline_body_and_keeps_child_recovery_nested`
+in `crates/yu-syntax/src/tests/declaration/mod_decl.rs`. It covers UTF-8,
+CRLF/EOF-leading, terminal/multi-leaf Error, retry leading and child BindingBody
+delegation without records, Error spelling or scanner state. M2 spec/regression
+audits and the marker-body delta audit were clean. Visibility, braced/indented
+children, caller boundaries and all other Mod rows remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

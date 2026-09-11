@@ -697,6 +697,12 @@ Draft. Direct CastBody Missing/Error and retry OperatorChain select Expression
 Body; same-line EOF leading is body-owned, while CRLF/protected handoff and
 strictly-deeper indented Statement remain separate. Nested Expression/fence and
 other Cast rows remain open with global collection and ledger/API migration.
+The four direct ModDeclaration phases are now catalog-audited as an
+evidence-complete Draft. Ordered Rowan children distinguish first `test` marker
+from second TestName Identifier, then completed-identity BodyIntroducer from
+actual-Colon inline Body. The direct child Statement owns its nested BindingBody
+recovery; braced/indented children, visibility, caller boundaries and remaining
+Mod rows stay open with global collection and ledger/API migration.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and
