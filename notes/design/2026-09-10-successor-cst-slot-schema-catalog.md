@@ -949,6 +949,18 @@ excludes payload/FromType, fields, closes and caller/fence behavior.
 | diagnostic projection | Direct Variant Missing/Error with no following direct Identifier projects Item; the same Error group followed by direct Identifier projects Name; direct shell Missing between variants projects Separator. Parentage, source order and Enum/Error declaration ancestor suffice; Error spelling, records and scanner state are not inputs. |
 | proof and status | Governing authority: [declaration Variant current-Item recovery](2026-09-08-successor-declaration-variant-current-item-recovery.md), **Publication and handoff**, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/declaration_variant.rs:190–438,784–811`; callers: `enum_decl.rs:545–585`, `error_decl.rs:545–585`. Direct Rowan proof is in `crates/yu-syntax/src/tests/declaration/declaration_variant.rs`. M1 post-write specification audit was clean. Status: catalog-audited evidence-complete Draft only for these direct core rows; payload/FromType/fields/closes/callers, global collector, parser API and recovery-ledger retirement remain open. |
 
+### Enum/Error declaration header Name and BodyIntroducer Draft
+
+This bounded Draft maps paired declaration-header recovery only; variants,
+payloads, fields, closes, derives and companions are excluded.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | Direct Missing/Error after EnumKw or ErrorKw selects Name; direct Identifier after Name Error is its retry. Missing Name followed by body punctuation remains Name only. BodyIntroducer is direct Error after completed header Name/native parameter context and before a direct body starter. Clean header boundaries are valid Bodyless: no BodyIntroducer Missing exists. |
+| ordered Rowan grammar | `Header := Kw Native* (Missing \| Error+ Native* Identifier \| Identifier) Native* (Error+ Native* starter \| starter \| Bodyless)`. Starters are Semicolon, LBrace, Colon and Equals; they are native and outside Error. Error+ is maximal adjacent direct declaration Error content. Enum/Error ancestor selects vocabulary. No Invalid belongs to these rows. |
+| diagnostic projection | Direct Name Missing/Error projects the matching Name role; direct post-completed-name Error projects BodyIntroducer with ordered `[Semicolon, Open(Brace), Colon, Equals]`. Clean Bodyless projects nothing. Parentage/order select the row; records, Error spelling and scanner state are not inputs. |
+| proof and status | Governing authority: [Enum/Error header current-Item recovery](2026-09-09-successor-enum-error-header-current-item-recovery.md), **Records and no-cascade**, plus the CST-derived diagnostics amendment. Publishers: `enum_decl.rs:333–349,636–656,1046–1105`; `error_decl.rs:333–349,604–624,1013–1072`. Direct Rowan proof: top-of-file `*_schema_*` additions in `tests/declaration/enum_decl.rs` and `error_decl.rs`. M1 post-write specification audit was clean. Status: catalog-audited evidence-complete Draft only for direct header rows; excluded owners, global collector, parser API and ledger retirement remain open. |
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

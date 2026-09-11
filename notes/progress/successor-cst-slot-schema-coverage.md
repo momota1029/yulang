@@ -277,6 +277,15 @@ covers both declaration ancestors and four Name forms without records, Error
 spelling or scanner state. M1 specification audit was clean; payload, FromType,
 fields, close and caller/fence rows remain separate.
 
+#### Enum/Error declaration header Name/BodyIntroducer Draft links
+
+Paired direct Rowan proof in `tests/declaration/enum_decl.rs` and
+`error_decl.rs` maps Name Missing/Error/retry and post-name BodyIntroducer
+Error/retry. Clean header termination is Bodyless and deliberately has no
+BodyIntroducer Missing. All four body starters remain native outside Error.
+M1 specification audit was clean; variants, payloads, fields, closes, derives,
+companions and caller/fence rows remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

@@ -722,6 +722,10 @@ declaration-shell parentage distinguish terminal Item, Identifier-retrying Name
 and shell Separator without an Error-text or ledger oracle. Payload, FromType,
 fields, close and caller/fence rows remain open with global collection and
 ledger/API migration.
+Enum/Error declaration-header Name and BodyIntroducer are now catalog-audited
+as an evidence-complete Draft. Missing Name does not cascade at body starters;
+clean header termination is diagnostic-free Bodyless, while post-name Error
+selects BodyIntroducer structurally. Excluded declaration owners remain open.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

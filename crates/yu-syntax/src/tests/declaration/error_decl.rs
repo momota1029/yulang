@@ -1,6 +1,184 @@
 use crate::tests::support::*;
 
 #[test]
+fn error_header_slots_have_direct_rowan_evidence() {
+    use SyntaxKind::{Error, Identifier, Missing, Semicolon, Whitespace};
+
+    // BodyIntroducer has no Missing publisher: a clean boundary is Bodyless.
+    // These rows select Name before Identifier and BodyIntroducer after it.
+    for (tail, expected) in [
+        (
+            " ;",
+            vec![(Whitespace, 0..1), (Missing, 1..1), (Semicolon, 1..2)],
+        ),
+        (
+            " @ ",
+            vec![(Whitespace, 0..1), (Error, 1..2), (Whitespace, 2..3)],
+        ),
+        (
+            " $hidden ",
+            vec![(Whitespace, 0..1), (Error, 1..8), (Whitespace, 8..9)],
+        ),
+        (
+            " @ 名;",
+            vec![
+                (Whitespace, 0..1),
+                (Error, 1..2),
+                (Whitespace, 2..3),
+                (Identifier, 3..6),
+                (Semicolon, 6..7),
+            ],
+        ),
+        (" 名", vec![(Whitespace, 0..1), (Identifier, 1..4)]),
+        (
+            " 名 @ ",
+            vec![
+                (Whitespace, 0..1),
+                (Identifier, 1..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Whitespace, 6..7),
+            ],
+        ),
+        (
+            " 名 @ ;",
+            vec![
+                (Whitespace, 0..1),
+                (Identifier, 1..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Whitespace, 6..7),
+                (Semicolon, 7..8),
+            ],
+        ),
+        (
+            " 名 't @ ;",
+            vec![
+                (Whitespace, 0..1),
+                (Identifier, 1..4),
+                (SyntaxKind::DeclarationTypeParameterList, 4..7),
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (Semicolon, 10..11),
+            ],
+        ),
+    ] {
+        let source = format!("error{tail}");
+        let (green, _, _) = run_error_declaration(&source, 0, 0, LineEntry::InLine, None);
+        let root = SyntaxNode::new_root(green);
+        let node = root.children().next().expect("direct declaration");
+        assert_eq!(node.kind(), SyntaxKind::ErrorDeclaration);
+        assert_eq!(node.parent(), Some(root.clone()));
+        let children = node.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children[0].kind(), SyntaxKind::ErrorKw);
+        let offset = 5;
+        assert_eq!(
+            children
+                .iter()
+                .skip(1)
+                .map(|child| (
+                    child.kind(),
+                    usize::from(child.text_range().start()) - offset
+                        ..usize::from(child.text_range().end()) - offset,
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}",
+        );
+        for child in &children {
+            assert_eq!(child.parent(), Some(node.clone()));
+            if child.kind() == Missing {
+                assert!(child.as_node().is_some());
+                assert!(child.text_range().is_empty());
+            } else if child.kind() == Error {
+                assert!(child.as_token().is_some());
+                assert!(!child.text_range().is_empty());
+            }
+        }
+        assert!(
+            !root
+                .descendants()
+                .any(|child| child.kind() == SyntaxKind::Invalid)
+        );
+    }
+}
+
+#[test]
+fn error_header_starters_are_outside_name_and_introducer_recovery() {
+    use SyntaxKind::{Colon, Equals, Error, Identifier, LBrace, Missing, Semicolon};
+
+    for (body, starter) in [
+        (";", Semicolon),
+        ("{}", LBrace),
+        (":\n  A", Colon),
+        ("= A", Equals),
+    ] {
+        for (header, header_kinds) in [
+            (" ", vec![Missing]),
+            (" 名 ", vec![Identifier]),
+            (" 名 @ ", vec![Identifier, Error]),
+        ] {
+            let source = format!("error{header}{body}");
+            let (green, _, _) = run_error_declaration(&source, 0, 0, LineEntry::InLine, None);
+            let root = SyntaxNode::new_root(green);
+            let node = root.children().next().expect("direct declaration");
+            assert_eq!(node.kind(), SyntaxKind::ErrorDeclaration);
+            assert_eq!(node.parent(), Some(root.clone()));
+            let children = node.children_with_tokens().collect::<Vec<_>>();
+            let at = children
+                .iter()
+                .position(|child| child.kind() == starter)
+                .expect("actual direct starter");
+            assert_eq!(
+                children
+                    .iter()
+                    .filter(|child| child.kind() == starter)
+                    .count(),
+                1,
+                "{source:?}",
+            );
+            assert_eq!(children[at].parent(), Some(node.clone()));
+            assert!(children[at].as_token().is_some());
+            assert_eq!(
+                usize::from(children[at].text_range().start()),
+                5 + header.len()
+            );
+            assert_eq!(
+                usize::from(children[at].text_range().end()),
+                5 + header.len() + 1
+            );
+            assert_eq!(
+                children[1..at]
+                    .iter()
+                    .filter(|child| child.kind() != SyntaxKind::Whitespace)
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                header_kinds,
+                "{source:?}",
+            );
+            let expected_recovery = children[1..at]
+                .iter()
+                .filter(|child| matches!(child.kind(), Missing | Error))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter(|child| matches!(child.kind(), Missing | Error))
+                    .collect::<Vec<_>>(),
+                expected_recovery,
+                "{source:?}",
+            );
+            assert!(
+                !root
+                    .descendants()
+                    .any(|child| child.kind() == SyntaxKind::Invalid)
+            );
+        }
+    }
+}
+
+#[test]
 fn error_braced_variant_outer_close_preserves_protected_boundaries() {
     use crate::lexical::item::{BorrowedTarget, Boundary};
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
