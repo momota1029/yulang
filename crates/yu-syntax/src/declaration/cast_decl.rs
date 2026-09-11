@@ -26,8 +26,9 @@ use crate::{
         expression_item::expression_item,
         item::{Item, LeadingTrivia, TokenKind},
         lexer::{
-            introduced_body_indentation_normalized, scan_identifier, scan_pattern_nud_payload,
-            scan_statement_payload, scan_type_nud_payload, source_identifier,
+            introduced_body_indentation_normalized, scan_exact_equals, scan_identifier,
+            scan_operator_shaped_unknown, scan_pattern_nud_payload, scan_statement_payload,
+            scan_type_nud_payload, source_identifier,
         },
         observation::{
             implicit_delimited_newline, is_active_stop, is_active_stop_lex, is_line_stop,
@@ -56,6 +57,7 @@ enum CastVocabulary {
     Pattern,
     Type,
     Form,
+    PatternClose,
     Statement,
 }
 
@@ -1577,7 +1579,7 @@ fn cast_pattern_close_error_run(
                         fence,
                         baseline,
                         stops,
-                        CastVocabulary::Statement,
+                        CastVocabulary::PatternClose,
                     )
                 });
                 let transition = cast_transition_lex(run, &item, baseline, stops);
@@ -1988,7 +1990,7 @@ fn scan_cast_item_lexical(
             item_origin,
             line_entry,
             fence,
-            |lex, leading, origin, fence, _| match vocabulary {
+            |mut lex, leading, origin, fence, _| match vocabulary {
                 CastVocabulary::RawIdentifier => {
                     scan_identifier(lex).map(|identifier| AcceptedPayload {
                         payload: CurrentPayload::Token(identifier),
@@ -2001,7 +2003,23 @@ fn scan_cast_item_lexical(
                 // Type token vocabulary keeps exact `=` distinct from malformed
                 // Statement operators so the form owner can retry it unchanged.
                 CastVocabulary::Form => scan_type_nud_payload(lex, leading, origin, fence),
-                CastVocabulary::Statement => {
+                CastVocabulary::PatternClose | CastVocabulary::Statement => {
+                    // Preserve exact declaration `=` for the form phase. Consume
+                    // rejected equals-leading spellings whole so a suffix `=`
+                    // cannot become a form retry; other successors stay Statement-owned.
+                    if matches!(vocabulary, CastVocabulary::PatternClose)
+                        && let Some(token) = lex.token(scan_exact_equals).or_else(|| {
+                            lex.remainder()
+                                .starts_with('=')
+                                .then(|| lex.token(scan_operator_shaped_unknown))
+                                .flatten()
+                        })
+                    {
+                        return Some(AcceptedPayload {
+                            payload: CurrentPayload::Token(token),
+                            next_line_entry: LineEntry::InLine,
+                        });
+                    }
                     scan_statement_payload(lex, leading, origin, fence, baseline, stops)
                 }
             },

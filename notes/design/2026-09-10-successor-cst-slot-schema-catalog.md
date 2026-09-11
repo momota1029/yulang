@@ -827,6 +827,19 @@ and the CST-derived diagnostics amendment. M1 audit was clean. Status:
 catalog-audited evidence-complete Draft for these witnesses only; local-close
 Error, fence topology and remaining Cast rows remain open.
 
+### Cast Pattern close Draft
+
+This bounded Authoritative row maps the local closing parenthesis after a
+completed CastPattern value. It excludes value, target, form/body and
+no-local-frame recovery.
+
+| Fact | Catalog row |
+| --- | --- |
+| identity | `(CastPattern, terminal local Parenthesis after direct Pattern value)`. Direct terminal Missing/Error+ after Pattern projects `ClosingDelimiter(CastPattern, Parenthesis)`. Accepted local RParen is native and has no occurrence. |
+| ordered Rowan grammar | `CastPattern := LParen Pattern (RParen | Missing | Native* Error+ Native* RParen?)`. Direct Error leaves are one maximal adjacent group; retry leading stays native outside. Same-line EOF suffix is Error content; CRLF/protected Items remain outside. |
+| transition and projection | Matching local RParen wins. EOF/outer boundary/form handoff publishes one direct Missing; malformed Error retries local close or later phase without a second Missing. Exact `=` is acquired as a form token before the Statement fallback. `==`, `=>` and `=>>` are consumed whole as non-form Error input, so no suffix `=` can start a false form. Direct Missing/Error+ projects expected `Close(Parenthesis)`, primary zero, from parentage/order/range only. |
+| proof and status | Authority: [cast Pattern close recovery](2026-09-09-successor-cast-pattern-close-current-item-recovery.md) and CST diagnostics amendment. Owner: `crates/yu-syntax/src/declaration/cast_decl.rs:593–718,1556–1610,2006–2025`. Direct proof: `cast_pattern_close_direct_rowan_*` tests in `crates/yu-syntax/src/tests/declaration/cast_decl.rs`, including exact/frozen nonzero-origin form retry controls. Compiler-referee root-cause and delta review were clean. Status: catalog-audited evidence-complete Draft for witnessed local-close paths; fence and remaining Cast rows remain open. |
+
 ### Cast TargetIntroducer Draft
 
 This bounded Draft maps only the required colon after a completed CastPattern.

@@ -1022,6 +1022,10 @@ fn cast_pattern_close_records_are_exact_and_reconcile() {
             ("cast(x;", RecoveryKind::Missing, 6..6),
             ("cast(x= value", RecoveryKind::Missing, 6..6),
             ("cast(x @ ): T;", RecoveryKind::Error, 7..8),
+            ("cast(x @ = value", RecoveryKind::Error, 7..8),
+            ("cast(x @ =", RecoveryKind::Error, 7..8),
+            ("cast(x @ == = value", RecoveryKind::Error, 7..11),
+            ("cast(x @ =>> = value", RecoveryKind::Error, 7..12),
             ("cast(x @   ", RecoveryKind::Error, 7..11),
             ("cast(x @\r\n", RecoveryKind::Error, 7..8),
         ] {
@@ -1058,6 +1062,212 @@ fn cast_pattern_close_records_are_exact_and_reconcile() {
             assert_eq!(seeded_green, green, "{source:?} at {origin}");
             assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
             assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+        }
+    }
+}
+
+#[test]
+fn cast_pattern_close_direct_rowan_terminal_order_and_ranges() {
+    use SyntaxKind::{Error, LParen, Missing, Pattern, RParen, Whitespace};
+
+    // The completed Pattern separates terminal close recovery from value recovery.
+    // Native retry leading is ordinary trivia, while same-line EOF leading
+    // remains adjacent Error leaves in this close slot.
+    for (source, stops, terminal) in [
+        ("cast(x): T;", 0, vec![(RParen, 6..7)]),
+        ("cast(x", 0, vec![(Missing, 6..6)]),
+        ("cast(x;", 0, vec![(Missing, 6..6)]),
+        ("cast(x= value", 0, vec![(Missing, 6..6)]),
+        ("cast(x ] tail", 0, vec![(Missing, 6..6)]),
+        ("cast(x } tail", 0, vec![(Missing, 6..6)]),
+        ("cast(x else tail", STOP_ELSE, vec![(Missing, 6..6)]),
+        ("cast(x @", 0, vec![(Whitespace, 6..7), (Error, 7..8)]),
+        (
+            "cast(x @   ",
+            0,
+            vec![(Whitespace, 6..7), (Error, 7..8), (Error, 8..11)],
+        ),
+        ("cast(x @\r\n", 0, vec![(Whitespace, 6..7), (Error, 7..8)]),
+        (
+            "cast(x @ ] tail",
+            0,
+            vec![(Whitespace, 6..7), (Error, 7..8)],
+        ),
+        (
+            "cast(x @ else tail",
+            STOP_ELSE,
+            vec![(Whitespace, 6..7), (Error, 7..8)],
+        ),
+        (
+            "cast(x @ ): T;",
+            0,
+            vec![
+                (Whitespace, 6..7),
+                (Error, 7..8),
+                (Whitespace, 8..9),
+                (RParen, 9..10),
+            ],
+        ),
+        (
+            "cast(x @ : T;",
+            0,
+            vec![(Whitespace, 6..7), (Error, 7..8), (Whitespace, 8..9)],
+        ),
+        (
+            "cast(x @ ;",
+            0,
+            vec![(Whitespace, 6..7), (Error, 7..8), (Whitespace, 8..9)],
+        ),
+        (
+            "cast(x @ = value",
+            0,
+            vec![(Whitespace, 6..7), (Error, 7..8), (Whitespace, 8..9)],
+        ),
+        (
+            "cast(x @ 💥 ): T;",
+            0,
+            vec![
+                (Whitespace, 6..7),
+                (Error, 7..8),
+                (Error, 8..9),
+                (Error, 9..13),
+                (Whitespace, 13..14),
+                (RParen, 14..15),
+            ],
+        ),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, stops, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let pattern = node
+            .children()
+            .find(|child| child.kind() == SyntaxKind::CastPattern)
+            .unwrap();
+        assert_eq!(pattern.parent(), Some(node.clone()));
+        let actual = pattern
+            .children_with_tokens()
+            .map(|child| {
+                match child.kind() {
+                    Missing | Pattern => assert!(child.as_node().is_some()),
+                    _ => assert!(child.as_token().is_some()),
+                }
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut expected = vec![(LParen, 4..5), (Pattern, 5..6)];
+        expected.extend(terminal);
+        assert_eq!(actual, expected, "{source:?}");
+        assert!(
+            !node
+                .descendants_with_tokens()
+                .any(|child| child.kind() == SyntaxKind::Invalid),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn cast_pattern_close_direct_rowan_phase_and_boundary_ownership() {
+    use SyntaxKind::{CastKw, CastPattern, CastTarget, Colon, Equals, Semicolon};
+
+    for prefix in ["cast(x", "cast(x @"] {
+        for (suffix, owner, punctuation) in [
+            (": T;", CastTarget, Colon),
+            (";", Semicolon, Semicolon),
+            ("= value", Equals, Equals),
+        ] {
+            // Immediate colon is Pattern annotation; only the malformed
+            // close run reaches the Cast target-introducer retry here.
+            if prefix == "cast(x" && punctuation == Colon {
+                continue;
+            }
+            let source = format!("{prefix} {suffix}");
+            let (green, _, _) = run_cast_declaration(&source, 0, 0, LineEntry::InLine, None);
+            let node = declaration(&green);
+            let mut children = node.children_with_tokens();
+            assert_eq!(children.next().unwrap().kind(), CastKw);
+            assert_eq!(children.next().unwrap().kind(), CastPattern);
+            let next = children.next().expect("next phase retains punctuation");
+            assert_eq!(next.kind(), owner, "{source:?}");
+            let token = match next {
+                rowan::NodeOrToken::Node(node) => node.first_token().unwrap(),
+                rowan::NodeOrToken::Token(token) => token,
+            };
+            assert_eq!(token.kind(), punctuation);
+            assert_eq!(usize::from(token.text_range().start()), prefix.len() + 1);
+            assert_eq!(usize::from(token.text_range().end()), prefix.len() + 2);
+        }
+        for (suffix, stops) in [
+            (" ] tail", 0),
+            (" } tail", 0),
+            (" else tail", STOP_ELSE),
+            ("\r\n", 0),
+        ] {
+            let source = format!("{prefix}{suffix}");
+            let (green, _, _) = run_cast_declaration(&source, stops, 0, LineEntry::InLine, None);
+            let node = declaration(&green);
+            assert_eq!(
+                node.children_with_tokens()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                [CastKw, CastPattern],
+                "{source:?}"
+            );
+            assert_eq!(
+                usize::from(node.text_range().end()),
+                prefix.len(),
+                "{source:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn cast_pattern_close_exact_equals_preserves_form_and_body() {
+    for malformed in ["@", "@ ==", "@ =>", "@ =>>"] {
+        for body in ["", " value"] {
+            let prefix = format!("cast(x {malformed}");
+            let source = format!("{prefix} ={body}");
+            let (green, _, _) = run_cast_declaration(&source, 0, 0, LineEntry::InLine, None);
+            let node = declaration(&green);
+            let children = node.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children[1].kind(), SyntaxKind::CastPattern, "{source:?}");
+            let pattern = children[1].as_node().unwrap();
+            assert_eq!(usize::from(pattern.text_range().end()), prefix.len() + 1);
+            let errors = pattern
+                .children_with_tokens()
+                .filter(|child| child.kind() == SyntaxKind::Error)
+                .collect::<Vec<_>>();
+            assert_eq!(usize::from(errors.first().unwrap().text_range().start()), 7);
+            assert_eq!(
+                usize::from(errors.last().unwrap().text_range().end()),
+                prefix.len()
+            );
+            assert_eq!(pattern.last_token().unwrap().kind(), SyntaxKind::Whitespace);
+            assert!(
+                !pattern
+                    .descendants()
+                    .any(|child| child.kind() == SyntaxKind::Missing)
+            );
+            assert_eq!(children[2].kind(), SyntaxKind::Equals, "{source:?}");
+            assert_eq!(children[2].as_token().unwrap().text(), "=");
+            assert_eq!(
+                usize::from(children[2].text_range().start()),
+                prefix.len() + 1
+            );
+            assert_eq!(children.len(), 4, "{source:?}");
+            assert_eq!(children[3].kind(), SyntaxKind::CastBody, "{source:?}");
+            let statement = children[3].as_node().unwrap();
+            assert_eq!(statement.to_string(), body);
+            assert_eq!(
+                statement
+                    .descendants()
+                    .any(|child| child.kind() == SyntaxKind::Missing),
+                body.is_empty()
+            );
         }
     }
 }

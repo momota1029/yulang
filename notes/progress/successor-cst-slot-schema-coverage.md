@@ -148,6 +148,15 @@ evidence, while nonempty malformed Pattern owns its nested Error. Three
 prove order/ranges and terminal boundaries without records or Error spelling.
 M1 audit was clean; local-close Error, fence and remaining Cast rows stay open.
 
+#### Cast Pattern close Draft links
+
+The direct terminal CastPattern Missing/Error group after its value maps local
+Parenthesis close. Exact `=` now remains form-owned after malformed close;
+equals-leading non-form spellings stay whole Error input. Direct
+`cast_pattern_close_direct_rowan_*` controls prove ordering, records/frozen
+reconciliation and retry ownership without Error spelling. Compiler-referee
+repair review was clean; fence and remaining Cast rows remain open.
+
 #### Cast TargetIntroducer Draft links
 
 Only the required colon after a completed CastPattern is linked. Direct

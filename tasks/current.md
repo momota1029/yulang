@@ -675,6 +675,10 @@ Cast Pattern value is separately catalog-audited: direct native
 LParen/Missing/local-close order selects its required Pattern role, while
 nonempty recovery stays nested Pattern-owned. Local-close Error, fence and
 remaining Cast rows remain open.
+Cast Pattern local close is now catalog-audited after a scoped repair: exact
+`=` survives malformed close recovery for form ownership, while `==`/`=>`/`=>>`
+remain whole non-form Error input. Direct terminal CastPattern Missing/Error
+selects its local Parenthesis close; fence and remaining Cast rows stay open.
 Cast TargetIntroducer is also a catalog-audited evidence-complete Draft. After
 a completed CastPattern, its direct declaration Missing/Error and the initial
 Missing inside `CastTarget(Missing TypeExpression)` both select the required
