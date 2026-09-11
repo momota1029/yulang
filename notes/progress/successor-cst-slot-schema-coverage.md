@@ -297,6 +297,13 @@ phase shells and proves seven additional attachment paths with unique `with {}`
 wiring. Inline malformed Statement Error remains delegated. M2 spec/regression
 and delta audits were clean; nested/caller owners remain separate.
 
+#### UseDeclaration Path/Alias/group-entry Draft links
+
+`tests/declaration/use_decl.rs` maps ordered Path, Alias and group entry/comma
+slots, including nested and parenthesized routes and UTF-8. Foreign/local close
+and OperatorName close are explicitly excluded pending topology selection. M2
+specification and regression delta audits were clean.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

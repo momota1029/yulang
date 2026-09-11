@@ -1,5 +1,331 @@
 use crate::tests::support::*;
 
+// The matrix reads native ordered Rowan children, including adjacent Error
+// fragments and the ordinary trivia that ends their run; no Error spelling or
+// parser recovery records participate in selecting a slot.
+fn assert_use_schema_children(
+    source: &str,
+    owner: SyntaxKind,
+    ancestors: &[SyntaxKind],
+    expected: &[(SyntaxKind, std::ops::Range<u32>)],
+) {
+    assert_use_schema_occurrence(source, owner, 0, ancestors, expected);
+}
+
+fn assert_use_schema_occurrence(
+    source: &str,
+    owner: SyntaxKind,
+    occurrence: usize,
+    ancestors: &[SyntaxKind],
+    expected: &[(SyntaxKind, std::ops::Range<u32>)],
+) {
+    let (green, _) = run_statement(source);
+    let declaration = use_declaration(&green);
+    assert_eq!(declaration.to_string(), source);
+    let node = declaration
+        .descendants()
+        .filter(|node| node.kind() == owner)
+        .nth(occurrence)
+        .unwrap();
+    assert_eq!(
+        node.ancestors()
+            .take(ancestors.len())
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        ancestors,
+        "{source:?}",
+    );
+    assert_eq!(
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>(),
+        expected,
+        "{source:?}",
+    );
+}
+
+// Foreign/local-close recovery and OperatorName close slots remain outside
+// this matrix pending the user decision on their CST topology.
+#[test]
+fn use_schema_accepted_group_children_and_nested_occurrences() {
+    use SyntaxKind::*;
+    assert_use_schema_children(
+        "use {a,b}",
+        UseGroup,
+        &[UseGroup, UseTree, UseDeclaration, Statement],
+        &[
+            (LBrace, 4..5),
+            (UseTree, 5..6),
+            (Comma, 6..7),
+            (UseTree, 7..8),
+            (RBrace, 8..9),
+        ],
+    );
+    let source = "use {a,{b,c}}";
+    assert_use_schema_children(
+        source,
+        UseGroup,
+        &[UseGroup, UseTree, UseDeclaration, Statement],
+        &[
+            (LBrace, 4..5),
+            (UseTree, 5..6),
+            (Comma, 6..7),
+            (UseTree, 7..12),
+            (RBrace, 12..13),
+        ],
+    );
+    assert_use_schema_occurrence(
+        source,
+        UseTree,
+        2,
+        &[UseTree, UseGroup, UseTree, UseDeclaration, Statement],
+        &[(UseGroup, 7..12)],
+    );
+    assert_use_schema_occurrence(
+        source,
+        UseGroup,
+        1,
+        &[
+            UseGroup,
+            UseTree,
+            UseGroup,
+            UseTree,
+            UseDeclaration,
+            Statement,
+        ],
+        &[
+            (LBrace, 7..8),
+            (UseTree, 8..9),
+            (Comma, 9..10),
+            (UseTree, 10..11),
+            (RBrace, 11..12),
+        ],
+    );
+}
+
+#[test]
+fn use_schema_parenthesized_exclusion_group_children() {
+    use SyntaxKind::*;
+    assert_use_schema_children(
+        "use x::* without (a,b)",
+        UseExclusionGroup,
+        &[
+            UseExclusionGroup,
+            UseExclusion,
+            UseGlob,
+            UseTree,
+            UseDeclaration,
+            Statement,
+        ],
+        &[
+            (LParen, 17..18),
+            (UseTree, 18..19),
+            (Comma, 19..20),
+            (UseTree, 20..21),
+            (RParen, 21..22),
+        ],
+    );
+}
+
+#[test]
+fn use_schema_path_and_alias_share_one_ordered_tree() {
+    use SyntaxKind::*;
+    assert_use_schema_children(
+        "use p::q as r",
+        UseTree,
+        &[UseTree, UseDeclaration, Statement],
+        &[(UsePath, 4..8), (Whitespace, 8..9), (UseAlias, 9..13)],
+    );
+}
+
+#[test]
+fn use_schema_utf8_path_missing_uses_byte_range() {
+    use SyntaxKind::*;
+    assert_use_schema_children(
+        "use 猫::",
+        UsePath,
+        &[UsePath, UseTree, UseDeclaration, Statement],
+        &[(Identifier, 4..7), (ColonColon, 7..9), (Missing, 9..9)],
+    );
+}
+
+#[test]
+fn use_schema_initial_path_and_separator_retry_phases() {
+    use SyntaxKind::*;
+    for (source, expected) in [
+        ("use", vec![(UseKw, 0..3), (Missing, 3..3)]),
+        (
+            "use @ #",
+            vec![
+                (UseKw, 0..3),
+                (Whitespace, 3..4),
+                (Error, 4..5),
+                (Error, 5..6),
+                (Error, 6..7),
+            ],
+        ),
+        (
+            "use @ # p",
+            vec![
+                (UseKw, 0..3),
+                (Whitespace, 3..4),
+                (Error, 4..5),
+                (Error, 5..6),
+                (Error, 6..7),
+                (Whitespace, 7..8),
+                (UseTree, 8..9),
+            ],
+        ),
+    ] {
+        assert_use_schema_children(
+            source,
+            UseDeclaration,
+            &[UseDeclaration, Statement],
+            &expected,
+        );
+    }
+    for (separator, kind) in [("::", ColonColon), ("/", Slash)] {
+        let end = 5 + separator.len() as u32;
+        for suffix in ["", "@ #", "@ # q"] {
+            let mut expected = vec![(Identifier, 4..5), (kind, 5..end)];
+            if suffix.is_empty() {
+                expected.push((Missing, end..end));
+            } else {
+                expected.extend([
+                    (Error, end..end + 1),
+                    (Error, end + 1..end + 2),
+                    (Error, end + 2..end + 3),
+                ]);
+                if suffix.ends_with('q') {
+                    expected.extend([
+                        (Whitespace, end + 3..end + 4),
+                        (Identifier, end + 4..end + 5),
+                    ]);
+                }
+            }
+            assert_use_schema_children(
+                &format!("use p{separator}{suffix}"),
+                UsePath,
+                &[UsePath, UseTree, UseDeclaration, Statement],
+                &expected,
+            );
+        }
+    }
+}
+
+#[test]
+fn use_schema_alias_identifier_missing_terminal_and_retry() {
+    use SyntaxKind::*;
+    for (source, expected) in [
+        ("use p as", vec![(AsKw, 6..8), (Missing, 8..8)]),
+        (
+            "use p as @ #",
+            vec![
+                (AsKw, 6..8),
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Error, 10..11),
+                (Error, 11..12),
+            ],
+        ),
+        (
+            "use p as @ # q",
+            vec![
+                (AsKw, 6..8),
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Error, 10..11),
+                (Error, 11..12),
+                (Whitespace, 12..13),
+                (Identifier, 13..14),
+            ],
+        ),
+    ] {
+        assert_use_schema_children(
+            source,
+            UseAlias,
+            &[UseAlias, UseTree, UseDeclaration, Statement],
+            &expected,
+        );
+    }
+}
+
+#[test]
+fn use_schema_group_entry_and_post_child_separator_missing() {
+    use SyntaxKind::*;
+    for (source, expected) in [
+        (
+            "use {,}",
+            vec![
+                (LBrace, 4..5),
+                (Missing, 5..5),
+                (Comma, 5..6),
+                (RBrace, 6..7),
+            ],
+        ),
+        (
+            "use {a b}",
+            vec![
+                (LBrace, 4..5),
+                (UseTree, 5..6),
+                (Whitespace, 6..7),
+                (Missing, 7..7),
+                (UseTree, 7..8),
+                (RBrace, 8..9),
+            ],
+        ),
+    ] {
+        assert_use_schema_children(
+            source,
+            UseGroup,
+            &[UseGroup, UseTree, UseDeclaration, Statement],
+            &expected,
+        );
+    }
+    for (source, expected) in [
+        (
+            "use x::* without {,}",
+            vec![
+                (LBrace, 17..18),
+                (Missing, 18..18),
+                (Comma, 18..19),
+                (RBrace, 19..20),
+            ],
+        ),
+        (
+            "use x::* without {a b}",
+            vec![
+                (LBrace, 17..18),
+                (UseTree, 18..19),
+                (Whitespace, 19..20),
+                (Missing, 20..20),
+                (UseTree, 20..21),
+                (RBrace, 21..22),
+            ],
+        ),
+    ] {
+        assert_use_schema_children(
+            source,
+            UseExclusionGroup,
+            &[
+                UseExclusionGroup,
+                UseExclusion,
+                UseGlob,
+                UseTree,
+                UseDeclaration,
+                Statement,
+            ],
+            &expected,
+        );
+    }
+}
+
 fn use_declaration(green: &GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green.clone())
         .descendants()

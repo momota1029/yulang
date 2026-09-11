@@ -981,6 +981,15 @@ attachment paths prove wiring without records or Error spelling. M2 spec and
 regression/delta audits were clean. Nested Statement/Derives, caller stops,
 collector and ledger removal remain separate.
 
+### UseDeclaration Path, Alias and group-entry Draft
+
+This bounded Draft maps Path, Alias and group-entry/comma Missing by ordered
+UseTree/UsePath/UseAlias/group ancestry, including nested and parenthesized
+exclusion routes. UTF-8 byte ranges and same-tree Path→Alias order are direct
+Rowan evidence. Foreign/local close and OperatorName close remain explicitly
+unmapped pending the Use foreign-close topology decision. M2 spec and regression
+delta audits were clean.
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

@@ -733,6 +733,8 @@ ActDeclaration direct BodyIntroducer and inline Body are catalog-audited as a
 bounded Draft; Derives and child owners remain separate.
 DeclarationCompanion direct recovery is catalog-audited as a bounded Draft;
 Statement/Derives and caller-stop ownership remain separate.
+UseDeclaration Path/Alias/group-entry is catalog-audited as a bounded Draft;
+foreign/local close and OperatorName close await the selected CST topology.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and
