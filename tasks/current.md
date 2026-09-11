@@ -202,6 +202,11 @@ first binder, later BinderBoundary and terminal colon/body phases. Colon
 Missing remains distinct from Colon Error→Colon retry by direct sibling order;
 the first actual-binder whitespace case stays excluded. This does not widen
 Forall coverage or authorize interpreter/ledger migration.
+The RuleLiteral census exception is now resolved as four semantic slots at five
+publishers: interpolation Close (two exits), braced lazy Close, unbraced lazy
+Name and outer terminator. Direct Rowan order selects each Missing, while a
+RuleSequence directly beneath interpolation selects its maximal RuleItem Error
+group. Nested Rule children remain delegated; this does not retire the ledger.
 The bounded declaration Variant core Item/Name/Separator row is now
 catalog-audited evidence-complete Draft. Direct full-shell Rowan controls prove
 that `EnumVariant(Missing)` and terminal `EnumVariant(Error+)` are Item, while

@@ -786,6 +786,19 @@ every other Pattern emission remain unmapped.
 
 ### Literal and rule — 3 files / 6 calls
 
+#### RuleLiteral indirect Missing publishers
+
+The four semantic slots behind five `literal/rule_literal.rs` publishers are
+now linked to direct Rowan proof in
+`tests/literal/rule_literal.rs:rule_literal_child_slots_are_directly_distinguished_by_rowan_context`
+and `interpolation_rule_sequence_error_group_is_direct_and_maximal`: two
+interpolation-close exits share one `RuleLiteralInterpolation` Close slot;
+braced lazy Close, unbraced lazy Name and outer terminator remain distinct.
+Interpolation RuleSequence Error grouping uses its direct parent/context, never
+temporary record count or Error spelling. Status: `evidence-complete Draft`
+for those slots only; nested Rule children, global collector and ledger/API
+migration remain open.
+
 - `crates/yu-syntax/src/literal/mod.rs`
 - `crates/yu-syntax/src/rule/mod.rs`
 - `crates/yu-syntax/src/rule/expression_list.rs`

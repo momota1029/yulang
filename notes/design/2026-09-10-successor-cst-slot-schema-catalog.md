@@ -1102,6 +1102,7 @@ families or the global catalog.
 | actual-arrow TypeArrowTail RHS | error-admission clarification, **Proposed schema slice: TypeArrowTail actual-arrow RHS** | user promotion open |
 | NamedRecordType Field/Name/Colon/Type/Separator/Close | bounded mapped row above; NamedRecordType recovery-slot CST draft | user promotion open; other Type contexts remain open |
 | PolymorphicVariantType Tag/Payload/Separator/Close | bounded mapped row above; PV current-Item and foreign-close topology authorities | user promotion open; other PV/Type contexts remain open |
+| RuleLiteral interpolation/lazy/terminator | bounded direct Rowan proof in `tests/literal/rule_literal.rs`; Rule literal current-Item authority | user promotion open; Rule child schemas remain open |
 
 The AssignmentTail direct-inline RHS slice is intentionally absent from this
 table because its mapped row above is externally Authoritative, rather than an
