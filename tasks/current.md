@@ -671,6 +671,13 @@ that inner opener absence from the later Pattern value Missing after native
 LParen; Error-to-bare retry has no duplicate opener Missing. Pattern
 value/close, target/form/body, nested Pattern, the global collector and
 ledger/API migration remain open.
+Cast TargetIntroducer is also a catalog-audited evidence-complete Draft. After
+a completed CastPattern, its direct declaration Missing/Error and the initial
+Missing inside `CastTarget(Missing TypeExpression)` both select the required
+colon; a nested TypeExpression Missing remains Type-owned. Direct child order
+keeps colon/Type retry and semicolon/equal handoff outside the Error group.
+Explicit active-RParen and all other Cast rows remain open, alongside global
+collection and ledger/API migration.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

@@ -484,6 +484,208 @@ fn cast_target_introducer_records_are_exact_and_reconcile() {
 }
 
 #[test]
+fn cast_target_introducer_direct_rowan_slot_order_and_ranges() {
+    use SyntaxKind::{CastPattern, CastTarget, Equals, Error, Missing, Semicolon, Whitespace};
+
+    // The completed parenthesized Pattern establishes the left slot boundary.
+    // A target or form starter establishes the right boundary; outer boundaries
+    // remain absent from this declaration's children.
+    for (source, stops, expected) in [
+        ("cast(x)", 0, vec![(Missing, 7..7)]),
+        ("cast(x);", 0, vec![(Missing, 7..7), (Semicolon, 7..8)]),
+        ("cast(x)= value", 0, vec![(Missing, 7..7), (Equals, 7..8)]),
+        ("cast(x) )", 0, vec![(Missing, 7..7)]),
+        ("cast(x) ]", 0, vec![(Missing, 7..7)]),
+        ("cast(x) }", 0, vec![(Missing, 7..7)]),
+        ("cast(x) else", STOP_ELSE, vec![(Missing, 7..7)]),
+        ("cast(x)\r\nT;", 0, vec![(Missing, 7..7)]),
+        (
+            "cast(x) T;",
+            0,
+            vec![(Whitespace, 7..8), (CastTarget, 8..9)],
+        ),
+        ("cast(x) @", 0, vec![(Whitespace, 7..8), (Error, 8..9)]),
+        (
+            "cast(x) @   ",
+            0,
+            vec![(Whitespace, 7..8), (Error, 8..9), (Error, 9..12)],
+        ),
+        (
+            "cast(x) @\r\n  ",
+            0,
+            vec![(Whitespace, 7..8), (Error, 8..9)],
+        ),
+        ("cast(x) @ )", 0, vec![(Whitespace, 7..8), (Error, 8..9)]),
+        (
+            "cast(x) @ else",
+            STOP_ELSE,
+            vec![(Whitespace, 7..8), (Error, 8..9)],
+        ),
+        (
+            "cast(x) @ ;",
+            0,
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (Semicolon, 10..11),
+            ],
+        ),
+        (
+            "cast(x) @ = value",
+            0,
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (Equals, 10..11),
+            ],
+        ),
+        (
+            "cast(x) @ : T;",
+            0,
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (CastTarget, 10..13),
+            ],
+        ),
+        (
+            "cast(x) @ T;",
+            0,
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (CastTarget, 10..11),
+            ],
+        ),
+        (
+            "cast(x) @ @ T;",
+            0,
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Error, 9..10),
+                (Error, 10..11),
+                (Whitespace, 11..12),
+                (CastTarget, 12..13),
+            ],
+        ),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, stops, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let mut children = node.children_with_tokens();
+        assert_eq!(children.next().expect("keyword").kind(), SyntaxKind::CastKw);
+        let pattern = children
+            .next()
+            .expect("completed pattern")
+            .into_node()
+            .unwrap();
+        assert_eq!(pattern.kind(), CastPattern, "{source:?}");
+        assert_eq!(
+            pattern.text_range(),
+            rowan::TextRange::new(4.into(), 7.into())
+        );
+        assert_eq!(pattern.last_token().unwrap().kind(), SyntaxKind::RParen);
+        let mut actual = Vec::new();
+        let mut errors = Vec::new();
+        for child in children {
+            let kind = child.kind();
+            let range = child.text_range();
+            let range = usize::from(range.start())..usize::from(range.end());
+            if kind == Error {
+                assert!(child.as_token().is_some(), "{source:?}");
+                errors.push(range.clone());
+            }
+            actual.push((kind, range));
+            if matches!(kind, CastTarget | Semicolon | Equals) {
+                break;
+            }
+        }
+        assert_eq!(actual, expected, "{source:?}");
+        if let (Some(first), Some(last)) = (errors.first(), errors.last()) {
+            assert!(errors.windows(2).all(|pair| pair[0].end == pair[1].start));
+            let expected_errors = expected
+                .iter()
+                .filter(|(kind, _)| *kind == Error)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                first.start..last.end,
+                expected_errors.first().unwrap().1.start..expected_errors.last().unwrap().1.end,
+                "{source:?}"
+            );
+        }
+        assert!(
+            node.children()
+                .all(|child| child.kind() != SyntaxKind::Invalid),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn cast_target_introducer_direct_target_children_distinguish_type_recovery() {
+    use SyntaxKind::{CastTarget, Colon, Missing, TypeExpression, Whitespace};
+
+    for (source, expected) in [
+        (
+            "cast(x): T;",
+            vec![(Colon, 7..8), (Whitespace, 8..9), (TypeExpression, 9..10)],
+        ),
+        ("cast(x) T;", vec![(Missing, 8..8), (TypeExpression, 8..9)]),
+        (
+            "cast(x) @ : T;",
+            vec![
+                (Colon, 10..11),
+                (Whitespace, 11..12),
+                (TypeExpression, 12..13),
+            ],
+        ),
+        ("cast(x) @ T;", vec![(TypeExpression, 10..11)]),
+        ("cast(x) @ @ T;", vec![(TypeExpression, 12..13)]),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let target = node
+            .children()
+            .find(|child| child.kind() == CastTarget)
+            .expect("direct target");
+        assert_eq!(target.parent(), Some(node), "{source:?}");
+        let actual = target
+            .children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{source:?}");
+    }
+
+    let (green, _, _) = run_cast_declaration("cast(x): (T;", 0, 0, LineEntry::InLine, None);
+    let node = declaration(&green);
+    let target = node
+        .children()
+        .find(|child| child.kind() == CastTarget)
+        .expect("direct target");
+    assert_eq!(target.first_token().unwrap().kind(), Colon);
+    assert!(
+        target
+            .children()
+            .all(|child| child.kind() != Missing && child.kind() != SyntaxKind::Invalid)
+    );
+    let ty = target
+        .children()
+        .find(|child| child.kind() == TypeExpression)
+        .expect("nested Type owner");
+    assert!(ty.descendants().any(|child| child.kind() == Missing));
+}
+
+#[test]
 fn cast_pattern_close_records_are_exact_and_reconcile() {
     for origin in [100, 12_000] {
         for (source, kind, relative_range) in [

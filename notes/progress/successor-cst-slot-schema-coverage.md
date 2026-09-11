@@ -139,6 +139,26 @@ evidence-complete Draft only for PatternIntroducer; Pattern value/close,
 target/form/body, nested Pattern, global interpreter and ledger retirement
 remain separate.
 
+#### Cast TargetIntroducer Draft links
+
+Only the required colon after a completed CastPattern is linked. Direct
+CastDeclaration Missing/Error+ covers EOF, form, outer-boundary and malformed
+entry; `CastTarget(Missing TypeExpression)` covers the reusable-Type route
+without Colon. The initial CastTarget Missing is separate from a Missing nested
+inside TypeExpression, which remains Type-owned. Direct ordered descendants
+also retain colon retry, Type retry and native form punctuation outside Error.
+
+Direct Rowan proof is `cast_target_introducer_direct_rowan_slot_order_and_ranges`
+and `cast_target_introducer_direct_target_children_distinguish_type_recovery`
+in `crates/yu-syntax/src/tests/declaration/cast_decl.rs`. It covers terminal
+Error, same-line EOF versus CRLF partition, contiguous multi-leaf Error groups,
+colon/Type retry, Semicolon/Equals handoff, unowned RParen and active `else`.
+No recovery record, Error spelling or scanner state selects a slot, and no
+direct Invalid is admitted. M1 post-write audit was clean. This is a
+catalog-audited evidence-complete Draft only for these direct alternatives;
+explicit active-RParen, all remaining Cast rows, global interpreter and ledger
+retirement remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct
