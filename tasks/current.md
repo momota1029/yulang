@@ -654,6 +654,15 @@ evidence-complete Draft for immediate absence, raw-error Identifier retry and te
 raw Error. Direct PatternAliasTail order assigns initial/retry leading outside
 Error and prevents a duplicate terminal Missing. Boundary/layout variants and
 all other Pattern rows remain open.
+The shared initial Pattern kernel is now separately catalog-audited as an
+evidence-complete Draft. Direct Rowan selectors cover Primary, AlternationRhs,
+five delimited element/spread/nested slots, Binding Target, For Pattern,
+Case/Catch first Pattern and Catch handler Pattern after its native comma.
+Each has Missing, terminal Error and Error-to-primary-retry evidence without
+reading recovery records; protected For `in`, delimiter close, and outer
+TypeAnnotation ownership remain outside the direct Error group. Delimiter
+sequences/closes, default Expression, other Pattern rows, the global collector
+and ledger/API migration remain open.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

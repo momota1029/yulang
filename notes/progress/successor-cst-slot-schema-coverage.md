@@ -728,6 +728,27 @@ evidence-complete Draft only for `A as`, `A as @ x`, and `A as @`; layout and
 boundary variants, all other Pattern rows, global interpreter and ledger
 retirement remain separate.
 
+#### Shared initial Pattern Missing and Error Draft links
+
+The shared initial kernel now has direct Rowan-only evidence for its finite
+transported-role table: ordinary Primary, AlternationRhs, the five delimited
+element/spread/nested slots, Binding Target, For Pattern, Case/Catch first
+Pattern, and Catch handler Pattern after its native comma. The direct Pattern
+prefix selects a zero-width Missing or a maximal direct Error group; retry
+leading is native direct Pattern content and an admitted primary is distinct
+from that group. Caller context and ordered children, rather than Error
+spelling or recovery records, select the role.
+
+`crates/yu-syntax/src/tests/pattern.rs` proves all Missing, terminal Error and
+Error-to-retry alternatives through actual caller shells. It also pins
+UTF-8/CRLF ranges, the protected For `in` handoff, delimiter closes outside
+Error, Catch's comma/second-Pattern ordinal, an alternation Error before the
+outer TypeAnnotation tail, and delegation to nested SymbolName/AliasBinding.
+M1 pre-write and post-repair closure audits were clean. This is a
+catalog-audited evidence-complete Draft only for the direct initial slots;
+delimiter sequences/closes, defaults, other Pattern tails, nested grammar,
+the global interpreter and ledger retirement remain separate.
+
 #### RecordPattern item-phase structured Invalid row links
 
 Only the following direct RecordPattern sites are linked to the bounded Draft

@@ -218,6 +218,443 @@ fn pattern_node(green: GreenNode) -> SyntaxNode {
         .expect("Pattern")
 }
 
+fn direct_kinds_and_ranges(node: &SyntaxNode) -> Vec<(SyntaxKind, std::ops::Range<usize>)> {
+    node.children_with_tokens()
+        .map(|element| {
+            (
+                element.kind(),
+                usize::from(element.text_range().start())..usize::from(element.text_range().end()),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn pattern_initial_slots_have_direct_cst_selectors_in_their_actual_caller_shells() {
+    let child = |node: &SyntaxNode, kind| {
+        node.children()
+            .find(|child| child.kind() == kind)
+            .unwrap_or_else(|| panic!("{kind:?} child in {node:#?}"))
+    };
+
+    // Pattern(Primary): native retry leading stays a direct Pattern child, and
+    // the UTF-8 retry starts at its byte coordinate.
+    let (green, _) = run_pattern("@ λ");
+    let primary = pattern_node(green);
+    assert_eq!(
+        direct_kinds_and_ranges(&primary),
+        [
+            (SyntaxKind::Error, 0..1),
+            (SyntaxKind::Whitespace, 1..2),
+            (SyntaxKind::IdentifierPattern, 2..4),
+        ]
+    );
+
+    // Pattern(AlternationRhs): the second pipe is both the Missing coordinate
+    // and the direct start of the nested alternation tail.
+    let (green, _) = run_pattern("A | | B");
+    let alternation = child(&pattern_node(green), SyntaxKind::PatternAlternationTail);
+    assert_eq!(
+        direct_kinds_and_ranges(&alternation),
+        [
+            (SyntaxKind::Pipe, 2..3),
+            (SyntaxKind::Whitespace, 3..4),
+            (SyntaxKind::Pattern, 4..7),
+        ]
+    );
+    let rhs = child(&alternation, SyntaxKind::Pattern);
+    assert_eq!(
+        direct_kinds_and_ranges(&rhs),
+        [
+            (SyntaxKind::Missing, 4..4),
+            (SyntaxKind::PatternAlternationTail, 4..7),
+        ]
+    );
+
+    // The five delimited initial roles are selected by their real immediate
+    // caller nodes, not by a recovery record or an Error token spelling.
+    for (source, owner, slot_owner, at) in [
+        (
+            "(,a)",
+            SyntaxKind::ParenthesizedPattern,
+            SyntaxKind::ParenthesizedPattern,
+            1,
+        ),
+        ("[,a]", SyntaxKind::ListPattern, SyntaxKind::ListPattern, 1),
+        (
+            "[..]",
+            SyntaxKind::ListPattern,
+            SyntaxKind::ListPatternSpreadItem,
+            3,
+        ),
+        (
+            "{a:}",
+            SyntaxKind::RecordPattern,
+            SyntaxKind::RecordPatternField,
+            3,
+        ),
+        (
+            "{..}",
+            SyntaxKind::RecordPattern,
+            SyntaxKind::RecordPatternSpreadItem,
+            3,
+        ),
+    ] {
+        let (green, _) = run_pattern(source);
+        let owner_node = child(&pattern_node(green), owner);
+        let immediate = if slot_owner == owner {
+            owner_node
+        } else {
+            child(&owner_node, slot_owner)
+        };
+        let slot = child(&immediate, SyntaxKind::Pattern);
+        assert_eq!(
+            direct_kinds_and_ranges(&slot),
+            [(SyntaxKind::Missing, at..at)],
+            "{source}"
+        );
+    }
+
+    // Binding(Target), including its direct Equals-boundary bypass, retains a
+    // Pattern wrapper. The retry and boundary forms use the same selector.
+    let (green, _) = run_statement("my @ x = value");
+    let binding = |green: GreenNode| {
+        SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BindingStatement)
+            .unwrap()
+    };
+    let header = child(
+        &child(&binding(green), SyntaxKind::BindingHeader),
+        SyntaxKind::Pattern,
+    );
+    assert_eq!(
+        direct_kinds_and_ranges(&header),
+        [
+            (SyntaxKind::Error, 3..4),
+            (SyntaxKind::Whitespace, 4..5),
+            (SyntaxKind::IdentifierPattern, 5..6),
+        ]
+    );
+    let (green, _) = run_statement("my = value");
+    let header = child(
+        &child(&binding(green), SyntaxKind::BindingHeader),
+        SyntaxKind::Pattern,
+    );
+    assert_eq!(
+        direct_kinds_and_ranges(&header),
+        [(SyntaxKind::Missing, 3..3)]
+    );
+
+    // ForStatement(Pattern) and CaseLike(Pattern) keep retry leading directly
+    // under their selected Pattern child.
+    let (green, _) = run_statement("for @ x in xs: body");
+    let pattern = child(
+        &SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ForStatement)
+            .unwrap(),
+        SyntaxKind::Pattern,
+    );
+    assert_eq!(
+        direct_kinds_and_ranges(&pattern),
+        [
+            (SyntaxKind::Error, 4..5),
+            (SyntaxKind::Whitespace, 5..6),
+            (SyntaxKind::IdentifierPattern, 6..7),
+        ]
+    );
+    let (green, _) = run_statement("case x: @ arm -> body");
+    let arm = child(
+        &child(
+            &child(
+                &SyntaxNode::new_root(green)
+                    .descendants()
+                    .find(|node| node.kind() == SyntaxKind::CaseExpression)
+                    .unwrap(),
+                SyntaxKind::CaseBlock,
+            ),
+            SyntaxKind::CaseArm,
+        ),
+        SyntaxKind::Pattern,
+    );
+    assert_eq!(
+        direct_kinds_and_ranges(&arm),
+        [
+            (SyntaxKind::Error, 8..9),
+            (SyntaxKind::Whitespace, 9..10),
+            (SyntaxKind::IdentifierPattern, 10..13),
+        ]
+    );
+
+    // CaseLike(Handler): the native comma precedes its second Pattern child;
+    // its initial gap remains in the existing Error topology.
+    let (green, _) = run_statement("catch x: err, @ handler -> body");
+    let catch_arm = child(
+        &child(
+            &SyntaxNode::new_root(green)
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::CatchExpression)
+                .unwrap(),
+            SyntaxKind::CatchBlock,
+        ),
+        SyntaxKind::CatchArm,
+    );
+    assert_eq!(
+        direct_kinds_and_ranges(&catch_arm)[..3],
+        [
+            (SyntaxKind::Pattern, 9..12),
+            (SyntaxKind::Comma, 12..13),
+            (SyntaxKind::Pattern, 13..23),
+        ]
+    );
+    let arm = catch_arm
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::Pattern)
+        .nth(1)
+        .expect("handler Pattern after the native comma");
+    assert_eq!(
+        direct_kinds_and_ranges(&arm),
+        [
+            (SyntaxKind::Error, 13..14),
+            (SyntaxKind::Error, 14..15),
+            (SyntaxKind::Whitespace, 15..16),
+            (SyntaxKind::IdentifierPattern, 16..23),
+        ]
+    );
+}
+
+#[test]
+fn pattern_initial_delimited_errors_end_before_close_or_native_retry_leading() {
+    use SyntaxKind::*;
+    for (prefix, suffix, owner, nested_owner) in [
+        ("(", ")", ParenthesizedPattern, None),
+        ("[", "]", ListPattern, None),
+        ("[..", "]", ListPattern, Some(ListPatternSpreadItem)),
+        ("{a:", "}", RecordPattern, Some(RecordPatternField)),
+        ("{..", "}", RecordPattern, Some(RecordPatternSpreadItem)),
+    ] {
+        for retry in ["", " x"] {
+            let source = format!("{prefix}@{retry}{suffix}");
+            let (green, _) = run_pattern(&source);
+            let outer = pattern_node(green)
+                .children()
+                .find(|node| node.kind() == owner)
+                .expect("actual delimiter caller");
+            let immediate = nested_owner.map_or_else(
+                || outer.clone(),
+                |kind| outer.children().find(|node| node.kind() == kind).unwrap(),
+            );
+            let slot = immediate
+                .children()
+                .find(|node| node.kind() == Pattern)
+                .unwrap();
+            let at = prefix.len();
+            let mut expected = vec![(Error, at..at + 1)];
+            if !retry.is_empty() {
+                expected.extend([
+                    (Whitespace, at + 1..at + 2),
+                    (IdentifierPattern, at + 2..at + 3),
+                ]);
+            }
+            assert_eq!(direct_kinds_and_ranges(&slot), expected, "{source}");
+            // The close is emitted by the caller, never swallowed by Error.
+            let close = outer.last_token().unwrap();
+            assert_eq!(
+                usize::from(close.text_range().start()),
+                source.len() - 1,
+                "{source}"
+            );
+            assert_eq!(close.text(), suffix, "{source}");
+        }
+    }
+}
+
+#[test]
+fn pattern_initial_statement_slots_cover_missing_terminal_error_and_retry() {
+    use SyntaxKind::*;
+    // Selector is the direct Pattern ordinal in its real immediate caller.
+    // In particular CatchArm's second Pattern is after the native comma.
+    for (prefix, suffix, owner, ordinal) in [
+        ("my ", "= value", BindingHeader, 0),
+        ("for ", "in xs: body", ForStatement, 0),
+        ("case x: ", "-> body", CaseArm, 0),
+        ("catch x: ", "-> body", CatchArm, 0),
+        ("catch x: err,", "-> body", CatchArm, 1),
+    ] {
+        for initial in ["", "@ ", "@ x "] {
+            let source = format!("{prefix}{initial}{suffix}");
+            let (green, exit) = run_statement(&source);
+            let root = SyntaxNode::new_root(green);
+            let caller = root
+                .descendants()
+                .find(|node| node.kind() == owner)
+                .unwrap();
+            let slot = caller
+                .children()
+                .filter(|node| node.kind() == Pattern)
+                .nth(ordinal)
+                .unwrap();
+            let at = prefix.len();
+            let expected = match initial {
+                "" => {
+                    let missing_at = if owner == ForStatement { at - 1 } else { at };
+                    vec![(Missing, missing_at..missing_at)]
+                }
+                "@ " => vec![(Error, at..at + 1)],
+                "@ x " => vec![
+                    (Error, at..at + 1),
+                    (Whitespace, at + 1..at + 2),
+                    (IdentifierPattern, at + 2..at + 3),
+                ],
+                _ => unreachable!(),
+            };
+            assert_eq!(direct_kinds_and_ranges(&slot), expected, "{source}");
+            if ordinal == 1 {
+                let comma = slot.prev_sibling_or_token().expect("native handler comma");
+                assert_eq!(comma.kind(), Comma, "{source}");
+                assert_eq!(usize::from(comma.text_range().end()), at, "{source}");
+            }
+            // The caller resumes at its protected delimiter/word after the
+            // initial slot; the Error cannot own any of that payload.
+            let boundary_at = prefix.len() + initial.len();
+            if owner == ForStatement && initial == "@ " {
+                let Some(Err(Either::Left(mut item))) = exit else {
+                    panic!("terminal For Pattern leaves in pending");
+                };
+                assert_eq!(
+                    item.payload_view().token_kind(),
+                    Some(TokenKind::Identifier)
+                );
+                assert_eq!(item.payload_view().spelling(), Some("in"));
+                assert_eq!(emit_pending_leading_text(&mut item), " ");
+                assert_eq!(usize::from(slot.text_range().end()), boundary_at - 1);
+                continue;
+            }
+            assert!(
+                root.descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .any(
+                        |token| usize::from(token.text_range().start()) == boundary_at
+                            && token.kind() != Error
+                    ),
+                "{source}"
+            );
+        }
+    }
+}
+
+#[test]
+fn pattern_initial_primary_and_alternation_keep_nested_owners_distinct() {
+    use SyntaxKind::*;
+    let (green, _) = run_pattern("");
+    assert_eq!(
+        direct_kinds_and_ranges(&pattern_node(green)),
+        [(Missing, 0..0)]
+    );
+    for (source, expected) in [
+        ("A | @", vec![(Error, 4..5)]),
+        (
+            "A | @ x",
+            vec![(Error, 4..5), (Whitespace, 5..6), (IdentifierPattern, 6..7)],
+        ),
+        ("A | @ :", vec![(Error, 4..5)]),
+    ] {
+        let (green, _) = run_pattern(source);
+        let outer = pattern_node(green);
+        let tail = outer
+            .children()
+            .find(|node| node.kind() == PatternAlternationTail)
+            .unwrap();
+        let rhs = tail.children().find(|node| node.kind() == Pattern).unwrap();
+        assert_eq!(direct_kinds_and_ranges(&rhs), expected, "{source}");
+        if source.ends_with(':') {
+            let annotation = outer
+                .children()
+                .find(|node| node.kind() == PatternTypeAnnotation)
+                .unwrap();
+            assert!(annotation.text_range().start() >= tail.text_range().end());
+            assert!(annotation.descendants().any(|node| node.kind() == Missing));
+            assert!(!rhs.children().any(|node| node.kind() == Missing));
+        }
+    }
+    // Accepted delimiter children delegate symbol/alias absence to their
+    // nested owner; neither is an initial Pattern Missing.
+    for (source, nested) in [("[: ]", SymbolPattern), ("[x as ]", PatternAliasTail)] {
+        let (green, _) = run_pattern(source);
+        let root = SyntaxNode::new_root(green);
+        let owner = root
+            .descendants()
+            .find(|node| node.kind() == nested)
+            .unwrap();
+        assert!(
+            owner.children().any(|node| node.kind() == Missing),
+            "{source}"
+        );
+        assert!(
+            !owner
+                .parent()
+                .unwrap()
+                .children()
+                .any(|node| node.kind() == Missing),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn pattern_initial_direct_cst_controls_keep_stops_crlf_and_fences_pending() {
+    let (green, exit) = run_pattern_with_colon_stop("@ :", true);
+    assert_eq!(
+        direct_kinds_and_ranges(&pattern_node(green)),
+        [(SyntaxKind::Error, 0..1)]
+    );
+    let Err(Either::Left(mut stop)) = exit else {
+        panic!("colon stop remains pending");
+    };
+    assert_eq!(token_kind(&stop), Some(TokenKind::Colon));
+    assert_eq!(emit_pending_leading_text(&mut stop), " ");
+
+    let (green, exit) = run_pattern("@\r\nλ");
+    assert_eq!(
+        direct_kinds_and_ranges(&pattern_node(green)),
+        [(SyntaxKind::Error, 0..1)]
+    );
+    let Err(Either::Left(mut retry)) = exit else {
+        panic!("CRLF retry remains pending");
+    };
+    assert_eq!(token_kind(&retry), Some(TokenKind::Identifier));
+    assert_eq!(emit_pending_leading_text(&mut retry), "\r\n");
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let (green, exit, _, _) = run_required_pattern_with_context(
+        "@\r\n> > ```",
+        PATTERN_DEFAULT_STOPS,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        100,
+        LineEntry::InLine,
+        Some(&fence),
+    );
+    assert_eq!(
+        direct_kinds_and_ranges(&pattern_node(green)),
+        [(SyntaxKind::Error, 0..1)]
+    );
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)
+            if item.payload_view().is_boundary()
+    ));
+}
+
 fn record_node(green: GreenNode) -> SyntaxNode {
     pattern_node(green)
         .children()
