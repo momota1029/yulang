@@ -740,6 +740,10 @@ bounded Draft; outer Yumark and pending Item identity remain separate.
 BracedStatementBlock direct raw Error is catalog-audited as a bounded Draft.
 Retry Statement, separator and newline-owner order select the raw group;
 Missing/Close and other statement sequences remain separate.
+ColonApplication's first indented Statement slot is catalog-audited as a
+bounded Draft. Full tail ancestry plus direct block order selects Missing,
+raw Error and retry; other shared indented callers and later/layout slots remain
+open.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

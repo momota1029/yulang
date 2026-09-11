@@ -318,6 +318,15 @@ Statement, separator/BlockStatementSeparator ownership, UTF-8 and
 terminal/protected prefixes without records or Error spelling. M1 specification
 audit was clean; Missing/Close and other statement sequences remain separate.
 
+#### ColonApplication indented Statement entry Draft links
+
+`tests/indented_recovery.rs` maps the first required Statement under the full
+`ColonApplicationTail > Colon > IndentedStatementBlock` ancestor path. Direct
+native leading, zero-width Missing, raw Error token grouping, Statement retry
+leading, accepted control and UTF-8/CRLF ranges are covered without consulting
+records. M2 pre-write specification and post-write regression/delta audits were
+clean. Other transported callers and later/layout/nested slots remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

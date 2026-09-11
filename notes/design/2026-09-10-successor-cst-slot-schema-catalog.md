@@ -1007,6 +1007,22 @@ the raw run; terminal/protected prefixes and nested-for recovery remain separate
 M1 Rowan proof in `tests/braced_statement_recovery.rs` and specification audit
 are clean. Missing/Close and other statement sequences remain unmapped.
 
+### ColonApplication indented Statement entry Draft
+
+This bounded Draft maps only the first required Statement slot in an
+`IndentedStatementBlock` selected by the direct
+`ColonApplicationTail > Colon > IndentedStatementBlock` ancestry. The shared
+indented kernel's other caller roles and later Statement slots remain separate.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | `(ColonApplicationTail > Colon > IndentedStatementBlock, first required Statement)`. The complete tail ancestry is required; `IndentedStatementBlock` alone does not determine the transported role. |
+| ordered Rowan grammar | The witnessed block prefix is `Newline Whitespace (Missing | Error-token+ Statement? | Statement)`. `Missing` is zero-width. Every Error fragment is a direct token leaf, and adjacent direct Error tokens form one raw group. A retried direct Statement contains its own retry-leading trivia. |
+| malformed admission and completion | Written indentation followed by EOF emits one direct Missing. A non-Statement Item emits one direct Error-token group, which either terminates without a second Missing or retries to a direct Statement. Accepted input emits only the direct Statement alternative. |
+| transition/handoff | `ColonApplicationTail > Colon → written indented prefix → first Statement slot → Missing at EOF / Error-token+ then terminal completion or Statement retry / admitted Statement`. Initial block leading remains direct native content; retry leading belongs to the admitted Statement and therefore ends the Error group. |
+| diagnostic projection | The direct Missing or maximal adjacent direct Error-token group projects `ColonApplication(IndentedStatement)` with expected singleton Statement, primary zero, at its zero-width or combined UTF-8 Rowan range. The ancestor path and direct order select the occurrence without records, Error spelling or scanner state. |
+| proof and status | Governing authority: [Expression indented Statement recovery-role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), plus the CST-derived diagnostics amendment and Error-token topology addendum. Direct Rowan proof: `indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading` and `indented_colon_rowan_schema_uses_utf8_crlf_byte_ranges` in `crates/yu-syntax/src/tests/indented_recovery.rs`. M2 pre-write specification and post-write regression/delta audits were clean. Status: catalog-audited evidence-complete Draft for this first ColonApplication slot only; With/If/Case/Catch/For/declaration callers, later siblings, dedent/fence/outer layout, nested Statement recovery, collector, parser API and ledger retirement remain open. |
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

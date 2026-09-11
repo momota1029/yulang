@@ -65,6 +65,60 @@ fn parse<'s>(
     (green, records, exit, input)
 }
 
+fn range(node: &SyntaxNode) -> Range<usize> {
+    usize::from(node.text_range().start())..usize::from(node.text_range().end())
+}
+
+fn direct_elements(node: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+    node.children_with_tokens()
+        .map(|element| {
+            (
+                element.kind(),
+                usize::from(element.text_range().start())..usize::from(element.text_range().end()),
+            )
+        })
+        .collect()
+}
+
+fn colon_indented_block(root: &SyntaxNode) -> SyntaxNode {
+    assert_eq!(root.kind(), SyntaxKind::Root);
+    let statements = root.children().collect::<Vec<_>>();
+    assert_eq!(
+        statements
+            .iter()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Statement]
+    );
+    let chains = statements[0].children().collect::<Vec<_>>();
+    assert_eq!(
+        chains.iter().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::OperatorChain]
+    );
+    let chain = &chains[0];
+    let tail = chain
+        .children()
+        .find(|node| node.kind() == SyntaxKind::ColonApplicationTail)
+        .expect("ColonApplicationTail");
+    assert_eq!(tail.parent(), Some(chain.clone()));
+    let tail_children = tail.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        tail_children
+            .iter()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Colon, SyntaxKind::IndentedStatementBlock]
+    );
+    let colon = tail_children[0].clone().into_token().expect("Colon token");
+    assert_eq!(colon.parent(), Some(tail.clone()));
+    let block = tail_children[1]
+        .clone()
+        .into_node()
+        .expect("IndentedStatementBlock node");
+    assert_eq!(block.parent(), Some(tail));
+    block
+}
+
 #[test]
 fn indented_fresh_and_frozen_missing_and_error_records() {
     for (prefix, role) in [
@@ -317,6 +371,109 @@ fn indented_if_companion_stops_before_and_after_error() {
             start
         );
     }
+}
+
+#[test]
+fn indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading() {
+    let (green, _, _, _) = parse("f:\n  ", 0, 0, None, None);
+    let block = colon_indented_block(&SyntaxNode::new_root(green));
+    assert_eq!(range(&block), 2..5);
+    assert_eq!(
+        direct_elements(&block),
+        [
+            (SyntaxKind::Newline, 2..3),
+            (SyntaxKind::Whitespace, 3..5),
+            (SyntaxKind::Missing, 5..5),
+        ]
+    );
+
+    let (green, _, _, _) = parse("f:\n  @ @", 0, 0, None, None);
+    let block = colon_indented_block(&SyntaxNode::new_root(green));
+    assert!(
+        block
+            .children_with_tokens()
+            .filter(|element| element.kind() == SyntaxKind::Error)
+            .all(|element| element.as_token().is_some())
+    );
+    assert_eq!(range(&block), 2..8);
+    assert_eq!(
+        direct_elements(&block),
+        [
+            (SyntaxKind::Newline, 2..3),
+            (SyntaxKind::Whitespace, 3..5),
+            (SyntaxKind::Error, 5..6),
+            (SyntaxKind::Error, 6..7),
+            (SyntaxKind::Error, 7..8),
+        ]
+    );
+    assert!(!block.children().any(|node| {
+        matches!(
+            node.kind(),
+            SyntaxKind::Missing | SyntaxKind::Statement | SyntaxKind::Invalid
+        )
+    }));
+
+    let (green, _, _, _) = parse("f:\n  @ @ x", 0, 0, None, None);
+    let block = colon_indented_block(&SyntaxNode::new_root(green));
+    assert!(
+        block
+            .children_with_tokens()
+            .filter(|element| element.kind() == SyntaxKind::Error)
+            .all(|element| element.as_token().is_some())
+    );
+    assert_eq!(
+        direct_elements(&block),
+        [
+            (SyntaxKind::Newline, 2..3),
+            (SyntaxKind::Whitespace, 3..5),
+            (SyntaxKind::Error, 5..6),
+            (SyntaxKind::Error, 6..7),
+            (SyntaxKind::Error, 7..8),
+            (SyntaxKind::Statement, 8..10),
+        ]
+    );
+    let retry = block.children().last().expect("retried Statement");
+    assert_eq!(retry.kind(), SyntaxKind::Statement);
+    assert_eq!(range(&retry), 8..10);
+    let retry_leading = retry.first_token().expect("retry-leading Whitespace");
+    assert_eq!(retry_leading.kind(), SyntaxKind::Whitespace);
+    assert_eq!(
+        usize::from(retry_leading.text_range().start())
+            ..usize::from(retry_leading.text_range().end()),
+        8..9
+    );
+
+    let (green, _, _, _) = parse("f:\n  x", 0, 0, None, None);
+    let block = colon_indented_block(&SyntaxNode::new_root(green));
+    assert_eq!(
+        direct_elements(&block),
+        [
+            (SyntaxKind::Newline, 2..3),
+            (SyntaxKind::Whitespace, 3..5),
+            (SyntaxKind::Statement, 5..6),
+        ]
+    );
+}
+
+#[test]
+fn indented_colon_rowan_schema_uses_utf8_crlf_byte_ranges() {
+    let (green, _, _, _) = parse("f:\r\n  💥", 0, 0, None, None);
+    let block = colon_indented_block(&SyntaxNode::new_root(green));
+    assert!(
+        block
+            .children_with_tokens()
+            .filter(|element| element.kind() == SyntaxKind::Error)
+            .all(|element| element.as_token().is_some())
+    );
+    assert_eq!(range(&block), 2..10);
+    assert_eq!(
+        direct_elements(&block),
+        [
+            (SyntaxKind::Newline, 2..4),
+            (SyntaxKind::Whitespace, 4..6),
+            (SyntaxKind::Error, 6..10),
+        ]
+    );
 }
 
 #[test]
