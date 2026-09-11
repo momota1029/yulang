@@ -267,8 +267,9 @@ user-approved; construction has not begun.
 The Authoritative `2026-09-10-successor-pv-foreign-close-slot-draft.md` requires the
 single transparent `PolymorphicVariantForeignClose` node, wrapping only one
 locally consumed foreign close while direct raw PV Error remains Separator.
-The user approved its topology on 2026-09-11. NamedRecordType now has a
-coherent construction result, so this separate M2 gate is the next action.
+The user-approved M2 construction is complete: appended kind 281 wraps only
+the already-locally-consumed foreign-close Error group. Records, ranges,
+TagPosition, protected boundaries and direct Separator Error remain unchanged.
 The BracedStatementBlock immediate-ancestry collision is now resolved without
 new topology. Required Statement, Separator and local Brace Close Missing all
 remain direct `BracedStatementBlockExpression > Missing`, but complete ordered
@@ -446,8 +447,8 @@ partial interpretation would silently drop diagnostics. NamedRecordType has a
 proved irrecoverable Field/Close split (`{([)]:A}`), and
 PolymorphicVariantType has a proved Separator/foreign-Close collision
 (`:{;}` versus `:{]}`). The user approved their reviewed topology authorities
-on 2026-09-11. NamedRecordType's private M2 construction is complete; PV is
-the next separate M2 gate. BracedStatementBlock's same-parent Missing reuse is now
+on 2026-09-11. NamedRecordType and PV private M2 construction are complete.
+BracedStatementBlock's same-parent Missing reuse is now
 distinguished by ordered children, and its proposed topology is rejected as
 unnecessary. After the two proved topology gates,
 complete and independently audit the remaining ordered slot schema, then make

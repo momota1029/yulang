@@ -283,6 +283,7 @@ pub enum SyntaxKind {
     StructFieldForeignClose,
     NamedRecordTypeSeparator,
     NamedRecordTypeClose,
+    PolymorphicVariantForeignClose,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -514,6 +515,9 @@ impl Language for YulangLanguage {
             }
             value if value == SyntaxKind::NamedRecordTypeClose as u16 => {
                 SyntaxKind::NamedRecordTypeClose
+            }
+            value if value == SyntaxKind::PolymorphicVariantForeignClose as u16 => {
+                SyntaxKind::PolymorphicVariantForeignClose
             }
             value if value == SyntaxKind::CallTail as u16 => SyntaxKind::CallTail,
             value if value == SyntaxKind::IndexTail as u16 => SyntaxKind::IndexTail,
@@ -768,6 +772,7 @@ mod tests {
         assert_eq!(SyntaxKind::StructFieldForeignClose as u16, 278);
         assert_eq!(SyntaxKind::NamedRecordTypeSeparator as u16, 279);
         assert_eq!(SyntaxKind::NamedRecordTypeClose as u16, 280);
+        assert_eq!(SyntaxKind::PolymorphicVariantForeignClose as u16, 281);
 
         for kind in [
             SyntaxKind::Unknown,
@@ -783,6 +788,7 @@ mod tests {
             SyntaxKind::StructFieldForeignClose,
             SyntaxKind::NamedRecordTypeSeparator,
             SyntaxKind::NamedRecordTypeClose,
+            SyntaxKind::PolymorphicVariantForeignClose,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);

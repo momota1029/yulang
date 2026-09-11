@@ -196,7 +196,7 @@ fn pv_local_punctuation_errors_describe_the_actual_token_and_retry() {
 }
 
 #[test]
-fn pv_separator_and_foreign_close_errors_currently_collide_as_raw_cst_leaves() {
+fn pv_separator_and_foreign_close_errors_have_distinct_cst_slots() {
     let mut direct_shapes = Vec::new();
     for (source, record) in [
         (
@@ -241,8 +241,12 @@ fn pv_separator_and_foreign_close_errors_currently_collide_as_raw_cst_leaves() {
 
         let direct = variant.children_with_tokens().collect::<Vec<_>>();
         assert_eq!(direct.len(), 4, "{source:?}");
-        assert_eq!(direct[2].kind(), SyntaxKind::Error, "{source:?}");
-        assert!(direct[2].as_token().is_some(), "{source:?}");
+        if source == ":{;}" {
+            assert_eq!(direct[2].kind(), SyntaxKind::Error);
+            assert!(direct[2].as_token().is_some());
+        } else {
+            assert_foreign_closes(&root, &[2..3]);
+        }
         assert!(
             !variant
                 .descendants()
@@ -275,11 +279,163 @@ fn pv_separator_and_foreign_close_errors_currently_collide_as_raw_cst_leaves() {
             vec![
                 (SyntaxKind::Colon, 0..1),
                 (SyntaxKind::LBrace, 1..2),
-                (SyntaxKind::Error, 2..3),
+                (SyntaxKind::PolymorphicVariantForeignClose, 2..3),
                 (SyntaxKind::RBrace, 3..4),
             ],
         ]
     );
+}
+
+fn assert_foreign_closes(root: &SyntaxNode, ranges: &[Range<usize>]) {
+    let wrappers = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::PolymorphicVariantForeignClose)
+        .collect::<Vec<_>>();
+    assert_eq!(wrappers.len(), ranges.len());
+    for (wrapper, range) in wrappers.iter().zip(ranges) {
+        assert_eq!(
+            wrapper.parent().unwrap().kind(),
+            SyntaxKind::PolymorphicVariantType
+        );
+        assert_eq!(
+            usize::from(wrapper.text_range().start())..usize::from(wrapper.text_range().end()),
+            *range
+        );
+        let children = wrapper.children_with_tokens().collect::<Vec<_>>();
+        assert!(!children.is_empty());
+        assert!(
+            children
+                .iter()
+                .all(|child| child.kind() == SyntaxKind::Error && child.as_token().is_some())
+        );
+        assert_eq!(
+            children.first().unwrap().text_range().start(),
+            wrapper.text_range().start()
+        );
+        assert_eq!(
+            children.last().unwrap().text_range().end(),
+            wrapper.text_range().end()
+        );
+    }
+}
+
+#[test]
+fn pv_foreign_close_slots_preserve_positions_leading_and_type_tails() {
+    for (prefix, mut records) in [
+        (":{", vec![]),
+        (":{A", vec![]),
+        (":{A,", vec![]),
+        (":{,", vec![missing_tag(0, 2)]),
+    ] {
+        for (close, delimiter) in [(")", Delimiter::Parenthesis), ("]", Delimiter::Bracket)] {
+            for leading in ["", " /*é*/", "\r\n"] {
+                let start = prefix.len() + leading.len();
+                let record = expected_record(
+                    records.len() as u32,
+                    close_role(),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                    start..start + 1,
+                    Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                        delimiter,
+                    ))),
+                );
+                records.push(record);
+                let source = format!("{prefix}{leading}{close}}}::Next");
+                let root = assert_complete(&source, &records);
+                assert_foreign_closes(&root, &[start..start + 1]);
+                records.pop();
+            }
+        }
+    }
+    let root = assert_complete(
+        ":{)",
+        &[
+            expected_record(
+                0,
+                close_role(),
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                2..3,
+                Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                    Delimiter::Parenthesis,
+                ))),
+            ),
+            missing_close(1, 3),
+        ],
+    );
+    assert_foreign_closes(&root, &[2..3]);
+}
+
+#[test]
+fn pv_mixed_repeated_foreign_closes_keep_separator_groups_direct() {
+    let source = ":{;;])];;}";
+    let expected = (2..9)
+        .map(|at| {
+            let (role, expectation, punctuation) = match source.as_bytes()[at] {
+                b';' => (
+                    pv_role(TypeRole::PolymorphicVariantTagSeparator),
+                    ExpectedSyntax::DelimitedSequenceSeparator,
+                    PunctuationEvidence::Semicolon,
+                ),
+                close => (
+                    close_role(),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                    PunctuationEvidence::Close(if close == b']' {
+                        Delimiter::Bracket
+                    } else {
+                        Delimiter::Parenthesis
+                    }),
+                ),
+            };
+            expected_record(
+                (at - 2) as u32,
+                role,
+                expectation,
+                at..at + 1,
+                Some(UnexpectedCategory::Punctuation(punctuation)),
+            )
+        })
+        .collect::<Vec<_>>();
+    let frozen = frozen_recovery_ids(&expected);
+    let mut fresh = None;
+    for (input, records) in [
+        (None, expected.as_slice()),
+        (Some(frozen.as_slice()), frozen.as_slice()),
+    ] {
+        let (green, exit, accepted, remainder, actual) =
+            run_required_type_with_recoveries(source, 0, LineEntry::InLine, None, input);
+        assert!(accepted);
+        assert!(matches!(
+            exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), _)
+        ));
+        assert_eq!(remainder, "");
+        assert_eq!(green.to_string(), source);
+        assert_eq!(actual, records);
+        let root = SyntaxNode::new_root(green.clone());
+        assert_foreign_closes(&root, &[4..5, 5..6, 6..7]);
+        let variant = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
+            .unwrap();
+        let errors = variant
+            .children_with_tokens()
+            .filter(|child| child.kind() == SyntaxKind::Error)
+            .map(|child| child.to_string())
+            .collect::<String>();
+        assert_eq!(errors, ";;;;");
+        assert_eq!(
+            recovery_groups(&root)
+                .iter()
+                .map(|group| group.text().to_string())
+                .collect::<Vec<_>>(),
+            [";;", "]", ")", "]", ";;"]
+        );
+        if let Some(fresh) = &fresh {
+            assert_eq!(&green, fresh);
+        } else {
+            fresh = Some(green);
+        }
+    }
 }
 
 #[test]
@@ -394,15 +550,30 @@ fn pv_wrong_kind_type_keeps_tight_tails_and_structured_record_order() {
 fn pv_malformed_run_returns_complete_caller_item_before_retry() {
     use crate::type_expr::TypeMlContext;
     for (prefix, error_start, error_end, role) in [
-        (":{@", 2, 3, TypeRole::PolymorphicVariantTag),
-        (":{A @", 4, 5, TypeRole::PolymorphicVariantPayload),
+        (":{@", 2, 3, pv_role(TypeRole::PolymorphicVariantTag)),
+        (":{A @", 4, 5, pv_role(TypeRole::PolymorphicVariantPayload)),
+        (":{]", 2, 3, close_role()),
     ] {
         for (stop, stops) in [(":", STOP_COLON), ("else", STOP_ELSE)] {
+            // Owner dispatch admits `else` as a tag name after a foreign close.
+            if role == close_role() && stop == "else" {
+                continue;
+            }
             let source = format!("{prefix} {stop} rest");
-            let error = if role == TypeRole::PolymorphicVariantTag {
-                expected_type_error(0, role, error_start..error_end)
-            } else {
+            let error = if role == pv_role(TypeRole::PolymorphicVariantTag) {
+                expected_type_error(0, TypeRole::PolymorphicVariantTag, error_start..error_end)
+            } else if role == pv_role(TypeRole::PolymorphicVariantPayload) {
                 payload_error(0, error_start..error_end)
+            } else {
+                expected_record(
+                    0,
+                    close_role(),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                    error_start..error_end,
+                    Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Bracket,
+                    ))),
+                )
             };
             let expected = [error, missing_close(1, error_end)];
             let frozen = frozen_recovery_ids(&expected);
@@ -422,6 +593,10 @@ fn pv_malformed_run_returns_complete_caller_item_before_retry() {
                 );
                 assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
                 assert_eq!(run.records, expected);
+                assert_foreign_closes(
+                    &SyntaxNode::new_root(run.green.clone()),
+                    if prefix == ":{]" { &[10..11] } else { &[] },
+                );
                 assert_eq!(run.remainder, " rest");
                 assert_eq!(run.successor_origin, prefix.len() + 1 + stop.len());
                 assert_eq!(run.slots, 2);
@@ -437,7 +612,8 @@ fn pv_malformed_run_returns_complete_caller_item_before_retry() {
 
 #[test]
 fn pv_close_records_preserve_native_outer_closes_and_shifted_coordinates() {
-    assert_complete("F(:{A @ )", &[payload_error(0, 6..7), missing_close(1, 7)]);
+    let root = assert_complete("F(:{A @ )", &[payload_error(0, 6..7), missing_close(1, 7)]);
+    assert_foreign_closes(&root, &[]);
     let expected = [payload_error(0, 44..45)];
     assert_complete_type_recovery(":{A @ Int}", 40, &expected);
 
@@ -450,27 +626,52 @@ fn pv_close_records_preserve_native_outer_closes_and_shifted_coordinates() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    let source = "> > :{A @\n> > ```\nouter\n";
-    let expected = [payload_error(0, 8..9), missing_close(1, 10)];
-    let frozen = frozen_recovery_ids(&expected);
-    for (input, expected) in [
-        (None, expected.as_slice()),
-        (Some(frozen.as_slice()), frozen.as_slice()),
+    for (source, expected, text, ranges) in [
+        (
+            "> > :{A @\n> > ```\nouter\n",
+            [payload_error(0, 8..9), missing_close(1, 10)],
+            "> > :{A @",
+            vec![],
+        ),
+        (
+            "> > :{]\n> > ```\nouter\n",
+            [
+                expected_record(
+                    0,
+                    close_role(),
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                    6..7,
+                    Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Bracket,
+                    ))),
+                ),
+                missing_close(1, 8),
+            ],
+            "> > :{]",
+            vec![6..7],
+        ),
     ] {
-        let (green, exit, remainder, records) = run_type_normalized_with_recoveries(
-            source,
-            0,
-            LineEntry::PhysicalStart,
-            Some(&fence),
-            input,
-        );
-        assert_eq!(green.to_string(), "> > :{A @");
-        assert_eq!(records, expected);
-        assert_eq!(remainder, "> > ```\nouter\n");
-        let Some(NormalizedExit::Complete(Err(Either::Left(pending)), _)) = exit else {
-            panic!("fence remains pending")
-        };
-        assert!(pending.payload_view().is_boundary());
+        let frozen = frozen_recovery_ids(&expected);
+        for (input, expected) in [
+            (None, expected.as_slice()),
+            (Some(frozen.as_slice()), frozen.as_slice()),
+        ] {
+            let (green, exit, remainder, records) = run_type_normalized_with_recoveries(
+                source,
+                0,
+                LineEntry::PhysicalStart,
+                Some(&fence),
+                input,
+            );
+            assert_eq!(green.to_string(), text);
+            assert_foreign_closes(&SyntaxNode::new_root(green.clone()), &ranges);
+            assert_eq!(records, expected);
+            assert_eq!(remainder, "> > ```\nouter\n");
+            let Some(NormalizedExit::Complete(Err(Either::Left(pending)), _)) = exit else {
+                panic!("fence remains pending")
+            };
+            assert!(pending.payload_view().is_boundary());
+        }
     }
 }
 
@@ -488,6 +689,7 @@ fn pv_formally_accepted_controls_have_no_recovery_or_missing_structure() {
         ":{A Pair(Int, Bool)}",
         ":{A Int/*é*/Bool}",
     ] {
-        assert_complete(source, &[]);
+        let root = assert_complete(source, &[]);
+        assert_foreign_closes(&root, &[]);
     }
 }

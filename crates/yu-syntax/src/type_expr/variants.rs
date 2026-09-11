@@ -261,6 +261,8 @@ fn type_polymorphic_variant_tags_normalized(
                 );
             }
             item.emit_all_remaining_leading(&mut *i.state);
+            i.state
+                .start_node(SyntaxKind::PolymorphicVariantForeignClose.into());
             emit_polymorphic_variant_token_error(
                 i.rb(),
                 item,
@@ -268,6 +270,7 @@ fn type_polymorphic_variant_tags_normalized(
                 polymorphic_variant_close_role(),
                 ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
             );
+            i.state.finish_node();
             (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
                 i.rb(),
                 item_origin,

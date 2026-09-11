@@ -1,6 +1,6 @@
 # PolymorphicVariantType foreign-close CST slot draft
 
-Status: Authoritative; M2 construction pending after NamedRecordType
+Status: Authoritative; private M2 construction complete
 
 Date: 2026-09-10
 
@@ -146,3 +146,15 @@ Stop if a direct PV Error cause is not Separator-owned, an accepted tree changes
 records/ranges/current Item/leading/continuation change, a wrapper gains a
 successor-owned child, an existing SyntaxKind is renumbered, or another owner
 would need the node.
+
+## Construction result
+
+Private M2 construction completed on 2026-09-11. The append-only
+`PolymorphicVariantForeignClose` SyntaxKind is 281. It wraps only the existing
+locally consumed mismatched-close Error emission, after initial leading and
+before successor acquisition; direct Separator Error and every protected,
+accepted, nested and terminal path remain unchanged. Focused position, mixed
+group, UTF-8/CRLF, tail, caller/fence and fresh/frozen controls preserve all
+temporary records. Pre-write specification/compiler reviews and closure review
+are clean; the Type-expression module and package check passed. No benchmark
+samples/processes were used.

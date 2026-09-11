@@ -8663,13 +8663,25 @@ fn polymorphic_variant_type_recovers_payload_boundaries_and_malformed_runs() {
         assert_eq!(green.to_string(), source, "{source:?}");
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let variant = polymorphic_variant_node(green);
-        let error = recovery_groups(&variant)
+        let owner = if boundary == "]" {
+            variant
+                .children()
+                .find(|node| node.kind() == SyntaxKind::PolymorphicVariantForeignClose)
+                .expect("local foreign close slot")
+        } else {
+            variant.clone()
+        };
+        let error = recovery_groups(&owner)
             .into_iter()
-            .find(|group| group.parent().as_ref() == Some(&variant) && group.text() == boundary)
+            .find(|group| group.parent().as_ref() == Some(&owner) && group.text() == boundary)
             .expect("local payload boundary error");
         assert_eq!(
             error.parent().map(|node| node.kind()),
-            Some(SyntaxKind::PolymorphicVariantType),
+            Some(if boundary == "]" {
+                SyntaxKind::PolymorphicVariantForeignClose
+            } else {
+                SyntaxKind::PolymorphicVariantType
+            }),
             "{source:?}"
         );
     }
@@ -8914,9 +8926,13 @@ fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
         .descendants()
         .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
         .expect("polymorphic variant type");
-    let error = recovery_groups(&variant)
+    let foreign_close = variant
+        .children()
+        .find(|node| node.kind() == SyntaxKind::PolymorphicVariantForeignClose)
+        .expect("local foreign close slot");
+    let error = recovery_groups(&foreign_close)
         .into_iter()
-        .find(|group| group.parent().as_ref() == Some(&variant))
+        .find(|group| group.parent().as_ref() == Some(&foreign_close))
         .expect("local close error");
     assert_eq!(error.text().to_string(), "]");
     assert!(

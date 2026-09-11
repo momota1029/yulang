@@ -354,6 +354,19 @@ fresh/frozen records. This is a topology construction link, not a completed
 semantic diagnostic-row mapping; PV and remaining NamedRecord semantic slots
 remain separate.
 
+#### PolymorphicVariantType foreign-close topology construction links
+
+The Authoritative PV topology is privately constructed at
+`crates/yu-syntax/src/type_expr/variants.rs:253–279`. Only the locally consumed
+foreign `RParen`/`RBracket` Error emission is wrapped in
+`PolymorphicVariantForeignClose`; direct semicolon Separator Error and all
+other PV owners remain direct or nested as before. Direct proof is
+`crates/yu-syntax/src/tests/type_expr/pv_recovery.rs:199–689`, with dependent
+payload/outer-close ancestry controls in `tests/type_expr.rs`. It covers
+positions, repetition, mixed groups, leading, fence/caller handoff, tail and
+fresh/frozen records. This is topology construction evidence, not completion of
+the remaining PV semantic diagnostic rows.
+
 #### ForallType first required-binder candidate links
 
 Only `crates/yu-syntax/src/type_expr/forall.rs:56–74,142–258,269–315,319–381,
