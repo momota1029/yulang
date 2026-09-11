@@ -1,6 +1,92 @@
 use crate::tests::type_expr::record_field_recovery::field_record;
 use crate::tests::type_expr::*;
 
+#[test]
+fn record_sequence_cst_occurrences_distinguish_field_separator_and_close() {
+    use SyntaxKind::{
+        Error, Missing, NamedRecordType as Field, NamedRecordTypeClose as Close,
+        NamedRecordTypeSeparator as Separator,
+    };
+    for (source, expected) in [
+        ("{,a:A}", vec![(Field, Missing, 1..1)]),
+        ("{a:A b:B}", vec![(Separator, Missing, 5..5)]),
+        ("{;}", vec![(Separator, Error, 1..2)]),
+        ("{@;}", vec![(Field, Error, 1..3)]),
+        ("{([)]:A}", vec![(Field, Error, 1..3), (Close, Error, 3..7)]),
+        (
+            "{a:A,",
+            vec![(Field, Missing, 5..5), (Close, Missing, 5..5)],
+        ),
+        (
+            "{a:{b:B",
+            vec![(Close, Missing, 7..7), (Close, Missing, 7..7)],
+        ),
+        ("{a:A]}", vec![(Close, Error, 4..5)]),
+        ("{a:A]", vec![(Close, Error, 4..5), (Close, Missing, 5..5)]),
+    ] {
+        let (green, _, _) = run_type_with_context_and_recoveries(
+            source,
+            crate::type_expr::TypeMlContext::INACTIVE,
+            None,
+        );
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.text(), source);
+        // Use direct Rowan occurrences, never the temporary record's role or
+        // range, to identify a slot. Stable source order retains equal offsets.
+        let mut actual: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .map(|node| {
+                (
+                    node.parent().unwrap().kind(),
+                    Missing,
+                    usize::from(node.text_range().start())..usize::from(node.text_range().end()),
+                )
+            })
+            .chain(recovery_groups(&root).into_iter().map(|group| {
+                (
+                    group.parent().unwrap().kind(),
+                    Error,
+                    usize::from(group.text_range().start())..usize::from(group.text_range().end()),
+                )
+            }))
+            .collect();
+        actual.sort_by_key(|(_, _, range)| range.start);
+        assert_eq!(actual, expected, "{source:?}");
+        for record in root.descendants().filter(|node| node.kind() == Field) {
+            let closes: Vec<_> = record
+                .children()
+                .filter(|node| node.kind() == Close)
+                .collect();
+            assert_eq!(closes.len(), 1, "{source:?}");
+            assert_eq!(record.last_child_or_token(), Some(closes[0].clone().into()));
+            assert!(matches!(
+                closes[0].last_child_or_token().unwrap().kind(),
+                SyntaxKind::RBrace | Missing
+            ));
+        }
+        if source == "{a:{b:B" {
+            let missing: Vec<_> = root
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect();
+            assert_eq!(missing.len(), 2);
+            // Equal green nodes at the same offset can compare equal in Rowan;
+            // the enclosing record occurrences still have different paths.
+            let record_depths: Vec<_> = missing
+                .iter()
+                .map(|node| {
+                    node.ancestors()
+                        .filter(|ancestor| ancestor.kind() == Field)
+                        .count()
+                })
+                .collect();
+            assert_eq!(record_depths, [2, 1]);
+            assert_eq!(missing[0].text_range(), missing[1].text_range());
+        }
+    }
+}
+
 pub(super) fn close(id: u32, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
     let role = GrammarRole::ClosingDelimiter {
         owner: ConstructRole::NamedRecordType,

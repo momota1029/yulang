@@ -1,6 +1,69 @@
 use crate::tests::type_expr::record_sequence_recovery::close;
 use crate::tests::type_expr::*;
 
+#[test]
+fn record_field_cst_orders_name_colon_and_type_recovery_without_ledger_context() {
+    use SyntaxKind::{Colon, Error, Identifier, Missing, TypeExpression as Type};
+    // Direct child order identifies the slot; nested Type recovery is not a
+    // field-level occurrence, and a failed colon cannot imply a Type Missing.
+    for (source, expected) in [
+        ("{: A}", vec![Missing, Colon, Type]),
+        ("{:}", vec![Missing, Colon, Missing]),
+        ("{@: A}", vec![Error, Colon, Type]),
+        ("{a}", vec![Identifier, Missing]),
+        ("{a A}", vec![Identifier, Missing, Type]),
+        ("{a @ : B}", vec![Identifier, Error, Colon, Type]),
+        ("{a @ B}", vec![Identifier, Error, Type]),
+        ("{a @}", vec![Identifier, Error]),
+        ("{a:}", vec![Identifier, Colon, Missing]),
+        ("{a: @ B}", vec![Identifier, Colon, Error, Type]),
+        ("{a: @}", vec![Identifier, Colon, Error]),
+        ("{a: @/*é*/B}", vec![Identifier, Colon, Error, Type]),
+        ("{a @\r\n  B}", vec![Identifier, Error, Type]),
+        ("{a:{b:}}", vec![Identifier, Colon, Type]),
+    ] {
+        let (green, _, _) = run_type_with_context_and_recoveries(
+            source,
+            crate::type_expr::TypeMlContext::INACTIVE,
+            None,
+        );
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.text(), source);
+        let field = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::TypeRecordField)
+            .unwrap();
+        let actual: Vec<_> = field
+            .children_with_tokens()
+            .map(|element| element.kind())
+            .filter(|kind| {
+                !matches!(
+                    kind,
+                    SyntaxKind::Whitespace
+                        | SyntaxKind::Newline
+                        | SyntaxKind::LineComment
+                        | SyntaxKind::BlockComment
+                )
+            })
+            .collect();
+        assert_eq!(actual, expected, "{source:?}");
+        if source == "{a:{b:}}" {
+            let missing = root
+                .descendants()
+                .find(|node| node.kind() == Missing)
+                .unwrap();
+            let nested = missing.parent().unwrap();
+            assert_eq!(nested.kind(), SyntaxKind::TypeRecordField);
+            assert_ne!(nested, field);
+            assert!(
+                nested
+                    .ancestors()
+                    .any(|node| node.kind() == Type && node.parent() == Some(field.clone()))
+            );
+        }
+    }
+}
+
 pub(super) fn field_record(
     id: u32,
     role: TypeRole,

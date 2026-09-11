@@ -464,6 +464,25 @@ fresh/frozen records. This is a topology construction link, not a completed
 semantic diagnostic-row mapping; PV and remaining NamedRecord semantic slots
 remain separate.
 
+#### NamedRecordType semantic-slot Draft links
+
+The six direct semantic slots are now linked only for their witnessed forms:
+whole-field `Missing`/raw `Error` directly under `NamedRecordType`; Name,
+Colon and RHS Type in ordered `TypeRecordField` children; recovery-only
+`NamedRecordTypeSeparator`; and the unique committed
+`NamedRecordTypeClose`. The direct Rowan proofs are
+`record_field_cst_orders_name_colon_and_type_recovery_without_ledger_context`
+and `record_sequence_cst_occurrences_distinguish_field_separator_and_close` in
+`crates/yu-syntax/src/tests/type_expr/record_field_recovery.rs` and
+`record_sequence_recovery.rs`. They fix no-cascade Error-to-Type retry,
+nested Type ownership, Field/Separator/Close collision splits, terminal-close
+cardinality and equal-offset nested Close occurrence paths without reading
+records, Error spelling, green identity or ranges as identity. Post-write
+specification and recovery audits are clean. Status: `evidence-complete Draft`
+for Field, Name, Colon, Type, Separator and Close over those forms only;
+remaining boundary/trivia alternatives, PV, all other Type rows, the global
+collector and ledger/API migration remain open.
+
 #### PolymorphicVariantType foreign-close topology construction links
 
 The Authoritative PV topology is privately constructed at

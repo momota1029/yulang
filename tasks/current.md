@@ -185,8 +185,12 @@ yet a ledger-removal proof: `literal/rule_literal.rs` has four indirect
 `emit_rule_missing` publishers outside its four-emitter/family inventory, and
 several `type_expr/mod.rs` source locators are stale. Existing catalog statuses
 remain unchanged until their behavior and current links are revalidated. The
-next M2 design gate is the NamedRecordType semantic matrix; its completed
-topology alone is insufficient for semantic diagnostic projection.
+NamedRecordType M2 semantic matrix is now a catalog-audited evidence-complete
+Draft: its existing topology distinguishes Field, Name, Colon, Type, Separator
+and Close directly from ordered Rowan context. The bounded proof covers
+no-cascade retry, nested Type ownership, Field/Separator/Close collisions and
+equal-offset Close occurrence paths without recovery-record input. It does not
+complete any other Type context, the global collector or ledger/API migration.
 The bounded declaration Variant core Item/Name/Separator row is now
 catalog-audited evidence-complete Draft. Direct full-shell Rowan controls prove
 that `EnumVariant(Missing)` and terminal `EnumVariant(Error+)` are Item, while
