@@ -812,6 +812,21 @@ separate slots.
 | diagnostic projection | An outer direct Missing or maximal direct Error group after CastKw, and the initial inner CastPattern Missing before a bare Pattern value, each project `Declaration(Cast(PatternIntroducer))` with singleton expected `Open(Parenthesis)`, primary zero, at the direct empty/grouped range. Direct child order and the CastDeclaration/CastPattern path select the occurrence. Error spelling, recovery records, scanner state and pending-boundary coordinates are not inputs. |
 | proof and status | Governing authority: [cast PatternIntroducer current-Item recovery](2026-09-09-successor-cast-pattern-introducer-current-item-recovery.md), **Publication**, bare-Pattern retry and boundary rules, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/cast_decl.rs:272–428,1372–1404,1827–1908`. Direct Rowan proof: `cast_pattern_introducer_direct_rowan_slot_order_and_ranges`, `cast_pattern_introducer_initial_pattern_children_distinguish_value_recovery`, and `cast_pattern_introducer_rowan_error_group_ends_before_phase_handoff` in `crates/yu-syntax/src/tests/declaration/cast_decl.rs`. M1 post-write review found the inner implicit-pattern topology requirement; its one repair and delta audit were clean. Status: catalog-audited evidence-complete Draft for this bounded introducer row only; all excluded Cast rows, global collector, parser API and recovery-ledger retirement remain open. |
 
+### Cast Pattern value Draft
+
+This bounded Draft maps only the initially absent value after an admitted
+CastPattern LParen. `CastPattern(LParen Missing RParen)` selects
+`Declaration(Cast(Pattern))` with singleton expected `Pattern`, primary zero.
+The native local RParen and preserved colon/semicolon/equals are later phase
+evidence. A nonempty malformed value is a nested Pattern-owned Error, not this
+slot. Direct Rowan proof is the three `cast_pattern_value_direct_rowan_*` tests
+in `crates/yu-syntax/src/tests/declaration/cast_decl.rs`; it reads ordered
+kinds, ancestry and ranges only. Governing authority is [cast Pattern
+current-Item recovery](2026-09-09-successor-cast-pattern-current-item-recovery.md)
+and the CST-derived diagnostics amendment. M1 audit was clean. Status:
+catalog-audited evidence-complete Draft for these witnesses only; local-close
+Error, fence topology and remaining Cast rows remain open.
+
 ### Cast TargetIntroducer Draft
 
 This bounded Draft maps only the required colon after a completed CastPattern.

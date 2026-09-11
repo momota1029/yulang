@@ -1101,6 +1101,130 @@ fn cast_pattern_absence_records_are_exact_and_reconcile() {
 }
 
 #[test]
+fn cast_pattern_value_direct_rowan_absence_order_and_phase_handoff() {
+    use SyntaxKind::{CastPattern, CastTarget, Colon, Equals, LParen, Missing, RParen, Semicolon};
+
+    // A native opener selects the required value slot. Its Missing precedes
+    // either the native local close or the next phase outside CastPattern.
+    for (source, close, phase) in [
+        ("cast()", true, None),
+        ("cast(: T;", false, Some((CastTarget, Colon))),
+        ("cast(;", false, Some((Semicolon, Semicolon))),
+        ("cast(= value", false, Some((Equals, Equals))),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let mut children = node.children_with_tokens();
+        let pattern = children
+            .by_ref()
+            .find(|child| child.kind() == CastPattern)
+            .unwrap()
+            .into_node()
+            .unwrap();
+        assert_eq!(pattern.parent(), Some(node.clone()), "{source:?}");
+        let actual = pattern
+            .children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut expected = vec![(LParen, 4..5), (Missing, 5..5)];
+        if close {
+            expected.push((RParen, 5..6));
+        }
+        assert_eq!(actual, expected, "{source:?}");
+        if let Some((owner, punctuation)) = phase {
+            let next = children.next().expect("preserved next phase");
+            assert_eq!(next.kind(), owner, "{source:?}");
+            let token = match next {
+                rowan::NodeOrToken::Node(node) => node.first_token().unwrap(),
+                rowan::NodeOrToken::Token(token) => token,
+            };
+            assert_eq!(token.kind(), punctuation, "{source:?}");
+            assert_eq!(
+                token.text_range(),
+                rowan::TextRange::new(5.into(), 6.into()),
+                "{source:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn cast_pattern_value_direct_rowan_boundary_has_no_later_slot() {
+    use SyntaxKind::{CastKw, CastPattern, LParen, Missing};
+
+    for (source, stops) in [
+        ("cast(", 0),
+        ("cast(\r\n", 0),
+        ("cast( else tail", STOP_ELSE),
+        ("cast( } tail", 0),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, stops, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        assert_eq!(
+            node.children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            [CastKw, CastPattern],
+            "{source:?}"
+        );
+        let pattern = node.children().next().unwrap();
+        let actual = pattern
+            .children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, [(LParen, 4..5), (Missing, 5..5)], "{source:?}");
+    }
+}
+
+#[test]
+fn cast_pattern_value_direct_rowan_nonempty_error_keeps_pattern_owner() {
+    use SyntaxKind::{CastPattern, Error, LParen, Pattern, RParen};
+
+    let (green, _, _) = run_cast_declaration("cast(@): T;", 0, 0, LineEntry::InLine, None);
+    let node = declaration(&green);
+    let pattern = node
+        .children()
+        .find(|child| child.kind() == CastPattern)
+        .unwrap();
+    let children = pattern.children_with_tokens().collect::<Vec<_>>();
+    let actual = children
+        .iter()
+        .map(|child| {
+            let range = child.text_range();
+            (
+                child.kind(),
+                usize::from(range.start())..usize::from(range.end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, [(LParen, 4..5), (Pattern, 5..6), (RParen, 6..7)]);
+    let value = children[1].as_node().unwrap();
+    assert_eq!(value.parent(), Some(pattern));
+    let mut errors = value
+        .descendants_with_tokens()
+        .filter(|child| child.kind() == Error);
+    let error = errors.next().expect("native Pattern Error token");
+    assert!(error.as_token().is_some());
+    assert_eq!(
+        error.text_range(),
+        rowan::TextRange::new(5.into(), 6.into())
+    );
+    assert!(errors.next().is_none());
+}
+
+#[test]
 fn cast_pattern_introducer_direct_rowan_slot_order_and_ranges() {
     use SyntaxKind::{CastKw, CastPattern, Error, Missing, Whitespace};
 

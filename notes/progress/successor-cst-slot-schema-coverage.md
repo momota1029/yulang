@@ -139,6 +139,15 @@ evidence-complete Draft only for PatternIntroducer; Pattern value/close,
 target/form/body, nested Pattern, global interpreter and ledger retirement
 remain separate.
 
+#### Cast Pattern value Draft links
+
+Only direct absence after native CastPattern LParen is linked. `LParen Missing
+RParen` selects Cast Pattern; colon/semicolon/equals stay native later-phase
+evidence, while nonempty malformed Pattern owns its nested Error. Three
+`cast_pattern_value_direct_rowan_*` tests in `tests/declaration/cast_decl.rs`
+prove order/ranges and terminal boundaries without records or Error spelling.
+M1 audit was clean; local-close Error, fence and remaining Cast rows stay open.
+
 #### Cast TargetIntroducer Draft links
 
 Only the required colon after a completed CastPattern is linked. Direct

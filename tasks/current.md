@@ -671,6 +671,10 @@ that inner opener absence from the later Pattern value Missing after native
 LParen; Error-to-bare retry has no duplicate opener Missing. Pattern
 value/close, target/form/body, nested Pattern, the global collector and
 ledger/API migration remain open.
+Cast Pattern value is separately catalog-audited: direct native
+LParen/Missing/local-close order selects its required Pattern role, while
+nonempty recovery stays nested Pattern-owned. Local-close Error, fence and
+remaining Cast rows remain open.
 Cast TargetIntroducer is also a catalog-audited evidence-complete Draft. After
 a completed CastPattern, its direct declaration Missing/Error and the initial
 Missing inside `CastTarget(Missing TypeExpression)` both select the required
