@@ -495,6 +495,204 @@ fn optional_statement_rejection_is_effect_free() {
 }
 
 #[test]
+fn braced_statement_raw_error_ordered_children() {
+    use SyntaxKind::{BlockStatementSeparator, Error, LBrace, RBrace, Statement, Whitespace};
+
+    for (source, direct) in [
+        ("{@}", vec![(LBrace, 0..1), (Error, 1..2), (RBrace, 2..3)]),
+        (
+            "{@ use a}",
+            vec![
+                (LBrace, 0..1),
+                (Error, 1..2),
+                (Statement, 2..8),
+                (RBrace, 8..9),
+            ],
+        ),
+        (
+            "{@,}",
+            vec![
+                (LBrace, 0..1),
+                (Error, 1..2),
+                (BlockStatementSeparator, 2..3),
+                (RBrace, 3..4),
+            ],
+        ),
+        (
+            "{@; use a}",
+            vec![
+                (LBrace, 0..1),
+                (Error, 1..2),
+                (BlockStatementSeparator, 2..4),
+                (Statement, 4..9),
+                (RBrace, 9..10),
+            ],
+        ),
+        (
+            "{ @ @ α}",
+            vec![
+                (LBrace, 0..1),
+                (Whitespace, 1..2),
+                (Error, 2..3),
+                (Error, 3..4),
+                (Error, 4..5),
+                (Statement, 5..8),
+                (RBrace, 8..9),
+            ],
+        ),
+        (
+            "{💥\n💥 use a}",
+            vec![
+                (LBrace, 0..1),
+                (Error, 1..5),
+                (BlockStatementSeparator, 5..6),
+                (Error, 6..10),
+                (Statement, 10..16),
+                (RBrace, 16..17),
+            ],
+        ),
+        (
+            "{@\r\n@ use a}",
+            vec![
+                (LBrace, 0..1),
+                (Error, 1..2),
+                (BlockStatementSeparator, 2..4),
+                (Error, 4..5),
+                (Statement, 5..11),
+                (RBrace, 11..12),
+            ],
+        ),
+    ] {
+        let (green, _, _, _) = parse(source, 0, None, None);
+        assert_eq!(green.to_string(), source);
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .unwrap();
+        assert_braced_error_children(&block, &direct, false);
+    }
+}
+
+fn assert_braced_error_children(
+    block: &SyntaxNode,
+    expected: &[(SyntaxKind, Range<usize>)],
+    prefix_only: bool,
+) {
+    let children = block.children_with_tokens().collect::<Vec<_>>();
+    let inspected = if prefix_only {
+        &children[..expected.len()]
+    } else {
+        &children[..]
+    };
+    assert_eq!(
+        inspected
+            .iter()
+            .map(|child| (
+                child.kind(),
+                usize::from(child.text_range().start())..usize::from(child.text_range().end())
+            ))
+            .collect::<Vec<_>>(),
+        expected,
+    );
+    for child in inspected {
+        assert_eq!(child.parent(), Some(block.clone()));
+        assert_eq!(
+            child.as_node().is_some(),
+            matches!(
+                child.kind(),
+                SyntaxKind::Statement | SyntaxKind::BlockStatementSeparator
+            )
+        );
+    }
+    assert!(
+        !block
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Invalid)
+    );
+}
+
+#[test]
+fn braced_statement_raw_error_terminal_prefixes() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
+        close_column: 0,
+    };
+    for (source, boundary) in [
+        ("{@", None),
+        ("{@  ", None),
+        ("{@  )tail", None),
+        ("{@\r\n  ]tail", None),
+        ("{@\r\n> ```\nouter", Some(&fence)),
+    ] {
+        let (green, _, _, _) = parse(source, 0, boundary, None);
+        let root = SyntaxNode::new_root(green);
+        let block = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+            .unwrap();
+        // Only the Statement Error prefix is in scope; terminal close recovery
+        // is a separate slot even when it shares this immediate parent.
+        assert_braced_error_children(
+            &block,
+            &[(SyntaxKind::LBrace, 0..1), (SyntaxKind::Error, 1..2)],
+            true,
+        );
+        assert_eq!(
+            block
+                .children_with_tokens()
+                .filter(|child| child.kind() == SyntaxKind::Error)
+                .map(|child| child.text_range())
+                .collect::<Vec<_>>(),
+            [rowan::TextRange::new(1.into(), 2.into())]
+        );
+    }
+}
+
+#[test]
+fn braced_statement_raw_error_stays_in_nested_for_body() {
+    let source = "{for x in xs {@}; use a}";
+    let (green, _, _, _) = parse(source, 0, None, None);
+    assert_eq!(green.to_string(), source);
+    let root = SyntaxNode::new_root(green);
+    let outer = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        .unwrap();
+    assert_braced_error_children(
+        &outer,
+        &[
+            (SyntaxKind::LBrace, 0..1),
+            (SyntaxKind::Statement, 1..16),
+            (SyntaxKind::BlockStatementSeparator, 16..18),
+            (SyntaxKind::Statement, 18..23),
+            (SyntaxKind::RBrace, 23..24),
+        ],
+        false,
+    );
+    let statement = outer.children().next().unwrap();
+    let nested = statement
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+        .unwrap();
+    assert_braced_error_children(
+        &nested,
+        &[
+            (SyntaxKind::LBrace, 13..14),
+            (SyntaxKind::Error, 14..15),
+            (SyntaxKind::RBrace, 15..16),
+        ],
+        false,
+    );
+}
+
+#[test]
 fn nested_for_braced_body_success_resumes_the_enclosing_sequence() {
     let separator = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator);
     for (source, expected_records) in [

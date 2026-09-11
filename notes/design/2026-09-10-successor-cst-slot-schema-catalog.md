@@ -999,6 +999,14 @@ recovery-free. Direct Rowan proof in `tests/rule_expression_list_recovery.rs`
 has M1 specification audit clean. Outer Yumark construction, pending Item
 identity and other list slots remain separate.
 
+### BracedStatementBlock direct raw Error Draft
+
+This bounded Draft maps only direct BracedStatementBlockExpression Error groups.
+Ordered sibling retry Statement, separator and BlockStatementSeparator distinguish
+the raw run; terminal/protected prefixes and nested-for recovery remain separate.
+M1 Rowan proof in `tests/braced_statement_recovery.rs` and specification audit
+are clean. Missing/Close and other statement sequences remain unmapped.
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

@@ -311,6 +311,13 @@ RuleIndex fence prefixes, matching close Missing and native close controls.
 Fence bytes remain outside CST. M1 specification audit was clean; outer Yumark,
 pending Item identity and other list slots remain separate.
 
+#### BracedStatementBlock direct raw Error Draft links
+
+`tests/braced_statement_recovery.rs` maps direct block Error groups, retry
+Statement, separator/BlockStatementSeparator ownership, UTF-8 and
+terminal/protected prefixes without records or Error spelling. M1 specification
+audit was clean; Missing/Close and other statement sequences remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct
