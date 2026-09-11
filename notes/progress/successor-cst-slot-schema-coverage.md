@@ -225,6 +225,27 @@ delegation without records, Error spelling or scanner state. M2 spec/regression
 audits and the marker-body delta audit were clean. Visibility, braced/indented
 children, caller boundaries and all other Mod rows remain separate.
 
+#### RoleDeclaration BodyIntroducer/inline Body Draft links
+
+Only `crates/yu-syntax/src/declaration/role_decl.rs:300–606,790–894` is linked
+to the two bounded direct Role body rows. A completed direct TypeExpression
+precedes BodyIntroducer; its Missing/Error and native Semicolon/brace/Colon
+starters are distinct from actual-Colon inline Body. Absent Head has a nested
+`TypeExpression(Missing)` and malformed Head Error is pre-completed-Head
+content, so neither is mistaken for BodyIntroducer. A retry TypeExpression owns
+its own leading.
+
+Direct Rowan proof is `role_schema_completed_head_selects_body_introducer`,
+`role_schema_actual_colon_selects_inline_body`,
+`role_schema_incomplete_head_does_not_select_body_introducer`, and
+`role_schema_inline_binding_recovery_remains_in_child_body` in
+`crates/yu-syntax/src/tests/declaration/role_decl.rs`. It covers UTF-8,
+EOF/protected-close/CRLF shape, terminal Error, starter/Statement retry leading
+and nested BindingBody delegation without records, Error spelling or scanner
+state. M1 post-write specification audit was clean. Head Type recovery,
+braced/indented child internals, caller/fence suites and remaining Role rows
+remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

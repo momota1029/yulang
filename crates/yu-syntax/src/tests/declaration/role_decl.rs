@@ -1,5 +1,180 @@
 use crate::tests::support::*;
 
+// Slot evidence reads only ordered Rowan children and UTF-8 byte ranges.
+fn assert_role_shell(source: &str, expected: &[(SyntaxKind, std::ops::Range<u32>)]) -> SyntaxNode {
+    let (green, _, _) = run_role_declaration(source, 0, 0, LineEntry::InLine, None);
+    let role = declaration(&green);
+    let actual = role
+        .children_with_tokens()
+        .map(|child| {
+            assert_eq!(child.parent(), Some(role.clone()));
+            let range = child.text_range();
+            (
+                child.kind(),
+                u32::from(range.start())..u32::from(range.end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected, "{source:?}");
+    assert!(
+        !role
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Invalid)
+    );
+    role
+}
+
+#[test]
+fn role_schema_completed_head_selects_body_introducer() {
+    use SyntaxKind::*;
+    for (source, suffix) in [
+        ("role 型;", vec![(Semicolon, 8..9)]),
+        (
+            "role 型 {}",
+            vec![(Whitespace, 8..9), (BracedStatementBlockExpression, 9..11)],
+        ),
+        ("role 型: x", vec![(Colon, 8..9), (Statement, 9..11)]),
+        ("role 型  ", vec![(Whitespace, 8..10), (Missing, 10..10)]),
+        ("role 型  )", vec![(Missing, 8..8)]),
+        ("role 型 @  ", vec![(Whitespace, 8..9), (Error, 9..10)]),
+        ("role 型 @  )", vec![(Whitespace, 8..9), (Error, 9..10)]),
+        (
+            "role 型 @  ~   ;",
+            vec![
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Error, 10..12),
+                (Error, 12..13),
+                (Whitespace, 13..16),
+                (Semicolon, 16..17),
+            ],
+        ),
+        (
+            "role 型 @ {}",
+            vec![
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Whitespace, 10..11),
+                (BracedStatementBlockExpression, 11..13),
+            ],
+        ),
+        (
+            "role 型 @ : x",
+            vec![
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Whitespace, 10..11),
+                (Colon, 11..12),
+                (Statement, 12..14),
+            ],
+        ),
+    ] {
+        let mut expected = vec![(RoleKw, 0..4), (Whitespace, 4..5), (TypeExpression, 5..8)];
+        expected.extend(suffix);
+        assert_role_shell(source, &expected);
+    }
+}
+
+#[test]
+fn role_schema_actual_colon_selects_inline_body() {
+    use SyntaxKind::*;
+    for (source, suffix) in [
+        ("role 型:   ", vec![(Missing, 9..9)]),
+        ("role 型:  ;", vec![(Missing, 9..9)]),
+        ("role 型:\r\nnext", vec![(Missing, 9..9)]),
+        ("role 型: @  ", vec![(Whitespace, 9..10), (Error, 10..11)]),
+        ("role 型: @  ;", vec![(Whitespace, 9..10), (Error, 10..11)]),
+        (
+            "role 型: @  ~   x;",
+            vec![
+                (Whitespace, 9..10),
+                (Error, 10..11),
+                (Error, 11..13),
+                (Error, 13..14),
+                (Statement, 14..18),
+                (Semicolon, 18..19),
+            ],
+        ),
+    ] {
+        let mut expected = vec![
+            (RoleKw, 0..4),
+            (Whitespace, 4..5),
+            (TypeExpression, 5..8),
+            (Colon, 8..9),
+        ];
+        expected.extend(suffix);
+        let role = assert_role_shell(source, &expected);
+        if let Some(statement) = role.children().find(|node| node.kind() == Statement) {
+            let leading = statement.first_token().expect("retry leading");
+            assert_eq!(leading.kind(), Whitespace);
+            assert_eq!(
+                leading.text_range(),
+                rowan::TextRange::new(14.into(), 17.into())
+            );
+        }
+    }
+}
+
+#[test]
+fn role_schema_incomplete_head_does_not_select_body_introducer() {
+    use SyntaxKind::*;
+    // Missing Head has a TypeExpression wrapper; malformed Head can precede
+    // one. Neither is the slot following a completed Head.
+    for (source, suffix) in [
+        ("role )", vec![(TypeExpression, 5..5)]),
+        ("role ;", vec![(TypeExpression, 5..5), (Semicolon, 5..6)]),
+        ("role @ ;", vec![(Error, 5..6)]),
+        (
+            "role @ 型;",
+            vec![(Error, 5..6), (TypeExpression, 6..10), (Semicolon, 10..11)],
+        ),
+    ] {
+        let mut expected = vec![(RoleKw, 0..4), (Whitespace, 4..5)];
+        expected.extend(suffix);
+        let role = assert_role_shell(source, &expected);
+        for head in role
+            .children()
+            .filter(|node| node.kind() == TypeExpression && node.text_range().is_empty())
+        {
+            let children = head.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), 1);
+            assert_eq!(children[0].kind(), Missing);
+            assert_eq!(children[0].parent(), Some(head.clone()));
+            assert_eq!(children[0].text_range(), head.text_range());
+        }
+    }
+}
+
+#[test]
+fn role_schema_inline_binding_recovery_remains_in_child_body() {
+    use SyntaxKind::*;
+    let role = assert_role_shell(
+        "role 型: my x =",
+        &[
+            (RoleKw, 0..4),
+            (Whitespace, 4..5),
+            (TypeExpression, 5..8),
+            (Colon, 8..9),
+            (Statement, 9..16),
+        ],
+    );
+    let statement = role
+        .children()
+        .find(|node| node.kind() == Statement)
+        .unwrap();
+    let binding = statement
+        .children()
+        .find(|node| node.kind() == BindingStatement)
+        .unwrap();
+    let body = binding
+        .children()
+        .find(|node| node.kind() == BindingBody)
+        .unwrap();
+    let missing = body.children().find(|node| node.kind() == Missing).unwrap();
+    assert_eq!(missing.parent(), Some(body));
+    assert_eq!(missing.text_range(), rowan::TextRange::empty(16.into()));
+}
+
 fn typed_role<'s>(
     source: &'s str,
     frozen: Option<&[CommittedRecoveryRecord]>,

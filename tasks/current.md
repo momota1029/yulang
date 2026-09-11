@@ -703,6 +703,12 @@ from second TestName Identifier, then completed-identity BodyIntroducer from
 actual-Colon inline Body. The direct child Statement owns its nested BindingBody
 recovery; braced/indented children, visibility, caller boundaries and remaining
 Mod rows stay open with global collection and ledger/API migration.
+RoleDeclaration BodyIntroducer and actual-Colon inline Body are now
+catalog-audited as an evidence-complete Draft. A completed TypeExpression Head
+is the direct predecessor of BodyIntroducer; absent/malformed Head forms are
+structurally excluded, while nested BindingBody recovery remains under the
+child Statement. Head Type, braced/indented children, caller/fence topology and
+remaining Role rows stay open with global collection and ledger/API migration.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and
