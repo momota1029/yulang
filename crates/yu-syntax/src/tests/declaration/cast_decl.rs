@@ -367,6 +367,163 @@ fn cast_body_records_are_exact_and_reconcile() {
 }
 
 #[test]
+fn cast_inline_body_direct_rowan_slot_order_and_ranges() {
+    use SyntaxKind::{Error, Missing, OperatorChain, Whitespace};
+
+    // Exact Equals establishes Body. Only its direct recovery children belong
+    // to this slot; an admitted OperatorChain begins Expression ownership.
+    for (source, stops, expected) in [
+        ("cast(x): A =", 0, vec![(Missing, 12..12)]),
+        ("cast(x): A = ;", 0, vec![(Missing, 12..12)]),
+        ("cast(x): A = )", 0, vec![(Missing, 12..12)]),
+        ("cast(x): A = else", STOP_ELSE, vec![(Missing, 12..12)]),
+        ("cast(x): A =\nnext", 0, vec![(Missing, 12..12)]),
+        ("cast(x): A =\r\nnext", 0, vec![(Missing, 12..12)]),
+        ("cast(x): A =\r\n", 0, vec![(Missing, 12..12)]),
+        (
+            "cast(x): A =   ",
+            0,
+            vec![(Whitespace, 12..15), (Missing, 15..15)],
+        ),
+        (
+            "cast(x): A = @",
+            0,
+            vec![(Whitespace, 12..13), (Error, 13..14)],
+        ),
+        (
+            "cast(x): A = @   ",
+            0,
+            vec![(Whitespace, 12..13), (Error, 13..14), (Error, 14..17)],
+        ),
+        (
+            "cast(x): A = @\r\n",
+            0,
+            vec![(Whitespace, 12..13), (Error, 13..14)],
+        ),
+        (
+            "cast(x): A = @ )",
+            0,
+            vec![(Whitespace, 12..13), (Error, 13..14)],
+        ),
+        (
+            "cast(x): A = @ ;",
+            0,
+            vec![(Whitespace, 12..13), (Error, 13..14)],
+        ),
+        (
+            "cast(x): A = @ else",
+            STOP_ELSE,
+            vec![(Whitespace, 12..13), (Error, 13..14)],
+        ),
+        (
+            "cast(x): A = @ 💥 value",
+            0,
+            vec![
+                (Whitespace, 12..13),
+                (Error, 13..14),
+                (Error, 14..15),
+                (Error, 15..19),
+                (Whitespace, 19..20),
+                (OperatorChain, 20..25),
+            ],
+        ),
+        (
+            "cast(x): A = @ value",
+            0,
+            vec![
+                (Whitespace, 12..13),
+                (Error, 13..14),
+                (Whitespace, 14..15),
+                (OperatorChain, 15..20),
+            ],
+        ),
+        (
+            "cast(x): A = value",
+            0,
+            vec![(Whitespace, 12..13), (OperatorChain, 13..18)],
+        ),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, stops, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let mut children = node.children_with_tokens();
+        assert_eq!(children.next().unwrap().kind(), SyntaxKind::CastKw);
+        assert_eq!(children.next().unwrap().kind(), SyntaxKind::CastPattern);
+        assert_eq!(children.next().unwrap().kind(), SyntaxKind::CastTarget);
+        assert_eq!(children.next().unwrap().kind(), Whitespace);
+        let equals = children.next().unwrap();
+        assert_eq!(equals.kind(), SyntaxKind::Equals);
+        assert_eq!(
+            equals.text_range(),
+            rowan::TextRange::new(11.into(), 12.into())
+        );
+        let body = children.next().unwrap().into_node().unwrap();
+        assert_eq!(body.kind(), SyntaxKind::CastBody);
+        assert!(children.next().is_none());
+        let actual = body
+            .children_with_tokens()
+            .map(|child| {
+                match child.kind() {
+                    Error | Whitespace => assert!(child.as_token().is_some()),
+                    Missing | OperatorChain => assert!(child.as_node().is_some()),
+                    _ => panic!("unexpected direct Body child in {source:?}"),
+                }
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{source:?}");
+    }
+}
+
+#[test]
+fn cast_inline_body_direct_rowan_boundary_leading_stays_pending() {
+    for prefix in ["cast(x): A =", "cast(x): A = @"] {
+        for (suffix, stops, kind, leading) in [
+            (" ;", 0, Some(TokenKind::Semicolon), " "),
+            (" )", 0, Some(TokenKind::RParen), " "),
+            ("\r\n", 0, None, "\r\n"),
+        ] {
+            let source = format!("{prefix}{suffix}");
+            let (green, exit, remainder) =
+                run_cast_declaration(&source, stops, 0, LineEntry::InLine, None);
+            assert_eq!(green.to_string(), prefix);
+            assert_eq!(remainder, "");
+            let mut pending = pending_item(exit);
+            assert_eq!(pending.payload_view().token_kind(), kind);
+            assert_eq!(emit_pending_leading_text(&mut pending), leading);
+        }
+    }
+}
+
+#[test]
+fn cast_inline_body_direct_rowan_keeps_indented_statement_owner() {
+    let source = "cast(x): A =\n  body";
+    let (green, _, remainder) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(remainder, "");
+    assert_eq!(green.to_string(), source);
+    let node = declaration(&green);
+    let mut after_equals = node
+        .children_with_tokens()
+        .skip_while(|child| child.kind() != SyntaxKind::Equals)
+        .skip(1);
+    let body = after_equals.next().unwrap().into_node().unwrap();
+    assert_eq!(body.kind(), SyntaxKind::CastBody);
+    assert!(after_equals.next().is_none());
+    let children = body.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), 1);
+    let owner = children[0].as_node().unwrap();
+    assert_eq!(owner.kind(), SyntaxKind::IndentedStatementBlock);
+    assert_eq!(owner.parent(), Some(body));
+    assert!(
+        owner
+            .children()
+            .any(|child| child.kind() == SyntaxKind::Statement)
+    );
+}
+#[test]
 fn cast_body_introducer_direct_rowan_slot_order_and_ranges() {
     use SyntaxKind::{
         CastBody, CastPattern, CastTarget, Equals, Error, Missing, Semicolon, Whitespace,

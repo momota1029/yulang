@@ -846,6 +846,20 @@ indented Statement, and every earlier/later Cast phase.
 | diagnostic projection | A direct declaration Missing or maximal direct Error group after completed Pattern/Target projects `Declaration(Cast(BodyIntroducer))` with singleton expected `Punctuation(Semicolon)`, primary zero, at its direct empty/grouped range. Ordered preceding siblings and following native form/terminal position select it. Records, Error spelling, scanner state and pending-boundary coordinates are not inputs. |
 | proof and status | Governing authority: [cast BodyIntroducer current-Item recovery](2026-09-09-successor-cast-body-introducer-current-item-recovery.md), form priority and leading/handoff rules, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/cast_decl.rs:1003–1083,1471–1478,1659–1711`. Direct Rowan proof: `cast_body_introducer_direct_rowan_slot_order_and_ranges` and `cast_body_introducer_direct_rowan_excludes_later_body_recovery` in `crates/yu-syntax/src/tests/declaration/cast_decl.rs`. M1 post-write audit was clean. Status: catalog-audited evidence-complete Draft for these direct witnessed alternatives only; active-close/fence/UTF-8 extensions, all excluded Cast rows, global collector, parser API and recovery-ledger retirement remain open. |
 
+### Cast inline Body Draft
+
+This bounded Draft maps only the required inline Expression after an actual
+direct Cast Equals. It excludes BodyIntroducer, TargetType, nested Expression
+recovery, and the strictly-deeper indented Statement path.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | `(CastDeclaration > Equals > CastBody, required inline Body)`. The actual direct Equals selects this row. Direct CastBody Missing/Error+ is Body-owned; an admitted direct OperatorChain is the inline Expression body, while an indented Statement child is a different Cast role. |
+| ordered Rowan grammar | `CastBody := Native* Missing | Native* Error+ Native* OperatorChain | Native* OperatorChain`. Missing is zero-width. Error+ is a maximal adjacent direct Error-token group; retry leading is native CastBody content before OperatorChain. Same-line EOF leading is direct CastBody content before Missing; CRLF and protected-boundary leading remain outside. No Invalid belongs to this row. |
+| malformed admission and completion | EOF, equal-or-shallower newline, separator, close, active stop and other protected boundaries emit one Missing and hand their Item up. A non-NUD begins Error+, which either stops at a protected boundary without another Missing or retries to direct OperatorChain. Strictly-deeper post-Equals indentation selects the separate IndentedStatement owner. |
+| diagnostic projection | A direct CastBody Missing or maximal direct Error group projects `Declaration(Cast(Body))` with singleton expected `Expression`, primary zero, at its direct range. Parentage under actual Equals and direct child order distinguish it from BodyIntroducer and nested Expression recovery; records, Error spelling and scanner state are not inputs. |
+| proof and status | Governing authority: [cast Body current-Item recovery](2026-09-09-successor-cast-body-current-item-recovery.md), plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/cast_decl.rs:1088–1231,1481–1518,1715–1761`. Direct Rowan proof: `cast_body_direct_rowan_slot_order_and_ranges`, `cast_body_direct_rowan_boundary_and_retry_handoffs`, and `cast_body_direct_rowan_indented_statement_is_separate_owner` in `crates/yu-syntax/src/tests/declaration/cast_decl.rs`. M1 post-write audit was clean. Status: catalog-audited evidence-complete Draft for these witnesses only; nested Expression recovery, fence topology, remaining Cast rows, global collector, parser API and recovery-ledger retirement remain open. |
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

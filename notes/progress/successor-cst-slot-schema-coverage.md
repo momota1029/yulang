@@ -176,6 +176,17 @@ post-write audit was clean. This is a catalog-audited evidence-complete Draft
 only for these alternatives; active-close/fence/UTF-8 extensions, later Cast
 rows, global interpreter and ledger retirement remain separate.
 
+#### Cast inline Body Draft links
+
+Only the required inline Expression immediately after direct Cast Equals is
+linked. `CastBody` direct Missing/Error+ and retry OperatorChain select Body;
+same-line EOF leading is direct body content, while CRLF and protected Items
+remain outside. A strictly-deeper indented Statement is a separate owner.
+Direct Rowan proof is the three `cast_body_direct_rowan_*` tests in
+`crates/yu-syntax/src/tests/declaration/cast_decl.rs`; it uses ordered
+parentage/ranges only. M1 post-write audit was clean. Nested Expression,
+fence and other Cast rows remain open.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct
