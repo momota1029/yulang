@@ -373,6 +373,20 @@ any other AssignmentTail context, or nested `OperatorChain` slots.
 Every other emission and helper in `assignment.rs`, `inline_slot.rs`, and
 `operator_chain.rs` remains untriaged and unmapped unless separately linked.
 
+#### TypeAnnotationTail required-Type Missing Draft links
+
+Only the exact `as` required-Type absence at EOF and a protected RBracket is
+linked. `OperatorChain > TypeAnnotationTail > AsKw > TypeExpression(Missing)`
+selects Expression(TypeAnnotation) structurally; the pre-tail whitespace stays
+at OperatorChain and the foreign close/leading remains pending. Direct Rowan
+proof is `annotation_required_type_missing_has_a_direct_structural_slot` in
+`crates/yu-syntax/src/tests/expression_structural_tails.rs`. It asserts direct
+token/node order, zero-width ranges and pending handoff without reading records.
+`as @` remains Type(Primary)-owned and is excluded. M1 pre-write and closure
+specification audits were clean, so this is a catalog-audited evidence-complete
+Draft only for the two Missing paths. Type Error/retry, accepted Type, other
+boundaries/tails, global interpreter and ledger retirement remain separate.
+
 #### Fixed FieldTail Name and PathTail Segment row links
 
 Only the following verified `fixed_access.rs` locations are linked to the

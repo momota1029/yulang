@@ -376,6 +376,85 @@ fn annotation_owns_full_type_and_propagates_type_stops() {
 }
 
 #[test]
+fn annotation_required_type_missing_has_a_direct_structural_slot() {
+    use crate::recovery_record::ExpectedSyntax;
+
+    for source in ["x as", "x as ]"] {
+        let (green, _records, exit, rest) = parse(source, None, MlMode::All, 0, None);
+        assert_eq!(green.to_string(), "x as");
+        assert_eq!(rest, "");
+        let root = SyntaxNode::new_root(green);
+        let chain = root.first_child().expect("outer OperatorChain");
+        assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+        let tail = chain.children().last().expect("TypeAnnotationTail");
+        assert_eq!(tail.kind(), SyntaxKind::TypeAnnotationTail);
+        assert_eq!(tail.parent(), Some(chain));
+        let children = tail.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), 2);
+        let keyword = children[0].as_token().expect("exact as introducer");
+        assert_eq!(keyword.kind(), SyntaxKind::AsKw);
+        assert_eq!(keyword.text(), "as");
+        assert_eq!(usize::from(keyword.text_range().start()), 2);
+        assert_eq!(usize::from(keyword.text_range().end()), 4);
+        assert_eq!(keyword.parent(), Some(tail.clone()));
+        let type_expr = children[1].as_node().expect("required TypeExpression");
+        assert_eq!(type_expr.kind(), SyntaxKind::TypeExpression);
+        assert_eq!(usize::from(type_expr.text_range().start()), 4);
+        assert_eq!(usize::from(type_expr.text_range().end()), 4);
+        assert_eq!(type_expr.parent(), Some(tail.clone()));
+        let type_children = type_expr.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(type_children.len(), 1);
+        let missing = type_children[0].as_node().expect("required Type Missing");
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(usize::from(missing.text_range().start()), 4);
+        assert_eq!(usize::from(missing.text_range().end()), 4);
+        assert_eq!(missing.parent().as_ref(), Some(type_expr));
+        assert_eq!(missing.children_with_tokens().count(), 0);
+        assert_eq!(missing.to_string(), "");
+
+        // The enclosing annotation slot selects the initial Type expectation;
+        // a TypeExpression parent alone does not identify that slot.
+        let selected = match (
+            tail.kind(),
+            children[0].kind(),
+            type_expr.kind(),
+            missing.kind(),
+        ) {
+            (
+                SyntaxKind::TypeAnnotationTail,
+                SyntaxKind::AsKw,
+                SyntaxKind::TypeExpression,
+                SyntaxKind::Missing,
+            ) => (
+                GrammarRole::Expression(ExpressionRole::TypeAnnotation),
+                ExpectedSyntax::TypeExpression,
+                0,
+            ),
+            _ => panic!("unrecognized required annotation Type slot"),
+        };
+        assert_eq!(
+            selected,
+            (
+                GrammarRole::Expression(ExpressionRole::TypeAnnotation),
+                ExpectedSyntax::TypeExpression,
+                0,
+            )
+        );
+
+        if source == "x as ]" {
+            let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+                panic!("protected close remains pending")
+            };
+            assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+            let extent = item.extent(source.len());
+            assert_eq!(extent.leading(), 4..5);
+            assert_eq!(extent.payload(), 5..6);
+            assert_eq!(emit_pending_leading_text(&mut item), " ");
+        }
+    }
+}
+
+#[test]
 fn structural_tail_initial_missing_and_type_error_roles_survive_reconciliation() {
     for (source, role, kind, range) in [
         (

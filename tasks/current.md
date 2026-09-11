@@ -607,6 +607,11 @@ does not consume protected Item leading, and an Error ends its tail rather than
 retrying a later name. They remain distinct from TypePathTail.
 The Authoritative AssignmentTail direct-inline RHS is mapped separately; its
 indented Statement branch remains delegated and open.
+The bounded TypeAnnotationTail required-Type Missing row is now
+catalog-audited evidence-complete Draft for exact `as` at EOF and protected
+RBracket handoff. Its direct `AsKw → TypeExpression(Missing)` slot projects
+Expression(TypeAnnotation); nonempty `as @` remains Type(Primary)-owned.
+Other Type alternatives, tails and ledger/API migration remain open.
 The bounded ProjectionRecordSpreadItem RHS is mapped as Draft: the direct
 spread node distinguishes its Missing and raw Error leaves from parent record
 items, separators and close slots. A lexical Error run is not reconstructed as

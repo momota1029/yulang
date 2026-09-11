@@ -598,6 +598,22 @@ It maps neither the left expression nor the separately delegated
 | diagnostic projection | A direct Missing or one maximal adjacent direct Error-token group under the immediate `AssignmentTail` parent projects one `Assignment(Rhs)` occurrence with expected `Expression`, primary alternative zero. Missing uses its direct zero-width Rowan range; Error uses the combined UTF-8 range of that maximal group. Initial/retry/protected-boundary leading, Equals, and the direct `OperatorChain` split the group. Projection is preorder: this direct Rhs occurrence precedes recovery projected by a nested RHS `OperatorChain`; no parser-record coordinate relocates the Rowan range. |
 | proof and status | Governing slice: [error-admission clarification](2026-09-09-successor-error-admission-schema-clarification.md#representative-schema-slice-assignmenttail-inline-rhs), Authoritative for this direct-inline slice only. Verified source links: `crates/yu-syntax/src/expression/tails/assignment.rs:29` (AssignmentTail/Equals and terminal exit), `:90` (inline Rhs classification, Missing/Error/retry and handoff), `crates/yu-syntax/src/expression/tails/inline_slot.rs:34` (shared inline protected-boundary and leading rule), and `crates/yu-syntax/src/expression/operator_chain.rs:579` (Equals admission after enabled continuation/LED priority). Status: `mapped` for this Authoritative direct-inline RHS row only; `Assignment(IndentedStatement)`, the left expression, all other AssignmentTail contexts, the CST interpreter, recovery-ledger retirement, and API migration remain open. |
 
+### TypeAnnotationTail required-Type Missing Draft
+
+This bounded Draft maps only a completely absent required Type after the exact
+`as` tail introducer. The TypeAnnotation role does not own nonempty malformed
+Type primary recovery.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | `(TypeAnnotationTail, required direct Type immediately after AsKw, direct child of an admitted OperatorChain tail)`. The direct AsKw and TypeAnnotationTail ancestor distinguish its `TypeExpression(Missing)` from every other required-Type occurrence. |
+| ordered Rowan grammar | The witnessed tail is `TypeAnnotationTail(AsKw TypeExpression(Missing))`; pre-`as` whitespace remains direct OperatorChain content. AsKw is a native token at `2..4`; TypeExpression and its sole direct Missing are both empty at `4..4`. No Error or Invalid occurs in this Missing-only row. |
+| malformed admission and completion | EOF or a protected foreign close immediately after AsKw emits exactly one direct TypeExpression(Missing). A protected `]` remains unconsumed with its leading outside the tail. `as @` is excluded: its nonempty raw primary is Type(Primary), not this annotation slot, and it creates no annotation Missing. |
+| nested ownership | The required Type entry owns TypeExpression and its direct Missing. Accepted Type internals, raw/retried Type-primary recovery, fences/layout, assignment and all later expression-tail continuation retain their own schemas. |
+| transition/handoff | `admitted OperatorChain tail → exact AsKw → required Type entry → EOF emits TypeExpression(Missing) and completes, or protected RBracket emits the same Missing then hands off the exact Item/leading`. |
+| diagnostic projection | `TypeExpression > Missing` in this ordered AsKw slot projects `Expression(TypeAnnotation)` with expected `TypeExpression`, primary zero, at the zero-width TypeExpression frontier. Rowan parent/slot order selects it; recovery records and Error spelling are not inputs. |
+| proof and status | Governing authority: [expression structural tails](2026-09-09-successor-expression-structural-tails-draft.md), **Owner topology and admission**, **`as Type`**, and **Type exit and continuation**, plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/expression/tails/type_annotation.rs:18–48`; direct Rowan proof: `annotation_required_type_missing_has_a_direct_structural_slot` in `crates/yu-syntax/src/tests/expression_structural_tails.rs`, covering EOF and protected RBracket. M1 pre-write and closure specification audits were clean. Status: catalog-audited evidence-complete Draft only for these Missing paths; Type Error/retry, accepted Type, other boundaries/tails, global interpreter, parser API and ledger retirement remain open. |
+
 ### ProjectionRecordSpreadItem required-RHS map
 
 This bounded Draft row records only the required RHS after an already accepted
