@@ -67,6 +67,187 @@ fn assert_typed_nodes(root: &SyntaxNode, expected: &[CommittedRecoveryRecord]) {
     }
 }
 
+fn forall_cst(source: &str) -> SyntaxNode {
+    let (green, _) = run_type(source);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.text(), source, "{source:?}");
+    root
+}
+
+fn direct_forall(root: &SyntaxNode) -> SyntaxNode {
+    root.descendants()
+        .find(|node| node.kind() == SyntaxKind::ForallType)
+        .expect("forall type")
+}
+
+fn direct_kind_ranges(node: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
+    node.children_with_tokens()
+        .map(|child| {
+            let range = child.text_range();
+            (
+                child.kind(),
+                usize::from(range.start())..usize::from(range.end()),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn forall_semantic_binder_slots_use_only_direct_wrapper_order() {
+    use SyntaxKind::*;
+
+    let root = forall_cst("for : T");
+    let forall = direct_forall(&root);
+    assert_eq!(
+        direct_kind_ranges(&forall),
+        [
+            (ForKw, 0..3),
+            (Whitespace, 3..4),
+            (ForallTypeBinder, 4..4),
+            (Colon, 4..5),
+            (Whitespace, 5..6),
+            (TypeExpression, 6..7),
+        ]
+    );
+    let binder = forall
+        .children()
+        .find(|node| node.kind() == ForallTypeBinder)
+        .unwrap();
+    assert_eq!(direct_kind_ranges(&binder), [(Missing, 4..4)]);
+
+    // Native UTF-8 leading is outside the first incomplete wrapper's maximal
+    // raw Error group; the later real binder is a separate direct sibling.
+    let root = forall_cst("for /*é*/,@ 'a:T");
+    let forall = direct_forall(&root);
+    let binders = forall
+        .children()
+        .filter(|node| node.kind() == ForallTypeBinder)
+        .collect::<Vec<_>>();
+    assert_eq!(binders.len(), 2);
+    assert_eq!(
+        direct_kind_ranges(&binders[0]),
+        [
+            (Whitespace, 3..4),
+            (BlockComment, 4..10),
+            (Error, 10..11),
+            (Error, 11..12)
+        ]
+    );
+    assert_eq!(
+        direct_kind_ranges(&binders[1]),
+        [(Whitespace, 12..13), (SigilIdentifier, 13..15)]
+    );
+    assert_eq!(binders[0].parent(), Some(forall.clone()));
+    assert!(
+        binders[0]
+            .children_with_tokens()
+            .filter(|child| child.kind() == Error)
+            .all(|child| child.as_token().is_some())
+    );
+}
+
+#[test]
+fn forall_semantic_binder_boundary_occurrences_keep_sibling_order() {
+    use SyntaxKind::*;
+
+    let root = forall_cst("for 'a,'b:T");
+    let forall = direct_forall(&root);
+    let binders = forall
+        .children()
+        .filter(|node| node.kind() == ForallTypeBinder)
+        .collect::<Vec<_>>();
+    assert_eq!(binders.len(), 3);
+    assert_eq!(direct_kind_ranges(&binders[1]), [(Error, 6..7)]);
+    assert_eq!(
+        direct_kind_ranges(&binders[2]),
+        [(Missing, 7..7), (SigilIdentifier, 7..9)]
+    );
+    assert_eq!(binders[1].parent(), Some(forall.clone()));
+    assert_eq!(binders[2].parent(), Some(forall.clone()));
+
+    // Trivia after a placeholder makes the retried binder distinct from the
+    // adjacent Missing/SigilIdentifier boundary occurrence above.
+    let root = forall_cst("for 'a, 'b:T");
+    let forall = direct_forall(&root);
+    let binders = forall
+        .children()
+        .filter(|node| node.kind() == ForallTypeBinder)
+        .collect::<Vec<_>>();
+    assert_eq!(direct_kind_ranges(&binders[1]), [(Error, 6..7)]);
+    assert_eq!(
+        direct_kind_ranges(&binders[2]),
+        [(Whitespace, 7..8), (SigilIdentifier, 8..10)]
+    );
+    assert!(!binders[2].descendants().any(|node| node.kind() == Missing));
+}
+
+#[test]
+fn forall_semantic_terminal_slots_use_direct_colon_order_and_ranges() {
+    use SyntaxKind::*;
+
+    let root = forall_cst("for 'a T");
+    let forall = direct_forall(&root);
+    assert_eq!(
+        direct_kind_ranges(&forall),
+        [
+            (ForKw, 0..3),
+            (ForallTypeBinder, 3..6),
+            (Whitespace, 6..7),
+            (Missing, 7..7),
+            (TypeExpression, 7..8),
+        ]
+    );
+
+    let root = forall_cst("for 'a @:@ T");
+    let forall = direct_forall(&root);
+    assert_eq!(
+        direct_kind_ranges(&forall),
+        [
+            (ForKw, 0..3),
+            (ForallTypeBinder, 3..6),
+            (Whitespace, 6..7),
+            (Error, 7..8),
+            (Colon, 8..9),
+            (Error, 9..10),
+            (Whitespace, 10..11),
+            (TypeExpression, 11..12),
+        ]
+    );
+
+    let ordinary = direct_forall(&forall_cst("for 'a:T"));
+    let pv = direct_forall(&forall_cst("for 'a:{b:B}"));
+    let ordinary_colon = ordinary
+        .children_with_tokens()
+        .find(|child| child.kind() == Colon)
+        .unwrap();
+    let pv_colon = pv
+        .children_with_tokens()
+        .find(|child| child.kind() == Colon)
+        .unwrap();
+    assert_eq!(ordinary_colon.kind(), pv_colon.kind());
+    assert_eq!(
+        usize::from(ordinary_colon.text_range().start())
+            ..usize::from(ordinary_colon.text_range().end()),
+        6..7
+    );
+    assert_eq!(
+        usize::from(pv_colon.text_range().start())..usize::from(pv_colon.text_range().end()),
+        6..7
+    );
+
+    let root = forall_cst("for 'a:");
+    let forall = direct_forall(&root);
+    assert_eq!(
+        direct_kind_ranges(&forall),
+        [
+            (ForKw, 0..3),
+            (ForallTypeBinder, 3..6),
+            (Colon, 6..7),
+            (Missing, 7..7)
+        ]
+    );
+}
+
 #[test]
 fn forall_first_binder_slot_is_ordered_directly_in_rowan() {
     use SyntaxKind::*;

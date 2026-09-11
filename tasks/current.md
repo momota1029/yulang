@@ -197,6 +197,11 @@ PV Tag, its existing TagName Invalid dependency, PayloadBoundary/Payload,
 Separator and Close; consecutive raw separator Errors remain one CST group even
 when the temporary parser ledger has several records. No new wrapper, Invalid,
 parser behavior or global-diagnostic claim is involved.
+The three bounded Forall rows now have refreshed direct Rowan evidence for the
+first binder, later BinderBoundary and terminal colon/body phases. Colon
+Missing remains distinct from Colon Error→Colon retry by direct sibling order;
+the first actual-binder whitespace case stays excluded. This does not widen
+Forall coverage or authorize interpreter/ledger migration.
 The bounded declaration Variant core Item/Name/Separator row is now
 catalog-audited evidence-complete Draft. Direct full-shell Rowan controls prove
 that `EnumVariant(Missing)` and terminal `EnumVariant(Error+)` are Item, while

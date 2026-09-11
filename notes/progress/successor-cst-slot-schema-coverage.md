@@ -518,7 +518,8 @@ remain open.
 Only `crates/yu-syntax/src/type_expr/forall.rs:56–74,142–258,269–315,319–381,
 498–542` is linked to the bounded first-binder candidate: ForKw/head phase,
 priority, maximal raw run and direct Missing publication. Direct Rowan proof is
-`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:71–183`; later binder,
+`forall_semantic_binder_slots_use_only_direct_wrapper_order` in
+`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs`; later binder,
 colon/body, nested Type and every other forall emission remain separately
 unmapped.
 
@@ -528,7 +529,8 @@ Only `crates/yu-syntax/src/type_expr/forall.rs:142–258,326–357,379–381,
 498–542` is linked to the bounded later BinderBoundary candidate: accepted
 binder advancement, grammar-empty Missing inside the next binder, one-item
 separator placeholder Error and successor dispatch. Direct Rowan proof is
-`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:288–410`. The first
+`forall_semantic_binder_boundary_occurrences_keep_sibling_order` in
+`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs`. The first
 binder, colon/body, other malformed head content, nested Type and caller
 boundary handling remain separate rows.
 
@@ -538,7 +540,8 @@ Only `crates/yu-syntax/src/type_expr/forall.rs:142–258,269–315,407–496,
 498–542` is linked to the bounded emitted-colon/body candidate: terminal
 colon classification, direct colon/body Missing, direct raw Error retry and
 protected body handoff. Direct Rowan proof is
-`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:186–286`. The lexical
+`forall_semantic_terminal_slots_use_direct_colon_order_and_ranges` in
+`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs`. The lexical
 ordinary/polymorphic-variant-colon distinction is intentionally not a separate
 row because both emit `SyntaxKind::Colon`; recovered binders, first/later binder
 phases, nested Type and caller-boundary handling remain separate rows.
