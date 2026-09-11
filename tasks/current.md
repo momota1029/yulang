@@ -204,6 +204,11 @@ Enum/Error ancestor distinguish it from core Variant Item Error. Direct Rowan
 proof asserts token order/range and absence of TypeExpression/Missing/Invalid;
 it does not use recovery records. Retry, caller boundaries, trailing trivia and
 other payload forms remain open.
+The admitted `from @ T` retry is separately catalog-audited evidence-complete
+Draft. FromKw/full Enum-or-Error ancestry and the following TypeExpression
+select Type(Primary); retry leading is TypeExpression content, outside its raw
+Error group. This adds no parser behavior or topology. Terminal/boundary,
+trivia/form, nested-Type and other payload alternatives remain open.
 The bounded TypeCall terminal-close and required CallArgument item rows are now
 mapped and independently audited from their existing Authoritative T3,
 close-node and boundary-priority amendments. CallArgument's direct

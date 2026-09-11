@@ -283,7 +283,8 @@ witnesses Name; and the declaration-owned Missing between completed `A()` and
 `B` witnesses Separator. Full `EnumDeclaration` and `ErrorDeclaration` shells
 are necessary to select their distinct role vocabularies, because `EnumVariant`
 alone is shared. Direct Rowan proof is
-`crates/yu-syntax/src/tests/declaration/declaration_variant.rs:115–252`; it
+`declaration_variant_core_slots_have_direct_enum_error_cst_evidence` in
+`crates/yu-syntax/src/tests/declaration/declaration_variant.rs`; it
 covers braced, inline Equals, indented Colon and indented Equals forms,
 UTF-8, terminal raw Error, zero-width Missing and a completed-payload separator
 without reading recovery records. M1 pre-write and closure specification audits
@@ -298,7 +299,8 @@ Only EOF and active-Colon Missing after an admitted direct `FromKw` are linked.
 The necessary full Enum/Error shell ancestor and the preceding FromKw select
 the owner vocabulary and distinguish `EnumVariant(TypeExpression(Missing))`
 from positional payload and field-Type shapes. Direct Rowan proof is
-`crates/yu-syntax/src/tests/declaration/declaration_variant.rs:115–213`; it
+`declaration_variant_from_type_missing_has_direct_enum_error_cst_evidence` in
+`crates/yu-syntax/src/tests/declaration/declaration_variant.rs`; it
 asserts native initial leading, direct token/node order, source-local empty
 TypeExpression/Missing ranges, no Error/Invalid, and an exact pending Colon
 Item, leading and remainder. It reads no recovery record for classification.
@@ -314,13 +316,28 @@ immediately after `FromKw` are linked. The direct preceding FromKw, terminal
 position and Enum/Error ancestor distinguish the direct `EnumVariant(Error+)`
 group from the Variant-core Item Error; the required Type authority assigns it
 to Type(Primary), not Variant(FromType). Direct Rowan proof is
-`crates/yu-syntax/src/tests/declaration/declaration_variant.rs:115–181`; it
+`declaration_variant_from_type_terminal_primary_has_direct_enum_error_cst_evidence` in
+`crates/yu-syntax/src/tests/declaration/declaration_variant.rs`; it
 asserts full ancestry, native token order, source-local Error range and the
 absence of TypeExpression/Missing/Invalid without reading recovery records.
 M1 pre-write and closure specification audits were clean, so this is a
 catalog-audited evidence-complete Draft only for terminal EOF. Retry, caller
 boundaries, trailing trivia, other forms, positional payload, fields/closes,
 global interpreter and ledger retirement remain separate.
+
+#### Declaration Variant `FromType` Type-primary Error with retry Draft links
+
+Only the exact Enum/Error full-shell `from @ T` retry is linked. Direct FromKw,
+the immediate raw Error group and following TypeExpression distinguish the
+Type(Primary) occurrence from terminal FromType Error and Variant-core Error;
+the retry leading is nested under TypeExpression, not Error. Direct Rowan proof
+is `declaration_variant_from_type_primary_retry_has_direct_enum_error_cst_evidence`
+in `crates/yu-syntax/src/tests/declaration/declaration_variant.rs`; it asserts
+ancestor, token/node order, source-local Error/retry ranges and no
+Missing/Invalid without reading records. M1 pre-write and closure specification
+audits were clean. This is a catalog-audited evidence-complete Draft only for
+the admitted retry; terminal/boundary/trivia/forms, nested Type, other payload
+rows, fields/closes, global interpreter and ledger retirement remain separate.
 
 ### Expression forms and tails — 10 files / 18 calls
 

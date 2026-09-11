@@ -112,6 +112,84 @@ fn identifier_texts(node: &SyntaxNode) -> Vec<String> {
 }
 
 #[test]
+fn declaration_variant_from_type_primary_retry_has_direct_enum_error_cst_evidence() {
+    use SyntaxKind::{
+        EnumVariant, Error, FromKw, Identifier, Invalid, Missing, TypeExpression, Whitespace,
+    };
+
+    for (source, declaration, error_start) in [
+        ("enum E = A from @ T", SyntaxKind::EnumDeclaration, 16),
+        ("error E = A from @ T", SyntaxKind::ErrorDeclaration, 17),
+    ] {
+        let (green, _, remainder) = if declaration == SyntaxKind::EnumDeclaration {
+            run_enum_declaration(source, 0, 100, LineEntry::InLine, None)
+        } else {
+            run_error_declaration(source, 0, 100, LineEntry::InLine, None)
+        };
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        let root = syntax_root(green);
+        let shells = root.children().collect::<Vec<_>>();
+        assert_eq!(shells.len(), 1);
+        let shell = &shells[0];
+        assert_eq!(shell.kind(), declaration);
+        assert_eq!(shell.parent().as_ref(), Some(&root));
+        let variants = shell
+            .children()
+            .filter(|node| node.kind() == EnumVariant)
+            .collect::<Vec<_>>();
+        assert_eq!(variants.len(), 1);
+        let variant = &variants[0];
+        assert_eq!(variant.parent().as_ref(), Some(shell));
+        let children = variant.children_with_tokens().collect::<Vec<_>>();
+        // FromKw and the admitted TypeExpression retry select Type::Primary
+        // within the full declaration shell, independently of Error spelling.
+        assert_eq!(
+            children
+                .iter()
+                .map(|child| (child.kind(), child.as_token().is_some()))
+                .collect::<Vec<_>>(),
+            [
+                (Whitespace, true),
+                (Identifier, true),
+                (Whitespace, true),
+                (FromKw, true),
+                (Whitespace, true),
+                (Error, true),
+                (TypeExpression, false),
+            ]
+        );
+        let error = children[5].as_token().unwrap();
+        assert_eq!(error.parent().as_ref(), Some(variant));
+        let range = usize::from(error.text_range().start())..usize::from(error.text_range().end());
+        assert_eq!(range, error_start..error_start + 1);
+        assert_eq!(error.text(), &source[range]);
+        let retry = children[6].as_node().unwrap();
+        assert_eq!(retry.parent().as_ref(), Some(variant));
+        assert_eq!(
+            usize::from(retry.text_range().start())..usize::from(retry.text_range().end()),
+            error_start + 1..error_start + 3
+        );
+        // The retry owns its leading as native whitespace outside the Error.
+        assert_eq!(
+            retry
+                .children_with_tokens()
+                .map(|child| (child.kind(), child.as_token().is_some(), child.to_string()))
+                .collect::<Vec<_>>(),
+            [
+                (Whitespace, true, " ".to_owned()),
+                (Identifier, true, "T".to_owned()),
+            ]
+        );
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Missing | Invalid))
+        );
+    }
+}
+
+#[test]
 fn declaration_variant_from_type_terminal_primary_has_direct_enum_error_cst_evidence() {
     use SyntaxKind::{
         EnumVariant, Error, FromKw, Identifier, Invalid, Missing, TypeExpression, Whitespace,
