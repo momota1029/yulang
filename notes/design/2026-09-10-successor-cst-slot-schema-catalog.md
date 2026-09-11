@@ -973,6 +973,16 @@ remain separate owners.
 | diagnostic projection | Direct ordered Struct children project Name or BodyIntroducer with the completed-Identifier threshold selecting the latter. Error spelling, records and scanner state are not inputs. |
 | proof and status | Governing authority: [Struct header current-Item recovery](2026-09-08-successor-struct-header-current-item-recovery.md) plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/struct_decl.rs:51–580`. Direct Rowan proof: `struct_schema_*` additions in `tests/declaration/struct_decl.rs`. M1 post-write specification audit was clean. Status: catalog-audited evidence-complete Draft only for header rows; fields/body/callers, collector, parser API and ledger retirement remain open. |
 
+### ActDeclaration direct BodyIntroducer and inline Body Draft
+
+This bounded Draft maps only direct Act body phases. Direct Error after completed
+Head or Equals Source is BodyIntroducer; valid bodyless termination has no
+Missing. Direct Colon then Missing/Error/Statement is inline Body. A Head Error
+before completed Type and nested BindingBody recovery are excluded by order.
+Direct Rowan proof is in `tests/declaration/act_decl.rs`; M1 specification audit
+was clean. Derives adjacency, child blocks/callers, collector and ledger removal
+remain open.
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

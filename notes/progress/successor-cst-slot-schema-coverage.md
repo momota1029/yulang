@@ -294,6 +294,13 @@ Colon starters remain native outside Error; Colon ends the header prefix before
 field-owned content. M1 specification audit was clean; fields/body/callers
 remain separate.
 
+#### ActDeclaration direct BodyIntroducer/inline Body Draft links
+
+`tests/declaration/act_decl.rs` directly proves completed Head/Source Error,
+bodyless exclusion, Colon Body and nested BindingBody separation without records
+or Error spelling. M1 specification audit was clean; Derives and child owners
+remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

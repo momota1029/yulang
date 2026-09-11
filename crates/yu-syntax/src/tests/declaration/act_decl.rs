@@ -1,5 +1,152 @@
 use crate::tests::support::*;
 
+fn assert_act_body_schema(source: &str, expected: &[(SyntaxKind, usize)]) -> SyntaxNode {
+    let (green, _, remainder) = run_act_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    let node = declaration(&green);
+    assert!(
+        !node
+            .descendants()
+            .any(|child| child.kind() == SyntaxKind::Invalid)
+    );
+    let mut offset = 0;
+    let expected = expected
+        .iter()
+        .map(|&(kind, len)| {
+            let range = offset..offset + len;
+            offset += len;
+            (kind, range)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        node.children_with_tokens()
+            .map(|element| {
+                assert_eq!(element.parent().as_ref(), Some(&node));
+                if element.kind() == SyntaxKind::Error {
+                    assert!(element.as_token().is_some());
+                }
+                if element.kind() == SyntaxKind::Missing {
+                    assert!(
+                        element
+                            .as_node()
+                            .unwrap()
+                            .children_with_tokens()
+                            .next()
+                            .is_none()
+                    );
+                }
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                )
+            })
+            .collect::<Vec<_>>(),
+        expected,
+        "{source:?}"
+    );
+    node
+}
+
+#[test]
+fn act_body_introducer_schema_uses_completed_type_and_native_retry_boundaries() {
+    use SyntaxKind::*;
+    for (prefix, mut head) in [
+        (
+            "act A",
+            vec![(ActKw, 3), (Whitespace, 1), (TypeExpression, 1)],
+        ),
+        (
+            "act A = B",
+            vec![
+                (ActKw, 3),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+                (Whitespace, 1),
+                (Equals, 1),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+            ],
+        ),
+    ] {
+        // Completed head/source terminal absence has no recovery child.
+        assert_act_body_schema(prefix, &head);
+        head.extend([(Whitespace, 1), (Error, 1), (Error, 1), (Error, 1)]);
+        assert_act_body_schema(&format!("{prefix} @ %"), &head);
+        for (retry, tail) in [
+            (";", vec![(Semicolon, 1)]),
+            ("{}", vec![(BracedStatementBlockExpression, 2)]),
+            (": my x = y", vec![(Colon, 1), (Statement, 9)]),
+        ] {
+            let mut expected = head.clone();
+            expected.push((Whitespace, 1));
+            expected.extend(tail);
+            assert_act_body_schema(&format!("{prefix} @ % {retry}"), &expected);
+        }
+    }
+    // The same direct Error before the head TypeExpression belongs to Head.
+    assert_act_body_schema(
+        "act @ A;",
+        &[
+            (ActKw, 3),
+            (Whitespace, 1),
+            (Error, 1),
+            (TypeExpression, 2),
+            (Semicolon, 1),
+        ],
+    );
+}
+
+#[test]
+fn act_inline_body_schema_requires_direct_colon_and_preserves_child_ownership() {
+    use SyntaxKind::*;
+    let prefix = [(ActKw, 3), (Whitespace, 1), (TypeExpression, 1), (Colon, 1)];
+    for (suffix, tail) in [
+        ("", vec![(Missing, 0)]),
+        (
+            " @ %",
+            vec![(Whitespace, 1), (Error, 1), (Error, 1), (Error, 1)],
+        ),
+        (
+            " @ % my x = y",
+            vec![
+                (Whitespace, 1),
+                (Error, 1),
+                (Error, 1),
+                (Error, 1),
+                (Statement, 9),
+            ],
+        ),
+    ] {
+        let mut expected = prefix.to_vec();
+        expected.extend(tail);
+        let node = assert_act_body_schema(&format!("act A:{suffix}"), &expected);
+        if let Some(statement) = node.children().find(|child| child.kind() == Statement) {
+            let leading = statement.first_token().unwrap();
+            assert_eq!(leading.kind(), Whitespace);
+            assert_eq!(
+                leading.text_range(),
+                rowan::TextRange::new(10.into(), 11.into())
+            );
+        }
+    }
+    let mut expected = prefix.to_vec();
+    expected.push((Statement, 7));
+    let node = assert_act_body_schema("act A: my x =", &expected);
+    let missing = node
+        .descendants()
+        .find(|child| child.kind() == Missing)
+        .unwrap();
+    assert_eq!(missing.text_range(), rowan::TextRange::empty(13.into()));
+    assert_eq!(missing.parent().unwrap().kind(), BindingBody);
+    assert!(
+        missing
+            .ancestors()
+            .any(|ancestor| ancestor.kind() == Statement)
+    );
+}
+
 fn act_record(
     slot: crate::recovery_record::ActDeclarationRole,
     kind: crate::recovery_record::RecoveryKind,
