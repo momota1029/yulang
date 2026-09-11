@@ -678,6 +678,12 @@ colon; a nested TypeExpression Missing remains Type-owned. Direct child order
 keeps colon/Type retry and semicolon/equal handoff outside the Error group.
 Explicit active-RParen and all other Cast rows remain open, alongside global
 collection and ledger/API migration.
+Cast BodyIntroducer is separately catalog-audited as an evidence-complete Draft.
+After completed Pattern and Target, direct Missing/Error selects the required
+semicolon, while native Semicolon and Equals retain the bodyless/body forms.
+The post-Equals CastBody Missing is structurally distinct and remains
+Body-owned. Active-close/fence/UTF-8 extensions and all other Cast rows remain
+open with global collection and ledger/API migration.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

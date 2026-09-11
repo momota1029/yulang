@@ -159,6 +159,23 @@ catalog-audited evidence-complete Draft only for these direct alternatives;
 explicit active-RParen, all remaining Cast rows, global interpreter and ledger
 retirement remain separate.
 
+#### Cast BodyIntroducer Draft links
+
+Only the required semicolon after completed CastPattern and CastTarget is
+linked. Direct declaration Missing/Error+ selects it; native Semicolon is the
+bodyless form and native Equals followed by CastBody is the later body form.
+A Missing beneath CastBody after Equals is its Body slot, not BodyIntroducer.
+
+Direct Rowan proof is `cast_body_introducer_direct_rowan_slot_order_and_ranges`
+and `cast_body_introducer_direct_rowan_excludes_later_body_recovery` in
+`crates/yu-syntax/src/tests/declaration/cast_decl.rs`. It covers direct
+Missing, terminal/multi-leaf Error with same-line EOF versus CRLF partition,
+Semicolon/Equals retry, and protected punctuation outside Error. It uses no
+records, Error spelling or scanner state; no direct Invalid is admitted. M1
+post-write audit was clean. This is a catalog-audited evidence-complete Draft
+only for these alternatives; active-close/fence/UTF-8 extensions, later Cast
+rows, global interpreter and ledger retirement remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

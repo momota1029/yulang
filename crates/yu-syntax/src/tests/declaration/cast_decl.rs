@@ -367,6 +367,178 @@ fn cast_body_records_are_exact_and_reconcile() {
 }
 
 #[test]
+fn cast_body_introducer_direct_rowan_slot_order_and_ranges() {
+    use SyntaxKind::{
+        CastBody, CastPattern, CastTarget, Equals, Error, Missing, Semicolon, Whitespace,
+    };
+
+    // Completed Pattern and Target children establish this slot. Native form
+    // punctuation ends it; a protected handoff leaves no child in this owner.
+    for (source, stops, expected) in [
+        ("cast(x): A", 0, vec![(Missing, 10..10)]),
+        ("cast(x): A )", 0, vec![(Missing, 10..10)]),
+        ("cast(x): A ]", 0, vec![(Missing, 10..10)]),
+        ("cast(x): A }", 0, vec![(Missing, 10..10)]),
+        ("cast(x): A ,", 0, vec![(Missing, 10..10)]),
+        ("cast(x): A else", STOP_ELSE, vec![(Missing, 10..10)]),
+        ("cast(x): A\r\nvalue", 0, vec![(Missing, 10..10)]),
+        ("cast(x): A;", 0, vec![(Semicolon, 10..11)]),
+        (
+            "cast(x): A= value",
+            0,
+            vec![(Equals, 10..11), (CastBody, 11..17)],
+        ),
+        (
+            "cast(x): A @",
+            0,
+            vec![(Whitespace, 10..11), (Error, 11..12)],
+        ),
+        (
+            "cast(x): A @   ",
+            0,
+            vec![(Whitespace, 10..11), (Error, 11..12), (Error, 12..15)],
+        ),
+        (
+            "cast(x): A @\r\n  ",
+            0,
+            vec![(Whitespace, 10..11), (Error, 11..12)],
+        ),
+        (
+            "cast(x): A @ )",
+            0,
+            vec![(Whitespace, 10..11), (Error, 11..12)],
+        ),
+        (
+            "cast(x): A @ ,",
+            0,
+            vec![(Whitespace, 10..11), (Error, 11..12)],
+        ),
+        (
+            "cast(x): A @ else",
+            STOP_ELSE,
+            vec![(Whitespace, 10..11), (Error, 11..12)],
+        ),
+        (
+            "cast(x): A @ ;",
+            0,
+            vec![
+                (Whitespace, 10..11),
+                (Error, 11..12),
+                (Whitespace, 12..13),
+                (Semicolon, 13..14),
+            ],
+        ),
+        (
+            "cast(x): A @ = value",
+            0,
+            vec![
+                (Whitespace, 10..11),
+                (Error, 11..12),
+                (Whitespace, 12..13),
+                (Equals, 13..14),
+                (CastBody, 14..20),
+            ],
+        ),
+        (
+            "cast(x): A @ # = value",
+            0,
+            vec![
+                (Whitespace, 10..11),
+                (Error, 11..12),
+                (Error, 12..13),
+                (Error, 13..14),
+                (Whitespace, 14..15),
+                (Equals, 15..16),
+                (CastBody, 16..22),
+            ],
+        ),
+    ] {
+        let (green, _, _) = run_cast_declaration(source, stops, 0, LineEntry::InLine, None);
+        let node = declaration(&green);
+        let mut children = node.children_with_tokens();
+        assert_eq!(children.next().unwrap().kind(), SyntaxKind::CastKw);
+        let pattern = children.next().unwrap().into_node().unwrap();
+        assert_eq!(pattern.kind(), CastPattern, "{source:?}");
+        assert_eq!(pattern.last_token().unwrap().kind(), SyntaxKind::RParen);
+        let target = children.next().unwrap().into_node().unwrap();
+        assert_eq!(target.kind(), CastTarget, "{source:?}");
+        assert_eq!(
+            target.text_range(),
+            rowan::TextRange::new(7.into(), 10.into())
+        );
+        let mut errors = Vec::new();
+        let actual = children
+            .map(|child| {
+                let range = child.text_range();
+                let range = usize::from(range.start())..usize::from(range.end());
+                if child.kind() == Error {
+                    assert!(child.as_token().is_some(), "{source:?}");
+                    errors.push(range.clone());
+                }
+                (child.kind(), range)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{source:?}");
+        assert!(
+            errors.windows(2).all(|pair| pair[0].end == pair[1].start),
+            "{source:?}"
+        );
+        assert!(
+            node.children_with_tokens()
+                .all(|child| child.kind() != SyntaxKind::Invalid),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn cast_body_introducer_direct_rowan_excludes_later_body_recovery() {
+    use SyntaxKind::{CastBody, CastTarget, Equals, Error, Missing, Whitespace};
+
+    let (green, _, _) = run_cast_declaration("cast(x): A @ =", 0, 0, LineEntry::InLine, None);
+    let node = declaration(&green);
+    let actual = node
+        .children_with_tokens()
+        .skip_while(|child| child.kind() != CastTarget)
+        .skip(1)
+        .map(|child| {
+            let range = child.text_range();
+            (
+                child.kind(),
+                usize::from(range.start())..usize::from(range.end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        actual,
+        [
+            (Whitespace, 10..11),
+            (Error, 11..12),
+            (Whitespace, 12..13),
+            (Equals, 13..14),
+            (CastBody, 14..14)
+        ]
+    );
+    let body = node
+        .children()
+        .find(|child| child.kind() == CastBody)
+        .unwrap();
+    let missing = body
+        .children()
+        .find(|child| child.kind() == Missing)
+        .expect("later Body Missing");
+    assert_eq!(missing.parent(), Some(body));
+    assert_eq!(
+        missing.text_range(),
+        rowan::TextRange::new(14.into(), 14.into())
+    );
+    assert!(
+        node.children_with_tokens()
+            .all(|child| child.kind() != SyntaxKind::Invalid)
+    );
+}
+
+#[test]
 fn cast_body_introducer_records_are_exact_and_reconcile() {
     for origin in [100, 12_000] {
         for (source, stops, kind, relative_range) in [
