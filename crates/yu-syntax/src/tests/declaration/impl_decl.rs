@@ -1,5 +1,207 @@
 use crate::tests::support::*;
 
+// Schema evidence uses ordered Rowan parentage and byte ranges, not records.
+fn assert_impl_children(node: &SyntaxNode, expected: &[(SyntaxKind, std::ops::Range<u32>)]) {
+    let actual = node
+        .children_with_tokens()
+        .map(|child| {
+            assert_eq!(child.parent(), Some(node.clone()));
+            let range = child.text_range();
+            (
+                child.kind(),
+                u32::from(range.start())..u32::from(range.end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected);
+}
+
+fn impl_schema_shell(source: &str, suffix: &[(SyntaxKind, std::ops::Range<u32>)]) -> SyntaxNode {
+    use SyntaxKind::*;
+    let (green, _, _) = run_impl_declaration(source, 0, 0, LineEntry::InLine, None);
+    let node = declaration(&green);
+    let mut expected = vec![(ImplKw, 0..4), (Whitespace, 4..5), (TypeExpression, 5..8)];
+    expected.extend_from_slice(suffix);
+    assert_impl_children(&node, &expected);
+    assert!(!node.descendants().any(|child| child.kind() == Invalid));
+    node
+}
+
+#[test]
+fn impl_schema_completed_head_or_description_selects_body_introducer() {
+    use SyntaxKind::*;
+    for (prefix, base) in [("impl 型", 8), ("impl 型: D", 11)] {
+        for (tail, suffix) in [
+            (";", vec![(Semicolon, 0..1)]),
+            (
+                " {}",
+                vec![(Whitespace, 0..1), (BracedStatementBlockExpression, 1..3)],
+            ),
+            ("  ", vec![(Whitespace, 0..2), (Missing, 2..2)]),
+            ("\r\n", vec![(Missing, 0..0)]),
+            ("  )", vec![(Missing, 0..0)]),
+            (" @  ", vec![(Whitespace, 0..1), (Error, 1..2)]),
+            (" @\r\nnext", vec![(Whitespace, 0..1), (Error, 1..2)]),
+            (" @  )", vec![(Whitespace, 0..1), (Error, 1..2)]),
+            (
+                " @  ~   ;",
+                vec![
+                    (Whitespace, 0..1),
+                    (Error, 1..2),
+                    (Error, 2..4),
+                    (Error, 4..5),
+                    (Whitespace, 5..8),
+                    (Semicolon, 8..9),
+                ],
+            ),
+            (
+                " @ {}",
+                vec![
+                    (Whitespace, 0..1),
+                    (Error, 1..2),
+                    (Whitespace, 2..3),
+                    (BracedStatementBlockExpression, 3..5),
+                ],
+            ),
+            (
+                " @ : x",
+                vec![
+                    (Whitespace, 0..1),
+                    (Error, 1..2),
+                    (Whitespace, 2..3),
+                    (Colon, 3..4),
+                    (Statement, 4..6),
+                ],
+            ),
+        ] {
+            let mut expected = if base == 11 {
+                vec![(ImplDescription, 8..11)]
+            } else {
+                vec![]
+            };
+            expected.extend(
+                suffix
+                    .into_iter()
+                    .map(|(kind, range)| (kind, base + range.start..base + range.end)),
+            );
+            let node = impl_schema_shell(&format!("{prefix}{tail}"), &expected);
+            if let Some(description) = node
+                .children()
+                .find(|child| child.kind() == ImplDescription)
+            {
+                assert_impl_children(
+                    &description,
+                    &[(Colon, 8..9), (Whitespace, 9..10), (TypeExpression, 10..11)],
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn impl_schema_second_colon_selects_inline_body() {
+    use SyntaxKind::*;
+    for (tail, suffix) in [
+        (" x", vec![(Statement, 12..14)]),
+        ("   ", vec![(Missing, 12..12)]),
+        ("  ;", vec![(Missing, 12..12)]),
+        ("\r\nnext", vec![(Missing, 12..12)]),
+        ("  ]", vec![(Missing, 12..12)]),
+        (" @   ", vec![(Whitespace, 12..13), (Error, 13..14)]),
+        (" @  ]", vec![(Whitespace, 12..13), (Error, 13..14)]),
+        (
+            " @  ~   x;",
+            vec![
+                (Whitespace, 12..13),
+                (Error, 13..14),
+                (Error, 14..16),
+                (Error, 16..17),
+                (Statement, 17..21),
+                (Semicolon, 21..22),
+            ],
+        ),
+    ] {
+        let mut expected = vec![(ImplDescription, 8..11), (Colon, 11..12)];
+        expected.extend(suffix);
+        let node = impl_schema_shell(&format!("impl 型: D:{tail}"), &expected);
+        let description = node
+            .children()
+            .find(|child| child.kind() == ImplDescription)
+            .unwrap();
+        assert_impl_children(
+            &description,
+            &[(Colon, 8..9), (Whitespace, 9..10), (TypeExpression, 10..11)],
+        );
+        if let Some(statement) = node.children().find(|child| child.kind() == Statement) {
+            let leading = statement.first_token().unwrap();
+            assert_eq!(leading.kind(), Whitespace);
+            let start = statement.text_range().start();
+            let width = if tail == " x" { 1 } else { 3 };
+            assert_eq!(
+                leading.text_range(),
+                rowan::TextRange::new(start, start + rowan::TextSize::from(width))
+            );
+        }
+    }
+}
+
+#[test]
+fn impl_schema_first_colon_absence_and_malformed_description_stay_upstream() {
+    use SyntaxKind::*;
+    for (tail, description_children, end) in [
+        (":", vec![(Colon, 8..9), (TypeExpression, 9..9)], 9),
+        (
+            ": )",
+            vec![(Colon, 8..9), (Whitespace, 9..10), (TypeExpression, 10..10)],
+            10,
+        ),
+        (
+            ": @ ;",
+            vec![(Colon, 8..9), (Whitespace, 9..10), (Error, 10..11)],
+            11,
+        ),
+    ] {
+        let node = impl_schema_shell(&format!("impl 型{tail}"), &[(ImplDescription, 8..end)]);
+        let description = node
+            .children()
+            .find(|child| child.kind() == ImplDescription)
+            .unwrap();
+        assert_impl_children(&description, &description_children);
+        for ty in description
+            .children()
+            .filter(|child| child.kind() == TypeExpression)
+        {
+            assert_impl_children(&ty, &[(Missing, end..end)]);
+        }
+    }
+}
+
+#[test]
+fn impl_schema_inline_binding_missing_remains_child_owned() {
+    use SyntaxKind::*;
+    let node = impl_schema_shell(
+        "impl 型: D: my x =",
+        &[
+            (ImplDescription, 8..11),
+            (Colon, 11..12),
+            (Statement, 12..19),
+        ],
+    );
+    let statement = node
+        .children()
+        .find(|child| child.kind() == Statement)
+        .unwrap();
+    let binding = statement
+        .children()
+        .find(|child| child.kind() == BindingStatement)
+        .unwrap();
+    let body = binding
+        .children()
+        .find(|child| child.kind() == BindingBody)
+        .unwrap();
+    assert_impl_children(&body, &[(Missing, 19..19)]);
+}
+
 #[test]
 fn impl_first_colon_absence_is_description_without_body_cascade() {
     use crate::recovery_record::{

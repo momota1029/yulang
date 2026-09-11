@@ -709,6 +709,13 @@ is the direct predecessor of BodyIntroducer; absent/malformed Head forms are
 structurally excluded, while nested BindingBody recovery remains under the
 child Statement. Head Type, braced/indented children, caller/fence topology and
 remaining Role rows stay open with global collection and ledger/API migration.
+ImplDeclaration BodyIntroducer and inline Body are now catalog-audited as an
+evidence-complete Draft. The first same-line Colon is inside ImplDescription;
+the ordinary Body path is its following direct Colon, while completed-Head
+starter/retry forms remain a separate direct entry context. Description recovery
+and nested BindingBody recovery stay structurally distinct. Head/Description
+Type, braced/indented children, caller/fence topology and remaining Impl rows
+stay open with global collection and ledger/API migration.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

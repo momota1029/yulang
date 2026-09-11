@@ -246,6 +246,26 @@ state. M1 post-write specification audit was clean. Head Type recovery,
 braced/indented child internals, caller/fence suites and remaining Role rows
 remain separate.
 
+#### ImplDeclaration BodyIntroducer/inline Body Draft links
+
+Only `crates/yu-syntax/src/declaration/impl_tail.rs:130–460,760–875` is linked
+to these bounded direct Impl body rows. The ordinary first same-line Colon is
+inside ImplDescription; its missing or malformed Type is excluded upstream. A
+following declaration Colon is the ordinary inline Body path. BodyIntroducer
+also has its existing completed-Head body-starter/retry context, so the row is
+selected by parentage and child order rather than colon spelling alone.
+
+Direct Rowan proof is `impl_schema_completed_head_or_description_selects_body_introducer`,
+`impl_schema_second_colon_selects_inline_body`,
+`impl_schema_first_colon_absence_and_malformed_description_stay_upstream`, and
+`impl_schema_inline_binding_missing_remains_child_owned` in
+`crates/yu-syntax/src/tests/declaration/impl_decl.rs`. It covers UTF-8,
+EOF/protected-close/CRLF shape, starter/Statement retries, leading ownership
+and nested BindingBody delegation without records, Error spelling or scanner
+state. M1 post-write specification audit was clean. Head/Description Type,
+braced/indented children, caller/fence suites and remaining Impl rows remain
+separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct
