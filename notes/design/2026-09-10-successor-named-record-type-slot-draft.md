@@ -1,8 +1,12 @@
 # NamedRecordType recovery-slot CST draft
 
-Status: Draft; no implementation authorization
+Status: Authoritative; private M2 construction complete
 
 Date: 2026-09-10
+
+Approved-by: user
+
+Approved-at: 2026-09-11
 
 Drafted-by: primary from the NamedRecordType collision investigation
 
@@ -15,8 +19,8 @@ public diagnostics, API migration or recovery-ledger retirement.
 
 Governing authority: the Authoritative CST-derived diagnostics amendment,
 Error/Invalid topology-ordering addendum, record sequence current-Item recovery
-and record field current-Item recovery. This Draft records a proven schema gap;
-it adds no implementation authority.
+and record field current-Item recovery. The user's 2026-09-11 approval adopts
+the topology below as the construction authority.
 
 ## Proven collision
 
@@ -40,7 +44,7 @@ AfterError positions admit a semicolon as a Separator Error, while ordinary
 raw material at the same direct parent is a Field Error. The source role
 selection must therefore also be structural before temporary records vanish.
 
-## Candidate decision requiring user approval
+## Approved topology decision
 
 Add two transparent grammar-slot nodes:
 
@@ -128,20 +132,35 @@ owner.
 - `Invalid`, Error nodes, spelling/provenance inspection, expected payloads or
   retaining the parser ledger conflict with governing authority.
 
-## Required approval and construction gate
+## Construction gate
 
-Before implementation, an independent specification review and compiler/recovery
-review must validate the full terminal and separator paths. The user must then
-approve both names, the asymmetric separator cardinality, one Close node for
-every committed record including accepted records, the described close-leading
-ancestor change, and narrow supersession of direct raw placement only for these
-existing slots.
+Before implementation, a fresh independent specification review and
+compiler/recovery review must validate the full terminal and separator paths.
+The user approved both names, the asymmetric separator cardinality, one Close
+node for every committed record including accepted records, the described
+close-leading ancestor change, and narrow supersession of direct raw placement
+only for these existing slots on 2026-09-11.
 
 After approval, use M2: append SyntaxKinds without renumbering existing values;
 one implementation/repair bundle; focused tests for Field/Separator/Close
 splits, accepted records, source/range/leading/boundary/frozen behavior; one
 scoped closure review; package check, format and diff. No benchmark
 samples/processes are planned unless material uncertainty appears.
+
+## Construction result
+
+Private M2 construction completed on 2026-09-11. `NamedRecordTypeSeparator`
+and `NamedRecordTypeClose` were appended as SyntaxKinds 279 and 280 without
+renumbering existing kinds. The owner emits one Close node for every committed
+record, with the approved fresh/committed terminal-leading distinction, and
+wraps only existing Separator Missing/Error publications. A committed-close
+quoted-fence control exposed a pre-existing boundary token-classification panic;
+the owner now checks abstract-boundary status before that classification and
+hands the protected Item through unchanged. Recovery records, ranges, accepted
+grammar and retry/current-Item contracts remain unchanged. Pre-write
+specification/compiler reviews, closure and delta review are clean; focused
+record tests, the Type-expression module and `cargo check -p yu-syntax` passed.
+No benchmark samples/processes were used.
 
 Stop if any terminal route lacks exactly one close child, a Field recovery is
 enclosed by Close, range/record facts or current Item change, the field-internal

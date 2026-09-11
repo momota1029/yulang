@@ -8,6 +8,80 @@ use crate::recovery_record::{
 use crate::tests::support::*;
 use std::sync::Arc;
 
+#[test]
+fn enum_error_empty_field_list_close_missing_has_direct_cst_slot() {
+    for (prefix, suffix, declaration) in [
+        ("enum E{A{", "}}", SyntaxKind::EnumDeclaration),
+        ("enum E{A(", ")}", SyntaxKind::EnumDeclaration),
+        ("error E{A{", "}}", SyntaxKind::ErrorDeclaration),
+        ("error E{A(", ")}", SyntaxKind::ErrorDeclaration),
+    ] {
+        super::struct_decl::assert_empty_field_list_close_missing_cst(
+            prefix,
+            suffix,
+            &[SyntaxKind::EnumVariant, declaration],
+        );
+    }
+}
+
+#[test]
+fn enum_error_field_separators_have_direct_cst_slots() {
+    for (prefix, suffix, declaration) in [
+        ("enum E{A{", "}}", SyntaxKind::EnumDeclaration),
+        ("enum E{A(", ")}", SyntaxKind::EnumDeclaration),
+        ("error E{A{", "}}", SyntaxKind::ErrorDeclaration),
+        ("error E{A(", ")}", SyntaxKind::ErrorDeclaration),
+    ] {
+        super::struct_decl::assert_field_separators_cst(
+            prefix,
+            suffix,
+            &[SyntaxKind::EnumVariant, declaration],
+        );
+    }
+}
+
+#[test]
+fn enum_error_fresh_tuple_field_items_have_direct_cst_slots() {
+    for (prefix, declaration) in [
+        ("enum E{A(", SyntaxKind::EnumDeclaration),
+        ("error E{A(", SyntaxKind::ErrorDeclaration),
+    ] {
+        super::struct_decl::assert_fresh_tuple_field_items_cst(
+            prefix,
+            ")}",
+            &[SyntaxKind::EnumVariant, declaration],
+        );
+    }
+}
+
+#[test]
+fn enum_error_fresh_named_field_items_have_direct_cst_slots() {
+    for (prefix, declaration) in [
+        ("enum E{A{", SyntaxKind::EnumDeclaration),
+        ("error E{A{", SyntaxKind::ErrorDeclaration),
+    ] {
+        super::struct_decl::assert_fresh_named_field_items_cst(
+            prefix,
+            "}}",
+            &[SyntaxKind::EnumVariant, declaration],
+        );
+    }
+}
+
+#[test]
+fn enum_error_named_field_head_has_direct_cst_slots_and_type_retry() {
+    for (prefix, declaration) in [
+        ("enum E{A{", SyntaxKind::EnumDeclaration),
+        ("error E{A{", SyntaxKind::ErrorDeclaration),
+    ] {
+        super::struct_decl::assert_named_field_head_cst(
+            prefix,
+            "}}",
+            &[SyntaxKind::EnumVariant, declaration],
+        );
+    }
+}
+
 use crate::{
     handoff::Either,
     lexical::{
@@ -196,6 +270,156 @@ fn typed_variant<'a>(
     builder.finish_node();
     let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
     (green, records, exit, input)
+}
+
+#[test]
+fn typed_variant_payload_scoped_caller_stops_preserve_pending_items() {
+    use crate::lexical::stops::{
+        STOP_ARROW, STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE, STOP_WITH,
+    };
+    for owner in [VariantOwner::Enum, VariantOwner::Error] {
+        for (prefix, stop, stops, recovery) in [
+            ("= A", ":", STOP_COLON, None),
+            ("= A", "{", STOP_LBRACE, None),
+            ("= A", "else", STOP_ELSE, None),
+            ("= A", "elsif", STOP_ELSIF, None),
+            ("= A", "with", STOP_WITH, None),
+            ("= A from", ":", STOP_COLON, Some(RecoveryKind::Missing)),
+            ("= A from", "{", STOP_LBRACE, Some(RecoveryKind::Missing)),
+            ("= A from @", ":", STOP_COLON, Some(RecoveryKind::Error)),
+            ("= A @", ":", STOP_COLON, Some(RecoveryKind::Error)),
+            ("= A T", ":", STOP_COLON, None),
+            ("= A from T", "else", STOP_ELSE, None),
+            ("= A from (T -> U)", "->", STOP_ARROW, None),
+            ("= A F(T->U)", "->", STOP_ARROW, None),
+        ] {
+            let source = format!("{prefix} /*pending*/ {stop} tail");
+            let (green, records, exit, remainder) = typed_variant(
+                &source,
+                owner,
+                VariantSequenceForm::EqualsInline,
+                false,
+                stops,
+                0,
+                None,
+                None,
+                false,
+            );
+            assert_eq!(green.to_string(), prefix, "{source}");
+            assert_eq!(remainder, " tail", "{source}");
+            assert_eq!(records.len(), usize::from(recovery.is_some()), "{source}");
+            if let Some(kind) = recovery {
+                assert_eq!(records[0].kind, kind, "{source}");
+                if kind == RecoveryKind::Missing {
+                    assert_eq!(
+                        records[0].site.role,
+                        variant_role(owner, VariantDeclarationRole::FromType)
+                    );
+                    let root = syntax_root(green);
+                    let missing = root
+                        .descendants()
+                        .find(|node| node.kind() == SyntaxKind::Missing)
+                        .unwrap();
+                    assert_eq!(missing.parent().unwrap().kind(), SyntaxKind::TypeExpression);
+                } else {
+                    assert!(
+                        matches!(records[0].site.role, GrammarRole::Type(_)),
+                        "{source}"
+                    );
+                }
+            }
+            let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
+                panic!("caller boundary pending: {source}")
+            };
+            assert_eq!(item.payload_view().spelling(), Some(stop), "{source}");
+            assert_eq!(
+                emit_pending_leading_text(&mut item),
+                " /*pending*/ ",
+                "{source}"
+            );
+        }
+        for (source, recovery_count, yield_with, stops) in [
+            ("= A from T -> with", 0, false, STOP_WITH),
+            ("= A from T -> @ with", 1, false, STOP_WITH),
+            ("= A from T -> with", 0, true, 0),
+            ("= A from T -> @ with", 1, true, 0),
+        ] {
+            let (green, records, _, remainder) = typed_variant(
+                source,
+                owner,
+                VariantSequenceForm::EqualsInline,
+                yield_with,
+                stops,
+                0,
+                None,
+                None,
+                false,
+            );
+            assert_eq!(green.to_string(), source, "{owner:?}: {source}");
+            assert!(remainder.is_empty(), "{owner:?}: {source}");
+            assert_eq!(records.len(), recovery_count, "{owner:?}: {source}");
+            if recovery_count != 0 {
+                assert_eq!(records[0].kind, RecoveryKind::Error);
+                assert_eq!(
+                    records[0].site.role,
+                    GrammarRole::Type(crate::recovery_record::TypeRole::ArrowRhs)
+                );
+            }
+            let root = syntax_root(green);
+            let arrow = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::TypeArrowTail)
+                .unwrap();
+            assert!(arrow.children().any(|node| {
+                node.kind() == SyntaxKind::TypeExpression
+                    && node.text().to_string().ends_with("with")
+            }));
+        }
+    }
+}
+
+#[test]
+fn typed_variant_inactive_brace_and_semicolon_preserve_payload_and_progress() {
+    for owner in [VariantOwner::Enum, VariantOwner::Error] {
+        let (green, records, _, remainder) = typed_variant(
+            "= A {x:T}",
+            owner,
+            VariantSequenceForm::EqualsInline,
+            false,
+            0,
+            0,
+            None,
+            None,
+            false,
+        );
+        assert_eq!(green.to_string(), "= A {x:T}");
+        assert!(records.is_empty());
+        assert!(remainder.is_empty());
+        assert_eq!(count(&syntax_root(green), SyntaxKind::StructField), 1);
+        let (green, records, _, remainder) = typed_variant(
+            "= A ;",
+            owner,
+            VariantSequenceForm::EqualsInline,
+            false,
+            0,
+            0,
+            None,
+            None,
+            false,
+        );
+        assert_eq!(green.to_string(), "= A ;");
+        assert!(remainder.is_empty());
+        assert_eq!(records.len(), 2);
+        assert_eq!(
+            records[0].site.role,
+            variant_role(owner, VariantDeclarationRole::Separator)
+        );
+        assert_eq!(
+            records[1].site.role,
+            variant_role(owner, VariantDeclarationRole::Item)
+        );
+        assert_eq!(records[1].kind, RecoveryKind::Error);
+    }
 }
 
 #[test]
@@ -1129,6 +1353,87 @@ fn declaration_variant_fields_borrow_outer_closes_after_local_missing_close() {
     assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RParen));
     let root = syntax_root(green);
     assert_eq!(count(&root, SyntaxKind::Missing), 1, "{root:#?}");
+}
+
+#[test]
+fn declaration_variant_field_local_close_missing_preserves_borrowed_close_cst() {
+    use SyntaxKind::{
+        Error, Invalid, LBrace, LParen, Missing, StructField, StructFieldForeignClose,
+    };
+    for owner in [VariantOwner::Enum, VariantOwner::Error] {
+        for (source, accepted, open, field_end, pending_kind, leading) in [
+            ("= A{x:T)", "= A{x:T", LBrace, 7, TokenKind::RParen, ""),
+            ("= A(T]", "= A(T", LParen, 5, TokenKind::RBracket, ""),
+            (
+                "= A(T \r\n ]",
+                "= A(T",
+                LParen,
+                5,
+                TokenKind::RBracket,
+                " \r\n ",
+            ),
+        ] {
+            if matches!(owner, VariantOwner::Error) && !leading.is_empty() {
+                continue;
+            }
+            let (green, _, exit, remainder) = typed_variant(
+                source,
+                owner,
+                VariantSequenceForm::EqualsInline,
+                false,
+                0,
+                100,
+                None,
+                None,
+                false,
+            );
+            assert_eq!(green.to_string(), accepted, "{owner:?} {source:?}");
+            assert_eq!(remainder, "");
+            let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
+                panic!("foreign close must stay pending")
+            };
+            assert_eq!(item.payload_view().token_kind(), Some(pending_kind));
+            assert_eq!(emit_pending_leading_text(&mut item), leading);
+            let root = syntax_root(green);
+            assert_eq!(count(&root, SyntaxKind::EnumVariant), 1);
+            let variant = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::EnumVariant)
+                .unwrap();
+            assert_eq!(variant.parent().as_ref(), Some(&root));
+            assert_eq!(root.kind(), SyntaxKind::Root);
+            assert_eq!(
+                variant
+                    .children_with_tokens()
+                    .skip_while(|element| element.kind() != open)
+                    .map(|element| (
+                        element.kind(),
+                        element.as_node().is_some(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                        element.to_string(),
+                    ))
+                    .collect::<Vec<_>>(),
+                [
+                    (open, false, 3..4, accepted[3..4].to_owned()),
+                    (StructField, true, 4..field_end, accepted[4..].to_owned()),
+                    (Missing, true, field_end..field_end, String::new()),
+                ]
+            );
+            let missing = root
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect::<Vec<_>>();
+            assert_eq!(missing.len(), 1);
+            assert_eq!(missing[0].parent().as_ref(), Some(&variant));
+            assert!(missing[0].children_with_tokens().next().is_none());
+            assert_eq!(count(&root, StructField), 1);
+            assert!(root.descendants_with_tokens().all(|element| !matches!(
+                element.kind(),
+                Error | Invalid | StructFieldForeignClose
+            )));
+        }
+    }
 }
 
 #[test]

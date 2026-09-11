@@ -669,6 +669,174 @@ fn binding_c8_totalizes_target_and_accepted_body_slots_once() {
 }
 
 #[test]
+fn binding_body_inline_raw_slot_has_direct_missing_error_retry_and_boundary() {
+    let direct = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|element| {
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let assert_no_invalid = |node: &SyntaxNode| {
+        assert!(
+            node.descendants()
+                .all(|child| child.kind() != SyntaxKind::Invalid),
+            "{node:#?}"
+        );
+    };
+    let assert_binding_context = |declaration: &SyntaxNode| {
+        assert_eq!(
+            declaration
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [SyntaxKind::BindingHeader, SyntaxKind::BindingBody]
+        );
+        let header = declaration.children().next().unwrap();
+        assert_eq!(header.kind(), SyntaxKind::BindingHeader);
+        assert_eq!(
+            header
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .filter(|token| token.kind() == SyntaxKind::Equals)
+                .map(|token| {
+                    usize::from(token.text_range().start())..usize::from(token.text_range().end())
+                })
+                .collect::<Vec<_>>(),
+            [5..6]
+        );
+    };
+
+    let (green, exit) = run_statement("my x =");
+    assert_eq!(green.to_string(), "my x =");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let declaration = binding(&green);
+    assert_binding_context(&declaration);
+    let body = declaration
+        .children()
+        .find(|node| node.kind() == SyntaxKind::BindingBody)
+        .unwrap();
+    assert_eq!(direct(&body), [(SyntaxKind::Missing, 6..6)]);
+    let missing = body.children().next().unwrap();
+    assert_eq!(missing.kind(), SyntaxKind::Missing);
+    assert_eq!(missing.parent(), Some(body.clone()));
+    assert_no_invalid(&declaration);
+
+    let (green, exit) = run_statement("my x = @ value");
+    assert_eq!(green.to_string(), "my x = @ value");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let declaration = binding(&green);
+    assert_binding_context(&declaration);
+    let body = declaration
+        .children()
+        .find(|node| node.kind() == SyntaxKind::BindingBody)
+        .unwrap();
+    assert_eq!(
+        direct(&body),
+        [
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::Error, 7..8),
+            (SyntaxKind::Whitespace, 8..9),
+            (SyntaxKind::OperatorChain, 9..14),
+        ]
+    );
+    let errors = body
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].parent(), Some(body.clone()));
+    assert_eq!(
+        errors[0].text_range(),
+        rowan::TextRange::new(7.into(), 8.into())
+    );
+    let retry = body
+        .children()
+        .find(|node| node.kind() == SyntaxKind::OperatorChain)
+        .unwrap();
+    assert_eq!(retry.parent(), Some(body.clone()));
+    assert_eq!(
+        retry.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::IdentifierExpression]
+    );
+    assert!(
+        retry
+            .descendants_with_tokens()
+            .all(|element| element.kind() != SyntaxKind::Error)
+    );
+    assert_no_invalid(&declaration);
+
+    let (green, exit) = run_statement("my x = @;");
+    assert_eq!(green.to_string(), "my x = @");
+    assert!(matches!(
+        exit,
+        Some(Err(Either::Left(item)))
+            if item.payload_view().token_kind() == Some(TokenKind::Semicolon)
+    ));
+    let declaration = binding(&green);
+    assert_binding_context(&declaration);
+    let body = declaration
+        .children()
+        .find(|node| node.kind() == SyntaxKind::BindingBody)
+        .unwrap();
+    assert_eq!(
+        direct(&body),
+        [(SyntaxKind::Whitespace, 6..7), (SyntaxKind::Error, 7..8),]
+    );
+    let errors = body
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].parent(), Some(body.clone()));
+    assert!(
+        body.descendants()
+            .all(|node| node.kind() != SyntaxKind::Missing)
+    );
+    assert_no_invalid(&declaration);
+
+    let (green, exit) = run_statement("my x = @  ");
+    assert_eq!(green.to_string(), "my x = @  ");
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let declaration = binding(&green);
+    assert_binding_context(&declaration);
+    let body = declaration
+        .children()
+        .find(|node| node.kind() == SyntaxKind::BindingBody)
+        .unwrap();
+    assert_eq!(
+        direct(&body),
+        [
+            (SyntaxKind::Whitespace, 6..7),
+            (SyntaxKind::Error, 7..8),
+            (SyntaxKind::Whitespace, 8..10),
+        ]
+    );
+    let errors = body
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].parent(), Some(body.clone()));
+    assert_eq!(
+        errors[0].text_range(),
+        rowan::TextRange::new(7.into(), 8.into())
+    );
+    assert!(
+        body.descendants()
+            .all(|node| node.kind() != SyntaxKind::Missing)
+    );
+    assert_no_invalid(&declaration);
+}
+
+#[test]
 fn binding_c8_keeps_statement_head_reservation_source_only_and_exact() {
     let (green, _) = run_statement("my use = value");
     assert!(

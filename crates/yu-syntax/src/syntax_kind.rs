@@ -280,6 +280,9 @@ pub enum SyntaxKind {
     RecordPatternForeignClose,
     ExpressionDelimitedSeparator,
     ExpressionDelimitedForeignClose,
+    StructFieldForeignClose,
+    NamedRecordTypeSeparator,
+    NamedRecordTypeClose,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -502,6 +505,15 @@ impl Language for YulangLanguage {
             }
             value if value == SyntaxKind::ExpressionDelimitedForeignClose as u16 => {
                 SyntaxKind::ExpressionDelimitedForeignClose
+            }
+            value if value == SyntaxKind::StructFieldForeignClose as u16 => {
+                SyntaxKind::StructFieldForeignClose
+            }
+            value if value == SyntaxKind::NamedRecordTypeSeparator as u16 => {
+                SyntaxKind::NamedRecordTypeSeparator
+            }
+            value if value == SyntaxKind::NamedRecordTypeClose as u16 => {
+                SyntaxKind::NamedRecordTypeClose
             }
             value if value == SyntaxKind::CallTail as u16 => SyntaxKind::CallTail,
             value if value == SyntaxKind::IndexTail as u16 => SyntaxKind::IndexTail,
@@ -753,6 +765,9 @@ mod tests {
         assert_eq!(SyntaxKind::RecordPatternForeignClose as u16, 275);
         assert_eq!(SyntaxKind::ExpressionDelimitedSeparator as u16, 276);
         assert_eq!(SyntaxKind::ExpressionDelimitedForeignClose as u16, 277);
+        assert_eq!(SyntaxKind::StructFieldForeignClose as u16, 278);
+        assert_eq!(SyntaxKind::NamedRecordTypeSeparator as u16, 279);
+        assert_eq!(SyntaxKind::NamedRecordTypeClose as u16, 280);
 
         for kind in [
             SyntaxKind::Unknown,
@@ -765,6 +780,9 @@ mod tests {
             SyntaxKind::RecordPatternForeignClose,
             SyntaxKind::ExpressionDelimitedSeparator,
             SyntaxKind::ExpressionDelimitedForeignClose,
+            SyntaxKind::StructFieldForeignClose,
+            SyntaxKind::NamedRecordTypeSeparator,
+            SyntaxKind::NamedRecordTypeClose,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);

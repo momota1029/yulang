@@ -1,24 +1,28 @@
 # BracedStatementBlock recovery-slot CST draft
 
-Status: Draft; no implementation authorization; continuation prerequisite repaired
+Status: Rejected as unnecessary; bounded ordered-CST decoder proved; no
+implementation authorization
 
 Date: 2026-09-10
 
 Drafted-by: primary from the BracedStatementBlock Missing collision investigation
 
-Scope: a proposed CST distinction for existing required Statement, Separator
-and terminal Brace-close slots inside BracedStatementBlockExpression. It does
+Scope: the historical proposed CST distinction for existing required Statement,
+Separator and terminal Brace-close slots inside
+BracedStatementBlockExpression. It does
 not change accepted Statement grammar, statement admission, lexical retry,
 indented/root/declaration sequence ownership, current-Item propagation, parser
 records, frozen reconciliation, public diagnostics, API migration or
-recovery-ledger retirement.
+recovery-ledger retirement. Current evidence rejects the proposed topology;
+the retained proposal below is historical rationale, not a pending gate.
 
 Governing authority: the Authoritative CST-derived diagnostics amendment,
 Error/Invalid topology-ordering addendum and braced Statement sequence
-current-Item recovery authority. This Draft records a proven schema gap; it
-adds no implementation authority.
+current-Item recovery authority. The amendment permits complete ordered sibling
+grammar as slot identity; the strengthened evidence below disproves the former
+claim that immediate ancestry alone required new topology.
 
-## Proven collision
+## Ancestry-only observation and corrected result
 
 The current direct Rowan controls retain distinct Missing records for required
 Statement, Statement Separator and local Brace close, yet all three have the
@@ -31,11 +35,30 @@ BracedStatementBlockExpression > Missing
 The focused controls are `{,;}` for required Statement Missing before explicit
 separator punctuation, `{use a use b}` for Separator Missing before the next
 admitted Statement, and `{  ` for terminal local Brace close Missing at EOF.
-They preserve source, exact records/ranges, frozen replay and continuation. No
-wrapper or Error spelling identifies the role, so CST-only diagnostics cannot
-derive their distinct expectations.
+They preserve source, exact records/ranges, frozen replay and continuation.
+Immediate ancestry alone does collide, but the complete ordered direct children
+identify every retained witness without a wrapper, Error spelling or parser
+record:
 
-## Candidate decision requiring user approval
+| direct Missing context | derived slot |
+| --- | --- |
+| next direct child is `BlockStatementSeparator` | required Statement |
+| next direct child is `Statement` | Statement Separator |
+| no later direct child | local closing Brace |
+
+The `{,;}` tree has each required-Statement Missing immediately before its
+explicit separator node. `{use a use b}` has the Separator Missing between its
+two direct Statement children. `{  ` has direct whitespace followed by a
+terminal Close Missing. The nested-For continuation control additionally keeps
+the outer accepted `RBrace` terminal and puts its missing separator between the
+two outer Statement children. These facts invalidate the candidate's necessity
+claim for the bounded slots.
+
+## Rejected candidate retained for history
+
+Do not implement this candidate from this record. It remains below only to
+preserve the reviewed alternative and why it was considered before complete
+ordered-child evidence existed.
 
 Reuse existing `BlockStatementSeparator` for Separator Missing and add one
 transparent terminal node:
@@ -99,31 +122,13 @@ frozen reconciliation remain unchanged during this topology gate.
 - Altering global Statement/root/indented recovery exceeds this owner-local
   repair.
 
-## Required approval and construction gate
+## Disposition
 
-The prior nested-For continuation defect is repaired separately: a completed
-braced For body now makes the enclosing sequence acquire and dispatch its own
-successor, so the enclosing local `RBrace` remains owned by this block. That
-repair changes no CST topology or SyntaxKind and does not authorize this Draft.
-
-Before implementation, renewed independent specification and compiler/recovery
-review must validate this Draft. The user must approve the
-`BracedStatementBlockClose` name, one terminal node on every braced block
-including accepted `RBrace`, reuse of `BlockStatementSeparator` for Separator
-Missing, the leading-containment rule above, and this narrow supersession only:
-the accepted local-close ancestry/remaining-leading containment and the
-Separator/Close Missing placements for these paths. All other legacy direct
-children remain unchanged.
-
-After approval, use M2: append one SyntaxKind without renumbering existing
-values; one owner-local implementation/repair bundle; focused evidence for all
-three slots, both close paths, accepted/empty/trailing/repeated separators,
-Error retry, EOF/UTF-8/CRLF/fence/foreign-close handoff, shifted/frozen records
-and all six braced entry routes; one scoped closure review; package check,
-format and diff. No benchmark samples/processes are planned unless material
-cost uncertainty appears.
-
-Stop if source/records/order/current Item/leading/continuation/Statement
-admission changes, if a terminal route lacks exactly one Close child, if a
-protected Item enters Close, if an existing kind changes value, or if another
-owner needs either structure.
+The prior nested-For continuation defect remains repaired separately: a
+completed braced For body makes the enclosing sequence acquire and dispatch its
+own successor, so the enclosing local `RBrace` remains owned by this block.
+The bounded current CST is now cataloged through ordered direct-child context.
+No `BracedStatementBlockClose` kind, accepted-close wrapper or Separator-Missing
+ancestor change is authorized or required by these witnesses. A future proposal
+would need a new complete ordered-context collision or another independent
+grammar requirement; immediate `Block > Missing` ancestry is not enough.

@@ -941,9 +941,18 @@ fn pattern_annotation_named_record_type_owns_its_first_same_kind_close() {
             [
                 SyntaxKind::LBrace,
                 SyntaxKind::TypeRecordField,
-                SyntaxKind::Whitespace,
-                SyntaxKind::RBrace
+                SyntaxKind::NamedRecordTypeClose
             ],
+            "{source:?}"
+        );
+        assert_eq!(
+            record
+                .last_child()
+                .unwrap()
+                .children_with_tokens()
+                .map(|element| element.kind())
+                .collect::<Vec<_>>(),
+            [SyntaxKind::Whitespace, SyntaxKind::RBrace],
             "{source:?}"
         );
         assert_eq!(

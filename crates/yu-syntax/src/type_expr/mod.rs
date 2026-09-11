@@ -59,13 +59,14 @@ pub(super) enum TypeApplyBoundary {
     DeclarationNamedFields,
 }
 
-/// Contextual boundaries owned by precisely one logical TypeExpression.
+/// Contextual boundaries with owner-scoped TypeExpression lifetime.
 ///
-/// This is deliberately an immediate value rather than a `Stops` bit: a
-/// nested TypeExpression receives `NONE`, while a same-episode tail/retry
-/// retains the caller's value.
+/// This is deliberately an immediate value rather than a `Stops` bit:
+/// nested episodes suspend their owner's scope, while a same-episode tail/retry
+/// retains the caller's value. Arrow RHS suspends variant scope while retaining
+/// ordinary caller boundaries.
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
-pub(super) struct TypeOuterBoundary(u8);
+pub(super) struct TypeOuterBoundary(u32);
 
 impl TypeOuterBoundary {
     pub(super) const NONE: Self = Self(0);
@@ -77,6 +78,55 @@ impl TypeOuterBoundary {
     pub(super) const PIPE: Self = Self(1 << 5);
     pub(super) const STRUCT_BODY: Self = Self(1 << 6);
     pub(super) const VARIANT_BODY: Self = Self(1 << 7);
+
+    const VARIANT_PIPE: Self = Self(1 << 24);
+    const VARIANT_WITH: Self = Self(1 << 25);
+
+    pub(super) const fn variant_payload(
+        stops: Stops,
+        pipe_boundary: bool,
+        with_boundary: bool,
+    ) -> Self {
+        use crate::lexical::stops::{
+            STOP_ARROW, STOP_CLOSES, STOP_COLON, STOP_COMMA, STOP_ELSE, STOP_ELSIF, STOP_LBRACE,
+            STOP_SEMICOLON, STOP_WITH,
+        };
+        Self(
+            ((stops
+                & (STOP_ARROW
+                    | STOP_CLOSES
+                    | STOP_COLON
+                    | STOP_COMMA
+                    | STOP_ELSE
+                    | STOP_ELSIF
+                    | STOP_LBRACE
+                    | STOP_SEMICOLON
+                    | STOP_WITH)) as u32)
+                << 8
+                | if pipe_boundary {
+                    Self::VARIANT_PIPE.0
+                } else {
+                    0
+                }
+                | if with_boundary {
+                    Self::VARIANT_WITH.0
+                } else {
+                    0
+                },
+        )
+    }
+
+    fn is_variant_stop(self, item: &Item) -> bool {
+        is_type_caller_boundary(item, (self.0 >> 8) as Stops)
+            || (self.contains(Self::VARIANT_PIPE) && token_kind(item) == Some(TokenKind::Pipe))
+            || (self.contains(Self::VARIANT_WITH)
+                && token_kind(item) == Some(TokenKind::Identifier)
+                && item.payload_view().spelling() == Some("with"))
+    }
+
+    const fn without_variant_scope(self) -> Self {
+        Self(self.0 & 0xff)
+    }
 
     pub(super) const fn with(self, other: Self) -> Self {
         Self(self.0 | other.0)
@@ -2451,7 +2501,7 @@ fn type_arrow_tail_normalized(
         outer_separators,
         outer_closes,
         caller_stops,
-        outer_boundary,
+        outer_boundary.without_variant_scope(),
         pipe_lexical,
         item_origin,
         line_entry,
@@ -2762,6 +2812,7 @@ fn is_required_type_boundary(
         fresh_primary_policy.owns_bare_left_brace && token_kind(item) == Some(TokenKind::LBrace);
     !type_chain_trivia(item.leading_view(), baseline)
         || is_type_rhs_boundary(item)
+        || outer_boundary.is_variant_stop(item)
         || (!owns_fresh_left_brace && is_type_caller_boundary(item, caller_stops))
         || (!owns_fresh_left_brace && is_fresh_type_outer_boundary(item, outer_boundary))
 }
@@ -2846,6 +2897,9 @@ fn is_type_caller_boundary_parts(
 }
 
 fn is_type_outer_boundary(item: &Item, outer_boundary: TypeOuterBoundary) -> bool {
+    if outer_boundary.is_variant_stop(item) {
+        return true;
+    }
     if outer_boundary.contains(TypeOuterBoundary::STRUCT_BODY)
         && matches!(
             token_kind(item),

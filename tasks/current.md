@@ -250,57 +250,52 @@ records.
 The next discovered direct-Rowan schema gap is NamedRecordType: current
 `{([)]:A}` has one direct raw Error group across distinct Field and terminal
 Close records, and fresh semicolon makes Separator distinct from Field too.
-The Draft `2026-09-10-successor-named-record-type-slot-draft.md` proposes
-transparent `NamedRecordTypeSeparator` recovery occurrences and one terminal
-`NamedRecordTypeClose` per committed record. Its architecture, specification
-and recovery reviews are closed. Do not add kinds, change production topology
-or update expectations until the user approves its names, accepted-close
-ancestor change, cardinality, leading contract and narrow raw-placement
-supersession.
+The Authoritative `2026-09-10-successor-named-record-type-slot-draft.md` is
+privately constructed: `NamedRecordTypeSeparator` and
+`NamedRecordTypeClose` are appended kinds 279/280; the former wraps only the
+existing Separator Missing/Error publications and the latter occurs once per
+committed record, including accepted close. The M2 pre-write, closure and delta
+reviews are clean. The committed-close fence proof also repaired a local
+abstract-boundary token-classification panic without changing records, ranges
+or handoff. Begin the separately approved PV gate next.
 The next current-contract Type collision is independently fixed as evidence:
 `:{;}` and `:{]}` each produce
 `PolymorphicVariantType(Colon, LBrace, Error-token, RBrace)` at identical
 ranges, but retain respectively Separator and Close expectations. This proves
-another schema gap, not a parser defect. No topology or expectation change is
-authorized yet; create/review a bounded Draft before proposing new kinds.
-The Draft `2026-09-10-successor-pv-foreign-close-slot-draft.md` proposes the
+another schema gap, not a parser defect. Its bounded topology is now separately
+user-approved; construction has not begun.
+The Authoritative `2026-09-10-successor-pv-foreign-close-slot-draft.md` requires the
 single transparent `PolymorphicVariantForeignClose` node, wrapping only one
 locally consumed foreign close while direct raw PV Error remains Separator.
-Its architecture, specification and recovery reviews are closed. Do not add a
-SyntaxKind or alter PV topology, records or collision expectations until user
-approval.
-The next current-contract Statement collision is independently fixed as
-evidence: BracedStatementBlock's required Statement, Separator and local Brace
-Close Missing occurrences all use direct
-`BracedStatementBlockExpression > Missing`, without a role wrapper. The
-focused `{,;}`, `{use a use b}` and `{  ` controls retain their exact records,
-source, frozen replay and continuation. This is a schema gap, not a parser
-defect; topology remains unselected pending a bounded Draft and review.
-The Draft `2026-09-10-successor-braced-statement-slot-draft.md` proposes
-existing `BlockStatementSeparator` around Separator Missing plus one terminal
-`BracedStatementBlockClose` for accepted local `}` or Close Missing. Its
-separate nested-For continuation prerequisite is repaired: a completed child
-now makes the enclosing braced sequence acquire and dispatch one successor,
-leaving the outer `}` to its owner. The Draft remains unapproved and requires
-renewed specification/compiler-recovery review of its corrected leading and
-narrow-supersession contract; do not change CST topology, SyntaxKinds, records
-or collision expectations until user approval.
+The user approved its topology on 2026-09-11. NamedRecordType now has a
+coherent construction result, so this separate M2 gate is the next action.
+The BracedStatementBlock immediate-ancestry collision is now resolved without
+new topology. Required Statement, Separator and local Brace Close Missing all
+remain direct `BracedStatementBlockExpression > Missing`, but complete ordered
+children distinguish them: a following `BlockStatementSeparator` selects the
+required Statement slot, a following `Statement` selects Separator, and a
+terminal Missing selects Close. The retained `{,;}`, `{use a use b}` and `{  `
+controls now assert every direct child kind and node/token distinction, with
+selected Missing/leading/close ranges; nested-For continuation keeps the outer
+accepted RBrace terminal. Independent review was clean. The former
+`BracedStatementBlockClose` Draft is rejected as unnecessary for these bounded
+slots and must not be implemented without a new complete-context collision.
 The next source-root evidence fixes an immediate-context ambiguity:
 `abc   ]\r\nnext` and `use a ]\r\nnext` each contain exactly one direct `Root`
 child `Error("]")` at `6..7`, with no `Invalid` wrapper and the same resumed
 `next` statement, but their retained roles/expectations are respectively
 Statement Separator and UseDeclaration trailing input. Their preceding accepted
-CST children differ (`OperatorChain` versus `UseDeclaration`), so this does not
-yet prove a full ordered-CST collision or authorize a new node. Complete the
-root ordered-context proof before selecting any topology; ledger retirement
+CST children differ (`OperatorChain` versus `UseDeclaration`). The strengthened
+16-role matrix now retains all native tokens, node/token identity and ranges,
+so this bounded ambiguity is resolved without a new node; ledger retirement
 remains blocked on the complete global schema.
 The root inventory identifies direct raw runs for Starter, expression Separator,
 declaration/OperatorDefinition trailing input and OperatorDefinitionBody. Its
 16-context caller matrix now proves their ordered direct-child neighborhoods;
 separate controls prove repeated Error groups across a native semicolon and
-UTF-8 opaque Error-fragment byte ranges. Root trivia/repetition grammar,
-retry/separator progression and CST projection ordering remain partial evidence,
-not a mapped row. The operator-header/body boundary now has direct CST proof:
+UTF-8 opaque Error-fragment byte ranges. Its native-boundary projection and
+bounded catalog audit are now closed; untested Root phase/terminal/fence paths
+and nested owner schemas remain open. The operator-header/body boundary now has direct CST proof:
 an actual `=` selects direct Root body Error/Missing even after an earlier
 header error, while absent `=` leaves subsequent Error in the trailing phase;
 body Missing and nested successor recovery remain separate direct occurrences.
@@ -323,6 +318,141 @@ still assert that their accepted paths issue no recovery. It is
 catalog-audited evidence-complete Draft; RoleReference Type recovery,
 comma/caller/fence paths, global
 projection and ledger retirement remain open.
+The bounded inline BindingBody row records only the required expression
+immediately after an actual BindingHeader Equals: direct Missing, raw Error,
+NUD retry into direct OperatorChain, and terminal semicolon handoff without a
+second Missing. The direct CST evidence also fixes the actual header Equals and
+terminal EOF-leading-after-Error child order, while excluding target/Equals
+admission, indented and nested-expression ownership. It is catalog-audited
+evidence-complete Draft; Binding-wide grammar,
+global projection and ledger retirement remain open.
+The bounded shared named declaration-field head row now records Name before an
+actual direct Colon and Colon after an actual direct Identifier up to actual
+Colon or Type retry. Both variant payloads use `EnumVariant`; enclosing
+`EnumDeclaration`/`ErrorDeclaration` selects the role vocabulary. Initial Name
+leading belongs to the sequence before the field opens; initial Colon leading
+belongs to the field. Direct Rowan controls cover brace and indented Struct fields, actual
+Enum/Error named payloads, both retry routes, UTF-8/CRLF ranges and dedent
+handoff without consulting recovery records. Independent specification audit
+found no collision; delta audit closed all three repaired record findings, so
+the row is a catalog-audited evidence-complete Draft. Fresh FieldItem, separator/close,
+tuple fields, the entire required-Type RHS (including direct Type-owned Error
+before optional `TypeExpression`), nested Type, global projection and ledger
+retirement remain open.
+The fresh named FieldItem at field-sequence NeedField now has direct Rowan
+proof across Struct and actual Enum/Error variant callers. Terminal direct
+`StructField(Missing)` or `StructField(Error+)` is distinguishable from
+the mapped head because Name Error has a following direct Colon and Colon Error
+has a preceding direct Identifier. The controls preserve source/ranges,
+sequence-owned comma/native/Separator Missing, a separately retried field and
+UTF-8/CRLF dedent handoff without consulting recovery records. Independent
+test audit is clean; the catalog admission repair preserves earlier
+boundary/close/separator dispatch and bounds evidence to NeedField comma
+Missing, malformed-start raw-name retry and terminal indented dedent.
+`Native* Missing` remains a possible shape; other required-absence positions
+and EOF/active-stop variants remain outside the evidence. The bounded
+row is now a catalog-audited evidence-complete Draft for the witnessed
+alternatives. Catalog delta audit closed the admission finding. Tuple FieldItem and
+FieldSeparator stay separate.
+The fresh tuple FieldItem Missing now has direct Rowan proof for initial comma
+and post-comma EOF across Struct and actual Enum/Error variant callers. Its
+`StructField(TypeExpression(Missing))` topology distinguishes it from named
+FieldItem; equal-offset preorder places it before local-close and later outer
+close Missing. Matching `)` after a trailing comma creates no field, while
+`=T` stays direct Type-primary Error and `T U` remains one TypeApply field.
+Independent test audit is clean; the catalog admission wording now limits
+required Type to candidates admitted after sequence boundary/close/comma/separator
+dispatch. Catalog delta audit closed that finding, so this is a
+catalog-audited evidence-complete Draft for the witnessed alternatives.
+Other absence/leading/active-stop/fence, full Type,
+FieldSeparator and every close schema remain separate.
+Before the topology repair, Struct Recover placed Separator Error and
+foreign-close Error as adjacent direct siblings under the same parent. The
+direct opaque-Error CST/record control fixed four exact former collisions:
+terminal matching-close, EOF Close Missing, adjacent one-run/two-run partition,
+and initial NeedField. That evidence blocked a general Separator Error row on
+the old topology and selected the independently
+reviewed and user-approved Authoritative design
+`2026-09-11-successor-declaration-field-foreign-close-topology.md` selects
+option B: one transparent `StructFieldForeignClose(Error+)` per existing
+maximal Struct delimited Recover run, with all accepted CST, Missing, records,
+leading and Enum/Error Borrow unchanged. Its bounded M2 construction is
+complete: raw kind 278, one wrapper per unchanged run, and former opaque-CST
+collisions are structurally distinct. Specification review's one test-evidence
+finding was repaired with real indented and direct fence controls; delta review
+closed, and compiler/recovery review was clean. FieldSeparator Missing remains
+separately CST-projectable.
+The bounded shared FieldSeparator Missing row and coverage link now record only
+the structurally unique direct sequence Missing before an admitted same-line
+field across Struct/Enum/Error named and tuple callers. Independent catalog
+audit closed after two minor record corrections. The row deliberately makes no
+Error claim. The completed foreign-close topology unblocks separate
+FieldSeparator Error and Struct Close Error catalog rows, which remain the next
+schema work rather than an implicit extension of the Missing row.
+That next bounded schema work now has direct evidence. The retained
+colon-introduced indented Struct literal fixes one sequence-direct semicolon
+Error with retry newline/indent outside the group; its pre-write and closure
+specification audits are clean. Candidate catalog rows separately map direct
+field-list `Error+` to owner-selected FieldSeparator and
+`StructFieldForeignClose(Error+)` to opener-selected Struct local Close. Both
+rows are catalog-audited evidence-complete Drafts. The Separator row's one
+accepted finding was repaired by limiting matching/foreign-close stops to
+delimited lists and keeping indented lists close-less; delta audit closed. The
+foreign-close row was clean. Neither claims Close Missing, accepted close,
+global interpretation or ledger removal.
+The next EOF-bounded local Close Missing slice now has direct Rowan evidence for
+Struct and actual Enum/Error variant named/tuple lists. Empty opened lists emit
+one direct local Missing without a field; matching closes emit no recovery; and
+tuple post-comma EOF preserves fresh Type Missing, local Close Missing and outer
+declaration Missing parentage/preorder at one coordinate. Pre-write and closure
+specification audits are clean. Independent catalog audit also closed clean, so
+the row is a catalog-audited evidence-complete Draft for these bounded EOF
+alternatives. A second direct gate now extends the same row through both
+Enum/Error named/tuple Borrow returns, one nonempty-leading Borrow, Struct
+active-stop handoff and an empty-list protected fence. It fixes Rowan frontier
+ranges separately from pending coordinates and reads no records. One unsupported
+test ancestry assertion was repaired to the established
+`StructDeclaration > Statement > Root` shape; focused tests and delta review
+closed. Independent catalog audit was clean, so the expanded row is a
+catalog-audited evidence-complete Draft. It still excludes post-comma or
+qualifying-newline protected boundaries, other leading combinations and every
+outer-close schema.
+The braced Enum/Error variant-body outer Close Missing is now isolated from the
+local field-list Close. Direct shell tests cover empty/post-variant EOF,
+accepted RBrace and foreign-close handoff for both declarations. The terminal
+Missing is direct under EnumDeclaration/ErrorDeclaration; local payload
+Missing stays under EnumVariant. Both shells deliberately share
+`EnumBracedVariantBody/Brace`, and no outer Close Error route exists. Two minor
+test-evidence findings strengthened Root parentage and exact Left-Item handoff;
+delta review closed. Independent catalog audit closed after one empty-body
+wording correction, so the row is a catalog-audited evidence-complete Draft. It
+now also covers active Colon, quoted fence and trailing-comma fence handoff.
+That extension exposed a real owner bug: accepted variant payload admission
+bypassed caller stops. The M2 repair keeps those stops in a variant-scoped Type
+boundary component, suspends only that component in nested Arrow RHS, and
+preserves ordinary Type-owner WITH/EQUALS/PIPE/Struct-body contracts. Both
+owner matrices, shared variant (33), Arrow (46), outer-close (4), Enum (17),
+Error (16), package check, format/diff checks and independent compiler/
+regression review are clean. The expanded row still excludes other leading
+combinations, non-braced forms and remaining nested variant slots. The global
+CST interpreter and ledger/API retirement remain open.
+
+An atomic-cutover readiness audit now fixes the actual next dependency rather
+than treating the 123 recovery-publication sites as a semantic-slot count.
+There is no production HIR/type CST traversal yet, so the first interpreter
+must be a total `yu-syntax` whole-tree collector with a reusable per-occurrence
+callback. The parser ledger still has 41 production grammar producer modules;
+partial interpretation would silently drop diagnostics. NamedRecordType has a
+proved irrecoverable Field/Close split (`{([)]:A}`), and
+PolymorphicVariantType has a proved Separator/foreign-Close collision
+(`:{;}` versus `:{]}`). The user approved their reviewed topology authorities
+on 2026-09-11. NamedRecordType's private M2 construction is complete; PV is
+the next separate M2 gate. BracedStatementBlock's same-parent Missing reuse is now
+distinguished by ordered children, and its proposed topology is rejected as
+unnecessary. After the two proved topology gates,
+complete and independently audit the remaining ordered slot schema, then make
+the collector/environment-planner/parser-ledger API migration atomically.
+
 The test-only active-prefix cell now proves all 16 contexts
 stop direct Error leaves before close/transition/EOF boundaries across LF/CRLF,
 return the judged pending boundary untouched, and keep OperatorDefinitionBody

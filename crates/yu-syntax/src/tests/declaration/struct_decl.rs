@@ -1,5 +1,1303 @@
 use crate::tests::support::*;
 
+pub(super) fn assert_field_separators_cst(prefix: &str, suffix: &str, ancestors: &[SyntaxKind]) {
+    use SyntaxKind::{Comma, Error, Missing, StructField, TypeExpression, Whitespace};
+    let tuple = prefix.ends_with('(');
+    let (open, close, first, next) = if tuple {
+        (SyntaxKind::LParen, SyntaxKind::RParen, "T", "U")
+    } else {
+        (SyntaxKind::LBrace, SyntaxKind::RBrace, "x:T", "y:U")
+    };
+    // The tuple missing-separator witness retries required Type at Equals;
+    // its Error remains inside the next field, independently of Separator.
+    let missing_next = if tuple { "=U" } else { next };
+    for (between, successor, middle, missing, errors) in [
+        (
+            " ",
+            missing_next,
+            vec![(Whitespace, " "), (Missing, "")],
+            1,
+            usize::from(tuple),
+        ),
+        (
+            "; ; ",
+            next,
+            vec![(Error, ";"), (Error, " "), (Error, ";"), (Whitespace, " ")],
+            0,
+            3,
+        ),
+        (",", next, vec![(Comma, ",")], 0, 0),
+        ("\n", next, vec![(SyntaxKind::Newline, "\n")], 0, 0),
+        (
+            ";,",
+            next,
+            vec![(Error, ";"), (StructField, ""), (Comma, ",")],
+            1,
+            1,
+        ),
+        ("; ", "", vec![(Error, ";"), (Whitespace, " ")], 0, 1),
+    ] {
+        let source = format!("{prefix}{first}{between}{successor}{suffix}");
+        let (green, exit) = run_statement(&source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let fields = root
+            .descendants()
+            .filter(|node| node.kind() == StructField)
+            .collect::<Vec<_>>();
+        let sequence = fields[0].parent().unwrap();
+        for field in &fields {
+            assert_eq!(field.parent().as_ref(), Some(&sequence));
+            assert_eq!(
+                field
+                    .ancestors()
+                    .skip(1)
+                    .take(ancestors.len())
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                ancestors
+            );
+        }
+        let mut expected = vec![(open, &prefix[prefix.len() - 1..]), (StructField, first)];
+        expected.extend(middle);
+        if !successor.is_empty() {
+            expected.push((StructField, successor));
+        }
+        expected.push((close, &suffix[..1]));
+        let mut offset = prefix.len() - 1;
+        let expected = expected
+            .into_iter()
+            .map(|(kind, text)| {
+                let range = offset..offset + text.len();
+                offset = range.end;
+                (kind, range, text.to_owned())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sequence
+                .children_with_tokens()
+                .skip_while(|element| element.kind() != open)
+                .map(|element| {
+                    if element.kind() == Error {
+                        assert!(element.as_token().is_some());
+                    }
+                    if element.kind() == Missing {
+                        assert_eq!(element.as_node().unwrap().children_with_tokens().count(), 0);
+                    }
+                    (
+                        element.kind(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                        element.to_string(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}\n{root:#?}"
+        );
+        assert_eq!(
+            fields.len(),
+            1 + usize::from(!successor.is_empty()) + usize::from(between == ";,")
+        );
+        if between == ";," {
+            let at = prefix.len() + first.len() + 1;
+            if tuple {
+                assert_field_item_children(&fields[1], at, &[(TypeExpression, "")]);
+                assert_field_item_children(&fields[1].first_child().unwrap(), at, &[(Missing, "")]);
+            } else {
+                assert_field_item_children(&fields[1], at, &[(Missing, "")]);
+            }
+        }
+        if tuple && between == " " {
+            assert_field_item_children(
+                &fields[1],
+                prefix.len() + first.len() + between.len(),
+                &[(Error, "="), (TypeExpression, "U")],
+            );
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == Error)
+                .count(),
+            errors,
+            "{source:?}"
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Invalid)
+        );
+    }
+}
+
+#[test]
+fn struct_field_separators_have_direct_cst_slots() {
+    for (prefix, suffix) in [("struct S{", "}"), ("struct S(", ")")] {
+        assert_field_separators_cst(prefix, suffix, &[SyntaxKind::StructDeclaration]);
+    }
+}
+
+#[test]
+fn struct_indented_field_separator_error_has_direct_cst_slot() {
+    use SyntaxKind::{Colon, Error, Newline, StructDeclaration, StructField, Whitespace};
+
+    let source = "struct S:\n  x:T;\n  y:U";
+    let (green, exit) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let declaration = root
+        .descendants()
+        .find(|node| node.kind() == StructDeclaration)
+        .unwrap();
+    let fields = root
+        .descendants()
+        .filter(|node| node.kind() == StructField)
+        .collect::<Vec<_>>();
+    assert_eq!(fields.len(), 2);
+    for field in fields {
+        assert_eq!(field.parent().as_ref(), Some(&declaration));
+    }
+    assert_eq!(
+        declaration
+            .children_with_tokens()
+            .skip_while(|element| element.kind() != Colon)
+            .map(|element| {
+                assert_eq!(element.as_node().is_some(), element.kind() == StructField);
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                )
+            })
+            .collect::<Vec<_>>(),
+        vec![
+            (Colon, 8..9, ":".to_owned()),
+            (Newline, 9..10, "\n".to_owned()),
+            (Whitespace, 10..12, "  ".to_owned()),
+            (StructField, 12..15, "x:T".to_owned()),
+            (Error, 15..16, ";".to_owned()),
+            (Newline, 16..17, "\n".to_owned()),
+            (Whitespace, 17..19, "  ".to_owned()),
+            (StructField, 19..22, "y:U".to_owned()),
+        ]
+    );
+    let mut previous_error = false;
+    let error_groups = declaration
+        .children_with_tokens()
+        .filter(|element| {
+            let error = element.kind() == Error && element.as_token().is_some();
+            let starts_group = error && !previous_error;
+            previous_error = error;
+            starts_group
+        })
+        .count();
+    assert_eq!(error_groups, 1);
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter(|element| element.kind() == Error)
+            .count(),
+        1
+    );
+    assert!(!root.descendants().any(|node| matches!(
+        node.kind(),
+        SyntaxKind::Missing | SyntaxKind::Invalid | SyntaxKind::StructFieldForeignClose
+    )));
+}
+
+#[test]
+fn struct_field_separator_and_close_errors_are_distinct_without_error_spelling() {
+    use crate::recovery_record::{
+        ConstructRole, DeclarationRole, Delimiter, GrammarRole, RecoveryKind, StructRole,
+    };
+    use SyntaxKind::{Error, LBrace, Missing, RBrace, StructField};
+
+    let separator = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldSeparator));
+    let close = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::StructNamedFields,
+        delimiter: Delimiter::Brace,
+    };
+    for (left, right, error_start, error_count, initial, eof, left_errors, right_errors) in [
+        (
+            "struct S{x:T;}",
+            "struct S{x:T]}",
+            12,
+            1,
+            false,
+            false,
+            vec![(separator, 12..13)],
+            vec![(close, 12..13)],
+        ),
+        (
+            "struct S{x:T;",
+            "struct S{x:T]",
+            12,
+            1,
+            false,
+            true,
+            vec![(separator, 12..13)],
+            vec![(close, 12..13)],
+        ),
+        (
+            "struct S{x:T;;}",
+            "struct S{x:T;]}",
+            12,
+            2,
+            false,
+            false,
+            vec![(separator, 12..14)],
+            vec![(separator, 12..13), (close, 13..14)],
+        ),
+        (
+            "struct S{;x:T}",
+            "struct S{]x:T}",
+            9,
+            1,
+            true,
+            false,
+            vec![(separator, 9..10)],
+            vec![(close, 9..10)],
+        ),
+    ] {
+        let mut projections = Vec::new();
+        for (source, expected_errors) in [(left, left_errors), (right, right_errors)] {
+            let (green, exit, records, remainder) =
+                typed_struct_continuation(source, 0, None, 0, None);
+            assert_eq!(green.to_string(), source);
+            assert!(matches!(
+                exit,
+                NormalizedExit::Complete(Err(Either::Right(_)), _)
+            ));
+            assert_eq!(remainder, "");
+            let node = declaration(&green);
+            let mut expected = vec![(LBrace, false, 8..9)];
+            if !initial {
+                expected.push((StructField, true, 9..12));
+            }
+            expected.extend((error_start..error_start + error_count).map(|at| {
+                if expected_errors
+                    .iter()
+                    .any(|(role, range)| *role == close && range.start == at)
+                {
+                    (SyntaxKind::StructFieldForeignClose, true, at..at + 1)
+                } else {
+                    (Error, false, at..at + 1)
+                }
+            }));
+            if initial {
+                expected.push((StructField, true, 10..13));
+            }
+            expected.push(if eof {
+                (Missing, true, source.len()..source.len())
+            } else {
+                (RBrace, false, source.len() - 1..source.len())
+            });
+            assert_eq!(
+                node.children_with_tokens()
+                    .skip_while(|element| element.kind() != LBrace)
+                    .map(|element| (
+                        element.kind(),
+                        element.as_node().is_some(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                    ))
+                    .collect::<Vec<_>>(),
+                expected,
+                "{source:?}"
+            );
+            projections.push(cst_with_opaque_error_spelling(&SyntaxNode::new_root(green)));
+
+            // Temporary records are counterexample evidence of different roles and
+            // group partitions, never input to the future CST slot interpreter.
+            let mut expected_records = expected_errors
+                .into_iter()
+                .map(|(role, range)| (RecoveryKind::Error, role, range))
+                .collect::<Vec<_>>();
+            if eof {
+                expected_records.push((RecoveryKind::Missing, close, source.len()..source.len()));
+            }
+            assert_eq!(
+                records
+                    .into_iter()
+                    .map(|record| (record.kind, record.site.role, record.site.range))
+                    .collect::<Vec<_>>(),
+                expected_records,
+                "{source:?}"
+            );
+        }
+        assert_ne!(projections[0], projections[1], "{left:?} versus {right:?}");
+    }
+}
+
+#[test]
+fn struct_field_foreign_close_wraps_one_maximal_run_with_unchanged_records() {
+    use crate::recovery_record::{GrammarRole, RecoveryKind};
+    for (source, runs) in [
+        ("struct S{]x:T}", vec!["]"]),
+        ("struct S{x:T,]y:U}", vec!["]"]),
+        ("struct S{x:T]}", vec!["]"]),
+        ("struct S{x:T;]}", vec!["]"]),
+        ("struct S{x:T];}", vec!["]"]),
+        ("struct S{x:T] )}", vec!["] )"]),
+        ("struct S{],x:T]}", vec!["]", "]"]),
+        ("struct S(]T)", vec!["]"]),
+        ("struct S(T,]U)", vec!["]"]),
+        ("struct S(T];)", vec!["]"]),
+        ("struct S(T] }", vec!["] }"]),
+        ("struct S{ \t] /*名*/ ) \r\n x:T}", vec!["] /*名*/ )"]),
+    ] {
+        let origin = 100;
+        let (green, _, records) = typed_struct(source, origin, None, 0, None);
+        assert_eq!(green.to_string(), source);
+        let root = SyntaxNode::new_root(green.clone());
+        let wrappers = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::StructFieldForeignClose)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            wrappers.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            runs,
+            "{source:?}"
+        );
+        let close_records = records
+            .iter()
+            .filter(|record| {
+                record.kind == RecoveryKind::Error
+                    && matches!(record.site.role, GrammarRole::ClosingDelimiter { .. })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(wrappers.len(), close_records.len());
+        for (wrapper, record) in wrappers.iter().zip(close_records) {
+            assert_eq!(
+                wrapper.parent().unwrap().kind(),
+                SyntaxKind::StructDeclaration
+            );
+            assert!(
+                wrapper
+                    .children_with_tokens()
+                    .all(|child| child.as_token().is_some() && child.kind() == SyntaxKind::Error)
+            );
+            assert_eq!(
+                record.site.range,
+                origin + usize::from(wrapper.text_range().start())
+                    ..origin + usize::from(wrapper.text_range().end())
+            );
+        }
+        let (frozen, _, replayed) = typed_struct(source, origin, Some(&records), 0, None);
+        assert_eq!(frozen, green);
+        assert_eq!(replayed, records);
+    }
+}
+
+#[test]
+fn struct_field_foreign_close_is_absent_from_other_field_recovery() {
+    for source in [
+        "struct S{x:T,y:U}",
+        "struct S(T,U)",
+        "struct S{x:T;}",
+        "struct S{",
+        "struct S(T",
+        "struct S{x:=T}",
+        "struct S:\n  x:T;\n  y:U",
+        "enum E{V{x:T]}",
+        "enum E{V(T]}",
+        "error E{V{x:T]}",
+        "error E{V(T]}",
+    ] {
+        let (green, _) = run_statement(source);
+        let root = SyntaxNode::new_root(green);
+        if source.starts_with("struct S:") {
+            let fields = root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::StructField)
+                .collect::<Vec<_>>();
+            assert_eq!(fields.len(), 2);
+            assert_eq!(fields[0].to_string(), "x:T");
+            assert_eq!(fields[1].to_string(), "y:U");
+            for field in fields {
+                assert_eq!(
+                    field.parent().unwrap().kind(),
+                    SyntaxKind::StructDeclaration
+                );
+            }
+        }
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::StructFieldForeignClose),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn struct_field_foreign_close_finishes_before_active_stop_leading() {
+    let source = "struct S(T] \r\n : next";
+    let (green, exit, _, remainder) =
+        typed_struct_continuation(source, 100, None, crate::lexical::stops::STOP_COLON, None);
+    assert_eq!(green.to_string(), "struct S(T]");
+    assert_eq!(remainder, " next");
+    let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+        panic!("active stop must stay pending")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+    assert_eq!(emit_pending_leading_text(&mut item), " \r\n ");
+    let node = declaration(&green);
+    let wrapper = node
+        .children()
+        .find(|node| node.kind() == SyntaxKind::StructFieldForeignClose)
+        .unwrap();
+    assert_eq!(wrapper.to_string(), "]");
+    assert_eq!(wrapper.next_sibling().unwrap().kind(), SyntaxKind::Missing);
+}
+
+#[test]
+fn struct_field_foreign_close_finishes_at_protected_fence() {
+    use crate::lexical::item::{BorrowedTarget, Boundary};
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::recovery_record::{ConstructRole, Delimiter, GrammarRole, RecoveryKind};
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let origin = 100;
+    let accepted = "struct S{] /*名*/ )";
+    let source = format!("{accepted}\r\n>> ```\r\nouter");
+    let (green, exit, records, remainder) =
+        typed_struct_continuation(&source, origin, None, 0, Some(&fence));
+    assert_eq!(green.to_string(), accepted);
+    assert_eq!(remainder, ">> ```\r\nouter");
+    let node = declaration(&green);
+    let wrappers = node
+        .children()
+        .filter(|node| node.kind() == SyntaxKind::StructFieldForeignClose)
+        .collect::<Vec<_>>();
+    assert_eq!(wrappers.len(), 1);
+    let wrapper = &wrappers[0];
+    assert_eq!(wrapper.to_string(), "] /*名*/ )");
+    assert_eq!(usize::from(wrapper.text_range().start()), 9);
+    assert_eq!(usize::from(wrapper.text_range().end()), accepted.len());
+    assert!(
+        wrapper
+            .children_with_tokens()
+            .all(|child| child.as_token().is_some() && child.kind() == SyntaxKind::Error)
+    );
+    assert_eq!(wrapper.next_sibling().unwrap().kind(), SyntaxKind::Missing);
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0].kind, RecoveryKind::Error);
+    assert_eq!(records[0].site.range, origin + 9..origin + accepted.len());
+    assert_eq!(
+        records[0].site.role,
+        GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::StructNamedFields,
+            delimiter: Delimiter::Brace,
+        }
+    );
+    assert_eq!(records[1].kind, RecoveryKind::Missing);
+    let (again, frozen_exit, frozen, frozen_remainder) =
+        typed_struct_continuation(&source, origin, Some(&records), 0, Some(&fence));
+    assert_eq!(again, green);
+    assert_eq!(frozen, records);
+    assert_eq!(frozen_remainder, remainder);
+    for exit in [exit, frozen_exit] {
+        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+        else {
+            panic!("foreign-close recovery must return the protected fence")
+        };
+        let (leading, pending) = emit_terminal_leading_text(boundary);
+        assert_eq!(leading, "\r\n");
+        assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+        assert!(matches!(
+            pending.into_kind(),
+            Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+        ));
+    }
+}
+
+fn cst_with_opaque_error_spelling(node: &SyntaxNode) -> String {
+    node.preorder_with_tokens()
+        .map(|event| {
+            let (enter, element) = match event {
+                rowan::WalkEvent::Enter(element) => (true, element),
+                rowan::WalkEvent::Leave(element) => (false, element),
+            };
+            // Retain nesting, node/token identity, kinds, ranges and native text.
+            // Do not read Error spelling, including through an enclosing node.
+            let text = element.as_token().map(|token| {
+                if token.kind() == SyntaxKind::Error {
+                    "<opaque>"
+                } else {
+                    token.text()
+                }
+            });
+            format!(
+                "{enter:?} {:?} {:?} {:?} {text:?}\n",
+                element.kind(),
+                element.as_node().is_some(),
+                element.text_range(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn struct_field_separator_error_keeps_active_stop_leading_pending() {
+    use SyntaxKind::{Error, Missing, StructField};
+    let source = "struct S(T; : next";
+    let operators = OperatorTable::empty();
+    let (green, exit) =
+        run_statement_with_stops(source, &operators, crate::lexical::stops::STOP_COLON);
+    assert_eq!(green.to_string(), "struct S(T;");
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("active stop must remain pending")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
+    let root = SyntaxNode::new_root(green);
+    let sequence = root
+        .descendants()
+        .find(|node| node.kind() == StructField)
+        .unwrap()
+        .parent()
+        .unwrap();
+    assert_eq!(sequence.kind(), SyntaxKind::StructDeclaration);
+    let tail = sequence
+        .children_with_tokens()
+        .skip_while(|element| element.kind() != StructField)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        tail.iter()
+            .map(|element| (
+                element.kind(),
+                usize::from(element.text_range().start())..usize::from(element.text_range().end()),
+                element.to_string()
+            ))
+            .collect::<Vec<_>>(),
+        [
+            (StructField, 9..10, "T".to_owned()),
+            (Error, 10..11, ";".to_owned()),
+            (Missing, 11..11, "".to_owned())
+        ]
+    );
+    assert!(tail[1].as_token().is_some());
+    assert_field_item_children(tail[2].as_node().unwrap(), 11, &[]);
+    // The only Missing is the independently required local close after handoff.
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == Missing)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter(|element| element.kind() == Error)
+            .count(),
+        1
+    );
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Invalid)
+    );
+}
+
+pub(super) fn assert_empty_field_list_close_missing_cst(
+    prefix: &str,
+    suffix: &str,
+    ancestors: &[SyntaxKind],
+) {
+    use SyntaxKind::{Error, Invalid, LBrace, LParen, Missing, RBrace, RParen, StructField};
+    let (open, close) = if prefix.ends_with('{') {
+        (LBrace, RBrace)
+    } else {
+        (LParen, RParen)
+    };
+    for closed in [false, true] {
+        let source = format!("{prefix}{}", if closed { suffix } else { "" });
+        let (green, exit) = run_statement(&source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let sequence = root
+            .descendants()
+            .find(|node| node.kind() == ancestors[0])
+            .unwrap();
+        assert_eq!(
+            sequence
+                .ancestors()
+                .take(ancestors.len())
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            ancestors
+        );
+        let p = prefix.len();
+        assert_eq!(
+            sequence
+                .children_with_tokens()
+                .skip_while(|element| element.kind() != open)
+                .map(|element| (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (open, false, p - 1..p, prefix[p - 1..].to_owned()),
+                if closed {
+                    (close, false, p..p + 1, suffix[..1].to_owned())
+                } else {
+                    (Missing, true, p..p, String::new())
+                },
+            ],
+            "{source:?}\n{root:#?}"
+        );
+        let missing = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing.len(), if closed { 0 } else { ancestors.len() });
+        if !closed {
+            assert_eq!(missing[0].parent().as_ref(), Some(&sequence));
+            if ancestors.len() == 2 {
+                let declaration = sequence.parent().unwrap();
+                assert_eq!(missing[1].parent().as_ref(), Some(&declaration));
+                assert_eq!(sequence.next_sibling().as_ref(), Some(&missing[1]));
+                assert!(missing[1].next_sibling_or_token().is_none());
+            }
+            for node in missing {
+                assert_field_item_children(&node, p, &[]);
+            }
+        }
+        assert!(root.descendants_with_tokens().all(|element| !matches!(
+            element.kind(),
+            StructField | Error | Invalid | SyntaxKind::StructFieldForeignClose
+        )));
+    }
+}
+
+#[test]
+fn struct_empty_field_list_close_missing_has_direct_cst_slot() {
+    for (prefix, suffix) in [("struct S{", "}"), ("struct S(", ")")] {
+        assert_empty_field_list_close_missing_cst(prefix, suffix, &[SyntaxKind::StructDeclaration]);
+    }
+}
+
+#[test]
+fn struct_field_local_close_missing_preserves_active_stop_cst() {
+    let (green, exit, _, remainder) = typed_struct_continuation(
+        "struct S(T \r\n : next",
+        100,
+        None,
+        crate::lexical::stops::STOP_COLON,
+        None,
+    );
+    assert_eq!(green.to_string(), "struct S(T");
+    assert_eq!(remainder, " next");
+    let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+        panic!("active stop must stay pending")
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+    assert_eq!(emit_pending_leading_text(&mut item), " \r\n ");
+    assert_struct_local_close_missing_tail(&green, true);
+}
+
+#[test]
+fn struct_field_local_close_missing_preserves_protected_fence_cst() {
+    use crate::lexical::item::{BorrowedTarget, Boundary};
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let (green, exit, _, remainder) =
+        typed_struct_continuation("struct S(\r\n>> ```\r\nouter", 100, None, 0, Some(&fence));
+    assert_eq!(green.to_string(), "struct S(");
+    assert_eq!(remainder, ">> ```\r\nouter");
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart) = exit else {
+        panic!("fence must stay pending at physical line start")
+    };
+    let (leading, pending) = emit_terminal_leading_text(item);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), 111);
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
+    assert_struct_local_close_missing_tail(&green, false);
+}
+
+fn assert_struct_local_close_missing_tail(green: &GreenNode, has_field: bool) {
+    use SyntaxKind::{Error, Invalid, LParen, Missing, StructField, StructFieldForeignClose};
+    let root = SyntaxNode::new_root(green.clone());
+    let node = declaration(green);
+    assert_eq!(node.kind(), SyntaxKind::StructDeclaration);
+    assert_eq!(
+        node.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            SyntaxKind::StructDeclaration,
+            SyntaxKind::Statement,
+            SyntaxKind::Root,
+        ]
+    );
+    let mut expected = vec![(LParen, false, 8..9, "(".to_owned())];
+    if has_field {
+        expected.push((StructField, true, 9..10, "T".to_owned()));
+    }
+    let at = if has_field { 10 } else { 9 };
+    expected.push((Missing, true, at..at, String::new()));
+    assert_eq!(
+        node.children_with_tokens()
+            .skip_while(|element| element.kind() != LParen)
+            .map(|element| (
+                element.kind(),
+                element.as_node().is_some(),
+                usize::from(element.text_range().start())..usize::from(element.text_range().end()),
+                element.to_string(),
+            ))
+            .collect::<Vec<_>>(),
+        expected
+    );
+    let missing = root
+        .descendants()
+        .filter(|node| node.kind() == Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(missing.len(), 1);
+    assert_eq!(
+        missing[0].parent().unwrap().kind(),
+        SyntaxKind::StructDeclaration
+    );
+    assert_field_item_children(&missing[0], at, &[]);
+    assert_eq!(count(&root, StructField), usize::from(has_field));
+    assert!(
+        root.descendants_with_tokens()
+            .all(|element| !matches!(element.kind(), Error | Invalid | StructFieldForeignClose))
+    );
+}
+
+pub(super) fn assert_fresh_tuple_field_items_cst(
+    prefix: &str,
+    suffix: &str,
+    ancestors: &[SyntaxKind],
+) {
+    use SyntaxKind::{Comma, Error, LParen, Missing, RParen, StructField, TypeExpression};
+    for (body, closed, field_texts, fresh_index) in [
+        (",T", true, vec!["", "T"], Some(0)),
+        ("T,", false, vec!["T", ""], Some(1)),
+        ("T,", true, vec!["T"], None),
+        ("=T", true, vec!["=T"], None),
+        ("T U", true, vec!["T U"], None),
+    ] {
+        let source = format!("{prefix}{body}{}", if closed { suffix } else { "" });
+        let (green, exit) = run_statement(&source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let fields = root
+            .descendants()
+            .filter(|node| node.kind() == StructField)
+            .collect::<Vec<_>>();
+        assert_eq!(fields.len(), field_texts.len(), "{source:?}\n{root:#?}");
+        let sequence = fields[0].parent().unwrap();
+        for (field, text) in fields.iter().zip(field_texts) {
+            assert_eq!(field.to_string(), text);
+            assert_eq!(field.parent().as_ref(), Some(&sequence));
+            assert_eq!(
+                field
+                    .ancestors()
+                    .skip(1)
+                    .take(ancestors.len())
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                ancestors
+            );
+        }
+        let mut children = vec![(LParen, "(")];
+        match body {
+            ",T" => children.extend([(StructField, ""), (Comma, ","), (StructField, "T")]),
+            "T," => {
+                children.extend([(StructField, "T"), (Comma, ",")]);
+                if !closed {
+                    children.push((StructField, ""));
+                }
+            }
+            _ => children.push((StructField, body)),
+        }
+        children.push(if closed { (RParen, ")") } else { (Missing, "") });
+        let mut offset = prefix.len() - 1;
+        let expected = children
+            .into_iter()
+            .map(|(kind, text)| {
+                let range = offset..offset + text.len();
+                offset = range.end;
+                (kind, range, text.to_owned())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sequence
+                .children_with_tokens()
+                .skip_while(|element| element.kind() != LParen)
+                .map(|element| (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string()
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}\n{root:#?}"
+        );
+        if let Some(index) = fresh_index {
+            let at = if index == 0 {
+                prefix.len()
+            } else {
+                source.len()
+            };
+            assert_field_item_children(&fields[index], at, &[(TypeExpression, "")]);
+            let ty = fields[index].first_child().unwrap();
+            assert_field_item_children(&ty, at, &[(Missing, "")]);
+        }
+        if body == "=T" {
+            assert_field_item_children(
+                &fields[0],
+                prefix.len(),
+                &[(Error, "="), (TypeExpression, "T")],
+            );
+        }
+        if body == "T U" {
+            assert_eq!(
+                fields[0]
+                    .children()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                [TypeExpression]
+            );
+            assert_eq!(
+                fields[0]
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::TypeApplyArgument)
+                    .count(),
+                1
+            );
+        }
+        if !closed {
+            let missing = root
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect::<Vec<_>>();
+            assert_eq!(missing.len(), 1 + ancestors.len());
+            let fresh_type = fields[1].first_child().unwrap();
+            assert_eq!(missing[0].parent().as_ref(), Some(&fresh_type));
+            assert_eq!(missing[1].parent().as_ref(), Some(&sequence));
+            assert_eq!(fields[1].next_sibling().as_ref(), Some(&missing[1]));
+            if ancestors.len() == 2 {
+                assert_eq!(missing[2].parent(), sequence.parent());
+                assert_eq!(sequence.next_sibling().as_ref(), Some(&missing[2]));
+            }
+            for missing in root.descendants().filter(|node| node.kind() == Missing) {
+                assert_field_item_children(&missing, source.len(), &[]);
+            }
+            if sequence.kind() == SyntaxKind::EnumVariant {
+                let declaration = sequence.parent().unwrap();
+                let tail = declaration
+                    .children_with_tokens()
+                    .skip_while(|element| element.as_node() != Some(&sequence))
+                    .collect::<Vec<_>>();
+                assert_eq!(tail.len(), 2);
+                assert_eq!(tail[1].kind(), Missing);
+            }
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            usize::from(fresh_index.is_some()) + if closed { 0 } else { ancestors.len() }
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == Error)
+                .count(),
+            usize::from(body == "=T")
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Invalid)
+        );
+    }
+}
+
+#[test]
+fn struct_fresh_tuple_field_items_have_direct_cst_slots() {
+    assert_fresh_tuple_field_items_cst("struct S(", ")", &[SyntaxKind::StructDeclaration]);
+}
+
+pub(super) fn assert_fresh_named_field_items_cst(
+    prefix: &str,
+    suffix: &str,
+    ancestors: &[SyntaxKind],
+) {
+    use SyntaxKind::{Colon, Error, Identifier, Missing, StructField, TypeExpression, Whitespace};
+    for (body, fresh_kind, fresh_text, between) in [
+        (",x:T", Missing, "", vec![(SyntaxKind::Comma, ",")]),
+        ("@ x:T", Error, "@", vec![(Whitespace, " "), (Missing, "")]),
+    ] {
+        let source = format!("{prefix}{body}{suffix}");
+        let (green, exit) = run_statement(&source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let fields = root
+            .descendants()
+            .filter(|node| node.kind() == StructField)
+            .collect::<Vec<_>>();
+        assert_eq!(fields.len(), 2, "{source:?}\n{root:#?}");
+        for field in &fields {
+            assert_eq!(
+                field
+                    .ancestors()
+                    .skip(1)
+                    .take(ancestors.len())
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                ancestors
+            );
+        }
+        let start = prefix.len();
+        assert_field_item_children(&fields[0], start, &[(fresh_kind, fresh_text)]);
+        assert_field_item_children(
+            &fields[1],
+            start + body.len() - 3,
+            &[(Identifier, "x"), (Colon, ":"), (TypeExpression, "T")],
+        );
+        assert_eq!(fields[0].parent(), fields[1].parent());
+        let sequence = fields[0].parent().unwrap();
+        let mut offset = start;
+        let expected = std::iter::once((StructField, fresh_text))
+            .chain(between)
+            .chain(std::iter::once((StructField, "x:T")))
+            .map(|(kind, text)| {
+                let range = offset..offset + text.len();
+                offset = range.end;
+                (kind, range, text.to_owned())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sequence
+                .children_with_tokens()
+                .skip_while(|element| element.as_node() != Some(&fields[0]))
+                .take(expected.len())
+                .map(|element| (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string()
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}\n{root:#?}"
+        );
+        assert!(
+            root.descendants()
+                .all(|node| node.kind() != SyntaxKind::Invalid)
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            1
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == Error)
+                .count(),
+            usize::from(fresh_kind == Error)
+        );
+    }
+}
+
+fn assert_field_item_children(field: &SyntaxNode, start: usize, children: &[(SyntaxKind, &str)]) {
+    let mut offset = start;
+    let expected = children
+        .iter()
+        .map(|&(kind, text)| {
+            let range = offset..offset + text.len();
+            offset = range.end;
+            (kind, range, text.to_owned())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        usize::from(field.text_range().start())..usize::from(field.text_range().end()),
+        start..offset
+    );
+    assert_eq!(
+        field
+            .children_with_tokens()
+            .map(|element| {
+                if element.kind() == SyntaxKind::Error {
+                    assert!(element.as_token().is_some());
+                }
+                if element.kind() == SyntaxKind::Missing {
+                    assert_eq!(element.as_node().unwrap().children_with_tokens().count(), 0);
+                }
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                )
+            })
+            .collect::<Vec<_>>(),
+        expected
+    );
+}
+
+#[test]
+fn struct_fresh_named_field_items_have_direct_cst_slots() {
+    assert_fresh_named_field_items_cst("struct S{", "}", &[SyntaxKind::StructDeclaration]);
+}
+
+#[test]
+fn struct_fresh_named_field_error_keeps_utf8_crlf_dedent_pending() {
+    let prefix = "struct 名:\r\n  ";
+    let accepted = format!("{prefix}@");
+    let source = format!("{accepted}\r\n次");
+    let (green, exit) = run_statement(&source);
+    assert_eq!(green.to_string(), accepted);
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("dedented successor must remain pending")
+    };
+    assert_eq!(item.payload_view().spelling(), Some("次"));
+    assert_eq!(emit_pending_leading_text(&mut item), "\r\n");
+    let root = SyntaxNode::new_root(green);
+    let fields = root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::StructField)
+        .collect::<Vec<_>>();
+    assert_eq!(fields.len(), 1);
+    assert_eq!(
+        fields[0].parent().unwrap().kind(),
+        SyntaxKind::StructDeclaration
+    );
+    assert_field_item_children(&fields[0], prefix.len(), &[(SyntaxKind::Error, "@")]);
+    assert!(
+        root.descendants()
+            .all(|node| !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Invalid))
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter(|element| element.kind() == SyntaxKind::Error)
+            .count(),
+        1
+    );
+}
+
+// The same ordered head belongs to Struct, Enum, or Error through its ancestors.
+pub(super) fn assert_named_field_head_cst(prefix: &str, suffix: &str, ancestors: &[SyntaxKind]) {
+    use SyntaxKind::{Colon, Error, Identifier, Missing, TypeExpression, Whitespace};
+    for (head, expected) in [
+        (
+            ": T",
+            vec![
+                (Missing, ""),
+                (Colon, ":"),
+                (Whitespace, " "),
+                (TypeExpression, "T"),
+            ],
+        ),
+        (
+            "@ : T",
+            vec![
+                (Error, "@"),
+                (Whitespace, " "),
+                (Colon, ":"),
+                (Whitespace, " "),
+                (TypeExpression, "T"),
+            ],
+        ),
+        (
+            "x T",
+            vec![
+                (Identifier, "x"),
+                (Whitespace, " "),
+                (Missing, ""),
+                (TypeExpression, "T"),
+            ],
+        ),
+        (
+            "x @ : T",
+            vec![
+                (Identifier, "x"),
+                (Whitespace, " "),
+                (Error, "@"),
+                (Whitespace, " "),
+                (Colon, ":"),
+                (Whitespace, " "),
+                (TypeExpression, "T"),
+            ],
+        ),
+        (
+            "x @ T",
+            vec![
+                (Identifier, "x"),
+                (Whitespace, " "),
+                (Error, "@"),
+                (TypeExpression, " T"),
+            ],
+        ),
+    ] {
+        let source = format!("{prefix}{head}{suffix}");
+        let (green, exit) = run_statement(&source);
+        assert_eq!(green.to_string(), source);
+        assert!(
+            matches!(exit, Some(Err(Either::Right(_)))),
+            "{source:?}: {exit:?}"
+        );
+        let root = SyntaxNode::new_root(green);
+        let fields = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::StructField)
+            .collect::<Vec<_>>();
+        assert_eq!(fields.len(), 1, "{source:?}\n{root:#?}");
+        let field = &fields[0];
+        assert_eq!(field.text().to_string(), head, "{source:?}");
+        assert_eq!(
+            field
+                .ancestors()
+                .skip(1)
+                .take(ancestors.len())
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            ancestors,
+            "{source:?}"
+        );
+        let mut offset = prefix.len();
+        let expected = expected
+            .into_iter()
+            .map(|(kind, text)| {
+                let range = offset..offset + text.len();
+                offset = range.end;
+                (kind, range, text.to_owned())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(offset, prefix.len() + head.len());
+        assert_eq!(
+            field
+                .children_with_tokens()
+                .map(|element| {
+                    assert_eq!(element.parent(), Some(field.clone()));
+                    if element.kind() == Error {
+                        assert!(element.as_token().is_some());
+                    }
+                    if element.kind() == Missing {
+                        assert!(element.as_node().is_some());
+                    }
+                    (
+                        element.kind(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                        element.to_string(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}\n{root:#?}"
+        );
+        assert!(
+            root.descendants()
+                .all(|node| node.kind() != SyntaxKind::Invalid)
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            usize::from(head == ": T" || head == "x T")
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == Error)
+                .count(),
+            usize::from(head.contains('@'))
+        );
+    }
+}
+
+#[test]
+fn struct_named_field_head_has_direct_cst_slots_and_type_retry() {
+    assert_named_field_head_cst("struct S{", "}", &[SyntaxKind::StructDeclaration]);
+    assert_named_field_head_cst("struct 名:\r\n  ", "", &[SyntaxKind::StructDeclaration]);
+}
+
+#[test]
+fn struct_named_field_colon_error_keeps_dedent_pending_without_missing() {
+    let accepted = "struct S:\n  x @";
+    let source = format!("{accepted}\r\nnext");
+    let (green, exit) = run_statement(&source);
+    assert_eq!(green.to_string(), accepted);
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("dedented successor must remain pending")
+    };
+    assert_eq!(item.payload_view().spelling(), Some("next"));
+    assert_eq!(emit_pending_leading_text(&mut item), "\r\n");
+    let root = SyntaxNode::new_root(green);
+    let field = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::StructField)
+        .unwrap();
+    assert_eq!(
+        field.parent().unwrap().kind(),
+        SyntaxKind::StructDeclaration
+    );
+    assert_eq!(
+        field
+            .children_with_tokens()
+            .map(|element| {
+                assert_eq!(element.parent(), Some(field.clone()));
+                if element.kind() == SyntaxKind::Error {
+                    assert!(element.as_token().is_some());
+                }
+                (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                )
+            })
+            .collect::<Vec<_>>(),
+        [
+            (SyntaxKind::Identifier, 12..13, "x".to_owned()),
+            (SyntaxKind::Whitespace, 13..14, " ".to_owned()),
+            (SyntaxKind::Error, 14..15, "@".to_owned()),
+        ]
+    );
+    assert!(
+        root.descendants()
+            .all(|node| !matches!(node.kind(), SyntaxKind::Missing | SyntaxKind::Invalid))
+    );
+}
+
 fn typed_struct(
     source: &str,
     origin: usize,
@@ -1353,6 +2651,15 @@ fn struct_companion_rejected_incomplete_lists_keep_the_exact_fence_handoff() {
         assert_eq!(green.to_string(), accepted, "{accepted:?}");
         assert_eq!(remainder, "> > ```\r\nouter", "{accepted:?}");
         let node = declaration(&green);
+        let wrappers = node
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::StructFieldForeignClose)
+            .collect::<Vec<_>>();
+        assert_eq!(wrappers.len(), usize::from(accepted.contains(']')));
+        for wrapper in wrappers {
+            assert_eq!(wrapper.to_string(), "]");
+            assert_eq!(wrapper.parent().unwrap(), node);
+        }
         assert_eq!(
             count(&node, SyntaxKind::DeclarationCompanion),
             0,

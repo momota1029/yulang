@@ -5379,8 +5379,16 @@ fn named_record_type_keeps_field_and_separator_ownership() {
             (SyntaxKind::LBrace, "{".to_owned()),
             (SyntaxKind::Comma, ",".to_owned()),
             (SyntaxKind::Whitespace, " ".to_owned()),
-            (SyntaxKind::RBrace, "}".to_owned()),
         ]
+    );
+    let close = record.last_child().expect("named record close");
+    assert_eq!(close.kind(), SyntaxKind::NamedRecordTypeClose);
+    assert_eq!(
+        close
+            .children_with_tokens()
+            .map(|element| (element.kind(), element.to_string()))
+            .collect::<Vec<_>>(),
+        [(SyntaxKind::RBrace, "}".to_owned())]
     );
 }
 
@@ -5696,9 +5704,13 @@ fn named_record_type_recovers_an_invalid_semicolon_separator() {
             fields,
             "{source:?}"
         );
-        let error = recovery_groups(&record)
+        let separator = record
+            .children()
+            .find(|node| node.kind() == SyntaxKind::NamedRecordTypeSeparator)
+            .expect("separator slot");
+        let error = recovery_groups(&separator)
             .into_iter()
-            .find(|group| group.parent().as_ref() == Some(&record))
+            .find(|group| group.parent().as_ref() == Some(&separator))
             .expect("separator error");
         assert_eq!(error.text(), ";", "{source:?}");
     }
@@ -5718,10 +5730,14 @@ fn named_record_type_recovers_an_invalid_semicolon_separator() {
             .count(),
         2
     );
+    let separator = record
+        .children()
+        .find(|node| node.kind() == SyntaxKind::NamedRecordTypeSeparator)
+        .expect("separator slot");
     assert_eq!(
-        recovery_groups(&record)
+        recovery_groups(&separator)
             .into_iter()
-            .find(|group| group.parent().as_ref() == Some(&record))
+            .find(|group| group.parent().as_ref() == Some(&separator))
             .expect("separator error")
             .text(),
         "; (\n)"
@@ -8794,12 +8810,17 @@ fn polymorphic_variant_type_handoffs_outer_closes_and_separators() {
                 .descendants()
                 .find(|node| node.kind() == SyntaxKind::NamedRecordType)
                 .expect("named record type");
+            let closes: Vec<_> = record
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::NamedRecordTypeClose)
+                .collect();
+            assert_eq!(closes.len(), 1);
             assert_eq!(
-                record
-                    .children()
-                    .filter(|node| node.kind() == SyntaxKind::Missing)
-                    .count(),
-                1
+                closes[0]
+                    .children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                [SyntaxKind::Missing]
             );
             let call = root
                 .descendants()

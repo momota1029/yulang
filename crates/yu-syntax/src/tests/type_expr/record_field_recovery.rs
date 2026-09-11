@@ -88,7 +88,10 @@ fn record_field_missing_slots_keep_roles_and_do_not_cascade_colon_into_type() {
                 .filter_map(|element| element.into_token())
                 .find(|token| token.kind() == SyntaxKind::Whitespace)
                 .unwrap();
-            assert_eq!(space.parent().unwrap().kind(), SyntaxKind::NamedRecordType);
+            assert_eq!(
+                space.parent().unwrap().kind(),
+                SyntaxKind::NamedRecordTypeClose
+            );
         }
         if source.contains(":{A}") {
             assert!(
@@ -422,6 +425,9 @@ fn record_field_next_head_query_shares_exact_colon_ownership() {
         2
     );
     let missing = record
+        .children()
+        .find(|node| node.kind() == SyntaxKind::NamedRecordTypeSeparator)
+        .unwrap()
         .children()
         .find(|node| node.kind() == SyntaxKind::Missing)
         .unwrap();

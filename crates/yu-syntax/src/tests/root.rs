@@ -6,6 +6,37 @@ use crate::{
 };
 use crate::{header::discover_header, source_file::parse_root_candidate};
 
+fn direct_cst_order(syntax: &SyntaxNode) -> Vec<(bool, SyntaxKind, std::ops::Range<usize>)> {
+    syntax
+        .children_with_tokens()
+        .map(|element| {
+            (
+                matches!(element, rowan::NodeOrToken::Node(_)),
+                element.kind(),
+                usize::from(element.text_range().start())..usize::from(element.text_range().end()),
+            )
+        })
+        .collect()
+}
+
+fn direct_error_ranges(syntax: &SyntaxNode) -> Vec<std::ops::Range<usize>> {
+    let mut groups: Vec<std::ops::Range<usize>> = Vec::new();
+    let mut adjacent = false;
+    for (is_node, kind, range) in direct_cst_order(syntax) {
+        if !is_node && kind == SyntaxKind::Error {
+            if adjacent {
+                groups.last_mut().unwrap().end = range.end;
+            } else {
+                groups.push(range);
+            }
+            adjacent = true;
+        } else {
+            adjacent = false;
+        }
+    }
+    groups
+}
+
 #[test]
 fn root_binding_intro_wins_over_header_words() {
     for word in ["use", "lazy", "prefix", "infix", "suffix", "nullfix"] {
@@ -184,6 +215,7 @@ fn root_raw_error_repeats_across_a_native_semicolon_and_progresses() {
     let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
     assert_eq!(root.green.to_string(), source);
     let syntax = SyntaxNode::new_root(root.green);
+    assert_eq!(direct_error_ranges(&syntax), [0..1, 2..3]);
     let groups = recovery_groups(&syntax);
     assert_eq!(groups.len(), 2);
     assert_eq!(
@@ -392,6 +424,19 @@ fn root_raw_error_opaque_utf8_fragments_preserve_byte_ranges() {
     let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
     assert_eq!(root.green.to_string(), source);
     let syntax = SyntaxNode::new_root(root.green);
+    assert_eq!(direct_error_ranges(&syntax), [0..12]);
+    assert_eq!(
+        direct_cst_order(&syntax),
+        [
+            (false, SyntaxKind::Error, 0..1),
+            (false, SyntaxKind::Error, 1..2),
+            (false, SyntaxKind::Error, 2..3),
+            (false, SyntaxKind::Error, 3..12),
+            (false, SyntaxKind::Newline, 12..13),
+            (true, SyntaxKind::UseDeclaration, 13..21),
+            (false, SyntaxKind::Newline, 21..22),
+        ]
+    );
     let errors = syntax
         .children_with_tokens()
         .filter_map(|element| element.into_token())
@@ -713,6 +758,45 @@ fn root_direct_raw_error_requires_ordered_context() {
         }
 
         let syntax = SyntaxNode::new_root(fresh.green);
+        // Keep native boundaries and node/token identity: Error spelling and
+        // recovery records cannot select the Root slot in a CST-only walk.
+        let mut expected_direct = Vec::new();
+        if row.before_group.first() == Some(&SyntaxKind::OperatorHeader) {
+            expected_direct.push((true, SyntaxKind::OperatorHeader, 0..15));
+            expected_direct.push((false, SyntaxKind::Whitespace, 15..16));
+            if row.before_group.len() == 2 {
+                expected_direct.push((true, SyntaxKind::OperatorChain, 16..row.prefix.len()));
+            }
+            let header = syntax.children().next().unwrap();
+            assert!(header.children_with_tokens().any(|element| {
+                matches!(element, rowan::NodeOrToken::Token(_))
+                    && element.kind() == SyntaxKind::Equals
+            }));
+        } else if let Some(&kind) = row.before_group.first() {
+            expected_direct.push((true, kind, 0..row.prefix.len()));
+        }
+        if !row.before_error.is_empty() {
+            expected_direct.push((false, SyntaxKind::Whitespace, row.prefix.len()..error_start));
+        }
+        for start in error_start..error_end {
+            expected_direct.push((false, SyntaxKind::Error, start..start + 1));
+        }
+        let newline_start = error_end + row.after_error.len();
+        if !row.after_error.is_empty() {
+            expected_direct.push((true, SyntaxKind::OperatorChain, error_end..newline_start));
+        }
+        expected_direct.push((false, SyntaxKind::Newline, newline_start..newline_start + 2));
+        expected_direct.push((
+            true,
+            SyntaxKind::OperatorChain,
+            newline_start + 2..source.len(),
+        ));
+        assert_eq!(direct_cst_order(&syntax), expected_direct, "{source:?}");
+        assert_eq!(
+            direct_error_ranges(&syntax),
+            [error_start..error_end],
+            "{source:?}"
+        );
         let groups = recovery_groups(&syntax);
         assert_eq!(groups.len(), 1, "{source:?}: {groups:#?}");
         let error = &groups[0];
@@ -822,6 +906,22 @@ fn root_operator_body_missing_gap_and_empty_body_keep_typed_owner() {
         assert_eq!(record.site.range, at..at);
         assert_eq!(record.kind, RecoveryKind::Missing);
         assert_eq!(record.expectations[0].expected, expected);
+        let syntax = SyntaxNode::new_root(root.green);
+        let header = syntax.children().next().unwrap();
+        assert!(header.children_with_tokens().any(|element| {
+            matches!(element, rowan::NodeOrToken::Token(_)) && element.kind() == SyntaxKind::Equals
+        }));
+        let mut order = vec![
+            (true, SyntaxKind::OperatorHeader, 0..15),
+            (true, SyntaxKind::Missing, 15..15),
+        ];
+        if expected == ExpectedSyntax::InlineTrivia {
+            order.push((true, SyntaxKind::OperatorChain, 15..20));
+        } else {
+            order.push((false, SyntaxKind::Newline, 15..17));
+            order.push((true, SyntaxKind::UseDeclaration, 17..25));
+        }
+        assert_eq!(direct_cst_order(&syntax), order, "{source:?}");
     }
 }
 
@@ -1057,6 +1157,17 @@ fn root_operator_header_body_and_trailing_errors_are_direct_and_ordered() {
 
     let operator = parse("prefix (?) 70 = value @@");
     let standalone = parse("value @@");
+    assert_eq!(direct_error_ranges(&operator), [22..24]);
+    assert_eq!(direct_error_ranges(&standalone), [6..8]);
+    let header = operator.children().next().unwrap();
+    assert!(header.children_with_tokens().any(|element| {
+        matches!(element, rowan::NodeOrToken::Token(_)) && element.kind() == SyntaxKind::Equals
+    }));
+    assert!(
+        standalone
+            .children()
+            .all(|node| node.kind() != SyntaxKind::OperatorHeader)
+    );
     assert_eq!(
         direct(&operator),
         [

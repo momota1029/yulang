@@ -1017,7 +1017,7 @@ fn recover_separator_normalized(
 
 #[allow(clippy::too_many_arguments)]
 fn recover_close_normalized(
-    i: SyntaxIn,
+    mut i: SyntaxIn,
     roles: DeclarationFieldRoles,
     item: Item,
     baseline: usize,
@@ -1031,8 +1031,12 @@ fn recover_close_normalized(
     let GrammarRole::ClosingDelimiter { delimiter, .. } = roles.close else {
         unreachable!("field list close has a closing-delimiter role")
     };
-    field_sequence_error_run(
-        i,
+    // Only the Struct delimited Recover route reaches this owner. Keep one
+    // transparent wrapper per maximal run, outside individual StructField nodes.
+    i.state
+        .start_node(SyntaxKind::StructFieldForeignClose.into());
+    let exit = field_sequence_error_run(
+        i.rb(),
         item,
         roles.close,
         ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
@@ -1052,7 +1056,9 @@ fn recover_close_normalized(
                 || raw_name(item)
                 || delimited == Some(FieldList::Tuple) && type_starter(item)
         },
-    )
+    );
+    i.state.finish_node();
+    exit
 }
 
 #[allow(clippy::too_many_arguments)]

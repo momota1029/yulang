@@ -111,6 +111,169 @@ protected-boundary/retry support is `:772–918`. RoleReference Type recovery, c
 repetition, declaration/companion callers, outer stops/fences and all other
 declaration/header rows remain separate.
 
+#### BindingBody inline required-expression Draft links
+
+Only `crates/yu-syntax/src/declaration/binding.rs:193–263,331–432,453–560` is
+linked to the catalog-audited bounded inline BindingBody Draft: actual-Equals wrapper/branch,
+initial Missing, raw Error run, NUD retry, ordinary EOF-leading emission and
+protected-boundary handoff. Direct Rowan proof is
+`crates/yu-syntax/src/tests/declaration/binding.rs:672–835`; existing
+boundary/frozen support is `:42–143,577–668`. Binding target, Equals admission,
+indented body, Root progression, fences/active-stop callers and nested expression
+recovery remain separate.
+
+#### Shared named declaration-field head Draft links
+
+Only `crates/yu-syntax/src/declaration/fields.rs:555–567,644–950` and its actual
+Struct and Enum/Error named-payload callers are linked to the catalog-audited
+evidence-complete bounded Name/Colon Draft. Both variant
+payloads use `EnumVariant`, enclosed by `EnumDeclaration` or `ErrorDeclaration`.
+Initial malformed Name leading is sequence-owned before `StructField` opens;
+initial malformed Colon leading is direct field content. Direct Rowan proof is
+`crates/yu-syntax/src/tests/declaration/struct_decl.rs:1118–1300` and
+`declaration_variant.rs:72–84`; it distinguishes Name recovery before direct
+Colon from Colon recovery after direct Identifier and before actual Colon or
+Type retry, including Type/Colon retry,
+UTF-8/CRLF and dedent handoff. Fresh FieldItem, FieldSeparator, list close,
+tuple fields, and the entire required-Type RHS remain separate, including
+Type-owned direct Error leaves before optional `TypeExpression`
+(`type_expr/mod.rs:640–652,682–726`) and nested Type recovery.
+Delta specification audit closed all three record findings without a topology
+or implementation change.
+
+#### Shared fresh named declaration FieldItem Draft links
+
+Only the witnessed NeedField comma Missing, malformed-start raw-name retry
+and terminal indented dedent paths in
+`crates/yu-syntax/src/declaration/fields.rs:371–640,826–868,1190–1219` and
+their actual Struct/Enum/Error callers are linked to this bounded Draft. Direct
+Rowan proof is `crates/yu-syntax/src/tests/declaration/struct_decl.rs:957–1117`
+and `declaration_variant.rs:58–70`; it distinguishes terminal direct
+`StructField(Missing)`/`StructField(Error+)` from the mapped Name/Colon head,
+then preserves sequence-owned comma/native/Separator recovery and a separate
+retried field. Earlier boundary/close/separator dispatch must decline before
+malformed-start admission; semicolon and foreign close keep their separate
+owners. `Native* Missing` remains a possible shape, but other required-absence
+positions and EOF/active-stop variants are outside this evidence. UTF-8/CRLF
+dedent handoff is included. Tuple FieldItem,
+FieldSeparator, every close, RHS Type, global projection and ledger retirement
+remain separate. The direct test audit is clean; catalog delta audit closed
+the admission finding for these bounded witnessed alternatives.
+
+#### Shared fresh tuple declaration FieldItem Missing Draft links
+
+Only initial-comma and post-comma EOF NeedField Missing in the shared tuple
+sequence are linked to this bounded Draft. Source is
+`crates/yu-syntax/src/declaration/fields.rs:371–640,951–979,1190–1219` plus
+the required-Type delegation in `type_expr/mod.rs:622–733`. Direct Rowan proof
+is `crates/yu-syntax/src/tests/declaration/struct_decl.rs:800–956` and
+`declaration_variant.rs:44–56`: it fixes
+`StructField(TypeExpression(Missing))`, comma/field order, post-comma EOF
+field-before-close preorder, matching-`)` priority, Type-owned `=T` Error and
+single-field TypeApply grouping across Struct/Enum/Error. Other absence,
+nonempty-leading, active-stop/fence, Type, separator/close, global projection
+and ledger retirement remain separate. Direct test audit is clean; catalog
+admission wording now preserves preceding boundary/close/comma/separator
+dispatch. Catalog delta audit closed that finding.
+
+#### Shared declaration FieldSeparator Missing Draft links
+
+Only the direct zero-width separator Missing after a completed field and before
+an admitted same-line successor is linked to this bounded Draft. Source is the
+shared sequence in `crates/yu-syntax/src/declaration/fields.rs:371–640,1228–1241`
+and its actual Struct/Enum/Error named and tuple callers. Direct Rowan proof is
+`crates/yu-syntax/src/tests/declaration/struct_decl.rs:3–147` and
+`declaration_variant.rs:28–42`: the Missing is a direct sequence child between
+two `StructField` children, with sequence-native gap leading and owner-selected
+`Struct(FieldSeparator)` or `Variant(NamedFieldSeparator)`. Fresh FieldItem and
+nested field/Type recovery remain independent. Independent catalog audit closed
+after correcting the projection input wording and Missing-emitter locator, so
+the row is a catalog-audited evidence-complete Draft. FieldSeparator Error is
+deliberately excluded from this row. The completed Authoritative
+`StructFieldForeignClose` construction removes its former Struct-close
+collision, so separate Error and Close rows can now be specified and audited.
+Accepted separators, every close, global projection and ledger retirement
+remain separate.
+
+#### Shared declaration FieldSeparator Error Draft links
+
+The shared malformed-semicolon run is linked as one maximal adjacent direct
+field-list `Error+` group. Struct named, tuple and real colon-introduced
+indented lists select `Struct(FieldSeparator)`; Enum/Error named and tuple
+payloads select the retained `Variant(NamedFieldSeparator)` role. Direct proof
+is `crates/yu-syntax/src/tests/declaration/struct_decl.rs:3–215,559–618` and
+`declaration_variant.rs:28–42`; the indented literal fixes Error, retry-leading
+and field sibling ranges without recovery-record input. The completed
+`StructFieldForeignClose` topology terminates direct groups and distinguishes
+adjacent Separator/Close order. Independent catalog audit closed after the row
+was corrected to distinguish delimited-only close stops from indented lists,
+which have no local close. It is now a catalog-audited evidence-complete Draft.
+FieldSeparator Missing, nested field/Type recovery, accepted separators,
+all close rows, the interpreter and ledger retirement remain separate.
+
+#### Struct declaration field foreign-close Error Draft links
+
+Only `StructFieldForeignClose(Error+)` under Struct named-brace and
+tuple-parenthesis lists is linked. The wrapper is a direct StructDeclaration
+child around exactly one unchanged maximal foreign-close run; it emits no
+diagnostic, while its immediate Error group projects the opener-selected local
+close. Direct proof at
+`crates/yu-syntax/src/tests/declaration/struct_decl.rs:218–531` covers the four
+former collisions, named/tuple positions, both adjacent orders, multiple and
+repeated runs, UTF-8/internal trivia, fresh/frozen equality, active stops and a
+direct protected fence. Enum/Error Borrow and real indented Struct are negative
+controls. M2 construction review is closed and independent catalog audit was
+clean, so this is a catalog-audited evidence-complete Draft. Direct Separator
+Error, Close Missing, accepted close,
+variant outer close, interpreter and ledger retirement remain separate.
+
+#### Declaration field-list local Close Missing Draft links
+
+The bounded empty-list and tuple post-comma EOF alternatives are linked across
+Struct named/tuple and actual Enum/Error variant named/tuple callers. Direct
+Rowan proof is `crates/yu-syntax/src/tests/declaration/struct_decl.rs:619–956`
+and `declaration_variant.rs:12–56`. Empty lists end `Open Missing` without a
+fabricated field; accepted matching closes contain no recovery. At tuple
+post-comma EOF, parentage and preorder distinguish fresh
+`StructField(TypeExpression(Missing))`, direct local-list Missing, and any later
+direct outer declaration Missing at the same coordinate. The opener/list
+selects one of the four local Close roles without records. Pre-write,
+post-write and independent catalog audits are clean for the EOF slice. The row
+now also links `struct_decl.rs:703–799` for Struct active-stop/fence handoff and
+`declaration_variant.rs:1209–1288` for named/tuple Enum/Error Borrow, including
+one nonempty-leading case. These tests keep Rowan ranges and pending boundary
+coordinates separate and inspect no records. Their one unsupported ancestry
+assertion was repaired from accepted CST authority and delta review closed.
+Independent catalog audit was clean, so the expanded row is a catalog-audited
+evidence-complete Draft. Post-comma or
+qualifying-newline protected boundaries, other leading combinations, variant
+outer close, accepted-close diagnostics, interpreter and ledger retirement
+remain outside this row.
+
+#### Braced Enum/Error variant-body outer Close Missing Draft links
+
+Only the braced variant body's direct declaration-owned terminal Missing is
+linked. Both EnumDeclaration and ErrorDeclaration select the shared
+`EnumBracedVariantBody/Brace` close role. Direct Rowan proof in
+`crates/yu-syntax/src/tests/declaration/enum_decl.rs:4–189` and
+`error_decl.rs:4–185` covers empty/post-variant EOF, accepted native RBrace,
+a foreign RParen with pending CRLF leading, active Colon handoff, quoted fence
+and a trailing-comma fence. The Missing is a direct empty shell
+child; local payload and fresh field Missing stay below EnumVariant, so equal
+offset preorder is structural. There is no outer Close Error path, and accepted
+RBrace is only the state delimiter. Pre-write/post-write review and one
+test-evidence repair/delta review are closed. Independent catalog audit closed
+after correcting the empty-body wording. The boundary extension exposed an
+accepted-payload owner bug: caller stops were checked by the sequence but not
+before positional/FromType admission. The M2 repair gives variant payload Type
+episodes a scoped boundary component, suspends only that component in nested
+Arrow RHS, and preserves established ordinary Type-owner boundaries. Direct
+payload proof at `declaration_variant.rs:275–423`, Arrow controls, package check
+and independent compiler/regression review are clean. This is now a
+catalog-audited evidence-complete Draft expanded through those protected
+handoffs. Other leading combinations, non-braced forms, remaining nested
+variant rows, interpreter and ledger retirement remain outside this row.
+
 ### Expression forms and tails — 10 files / 18 calls
 
 - `crates/yu-syntax/src/expression/case_like.rs`
@@ -174,6 +337,22 @@ the governing fixed-tail authority establish the rows' CST and recovery facts.
 - `crates/yu-syntax/src/type_expr/mod.rs`
 - `crates/yu-syntax/src/type_expr/record.rs`
 - `crates/yu-syntax/src/type_expr/variants.rs`
+
+#### NamedRecordType topology construction links
+
+The Authoritative NamedRecordType topology is privately constructed. Its owner
+at `crates/yu-syntax/src/type_expr/record.rs:148–276,1088–1110` emits exactly
+one `NamedRecordTypeClose` per committed record and wraps only existing
+Separator Missing/Error publications in `NamedRecordTypeSeparator`; Field/Name
+recovery remains direct. The committed-close abstract-boundary guard preserves
+the protected Item before token classification. Direct proof is
+`crates/yu-syntax/src/tests/type_expr/record_sequence_recovery.rs:39–615`, with
+dependent ancestry controls in `record_field_recovery.rs`, `tests/type_expr.rs`
+and `tests/pattern.rs`. The focused proof covers Field/Close separation,
+separator leading/cardinality, accepted close, EOF/fence/current-Item and
+fresh/frozen records. This is a topology construction link, not a completed
+semantic diagnostic-row mapping; PV and remaining NamedRecord semantic slots
+remain separate.
 
 #### ForallType first required-binder candidate links
 
@@ -501,22 +680,38 @@ slot.
 
 #### Root direct raw Error ordered-context matrix
 
-The partial candidate evidence links `crates/yu-syntax/src/tests/root.rs:289–535`
-to direct Root publishers `crates/yu-syntax/src/root_statement.rs:174,261,338,
-431–552`. It proves ordered-neighbor distinguishability for Starter, Separator,
-13 trailing statement owners and OperatorDefinitionBody only. It is not a
-mapped row; trivia/repetition, multi-fragment, boundary, retry and projection
-evidence remains open.
+The independently audited candidate evidence links
+`crates/yu-syntax/src/tests/root.rs:9–38,218–246,427–466,587–1190` to direct
+Root publishers `crates/yu-syntax/src/root_statement.rs:174,261,338,431–552`.
+It proves complete direct node/token ordering for Starter, Separator, 13
+trailing statement owners and OperatorDefinitionBody, plus native semicolon/
+CRLF grouping, UTF-8 opaque fragments, actual Equals and body Missing order.
+This closes the former projection that discarded native tokens. Full Root
+phase/terminal/fence coverage and nested owner schemas remain open.
 
 #### Root direct raw Error bounded candidate links
 
 Only `crates/yu-syntax/src/root_statement.rs:174,261,316–332,338,431–552` is linked to
 the bounded Root raw-error candidate: root-entry phase selection, direct raw
 Error emission, actual-Equals body dispatch and direct body Missing. Direct
-proof is `crates/yu-syntax/src/tests/root.rs:148–883,884–1094`; test-only
+proof is `crates/yu-syntax/src/tests/root.rs:9–38,218–246,427–466,587–1190`; test-only
 cell-boundary support is `root_statement.rs:853–951`. Ordinary Root Missing,
 nested statement/header recovery, outer Yumark and full Root grammar remain
 separate rows.
+
+#### BracedStatementBlock direct Missing ordered-context links
+
+The bounded row links only the three direct Missing phases of
+`BracedStatementBlockExpression`. Direct evidence at
+`crates/yu-syntax/src/tests/braced_statement_recovery.rs:137–278` retains every
+direct node/token and proves `Missing → BlockStatementSeparator` as required
+Statement, `Statement → Missing → Statement` as missing Separator, and terminal
+Missing as local Close. Nested-for evidence at `:499–606` keeps the accepted
+outer RBrace terminal and applies the same separator rule after child
+continuation. This invalidates the historical ancestry-only topology premise;
+the proposed `BracedStatementBlockClose` and Separator wrapper are not
+implemented. Braced Error/boundary variants, other Statement/layout owners,
+the interpreter and ledger retirement remain separate.
 
 #### StringInterpolationBody root-style statement-sequence row links
 

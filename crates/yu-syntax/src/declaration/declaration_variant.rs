@@ -323,10 +323,7 @@ fn sequence_ends(
     baseline: usize,
     stops: Stops,
 ) -> bool {
-    if is_active_stop_lex(i, item, stops) {
-        return true;
-    }
-    if stops & STOP_WITH != 0 && is_exact_with(item) {
+    if is_variant_caller_boundary(i, item, stops) {
         return true;
     }
     if matches!(
@@ -344,6 +341,10 @@ fn sequence_ends(
         }
         VariantSequenceForm::Braced => false,
     }
+}
+
+fn is_variant_caller_boundary(i: LexIn, item: &Item, stops: Stops) -> bool {
+    is_active_stop_lex(i, item, stops) || stops & STOP_WITH != 0 && is_exact_with(item)
 }
 
 fn is_implicit_separator(form: VariantSequenceForm, item: &Item, baseline: usize) -> bool {
@@ -444,6 +445,18 @@ fn parse_variant(
     (item, item_origin, line_entry) =
         variant_item_normalized(i.rb(), item_origin, line_entry, fence);
 
+    if item.payload_view().is_boundary()
+        || i.token(|lex| Some(is_variant_caller_boundary(lex, &item, stops)))
+            .unwrap()
+    {
+        i.state.finish_node();
+        return ParsedVariant {
+            item,
+            item_origin,
+            line_entry,
+        };
+    }
+
     if is_contextual_from(&item) {
         item.emit_all_remaining_leading(&mut *i.state);
         item.emit_remaining(&mut *i.state, SyntaxKind::FromKw);
@@ -451,6 +464,9 @@ fn parse_variant(
             variant_item_normalized(i.rb(), item_origin, line_entry, fence);
         if !item.payload_view().is_boundary()
             && !yields_with(form, yield_with, &item, sequence_baseline)
+            && !i
+                .token(|lex| Some(is_variant_caller_boundary(lex, &item, stops)))
+                .unwrap()
         {
             item.emit_all_remaining_leading(&mut *i.state);
         }
@@ -462,6 +478,7 @@ fn parse_variant(
             TypeMlContext::INACTIVE,
             form.allows_pipe(),
             yield_with && form == VariantSequenceForm::EqualsInline,
+            stops,
             item_origin,
             line_entry,
             fence,
@@ -547,6 +564,9 @@ fn parse_variant(
 
     while !yields_with(form, yield_with, &item, sequence_baseline)
         && positional_payload_candidate(form, &item, sequence_baseline)
+        && !i
+            .token(|lex| Some(is_variant_caller_boundary(lex, &item, stops)))
+            .unwrap()
     {
         item.emit_all_remaining_leading(&mut *i.state);
         let parsed = parse_payload_type(
@@ -557,6 +577,7 @@ fn parse_variant(
             TypeMlContext::INACTIVE.enter_non_type_apply(),
             form.allows_pipe(),
             yield_with && form == VariantSequenceForm::EqualsInline,
+            stops,
             item_origin,
             line_entry,
             fence,
@@ -587,7 +608,13 @@ fn positional_payload_candidate(form: VariantSequenceForm, item: &Item, baseline
         || token_kind(item) == Some(TokenKind::Pipe) && form.allows_pipe()
         || matches!(
             token_kind(item),
-            Some(TokenKind::Comma | TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+            Some(
+                TokenKind::Comma
+                    | TokenKind::Semicolon
+                    | TokenKind::RParen
+                    | TokenKind::RBracket
+                    | TokenKind::RBrace
+            )
         )
         || is_implicit_separator(form, item, baseline)
     {
@@ -607,6 +634,7 @@ fn parse_payload_type(
     type_ml: TypeMlContext,
     pipe_boundary: bool,
     with_boundary: bool,
+    stops: Stops,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
@@ -619,16 +647,7 @@ fn parse_payload_type(
         missing_role,
         baseline,
         type_ml,
-        (if pipe_boundary {
-            TypeOuterBoundary::PIPE
-        } else {
-            TypeOuterBoundary::NONE
-        })
-        .with(if with_boundary {
-            TypeOuterBoundary::WITH
-        } else {
-            TypeOuterBoundary::NONE
-        }),
+        TypeOuterBoundary::variant_payload(stops, pipe_boundary, with_boundary),
         item_origin,
         line_entry,
         fence,

@@ -1,6 +1,190 @@
 use crate::tests::support::*;
 
 #[test]
+fn error_braced_variant_outer_close_preserves_protected_boundaries() {
+    use crate::lexical::item::{BorrowedTarget, Boundary};
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use SyntaxKind::{
+        Comma, EnumVariant, Error, Invalid, LBrace, Missing, StructFieldForeignClose,
+    };
+
+    let origin = 100;
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    for (accepted, fenced) in [("error E{A", false), ("> > error E{A", true)] {
+        let suffix = if fenced {
+            "\r\n> > ```\r\nouter"
+        } else {
+            " \r\n : next"
+        };
+        let source = format!("{accepted}{suffix}");
+        let (green, exit, remainder) = run_error_declaration(
+            &source,
+            if fenced { 0 } else { STOP_COLON },
+            origin,
+            if fenced {
+                LineEntry::PhysicalStart
+            } else {
+                LineEntry::InLine
+            },
+            fenced.then_some(&fence),
+        );
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        if fenced {
+            let Some(NormalizedExit::Complete(
+                Err(Either::Left(boundary)),
+                LineEntry::PhysicalStart,
+            )) = exit
+            else {
+                panic!("outer close must return the exact fence boundary: {source:?}");
+            };
+            assert_eq!(remainder, "> > ```\r\nouter");
+            let (leading, pending) = emit_terminal_leading_text(boundary);
+            assert_eq!(leading, "\r\n");
+            assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+            assert!(matches!(
+                pending.into_kind(),
+                Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+            ));
+        } else {
+            let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
+                panic!("active stop must remain pending: {source:?}");
+            };
+            assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+            assert_eq!(emit_pending_leading_text(&mut item), " \r\n ");
+            assert_eq!(remainder, " next");
+        }
+
+        let root = SyntaxNode::new_root(green.clone());
+        let node = declaration(&green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(node.parent(), Some(root.clone()));
+        let brace = 7 + if fenced { 4 } else { 0 };
+        let mut expected = vec![
+            (LBrace, false, brace..brace + 1, "{".to_owned()),
+            (EnumVariant, true, brace + 1..brace + 2, "A".to_owned()),
+        ];
+        if accepted.ends_with(',') {
+            expected.push((Comma, false, brace + 2..brace + 3, ",".to_owned()));
+        }
+        let at = accepted.len();
+        expected.push((Missing, true, at..at, String::new()));
+        assert_eq!(
+            node.children_with_tokens()
+                .skip_while(|element| element.kind() != LBrace)
+                .map(|element| (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        let missing = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing.len(), 1, "{source:?}");
+        assert_eq!(missing[0].parent(), Some(node.clone()));
+        assert_eq!(missing[0].children_with_tokens().count(), 0);
+        assert_eq!(count(&root, EnumVariant), 1);
+        assert!(
+            root.descendants_with_tokens().all(|element| !matches!(
+                element.kind(),
+                Error | Invalid | StructFieldForeignClose
+            )),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn error_braced_variant_outer_close_has_direct_missing_cst_slot() {
+    use SyntaxKind::{
+        EnumVariant, Error, Invalid, LBrace, Missing, RBrace, StructFieldForeignClose,
+    };
+
+    for (source, accepted, has_variant, closed, foreign) in [
+        ("error E{", "error E{", false, false, false),
+        ("error E{A", "error E{A", true, false, false),
+        ("error E{A}", "error E{A}", true, true, false),
+        ("error E{A \r\n )", "error E{A", true, false, true),
+    ] {
+        let (green, exit, remainder) = run_error_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        if foreign {
+            let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
+                panic!("foreign close must remain pending: {source:?}");
+            };
+            assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RParen));
+            assert_eq!(emit_pending_leading_text(&mut item), " \r\n ");
+        } else {
+            let Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) = exit else {
+                panic!("declaration must complete at EOF: {source:?}");
+            };
+            assert!(end.item.payload_view().is_eof(), "{source:?}");
+        }
+
+        let root = SyntaxNode::new_root(green.clone());
+        let node = declaration(&green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(node.parent(), Some(root.clone()), "{source:?}");
+        let mut expected = vec![(LBrace, false, 7..8, "{".to_owned())];
+        if has_variant {
+            expected.push((EnumVariant, true, 8..9, "A".to_owned()));
+        }
+        let at = 8 + usize::from(has_variant);
+        if closed {
+            expected.push((RBrace, false, at..at + 1, "}".to_owned()));
+        } else {
+            expected.push((Missing, true, at..at, String::new()));
+        }
+        assert_eq!(
+            node.children_with_tokens()
+                .skip_while(|element| element.kind() != LBrace)
+                .map(|element| (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        let missing = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing.len(), usize::from(!closed), "{source:?}");
+        for missing in missing {
+            assert_eq!(missing.parent(), Some(node.clone()), "{source:?}");
+            assert_eq!(missing.children_with_tokens().count(), 0, "{source:?}");
+        }
+        assert_eq!(count(&root, EnumVariant), usize::from(has_variant));
+        assert!(
+            root.descendants_with_tokens().all(|element| !matches!(
+                element.kind(),
+                Error | Invalid | StructFieldForeignClose
+            )),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn header_recovery_records_are_exact_shifted_and_frozen() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     use crate::recovery_record::*;

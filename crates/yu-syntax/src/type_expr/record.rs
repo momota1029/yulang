@@ -146,7 +146,9 @@ fn type_record_fields_normalized(
             );
         }
         if token_kind(&item) == Some(TokenKind::RBrace) {
+            i.state.start_node(SyntaxKind::NamedRecordTypeClose.into());
             emit_token_item(&mut i, item);
+            i.state.finish_node();
             return complete(Ok(()), line_entry);
         }
         // The local comma owns its slot before an enclosing comma stop.
@@ -213,6 +215,7 @@ fn type_record_fields_normalized(
             if missing_field {
                 emit_record_field_missing(&mut i, TypeRole::RecordField, &item, item_origin);
             }
+            i.state.start_node(SyntaxKind::NamedRecordTypeClose.into());
             let caller_owned;
             (item, item_origin, line_entry, caller_owned) = retry_record_run_normalized(
                 i.rb(),
@@ -227,21 +230,36 @@ fn type_record_fields_normalized(
                 fence,
                 ambient,
             );
-            if !caller_owned && token_kind(&item) == Some(TokenKind::RBrace) {
+            if !caller_owned
+                && !item.payload_view().is_boundary()
+                && token_kind(&item) == Some(TokenKind::RBrace)
+            {
                 emit_token_item(&mut i, item);
+                i.state.finish_node();
                 return complete(Ok(()), line_entry);
             }
-            return record_boundary_normalized(i, item, baseline, false, item_origin, line_entry);
+            if item.payload_view().is_eof() && type_chain_trivia(item.leading_view(), baseline) {
+                item.emit_all_remaining_leading(&mut *i.state);
+            }
+            emit_record_close_missing(&mut i, &item, item_origin);
+            i.state.finish_node();
+            return complete(handoff(item), line_entry);
         }
         if after_item && newline && !is_type_record_field_start(&item) {
             return record_boundary_normalized(i, item, baseline, true, item_origin, line_entry);
         }
         if same_line_head {
             item.emit_all_remaining_leading(&mut *i.state);
+            i.state
+                .start_node(SyntaxKind::NamedRecordTypeSeparator.into());
             emit_record_field_missing(&mut i, TypeRole::RecordFieldSeparator, &item, item_origin);
+            i.state.finish_node();
         } else if token_kind(&item) == Some(TokenKind::Semicolon)
             || (position == RecordPosition::AfterField && !newline)
         {
+            item.emit_all_remaining_leading(&mut *i.state);
+            i.state
+                .start_node(SyntaxKind::NamedRecordTypeSeparator.into());
             let caller_owned;
             (item, item_origin, line_entry, caller_owned) = retry_record_run_normalized(
                 i.rb(),
@@ -256,6 +274,7 @@ fn type_record_fields_normalized(
                 fence,
                 ambient,
             );
+            i.state.finish_node();
             if caller_owned {
                 let missing_field = is_type_implicit_boundary(baseline, item.leading_view());
                 return record_boundary_normalized(
@@ -1072,6 +1091,13 @@ fn record_boundary_normalized(
     if missing_field {
         emit_record_field_missing(&mut i, TypeRole::RecordField, &item, item_origin);
     }
+    i.state.start_node(SyntaxKind::NamedRecordTypeClose.into());
+    emit_record_close_missing(&mut i, &item, item_origin);
+    i.state.finish_node();
+    complete(handoff(item), line_entry)
+}
+
+fn emit_record_close_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
@@ -1084,7 +1110,6 @@ fn record_boundary_normalized(
             Arc::from([]),
         )
     });
-    complete(handoff(item), line_entry)
 }
 
 fn record_close_role() -> GrammarRole {

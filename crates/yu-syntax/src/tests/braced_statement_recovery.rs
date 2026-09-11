@@ -176,13 +176,102 @@ fn braced_missing_slots_collide_at_the_same_direct_rowan_occurrence_path() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
             .unwrap_or_else(|| panic!("braced block for {source:?}"));
-        let missing = block
-            .children()
-            .find(|node| {
-                node.kind() == SyntaxKind::Missing
-                    && node.text_range() == rowan::TextRange::empty(range.start.into())
-            })
-            .unwrap_or_else(|| panic!("{role:?} Missing for {source:?}"));
+        // Immediate ancestry is shared, but the complete ordered direct
+        // children retain the required-item, successor and terminal phases.
+        // Select the occurrence by that order, independently of the ledger.
+        let children = block.children_with_tokens().collect::<Vec<_>>();
+        let (kinds, missing_index) = match source {
+            "{,;}" => (
+                vec![
+                    SyntaxKind::LBrace,
+                    SyntaxKind::Missing,
+                    SyntaxKind::BlockStatementSeparator,
+                    SyntaxKind::Missing,
+                    SyntaxKind::BlockStatementSeparator,
+                    SyntaxKind::RBrace,
+                ],
+                1,
+            ),
+            "{use a use b}" => (
+                vec![
+                    SyntaxKind::LBrace,
+                    SyntaxKind::Statement,
+                    SyntaxKind::Missing,
+                    SyntaxKind::Statement,
+                    SyntaxKind::RBrace,
+                ],
+                2,
+            ),
+            "{  " => (
+                vec![
+                    SyntaxKind::LBrace,
+                    SyntaxKind::Whitespace,
+                    SyntaxKind::Missing,
+                ],
+                2,
+            ),
+            _ => unreachable!(),
+        };
+        assert_eq!(
+            children
+                .iter()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            kinds,
+            "{source:?}",
+        );
+        for child in &children {
+            assert_eq!(child.parent(), Some(block.clone()), "{source:?}");
+            assert_eq!(
+                child.as_node().is_some(),
+                matches!(
+                    child.kind(),
+                    SyntaxKind::Missing
+                        | SyntaxKind::Statement
+                        | SyntaxKind::BlockStatementSeparator
+                ),
+                "{source:?}",
+            );
+        }
+        assert!(
+            !block
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::Invalid)
+        );
+        let missing = children[missing_index].as_node().unwrap();
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(
+            missing.text_range(),
+            rowan::TextRange::empty(range.start.into())
+        );
+        assert_eq!(missing.text().to_string(), "", "{role:?}: {source:?}");
+        assert!(missing.children_with_tokens().next().is_none());
+        if source == "{,;}" {
+            for (index, kind, text) in
+                [(2, SyntaxKind::Comma, ","), (4, SyntaxKind::Semicolon, ";")]
+            {
+                let separator = children[index].as_node().unwrap();
+                let tokens = separator.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(tokens.len(), 1);
+                let token = tokens[0].as_token().unwrap();
+                assert_eq!(token.kind(), kind);
+                assert_eq!(token.text(), text);
+            }
+        }
+        if source == "{  " {
+            let leading = children[1].as_token().unwrap();
+            assert_eq!(leading.text(), "  ");
+            assert_eq!(
+                leading.text_range(),
+                rowan::TextRange::new(1.into(), 3.into())
+            );
+            assert_eq!(missing_index + 1, children.len());
+        } else {
+            let close = children.last().unwrap().as_token().unwrap();
+            assert_eq!(close.kind(), SyntaxKind::RBrace);
+            assert_eq!(close.text(), "}");
+            assert_eq!(usize::from(close.text_range().end()), source.len());
+        }
         assert_eq!(missing.parent(), Some(block.clone()), "{source:?}");
         paths.push(
             missing
@@ -427,6 +516,90 @@ fn nested_for_braced_body_success_resumes_the_enclosing_sequence() {
             NormalizedExit::Complete(Err(Either::Right(_)), _)
         ));
         assert_eq!(suffix, "", "{source:?}");
+
+        if matches!(source, "{for x in xs {}}" | "{for x in xs {} use a}") {
+            let root = SyntaxNode::new_root(green.clone());
+            let block = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+                .unwrap();
+            let children = block.children_with_tokens().collect::<Vec<_>>();
+            let expected_kinds = if source == "{for x in xs {}}" {
+                vec![
+                    SyntaxKind::LBrace,
+                    SyntaxKind::Statement,
+                    SyntaxKind::RBrace,
+                ]
+            } else {
+                vec![
+                    SyntaxKind::LBrace,
+                    SyntaxKind::Statement,
+                    SyntaxKind::Missing,
+                    SyntaxKind::Statement,
+                    SyntaxKind::RBrace,
+                ]
+            };
+            assert_eq!(
+                children
+                    .iter()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                expected_kinds,
+                "{source:?}",
+            );
+            for child in &children {
+                assert_eq!(child.parent(), Some(block.clone()));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(child.kind(), SyntaxKind::Statement | SyntaxKind::Missing),
+                );
+            }
+            let close = children.last().unwrap().as_token().unwrap();
+            assert_eq!(close.kind(), SyntaxKind::RBrace);
+            assert_eq!(close.text(), "}");
+            assert_eq!(
+                close.text_range(),
+                rowan::TextRange::new(
+                    (source.len() as u32 - 1).into(),
+                    (source.len() as u32).into()
+                ),
+            );
+            assert!(
+                !block
+                    .descendants()
+                    .any(|node| node.kind() == SyntaxKind::Invalid)
+            );
+            let nested = children[1]
+                .as_node()
+                .unwrap()
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
+                .unwrap();
+            assert_eq!(nested.text().to_string(), "{}");
+            assert_eq!(
+                nested
+                    .children_with_tokens()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                vec![SyntaxKind::LBrace, SyntaxKind::RBrace],
+            );
+            if source == "{for x in xs {} use a}" {
+                let missing = children[2].as_node().unwrap();
+                assert_eq!(missing.text_range(), rowan::TextRange::empty(15.into()));
+                assert!(missing.children_with_tokens().next().is_none());
+                assert_eq!(
+                    missing
+                        .ancestors()
+                        .take(2)
+                        .map(|node| node.kind())
+                        .collect::<Vec<_>>(),
+                    vec![
+                        SyntaxKind::Missing,
+                        SyntaxKind::BracedStatementBlockExpression
+                    ],
+                );
+            }
+        }
 
         let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
         assert_eq!(again, green, "{source:?}");

@@ -1,8 +1,12 @@
 # PolymorphicVariantType foreign-close CST slot draft
 
-Status: Draft; no implementation authorization
+Status: Authoritative; M2 construction pending after NamedRecordType
 
 Date: 2026-09-10
+
+Approved-by: user
+
+Approved-at: 2026-09-11
 
 Drafted-by: primary from the PolymorphicVariantType collision investigation
 
@@ -14,8 +18,8 @@ diagnostics, API migration or recovery-ledger retirement.
 
 Governing authority: the Authoritative CST-derived diagnostics amendment,
 Error/Invalid topology-ordering addendum and polymorphic-variant current-Item
-recovery authority. This Draft records a proven owner-schema gap; it adds no
-implementation authority.
+recovery authority. The user's 2026-09-11 approval adopts the topology below
+as the construction authority after the independent NamedRecordType gate.
 
 ## Proven collision
 
@@ -37,7 +41,7 @@ There is no Missing, Invalid or admitted tag. The future CST walker must not
 inspect `;` versus `]` spelling or retain parser phase, so the distinct existing
 slot expectations cannot be derived from this tree.
 
-## Candidate decision requiring user approval
+## Approved topology decision
 
 Add one transparent node:
 
@@ -116,12 +120,13 @@ retain their existing ownership and propagation.
   generic recovery facility, record merging or another family's wrapper violate
   governing authority or exceed this repair.
 
-## Required approval and construction gate
+## Construction gate
 
-Before implementation, independent specification and compiler/recovery reviews
-must validate this Draft. The user must then approve the node name, all and only
-locally consumed foreign closes, one-wrapper cardinality, leading/handoff
-contract and narrow supersession of direct raw Error placement on this path.
+Before implementation, fresh independent specification and compiler/recovery
+reviews must validate this topology. The user approved the node name, all and
+only locally consumed foreign closes, one-wrapper cardinality, leading/handoff
+contract and narrow supersession of direct raw Error placement on this path on
+2026-09-11.
 
 After approval, use M2: append one SyntaxKind without changing existing values;
 one implementation/repair bundle; focused tests for all positions, repeated and
