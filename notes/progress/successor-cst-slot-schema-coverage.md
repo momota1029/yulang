@@ -286,6 +286,14 @@ BodyIntroducer Missing. All four body starters remain native outside Error.
 M1 specification audit was clean; variants, payloads, fields, closes, derives,
 companions and caller/fence rows remain separate.
 
+#### StructDeclaration header Name/BodyIntroducer Draft links
+
+Direct Rowan proof in `tests/declaration/struct_decl.rs` maps header Name and
+BodyIntroducer by ordered direct Struct children. Semicolon/brace/parenthesis/
+Colon starters remain native outside Error; Colon ends the header prefix before
+field-owned content. M1 specification audit was clean; fields/body/callers
+remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

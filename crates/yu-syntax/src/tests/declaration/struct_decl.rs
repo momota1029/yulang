@@ -1,5 +1,158 @@
 use crate::tests::support::*;
 
+// Header evidence uses only direct Rowan children and byte ranges. In particular,
+// adjacent Error fragments stay opaque; native retry trivia ends their group.
+fn assert_struct_schema_header(source: &str, expected: &[(SyntaxKind, std::ops::Range<usize>)]) {
+    let (green, _, _) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+    let root = SyntaxNode::new_root(green);
+    let statement = root.first_child().expect("Statement");
+    assert_eq!(statement.kind(), SyntaxKind::Statement);
+    assert_eq!(statement.parent(), Some(root.clone()));
+    let owner = statement.first_child().expect("StructDeclaration");
+    assert_eq!(owner.kind(), SyntaxKind::StructDeclaration);
+    assert_eq!(owner.parent(), Some(statement));
+    // Colon starts an indented field body. Its following children belong to
+    // the separate field schema; this witness stops at the native starter.
+    let header_len = if expected
+        .last()
+        .is_some_and(|(kind, _)| *kind == SyntaxKind::Colon)
+    {
+        expected.len()
+    } else {
+        usize::MAX
+    };
+    let actual = owner
+        .children_with_tokens()
+        .take(header_len)
+        .map(|child| {
+            assert_eq!(child.parent(), Some(owner.clone()));
+            if child.kind() == SyntaxKind::Missing {
+                assert!(
+                    child
+                        .as_node()
+                        .unwrap()
+                        .children_with_tokens()
+                        .next()
+                        .is_none()
+                );
+            } else {
+                assert!(child.as_token().is_some());
+            }
+            (
+                child.kind(),
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected, "{source:?}");
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|child| child.kind() == SyntaxKind::Invalid)
+    );
+}
+
+#[test]
+fn struct_schema_name_missing_terminal_and_retry() {
+    use SyntaxKind::{Error, Identifier, LBrace, Missing, RBrace, Semicolon, StructKw, Whitespace};
+    assert_struct_schema_header("struct", &[(StructKw, 0..6), (Missing, 6..6)]);
+    assert_struct_schema_header(
+        "struct  ",
+        &[(StructKw, 0..6), (Whitespace, 6..8), (Missing, 8..8)],
+    );
+    for suffix in ["", "  ", "  ]tail", "\r\nnext"] {
+        assert_struct_schema_header(
+            &format!("struct @ #{suffix}"),
+            &[
+                (StructKw, 0..6),
+                (Whitespace, 6..7),
+                (Error, 7..8),
+                (Error, 8..9),
+                (Error, 9..10),
+            ],
+        );
+    }
+    assert_struct_schema_header(
+        "struct @ # 名;",
+        &[
+            (StructKw, 0..6),
+            (Whitespace, 6..7),
+            (Error, 7..8),
+            (Error, 8..9),
+            (Error, 9..10),
+            (Whitespace, 10..11),
+            (Identifier, 11..14),
+            (Semicolon, 14..15),
+        ],
+    );
+    assert_struct_schema_header(
+        "struct ;",
+        &[
+            (StructKw, 0..6),
+            (Missing, 6..6),
+            (Whitespace, 6..7),
+            (Semicolon, 7..8),
+        ],
+    );
+    assert_struct_schema_header(
+        "struct {}",
+        &[
+            (StructKw, 0..6),
+            (Missing, 6..6),
+            (Whitespace, 6..7),
+            (LBrace, 7..8),
+            (RBrace, 8..9),
+        ],
+    );
+    for suffix in ["  ]tail", "\r\nnext"] {
+        assert_struct_schema_header(
+            &format!("struct{suffix}"),
+            &[(StructKw, 0..6), (Missing, 6..6)],
+        );
+    }
+}
+
+#[test]
+fn struct_schema_body_introducer_missing_terminal_and_native_retry() {
+    use SyntaxKind::{
+        Colon, Error, Identifier, LBrace, LParen, Missing, RBrace, RParen, Semicolon, StructKw,
+        Whitespace,
+    };
+    let header = vec![(StructKw, 0..6), (Whitespace, 6..7), (Identifier, 7..10)];
+    for (suffix, tail) in [
+        ("", vec![(Missing, 10..10)]),
+        ("  ", vec![(Whitespace, 10..12), (Missing, 12..12)]),
+        (" Foo", vec![(Whitespace, 10..11), (Missing, 11..11)]),
+        ("  ]tail", vec![(Missing, 10..10)]),
+        ("\r\nnext", vec![(Missing, 10..10)]),
+    ] {
+        let mut expected = header.clone();
+        expected.extend(tail);
+        assert_struct_schema_header(&format!("struct 名{suffix}"), &expected);
+    }
+    let mut malformed = header;
+    malformed.extend([
+        (Whitespace, 10..11),
+        (Error, 11..12),
+        (Error, 12..13),
+        (Error, 13..14),
+    ]);
+    for suffix in ["", "  ", "  ]tail", "\r\nnext"] {
+        assert_struct_schema_header(&format!("struct 名 @ #{suffix}"), &malformed);
+    }
+    for (body, native) in [
+        (";", vec![(Semicolon, 15..16)]),
+        ("{}", vec![(LBrace, 15..16), (RBrace, 16..17)]),
+        ("()", vec![(LParen, 15..16), (RParen, 16..17)]),
+        (":", vec![(Colon, 15..16)]),
+    ] {
+        let mut expected = malformed.clone();
+        expected.push((Whitespace, 14..15));
+        expected.extend(native);
+        assert_struct_schema_header(&format!("struct 名 @ # {body}"), &expected);
+    }
+}
+
 pub(super) fn assert_field_separators_cst(prefix: &str, suffix: &str, ancestors: &[SyntaxKind]) {
     use SyntaxKind::{Comma, Error, Missing, StructField, TypeExpression, Whitespace};
     let tuple = prefix.ends_with('(');

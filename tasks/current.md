@@ -726,6 +726,9 @@ Enum/Error declaration-header Name and BodyIntroducer are now catalog-audited
 as an evidence-complete Draft. Missing Name does not cascade at body starters;
 clean header termination is diagnostic-free Bodyless, while post-name Error
 selects BodyIntroducer structurally. Excluded declaration owners remain open.
+StructDeclaration header Name and BodyIntroducer are now catalog-audited as an
+evidence-complete Draft. Direct child order selects the header slots while
+Colon-following fields remain a separate owner. Fields/body/callers remain open.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

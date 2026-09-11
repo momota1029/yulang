@@ -961,6 +961,18 @@ payloads, fields, closes, derives and companions are excluded.
 | diagnostic projection | Direct Name Missing/Error projects the matching Name role; direct post-completed-name Error projects BodyIntroducer with ordered `[Semicolon, Open(Brace), Colon, Equals]`. Clean Bodyless projects nothing. Parentage/order select the row; records, Error spelling and scanner state are not inputs. |
 | proof and status | Governing authority: [Enum/Error header current-Item recovery](2026-09-09-successor-enum-error-header-current-item-recovery.md), **Records and no-cascade**, plus the CST-derived diagnostics amendment. Publishers: `enum_decl.rs:333–349,636–656,1046–1105`; `error_decl.rs:333–349,604–624,1013–1072`. Direct Rowan proof: top-of-file `*_schema_*` additions in `tests/declaration/enum_decl.rs` and `error_decl.rs`. M1 post-write specification audit was clean. Status: catalog-audited evidence-complete Draft only for direct header rows; excluded owners, global collector, parser API and ledger retirement remain open. |
 
+### StructDeclaration header Name and BodyIntroducer Draft
+
+This bounded Draft maps Struct header recovery only; fields and body contents
+remain separate owners.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | Direct Missing/Error after StructKw, with a following direct Identifier only on retry, selects Name. Direct Missing/Error after completed direct Identifier and before native Semicolon, LBrace, LParen or Colon selects BodyIntroducer. Colon is included only as the header prefix; following StructField children are excluded. |
+| ordered Rowan grammar | `StructKw Native* (Missing \| Error+ Native* Identifier \| Identifier) Native* (Missing \| Error+ Native* starter \| starter)`. Error+ is maximal adjacent direct Struct content; starters are native outside it. Entry Root→Statement is not a header discriminator. No Invalid belongs to these rows. |
+| diagnostic projection | Direct ordered Struct children project Name or BodyIntroducer with the completed-Identifier threshold selecting the latter. Error spelling, records and scanner state are not inputs. |
+| proof and status | Governing authority: [Struct header current-Item recovery](2026-09-08-successor-struct-header-current-item-recovery.md) plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/struct_decl.rs:51–580`. Direct Rowan proof: `struct_schema_*` additions in `tests/declaration/struct_decl.rs`. M1 post-write specification audit was clean. Status: catalog-audited evidence-complete Draft only for header rows; fields/body/callers, collector, parser API and ledger retirement remain open. |
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter
