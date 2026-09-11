@@ -290,6 +290,13 @@ bodyless exclusion, Colon Body and nested BindingBody separation without records
 or Error spelling. M1 specification audit was clean; Derives and child owners
 remain separate.
 
+#### DeclarationCompanion direct recovery Draft links
+
+`tests/declaration/declaration_companion.rs` maps six direct roles across five
+phase shells and proves seven additional attachment paths with unique `with {}`
+wiring. Inline malformed Statement Error remains delegated. M2 spec/regression
+and delta audits were clean; nested/caller owners remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct

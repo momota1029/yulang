@@ -731,6 +731,8 @@ evidence-complete Draft. Direct child order selects the header slots while
 Colon-following fields remain a separate owner. Fields/body/callers remain open.
 ActDeclaration direct BodyIntroducer and inline Body are catalog-audited as a
 bounded Draft; Derives and child owners remain separate.
+DeclarationCompanion direct recovery is catalog-audited as a bounded Draft;
+Statement/Derives and caller-stop ownership remain separate.
 TypeDeclaration DefinitionIntroducer is now a catalog-audited evidence-complete
 Draft for the bounded completed-name/no-parameter exact-Equals phase. Ordered
 direct TypeDeclaration children distinguish Missing, terminal Error and

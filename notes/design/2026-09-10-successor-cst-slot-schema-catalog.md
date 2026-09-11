@@ -971,6 +971,16 @@ Direct Rowan proof is in `tests/declaration/act_decl.rs`; M1 specification audit
 was clean. Derives adjacency, child blocks/callers, collector and ledger removal
 remain open.
 
+### DeclarationCompanion direct recovery Draft
+
+This bounded Draft maps direct Companion Introducer, Body Missing, Item,
+IndentedItem, Separator and local Brace Close. Ordered `with`/Colon/brace and
+layout ancestors select the direct Missing/Error occurrence; malformed inline
+Statement Error remains Statement-owned. Five phase shells plus seven successful
+attachment paths prove wiring without records or Error spelling. M2 spec and
+regression/delta audits were clean. Nested Statement/Derives, caller stops,
+collector and ledger removal remain separate.
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

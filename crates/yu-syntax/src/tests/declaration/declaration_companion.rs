@@ -453,6 +453,305 @@ fn syntax_root(green: GreenNode) -> SyntaxNode {
     SyntaxNode::new_root(green)
 }
 
+#[test]
+fn declaration_companion_rowan_direct_phase_matrix() {
+    use SyntaxKind::*;
+
+    // Ranges are relative to `with`; punctuation is native, recovery is not
+    // interpreted from token spelling or the parser's recovery records.
+    for (shell, declaration) in [
+        ("struct S{} ", StructDeclaration),
+        ("type T = Int ", TypeDeclaration),
+        ("enum E = A ", EnumDeclaration),
+        ("error E ", ErrorDeclaration),
+        ("act A() ", ActDeclaration),
+    ] {
+        for (body, expected) in [
+            ("with", vec![(WithKw, 0..4), (Missing, 4..4)]),
+            ("with @", vec![(WithKw, 0..4), (Error, 5..6)]),
+            (
+                "with:",
+                vec![(WithKw, 0..4), (Colon, 4..5), (Missing, 5..5)],
+            ),
+            (
+                "with {",
+                vec![(WithKw, 0..4), (LBrace, 5..6), (Missing, 6..6)],
+            ),
+            (
+                "with {)}",
+                vec![
+                    (WithKw, 0..4),
+                    (LBrace, 5..6),
+                    (Error, 6..7),
+                    (RBrace, 7..8),
+                ],
+            ),
+            (
+                "with {}",
+                vec![(WithKw, 0..4), (LBrace, 5..6), (RBrace, 6..7)],
+            ),
+        ] {
+            let source = format!("{shell}{body}");
+            let (green, _, _) = run_statement_normalized(&source, 0, LineEntry::InLine, None);
+            let root = syntax_root(green);
+            assert_eq!(count(&root, DeclarationCompanion), 1, "{source:?}");
+            let companion = root
+                .descendants()
+                .find(|node| node.kind() == DeclarationCompanion)
+                .unwrap();
+            assert_eq!(
+                companion.parent().unwrap().kind(),
+                declaration,
+                "{source:?}"
+            );
+            assert_eq!(
+                companion_rowan_children(&companion, shell.len()),
+                expected,
+                "{source:?}"
+            );
+            assert!(
+                !root.descendants().any(|node| node.kind() == Invalid),
+                "{source:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn declaration_companion_rowan_remaining_attachment_paths() {
+    use SyntaxKind::*;
+
+    // The phase matrix uses one attachment per family. These controls cover
+    // the other accepted positions with the same direct braced-child layout.
+    for (shell, declaration) in [
+        ("type T ", TypeDeclaration),
+        ("struct S ", StructDeclaration),
+        ("struct S(T) ", StructDeclaration),
+        ("enum E ", EnumDeclaration),
+        ("enum E{} ", EnumDeclaration),
+        ("error E{} ", ErrorDeclaration),
+        ("act A = B ", ActDeclaration),
+    ] {
+        let source = format!("{shell}with {{}}");
+        let (green, _, remainder) = run_statement_normalized(&source, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "", "{source:?}");
+        let root = syntax_root(green);
+        assert_eq!(count(&root, DeclarationCompanion), 1, "{source:?}");
+        let companion = root
+            .descendants()
+            .find(|node| node.kind() == DeclarationCompanion)
+            .unwrap();
+        assert_eq!(
+            companion.parent().unwrap().kind(),
+            declaration,
+            "{source:?}"
+        );
+        assert_eq!(
+            companion_rowan_children(&companion, shell.len()),
+            [(WithKw, 0..4), (LBrace, 5..6), (RBrace, 6..7)],
+            "{source:?}",
+        );
+    }
+}
+
+fn companion_rowan_children(
+    node: &SyntaxNode,
+    origin: usize,
+) -> Vec<(SyntaxKind, std::ops::Range<usize>)> {
+    node.children_with_tokens()
+        .filter(|child| {
+            !matches!(
+                child.kind(),
+                SyntaxKind::Whitespace
+                    | SyntaxKind::Newline
+                    | SyntaxKind::LineComment
+                    | SyntaxKind::BlockComment
+            )
+        })
+        .map(|child| {
+            let range = child.text_range();
+            (
+                child.kind(),
+                usize::from(range.start()) - origin..usize::from(range.end()) - origin,
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn declaration_companion_rowan_statement_and_sequence_matrix() {
+    use SyntaxKind::*;
+
+    for (body, indented, expected, statement_children) in [
+        (
+            "with: @",
+            false,
+            vec![(WithKw, 0..4), (Colon, 4..5), (Statement, 5..7)],
+            vec![vec![(Error, 6..7)]],
+        ),
+        (
+            "with {,}",
+            false,
+            vec![
+                (WithKw, 0..4),
+                (LBrace, 5..6),
+                (Statement, 6..6),
+                (BlockStatementSeparator, 6..7),
+                (RBrace, 7..8),
+            ],
+            vec![vec![(Missing, 6..6)]],
+        ),
+        (
+            "with {@}",
+            false,
+            vec![
+                (WithKw, 0..4),
+                (LBrace, 5..6),
+                (Statement, 6..7),
+                (RBrace, 7..8),
+            ],
+            vec![vec![(Error, 6..7)]],
+        ),
+        (
+            "with:\n  @",
+            true,
+            vec![(Statement, 8..9)],
+            vec![vec![(Error, 8..9)]],
+        ),
+        (
+            "with:\n  x;;",
+            true,
+            vec![
+                (Statement, 8..9),
+                (BlockStatementSeparator, 9..10),
+                (Statement, 10..10),
+                (BlockStatementSeparator, 10..11),
+            ],
+            vec![vec![(OperatorChain, 8..9)], vec![(Missing, 10..10)]],
+        ),
+    ] {
+        let shell = "struct S{} ";
+        let source = format!("{shell}{body}");
+        let (green, _, _) = run_statement_normalized(&source, 0, LineEntry::InLine, None);
+        let root = syntax_root(green);
+        let companion = root
+            .descendants()
+            .find(|node| node.kind() == DeclarationCompanion)
+            .unwrap();
+        assert_eq!(companion.parent().unwrap().kind(), StructDeclaration);
+        let sequence = if indented {
+            assert_eq!(
+                companion_rowan_children(&companion, shell.len()),
+                [
+                    (WithKw, 0..4),
+                    (Colon, 4..5),
+                    (DeclarationCompanionIndentedBody, 5..body.len())
+                ]
+            );
+            companion
+                .children()
+                .find(|node| node.kind() == DeclarationCompanionIndentedBody)
+                .unwrap()
+        } else {
+            companion
+        };
+        assert_eq!(
+            companion_rowan_children(&sequence, shell.len()),
+            expected,
+            "{source:?}"
+        );
+        let actual: Vec<_> = sequence
+            .children()
+            .filter(|node| node.kind() == Statement)
+            .map(|node| companion_rowan_children(&node, shell.len()))
+            .collect();
+        assert_eq!(actual, statement_children, "{source:?}");
+        assert!(
+            !root.descendants().any(|node| node.kind() == Invalid),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn declaration_companion_rowan_separator_and_delegated_owners() {
+    use SyntaxKind::*;
+
+    let source = "with {struct S{} type T = Int}";
+    let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    let root = syntax_root(green);
+    let companion = root.children().next().unwrap();
+    assert_eq!(companion.kind(), DeclarationCompanion);
+    assert_eq!(
+        companion_rowan_children(&companion, 0),
+        [
+            (WithKw, 0..4),
+            (LBrace, 5..6),
+            (Statement, 6..16),
+            (Missing, 16..16),
+            (Statement, 16..29),
+            (RBrace, 29..30)
+        ]
+    );
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+
+    for (source, nested_owner) in [
+        ("with {f(@a)}", Statement),
+        ("with {derives}", DerivesClause),
+    ] {
+        let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        let root = syntax_root(green);
+        let companion = root.children().next().unwrap();
+        assert_eq!(
+            companion_rowan_children(&companion, 0),
+            [
+                (WithKw, 0..4),
+                (LBrace, 5..6),
+                (nested_owner, 6..source.len() - 1),
+                (RBrace, source.len() - 1..source.len())
+            ]
+        );
+        let nested = companion
+            .children()
+            .find(|node| node.kind() == nested_owner)
+            .unwrap();
+        assert!(
+            nested
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Missing | Error))
+        );
+        assert!(!root.descendants().any(|node| node.kind() == Invalid));
+    }
+
+    let source = "with {first]tail";
+    let (green, exit, remainder) = run_declaration_companion(
+        source,
+        0,
+        stops_for(TokenKind::RBracket),
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    let root = syntax_root(green);
+    let companion = root.children().next().unwrap();
+    assert_eq!(
+        companion_rowan_children(&companion, 0),
+        [
+            (WithKw, 0..4),
+            (LBrace, 5..6),
+            (Statement, 6..11),
+            (Missing, 11..11)
+        ]
+    );
+    assert_eq!(
+        pending(exit.unwrap()).payload_view().token_kind(),
+        Some(TokenKind::RBracket)
+    );
+    assert_eq!(remainder, "tail");
+    assert!(!root.descendants().any(|node| node.kind() == Invalid));
+}
+
 fn count(root: &SyntaxNode, kind: SyntaxKind) -> usize {
     if kind == SyntaxKind::Error {
         return crate::tests::recovery_output::recovery_groups(root).len();
