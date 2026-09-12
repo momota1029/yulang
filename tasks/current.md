@@ -266,6 +266,14 @@ protected leading stays path-owned. Initial recovery and group/glob/OperatorName
 tails retain their existing rows. Full UseTree composition and wider
 reserved/layout/fence behavior remain open.
 
+The M2 UseGlob full phase aggregate is now catalog-audited. Ordered aliases,
+first/repeated exclusion episodes, interleaved component recovery, nested
+punctuation and protected handoff retain their existing owners, while both
+alias-only and repeated-exclusion qualifier returns close Glob before a UseTree
+sibling. The aggregate adds no Glob-wide diagnostic role. Newline, reserved,
+missing-gap, wider nested/boundary/fence and full UseTree composition remain
+open.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

@@ -363,6 +363,12 @@ trivia is direct UseTree content and the following UsePath begins Identifier;
 malformed, reserved and protected leading remains path-owned. Initial recovery
 and all group/glob/OperatorName tails retain their established owners, so the
 repair does not create a new diagnostic source.
+The M2 UseGlob aggregate is now linked across bare/repeated aliases, first and
+repeated exclusion episodes, interleaved component recovery, nested group/operator
+payloads and protected handoff. Alias-only and alias-plus-repeated-exclusion
+qualifier returns are direct UseTree sibling closures, including the separate
+Band marker caller. The aggregate adds no Glob-wide diagnostic role; newline,
+reserved, missing-gap and wider boundary/fence transitions remain unlinked.
 M2 specification and regression delta audits for the independent rows were
 clean.
 
