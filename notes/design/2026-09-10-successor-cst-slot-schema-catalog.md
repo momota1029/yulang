@@ -1422,6 +1422,15 @@ it adds no aggregate recovery publisher or diagnostic role.
 | recovery and handoff | Every Missing/Error/Invalid remains component-owned by Path, OperatorName, Group, Alias, Glob, exclusion or qualifier-anchor path. A completed or recovered child may hand an outer boundary back unchanged; UseTree neither fabricates a later suffix nor wraps delegated recovery. |
 | proof and status | Governing authority: successor architecture UseTree, path, group, alias, glob and qualifier grammars and field mapping, retained by the Authoritative rewrite plan; Rowan CST-only and CST-derived diagnostics amendments. Direct proof: `use_schema_full_tree_accepted_composition` and `use_schema_full_tree_recovered_and_protected_composition` in `tests/declaration/use_decl.rs`, with exact child kind/text/range order, recursive ancestry, component recovery, protected semicolon handoff, losslessness and fresh/frozen equality. M2 pre-write, post-write specification and regression reviews were clean. Focused 2/2, Use 42/42, scoped formatting/diff and `cargo check -p yu-syntax` passed; package check retained three existing warnings. Status: catalog-audited evidence-complete Draft only for stated UseTree composition. Wider newline/fence and outer declaration behavior, interpreter and ledger/API retirement remain open. |
 
+### UsePath required-segment frame balance Draft
+
+Required-segment boundary exits retain their existing Path recovery but must close
+the owner UsePath before propagation, so the public green product remains Root.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| ownership and status | `parse_path_tail` and `parse_marker_target` close their owned UsePath exactly once before returning an unchanged required-segment boundary. Missing/Error order, ranges, source and pending boundary stay component-owned. Direct proof: `use_schema_required_path_segment_direct_occurrences` and `use_path_frames_balance_at_required_segment_exits`; M1 authority and compiler/recovery reviews clean, Use 44/44. The separate Mod required-word owner is excluded. |
+
 ### UseGlob full phase composition Draft
 
 This bounded M2 aggregate composes the established Alias and exclusion phases

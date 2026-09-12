@@ -645,7 +645,7 @@ fn parse_marker_target(
     }
 
     i.state.start_node(SyntaxKind::UsePath.into());
-    let (present, item) = required_path_segment(
+    let (present, item) = match required_path_segment(
         projection,
         i.rb(),
         item,
@@ -654,7 +654,13 @@ fn parse_marker_target(
         item_origin,
         line_entry,
         fence,
-    )?;
+    ) {
+        Ok(result) => result,
+        Err(item) => {
+            i.state.finish_node();
+            return Err(item);
+        }
+    };
     if !present {
         i.state.finish_node();
         return Ok((Terminal::Single, item));
@@ -728,7 +734,7 @@ fn parse_path_tail(
         }
 
         emit_separator(&mut i, separator_item, separator_kind);
-        let (present, next) = required_path_segment(
+        let (present, next) = match required_path_segment(
             projection,
             i.rb(),
             item,
@@ -737,7 +743,13 @@ fn parse_path_tail(
             item_origin,
             line_entry,
             fence,
-        )?;
+        ) {
+            Ok(result) => result,
+            Err(item) => {
+                i.state.finish_node();
+                return Err(item);
+            }
+        };
         item = next;
         if !present {
             i.state.finish_node();

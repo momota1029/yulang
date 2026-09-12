@@ -3912,6 +3912,292 @@ fn use_schema_initial_path_and_separator_retry_phases() {
 }
 
 #[test]
+fn use_path_frames_balance_at_required_segment_exits() {
+    use SyntaxKind::*;
+    use std::sync::Arc;
+
+    for (text, path_text, missing) in [
+        ("use 猫::", "猫::", true),
+        ("use 猫:: \r\n", "猫::", true),
+        ("use 猫/", "猫/", true),
+        ("use realm/", "", true),
+        ("use band::", "", true),
+        ("use 猫::q", "猫::q", false),
+        ("use 猫::{q}", "猫", false),
+        ("use 猫::*", "猫", false),
+    ] {
+        let source: Arc<crate::SourceText> = Arc::from(text);
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        let fresh = crate::cursor::parse_root(text, &OperatorTable::empty(), &[]);
+        let parsed = crate::parse_file(
+            source,
+            Arc::clone(&header),
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green(), &fresh.green, "{text:?}");
+        assert_eq!(
+            fresh.committed_recoveries.as_slice(),
+            header.recoveries.as_ref(),
+            "{text:?}"
+        );
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        assert_eq!(root.kind(), Root, "{text:?}");
+        assert_eq!(root.to_string(), text);
+        let path = root
+            .descendants()
+            .find(|node| node.kind() == UsePath)
+            .unwrap();
+        assert_eq!(path.to_string(), path_text);
+        assert_eq!(
+            path.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+            [UsePath, UseTree, UseDeclaration, Root]
+        );
+        let missing_nodes = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing_nodes.len(), usize::from(missing));
+        if missing {
+            assert_eq!(missing_nodes[0].parent(), Some(path.clone()));
+            assert!(missing_nodes[0].text_range().is_empty());
+            assert_eq!(
+                missing_nodes[0].text_range().start(),
+                path.text_range().end()
+            );
+        }
+    }
+
+    for prefix in ["use 猫::", "use 猫/", "use realm/", "use band::"] {
+        for pending in ["\r\n;next", " )next"] {
+            let source = format!("{prefix}{pending}");
+            let mut input = source.as_str();
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            builder.finish_node();
+            let root = SyntaxNode::new_root(builder.finish());
+            assert_eq!(root.kind(), Root, "{source:?}");
+            assert_eq!(root.to_string(), prefix);
+            let Err(Either::Left(mut item)) = exit else {
+                panic!("protected boundary must remain pending: {source:?}");
+            };
+            let spelling = item.payload_view().spelling().unwrap().to_owned();
+            let leading = emit_pending_leading_text(&mut item);
+            assert_eq!(format!("{root}{leading}{spelling}{input}"), source);
+            assert_eq!(input, "next");
+            assert_eq!(recover.finish_recoveries_for_test().len(), 1);
+        }
+    }
+}
+
+#[test]
+fn use_schema_required_path_segment_direct_occurrences() {
+    use SyntaxKind::*;
+
+    // Only nonterminal separators under UseTree > UsePath select these
+    // Import(Path)/Path slots. Anchor paths and terminal joins have other owners.
+    for (separator, kind, next_separator, next_kind) in [
+        ("::", ColonColon, "/", Slash),
+        ("/", Slash, "::", ColonColon),
+    ] {
+        let start = 7 + separator.len() as u32;
+        for (suffix, children, occurrences, pending) in [
+            ("q".to_owned(), vec![(Identifier, "q")], vec![], ""),
+            ("(+)".to_owned(), vec![(OperatorName, "(+)")], vec![], ""),
+            (
+                "".to_owned(),
+                vec![(Missing, "")],
+                vec![(Missing, start..start)],
+                "",
+            ),
+            (
+                "@ #".to_owned(),
+                vec![(Error, "@"), (Error, " "), (Error, "#")],
+                vec![(Error, start..start + 3)],
+                "",
+            ),
+            (
+                "@ # q".to_owned(),
+                vec![
+                    (Error, "@"),
+                    (Error, " "),
+                    (Error, "#"),
+                    (Whitespace, " "),
+                    (Identifier, "q"),
+                ],
+                vec![(Error, start..start + 3)],
+                "",
+            ),
+            (
+                "@ (+)".to_owned(),
+                vec![(Error, "@"), (Whitespace, " "), (OperatorName, "(+)")],
+                vec![(Error, start..start + 1)],
+                "",
+            ),
+            (
+                "".to_owned(),
+                vec![(Missing, "")],
+                vec![(Missing, start..start)],
+                " ;next",
+            ),
+            (
+                "@ #".to_owned(),
+                vec![(Error, "@"), (Error, " "), (Error, "#")],
+                vec![(Error, start..start + 3)],
+                " ;next",
+            ),
+            (
+                "".to_owned(),
+                vec![(Missing, "")],
+                vec![(Missing, start..start)],
+                "\r\n;next",
+            ),
+            (
+                "@ #".to_owned(),
+                vec![(Error, "@"), (Error, " "), (Error, "#")],
+                vec![(Error, start..start + 3)],
+                "\r\n;next",
+            ),
+            (
+                format!("@ q{next_separator}@ # r"),
+                vec![
+                    (Error, "@"),
+                    (Whitespace, " "),
+                    (Identifier, "q"),
+                    (next_kind, next_separator),
+                    (Error, "@"),
+                    (Error, " "),
+                    (Error, "#"),
+                    (Whitespace, " "),
+                    (Identifier, "r"),
+                ],
+                vec![
+                    (Error, start..start + 1),
+                    (
+                        Error,
+                        start + 3 + next_separator.len() as u32
+                            ..start + 6 + next_separator.len() as u32,
+                    ),
+                ],
+                "",
+            ),
+        ] {
+            let source = format!("use 猫{separator}{suffix}{pending}");
+            let mut expected = vec![(Identifier, "猫"), (kind, separator)];
+            expected.extend(children);
+            let operators = OperatorTable::empty();
+            let mut previous: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
+            for _ in 0..2 {
+                let mut input = source.as_str();
+                let mut recover = match &previous {
+                    Some((_, records)) => Recover::reconcile_for_test(&operators, records),
+                    None => Recover::new_for_test(&operators),
+                };
+                let mut builder = GreenNodeBuilder::new();
+                builder.start_node(Root.into());
+                let mut exit =
+                    statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+                if let Err(Either::Right(end)) = &mut exit {
+                    emit_end(&mut builder, end);
+                }
+                builder.finish_node();
+                let green = builder.finish();
+                let records = recover.finish_recoveries_for_test();
+                let root = SyntaxNode::new_root(green.clone());
+                let path = root
+                    .descendants()
+                    .find(|node| node.kind() == UsePath)
+                    .unwrap();
+                assert_eq!(
+                    path.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                    [UsePath, UseTree, UseDeclaration, Statement, Root],
+                    "{source:?}: {root:#?}"
+                );
+                assert_use_composition_children(&path, 4, &expected);
+                let mut actual = Vec::new();
+                let mut run: Option<std::ops::Range<u32>> = None;
+                for child in path.children_with_tokens() {
+                    assert_eq!(
+                        child.as_node().is_some(),
+                        matches!(child.kind(), Missing | OperatorName)
+                    );
+                    let range = child.text_range();
+                    if child.kind() == Error {
+                        if let Some(run) = &mut run {
+                            assert_eq!(run.end, u32::from(range.start()));
+                            run.end = u32::from(range.end());
+                        } else {
+                            run = Some(u32::from(range.start())..u32::from(range.end()));
+                        }
+                    } else {
+                        if let Some(run) = run.take() {
+                            actual.push((Error, run));
+                        }
+                        if child.kind() == Missing {
+                            assert!(range.is_empty());
+                            assert!(
+                                child
+                                    .as_node()
+                                    .unwrap()
+                                    .children_with_tokens()
+                                    .next()
+                                    .is_none()
+                            );
+                            actual
+                                .push((Missing, u32::from(range.start())..u32::from(range.end())));
+                        }
+                    }
+                }
+                if let Some(run) = run {
+                    actual.push((Error, run));
+                }
+                assert_eq!(actual, occurrences, "{source:?}");
+                for child in root.descendants_with_tokens() {
+                    let range = child.text_range();
+                    assert_eq!(
+                        child.to_string(),
+                        source[usize::from(range.start())..usize::from(range.end())]
+                    );
+                    assert!(!matches!(child.kind(), Invalid | UseGroupForeignClose));
+                    if matches!(child.kind(), Missing | Error) {
+                        assert_eq!(child.parent().as_ref(), Some(&path));
+                    }
+                }
+                if pending.is_empty() {
+                    assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+                    assert_eq!(input, "");
+                    assert_eq!(root.to_string(), source);
+                } else {
+                    let end = (start as usize) + suffix.len();
+                    let leading_len = pending.find(';').unwrap();
+                    assert_eq!(root.to_string(), source[..end]);
+                    let Err(Either::Left(mut item)) = exit else {
+                        panic!("protected semicolon must remain pending: {source:?}")
+                    };
+                    assert_eq!(token_kind(&item), Some(TokenKind::Semicolon));
+                    assert_eq!(item.payload_view().spelling(), Some(";"));
+                    let extent = item.extent(source.len() - input.len());
+                    assert_eq!(extent.leading(), end..end + leading_len);
+                    assert_eq!(extent.payload(), end + leading_len..end + leading_len + 1);
+                    let leading = emit_pending_leading_text(&mut item);
+                    assert_eq!(leading, pending[..leading_len]);
+                    assert_eq!(input, "next");
+                    assert_eq!(format!("{root}{leading};{input}"), source);
+                }
+                if let Some((fresh, fresh_records)) = &previous {
+                    assert_eq!(&green, fresh, "{source:?}");
+                    assert_eq!(&records, fresh_records, "{source:?}");
+                } else {
+                    previous = Some((green, records));
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_alias_identifier_missing_terminal_and_retry() {
     use SyntaxKind::*;
     for (source, expected) in [
