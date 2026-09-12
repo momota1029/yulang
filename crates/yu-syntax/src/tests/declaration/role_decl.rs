@@ -1,5 +1,186 @@
 use crate::tests::support::*;
 
+#[test]
+fn role_schema_completed_head_statement_shell_composition() {
+    use SyntaxKind::*;
+
+    for (source, suffix, owned_end, missing_count, error_count) in [
+        ("role T;", vec![(Semicolon, false, 6..7, ";")], 7, 0, 0),
+        (
+            "role T {}",
+            vec![
+                (Whitespace, false, 6..7, " "),
+                (BracedStatementBlockExpression, true, 7..9, "{}"),
+            ],
+            9,
+            0,
+            0,
+        ),
+        (
+            "role T: x",
+            vec![(Colon, false, 6..7, ":"), (Statement, true, 7..9, " x")],
+            9,
+            0,
+            0,
+        ),
+        (
+            "role T  ",
+            vec![(Whitespace, false, 6..8, "  "), (Missing, true, 8..8, "")],
+            8,
+            1,
+            0,
+        ),
+        (
+            "role T @  ",
+            vec![(Whitespace, false, 6..7, " "), (Error, false, 7..8, "@")],
+            8,
+            0,
+            1,
+        ),
+        (
+            "role T @ ;",
+            vec![
+                (Whitespace, false, 6..7, " "),
+                (Error, false, 7..8, "@"),
+                (Whitespace, false, 8..9, " "),
+                (Semicolon, false, 9..10, ";"),
+            ],
+            10,
+            0,
+            1,
+        ),
+        (
+            "role T:  ",
+            vec![(Colon, false, 6..7, ":"), (Missing, true, 7..7, "")],
+            7,
+            1,
+            0,
+        ),
+        (
+            "role T: @  ",
+            vec![
+                (Colon, false, 6..7, ":"),
+                (Whitespace, false, 7..8, " "),
+                (Error, false, 8..9, "@"),
+            ],
+            9,
+            0,
+            1,
+        ),
+        (
+            "role T: @ x;",
+            vec![
+                (Colon, false, 6..7, ":"),
+                (Whitespace, false, 7..8, " "),
+                (Error, false, 8..9, "@"),
+                (Statement, true, 9..11, " x"),
+                (Semicolon, false, 11..12, ";"),
+            ],
+            12,
+            0,
+            1,
+        ),
+    ] {
+        let (green, exit) = run_statement(source);
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), Root, "{source:?}");
+        assert!(root.parent().is_none());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(
+            root.text_range(),
+            rowan::TextRange::new(0.into(), (source.len() as u32).into())
+        );
+        let root_children = root.children_with_tokens().collect::<Vec<_>>();
+        let has_suffix = owned_end < source.len() as u32;
+        assert_eq!(
+            root_children.len(),
+            1 + usize::from(has_suffix),
+            "{source:?}"
+        );
+        let statement = root_children[0].as_node().expect("Statement node");
+        assert_eq!(statement.kind(), Statement);
+        assert_eq!(statement.parent(), Some(root.clone()));
+        let owned_range = rowan::TextRange::new(0.into(), owned_end.into());
+        assert_eq!(statement.text_range(), owned_range);
+        assert_eq!(statement.to_string(), &source[..owned_end as usize]);
+        let statement_children = statement.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(statement_children.len(), 1);
+        let role = statement_children[0]
+            .as_node()
+            .expect("RoleDeclaration node");
+        assert_eq!(role.kind(), RoleDeclaration);
+        assert_eq!(role.parent(), Some(statement.clone()));
+        assert_eq!(role.text_range(), owned_range);
+        assert_eq!(role.to_string(), &source[..owned_end as usize]);
+        if has_suffix {
+            let trailing = &root_children[1];
+            assert!(trailing.as_token().is_some());
+            assert_eq!(trailing.kind(), Whitespace);
+            assert_eq!(trailing.parent(), Some(root.clone()));
+            assert_eq!(
+                trailing.text_range(),
+                rowan::TextRange::new(owned_end.into(), (source.len() as u32).into())
+            );
+            assert_eq!(trailing.to_string(), &source[owned_end as usize..]);
+        }
+
+        let mut expected = vec![
+            (RoleKw, false, 0..4, "role"),
+            (Whitespace, false, 4..5, " "),
+            (TypeExpression, true, 5..6, "T"),
+        ];
+        expected.extend(suffix);
+        let children = role.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len(), "{source:?}");
+        for (child, (kind, node, range, text)) in children.iter().zip(expected) {
+            assert_eq!(child.parent(), Some(role.clone()));
+            assert_eq!(child.kind(), kind, "{source:?}");
+            assert_eq!(child.as_node().is_some(), node);
+            assert_eq!(
+                child.text_range(),
+                rowan::TextRange::new(range.start.into(), range.end.into())
+            );
+            assert_eq!(child.to_string(), text);
+            if kind == Missing {
+                assert_eq!(child.as_node().unwrap().children_with_tokens().count(), 0);
+            }
+            if kind == Statement {
+                let inline = child.as_node().unwrap();
+                let leading = inline.first_token().expect("inline leading");
+                assert_eq!(leading.kind(), Whitespace);
+                let identifier = leading.parent().expect("inline IdentifierExpression");
+                assert_eq!(identifier.kind(), IdentifierExpression);
+                assert_ne!(identifier, *role);
+                assert_ne!(identifier, *inline);
+                let chain = identifier.parent().expect("inline OperatorChain");
+                assert_eq!(chain.kind(), OperatorChain);
+                assert_eq!(chain.parent(), Some(inline.clone()));
+                assert_eq!(
+                    leading.text_range(),
+                    rowan::TextRange::new(range.start.into(), (range.start + 1).into())
+                );
+                assert_eq!(leading.to_string(), " ");
+            }
+        }
+        for (kind, expected_count) in [(Missing, missing_count), (Error, error_count), (Invalid, 0)]
+        {
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter(|child| child.kind() == kind)
+                    .count(),
+                expected_count,
+                "{source:?}: {kind:?}"
+            );
+        }
+        // The statement harness emits pending EOF leading after closing Statement.
+        let Some(Err(Either::Right(mut end))) = exit else {
+            panic!("{source:?}: expected EOF termination");
+        };
+        assert!(end.item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut end.item), "");
+    }
+}
+
 // Slot evidence reads only ordered Rowan children and UTF-8 byte ranges.
 fn assert_role_shell(source: &str, expected: &[(SyntaxKind, std::ops::Range<u32>)]) -> SyntaxNode {
     let (green, _, _) = run_role_declaration(source, 0, 0, LineEntry::InLine, None);
