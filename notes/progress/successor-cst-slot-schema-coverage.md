@@ -301,10 +301,11 @@ and delta audits were clean; nested/caller owners remain separate.
 
 `tests/declaration/use_decl.rs` maps ordered Path, Alias and group entry/comma
 slots, including nested and parenthesized routes and UTF-8. Foreign/local close
-and OperatorName close are excluded from these rows. The constructed
-Authoritative `UseGroupForeignClose` topology and bounded local terminal-close
-phase have separate rows; OperatorName remains separate. M2 specification and
-regression delta audits for the independent rows were clean.
+have separate rows. The admitted-operator `OperatorName` local Parenthesis close
+is separately evidence-complete: direct child order distinguishes it from
+missing spelling, and Path/Alias/UseGroup continuations retain their own owner.
+M2 specification and regression delta audits for the independent rows were
+clean.
 
 #### Use group foreign-close Draft links
 

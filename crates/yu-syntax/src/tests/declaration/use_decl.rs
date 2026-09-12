@@ -296,7 +296,223 @@ fn assert_use_schema_occurrence(
     );
 }
 
-// OperatorName close slots remain outside this matrix pending their topology decision.
+// Group children and OperatorName local closes have separate bounded matrices.
+#[test]
+fn use_schema_operator_name_local_close_children() {
+    use SyntaxKind::*;
+    use rowan::TextRange;
+    for (source, start, ancestors) in [
+        (
+            "use (+",
+            4,
+            vec![
+                OperatorName,
+                UsePath,
+                UseTree,
+                UseDeclaration,
+                Statement,
+                Root,
+            ],
+        ),
+        (
+            "use a::(+",
+            7,
+            vec![
+                OperatorName,
+                UsePath,
+                UseTree,
+                UseDeclaration,
+                Statement,
+                Root,
+            ],
+        ),
+        (
+            "use a::* without (+",
+            17,
+            vec![
+                OperatorName,
+                UseExclusion,
+                UseGlob,
+                UseTree,
+                UseDeclaration,
+                Statement,
+                Root,
+            ],
+        ),
+    ] {
+        for closed in [false, true] {
+            let source = format!("{source}{}", if closed { ")" } else { "" });
+            let (green, _) = run_statement(&source);
+            let root = SyntaxNode::new_root(green);
+            assert_eq!(root.to_string(), source);
+            let operators: Vec<_> = root
+                .descendants()
+                .filter(|node| node.kind() == OperatorName)
+                .collect();
+            assert_eq!(operators.len(), 1, "{source:?}");
+            let operator = &operators[0];
+            assert_eq!(
+                operator
+                    .ancestors()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                ancestors,
+                "{source:?}"
+            );
+            let end = start + 2 + u32::from(closed);
+            assert_eq!(
+                operator.text_range(),
+                TextRange::new(start.into(), end.into())
+            );
+            let children: Vec<_> = operator.children_with_tokens().collect();
+            assert_eq!(
+                children
+                    .iter()
+                    .map(|child| (child.kind(), child.text_range()))
+                    .collect::<Vec<_>>(),
+                [
+                    (LParen, TextRange::new(start.into(), (start + 1).into())),
+                    (
+                        Operator,
+                        TextRange::new((start + 1).into(), (start + 2).into())
+                    ),
+                    (
+                        if closed { RParen } else { Missing },
+                        TextRange::new((start + 2).into(), end.into())
+                    ),
+                ],
+                "{source:?}"
+            );
+            assert!(children[0].as_token().is_some());
+            assert!(children[1].as_token().is_some());
+            if closed {
+                assert!(children[2].as_token().is_some());
+            } else {
+                // LParen + admitted Operator fixes this direct empty node's
+                // expected syntax as the local closing parenthesis.
+                let missing = children[2].as_node().expect("Missing is a node");
+                assert_eq!(missing.parent().as_ref(), Some(operator));
+                assert!(missing.children_with_tokens().next().is_none());
+                assert!(missing.text_range().is_empty());
+            }
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == Missing)
+                    .count(),
+                usize::from(!closed)
+            );
+            assert!(
+                !root
+                    .descendants_with_tokens()
+                    .any(|child| matches!(child.kind(), Error | Invalid))
+            );
+        }
+    }
+}
+
+#[test]
+fn use_schema_operator_name_local_close_continuation() {
+    use SyntaxKind::*;
+    use rowan::TextRange;
+    for (source, owner, expected) in [
+        (
+            "use (+::x",
+            UsePath,
+            vec![(OperatorName, 4..6), (ColonColon, 6..8), (Identifier, 8..9)],
+        ),
+        (
+            "use (+ as x",
+            UseTree,
+            vec![(UsePath, 4..6), (Whitespace, 6..7), (UseAlias, 7..11)],
+        ),
+        (
+            "use {(+}",
+            UseGroup,
+            vec![(LBrace, 4..5), (UseTree, 5..7), (RBrace, 7..8)],
+        ),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let caller = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .unwrap();
+        assert_eq!(
+            caller
+                .children_with_tokens()
+                .map(|child| {
+                    let range = child.text_range();
+                    (
+                        child.kind(),
+                        u32::from(range.start())..u32::from(range.end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        let operator = root
+            .descendants()
+            .find(|node| node.kind() == OperatorName)
+            .unwrap();
+        let start = if owner == UseGroup { 5 } else { 4 };
+        assert_eq!(
+            operator
+                .children_with_tokens()
+                .map(|child| (child.kind(), child.as_node().is_some()))
+                .collect::<Vec<_>>(),
+            [(LParen, false), (Operator, false), (Missing, true)]
+        );
+        let missing = operator.last_child().unwrap();
+        assert_eq!(missing.text_range(), TextRange::empty((start + 2).into()));
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            1
+        );
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Error | Invalid))
+        );
+    }
+
+    let (green, exit) = run_statement("use (+ )");
+    assert_eq!(green.to_string(), "use (+");
+    let root = SyntaxNode::new_root(green);
+    let operator = root
+        .descendants()
+        .find(|node| node.kind() == OperatorName)
+        .unwrap();
+    assert_eq!(
+        operator
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [LParen, Operator, Missing]
+    );
+    assert_eq!(
+        operator.last_child().unwrap().text_range(),
+        TextRange::empty(6.into())
+    );
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|child| matches!(child.kind(), Error | Invalid))
+    );
+    let Some(Err(Either::Left(mut item))) = exit else {
+        panic!("spaced close remains pending")
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::RParen));
+    assert_eq!(
+        emit_pending_leading_tokens(&mut item),
+        [(Whitespace, " ".to_owned())]
+    );
+}
+
 #[test]
 fn use_schema_accepted_group_children_and_nested_occurrences() {
     use SyntaxKind::*;

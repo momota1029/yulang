@@ -181,6 +181,12 @@ evidence retains trivia and opaque Error grouping, while CRLF/UTF-8 protected
 handoff is losslessly reconstructed with its concrete byte extent. Attachment
 choice and child Statement/Derives schemas remain deliberately separate.
 
+UseDeclaration's admitted-Operator `OperatorName` local Parenthesis-close slot
+is now catalog-audited across initial, separator and exclusion callers. Its
+zero-width Missing is distinguished from missing operator spelling by direct
+child order, while Path/Alias/group continuation and spaced close stay outside
+the wrapper. Recursive UseTree and broader caller/fence topology remain open.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
