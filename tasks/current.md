@@ -229,8 +229,15 @@ Identifier, Star, OperatorName and UseExclusionGroup payloads. Immediate
 operator probing distinguishes `(+)`/`(+` from parenthesized group forms, and
 recursive evidence retains one-payload ownership. The dispatcher emits no
 diagnostic; malformed and missing children keep their already mapped owners.
-Required-exclusion admission, repeated lists and broader recursive/fence work
-remain open.
+Its no-direct-trivia claim is bounded to fresh admission because recovered
+retry-leading can occur before the one payload inside UseExclusion.
+
+The first required-exclusion phase after WithoutKw is now catalog-audited.
+Direct UseGlob Missing/Error retain Import(Path)/Path, while admitted retries
+delegate payload and remaining native leading to UseExclusion. Semicolon,
+reserved `with` and comma handoffs distinguish original Item extents from
+remaining leading without replaying emitted bytes. Repeated exclusion lists,
+broader qualifier behavior and recursive/fence work remain open.
 
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no

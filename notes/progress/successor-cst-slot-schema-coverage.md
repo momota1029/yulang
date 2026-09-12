@@ -332,7 +332,14 @@ owns exactly one direct Identifier, Star, OperatorName or UseExclusionGroup
 payload. Immediate operator probing distinguishes `(+)` and `(+` from group
 forms such as `()`, `(name)` and `( +)`, while all recovery remains delegated
 to the selected child. A recursive UseGlob witness establishes the same topology
-without promoting the dispatcher into a diagnostic source.
+without promoting the dispatcher into a diagnostic source. Its fresh-admission
+trivia exclusion is intentionally bounded: a recovered retry can carry native
+leading inside UseExclusion before the same single payload.
+The first required-exclusion phase after WithoutKw is now separately linked.
+Direct UseGlob Missing/Error project Import(Path)/Path; identifier and
+OperatorName retries delegate payload and retry-leading to UseExclusion.
+Semicolon, reserved `with` and comma controls preserve three distinct pending
+Item/leading states without reclassifying comma as list punctuation.
 M2 specification and regression delta audits for the independent rows were
 clean.
 

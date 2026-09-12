@@ -1042,6 +1042,235 @@ fn use_schema_accepted_group_children_and_nested_occurrences() {
 }
 
 #[test]
+fn use_schema_glob_first_required_exclusion_admission() {
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (suffix, tail, exclusion_children, pending) in [
+        (
+            " z",
+            vec![(Whitespace, 16..17), (UseExclusion, 17..18)],
+            vec![(Identifier, 17..18)],
+            None,
+        ),
+        ("", vec![(Missing, 16..16)], vec![], None),
+        (
+            " ;next",
+            vec![(Missing, 16..16)],
+            vec![],
+            Some((16, 16..17, 17..18, ";", "next")),
+        ),
+        (
+            " with anchor",
+            vec![(Whitespace, 16..17), (Missing, 17..17)],
+            vec![],
+            Some((17, 16..17, 17..21, "with", " anchor")),
+        ),
+        (
+            " @",
+            vec![(Whitespace, 16..17), (Error, 17..18)],
+            vec![],
+            None,
+        ),
+        (
+            " @ /*é*/ z",
+            vec![
+                (Whitespace, 16..17),
+                (Error, 17..18),
+                (UseExclusion, 18..27),
+            ],
+            vec![
+                (Whitespace, 18..19),
+                (BlockComment, 19..25),
+                (Whitespace, 25..26),
+                (Identifier, 26..27),
+            ],
+            None,
+        ),
+        (
+            " @, z",
+            vec![(Whitespace, 16..17), (Error, 17..18)],
+            vec![],
+            Some((18, 18..18, 18..19, ",", " z")),
+        ),
+        (
+            " @(+)",
+            vec![
+                (Whitespace, 16..17),
+                (Error, 17..18),
+                (UseExclusion, 18..21),
+            ],
+            vec![(OperatorName, 18..21)],
+            None,
+        ),
+    ] {
+        let source = format!("use x::* without{suffix}");
+        let operators = OperatorTable::empty();
+        let mut input = source.as_str();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(Root.into());
+        let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+        if let Err(Either::Right(end)) = &mut exit {
+            emit_end(&mut builder, end);
+        }
+        builder.finish_node();
+        let root = SyntaxNode::new_root(finish_with_discarded_recoveries(builder, recover));
+        let glob = root
+            .descendants()
+            .find(|node| node.kind() == UseGlob)
+            .unwrap();
+        assert_eq!(
+            glob.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+            [UseGlob, UseTree, UseDeclaration, Statement, Root]
+        );
+        let mut expected = vec![(Star, 7..8), (Whitespace, 8..9), (WithoutKw, 9..16)];
+        expected.extend(tail);
+        assert_eq!(projection(&glob), expected, "{source:?}");
+        let mut runs = Vec::new();
+        let mut current: Option<std::ops::Range<u32>> = None;
+        for child in glob.children_with_tokens() {
+            assert_eq!(child.parent().as_ref(), Some(&glob));
+            assert_eq!(
+                child.as_node().is_some(),
+                matches!(child.kind(), Missing | UseExclusion)
+            );
+            let range = child.text_range();
+            // Only immediate ownership and adjacency identify a raw occurrence.
+            if child.kind() == Error {
+                if let Some(run) = &mut current {
+                    assert_eq!(run.end, u32::from(range.start()));
+                    run.end = u32::from(range.end());
+                } else {
+                    current = Some(u32::from(range.start())..u32::from(range.end()));
+                }
+            } else if let Some(run) = current.take() {
+                runs.push(run);
+            }
+        }
+        if let Some(run) = current {
+            runs.push(run);
+        }
+        let expected_errors: Vec<_> = expected
+            .iter()
+            .filter(|(kind, _)| *kind == Error)
+            .map(|(_, range)| range.clone())
+            .collect();
+        assert_eq!(runs, expected_errors, "{source:?}");
+        let exclusions: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == UseExclusion)
+            .collect();
+        assert_eq!(
+            exclusions.len(),
+            usize::from(!exclusion_children.is_empty()),
+            "{source:?}"
+        );
+        if let Some(exclusion) = exclusions.first() {
+            assert_eq!(exclusion.parent().as_ref(), Some(&glob));
+            assert_eq!(
+                exclusion
+                    .ancestors()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                [
+                    UseExclusion,
+                    UseGlob,
+                    UseTree,
+                    UseDeclaration,
+                    Statement,
+                    Root
+                ]
+            );
+            assert_eq!(projection(exclusion), exclusion_children);
+            // Raw retry may bring native leading into the dispatched exclusion.
+            for child in exclusion.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(exclusion));
+                assert_eq!(child.as_node().is_some(), child.kind() == OperatorName);
+                if let Some(name) = child.as_node() {
+                    assert_eq!(
+                        projection(name),
+                        [(LParen, 18..19), (Operator, 19..20), (RParen, 20..21)]
+                    );
+                    assert!(
+                        name.children_with_tokens()
+                            .all(|token| token.as_token().is_some()
+                                && token.parent().as_ref() == Some(name))
+                    );
+                }
+            }
+        }
+        let missing: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect();
+        let expected_missing: Vec<_> = expected
+            .iter()
+            .filter(|(kind, _)| *kind == Missing)
+            .map(|(_, range)| range.clone())
+            .collect();
+        assert_eq!(missing.len(), expected_missing.len());
+        for (node, range) in missing.iter().zip(expected_missing) {
+            assert_eq!(node.parent().as_ref(), Some(&glob));
+            assert_eq!(
+                node.text_range(),
+                rowan::TextRange::new(range.start.into(), range.end.into())
+            );
+            assert!(node.text_range().is_empty());
+            assert!(node.children_with_tokens().next().is_none());
+        }
+        let errors: Vec<_> = root
+            .descendants_with_tokens()
+            .filter(|child| child.kind() == Error)
+            .collect();
+        assert_eq!(errors.len(), expected_errors.len());
+        assert!(
+            errors
+                .iter()
+                .all(|child| child.as_token().is_some() && child.parent().as_ref() == Some(&glob))
+        );
+        for child in root.descendants_with_tokens() {
+            let range = child.text_range();
+            assert_eq!(
+                child.to_string(),
+                source[usize::from(range.start())..usize::from(range.end())]
+            );
+            assert!(!matches!(child.kind(), Invalid | UseGroupForeignClose));
+        }
+        if let Some((end, leading, payload, spelling, remainder)) = pending {
+            assert_eq!(root.to_string(), source[..end]);
+            let Err(Either::Left(mut item)) = exit else {
+                panic!("boundary Item must remain pending")
+            };
+            let extent = item.extent(source.len() - input.len());
+            assert_eq!(extent.leading(), leading.clone());
+            assert_eq!(extent.payload(), payload.clone());
+            assert_eq!(item.payload_view().spelling(), Some(spelling));
+            assert_eq!(input, remainder);
+            let leading_text = emit_pending_leading_text(&mut item);
+            // Extent retains original leading even when the glob emitted it;
+            // only source beyond the CST frontier remains pending.
+            assert_eq!(leading_text, source[end..payload.start]);
+            assert_eq!(format!("{root}{leading_text}{spelling}{input}"), source);
+        } else {
+            assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+            assert_eq!(input, "");
+            assert_eq!(root.to_string(), source);
+        }
+    }
+}
+
+#[test]
 fn use_schema_exclusion_form_dispatch() {
     use SyntaxKind::*;
 
