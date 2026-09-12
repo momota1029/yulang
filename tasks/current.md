@@ -89,9 +89,11 @@ outer-leading ownership (option A), recorded by
 `2026-09-12-successor-ml-separator-leading-ownership.md`; that M2 shared-owner
 repair, its focused ML/Index/Cast/normalized evidence and the repaired
 fixed-tail sibling expectation are complete. The Cast aggregate's two direct
-composition tests now pass; its catalog-delta and post-write closure remain the
-next bounded work. Do not start a partial global collector before the coverage
-map is closed.
+composition tests and normal-braced statement-dispatch witness are
+catalog-audited: they compose existing phase rows without creating an aggregate
+publisher or relabelling delegated Pattern, Type, Expression, ML or Statement
+recovery. Select the next bounded owner from the updated coverage map; do not
+start a partial global collector before the coverage map is closed.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing

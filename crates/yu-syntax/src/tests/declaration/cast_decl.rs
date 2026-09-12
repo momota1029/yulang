@@ -1815,7 +1815,8 @@ fn assert_cast_children(node: &SyntaxNode, expected: &[(SyntaxKind, std::ops::Ra
         .children_with_tokens()
         .map(|child| {
             match child.kind() {
-                SyntaxKind::CastPattern
+                SyntaxKind::CastDeclaration
+                | SyntaxKind::CastPattern
                 | SyntaxKind::CastTarget
                 | SyntaxKind::CastBody
                 | SyntaxKind::Pattern
@@ -2147,6 +2148,64 @@ fn cast_intro_is_exact_visibility_aware_and_uses_canonical_statement_dispatch() 
             .count(),
         1
     );
+}
+
+#[test]
+fn cast_normal_braced_statement_dispatch_has_direct_rowan_ownership() {
+    use SyntaxKind::*;
+
+    let source = "{ cast(x): T; }";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.kind(), Root);
+    assert_eq!(
+        root.text_range(),
+        rowan::TextRange::new(0.into(), 15.into())
+    );
+    assert_cast_children(&root, &[(Statement, 0..15)]);
+    let outer_statement = root.first_child().unwrap();
+    assert_cast_children(&outer_statement, &[(OperatorChain, 0..15)]);
+    let expression = outer_statement.first_child().unwrap();
+    assert_cast_children(&expression, &[(BracedStatementBlockExpression, 0..15)]);
+    let block = expression.first_child().unwrap();
+    assert_cast_children(
+        &block,
+        &[
+            (LBrace, 0..1),
+            (Whitespace, 1..2),
+            (Statement, 2..13),
+            (Whitespace, 13..14),
+            (RBrace, 14..15),
+        ],
+    );
+    let statement = block.first_child().unwrap();
+    assert_cast_children(&statement, &[(CastDeclaration, 2..13)]);
+    let declaration = statement.first_child().unwrap();
+    assert_cast_children(
+        &declaration,
+        &[
+            (CastKw, 2..6),
+            (CastPattern, 6..9),
+            (CastTarget, 9..12),
+            (Semicolon, 12..13),
+        ],
+    );
+    let pattern = declaration.first_child().unwrap();
+    assert_cast_children(&pattern, &[(LParen, 6..7), (Pattern, 7..8), (RParen, 8..9)]);
+    let target = pattern.next_sibling().unwrap();
+    assert_cast_children(
+        &target,
+        &[
+            (Colon, 9..10),
+            (Whitespace, 10..11),
+            (TypeExpression, 11..12),
+        ],
+    );
+    assert!(!root.descendants_with_tokens().any(|element| matches!(
+        element.kind(),
+        Missing | Error | Invalid | CastBody | MlArgument | IndentedStatementBlock
+    )));
 }
 
 #[test]
