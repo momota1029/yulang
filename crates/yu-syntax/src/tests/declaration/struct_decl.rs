@@ -3165,6 +3165,289 @@ fn struct_c11_reaches_nested_canonical_consumers_but_not_inline_expr_slots() {
 }
 
 #[test]
+fn struct_attachment_schema_has_ordered_direct_occurrences() {
+    use SyntaxKind::{
+        Colon, DeclarationCompanion, DerivesClause, Identifier, LBrace, LParen, Newline, RBrace,
+        RParen, Semicolon, StructField, StructKw, Whitespace,
+    };
+
+    let header = [(StructKw, 6), (Whitespace, 1), (Identifier, 1)];
+    for (declaration_text, body, successor, leading, attached) in [
+        ("struct S;", vec![(Semicolon, 1)], "with", " ", false),
+        (
+            "struct S{x:T}",
+            vec![(LBrace, 1), (StructField, 3), (RBrace, 1)],
+            "next",
+            "  ",
+            false,
+        ),
+        (
+            "struct S(T)",
+            vec![(LParen, 1), (StructField, 1), (RParen, 1)],
+            "next",
+            "  ",
+            false,
+        ),
+        (
+            "struct S:\n  x:T",
+            vec![(Colon, 1), (Newline, 1), (Whitespace, 2), (StructField, 3)],
+            "with",
+            "\n",
+            false,
+        ),
+        (
+            "struct S derives Eq with {}",
+            vec![(DerivesClause, 11), (DeclarationCompanion, 8)],
+            "outer",
+            " ",
+            true,
+        ),
+        (
+            "struct S{} derives Eq with {}",
+            vec![
+                (LBrace, 1),
+                (RBrace, 1),
+                (DerivesClause, 11),
+                (DeclarationCompanion, 8),
+            ],
+            "outer",
+            " ",
+            true,
+        ),
+        (
+            "struct S(T) derives Eq with {}",
+            vec![
+                (LParen, 1),
+                (StructField, 1),
+                (RParen, 1),
+                (DerivesClause, 11),
+                (DeclarationCompanion, 8),
+            ],
+            "outer",
+            " ",
+            true,
+        ),
+        (
+            "struct S{x F} with {}",
+            vec![
+                (LBrace, 1),
+                (StructField, 3),
+                (RBrace, 1),
+                (DeclarationCompanion, 8),
+            ],
+            "outer",
+            " ",
+            true,
+        ),
+        (
+            "struct S(@) with {}",
+            vec![
+                (LParen, 1),
+                (StructField, 1),
+                (RParen, 1),
+                (DeclarationCompanion, 8),
+            ],
+            "outer",
+            " ",
+            true,
+        ),
+        (
+            "struct S{}",
+            vec![(LBrace, 1), (RBrace, 1)],
+            "with",
+            "\r\n",
+            false,
+        ),
+    ] {
+        let tail = if successor == "with" { " {}" } else { " tail" };
+        let source = format!("{declaration_text}{leading}{successor}{tail}");
+        let origin = 8500;
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, origin, LineEntry::InLine, None);
+        let owner = assert_struct_attachment_shell(&green, declaration_text);
+        let expected = header.into_iter().chain(body).collect::<Vec<_>>();
+        assert_struct_attachment_children(&owner, 0, &expected, &source);
+        if declaration_text == "struct S{x:T}" {
+            let field = owner.children().find(|n| n.kind() == StructField).unwrap();
+            assert_struct_attachment_children(
+                &field,
+                9,
+                &[(Identifier, 1), (Colon, 1), (SyntaxKind::TypeExpression, 1)],
+                &source,
+            );
+        }
+        assert_eq!(
+            owner
+                .children()
+                .filter(|n| n.kind() == DeclarationCompanion)
+                .count(),
+            usize::from(attached)
+        );
+        if attached {
+            assert!(matches!(
+                exit,
+                NormalizedExit::Complete(Ok(()), LineEntry::InLine)
+            ));
+            assert_eq!(remainder, format!("{leading}{successor}{tail}"));
+            let companion = owner
+                .children()
+                .find(|n| n.kind() == DeclarationCompanion)
+                .unwrap();
+            assert_struct_attachment_children(
+                &companion,
+                declaration_text.len() - 8,
+                &[
+                    (Whitespace, 1),
+                    (SyntaxKind::WithKw, 4),
+                    (Whitespace, 1),
+                    (LBrace, 1),
+                    (RBrace, 1),
+                ],
+                &source,
+            );
+        } else {
+            let NormalizedExit::Complete(Err(Either::Left(mut pending)), entry) = exit else {
+                panic!("closed or bodyless Struct must retain its successor: {source:?}")
+            };
+            assert_eq!(entry, LineEntry::InLine);
+            assert_eq!(
+                pending.payload_view().token_kind(),
+                Some(TokenKind::Identifier)
+            );
+            assert_eq!(pending.payload_view().spelling(), Some(successor));
+            assert_eq!(emit_pending_leading_text(&mut pending), leading);
+            assert_eq!(remainder, tail);
+            assert_eq!(
+                origin + source.len() - remainder.len() - successor.len(),
+                origin + declaration_text.len() + leading.len()
+            );
+        }
+        // These recovery occurrences belong to the field/Type child, never to
+        // the Struct header or companion attachment decision.
+        assert_eq!(
+            count(&owner, SyntaxKind::Missing),
+            usize::from(declaration_text == "struct S{x F} with {}")
+        );
+        assert_eq!(
+            count(&owner, SyntaxKind::Error),
+            usize::from(declaration_text == "struct S(@) with {}")
+        );
+        for recovery in owner
+            .descendants_with_tokens()
+            .filter(|n| matches!(n.kind(), SyntaxKind::Missing | SyntaxKind::Error))
+        {
+            assert_ne!(recovery.parent(), Some(owner.clone()));
+            if recovery.kind() == SyntaxKind::Missing {
+                assert!(recovery.text_range().is_empty());
+                assert!(
+                    recovery
+                        .as_node()
+                        .unwrap()
+                        .children_with_tokens()
+                        .next()
+                        .is_none()
+                );
+            } else {
+                assert!(recovery.as_token().is_some());
+            }
+        }
+    }
+}
+
+fn assert_struct_attachment_shell(green: &GreenNode, text: &str) -> SyntaxNode {
+    let root = SyntaxNode::new_root(green.clone());
+    assert_eq!(root.kind(), SyntaxKind::Root);
+    assert_eq!(root.children_with_tokens().count(), 1);
+    let statement = root.first_child().unwrap();
+    assert_eq!(statement.kind(), SyntaxKind::Statement);
+    assert_eq!(statement.parent(), Some(root));
+    assert_eq!(statement.children_with_tokens().count(), 1);
+    let owner = statement.first_child().unwrap();
+    assert_eq!(owner.kind(), SyntaxKind::StructDeclaration);
+    assert_eq!(owner.parent(), Some(statement));
+    assert_eq!(owner.to_string(), text);
+    assert_eq!(usize::from(owner.text_range().start()), 0);
+    assert_eq!(usize::from(owner.text_range().end()), text.len());
+    owner
+}
+
+fn assert_struct_attachment_children(
+    owner: &SyntaxNode,
+    start: usize,
+    expected: &[(SyntaxKind, usize)],
+    source: &str,
+) {
+    let children = owner.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), expected.len(), "{source:?}\n{owner:#?}");
+    let mut at = start;
+    for (child, &(kind, len)) in children.iter().zip(expected) {
+        assert_eq!(child.parent().as_ref(), Some(owner));
+        assert_eq!(child.kind(), kind, "{source:?}");
+        assert_eq!(
+            child.as_node().is_some(),
+            matches!(
+                kind,
+                SyntaxKind::StructField
+                    | SyntaxKind::TypeExpression
+                    | SyntaxKind::DerivesClause
+                    | SyntaxKind::DeclarationCompanion
+            )
+        );
+        assert_eq!(
+            usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+            at..at + len
+        );
+        assert_eq!(child.to_string(), source[at..at + len]);
+        at += len;
+    }
+    assert_eq!(at, usize::from(owner.text_range().end()));
+}
+
+#[test]
+fn struct_attachment_schema_caller_stop_wins_at_header_and_actual_close() {
+    use SyntaxKind::{Identifier, LBrace, RBrace, StructKw, Whitespace};
+    for (prefix, body) in [
+        ("struct S", vec![]),
+        ("struct S{}", vec![(LBrace, 1), (RBrace, 1)]),
+    ] {
+        let source = format!("{prefix} with {{}}");
+        let (green, exit) = run_statement_with_stops(
+            &source,
+            &OperatorTable::empty(),
+            crate::lexical::stops::STOP_WITH,
+        );
+        let owner = assert_struct_attachment_shell(&green, prefix);
+        let expected = [(StructKw, 6), (Whitespace, 1), (Identifier, 1)]
+            .into_iter()
+            .chain(body)
+            .collect::<Vec<_>>();
+        assert_struct_attachment_children(&owner, 0, &expected, &source);
+        assert_pending_word_with_leading(exit, "with", " ");
+    }
+}
+
+#[test]
+fn struct_attachment_schema_incomplete_lists_have_no_companion_occurrence() {
+    for source in [
+        "struct S{x:T with {}",
+        "struct S{x:T] with ()",
+        "struct S(A] with {}",
+    ] {
+        let (green, exit) = run_statement(source);
+        let owner = assert_struct_attachment_shell(&green, source);
+        assert_eq!(
+            owner
+                .children()
+                .filter(|n| n.kind() == SyntaxKind::DeclarationCompanion)
+                .count(),
+            0
+        );
+        assert_eq!(count(&owner, SyntaxKind::DeclarationCompanion), 0);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    }
+}
+
+#[test]
 fn struct_companion_header_orders_derives_before_the_companion() {
     for (source, missing, errors) in [
         ("struct S with {}", 0, 0),

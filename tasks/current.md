@@ -144,6 +144,16 @@ activates Type-attached `impl` nor closes the historical owner-spec/AST-direct
 parity requirement. The product Draft now identifies that form as approved
 authority with successor promotion still pending.
 
+The bounded StructDeclaration header-to-body/actual-close attachment composition
+is now catalog-audited. Direct Rowan evidence distinguishes bodyless and
+indented handoff from header derives attachment, and permits a trailing
+companion after a recovered field only when the field driver returned an actual
+matching close. Missing/foreign closes, CRLF equal-line gaps and `STOP_WITH`
+remain non-attachment boundaries. This composes existing header, field and
+Companion rows without publishing an aggregate recovery role. Select the next
+bounded owner from the coverage map; do not infer a global collector from this
+local proof.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
