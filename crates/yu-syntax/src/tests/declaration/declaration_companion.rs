@@ -454,6 +454,329 @@ fn syntax_root(green: GreenNode) -> SyntaxNode {
 }
 
 #[test]
+fn equals_inline_companion_composes_header_variant_and_companion_slots() {
+    use SyntaxKind::*;
+
+    // The two concrete entrypoints share the predecessor but own different
+    // continuations. Statement-internal recovery is not a Companion Body slot.
+    for (keyword, declaration) in [("enum", EnumDeclaration), ("error", ErrorDeclaration)] {
+        for (header, header_error) in [(" E ", None), (" @ 名 ", Some(1)), (" 名 @ ", Some(5))] {
+            for (body, predecessor) in [
+                (" A", vec![]),
+                ("", vec![(Missing, EnumVariant, 0..0)]),
+                (" @", vec![(Error, EnumVariant, 1..2)]),
+                (" @ A", vec![(Error, EnumVariant, 1..2)]),
+                (" A |", vec![]),
+                ("A| |B", vec![(Missing, EnumVariant, 3..3)]),
+                (" A from", vec![(Missing, TypeExpression, 7..7)]),
+            ] {
+                for (tail, children, nested) in [
+                    ("with", vec![(WithKw, 0..4), (Missing, 4..4)], vec![]),
+                    (
+                        "with item",
+                        vec![(WithKw, 0..4), (Missing, 5..5), (Statement, 5..9)],
+                        vec![],
+                    ),
+                    ("with @", vec![(WithKw, 0..4), (Error, 5..6)], vec![]),
+                    (
+                        "with @ {}",
+                        vec![
+                            (WithKw, 0..4),
+                            (Error, 5..6),
+                            (LBrace, 7..8),
+                            (RBrace, 8..9),
+                        ],
+                        vec![],
+                    ),
+                    (
+                        "with:",
+                        vec![(WithKw, 0..4), (Colon, 4..5), (Missing, 5..5)],
+                        vec![],
+                    ),
+                    (
+                        "with {}",
+                        vec![(WithKw, 0..4), (LBrace, 5..6), (RBrace, 6..7)],
+                        vec![],
+                    ),
+                    (
+                        "with {,}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Statement, 6..6),
+                            (BlockStatementSeparator, 6..7),
+                            (RBrace, 7..8),
+                        ],
+                        vec![(Missing, Statement, 6..6)],
+                    ),
+                    (
+                        "with {@}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Statement, 6..7),
+                            (RBrace, 7..8),
+                        ],
+                        vec![(Error, Statement, 6..7)],
+                    ),
+                    (
+                        "with {@ item}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Statement, 6..12),
+                            (RBrace, 12..13),
+                        ],
+                        vec![(Error, Statement, 6..7)],
+                    ),
+                    (
+                        "with {struct S{} type T = Int}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Statement, 6..16),
+                            (Missing, 16..16),
+                            (Statement, 16..29),
+                            (RBrace, 29..30),
+                        ],
+                        vec![],
+                    ),
+                    (
+                        "with {",
+                        vec![(WithKw, 0..4), (LBrace, 5..6), (Missing, 6..6)],
+                        vec![],
+                    ),
+                    (
+                        "with {)}",
+                        vec![
+                            (WithKw, 0..4),
+                            (LBrace, 5..6),
+                            (Error, 6..7),
+                            (RBrace, 7..8),
+                        ],
+                        vec![],
+                    ),
+                ] {
+                    let accepted = format!("{keyword}{header}={body}");
+                    let source = format!("{accepted} {tail}");
+                    let origin = 100;
+                    let (green, exit, remainder) = if keyword == "enum" {
+                        run_enum_declaration(&source, 0, origin, LineEntry::InLine, None)
+                    } else {
+                        run_error_declaration(&source, 0, origin, LineEntry::InLine, None)
+                    };
+                    let root = syntax_root(green);
+                    let shell = root.children().next().unwrap();
+                    assert_eq!(root.children_with_tokens().count(), 1, "{source:?}");
+                    assert_eq!(shell.kind(), declaration);
+                    assert_eq!(shell.parent().as_ref(), Some(&root));
+                    let mut expected = Vec::new();
+                    if let Some(offset) = header_error {
+                        let at = keyword.len() + offset;
+                        expected.push((Error, declaration, at..at + 1));
+                    }
+                    let body_start = keyword.len() + header.len() + 1;
+                    expected.extend(predecessor.iter().map(|(kind, parent, range)| {
+                        (
+                            *kind,
+                            *parent,
+                            body_start + range.start..body_start + range.end,
+                        )
+                    }));
+                    assert_eq!(
+                        shell
+                            .descendants_with_tokens()
+                            .filter(|child| !child
+                                .ancestors()
+                                .any(|node| node.kind() == DeclarationCompanion))
+                            .filter(|child| matches!(child.kind(), Error | Missing | Invalid))
+                            .map(|child| (
+                                child.kind(),
+                                child.parent().unwrap().kind(),
+                                usize::from(child.text_range().start())
+                                    ..usize::from(child.text_range().end())
+                            ))
+                            .collect::<Vec<_>>(),
+                        expected,
+                        "{source:?}"
+                    );
+                    if keyword == "error" {
+                        assert_eq!(root.to_string(), accepted, "{source:?}");
+                        assert_eq!(count(&root, DeclarationCompanion), 0);
+                        assert_eq!(token_count(&root, WithKw), 0);
+                        let Some(NormalizedExit::Complete(
+                            Err(Either::Left(mut item)),
+                            LineEntry::InLine,
+                        )) = exit
+                        else {
+                            panic!("pending with: {source:?}")
+                        };
+                        let extent = item.extent(origin + source.len() - remainder.len());
+                        assert_eq!(
+                            extent.payload(),
+                            origin + accepted.len() + 1..origin + accepted.len() + 5
+                        );
+                        assert_eq!(
+                            extent.leading(),
+                            origin + accepted.len()..origin + accepted.len() + 1
+                        );
+                        assert_eq!(item.payload_view().spelling(), Some("with"));
+                        assert_eq!(emit_pending_leading_text(&mut item), " ");
+                        assert_eq!(remainder, &tail[4..]);
+                        assert_eq!(format!("{root} with{remainder}"), source);
+                        continue;
+                    }
+                    assert_eq!(root.to_string(), source, "{source:?}");
+                    assert_eq!(remainder, "", "{source:?}");
+                    let companion = shell.children().last().unwrap();
+                    assert_eq!(companion.kind(), DeclarationCompanion);
+                    assert_eq!(companion.parent().as_ref(), Some(&shell));
+                    assert_eq!(count(&root, DeclarationCompanion), 1);
+                    let start = accepted.len() + 1;
+                    assert_eq!(usize::from(companion.text_range().start()), accepted.len());
+                    assert_eq!(usize::from(companion.text_range().end()), source.len());
+                    assert_eq!(
+                        companion_rowan_children(&companion, start),
+                        children,
+                        "{source:?}"
+                    );
+                    let leading = companion.first_child_or_token().unwrap();
+                    assert_eq!(leading.kind(), Whitespace);
+                    assert_eq!(leading.to_string(), " ");
+                    assert_eq!(leading.parent().as_ref(), Some(&companion));
+                    for child in companion.children_with_tokens() {
+                        assert_eq!(child.parent().as_ref(), Some(&companion));
+                        assert_eq!(
+                            child.as_node().is_some(),
+                            matches!(child.kind(), Missing | Statement | BlockStatementSeparator),
+                            "{source:?}: {:?}",
+                            child.kind()
+                        );
+                    }
+                    let mut expected = children
+                        .iter()
+                        .filter(|(kind, _)| matches!(kind, Error | Missing | Invalid))
+                        .map(|(kind, range)| (*kind, DeclarationCompanion, range.clone()))
+                        .collect::<Vec<_>>();
+                    expected.extend(nested);
+                    expected.sort_by_key(|(_, _, range)| range.start);
+                    assert_eq!(
+                        companion
+                            .descendants_with_tokens()
+                            .filter(|child| matches!(child.kind(), Error | Missing | Invalid))
+                            .map(|child| (
+                                child.kind(),
+                                child.parent().unwrap().kind(),
+                                usize::from(child.text_range().start()) - start
+                                    ..usize::from(child.text_range().end()) - start
+                            ))
+                            .collect::<Vec<_>>(),
+                        expected,
+                        "{source:?}"
+                    );
+                    // Every leaf retains its native range and trivia bytes,
+                    // including the owner-leading space before contextual with.
+                    for token in companion
+                        .descendants_with_tokens()
+                        .filter_map(|child| child.into_token())
+                    {
+                        let range = usize::from(token.text_range().start())
+                            ..usize::from(token.text_range().end());
+                        assert_eq!(token.text(), &source[range], "{source:?}");
+                        assert!(!matches!(token.kind(), Missing | Invalid));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn equals_inline_companion_preserves_protected_close_after_admission() {
+    use SyntaxKind::*;
+
+    for keyword in ["enum", "error"] {
+        for header in [" E ", " @ 名 ", " 名 @ "] {
+            for (tail, children) in [
+                ("with", vec![(WithKw, 0..4), (Missing, 4..4)]),
+                (
+                    "with:",
+                    vec![(WithKw, 0..4), (Colon, 4..5), (Missing, 5..5)],
+                ),
+                (
+                    "with {",
+                    vec![(WithKw, 0..4), (LBrace, 5..6), (Missing, 6..6)],
+                ),
+                ("with @", vec![(WithKw, 0..4), (Error, 5..6)]),
+            ] {
+                let accepted = format!("{keyword}{header}= A");
+                let source = format!("{accepted} {tail}]tail");
+                let (green, exit, remainder) = if keyword == "enum" {
+                    run_enum_declaration(
+                        &source,
+                        stops_for(TokenKind::RBracket),
+                        100,
+                        LineEntry::InLine,
+                        None,
+                    )
+                } else {
+                    run_error_declaration(
+                        &source,
+                        stops_for(TokenKind::RBracket),
+                        100,
+                        LineEntry::InLine,
+                        None,
+                    )
+                };
+                let root = syntax_root(green);
+                let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine)) =
+                    exit
+                else {
+                    panic!("protected successor: {source:?}")
+                };
+                let extent = item.extent(100 + source.len() - remainder.len());
+                if keyword == "enum" {
+                    assert_eq!(root.to_string(), format!("{accepted} {tail}"));
+                    let shell = root.children().next().unwrap();
+                    let companion = shell.children().last().unwrap();
+                    assert_eq!(companion.kind(), DeclarationCompanion);
+                    assert_eq!(companion.parent().as_ref(), Some(&shell));
+                    assert_eq!(
+                        companion_rowan_children(&companion, accepted.len() + 1),
+                        children,
+                        "{source:?}"
+                    );
+                    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBracket));
+                    assert_eq!(
+                        extent.payload(),
+                        100 + source.len() - 5..100 + source.len() - 4
+                    );
+                    assert_eq!(emit_pending_leading_text(&mut item), "");
+                    assert_eq!(remainder, "tail");
+                    assert_eq!(format!("{root}]{remainder}"), source);
+                } else {
+                    assert_eq!(root.to_string(), accepted);
+                    assert_eq!(count(&root, DeclarationCompanion), 0);
+                    assert_eq!(token_count(&root, WithKw), 0);
+                    assert_eq!(item.payload_view().spelling(), Some("with"));
+                    assert_eq!(
+                        extent.payload(),
+                        100 + accepted.len() + 1..100 + accepted.len() + 5
+                    );
+                    assert_eq!(
+                        extent.leading(),
+                        100 + accepted.len()..100 + accepted.len() + 1
+                    );
+                    assert_eq!(emit_pending_leading_text(&mut item), " ");
+                    assert_eq!(remainder, format!("{}]tail", &tail[4..]));
+                    assert_eq!(format!("{root} with{remainder}"), source);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn declaration_companion_rowan_direct_phase_matrix() {
     use SyntaxKind::*;
 

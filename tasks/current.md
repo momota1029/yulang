@@ -108,8 +108,11 @@ evidence. Its EqualsIndented sibling is also catalog-audited with the same
 bounded retry/layout/dedent evidence. Its EqualsInline sibling is now
 catalog-audited across header/body recovery and the intentionally asymmetric
 `with` successor: Enum attaches a companion while Error returns the same Item
-to Statement. Select the next bounded owner from the updated coverage map; do
-not start a partial global collector before the coverage map is closed.
+to Statement. The adjacent Companion-slot composition is now catalog-audited:
+Enum's direct Companion slots follow the admitted successor, while Error keeps
+that Item pending; nested Statement/Derives remain delegated. Select the next
+bounded owner from the updated coverage map; do not start a partial global
+collector before the coverage map is closed.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing
