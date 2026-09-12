@@ -187,6 +187,12 @@ zero-width Missing is distinguished from missing operator spelling by direct
 child order, while Path/Alias/group continuation and spaced close stay outside
 the wrapper. Recursive UseTree and broader caller/fence topology remain open.
 
+The paired initial direct-UseTree OperatorName spelling slot is also
+catalog-audited. `LParen, Missing` selects Import(Path)/OperatorName and leaves
+following items pending; it is distinct from both the admitted-operator close
+slot and post-separator C9 Path failures. Group/exclusion and recursive topology
+remain outside this narrow row.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

@@ -304,6 +304,9 @@ slots, including nested and parenthesized routes and UTF-8. Foreign/local close
 have separate rows. The admitted-operator `OperatorName` local Parenthesis close
 is separately evidence-complete: direct child order distinguishes it from
 missing spelling, and Path/Alias/UseGroup continuations retain their own owner.
+The initial direct-UseTree spelling slot is also separately evidence-complete:
+`LParen, Missing` distinguishes its Import(Path) expectation from the admitted
+operator's local-close Missing, without reclassifying C9 Path failures.
 M2 specification and regression delta audits for the independent rows were
 clean.
 

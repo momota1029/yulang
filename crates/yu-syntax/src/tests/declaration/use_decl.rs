@@ -298,6 +298,119 @@ fn assert_use_schema_occurrence(
 
 // Group children and OperatorName local closes have separate bounded matrices.
 #[test]
+fn use_schema_initial_operator_name_required_spelling() {
+    use SyntaxKind::*;
+    use rowan::TextRange;
+
+    for (source, pending, leading, remainder) in [
+        ("use (", None, "", ""),
+        ("use ()", Some(")"), "", ""),
+        ("use (foo", Some("foo"), "", ""),
+        ("use ( +)", Some("+"), " ", ")"),
+        ("use ( )", Some(")"), " ", ""),
+        ("use (+)", None, "", ""),
+    ] {
+        let operators = OperatorTable::empty();
+        let mut input = source;
+        let mut recover = Recover::new_for_test(&operators);
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(Root.into());
+        let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+        if let Err(Either::Right(end)) = &mut exit {
+            // EOF leading, if any, belongs to Root after the Statement.
+            emit_end(&mut builder, end);
+        }
+        builder.finish_node();
+        let root = SyntaxNode::new_root(finish_with_discarded_recoveries(builder, recover));
+        let accepted = source == "use (+)";
+        let end = if accepted { 7 } else { 5 };
+        assert_eq!(input, remainder, "{source:?}");
+        assert_eq!(root.to_string(), &source[..end], "{source:?}");
+        let names: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == OperatorName)
+            .collect();
+        assert_eq!(names.len(), 1, "{source:?}");
+        let name = &names[0];
+        assert_eq!(
+            name.text_range(),
+            TextRange::new(4.into(), (end as u32).into())
+        );
+        assert_eq!(
+            name.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+            [
+                OperatorName,
+                UsePath,
+                UseTree,
+                UseDeclaration,
+                Statement,
+                Root
+            ]
+        );
+        let children: Vec<_> = name.children_with_tokens().collect();
+        let expected = if accepted {
+            vec![(LParen, 4..5), (Operator, 5..6), (RParen, 6..7)]
+        } else {
+            vec![(LParen, 4..5), (Missing, 5..5)]
+        };
+        assert_eq!(
+            children
+                .iter()
+                .map(|child| {
+                    let range = child.text_range();
+                    (
+                        child.kind(),
+                        u32::from(range.start())..u32::from(range.end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        assert!(children[0].as_token().is_some());
+        if accepted {
+            assert!(children[1].as_token().is_some());
+            assert!(children[2].as_token().is_some());
+        } else {
+            // Initial UseTree > UsePath and direct LParen, Missing select
+            // Import(Path), expected OperatorName, primary alternative zero.
+            // No admitted Operator means this is not the local Close slot.
+            let missing = children[1].as_node().expect("direct spelling Missing");
+            assert_eq!(missing.parent().as_ref(), Some(name));
+            assert!(missing.children_with_tokens().next().is_none());
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            usize::from(!accepted)
+        );
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Error | Invalid))
+        );
+        match (pending, exit) {
+            (Some(spelling), Err(Either::Left(mut item))) => {
+                assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
+                assert_eq!(emit_pending_leading_text(&mut item), leading, "{source:?}");
+                assert_eq!(format!("{}{leading}{spelling}{input}", root), source);
+            }
+            (None, Err(Either::Right(_))) => {
+                assert_eq!(root.to_string(), source);
+                assert_eq!(
+                    root.children_with_tokens()
+                        .map(|child| child.kind())
+                        .collect::<Vec<_>>(),
+                    [Statement]
+                );
+            }
+            _ => panic!("unexpected required-spelling handoff: {source:?}"),
+        }
+    }
+}
+
+#[test]
 fn use_schema_operator_name_local_close_children() {
     use SyntaxKind::*;
     use rowan::TextRange;

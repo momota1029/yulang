@@ -1254,6 +1254,18 @@ spelling. It is not the earlier missing-operator-spelling path.
 | projection and exclusions | The direct Missing projects `ClosingDelimiter(OperatorName, Parenthesis)` with singleton `Close(Parenthesis)`, primary zero, at its empty direct Rowan range. Parent/order distinguish it from `LParen, Missing` before operator spelling, which remains the existing Use Path/OperatorName expectation; `use a::(` and `use a::(foo` do not construct OperatorName. Records and Error spelling are not inputs. |
 | proof and status | Governing authority: successor architecture OperatorName grammar; Rowan CST-only and CST-derived diagnostics amendments. Publisher: `declaration/use_decl.rs:876–917`; callers: `:397–425,852–873,1246–1269`. Direct proof: `use_schema_operator_name_local_close_children` and `use_schema_operator_name_local_close_continuation` in `tests/declaration/use_decl.rs`; C9 negatives remain direct controls. M1 pre-write and regression audits were clean; focused local-close 2/2, Use 26/26 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this admitted-operator close slot; spelling failure, recursive UseTree/group/fence/caller topology, interpreter and ledger/API removal remain open. |
 
+### UseDeclaration initial OperatorName required spelling Draft
+
+This bounded Draft maps only the initial direct-UseTree operator spelling slot
+after its admitted LParen. It is not a Path, group or local-close row.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | Initial `UsePath > OperatorName` orders `LParen (Operator RParen \| Missing)`. With no admitted Operator, direct `LParen, Missing` at `4..5, 5..5` selects the required operator spelling. Accepted `use (+)` orders `LParen, Operator, RParen` and projects nothing. |
+| boundary and handoff | EOF ends after the empty Missing. A following RParen, Identifier or Operator—including its leading whitespace—remains pending outside OperatorName; the owner CST plus pending leading/payload and remainder reconstruct the source. There is no spelling Error/Invalid/cascade in this admitted initial-LParen path. |
+| projection and exclusions | Initial UseTree/UsePath ancestry plus direct LParen, Missing projects `Declaration(Import(Path))`, expected singleton `OperatorName`, primary zero, at `5..5`. It is distinct from the admitted-Operator local close by predecessor order. Post-separator `use a::(` / `use a::(foo` are C9 Path-owned Error controls with no OperatorName/Missing; group/exclusion routes are excluded. Records and Error spelling are not inputs. |
+| proof and status | Governing authority: successor architecture OperatorName grammar; Rowan CST-only and CST-derived diagnostics amendments. Publisher: `declaration/use_decl.rs:410–425,887–898`; direct proof: `use_schema_initial_operator_name_required_spelling` in `tests/declaration/use_decl.rs`; C9 negatives remain unchanged. M1 pre-write and post-write specification audits were clean; focused spelling 1/1, Use 27/27 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this initial spelling slot; other callers, recursive UseTree/group/fence/root topology, interpreter and ledger/API removal remain open. |
+
 ### Rule ExpressionList direct caller fence Draft
 
 This bounded Draft maps RuleItem/RuleCall/RuleIndex fence handoff only. Direct
