@@ -781,7 +781,7 @@ pub(crate) fn is_led_operator(item: &Item) -> bool {
 #[allow(clippy::too_many_arguments)]
 fn ml_argument(
     mut i: SyntaxIn,
-    argument: Item,
+    mut argument: Item,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
@@ -792,6 +792,7 @@ fn ml_argument(
     ambient: AmbientClaimContext<'_>,
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
+    argument.emit_all_remaining_leading(&mut *i.state);
     i.state.start_node(SyntaxKind::MlArgument.into());
     let entry = suffix_marker(i.rb());
     let exit = expr_from_nud_normalized(

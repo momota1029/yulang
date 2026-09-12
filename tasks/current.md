@@ -80,8 +80,18 @@ sources and the residual-close topology. Six direct-Rowan composition tests now
 cover its finite transition classes; pre/post specification and compiler review
 and the catalog-delta audit are clean after an evidence-helper repair and
 occurrence-ordinal clarification. The next production owner must be selected
-from the updated gap map. Do not start a partial global collector before the
-coverage map is closed.
+from the updated gap map. The selected next aggregate is the full
+`CastDeclaration` phase composition. Its new accepted brace-body control found
+one shared accepted-CST conflict: ML separator leading was captured by
+`MlArgument`, while the governing architecture and CAST-T require it as a
+direct enclosing `OperatorChain` sibling. The user selected uniform
+outer-leading ownership (option A), recorded by
+`2026-09-12-successor-ml-separator-leading-ownership.md`; that M2 shared-owner
+repair, its focused ML/Index/Cast/normalized evidence and the repaired
+fixed-tail sibling expectation are complete. The Cast aggregate's two direct
+composition tests now pass; its catalog-delta and post-write closure remain the
+next bounded work. Do not start a partial global collector before the coverage
+map is closed.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing

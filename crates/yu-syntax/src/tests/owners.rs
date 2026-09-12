@@ -1,5 +1,204 @@
 use crate::tests::support::*;
 
+fn assert_ml_children(node: &SyntaxNode, expected: &[(SyntaxKind, std::ops::Range<usize>)]) {
+    let actual = node
+        .children_with_tokens()
+        .map(|child| {
+            let range = child.text_range();
+            (
+                child.kind(),
+                usize::from(range.start())..usize::from(range.end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected, "{node:?}");
+}
+
+#[test]
+fn ml_separator_leading_is_direct_outer_chain_content() {
+    for source in ["f x y", "apply left right", "関数 引数 次"] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        let chain = root.children().next().unwrap();
+        let first_space = source.find(' ').unwrap();
+        let last_space = source.rfind(' ').unwrap();
+        assert_ml_children(
+            &chain,
+            &[
+                (SyntaxKind::IdentifierExpression, 0..first_space),
+                (SyntaxKind::Whitespace, first_space..first_space + 1),
+                (SyntaxKind::MlArgument, first_space + 1..last_space),
+                (SyntaxKind::Whitespace, last_space..last_space + 1),
+                (SyntaxKind::MlArgument, last_space + 1..source.len()),
+            ],
+        );
+        for argument in chain
+            .children()
+            .filter(|node| node.kind() == SyntaxKind::MlArgument)
+        {
+            let range = argument.text_range();
+            let range = usize::from(range.start())..usize::from(range.end());
+            assert_ml_children(&argument, &[(SyntaxKind::OperatorChain, range.clone())]);
+            assert_ml_children(
+                &argument.children().next().unwrap(),
+                &[(SyntaxKind::IdentifierExpression, range)],
+            );
+        }
+    }
+}
+
+#[test]
+fn ml_argument_forms_keep_separator_outside_payload() {
+    for payload in ["{ x }", "(x)", "42", "\"text\""] {
+        for separator in [" ", " /* gap */ ", "\n  "] {
+            let source = format!("f{separator}{payload}");
+            let (green, exit) = run(&source);
+            assert_eq!(green.to_string(), source);
+            assert!(matches!(exit, Some(Err(Either::Right(_)))));
+            let root = SyntaxNode::new_root(green);
+            let chain = root.children().next().unwrap();
+            let start = 1 + separator.len();
+            let mut expected = vec![(SyntaxKind::IdentifierExpression, 0..1)];
+            expected.extend(match separator {
+                " " => vec![(SyntaxKind::Whitespace, 1..2)],
+                " /* gap */ " => vec![
+                    (SyntaxKind::Whitespace, 1..2),
+                    (SyntaxKind::BlockComment, 2..11),
+                    (SyntaxKind::Whitespace, 11..12),
+                ],
+                _ => vec![(SyntaxKind::Newline, 1..2), (SyntaxKind::Whitespace, 2..4)],
+            });
+            expected.push((SyntaxKind::MlArgument, start..source.len()));
+            assert_ml_children(&chain, &expected);
+            let argument = chain
+                .children()
+                .find(|node| node.kind() == SyntaxKind::MlArgument)
+                .unwrap();
+            assert_ml_children(
+                &argument,
+                &[(SyntaxKind::OperatorChain, start..source.len())],
+            );
+            assert!(!argument.descendants_with_tokens().any(|element| matches!(
+                element.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )));
+        }
+    }
+}
+
+#[test]
+fn ml_normalized_quote_separator_stays_in_outer_chain() {
+    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let source = "> > f\n> >   x\n> > ```\nouter";
+    let (green, exit, remainder) = run_normalized(
+        source,
+        &OperatorTable::empty(),
+        500,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    let Some(NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart)) =
+        exit
+    else {
+        panic!("ML must retain the exact fence handoff");
+    };
+    assert!(boundary.payload_view().is_boundary());
+    assert_eq!(remainder, "> > ```\nouter");
+    assert_eq!(green.to_string(), "> > f\n> >   x");
+    let root = SyntaxNode::new_root(green);
+    let chain = root.children().next().unwrap();
+    assert_ml_children(
+        &chain,
+        &[
+            (SyntaxKind::IdentifierExpression, 0..5),
+            (SyntaxKind::Newline, 5..6),
+            (SyntaxKind::YmQuotePrefix, 6..10),
+            (SyntaxKind::Whitespace, 10..12),
+            (SyntaxKind::MlArgument, 12..13),
+        ],
+    );
+    let argument = chain
+        .children()
+        .find(|node| node.kind() == SyntaxKind::MlArgument)
+        .unwrap();
+    assert_ml_children(&argument, &[(SyntaxKind::OperatorChain, 12..13)]);
+}
+
+#[test]
+fn ml_malformed_child_keeps_recovery_and_caller_successor() {
+    for (source, offset) in [("f (", 0), ("x[f (]", 2)] {
+        let (green, exit, remainder) =
+            run_normalized(source, &OperatorTable::empty(), 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        assert!(matches!(
+            exit,
+            Some(NormalizedExit::Complete(Err(Either::Right(_)), _))
+        ));
+        let root = SyntaxNode::new_root(green);
+        let chain = root
+            .descendants()
+            .find(|node| {
+                node.kind() == SyntaxKind::OperatorChain
+                    && node
+                        .children()
+                        .any(|child| child.kind() == SyntaxKind::MlArgument)
+            })
+            .unwrap();
+        assert_ml_children(
+            &chain,
+            &[
+                (SyntaxKind::IdentifierExpression, offset..offset + 1),
+                (SyntaxKind::Whitespace, offset + 1..offset + 2),
+                (SyntaxKind::MlArgument, offset + 2..offset + 3),
+            ],
+        );
+        let argument = chain
+            .children()
+            .find(|node| node.kind() == SyntaxKind::MlArgument)
+            .unwrap();
+        assert_ml_children(
+            &argument,
+            &[(SyntaxKind::OperatorChain, offset + 2..offset + 3)],
+        );
+        let group = argument
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::ParenthesizedExpression)
+            .unwrap();
+        assert_ml_children(
+            &group,
+            &[
+                (SyntaxKind::LParen, offset + 2..offset + 3),
+                (SyntaxKind::Missing, offset + 3..offset + 3),
+            ],
+        );
+        if offset != 0 {
+            let close = root
+                .descendants_with_tokens()
+                .find(|element| element.kind() == SyntaxKind::RBracket)
+                .unwrap()
+                .into_token()
+                .unwrap();
+            assert_eq!(close.parent().unwrap().kind(), SyntaxKind::IndexTail);
+            assert_eq!(
+                close.text_range(),
+                rowan::TextRange::new(5.into(), 6.into())
+            );
+        }
+    }
+}
+
 #[test]
 fn parenthesized_primary_owns_its_sequence_and_outer_ml_tail() {
     let source = "(a,b;c) d";
@@ -1124,6 +1323,15 @@ fn index_item_accepts_ml_argument_without_separator_recovery() {
         .filter(|node| node.kind() == SyntaxKind::MlArgument)
         .collect::<Vec<_>>();
     assert_eq!(ml_arguments.len(), 1);
+    assert_ml_children(
+        &item_chain,
+        &[
+            (SyntaxKind::IdentifierExpression, 2..3),
+            (SyntaxKind::Whitespace, 3..4),
+            (SyntaxKind::MlArgument, 4..5),
+        ],
+    );
+    assert_ml_children(&ml_arguments[0], &[(SyntaxKind::OperatorChain, 4..5)]);
     let argument_chain = ml_arguments[0]
         .children()
         .find(|node| node.kind() == SyntaxKind::OperatorChain)
@@ -1134,7 +1342,7 @@ fn index_item_accepts_ml_argument_without_separator_recovery() {
             .filter_map(|element| element.into_token())
             .map(|token| token.text().to_owned())
             .collect::<Vec<_>>(),
-        [" ", "b"]
+        ["b"]
     );
     assert_eq!(
         root.descendants_with_tokens()
@@ -1193,6 +1401,16 @@ fn index_item_multiple_ml_arguments_stay_siblings() {
         .filter(|node| node.kind() == SyntaxKind::MlArgument)
         .collect::<Vec<_>>();
     assert_eq!(arguments.len(), 2);
+    assert_ml_children(
+        &item_chain,
+        &[
+            (SyntaxKind::IdentifierExpression, 2..3),
+            (SyntaxKind::Whitespace, 3..4),
+            (SyntaxKind::MlArgument, 4..5),
+            (SyntaxKind::Whitespace, 5..6),
+            (SyntaxKind::MlArgument, 6..7),
+        ],
+    );
     for argument in arguments {
         assert!(
             !argument
@@ -1231,6 +1449,32 @@ fn index_item_ml_child_keeps_its_continuation_after_call() {
         .filter(|node| node.kind() == SyntaxKind::MlArgument)
         .collect::<Vec<_>>();
     assert_eq!(arguments.len(), 2);
+    assert_ml_children(
+        &item_chain,
+        &[
+            (SyntaxKind::IdentifierExpression, 2..3),
+            (SyntaxKind::Whitespace, 3..4),
+            (SyntaxKind::MlArgument, 4..8),
+            (SyntaxKind::Whitespace, 8..9),
+            (SyntaxKind::MlArgument, 9..10),
+        ],
+    );
+    for (kind, range, owner) in [
+        (SyntaxKind::RParen, 7..8, SyntaxKind::CallTail),
+        (SyntaxKind::RBracket, 10..11, SyntaxKind::IndexTail),
+    ] {
+        let token = root
+            .descendants_with_tokens()
+            .find(|element| element.kind() == kind)
+            .unwrap()
+            .into_token()
+            .unwrap();
+        assert_eq!(
+            usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+            range
+        );
+        assert_eq!(token.parent().unwrap().kind(), owner);
+    }
     assert!(
         arguments[0]
             .descendants()

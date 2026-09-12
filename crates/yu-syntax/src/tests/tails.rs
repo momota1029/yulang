@@ -171,12 +171,38 @@ fn fixed_tail_name_slots_keep_missing_and_field_leading_at_the_outer_slot() {
     assert_eq!(missing.kind(), SyntaxKind::Missing);
     assert_eq!(range(&missing), 2..2);
     assert_eq!(missing.parent(), Some(field.clone()));
-    let argument = &children[2];
+    let elements = chain.children_with_tokens().collect::<Vec<_>>();
     assert_eq!(
-        argument.first_token().expect("field leading").kind(),
-        SyntaxKind::Whitespace
+        elements
+            .iter()
+            .map(|element| element.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierExpression,
+            SyntaxKind::FieldTail,
+            SyntaxKind::Whitespace,
+            SyntaxKind::MlArgument,
+        ]
     );
-    assert_eq!(argument.first_token().unwrap().text(), " ");
+    let leading = elements[2].as_token().expect("field leading");
+    assert_eq!(leading.parent(), Some(chain.clone()));
+    assert_eq!(leading.text(), " ");
+    assert_eq!(
+        usize::from(leading.text_range().start())..usize::from(leading.text_range().end()),
+        2..3
+    );
+    let argument = &children[2];
+    assert_eq!(argument.parent(), Some(chain.clone()));
+    assert_eq!(range(argument), 3..8);
+    let argument_chain = argument.first_child().expect("argument OperatorChain");
+    assert_eq!(argument_chain.kind(), SyntaxKind::OperatorChain);
+    assert_eq!(argument_chain.parent(), Some(argument.clone()));
+    assert_eq!(range(&argument_chain), 3..8);
+    assert_eq!(
+        argument.first_token().expect("field payload").kind(),
+        SyntaxKind::Identifier
+    );
+    assert_eq!(argument.first_token().unwrap().text(), "field");
 
     let (green, exit) = run("x::,");
     assert_eq!(green.to_string(), "x::");

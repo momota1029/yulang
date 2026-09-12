@@ -1810,6 +1810,294 @@ fn cast_private_owner_builds_bodyless_inline_and_indented_forms() {
     );
 }
 
+fn assert_cast_children(node: &SyntaxNode, expected: &[(SyntaxKind, std::ops::Range<usize>)]) {
+    let actual = node
+        .children_with_tokens()
+        .map(|child| {
+            match child.kind() {
+                SyntaxKind::CastPattern
+                | SyntaxKind::CastTarget
+                | SyntaxKind::CastBody
+                | SyntaxKind::Pattern
+                | SyntaxKind::TypeExpression
+                | SyntaxKind::OperatorChain
+                | SyntaxKind::IndentedStatementBlock
+                | SyntaxKind::Statement
+                | SyntaxKind::MlArgument
+                | SyntaxKind::BracedStatementBlockExpression
+                | SyntaxKind::IdentifierExpression => {
+                    assert_eq!(child.as_node().unwrap().parent().as_ref(), Some(node));
+                }
+                _ => assert_eq!(child.as_token().unwrap().parent().as_ref(), Some(node)),
+            }
+            let range = child.text_range();
+            (
+                child.kind(),
+                usize::from(range.start())..usize::from(range.end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected, "{node:?}");
+}
+
+#[test]
+fn cast_declaration_direct_rowan_accepted_composition() {
+    use SyntaxKind::*;
+    for (source, expected, body_children) in [
+        (
+            "cast(x: A): B;",
+            vec![
+                (CastKw, 0..4),
+                (CastPattern, 4..10),
+                (CastTarget, 10..13),
+                (Semicolon, 13..14),
+            ],
+            vec![],
+        ),
+        (
+            "pub cast(x: A): B = x",
+            vec![
+                (PubKw, 0..3),
+                (Whitespace, 3..4),
+                (CastKw, 4..8),
+                (CastPattern, 8..14),
+                (CastTarget, 14..17),
+                (Whitespace, 17..18),
+                (Equals, 18..19),
+                (CastBody, 19..21),
+            ],
+            vec![(Whitespace, 19..20), (OperatorChain, 20..21)],
+        ),
+        (
+            "cast(x: A): B =\n  x",
+            vec![
+                (CastKw, 0..4),
+                (CastPattern, 4..10),
+                (CastTarget, 10..13),
+                (Whitespace, 13..14),
+                (Equals, 14..15),
+                (CastBody, 15..19),
+            ],
+            vec![(IndentedStatementBlock, 15..19)],
+        ),
+        (
+            "pub cast(x: int): user_id = user_id { raw: x }",
+            vec![
+                (PubKw, 0..3),
+                (Whitespace, 3..4),
+                (CastKw, 4..8),
+                (CastPattern, 8..16),
+                (CastTarget, 16..25),
+                (Whitespace, 25..26),
+                (Equals, 26..27),
+                (CastBody, 27..46),
+            ],
+            vec![(Whitespace, 27..28), (OperatorChain, 28..46)],
+        ),
+    ] {
+        let (green, exit, remainder) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert!(exit.is_some());
+        assert_eq!(remainder, "");
+        assert_eq!(green.to_string(), source);
+        let node = declaration(&green);
+        assert_cast_children(&node, &expected);
+        for (kind, range) in &expected {
+            if *kind == CastPattern || *kind == CastTarget {
+                let child = node.children().find(|child| child.kind() == *kind).unwrap();
+                let start = range.start;
+                let end = range.end;
+                let children = if *kind == CastPattern {
+                    vec![
+                        (LParen, start..start + 1),
+                        (Pattern, start + 1..end - 1),
+                        (RParen, end - 1..end),
+                    ]
+                } else {
+                    vec![
+                        (Colon, start..start + 1),
+                        (Whitespace, start + 1..start + 2),
+                        (TypeExpression, start + 2..end),
+                    ]
+                };
+                assert_cast_children(&child, &children);
+            }
+        }
+        assert!(
+            !node
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Missing | Error | Invalid))
+        );
+        if let Some(body) = node.children().find(|child| child.kind() == CastBody) {
+            assert_cast_children(&body, &body_children);
+            if let Some(block) = body
+                .children()
+                .find(|child| child.kind() == IndentedStatementBlock)
+            {
+                assert_cast_children(
+                    &block,
+                    &[(Newline, 15..16), (Whitespace, 16..18), (Statement, 18..19)],
+                );
+            }
+            if source.contains('{') {
+                let expression = body.children().next().unwrap();
+                assert_cast_children(
+                    &expression,
+                    &[
+                        (IdentifierExpression, 28..35),
+                        (Whitespace, 35..36),
+                        (MlArgument, 36..46),
+                    ],
+                );
+                let argument = expression.children().last().unwrap();
+                assert_cast_children(&argument, &[(OperatorChain, 36..46)]);
+                let argument_expression = argument.children().next().unwrap();
+                assert_cast_children(
+                    &argument_expression,
+                    &[(BracedStatementBlockExpression, 36..46)],
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn cast_declaration_direct_rowan_error_retry_composition() {
+    use SyntaxKind::*;
+    // Each full declaration locates recovery by ordered CST phase, including
+    // the Pattern-owned nonempty value error. No ledger or Error text selects it.
+    for (source, expected, owner_kind, owner_children) in [
+        (
+            "cast @ (x): T;",
+            vec![
+                (CastKw, 0..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Whitespace, 6..7),
+                (CastPattern, 7..10),
+                (CastTarget, 10..13),
+                (Semicolon, 13..14),
+            ],
+            CastDeclaration,
+            vec![],
+        ),
+        (
+            "cast(@): T;",
+            vec![
+                (CastKw, 0..4),
+                (CastPattern, 4..7),
+                (CastTarget, 7..10),
+                (Semicolon, 10..11),
+            ],
+            Pattern,
+            vec![(Error, 5..6)],
+        ),
+        (
+            "cast(x @ ): T;",
+            vec![
+                (CastKw, 0..4),
+                (CastPattern, 4..10),
+                (CastTarget, 10..13),
+                (Semicolon, 13..14),
+            ],
+            CastPattern,
+            vec![
+                (LParen, 4..5),
+                (Pattern, 5..6),
+                (Whitespace, 6..7),
+                (Error, 7..8),
+                (Whitespace, 8..9),
+                (RParen, 9..10),
+            ],
+        ),
+        (
+            "cast(x) @ : T;",
+            vec![
+                (CastKw, 0..4),
+                (CastPattern, 4..7),
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (CastTarget, 10..13),
+                (Semicolon, 13..14),
+            ],
+            CastDeclaration,
+            vec![],
+        ),
+        (
+            "cast(x): T @ ;",
+            vec![
+                (CastKw, 0..4),
+                (CastPattern, 4..7),
+                (CastTarget, 7..10),
+                (Whitespace, 10..11),
+                (Error, 11..12),
+                (Whitespace, 12..13),
+                (Semicolon, 13..14),
+            ],
+            CastDeclaration,
+            vec![],
+        ),
+        (
+            "cast(x): T @ = value",
+            vec![
+                (CastKw, 0..4),
+                (CastPattern, 4..7),
+                (CastTarget, 7..10),
+                (Whitespace, 10..11),
+                (Error, 11..12),
+                (Whitespace, 12..13),
+                (Equals, 13..14),
+                (CastBody, 14..20),
+            ],
+            CastDeclaration,
+            vec![],
+        ),
+        (
+            "cast(x): T = @ value",
+            vec![
+                (CastKw, 0..4),
+                (CastPattern, 4..7),
+                (CastTarget, 7..10),
+                (Whitespace, 10..11),
+                (Equals, 11..12),
+                (CastBody, 12..20),
+            ],
+            CastBody,
+            vec![
+                (Whitespace, 12..13),
+                (Error, 13..14),
+                (Whitespace, 14..15),
+                (OperatorChain, 15..20),
+            ],
+        ),
+    ] {
+        let (green, exit, remainder) = run_cast_declaration(source, 0, 0, LineEntry::InLine, None);
+        assert!(exit.is_some());
+        assert_eq!(remainder, "");
+        assert_eq!(green.to_string(), source);
+        let node = declaration(&green);
+        assert_cast_children(&node, &expected);
+        let owner = node
+            .descendants()
+            .find(|child| child.kind() == owner_kind)
+            .unwrap();
+        if owner_kind != CastDeclaration {
+            assert_cast_children(&owner, &owner_children);
+        }
+        let errors = node
+            .descendants_with_tokens()
+            .filter(|child| child.kind() == Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), 1, "{source}");
+        assert_eq!(errors[0].as_token().unwrap().parent(), Some(owner));
+        assert!(
+            !node
+                .descendants()
+                .any(|child| matches!(child.kind(), Missing | Invalid))
+        );
+    }
+}
+
 #[test]
 fn cast_intro_is_exact_visibility_aware_and_uses_canonical_statement_dispatch() {
     for source in [
