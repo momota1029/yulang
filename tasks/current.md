@@ -266,6 +266,14 @@ protected leading stays path-owned. Initial recovery and group/glob/OperatorName
 tails retain their existing rows. Full UseTree composition and wider
 reserved/layout/fence behavior remain open.
 
+The accepted UseTree terminal-join topology is now catalog-audited after a
+bounded owning-parser conformance repair. A terminal ColonColon or Slash is a
+direct UseTree sibling between UsePath and an immediately admitted group/glob;
+nonterminal separators remain path-owned, and marker form-head separators stay
+separate. Existing path/group/glob recovery and protected handoff are unchanged.
+Full UseTree composition, wider marker/layout/fence behavior, the interpreter
+and ledger/API retirement remain open.
+
 The M2 UseGlob full phase aggregate is now catalog-audited. Ordered aliases,
 first/repeated exclusion episodes, interleaved component recovery, nested
 punctuation and protected handoff retain their existing owners, while both

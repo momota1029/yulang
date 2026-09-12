@@ -1,5 +1,101 @@
 use crate::tests::support::*;
 
+#[test]
+fn use_terminal_join_is_direct_tree_child() {
+    use SyntaxKind::*;
+
+    for (source, tree_text, expected) in [
+        (
+            "use p::{x}",
+            "p::{x}",
+            vec![(UsePath, "p"), (ColonColon, "::"), (UseGroup, "{x}")],
+        ),
+        (
+            "use p::*",
+            "p::*",
+            vec![(UsePath, "p"), (ColonColon, "::"), (UseGlob, "*")],
+        ),
+        (
+            "use p/{x}",
+            "p/{x}",
+            vec![(UsePath, "p"), (Slash, "/"), (UseGroup, "{x}")],
+        ),
+        (
+            "use realm/p::{x}",
+            "realm/p::{x}",
+            vec![
+                (RealmKw, "realm"),
+                (Slash, "/"),
+                (UsePath, "p"),
+                (ColonColon, "::"),
+                (UseGroup, "{x}"),
+            ],
+        ),
+        (
+            "use band::p::*",
+            "band::p::*",
+            vec![
+                (BandKw, "band"),
+                (ColonColon, "::"),
+                (UsePath, "p"),
+                (ColonColon, "::"),
+                (UseGlob, "*"),
+            ],
+        ),
+        (
+            "use {p::{x}}",
+            "p::{x}",
+            vec![(UsePath, "p"), (ColonColon, "::"), (UseGroup, "{x}")],
+        ),
+        (
+            "use q::* without {p::{x}}",
+            "p::{x}",
+            vec![(UsePath, "p"), (ColonColon, "::"), (UseGroup, "{x}")],
+        ),
+        (
+            "use p::q/{x}",
+            "p::q/{x}",
+            vec![(UsePath, "p::q"), (Slash, "/"), (UseGroup, "{x}")],
+        ),
+    ] {
+        let (green, records) = use_group_recoveries(source, None);
+        assert!(records.is_empty(), "{source:?}");
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.text().to_string(), source);
+        let tree = root
+            .descendants()
+            .find(|node| node.kind() == UseTree && node.text().to_string() == tree_text)
+            .unwrap_or_else(|| panic!("missing tree {tree_text:?} in {source:?}: {root:#?}"));
+        let start = source.find(tree_text).unwrap() as u32;
+        let mut offset = start;
+        let expected = expected
+            .into_iter()
+            .map(|(kind, text)| {
+                let range = offset..offset + text.len() as u32;
+                offset = range.end;
+                (kind, range, text.to_owned())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            tree.children_with_tokens()
+                .map(|child| {
+                    let range = child.text_range();
+                    (
+                        child.kind(),
+                        u32::from(range.start())..u32::from(range.end()),
+                        child.to_string(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        let (frozen, frozen_records) = use_group_recoveries(source, Some(&records));
+        assert_eq!(green, frozen, "{source:?}");
+        assert_eq!(records, frozen_records, "{source:?}");
+    }
+}
+
 fn use_group_recoveries(
     source: &str,
     frozen: Option<&[CommittedRecoveryRecord]>,
@@ -1202,13 +1298,13 @@ fn use_schema_glob_full_phase_composition() {
         let qualifier = suffix == " without a v1 with anchor";
         let end = pending.as_ref().map_or(source.len(), |(end, _, _)| *end) as u32;
         let glob_end = if qualifier { 18 } else { end };
-        let mut tree_children = vec![(UsePath, 4..7), (UseGlob, 7..glob_end)];
+        let mut tree_children = vec![(UsePath, 4..5), (ColonColon, 5..7), (UseGlob, 7..glob_end)];
         if qualifier {
             tree_children.push((UseQualifiers, 18..33));
         }
         assert_eq!(projection(&tree), tree_children, "{source:?}");
         let path = tree.children().next().unwrap();
-        assert_eq!(projection(&path), [(Identifier, 4..5), (ColonColon, 5..7)]);
+        assert_eq!(projection(&path), [(Identifier, 4..5)]);
         let glob = tree.children().find(|node| node.kind() == UseGlob).unwrap();
         assert_eq!(
             glob.ancestors()
@@ -1667,10 +1763,11 @@ fn use_schema_mod_form_head_leading_ownership() {
             vec![
                 (ModKw, 4..7),
                 (Whitespace, 7..8),
-                (UsePath, 8..16),
+                (UsePath, 8..14),
+                (ColonColon, 14..16),
                 (UseGroup, 16..19),
             ],
-            vec![(Identifier, 8..14), (ColonColon, 14..16)],
+            vec![(Identifier, 8..14)],
             None,
         ),
         (
@@ -1678,10 +1775,11 @@ fn use_schema_mod_form_head_leading_ownership() {
             vec![
                 (ModKw, 4..7),
                 (Whitespace, 7..8),
-                (UsePath, 8..16),
+                (UsePath, 8..14),
+                (ColonColon, 14..16),
                 (UseGlob, 16..17),
             ],
-            vec![(Identifier, 8..14), (ColonColon, 14..16)],
+            vec![(Identifier, 8..14)],
             None,
         ),
         (
@@ -2771,7 +2869,12 @@ fn use_schema_glob_repeated_exclusion_episodes() {
             assert_eq!(qualifiers.parent().as_ref(), Some(&tree));
             assert_eq!(
                 projection(&tree),
-                [(UsePath, 4..7), (UseGlob, 7..18), (UseQualifiers, 18..33)]
+                [
+                    (UsePath, 4..5),
+                    (ColonColon, 5..7),
+                    (UseGlob, 7..18),
+                    (UseQualifiers, 18..33)
+                ]
             );
             assert_eq!(
                 projection(qualifiers),
@@ -3247,7 +3350,10 @@ fn use_schema_exclusion_form_dispatch() {
                 ]
             );
             let tree = inner_glob.parent().unwrap();
-            assert_eq!(projection(&tree), [(UsePath, 18..21), (UseGlob, 21..32)]);
+            assert_eq!(
+                projection(&tree),
+                [(UsePath, 18..19), (ColonColon, 19..21), (UseGlob, 21..32)]
+            );
         }
         // These assertions read only Rowan topology and source ranges, including
         // delegated recovery; no diagnostic belongs to the dispatcher itself.

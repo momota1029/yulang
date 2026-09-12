@@ -690,10 +690,11 @@ fn parse_path_tail(
             return Ok((Terminal::Single, item));
         };
         projection.separator(separator_kind);
-        emit_separator(&mut i, item, separator_kind);
+        let separator_item = item;
         item = next_use_item(i.rb(), item_origin, line_entry, fence);
         if exact_char(&item, '{') {
             i.state.finish_node();
+            emit_separator(&mut i, separator_item, separator_kind);
             item = parse_group(
                 projection,
                 i,
@@ -711,6 +712,7 @@ fn parse_path_tail(
         }
         if exact_char(&item, '*') {
             i.state.finish_node();
+            emit_separator(&mut i, separator_item, separator_kind);
             item = parse_glob(
                 projection,
                 i,
@@ -725,6 +727,7 @@ fn parse_path_tail(
             return Ok((Terminal::Glob, item));
         }
 
+        emit_separator(&mut i, separator_item, separator_kind);
         let (present, next) = required_path_segment(
             projection,
             i.rb(),
