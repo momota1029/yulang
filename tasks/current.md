@@ -289,6 +289,9 @@ word owner remains a separate follow-up gate.
 The Mod required-word owner now has the same frame-balance repair for malformed
 EOF and protected exits; public Root topology and continuation remain intact.
 
+UseGlob now admits authoritative newline-bearing trivia after an outer comma;
+pre-comma and newline-only separation remain rejected.
+
 The M2 UseGlob full phase aggregate is now catalog-audited. Ordered aliases,
 first/repeated exclusion episodes, interleaved component recovery, nested
 punctuation and protected handoff retain their existing owners, while both

@@ -1,6 +1,91 @@
 use crate::tests::support::*;
 
 #[test]
+fn use_glob_outer_comma_accepts_newline_leading() {
+    use SyntaxKind::*;
+
+    for gap in ["\n", "\r\n  ", " /* comment\n */ "] {
+        let source = format!("use p::* without a,{gap}b");
+        let (green, exit) = run_statement(&source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let declaration = use_declaration(&green);
+        assert_eq!(descendants_of_kind(&declaration, Missing), 0);
+        assert_eq!(descendants_of_kind(&declaration, Error), 0);
+        let glob = declaration
+            .descendants()
+            .find(|node| node.kind() == UseGlob)
+            .unwrap();
+        let children: Vec<_> = glob.children_with_tokens().collect();
+        let comma = children
+            .iter()
+            .position(|child| child.kind() == Comma)
+            .unwrap();
+        assert_eq!(
+            children[comma + 1..children.len() - 1]
+                .iter()
+                .map(ToString::to_string)
+                .collect::<String>(),
+            gap
+        );
+        assert!(
+            children[comma + 1..children.len() - 1]
+                .iter()
+                .all(|child| child.as_token().is_some())
+        );
+        assert_eq!(children.last().unwrap().kind(), UseExclusion);
+        assert_eq!(children.last().unwrap().to_string(), "b");
+    }
+
+    for newline in ["\n", "\r\n"] {
+        let source = format!("if c:{newline}  use p::* without a,{newline}    b{newline}  x");
+        let (green, exit) = run(&source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let declaration = use_declaration(&green);
+        assert_eq!(descendants_of_kind(&declaration, UseExclusion), 2);
+        assert_eq!(descendants_of_kind(&declaration, Missing), 0);
+        assert_eq!(descendants_of_kind(&declaration, Error), 0);
+        assert!(declaration.to_string().ends_with('b'));
+    }
+}
+
+#[test]
+fn use_glob_outer_comma_preserves_protected_boundaries() {
+    for suffix in ["\n;next", "\r\n)next", "\n]next", "\n}next", "\n,next"] {
+        let source = format!("use p::* without a,{suffix}");
+        let (green, exit) = run_statement(&source);
+        assert_eq!(green.to_string(), "use p::* without a,");
+        assert_eq!(
+            descendants_of_kind(&use_declaration(&green), SyntaxKind::Missing),
+            1
+        );
+        let Some(Err(Either::Left(mut pending))) = exit else {
+            panic!("protected token must remain pending")
+        };
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            if suffix.starts_with("\r\n") {
+                "\r\n"
+            } else {
+                "\n"
+            }
+        );
+    }
+
+    for suffix in ["\nb", " ,b", "\n,b"] {
+        let source = format!("use p::* without a{suffix}");
+        let (green, exit) = run_statement(&source);
+        assert_eq!(green.to_string(), "use p::* without a");
+        assert!(matches!(exit, Some(Err(Either::Left(_)))));
+        assert_eq!(
+            descendants_of_kind(&use_declaration(&green), SyntaxKind::UseExclusion),
+            1
+        );
+    }
+}
+
+#[test]
 fn use_schema_full_tree_accepted_composition() {
     use SyntaxKind::*;
 

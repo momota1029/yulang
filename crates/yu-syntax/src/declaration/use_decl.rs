@@ -1145,7 +1145,7 @@ fn parse_glob(
                 while item.leading_view().is_grammar_empty() && exact_char(&item, ',') {
                     emit_item_as(&mut i, item, SyntaxKind::Comma);
                     item = next_use_item(i.rb(), item_origin, line_entry, fence);
-                    if declaration_boundary(i.rb(), &item, stops, true) {
+                    if declaration_boundary(i.rb(), &item, stops, false) {
                         missing(
                             i.rb(),
                             &item,
