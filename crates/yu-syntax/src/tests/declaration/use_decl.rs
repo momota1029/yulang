@@ -2811,6 +2811,147 @@ fn use_schema_marker_target_dispatch() {
 }
 
 #[test]
+fn use_schema_anchor_rejects_structural_heads_with_word_retry() {
+    use crate::recovery_record::*;
+    use SyntaxKind::*;
+
+    for (source, children, error_range, pending) in [
+        (
+            "use a with {}",
+            vec![(Error, "{")],
+            11..12,
+            Some((TokenKind::RBrace, "}", 12)),
+        ),
+        (
+            "use a with (+)",
+            vec![(Error, "("), (Error, "+")],
+            11..13,
+            Some((TokenKind::RParen, ")", 13)),
+        ),
+        ("use a with *", vec![(Error, "*")], 11..12, None),
+        (
+            "use a with {target}",
+            vec![(Error, "{"), (Identifier, "target")],
+            11..12,
+            Some((TokenKind::RBrace, "}", 18)),
+        ),
+    ] {
+        let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
+        let expected_records = vec![CommittedRecoveryRecord {
+            id: DiagnosticId(0),
+            site: RecoverySiteKey {
+                role,
+                range: error_range.clone(),
+            },
+            kind: RecoveryKind::Error,
+            unexpected: std::sync::Arc::from([UnexpectedSyntax::Token {
+                range: error_range.clone(),
+                category: UnexpectedCategory::OtherCharacter,
+            }]),
+            expectations: std::sync::Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Path,
+                range: error_range,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            primary_expectation: 0,
+        }];
+        let operators = OperatorTable::empty();
+        let mut fresh = None;
+        for frozen in [false, true] {
+            let mut input = source;
+            let mut recover = if frozen {
+                Recover::reconcile_for_test(&operators, &expected_records)
+            } else {
+                Recover::new_for_test(&operators)
+            };
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            if let Err(Either::Right(end)) = &mut exit {
+                emit_end(&mut builder, end);
+            }
+            builder.finish_node();
+            let green = builder.finish();
+            let records = recover.finish_recoveries_for_test();
+            assert_eq!(records, expected_records, "{source:?}");
+            if let Some(previous) = &fresh {
+                assert_eq!(&green, previous, "{source:?}");
+            } else {
+                fresh = Some(green.clone());
+            }
+            let root = SyntaxNode::new_root(green);
+            let anchor = root
+                .descendants()
+                .find(|node| node.kind() == UseAnchor)
+                .unwrap();
+            let path = anchor.children().next().unwrap();
+            assert_eq!(
+                path.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                [
+                    UsePath,
+                    UseAnchor,
+                    UseQualifiers,
+                    UseTree,
+                    UseDeclaration,
+                    Statement,
+                    Root
+                ]
+            );
+            assert_use_composition_children(
+                &anchor,
+                6,
+                &[
+                    (WithKw, "with"),
+                    (Whitespace, " "),
+                    (
+                        UsePath,
+                        &source[11..pending.map_or(source.len(), |(_, _, at)| at)],
+                    ),
+                ],
+            );
+            assert_use_composition_children(&path, 11, &children);
+            assert!(
+                path.children_with_tokens()
+                    .all(|child| child.as_token().is_some())
+            );
+            for child in root.descendants_with_tokens() {
+                assert!(!matches!(
+                    child.kind(),
+                    Missing | Invalid | UseGroup | UseGlob | OperatorName | UseGroupForeignClose
+                ));
+                if child.kind() == Error {
+                    assert_eq!(child.parent().as_ref(), Some(&path));
+                }
+                let range = child.text_range();
+                assert_eq!(
+                    child.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+            }
+            assert_eq!(input, "");
+            if let Some((kind, spelling, at)) = pending {
+                assert_eq!(root.to_string(), source[..at]);
+                let Err(Either::Left(mut item)) = exit else {
+                    panic!("anchor close must remain pending: {source:?}")
+                };
+                assert_eq!(token_kind(&item), Some(kind));
+                assert_eq!(item.payload_view().spelling(), Some(spelling));
+                let extent = item.extent(source.len());
+                assert_eq!(extent.leading(), at..at);
+                assert_eq!(extent.payload(), at..at + 1);
+                let leading = emit_pending_leading_text(&mut item);
+                assert_eq!(leading, "");
+                assert_eq!(format!("{root}{leading}{spelling}{input}"), source);
+            } else {
+                assert!(matches!(exit, Err(Either::Right(_))));
+                assert_eq!(root.to_string(), source);
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_anchor_reserved_head_missing_identifier_handoff() {
     use crate::recovery_record::*;
     use SyntaxKind::*;
