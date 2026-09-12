@@ -274,6 +274,13 @@ separate. Existing path/group/glob recovery and protected handoff are unchanged.
 Full UseTree composition, wider marker/layout/fence behavior, the interpreter
 and ledger/API retirement remain open.
 
+The M2 full UseTree composition is now catalog-audited. It orders the selected
+group/operator/mod/marker/path alternatives, terminal joins, aliases, Glob and
+qualifiers without giving UseTree its own recovery role; all recovery remains
+with the selected component and protected boundaries return unchanged. Wider
+newline/fence and outer declaration behavior, the interpreter and ledger/API
+retirement remain open.
+
 The M2 UseGlob full phase aggregate is now catalog-audited. Ordered aliases,
 first/repeated exclusion episodes, interleaved component recovery, nested
 punctuation and protected handoff retain their existing owners, while both

@@ -1,6 +1,416 @@
 use crate::tests::support::*;
 
 #[test]
+fn use_schema_full_tree_accepted_composition() {
+    use SyntaxKind::*;
+
+    // Component matrices below own their internals; this gate fixes their
+    // source-ordered composition, including marker and terminal-join ownership.
+    for (source, tree_text, children) in [
+        ("use {}", "{}", vec![(UseGroup, "{}")]),
+        ("use (+)::p", "(+)::p", vec![(UsePath, "(+)::p")]),
+        ("use p::(+)", "p::(+)", vec![(UsePath, "p::(+)")]),
+        (
+            "use mod p::(+) v1",
+            "mod p::(+) v1",
+            vec![
+                (ModKw, "mod"),
+                (Whitespace, " "),
+                (UsePath, "p::(+)"),
+                (UseQualifiers, " v1"),
+            ],
+        ),
+        (
+            "use mod p::* v1",
+            "mod p::* v1",
+            vec![
+                (ModKw, "mod"),
+                (Whitespace, " "),
+                (UsePath, "p"),
+                (ColonColon, "::"),
+                (UseGlob, "*"),
+                (UseQualifiers, " v1"),
+            ],
+        ),
+        (
+            "use mod p::{x} as q v1 with a",
+            "mod p::{x} as q v1 with a",
+            vec![
+                (ModKw, "mod"),
+                (Whitespace, " "),
+                (UsePath, "p"),
+                (ColonColon, "::"),
+                (UseGroup, "{x}"),
+                (Whitespace, " "),
+                (UseAlias, "as q"),
+                (UseQualifiers, " v1 with a"),
+            ],
+        ),
+        (
+            "use realm/p",
+            "realm/p",
+            vec![(RealmKw, "realm"), (Slash, "/"), (UsePath, "p")],
+        ),
+        (
+            "use band::p",
+            "band::p",
+            vec![(BandKw, "band"), (ColonColon, "::"), (UsePath, "p")],
+        ),
+        (
+            "use realm/{x}",
+            "realm/{x}",
+            vec![(RealmKw, "realm"), (Slash, "/"), (UseGroup, "{x}")],
+        ),
+        (
+            "use band::{x}",
+            "band::{x}",
+            vec![(BandKw, "band"), (ColonColon, "::"), (UseGroup, "{x}")],
+        ),
+        (
+            "use band::*",
+            "band::*",
+            vec![(BandKw, "band"), (ColonColon, "::"), (UseGlob, "*")],
+        ),
+        ("use realm::p", "realm::p", vec![(UsePath, "realm::p")]),
+        ("use band/p", "band/p", vec![(UsePath, "band/p")]),
+        ("use p/q", "p/q", vec![(UsePath, "p/q")]),
+        (
+            "use p/{x}",
+            "p/{x}",
+            vec![(UsePath, "p"), (Slash, "/"), (UseGroup, "{x}")],
+        ),
+        (
+            "use p as a as b v1 with anchor",
+            "p as a as b v1 with anchor",
+            vec![
+                (UsePath, "p"),
+                (Whitespace, " "),
+                (UseAlias, "as a"),
+                (Whitespace, " "),
+                (UseAlias, "as b"),
+                (UseQualifiers, " v1 with anchor"),
+            ],
+        ),
+        (
+            "use p v1",
+            "p v1",
+            vec![(UsePath, "p"), (UseQualifiers, " v1")],
+        ),
+        (
+            "use p with a",
+            "p with a",
+            vec![(UsePath, "p"), (UseQualifiers, " with a")],
+        ),
+        (
+            "use p::* as a without b v1 with anchor",
+            "p::* as a without b v1 with anchor",
+            vec![
+                (UsePath, "p"),
+                (ColonColon, "::"),
+                (UseGlob, "* as a without b"),
+                (UseQualifiers, " v1 with anchor"),
+            ],
+        ),
+        (
+            "use band::* as a v1 with anchor",
+            "band::* as a v1 with anchor",
+            vec![
+                (BandKw, "band"),
+                (ColonColon, "::"),
+                (UseGlob, "* as a"),
+                (UseQualifiers, " v1 with anchor"),
+            ],
+        ),
+        (
+            "use {p::{x} as q v1}",
+            "{p::{x} as q v1}",
+            vec![(UseGroup, "{p::{x} as q v1}")],
+        ),
+        (
+            "use {p::{x} as q v1}",
+            "p::{x} as q v1",
+            vec![
+                (UsePath, "p"),
+                (ColonColon, "::"),
+                (UseGroup, "{x}"),
+                (Whitespace, " "),
+                (UseAlias, "as q"),
+                (UseQualifiers, " v1"),
+            ],
+        ),
+    ] {
+        let (green, records) = use_group_recoveries(source, None);
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.to_string(), source);
+        assert!(records.is_empty(), "{source:?}");
+        assert!(
+            root.descendants_with_tokens().all(|child| !matches!(
+                child.kind(),
+                Missing | Error | Invalid | UseGroupForeignClose
+            )),
+            "{source:?}"
+        );
+        let tree = root
+            .descendants()
+            .find(|node| node.kind() == UseTree && node.to_string() == tree_text)
+            .unwrap();
+        assert_use_composition_children(&tree, source.find(tree_text).unwrap() as u32, &children);
+        let parent = tree.parent().unwrap();
+        assert_eq!(
+            parent.kind(),
+            if tree_text == &source[4..] {
+                UseDeclaration
+            } else {
+                UseGroup
+            }
+        );
+        if tree_text.contains("* as a") {
+            let alias = tree
+                .descendants()
+                .find(|node| node.kind() == UseAlias)
+                .unwrap();
+            assert_eq!(alias.to_string(), "as a");
+            assert_eq!(
+                alias
+                    .ancestors()
+                    .take(3)
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                [UseAlias, UseGlob, UseTree]
+            );
+        }
+        let (frozen, frozen_records) = use_group_recoveries(source, Some(&records));
+        assert_eq!(green, frozen, "{source:?}");
+        assert_eq!(records, frozen_records, "{source:?}");
+    }
+}
+
+#[test]
+fn use_schema_full_tree_recovered_and_protected_composition() {
+    use SyntaxKind::*;
+
+    for (source, children, recovery) in [
+        (
+            "use mod",
+            vec![(ModKw, "mod"), (UsePath, "")],
+            vec![(Missing, UsePath, 7..7)],
+        ),
+        (
+            "use mod @",
+            vec![(ModKw, "mod"), (UsePath, " @")],
+            vec![(Error, UsePath, 8..9)],
+        ),
+        (
+            "use mod @ p",
+            vec![(ModKw, "mod"), (UsePath, " @ p")],
+            vec![(Error, UsePath, 8..9)],
+        ),
+        (
+            "use realm/@ p",
+            vec![(RealmKw, "realm"), (Slash, "/"), (UsePath, "@ p")],
+            vec![(Error, UsePath, 10..11)],
+        ),
+        (
+            "use p::",
+            vec![(UsePath, "p::")],
+            vec![(Missing, UsePath, 7..7)],
+        ),
+        (
+            "use p::@ q",
+            vec![(UsePath, "p::@ q")],
+            vec![(Error, UsePath, 7..8)],
+        ),
+        (
+            "use (+",
+            vec![(UsePath, "(+")],
+            vec![(Missing, OperatorName, 6..6)],
+        ),
+        (
+            "use p as",
+            vec![(UsePath, "p"), (Whitespace, " "), (UseAlias, "as")],
+            vec![(Missing, UseAlias, 8..8)],
+        ),
+        (
+            "use p as @ q",
+            vec![(UsePath, "p"), (Whitespace, " "), (UseAlias, "as @ q")],
+            vec![(Error, UseAlias, 9..10)],
+        ),
+        (
+            "use {a b}",
+            vec![(UseGroup, "{a b}")],
+            vec![(Missing, UseGroup, 7..7)],
+        ),
+        (
+            "use {@ a}",
+            vec![(UseGroup, "{@ a}")],
+            vec![(Error, UseGroup, 5..6)],
+        ),
+        (
+            "use p::* without",
+            vec![(UsePath, "p"), (ColonColon, "::"), (UseGlob, "* without")],
+            vec![(Missing, UseGlob, 16..16)],
+        ),
+        (
+            "use p::* without @ a v1",
+            vec![
+                (UsePath, "p"),
+                (ColonColon, "::"),
+                (UseGlob, "* without @ a"),
+                (UseQualifiers, " v1"),
+            ],
+            vec![(Error, UseGlob, 17..18)],
+        ),
+        (
+            "use p with @ a",
+            vec![(UsePath, "p"), (UseQualifiers, " with @ a")],
+            vec![(Error, UsePath, 11..12)],
+        ),
+        (
+            "use mod ;next",
+            vec![(ModKw, "mod"), (UsePath, "")],
+            vec![(Missing, UsePath, 7..7)],
+        ),
+        (
+            "use p:: ;next",
+            vec![(UsePath, "p::")],
+            vec![(Missing, UsePath, 7..7)],
+        ),
+        (
+            "use p as ;next",
+            vec![(UsePath, "p"), (Whitespace, " "), (UseAlias, "as")],
+            vec![(Missing, UseAlias, 8..8)],
+        ),
+        (
+            "use {a ;next",
+            vec![(UseGroup, "{a")],
+            vec![(Missing, UseGroup, 6..6)],
+        ),
+        (
+            "use p::* without ;next",
+            vec![(UsePath, "p"), (ColonColon, "::"), (UseGlob, "* without")],
+            vec![(Missing, UseGlob, 16..16)],
+        ),
+        (
+            "use p::* without a ;next",
+            vec![(UsePath, "p"), (ColonColon, "::"), (UseGlob, "* without a")],
+            vec![],
+        ),
+        (
+            "use p with ;next",
+            vec![(UsePath, "p"), (UseQualifiers, " with")],
+            vec![(Missing, UsePath, 10..10)],
+        ),
+    ] {
+        let operators = OperatorTable::empty();
+        let mut previous: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
+        for _ in 0..2 {
+            let mut input = source;
+            let mut recover = match &previous {
+                Some((_, records)) => Recover::reconcile_for_test(&operators, records),
+                None => Recover::new_for_test(&operators),
+            };
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            if let Err(Either::Right(end)) = &mut exit {
+                emit_end(&mut builder, end);
+            }
+            builder.finish_node();
+            let green = builder.finish();
+            let records = recover.finish_recoveries_for_test();
+            let root = SyntaxNode::new_root(green.clone());
+            let tree = root
+                .descendants()
+                .find(|node| node.kind() == UseTree)
+                .unwrap();
+            assert_eq!(tree.parent().unwrap().kind(), UseDeclaration);
+            assert_use_composition_children(&tree, 4, &children);
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter(|child| matches!(child.kind(), Missing | Error))
+                    .map(|child| {
+                        let range = child.text_range();
+                        (
+                            child.kind(),
+                            child.parent().unwrap().kind(),
+                            u32::from(range.start())..u32::from(range.end()),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                recovery,
+                "{source:?}"
+            );
+            for node in root.descendants().filter(|node| node.kind() == UseTree) {
+                assert!(node.children_with_tokens().all(|child| !matches!(
+                    child.kind(),
+                    Missing | Error | Invalid | UseGroupForeignClose
+                )));
+            }
+            for child in root.descendants_with_tokens() {
+                let range = child.text_range();
+                assert_eq!(
+                    child.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+            }
+            if let Some(boundary) = source.find(" ;next") {
+                assert_eq!(root.to_string(), source[..boundary]);
+                let Err(Either::Left(mut item)) = exit else {
+                    panic!("protected semicolon must remain pending: {source:?}")
+                };
+                assert_eq!(token_kind(&item), Some(TokenKind::Semicolon));
+                assert_eq!(item.payload_view().spelling(), Some(";"));
+                let extent = item.extent(source.len() - input.len());
+                assert_eq!(extent.leading(), boundary..boundary + 1);
+                assert_eq!(extent.payload(), boundary + 1..boundary + 2);
+                let leading = emit_pending_leading_text(&mut item);
+                assert_eq!(leading, " ");
+                assert_eq!(input, "next");
+                assert_eq!(format!("{root}{leading};{input}"), source);
+            } else {
+                assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+                assert_eq!(input, "");
+                assert_eq!(root.to_string(), source);
+            }
+            if let Some((fresh, fresh_records)) = &previous {
+                assert_eq!(&green, fresh, "{source:?}");
+                assert_eq!(&records, fresh_records, "{source:?}");
+            } else {
+                previous = Some((green, records));
+            }
+        }
+    }
+}
+
+fn assert_use_composition_children(node: &SyntaxNode, start: u32, children: &[(SyntaxKind, &str)]) {
+    let mut offset = start;
+    let expected = children
+        .iter()
+        .map(|(kind, text)| {
+            let range = offset..offset + text.len() as u32;
+            offset = range.end;
+            (*kind, range, text.to_string())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                    child.to_string(),
+                )
+            })
+            .collect::<Vec<_>>(),
+        expected,
+        "{node:#?}"
+    );
+    assert_eq!(u32::from(node.text_range().start()), start);
+    assert_eq!(u32::from(node.text_range().end()), offset);
+}
+
+#[test]
 fn use_terminal_join_is_direct_tree_child() {
     use SyntaxKind::*;
 
