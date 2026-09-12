@@ -95,8 +95,9 @@ temporary diagnostic state while the schema remains incomplete.
   neither observed result is certified by the attachment row. Resolve the
   governing sources before changing that affected behavior.
 - The source census is not a semantic-slot count or retirement proof. Its
-  2026-09-11 audit found indirect `emit_rule_missing` publishers and stale Type
-  locators; consult later per-row evidence before treating an old gap as open.
+  indirect `emit_rule_missing` publishers remain explicit exceptions. The
+  previously stale mapped-Type locators were revalidated and refreshed on
+  2026-09-12; consult per-row evidence before treating any old gap as open.
 - Production outer Yumark document/fence integration and broader actual
   caller/header/full proof remain separate. The test-only code-cell wrapper is
   not a production document owner. Future frontend/type-walk integration is

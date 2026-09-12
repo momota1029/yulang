@@ -41,11 +41,13 @@ coverage entries, not evidence that the ordinary RuleBody/Parenthesis rows
 apply to that frame.
 
 The same audit found several catalog locators under `type_expr/mod.rs` stale
-against current source line positions. Existing row statuses are not changed:
-the source behavior and topology must be revalidated before adjusting a link.
-Until every indirect/helper-mediated publisher and its ordered caller context
-is accounted for, this manifest cannot support a complete-schema or
-ledger-retirement claim.
+against current source line positions. On 2026-09-12 the bounded TypeCall
+separator, TypePathTail, LeadingEffectTypeHead, BracketRowArrow and actual-arrow
+RHS links were revalidated against their unchanged current owner functions and
+their locators refreshed in this manifest and the catalog. Their row statuses
+did not change. Until every indirect/helper-mediated publisher and its ordered
+caller context is accounted for, this manifest cannot support a complete-schema
+or ledger-retirement claim.
 
 ## Matching rule
 
@@ -1064,11 +1066,11 @@ structured-primary internals, or another Type context.
 
 | Source evidence | Status | Linked fact |
 | --- | --- | --- |
-| `crates/yu-syntax/src/type_expr/mod.rs:1518` | `linked` | incomplete direct leading BracketRow exit publishes the sibling head Missing |
-| `crates/yu-syntax/src/type_expr/mod.rs:1667` | `linked` | direct LeadingEffectTypeHead malformed Error-run publication |
-| `crates/yu-syntax/src/type_expr/mod.rs:1678` | `linked` | protected-boundary or ordinary-leading direct head Missing publication |
+| `crates/yu-syntax/src/type_expr/mod.rs:1568` | `linked` | incomplete direct leading BracketRow exit publishes the sibling head Missing |
+| `crates/yu-syntax/src/type_expr/mod.rs:1671` | `linked` | direct LeadingEffectTypeHead malformed Error-run publication |
+| `crates/yu-syntax/src/type_expr/mod.rs:1727` | `linked` | protected-boundary or ordinary-leading direct head Missing publication |
 
-The enclosing helper/caller at `1485–1680` and the focused direct CST/recovery
+The enclosing helper/caller at `1534–1730` and the focused direct CST/recovery
 controls are support evidence, not additional census assignments. In
 particular, `[e` proves that the nested BracketRow close Missing precedes the
 direct sibling head Missing at the same offset. Every other
@@ -1088,9 +1090,9 @@ assigned to it.
 
 | Source evidence | Status | Linked fact |
 | --- | --- | --- |
-| `crates/yu-syntax/src/type_expr/mod.rs:1683–1740` | `linked` | direct `TypeArrowTail` owner; every incomplete BracketRow exit emits its separate Arrow Missing and returns its existing exit/handoff unchanged, without Arrow/RHS classification |
-| `crates/yu-syntax/src/type_expr/mod.rs:1780` | `linked` | completed-row boundary, actual-Arrow, malformed-run, and retry classification |
-| `crates/yu-syntax/src/type_expr/mod.rs:1850–1854` | `linked` | arrowless admitted-Type leading, its one required-arrow Missing, then `TypeExpression` continuation |
+| `crates/yu-syntax/src/type_expr/mod.rs:1733–1793` | `linked` | direct `TypeArrowTail` owner; every incomplete BracketRow exit emits its separate Arrow Missing and returns its existing exit/handoff unchanged, without Arrow/RHS classification |
+| `crates/yu-syntax/src/type_expr/mod.rs:1830–1903` | `linked` | completed-row boundary, actual-Arrow, malformed-run, and retry classification |
+| `crates/yu-syntax/src/type_expr/mod.rs:1900–1904` | `linked` | arrowless admitted-Type leading, its one required-arrow Missing, then `TypeExpression` continuation |
 
 Focused direct CST/recovery support is
 `tests/type_expr/bracket_arrow_cst.rs:17–147,151–185,189–408` and
@@ -1111,9 +1113,9 @@ internals, or a nested RHS slot.
 
 | Source evidence | Status | Linked fact |
 | --- | --- | --- |
-| `crates/yu-syntax/src/type_expr/mod.rs:2430` | `linked` | actual-arrow `TypeArrowTail` wrapper support |
-| `crates/yu-syntax/src/type_expr/mod.rs:2466` | `linked` | direct accepted Arrow, RHS Missing/Error/retry/boundary publication and handoff owner |
-| `crates/yu-syntax/src/type_expr/mod.rs:1832` | `linked` | direct accepted Arrow selected from the separate BracketRowArrow phase before entering this RHS owner |
+| `crates/yu-syntax/src/type_expr/mod.rs:2478` | `linked` | actual-arrow `TypeArrowTail` wrapper support |
+| `crates/yu-syntax/src/type_expr/mod.rs:2516` | `linked` | direct accepted Arrow, RHS Missing/Error/retry/boundary publication and handoff owner |
+| `crates/yu-syntax/src/type_expr/mod.rs:1881` | `linked` | direct accepted Arrow selected from the separate BracketRowArrow phase before entering this RHS owner |
 
 The inspected pending-boundary coordinate is temporary parser-record/handoff
 evidence only. Future CST-derived projection uses the direct zero-width Rowan
@@ -1133,12 +1135,12 @@ handoff to TypeApply; `::` spelling alone is not an assignment rule.
 
 | Source evidence | Status | Linked fact |
 | --- | --- | --- |
-| `crates/yu-syntax/src/type_expr/mod.rs:2109` | `linked` | abstract pending-boundary Missing |
-| `crates/yu-syntax/src/type_expr/mod.rs:2137` | `linked` | caller/outer protected-boundary Missing |
-| `crates/yu-syntax/src/type_expr/mod.rs:2161` | `linked` | ordinary leading/path-boundary Missing after owned leading emission |
-| `crates/yu-syntax/src/type_expr/mod.rs:2294` | `linked` | direct TypePathTail malformed Error-run and same-slot retry/handoff evidence |
+| `crates/yu-syntax/src/type_expr/mod.rs:2159` | `linked` | abstract pending-boundary Missing |
+| `crates/yu-syntax/src/type_expr/mod.rs:2187` | `linked` | caller/outer protected-boundary Missing |
+| `crates/yu-syntax/src/type_expr/mod.rs:2211` | `linked` | ordinary leading/path-boundary Missing after owned leading emission |
+| `crates/yu-syntax/src/type_expr/mod.rs:2344` | `linked` | direct TypePathTail malformed Error-run and same-slot retry/handoff evidence |
 
-The helper/caller context at `2074–2273` and `2281–2366` is support for the
+The helper/caller context at `2124–2328` and `2331–2420` is support for the
 linked facts, not a separate census assignment. Every other
 `type_expr/mod.rs` emission, including other Type heads, tails, calls, rows,
 variants, forall, delimiter, and close contexts, remains `untriaged` and
@@ -1189,7 +1191,7 @@ caller and nested Type rows remain separately owned and unmapped here.
 #### TypeCall separator-phase links
 
 `crates/yu-syntax/src/type_expr/delimited.rs:73–79,360–507,1140–1210,1299–1330`
-and `type_expr/mod.rs:2883–2888` are linked to the bounded separator row.
+and `type_expr/mod.rs:2937–2942` are linked to the bounded separator row.
 Direct accepted/inherited-ML/error-discriminator/frozen proof is
 `crates/yu-syntax/src/tests/type_expr/type_call_fallback.rs:52–218`; boundary
 support remains separately cited by the catalog row. The mapped row excludes
