@@ -253,6 +253,12 @@ Missing expects Identifier, and direct Error expects Path. UTF-8 retry and
 protected semicolon handoff are lossless; broader reserved/multiline/fence and
 suffix behavior remain open.
 
+The Realm/Band marker-target dispatcher is now catalog-audited. Both markers
+select direct group/path targets and delegate all recovery; immediate glob is
+accepted only for Band in ordinary source because `realm/*` is lexically a block
+comment and whitespace prevents Star admission. `mod`, marker whitespace,
+broader group/glob/recursive/fence and caller behavior remain open.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

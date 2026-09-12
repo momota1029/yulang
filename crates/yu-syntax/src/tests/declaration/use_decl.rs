@@ -1042,6 +1042,347 @@ fn use_schema_accepted_group_children_and_nested_occurrences() {
 }
 
 #[test]
+fn use_schema_marker_target_dispatch() {
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let assert_source = |root: &SyntaxNode, source: &str| {
+        for child in root.descendants_with_tokens() {
+            let range = child.text_range();
+            assert_eq!(
+                child.to_string(),
+                source[usize::from(range.start())..usize::from(range.end())]
+            );
+            assert!(!matches!(
+                child.kind(),
+                Invalid | UseExclusion | UseExclusionGroup | UseGroupForeignClose
+            ));
+        }
+        for node in root.descendants() {
+            for child in node.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(&node));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(
+                        child.kind(),
+                        Statement
+                            | UseDeclaration
+                            | UseTree
+                            | UsePath
+                            | UseGroup
+                            | UseGlob
+                            | OperatorName
+                            | Missing
+                    )
+                );
+            }
+        }
+    };
+    for (marker, marker_kind, marker_end, separator_kind) in [
+        ("realm/", RealmKw, 9, Slash),
+        ("band::", BandKw, 8, ColonColon),
+    ] {
+        for (text, target_kind, children, recovery, pending) in [
+            (
+                "{a}",
+                UseGroup,
+                vec![(LBrace, 10..11), (UseTree, 11..12), (RBrace, 12..13)],
+                None,
+                false,
+            ),
+            ("name", UsePath, vec![(Identifier, 10..14)], None, false),
+            (
+                "",
+                UsePath,
+                vec![(Missing, 10..10)],
+                Some((Missing, UsePath, 10..10)),
+                false,
+            ),
+            (
+                "@",
+                UsePath,
+                vec![(Error, 10..11)],
+                Some((Error, UsePath, 10..11)),
+                false,
+            ),
+            (
+                "@ name",
+                UsePath,
+                vec![(Error, 10..11), (Whitespace, 11..12), (Identifier, 12..16)],
+                Some((Error, UsePath, 10..11)),
+                false,
+            ),
+            ("(+)", UsePath, vec![(OperatorName, 10..13)], None, false),
+            (
+                "(+",
+                UsePath,
+                vec![(OperatorName, 10..12)],
+                Some((Missing, OperatorName, 12..12)),
+                false,
+            ),
+            (
+                "()",
+                UsePath,
+                vec![(Error, 10..11)],
+                Some((Error, UsePath, 10..11)),
+                true,
+            ),
+        ] {
+            let source = format!("use {marker}{text}");
+            let operators = OperatorTable::empty();
+            let mut input = source.as_str();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            if let Err(Either::Right(end)) = &mut exit {
+                emit_end(&mut builder, end);
+            }
+            builder.finish_node();
+            let root = SyntaxNode::new_root(finish_with_discarded_recoveries(builder, recover));
+            let end = if pending { 11 } else { source.len() as u32 };
+            let tree = root
+                .descendants()
+                .find(|node| node.kind() == UseTree)
+                .unwrap();
+            assert_eq!(
+                projection(&tree),
+                [
+                    (marker_kind, 4..marker_end),
+                    (separator_kind, marker_end..10),
+                    (target_kind, 10..end)
+                ],
+                "{source:?}"
+            );
+            let target = tree.children().next().unwrap();
+            assert_eq!(
+                target
+                    .ancestors()
+                    .take(4)
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                [target_kind, UseTree, UseDeclaration, Statement]
+            );
+            assert_eq!(projection(&target), children);
+            if target_kind == UseGroup {
+                let item = target.children().next().unwrap();
+                assert_eq!(projection(&item), [(UsePath, 11..12)]);
+                assert_eq!(
+                    projection(&item.children().next().unwrap()),
+                    [(Identifier, 11..12)]
+                );
+            }
+            let names: Vec<_> = target
+                .descendants()
+                .filter(|node| node.kind() == OperatorName)
+                .collect();
+            assert_eq!(names.len(), usize::from(matches!(text, "(+)" | "(+")));
+            if let Some(name) = names.first() {
+                assert_eq!(
+                    name.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                    [
+                        OperatorName,
+                        UsePath,
+                        UseTree,
+                        UseDeclaration,
+                        Statement,
+                        Root
+                    ]
+                );
+                let close = if text == "(+)" {
+                    (RParen, 12..13)
+                } else {
+                    (Missing, 12..12)
+                };
+                assert_eq!(
+                    projection(name),
+                    [(LParen, 10..11), (Operator, 11..12), close]
+                );
+            }
+            let recoveries: Vec<_> = root
+                .descendants_with_tokens()
+                .filter(|child| matches!(child.kind(), Missing | Error))
+                .collect();
+            assert_eq!(recoveries.len(), usize::from(recovery.is_some()));
+            if let Some((kind, owner, range)) = recovery {
+                let child = &recoveries[0];
+                assert_eq!(child.kind(), kind);
+                assert_eq!(child.parent().unwrap().kind(), owner);
+                assert_eq!(
+                    child.text_range(),
+                    rowan::TextRange::new(range.start.into(), range.end.into())
+                );
+                if let Some(node) = child.as_node() {
+                    assert!(node.text_range().is_empty());
+                    assert!(node.children_with_tokens().next().is_none());
+                }
+            }
+            let mut runs = Vec::new();
+            let mut current: Option<std::ops::Range<u32>> = None;
+            for child in target.children_with_tokens() {
+                let range = child.text_range();
+                // The direct owner and adjacency select Error, not its spelling.
+                if child.kind() == Error {
+                    if let Some(run) = &mut current {
+                        assert_eq!(run.end, u32::from(range.start()));
+                        run.end = u32::from(range.end());
+                    } else {
+                        current = Some(u32::from(range.start())..u32::from(range.end()));
+                    }
+                } else if let Some(run) = current.take() {
+                    runs.push(run);
+                }
+            }
+            if let Some(run) = current {
+                runs.push(run);
+            }
+            assert_eq!(
+                runs,
+                children
+                    .iter()
+                    .filter(|(kind, _)| *kind == Error)
+                    .map(|(_, range)| range.clone())
+                    .collect::<Vec<_>>()
+            );
+            assert_source(&root, &source);
+            if pending {
+                assert_eq!(root.to_string(), source[..11]);
+                let Err(Either::Left(mut item)) = exit else {
+                    panic!("RParen must remain pending")
+                };
+                assert_eq!(token_kind(&item), Some(TokenKind::RParen));
+                assert_eq!(item.payload_view().spelling(), Some(")"));
+                let extent = item.extent(source.len() - input.len());
+                assert_eq!(extent.leading(), 11..11);
+                assert_eq!(extent.payload(), 11..12);
+                assert_eq!(emit_pending_leading_text(&mut item), "");
+                assert_eq!(input, "");
+                assert_eq!(format!("{root}){input}"), source);
+            } else {
+                assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+                assert_eq!(input, "");
+                assert_eq!(root.to_string(), source);
+            }
+        }
+    }
+    // The shared dispatcher is witnessed only where lexically reachable:
+    // adjacent realm/* starts a comment, so the direct glob control is Band-only.
+    let source = "use band::*";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let root = SyntaxNode::new_root(green);
+    let tree = root
+        .descendants()
+        .find(|node| node.kind() == UseTree)
+        .unwrap();
+    assert_eq!(
+        tree.text_range(),
+        rowan::TextRange::new(4.into(), 11.into())
+    );
+    assert_eq!(
+        projection(&tree),
+        [(BandKw, 4..8), (ColonColon, 8..10), (UseGlob, 10..11)]
+    );
+    let glob = tree.children().next().unwrap();
+    assert_eq!(projection(&glob), [(Star, 10..11)]);
+    assert_eq!(
+        glob.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+        [UseGlob, UseTree, UseDeclaration, Statement, Root]
+    );
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|child| matches!(child.kind(), Missing | Error))
+    );
+    assert_source(&root, source);
+
+    for (source, children) in [
+        ("use realm", vec![(Identifier, 4..9)]),
+        ("use band", vec![(Identifier, 4..8)]),
+        (
+            "use realm::name",
+            vec![
+                (Identifier, 4..9),
+                (ColonColon, 9..11),
+                (Identifier, 11..15),
+            ],
+        ),
+        (
+            "use band/name",
+            vec![(Identifier, 4..8), (Slash, 8..9), (Identifier, 9..13)],
+        ),
+    ] {
+        let (green, _) = run_statement(source);
+        assert_eq!(green.to_string(), source);
+        let root = SyntaxNode::new_root(green);
+        let tree = root
+            .descendants()
+            .find(|node| node.kind() == UseTree)
+            .unwrap();
+        assert_eq!(projection(&tree), [(UsePath, 4..source.len() as u32)]);
+        assert_eq!(projection(&tree.children().next().unwrap()), children);
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), RealmKw | BandKw | Missing | Error))
+        );
+        assert_source(&root, source);
+    }
+    let source = "use realm/{band::name}";
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let root = SyntaxNode::new_root(green);
+    let trees: Vec<_> = root
+        .descendants()
+        .filter(|node| node.kind() == UseTree)
+        .collect();
+    assert_eq!(trees.len(), 2);
+    assert_eq!(
+        projection(&trees[0]),
+        [(RealmKw, 4..9), (Slash, 9..10), (UseGroup, 10..22)]
+    );
+    let group = trees[0].children().next().unwrap();
+    assert_eq!(
+        projection(&group),
+        [(LBrace, 10..11), (UseTree, 11..21), (RBrace, 21..22)]
+    );
+    assert_eq!(
+        projection(&trees[1]),
+        [(BandKw, 11..15), (ColonColon, 15..17), (UsePath, 17..21)]
+    );
+    let path = trees[1].children().next().unwrap();
+    assert_eq!(
+        path.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+        [
+            UsePath,
+            UseTree,
+            UseGroup,
+            UseTree,
+            UseDeclaration,
+            Statement,
+            Root
+        ]
+    );
+    assert_eq!(projection(&path), [(Identifier, 17..21)]);
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|child| matches!(child.kind(), Missing | Error))
+    );
+    assert_source(&root, source);
+}
+
+#[test]
 fn use_schema_qualifier_anchor_path_ownership() {
     use SyntaxKind::*;
 

@@ -352,6 +352,12 @@ post-separator recovery while the qualifier shells remain diagnostic-free.
 Ordered Rowan context distinguishes initial Missing/Path, separator
 Missing/Identifier and direct Error/Path, including UTF-8 retry and protected
 semicolon handoff.
+The Realm/Band marker-target dispatcher is now linked. Both markers compose
+direct marker token/separator plus group or path target; immediate glob is
+evidence-complete only for Band because `realm/*` is lexically a block-comment
+start and a spaced Star fails the marker's empty-leading admission. Marker
+dispatch stays diagnostic-free and delegates Path/OperatorName or group/glob
+recovery to its selected child.
 M2 specification and regression delta audits for the independent rows were
 clean.
 
