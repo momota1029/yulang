@@ -286,6 +286,9 @@ returning the unchanged boundary. This restores public Root topology without
 changing Missing/Error ownership or pending handoff; the analogous Mod required
 word owner remains a separate follow-up gate.
 
+The Mod required-word owner now has the same frame-balance repair for malformed
+EOF and protected exits; public Root topology and continuation remain intact.
+
 The M2 UseGlob full phase aggregate is now catalog-audited. Ordered aliases,
 first/repeated exclusion episodes, interleaved component recovery, nested
 punctuation and protected handoff retain their existing owners, while both

@@ -573,7 +573,7 @@ fn parse_mod_target(
             ExpectedSyntax::Path,
         );
     }
-    let (present, item) = required_word(
+    let (present, item) = match required_word(
         projection,
         ImportRole::Path,
         i.rb(),
@@ -583,7 +583,13 @@ fn parse_mod_target(
         item_origin,
         line_entry,
         fence,
-    )?;
+    ) {
+        Ok(result) => result,
+        Err(item) => {
+            i.state.finish_node();
+            return Err(item);
+        }
+    };
     if !present {
         i.state.finish_node();
         return Ok((Terminal::Single, item));

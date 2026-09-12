@@ -3993,6 +3993,53 @@ fn use_path_frames_balance_at_required_segment_exits() {
 }
 
 #[test]
+fn use_mod_path_frames_balance_at_required_word_exits() {
+    use SyntaxKind::*;
+    use std::sync::Arc;
+
+    for (text, path_text) in [
+        ("use mod @", " @"),
+        ("use mod @;next", " @"),
+        ("use mod @\nnext", " @"),
+        ("use mod p", "p"),
+        ("use mod p;next", "p"),
+        ("use mod p\nnext", "p"),
+        ("use mod p::q", "p::q"),
+    ] {
+        let source: Arc<crate::SourceText> = Arc::from(text);
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        let fresh = crate::cursor::parse_root(text, &OperatorTable::empty(), &[]);
+        let parsed = crate::parse_file(
+            source,
+            Arc::clone(&header),
+            Arc::new(crate::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(parsed.green(), &fresh.green, "{text:?}");
+        assert_eq!(
+            fresh.committed_recoveries.as_slice(),
+            header.recoveries.as_ref(),
+            "{text:?}"
+        );
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        assert_eq!(root.kind(), Root, "{text:?}");
+        assert_eq!(root.to_string(), text);
+        let path = root
+            .descendants()
+            .find(|node| node.kind() == UsePath)
+            .unwrap();
+        assert_eq!(path.to_string(), path_text, "{text:?}");
+        assert_eq!(
+            path.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+            [UsePath, UseTree, UseDeclaration, Root],
+            "{text:?}"
+        );
+        if text.ends_with("next") {
+            assert!(root.children().any(|node| node.to_string() == "next"));
+        }
+    }
+}
+
+#[test]
 fn use_schema_required_path_segment_direct_occurrences() {
     use SyntaxKind::*;
 
