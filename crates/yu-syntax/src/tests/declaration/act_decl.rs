@@ -5,6 +5,11 @@ fn assert_act_body_schema(source: &str, expected: &[(SyntaxKind, usize)]) -> Syn
     assert_eq!(green.to_string(), source);
     assert_eq!(remainder, "");
     let node = declaration(&green);
+    assert_act_direct_children(&node, source, expected);
+    node
+}
+
+fn assert_act_direct_children(node: &SyntaxNode, source: &str, expected: &[(SyntaxKind, usize)]) {
     assert!(
         !node
             .descendants()
@@ -19,10 +24,27 @@ fn assert_act_body_schema(source: &str, expected: &[(SyntaxKind, usize)]) -> Syn
             (kind, range)
         })
         .collect::<Vec<_>>();
+    assert_eq!(offset, usize::from(node.text_range().end()));
     assert_eq!(
         node.children_with_tokens()
             .map(|element| {
-                assert_eq!(element.parent().as_ref(), Some(&node));
+                assert_eq!(element.parent().as_ref(), Some(node));
+                assert_eq!(
+                    element.as_node().is_some(),
+                    matches!(
+                        element.kind(),
+                        SyntaxKind::TypeExpression
+                            | SyntaxKind::DerivesClause
+                            | SyntaxKind::DeclarationCompanion
+                            | SyntaxKind::BracedStatementBlockExpression
+                            | SyntaxKind::IndentedStatementBlock
+                            | SyntaxKind::Statement
+                            | SyntaxKind::Missing
+                    )
+                );
+                let range = usize::from(element.text_range().start())
+                    ..usize::from(element.text_range().end());
+                assert_eq!(element.to_string(), source[range].to_owned());
                 if element.kind() == SyntaxKind::Error {
                     assert!(element.as_token().is_some());
                 }
@@ -44,9 +66,367 @@ fn assert_act_body_schema(source: &str, expected: &[(SyntaxKind, usize)]) -> Syn
             })
             .collect::<Vec<_>>(),
         expected,
-        "{source:?}"
+        "{node:#?}"
     );
-    node
+}
+
+#[test]
+fn act_attachment_continuation_has_ordered_header_source_and_companion_children() {
+    use SyntaxKind::*;
+    for (source, tail) in [
+        (
+            "act A derives Eq with {}",
+            vec![(DerivesClause, 11), (DeclarationCompanion, 8)],
+        ),
+        (
+            "act A derives Eq = B derives Copy with {}",
+            vec![
+                (DerivesClause, 11),
+                (Whitespace, 1),
+                (Equals, 1),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+                (DerivesClause, 13),
+                (DeclarationCompanion, 8),
+            ],
+        ),
+        (
+            "act A{} derives Eq",
+            vec![(BracedStatementBlockExpression, 2), (DerivesClause, 11)],
+        ),
+    ] {
+        let mut expected = vec![(ActKw, 3), (Whitespace, 1), (TypeExpression, 1)];
+        expected.extend(tail);
+        let node = assert_act_body_schema(source, &expected);
+        let (statement_green, _) = run_statement(source);
+        let root = SyntaxNode::new_root(statement_green);
+        assert_eq!(root.kind(), Root);
+        let shell = root.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(shell.len(), 1);
+        let statement = shell[0].as_node().unwrap();
+        assert_eq!(statement.kind(), Statement);
+        let children = statement.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), 1);
+        let act = children[0].as_node().unwrap();
+        assert_eq!(act.kind(), ActDeclaration);
+        assert_act_direct_children(act, source, &expected);
+        assert!(
+            !node
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Missing | Error | Invalid))
+        );
+        if let Some(body) = node
+            .children()
+            .find(|child| child.kind() == BracedStatementBlockExpression)
+        {
+            let close = body.last_child_or_token().unwrap();
+            assert_eq!(close.kind(), RBrace);
+            assert!(close.as_token().is_some());
+            assert_eq!(close.parent(), Some(body.clone()));
+            let trailing = body.next_sibling().unwrap();
+            assert_eq!(trailing.kind(), DerivesClause);
+            assert_eq!(close.text_range().end(), trailing.text_range().start());
+        }
+    }
+}
+
+#[test]
+fn act_attachment_continuation_preserves_required_type_and_fresh_derives_slots() {
+    use SyntaxKind::*;
+    for (prefix, head) in [
+        ("act", vec![(ActKw, 3)]),
+        (
+            "act A =",
+            vec![
+                (ActKw, 3),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+                (Whitespace, 1),
+                (Equals, 1),
+            ],
+        ),
+    ] {
+        for (suffix, tail, missing) in [
+            (
+                " with {}",
+                vec![(TypeExpression, 0), (DeclarationCompanion, 8)],
+                true,
+            ),
+            (
+                " @ with {}",
+                vec![(Whitespace, 1), (Error, 1), (DeclarationCompanion, 8)],
+                false,
+            ),
+            (
+                " derives Eq",
+                vec![(Whitespace, 1), (TypeExpression, 10)],
+                false,
+            ),
+        ] {
+            let mut expected = head.clone();
+            expected.extend(tail);
+            let node = assert_act_body_schema(&format!("{prefix}{suffix}"), &expected);
+            assert!(
+                !node
+                    .children()
+                    .any(|child| matches!(child.kind(), DerivesClause | Missing))
+            );
+            let empty = node
+                .children()
+                .filter(|child| child.kind() == TypeExpression && child.text_range().is_empty())
+                .collect::<Vec<_>>();
+            assert_eq!(empty.len(), usize::from(missing));
+            for slot in empty {
+                let children = slot.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(children.len(), 1);
+                let child = children[0].as_node().unwrap();
+                assert_eq!(child.kind(), Missing);
+                assert_eq!(child.parent(), Some(slot.clone()));
+                assert_eq!(child.text_range(), slot.text_range());
+                assert!(child.children_with_tokens().next().is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn act_attachment_continuation_companion_terminates_before_source_or_body() {
+    use SyntaxKind::*;
+    for (accepted, suffix, expected) in [
+        (
+            "act A with {}",
+            " = B with {}",
+            vec![
+                (ActKw, 3),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+                (DeclarationCompanion, 8),
+            ],
+        ),
+        (
+            "act A = B with {}",
+            ": tail",
+            vec![
+                (ActKw, 3),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+                (Whitespace, 1),
+                (Equals, 1),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+                (DeclarationCompanion, 8),
+            ],
+        ),
+    ] {
+        let source = format!("{accepted}{suffix}");
+        let (green, exit, remainder) =
+            run_act_declaration(&source, 0, 9700, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), accepted);
+        assert_eq!(remainder, suffix);
+        assert!(matches!(
+            exit,
+            Some(NormalizedExit::Complete(Ok(()), LineEntry::InLine))
+        ));
+        assert_act_direct_children(&declaration(&green), &source, &expected);
+    }
+}
+
+#[test]
+fn act_attachment_continuation_rejects_post_body_gap_and_stop_boundaries() {
+    use crate::lexical::stops::STOP_WITH;
+    use SyntaxKind::*;
+    for (accepted, word, gap, stops, tail) in [
+        ("act A;", "with", " ", 0, vec![(Semicolon, 1)]),
+        (
+            "act A{}",
+            "with",
+            " ",
+            0,
+            vec![(BracedStatementBlockExpression, 2)],
+        ),
+        (
+            "act A:\r\n  x",
+            "with",
+            "\r\n",
+            0,
+            vec![(Colon, 1), (IndentedStatementBlock, 5)],
+        ),
+        ("act A;", "derives", " ", 0, vec![(Semicolon, 1)]),
+        (
+            "act A: x;",
+            "derives",
+            " ",
+            0,
+            vec![(Colon, 1), (Statement, 2), (Semicolon, 1)],
+        ),
+        (
+            "act A{}",
+            "derives",
+            "\r\n",
+            0,
+            vec![(BracedStatementBlockExpression, 2)],
+        ),
+        ("act A", "with", "\r\n", 0, vec![]),
+        ("act A", "with", " ", STOP_WITH, vec![]),
+        (
+            "act A = B",
+            "with",
+            "\r\n",
+            0,
+            vec![
+                (Whitespace, 1),
+                (Equals, 1),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+            ],
+        ),
+        (
+            "act A = B",
+            "with",
+            " ",
+            STOP_WITH,
+            vec![
+                (Whitespace, 1),
+                (Equals, 1),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+            ],
+        ),
+    ] {
+        let suffix = if word == "with" { " {}" } else { " Eq" };
+        let source = format!("{accepted}{gap}{word}{suffix}");
+        let operators = OperatorTable::empty();
+        let mut input = source.as_str();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(SyntaxKind::Root.into());
+        let entry_ptr = input.as_ptr();
+        let entry_len = input.len();
+        let entry_origin = 9700;
+        let exit = act_declaration_witness(
+            SyntaxIn::new(&mut input, &mut recover, &mut builder),
+            0,
+            stops,
+            crate::statement::StatementLineHandoff::OrdinaryLayout,
+            entry_origin,
+            LineEntry::InLine,
+            None,
+        );
+        let consumed = entry_len.checked_sub(input.len()).unwrap();
+        assert_eq!(input.as_ptr(), entry_ptr.wrapping_add(consumed));
+        let successor_origin = entry_origin + consumed;
+        builder.finish_node();
+        let green = finish_with_discarded_recoveries(builder, recover);
+        let remainder = input;
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(remainder, suffix);
+        let mut expected = vec![(ActKw, 3), (Whitespace, 1), (TypeExpression, 1)];
+        expected.extend(tail);
+        assert_act_direct_children(&declaration(&green), &source, &expected);
+        let item = pending_word_item(exit, word, LineEntry::InLine);
+        assert_eq!(
+            item.extent(successor_origin).payload().start,
+            9700 + accepted.len() + gap.len()
+        );
+        let pending = pending_item_tokens(item);
+        let leading_kind = if gap == " " { Whitespace } else { Newline };
+        assert_eq!(
+            pending,
+            [
+                (leading_kind, gap.to_owned()),
+                (Identifier, word.to_owned())
+            ]
+        );
+        assert_eq!(
+            green.to_string()
+                + &pending
+                    .iter()
+                    .map(|(_, text)| text.as_str())
+                    .collect::<String>()
+                + remainder,
+            source
+        );
+    }
+}
+
+#[test]
+fn act_attachment_continuation_requires_native_brace_close_before_trailing_derives() {
+    use SyntaxKind::*;
+    for (source, suffix) in [("act A{", ""), ("act A{] derives Eq", " derives Eq")] {
+        let (green, exit, remainder) =
+            run_act_declaration(source, 0, 9700, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), "act A{");
+        assert_eq!(remainder, suffix);
+        let node = declaration(&green);
+        assert_act_direct_children(
+            &node,
+            source,
+            &[
+                (ActKw, 3),
+                (Whitespace, 1),
+                (TypeExpression, 1),
+                (BracedStatementBlockExpression, 1),
+            ],
+        );
+        let body = node.children().last().unwrap();
+        let children = body.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), 2);
+        assert_eq!(children[0].kind(), LBrace);
+        assert!(children[0].as_token().is_some());
+        assert_eq!(children[1].kind(), Missing);
+        assert_eq!(children[1].text_range(), rowan::TextRange::empty(6.into()));
+        assert!(
+            children[1]
+                .as_node()
+                .unwrap()
+                .children_with_tokens()
+                .next()
+                .is_none()
+        );
+        for child in children {
+            assert_eq!(child.parent(), Some(body.clone()));
+        }
+        if !suffix.is_empty() {
+            let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine)) = exit
+            else {
+                panic!("foreign close must remain pending")
+            };
+            assert_eq!(
+                item.payload_view().token_kind(),
+                Some(crate::lexical::item::TokenKind::RBracket)
+            );
+            assert_eq!(item.payload_view().spelling(), Some("]"));
+            assert_eq!(item.extent(9707).recovery_range(), 9706..9707);
+        }
+    }
+    let accepted = "act A{} derives Eq";
+    let source = format!("{accepted}; tail");
+    let (green, exit, remainder) = run_act_declaration(&source, 0, 9700, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), accepted);
+    assert_eq!(remainder, " tail");
+    assert_act_direct_children(
+        &declaration(&green),
+        &source,
+        &[
+            (ActKw, 3),
+            (Whitespace, 1),
+            (TypeExpression, 1),
+            (BracedStatementBlockExpression, 2),
+            (DerivesClause, 11),
+        ],
+    );
+    let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine)) = exit else {
+        panic!("semicolon must remain pending")
+    };
+    assert_eq!(
+        item.payload_view().token_kind(),
+        Some(crate::lexical::item::TokenKind::Semicolon)
+    );
+    assert_eq!(item.payload_view().spelling(), Some(";"));
+    assert_eq!(
+        item.extent(9700 + accepted.len() + 1).recovery_range(),
+        9700 + accepted.len()..9700 + accepted.len() + 1
+    );
 }
 
 #[test]
@@ -850,7 +1230,11 @@ fn pending_word_tokens(
     word: &str,
     line_entry: LineEntry,
 ) -> Vec<(SyntaxKind, String)> {
-    let mut item = match exit {
+    pending_item_tokens(pending_word_item(exit, word, line_entry))
+}
+
+fn pending_word_item(exit: Option<NormalizedExit>, word: &str, line_entry: LineEntry) -> Item {
+    let item = match exit {
         Some(NormalizedExit::Complete(Err(Either::Left(item)), actual_entry)) => {
             assert_eq!(actual_entry, line_entry);
             item
@@ -862,7 +1246,10 @@ fn pending_word_tokens(
         _ => panic!("{word:?} must remain pending"),
     };
     assert_eq!(item.payload_view().spelling(), Some(word));
+    item
+}
 
+fn pending_item_tokens(mut item: Item) -> Vec<(SyntaxKind, String)> {
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     item.emit_all_remaining_leading(&mut builder);

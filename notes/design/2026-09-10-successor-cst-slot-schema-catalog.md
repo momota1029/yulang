@@ -1176,6 +1176,18 @@ attachment-continuation composition.
 | boundaries | Equal/shallow LF or CRLF leaves `derives` pending with its full leading gap. Active stops, ambient companion state, nonmatching words, bodyless/colon paths and unsuccessful/mismatched body close remain outside this predicate. The separate Companion guard is unchanged. |
 | projection and status | This row publishes no aggregate Act recovery role. Derives and nested Type ownership retain their existing rows; direct order and native actual-close evidence select them. Governing authority: architecture DRV-G and ACTDRV-G; CST-derived diagnostics amendment. Direct Rowan proof: `act_trailing_derives_accepts_empty_same_line_and_deeper_attachment_gaps` in `tests/declaration/act_decl.rs`. M2 pre-write, compiler/recovery and regression audits were clean; focused Act checks, scoped formatting/diff and package check passed (three pre-existing warnings). Status: catalog-audited evidence-complete Draft only for this repaired actual-brace attachment-gap predicate; header/source attachment, Companion composition, callers/fences, interpreter and ledger removal remain open. |
 
+### ActDeclaration attachment-continuation composition Draft
+
+This bounded Draft composes completed Head/Source/Body phases with derives and
+Companion continuation. It does not publish an aggregate Act recovery role.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and order | A completed Head may directly order `DerivesClause` then `DeclarationCompanion`; after native direct `Equals`, a completed Source may do the same. Header and Source derives episodes remain separate direct clauses. A successful actual braced-body close alone permits a trailing direct DerivesClause. The first admitted Companion terminates the Act product and leaves later source pending. |
+| child recovery and boundaries | Fresh required Head/Source absence remains its empty TypeExpression/Missing slot; a nonempty malformed attempt remains its opaque direct Error plus Type-owned retry. A fresh `derives` at a required Type position is accepted as Type, not fabricated into a DerivesClause. Bodyless, colon body, missing/foreign brace close, equal-line CRLF and active STOP_WITH leave the word and all leading trivia pending with no attachment. Derives-role Type, nested Statement/Type and Companion-body recovery remain their own rows. |
+| handoff evidence | The nonattachment witnesses observe the live source cursor before and after the real Act call, establish successor end from actual suffix advancement, and then derive the returned Item payload start through ItemExtent. This is the N2 caller-synchronization contract; NormalizedExit intentionally carries Item plus LineEntry rather than retained origin state. |
+| proof and status | Governing authority: ACTDRV-G/J/R and DRV-G in the architecture, the declaration Companion addendum §§6–8, Act/Derives current-Item recovery, the fenced normalization and successor-acquisition addenda, extent validation §2, and the CST-derived diagnostics amendment. Direct Rowan proof: `act_attachment_continuation_*` in `tests/declaration/act_decl.rs`. M2 pre-write, compiler/recovery, regression and final delta specification audits were clean; focused attachment 5/5, Act 31/31, scoped formatting/diff and package check passed (three pre-existing warnings). Status: catalog-audited evidence-complete Draft only for this bounded composition; broader caller/fence topology, complete nested schemas, interpreter and ledger removal remain open. |
+
 ### DeclarationCompanion direct recovery Draft
 
 This bounded Draft maps direct Companion Introducer, Body Missing, Item,

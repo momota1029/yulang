@@ -168,6 +168,13 @@ direct Rowan evidence covers empty, same-line and deeper LF/CRLF attachment,
 while equal-line LF/CRLF remains pending. This is not the broader Act
 attachment-continuation composition, which remains a separate coverage gap.
 
+The bounded Act attachment-continuation composition is now catalog-audited. It
+joins completed Head/Source/body phases to derives and the terminating
+Companion, while preserving child-owned required-Type recovery and all
+nonattachment handoffs. Boundary evidence observes real live-source suffix
+synchronization before using ItemExtent; NormalizedExit and parser state stay
+unchanged. Broader caller/fence topology remains separate.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
