@@ -5570,6 +5570,165 @@ fn use_schema_required_path_segment_direct_occurrences() {
 }
 
 #[test]
+fn use_schema_root_alias_direct_recovery_and_handoff() {
+    use crate::recovery_record::*;
+    use SyntaxKind::*;
+
+    for (tail, alias_children, range, missing) in [
+        ("", vec![(AsKw, "as"), (Missing, "")], 8..8, true),
+        (
+            " @ #",
+            vec![
+                (AsKw, "as"),
+                (Whitespace, " "),
+                (Error, "@"),
+                (Error, " "),
+                (Error, "#"),
+            ],
+            9..12,
+            false,
+        ),
+        (
+            " @ # q",
+            vec![
+                (AsKw, "as"),
+                (Whitespace, " "),
+                (Error, "@"),
+                (Error, " "),
+                (Error, "#"),
+                (Whitespace, " "),
+                (Identifier, "q"),
+            ],
+            9..12,
+            false,
+        ),
+    ] {
+        for boundary in ["", " ;next", "\r\n;next"] {
+            let prefix = format!("use p as{tail}");
+            let source = format!("{prefix}{boundary}");
+            let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Alias));
+            let expected_records = vec![CommittedRecoveryRecord {
+                id: DiagnosticId(0),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                kind: if missing {
+                    RecoveryKind::Missing
+                } else {
+                    RecoveryKind::Error
+                },
+                unexpected: if missing {
+                    std::sync::Arc::from([])
+                } else {
+                    std::sync::Arc::from([UnexpectedSyntax::Token {
+                        range: range.clone(),
+                        category: UnexpectedCategory::OtherCharacter,
+                    }])
+                },
+                expectations: std::sync::Arc::from([SyntaxExpectation {
+                    role,
+                    expected: ExpectedSyntax::Identifier,
+                    range: range.clone(),
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            }];
+            let operators = OperatorTable::empty();
+            let mut fresh = None;
+            for frozen in [false, true] {
+                let mut input = source.as_str();
+                let mut recover = if frozen {
+                    Recover::reconcile_for_test(&operators, &expected_records)
+                } else {
+                    Recover::new_for_test(&operators)
+                };
+                let mut builder = GreenNodeBuilder::new();
+                builder.start_node(Root.into());
+                let mut exit =
+                    statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+                if let Err(Either::Right(end)) = &mut exit {
+                    emit_end(&mut builder, end);
+                }
+                builder.finish_node();
+                let green = builder.finish();
+                assert_eq!(
+                    recover.finish_recoveries_for_test(),
+                    expected_records,
+                    "{source:?}"
+                );
+                let root = SyntaxNode::new_root(green.clone());
+                let alias = root
+                    .descendants()
+                    .find(|node| node.kind() == UseAlias)
+                    .unwrap();
+                assert_eq!(
+                    alias
+                        .ancestors()
+                        .map(|node| node.kind())
+                        .collect::<Vec<_>>(),
+                    [UseAlias, UseTree, UseDeclaration, Statement, Root]
+                );
+                assert_use_composition_children(&alias, 6, &alias_children);
+                assert_use_composition_children(
+                    &alias.parent().unwrap(),
+                    4,
+                    &[
+                        (UsePath, "p"),
+                        (Whitespace, " "),
+                        (UseAlias, &format!("as{tail}")),
+                    ],
+                );
+                for child in alias.children_with_tokens() {
+                    assert_eq!(child.as_node().is_some(), child.kind() == Missing);
+                    if let Some(node) = child.as_node() {
+                        assert!(node.children_with_tokens().next().is_none());
+                    }
+                }
+                for child in root.descendants_with_tokens() {
+                    let span = child.text_range();
+                    assert_eq!(
+                        child.to_string(),
+                        source[usize::from(span.start())..usize::from(span.end())]
+                    );
+                    assert!(!matches!(child.kind(), Invalid | UseGlob | UseGroup));
+                    if matches!(child.kind(), Missing | Error) {
+                        assert_eq!(child.parent().as_ref(), Some(&alias));
+                    }
+                }
+                assert_eq!(root.to_string(), prefix);
+                if boundary.is_empty() {
+                    assert!(matches!(exit, Err(Either::Right(_))));
+                    assert_eq!(input, "");
+                } else {
+                    let Err(Either::Left(mut pending)) = exit else {
+                        panic!("semicolon must remain pending: {source:?}")
+                    };
+                    let leading_len = boundary.find(';').unwrap();
+                    let extent = pending.extent(source.len() - input.len());
+                    assert_eq!(extent.leading(), prefix.len()..prefix.len() + leading_len);
+                    assert_eq!(
+                        extent.payload(),
+                        prefix.len() + leading_len..prefix.len() + leading_len + 1
+                    );
+                    assert_eq!(token_kind(&pending), Some(TokenKind::Semicolon));
+                    assert_eq!(pending.payload_view().spelling(), Some(";"));
+                    let leading = emit_pending_leading_text(&mut pending);
+                    assert_eq!(leading, boundary[..leading_len]);
+                    assert_eq!(input, "next");
+                    assert_eq!(format!("{root}{leading};{input}"), source);
+                }
+                if let Some(fresh) = &fresh {
+                    assert_eq!(&green, fresh);
+                } else {
+                    fresh = Some(green);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_alias_identifier_missing_terminal_and_retry() {
     use SyntaxKind::*;
     for (source, expected) in [

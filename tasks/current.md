@@ -312,6 +312,9 @@ The optional `without` probe now likewise requires nonempty inline leading:
 empty/newline-bearing probes leave Star-only UseGlob and return `without`
 unchanged, while a spaced control admits the clause without recovery.
 
+Root UseAlias now has direct fresh/frozen Missing, terminal Error/retry and
+EOF/semicolon/CRLF handoff evidence; nested and repeated Alias remain open.
+
 The repeated UseGlob post-comma reserved atom is catalog-audited: it emits one
 Path Missing while preserving the reserved item and its original leading.
 
