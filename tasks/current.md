@@ -193,6 +193,12 @@ following items pending; it is distinct from both the admitted-operator close
 slot and post-separator C9 Path failures. Group/exclusion and recursive topology
 remain outside this narrow row.
 
+The nested UseGroup-item spelling occurrence is separately catalog-audited.
+Its same-offset spelling and group close/separator Missing occurrences are
+selected by parent path and preorder, not node equality; foreign-close remains
+the existing wrapper row. This does not close complete recursive UseTree or
+exclusion coverage.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

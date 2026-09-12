@@ -307,6 +307,9 @@ missing spelling, and Path/Alias/UseGroup continuations retain their own owner.
 The initial direct-UseTree spelling slot is also separately evidence-complete:
 `LParen, Missing` distinguishes its Import(Path) expectation from the admitted
 operator's local-close Missing, without reclassifying C9 Path failures.
+The nested UseGroup item has a separate direct row: same-offset spelling and
+group-close/separator Missing occurrences are selected by parent path and
+preorder, while foreign-close recovery stays its existing wrapper topology.
 M2 specification and regression delta audits for the independent rows were
 clean.
 

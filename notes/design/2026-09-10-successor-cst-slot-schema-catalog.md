@@ -1266,6 +1266,18 @@ after its admitted LParen. It is not a Path, group or local-close row.
 | projection and exclusions | Initial UseTree/UsePath ancestry plus direct LParen, Missing projects `Declaration(Import(Path))`, expected singleton `OperatorName`, primary zero, at `5..5`. It is distinct from the admitted-Operator local close by predecessor order. Post-separator `use a::(` / `use a::(foo` are C9 Path-owned Error controls with no OperatorName/Missing; group/exclusion routes are excluded. Records and Error spelling are not inputs. |
 | proof and status | Governing authority: successor architecture OperatorName grammar; Rowan CST-only and CST-derived diagnostics amendments. Publisher: `declaration/use_decl.rs:410–425,887–898`; direct proof: `use_schema_initial_operator_name_required_spelling` in `tests/declaration/use_decl.rs`; C9 negatives remain unchanged. M1 pre-write and post-write specification audits were clean; focused spelling 1/1, Use 27/27 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this initial spelling slot; other callers, recursive UseTree/group/fence/root topology, interpreter and ledger/API removal remain open. |
 
+### UseGroup nested OperatorName required spelling Draft
+
+This bounded Draft maps the recursive group-item initial spelling slot only. It
+does not extend the root row to all UseTree callers.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `UseGroup > UseTree > UsePath > OperatorName` orders `LParen, Missing` at `5..6, 6..6` when no immediate operator spelling is admitted. Accepted `use {(+)}` orders `LParen, Operator, RParen`. The nested ancestry, rather than node kind alone, selects this Import(Path)/OperatorName occurrence. |
+| same-offset occurrences and boundaries | EOF has the spelling Missing and distinct direct group terminal Missing both at offset 6; parent path and preorder distinguish them. A following `foo` yields direct group Separator Missing plus the next UseTree. A following RParen is consumed once as UseGroupForeignClose Error, while a protected semicolon remains pending with leading `6..7`, payload `7..8` and remainder `next`. |
+| projection and exclusions | The nested LParen, Missing projects `Declaration(Import(Path))`, singleton `OperatorName`, primary zero. The direct group terminal/Separator Missing and foreign-close Error retain their existing rows; Error spelling is not an input. Admitted-operator local close, C9 post-separator Path failure, exclusion callers, broader recursion/fences and outer caller topology are excluded. |
+| proof and status | Governing authority: successor architecture UseTree/UsePath/OperatorName and UseGroup grammar; Rowan CST-only and CST-derived diagnostics amendments; UseGroup foreign-close topology. Direct proof: `use_schema_nested_operator_name_required_spelling` in `tests/declaration/use_decl.rs`. M1 pre-write and post-write specification audits were clean; focused nested spelling 1/1, Use 28/28 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this nested group-item spelling row; complete recursive/exclusion schema, interpreter and ledger/API removal remain open. |
+
 ### Rule ExpressionList direct caller fence Draft
 
 This bounded Draft maps RuleItem/RuleCall/RuleIndex fence handoff only. Direct
