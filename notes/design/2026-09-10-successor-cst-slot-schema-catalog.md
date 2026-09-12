@@ -1654,6 +1654,18 @@ declaration-level publisher or recovery role.
 | ownership | Header Error remains direct declaration content; all sequence recovery stays under EnumVariant or its direct shell separator/close. `@ {` is not a Name retry: it leaves brace admission to the retained header boundary. FromType EOF preserves nested TypeExpression Missing before the outer Close Missing; native RBrace follows the nested Missing without an outer occurrence. |
 | projection and status | Reuse header, VariantSequence and Type component projections by full Enum/Error ancestry and direct ordered Rowan children/ranges. No Error spelling, recovery record, wrapper or aggregate publication is used. Authority: [Enum/Error header recovery](2026-09-09-successor-enum-error-header-current-item-recovery.md), declaration-variant recovery, required-Type roles and CST-derived diagnostics amendment. Proof: `braced_variant_sequence_composes_header_retries_and_body_occurrences` in `tests/declaration/declaration_variant.rs`. M2 pre-write, compiler/recovery and regression audits were clean. Status: catalog-audited evidence-complete Draft for the 56 braced header/body products only; fields, inline/indented/Equals forms, derives, companions, pipes, fences, stops and deeper Type work remain separate. |
 
+### ColonIndented Enum/Error header to VariantSequence composition Draft
+
+This aggregate joins the existing header rows to
+`VariantSequenceForm::ColonIndented` without adding a publisher. Direct Rowan
+order assigns initial newline/indent to the first Variant, later implicit-
+separator layout to the declaration, and dedent newline plus `next` to pending
+caller handoff.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| proof and status | Both Enum/Error owners, Name/BodyIntroducer retries, terminal Error, Name retry, implicit layout separator and direct Separator Missing are proven across EOF/dedent products by `colon_indented_variant_sequence_composes_header_retries_and_body_occurrences` in `tests/declaration/declaration_variant.rs`. Header Error remains declaration-owned; variant recovery stays native. No records/Error spelling/aggregate occurrence participates. Authority: Enum/Error header and variant recovery records plus CST-derived diagnostics amendment. M1 pre-write and regression audits were clean. Status: catalog-audited evidence-complete Draft only for these ColonIndented products; braced/inline/Equals forms, fields, fences/stops and global migration remain separate. |
+
 ### NamedRecordType Field/Name/Colon/Type/Separator/Close semantic rows
 
 This bounded Draft maps the six recovery-bearing slots of one committed

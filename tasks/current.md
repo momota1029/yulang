@@ -102,8 +102,10 @@ Separator, FromType and outer-close rows without relabelling payload fields or
 Type recovery. Its adjacent Enum/Error header-to-braced-sequence aggregate is
 also catalog-audited across Name/BodyIntroducer retries and all bounded body
 products, without treating header recovery as variant recovery. Select the next
-bounded owner from the updated coverage map; do not start a partial global
-collector before the coverage map is closed.
+bounded owner from the updated coverage map; the ColonIndented header-to-
+VariantSequence aggregate is now catalog-audited with direct dedent handoff
+evidence. Do not start a partial global collector before the coverage map is
+closed.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing
