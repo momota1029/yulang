@@ -1,5 +1,342 @@
 use crate::tests::support::*;
 
+// Composition witnesses use kind, identity, parent and byte extent. Error
+// spelling is opaque; native spelling is checked only for non-Error tokens.
+pub(super) fn assert_sequence_composition_children(
+    owner: &SyntaxNode,
+    start: usize,
+    expected: &[(SyntaxKind, usize)],
+    source: &str,
+) {
+    use SyntaxKind::{
+        DeclarationCompanion, Missing, StructField, StructFieldForeignClose, TypeExpression,
+    };
+    let children = owner
+        .children_with_tokens()
+        .skip_while(|child| usize::from(child.text_range().start()) < start)
+        .collect::<Vec<_>>();
+    assert_eq!(children.len(), expected.len(), "{source:?}\n{owner:#?}");
+    let mut at = start;
+    for (child, &(kind, len)) in children.iter().zip(expected) {
+        assert_eq!(child.parent().as_ref(), Some(owner));
+        assert_eq!(child.kind(), kind, "{source:?}");
+        assert_eq!(
+            child.as_node().is_some(),
+            matches!(
+                kind,
+                DeclarationCompanion
+                    | Missing
+                    | StructField
+                    | StructFieldForeignClose
+                    | TypeExpression
+            )
+        );
+        assert_eq!(
+            usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+            at..at + len
+        );
+        if kind == Missing {
+            assert_eq!(len, 0);
+            assert!(
+                child
+                    .as_node()
+                    .unwrap()
+                    .children_with_tokens()
+                    .next()
+                    .is_none()
+            );
+        } else if kind != SyntaxKind::Error && child.as_token().is_some() {
+            assert_eq!(child.to_string(), source[at..at + len]);
+        }
+        at += len;
+    }
+}
+
+pub(super) fn assert_composition_field_ancestry(field: &SyntaxNode, declaration: SyntaxKind) {
+    let mut expected = vec![SyntaxKind::StructField];
+    if declaration != SyntaxKind::StructDeclaration {
+        expected.push(SyntaxKind::EnumVariant);
+    }
+    expected.extend([declaration, SyntaxKind::Statement, SyntaxKind::Root]);
+    assert_eq!(
+        field.ancestors().map(|n| n.kind()).collect::<Vec<_>>(),
+        expected
+    );
+}
+
+pub(super) fn assert_delimited_field_sequence_composition(
+    prefix: &str,
+    suffix: &str,
+    declaration: SyntaxKind,
+) {
+    use SyntaxKind::{
+        Colon, Comma, Error, Identifier, LBrace, LParen, Missing, RBrace, StructField,
+        TypeExpression, Whitespace,
+    };
+    let named = prefix.ends_with('{');
+    let body = if named {
+        "@ x:T,@:U,y @ V;z W"
+    } else {
+        "T U,=V,"
+    };
+    let source = format!("{prefix}{body}{}", if named { suffix } else { "" });
+    let (green, exit) = run_statement(&source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let fields = root
+        .descendants()
+        .filter(|n| n.kind() == StructField)
+        .collect::<Vec<_>>();
+    let sequence = fields[0].parent().unwrap();
+    assert_eq!(fields.len(), if named { 5 } else { 3 });
+    for field in &fields {
+        assert_composition_field_ancestry(field, declaration);
+        assert_eq!(field.parent().as_ref(), Some(&sequence));
+    }
+    let start = prefix.len();
+    if named {
+        assert_sequence_composition_children(
+            &sequence,
+            start - 1,
+            &[
+                (LBrace, 1),
+                (StructField, 1),
+                (Whitespace, 1),
+                (Missing, 0),
+                (StructField, 3),
+                (Comma, 1),
+                (StructField, 3),
+                (Comma, 1),
+                (StructField, 5),
+                (Error, 1),
+                (StructField, 3),
+                (RBrace, 1),
+            ],
+            &source,
+        );
+        for (field, offset, children) in [
+            (&fields[0], 0, vec![(Error, 1)]),
+            (
+                &fields[1],
+                2,
+                vec![(Identifier, 1), (Colon, 1), (TypeExpression, 1)],
+            ),
+            (
+                &fields[2],
+                6,
+                vec![(Error, 1), (Colon, 1), (TypeExpression, 1)],
+            ),
+            (
+                &fields[3],
+                10,
+                vec![
+                    (Identifier, 1),
+                    (Whitespace, 1),
+                    (Error, 1),
+                    (TypeExpression, 2),
+                ],
+            ),
+            (
+                &fields[4],
+                16,
+                vec![
+                    (Identifier, 1),
+                    (Whitespace, 1),
+                    (Missing, 0),
+                    (TypeExpression, 1),
+                ],
+            ),
+        ] {
+            assert_sequence_composition_children(field, start + offset, &children, &source);
+        }
+        let occurrences = root
+            .descendants_with_tokens()
+            .filter(|e| matches!(e.kind(), Error | Missing))
+            .map(|e| (e.kind(), e.parent().unwrap()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            occurrences,
+            vec![
+                (Error, fields[0].clone()),
+                (Missing, sequence.clone()),
+                (Error, fields[2].clone()),
+                (Error, fields[3].clone()),
+                (Error, sequence.clone()),
+                (Missing, fields[4].clone()),
+            ]
+        );
+    } else {
+        assert_sequence_composition_children(
+            &sequence,
+            start - 1,
+            &[
+                (LParen, 1),
+                (StructField, 3),
+                (Comma, 1),
+                (StructField, 2),
+                (Comma, 1),
+                (StructField, 0),
+                (Missing, 0),
+            ],
+            &source,
+        );
+        assert_sequence_composition_children(&fields[0], start, &[(TypeExpression, 3)], &source);
+        assert_eq!(
+            fields[0]
+                .descendants()
+                .filter(|n| n.kind() == SyntaxKind::TypeApplyArgument)
+                .count(),
+            1
+        );
+        assert_sequence_composition_children(
+            &fields[1],
+            start + 4,
+            &[(Error, 1), (TypeExpression, 1)],
+            &source,
+        );
+        assert_sequence_composition_children(
+            &fields[2],
+            source.len(),
+            &[(TypeExpression, 0)],
+            &source,
+        );
+        let ty = fields[2].first_child().unwrap();
+        assert_sequence_composition_children(&ty, source.len(), &[(Missing, 0)], &source);
+        let missing = root
+            .descendants()
+            .filter(|n| n.kind() == Missing)
+            .collect::<Vec<_>>();
+        let variant = declaration != SyntaxKind::StructDeclaration;
+        assert_eq!(missing.len(), if variant { 3 } else { 2 });
+        assert_eq!(missing[0].parent().as_ref(), Some(&ty));
+        assert_eq!(missing[1].parent().as_ref(), Some(&sequence));
+        assert_eq!(fields[2].next_sibling().as_ref(), Some(&missing[1]));
+        if variant {
+            assert_eq!(missing[2].parent(), sequence.parent());
+            assert_eq!(missing[2].parent().unwrap().kind(), declaration);
+            assert_eq!(sequence.next_sibling().as_ref(), Some(&missing[2]));
+        }
+        for node in missing {
+            assert_eq!(usize::from(node.text_range().start()), source.len());
+            assert!(node.text_range().is_empty());
+        }
+    }
+    assert!(!root.descendants().any(|n| matches!(
+        n.kind(),
+        SyntaxKind::Invalid | SyntaxKind::StructFieldForeignClose
+    )));
+}
+
+#[test]
+fn struct_delimited_field_sequence_composes_ordered_occurrences() {
+    assert_delimited_field_sequence_composition("struct S{", "}", SyntaxKind::StructDeclaration);
+    assert_delimited_field_sequence_composition("struct S(", ")", SyntaxKind::StructDeclaration);
+}
+
+pub(super) fn assert_matching_tuple_composition(
+    root: &SyntaxNode,
+    start: usize,
+    declaration: SyntaxKind,
+    source: &str,
+) -> SyntaxNode {
+    use SyntaxKind::{Error, StructField, TypeExpression};
+    let fields = root
+        .descendants()
+        .filter(|n| n.kind() == StructField)
+        .collect::<Vec<_>>();
+    assert_eq!(fields.len(), 2);
+    for field in &fields {
+        assert_composition_field_ancestry(field, declaration);
+    }
+    let owner = fields[0].parent().unwrap();
+    assert_eq!(fields[1].parent().as_ref(), Some(&owner));
+    assert_sequence_composition_children(&fields[0], start, &[(TypeExpression, 3)], source);
+    assert_eq!(
+        fields[0]
+            .descendants()
+            .filter(|n| n.kind() == SyntaxKind::TypeApplyArgument)
+            .count(),
+        1
+    );
+    assert_sequence_composition_children(
+        &fields[1],
+        start + 4,
+        &[(Error, 1), (TypeExpression, 1)],
+        source,
+    );
+    assert!(!root.descendants().any(|n| matches!(
+        n.kind(),
+        SyntaxKind::Missing | SyntaxKind::Invalid | SyntaxKind::StructFieldForeignClose
+    )));
+    owner
+}
+
+#[test]
+fn struct_tuple_field_sequence_matching_close_attaches_companion() {
+    use SyntaxKind::{Comma, DeclarationCompanion, LParen, RParen, StructDeclaration, StructField};
+    let source = "struct S(T U,=V) with {} outer tail";
+    let (green, exit, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Ok(()), LineEntry::InLine)
+    ));
+    assert_eq!(green.to_string(), "struct S(T U,=V) with {}");
+    assert_eq!(remainder, " outer tail");
+    let root = SyntaxNode::new_root(green);
+    let owner = assert_matching_tuple_composition(&root, 9, StructDeclaration, source);
+    assert_sequence_composition_children(
+        &owner,
+        8,
+        &[
+            (LParen, 1),
+            (StructField, 3),
+            (Comma, 1),
+            (StructField, 2),
+            (RParen, 1),
+            (DeclarationCompanion, 8),
+        ],
+        source,
+    );
+}
+
+#[test]
+fn struct_delimited_field_sequence_separates_foreign_close_and_terminal_missing() {
+    use SyntaxKind::{Error, LBrace, Missing, StructField, StructFieldForeignClose};
+    let source = "struct 名{x:T;])";
+    let (green, exit) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    let owner = root
+        .descendants()
+        .find(|n| n.kind() == SyntaxKind::StructDeclaration)
+        .unwrap();
+    assert_sequence_composition_children(
+        &owner,
+        10,
+        &[
+            (LBrace, 1),
+            (StructField, 3),
+            (Error, 1),
+            (StructFieldForeignClose, 2),
+            (Missing, 0),
+        ],
+        source,
+    );
+    let wrappers = root
+        .descendants()
+        .filter(|n| n.kind() == StructFieldForeignClose)
+        .collect::<Vec<_>>();
+    assert_eq!(wrappers.len(), 1);
+    assert_sequence_composition_children(&wrappers[0], 15, &[(Error, 1), (Error, 1)], source);
+    assert_eq!(
+        root.descendants().filter(|n| n.kind() == Missing).count(),
+        1
+    );
+    assert!(!root.descendants().any(|n| n.kind() == SyntaxKind::Invalid));
+}
+
 // Header evidence uses only direct Rowan children and byte ranges. In particular,
 // adjacent Error fragments stay opaque; native retry trivia ends their group.
 fn assert_struct_schema_header(source: &str, expected: &[(SyntaxKind, std::ops::Range<usize>)]) {

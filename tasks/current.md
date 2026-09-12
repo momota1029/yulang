@@ -92,8 +92,12 @@ fixed-tail sibling expectation are complete. The Cast aggregate's two direct
 composition tests and normal-braced statement-dispatch witness are
 catalog-audited: they compose existing phase rows without creating an aggregate
 publisher or relabelling delegated Pattern, Type, Expression, ML or Statement
-recovery. Select the next bounded owner from the updated coverage map; do not
-start a partial global collector before the coverage map is closed.
+recovery. The subsequent delimited DeclarationFieldSequence aggregate is also
+catalog-audited: direct Rowan evidence composes shared named/tuple field phases,
+same-offset close preorder, Struct Recover foreign-close and variant Borrow,
+with direct Enum/Error ancestry and actual-close continuation. Select the next
+bounded owner from the updated coverage map; do not start a partial global
+collector before the coverage map is closed.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing

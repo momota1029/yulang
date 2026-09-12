@@ -9,6 +9,117 @@ use crate::tests::support::*;
 use std::sync::Arc;
 
 #[test]
+fn enum_error_delimited_field_sequence_composes_ordered_occurrences() {
+    for (prefix, declaration) in [
+        ("enum E{A{", SyntaxKind::EnumDeclaration),
+        ("error E{A{", SyntaxKind::ErrorDeclaration),
+        ("enum E{A(", SyntaxKind::EnumDeclaration),
+        ("error E{A(", SyntaxKind::ErrorDeclaration),
+    ] {
+        super::struct_decl::assert_delimited_field_sequence_composition(prefix, "}}", declaration);
+    }
+}
+
+#[test]
+fn enum_error_tuple_field_sequence_matching_close_has_direct_owners() {
+    use SyntaxKind::{Comma, LParen, RBrace, RParen, StructField};
+    for (source, declaration, start) in [
+        ("enum E{A(T U,=V)}", SyntaxKind::EnumDeclaration, 9),
+        ("error E{A(T U,=V)}", SyntaxKind::ErrorDeclaration, 10),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = syntax_root(green);
+        let variant = super::struct_decl::assert_matching_tuple_composition(
+            &root,
+            start,
+            declaration,
+            source,
+        );
+        super::struct_decl::assert_sequence_composition_children(
+            &variant,
+            start - 1,
+            &[
+                (LParen, 1),
+                (StructField, 3),
+                (Comma, 1),
+                (StructField, 2),
+                (RParen, 1),
+            ],
+            source,
+        );
+        let owner = variant.parent().unwrap();
+        assert_eq!(owner.kind(), declaration);
+        super::struct_decl::assert_sequence_composition_children(
+            &owner,
+            start + 7,
+            &[(RBrace, 1)],
+            source,
+        );
+        assert_eq!(
+            variant.next_sibling_or_token(),
+            owner.children_with_tokens().last()
+        );
+    }
+}
+
+#[test]
+fn enum_error_delimited_field_sequence_borrows_foreign_close_after_separator_error() {
+    use SyntaxKind::{Error, LBrace, LParen, Missing, StructField};
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        for (payload, open, field_len) in [("{x:T;", LBrace, 3), ("(T U;", LParen, 3)] {
+            let accepted = format!("{keyword} E=A{payload}");
+            let source = format!("{accepted} ]");
+            let (green, exit, remainder) =
+                run_statement_normalized(&source, 0, LineEntry::InLine, None);
+            assert_eq!(green.to_string(), accepted);
+            assert_eq!(remainder, "");
+            let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+                panic!("foreign close must stay pending");
+            };
+            assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBracket));
+            assert_eq!(emit_pending_leading_text(&mut item), " ");
+            let root = syntax_root(green);
+            let variant = root
+                .descendants()
+                .find(|n| n.kind() == SyntaxKind::EnumVariant)
+                .unwrap();
+            let start = accepted.len() - payload.len();
+            let field = variant
+                .children()
+                .find(|n| n.kind() == StructField)
+                .unwrap();
+            super::struct_decl::assert_composition_field_ancestry(&field, declaration);
+            super::struct_decl::assert_sequence_composition_children(
+                &variant,
+                start,
+                &[
+                    (open, 1),
+                    (StructField, field_len),
+                    (Error, 1),
+                    (Missing, 0),
+                ],
+                &source,
+            );
+            let missing = root
+                .descendants()
+                .filter(|n| n.kind() == Missing)
+                .collect::<Vec<_>>();
+            assert_eq!(missing.len(), 1);
+            assert_eq!(missing[0].parent().as_ref(), Some(&variant));
+            assert!(!root.descendants().any(|n| matches!(
+                n.kind(),
+                SyntaxKind::StructFieldForeignClose | SyntaxKind::Invalid
+            )));
+        }
+    }
+}
+
+#[test]
 fn enum_error_empty_field_list_close_missing_has_direct_cst_slot() {
     for (prefix, suffix, declaration) in [
         ("enum E{A{", "}}", SyntaxKind::EnumDeclaration),
