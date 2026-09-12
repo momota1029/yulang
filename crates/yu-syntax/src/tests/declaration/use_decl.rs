@@ -1191,6 +1191,9 @@ fn use_schema_alias_identifier_missing_terminal_and_retry() {
 #[test]
 fn use_schema_group_entry_and_post_child_separator_missing() {
     use SyntaxKind::*;
+    // Initial Missing before Comma projects Import(GroupEntry)/Path; after a
+    // child, Missing before the next UseTree projects Import(GroupEntry)/Comma.
+    // Neither occurrence is the local terminal-close slot.
     for (source, expected) in [
         (
             "use {,}",
@@ -1241,6 +1244,27 @@ fn use_schema_group_entry_and_post_child_separator_missing() {
                 (RBrace, 21..22),
             ],
         ),
+        (
+            "use x::* without (, )",
+            vec![
+                (LParen, 17..18),
+                (Missing, 18..18),
+                (Comma, 18..19),
+                (Whitespace, 19..20),
+                (RParen, 20..21),
+            ],
+        ),
+        (
+            "use x::* without (a b)",
+            vec![
+                (LParen, 17..18),
+                (UseTree, 18..19),
+                (Whitespace, 19..20),
+                (Missing, 20..20),
+                (UseTree, 20..21),
+                (RParen, 21..22),
+            ],
+        ),
     ] {
         assert_use_schema_children(
             source,
@@ -1254,6 +1278,30 @@ fn use_schema_group_entry_and_post_child_separator_missing() {
                 Statement,
             ],
             &expected,
+        );
+        let (green, _) = run_statement(source);
+        let declaration = use_declaration(&green);
+        let group = declaration
+            .descendants()
+            .find(|node| node.kind() == UseExclusionGroup)
+            .unwrap();
+        assert!(group.children_with_tokens().all(|child| {
+            child.parent().as_ref() == Some(&group)
+                && child.as_node().is_some() == matches!(child.kind(), Missing | UseTree)
+        }));
+        let missing: Vec<_> = declaration
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect();
+        assert_eq!(missing.len(), 1, "{source:?}");
+        assert_eq!(missing[0].parent().as_ref(), Some(&group));
+        assert!(missing[0].text_range().is_empty());
+        assert!(missing[0].children_with_tokens().next().is_none());
+        assert!(
+            !declaration
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Error | Invalid)),
+            "{source:?}"
         );
     }
 }

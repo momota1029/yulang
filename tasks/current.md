@@ -205,6 +205,11 @@ separate from opener-selected group terminal/separator/foreign-close occurrences
 at the same coordinate. This remains narrower than full recursive/exclusion
 coverage.
 
+The shared Use group sequence now has catalog-audited GroupEntry-before-Comma
+and post-child separator Missing phases across brace and parenthesized exclusion
+contexts. Direct preceding/following children distinguish these from terminal
+close; Error and recursive child schemas remain separate.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

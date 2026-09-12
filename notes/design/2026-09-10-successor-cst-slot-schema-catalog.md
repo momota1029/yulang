@@ -1290,6 +1290,17 @@ openers. It does not generalize to complete recursive/exclusion schema.
 | projection and exclusions | The spelling Missing projects `Declaration(Import(Path))`, singleton `OperatorName`, primary zero. Group terminal/Separator and foreign-close occurrences keep their established rows. C9 post-separator Path Error, direct exclusion admitted-operator close, broader recursion/fences/caller topology, interpreter and ledger/API removal are excluded. Records and Error spelling are not inputs. |
 | proof and status | Governing authority: successor architecture UseTree and exclusion-group grammar; Rowan CST-only and CST-derived diagnostics amendments; UseGroup foreign-close topology. Direct proof: `use_schema_exclusion_group_operator_name_required_spelling` in `tests/declaration/use_decl.rs`. M1 pre-write and post-write specification audits were clean; focused exclusion spelling 1/1, Use 29/29 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this inner exclusion-group spelling slot; complete recursive/exclusion schema, interpreter and ledger/API removal remain open. |
 
+### Use group GroupEntry and post-child Separator Missing Draft
+
+This bounded Draft maps two shared group-sequence Missing phases, including the
+parenthesis-opened UseExclusionGroup proof. It excludes close and Error phases.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and order | Before any group entry, direct `Missing, Comma` under the opener-selected group sequence is `Import(GroupEntry)` expecting Path. After a completed direct UseTree, `Missing, UseTree` is the post-child separator phase expecting Comma. The preceding/following direct children select these alternatives rather than immediate parent or zero-width range alone. |
+| ownership and exclusions | Missing is one childless zero-width direct group node. Native punctuation and UseTree are outside it; no Error or Invalid occurs in the witnessed rows. Terminal close Missing, UseGroupForeignClose, admitted-operator/OperatorName recovery, recursive child internals and malformed GroupEntry Error retain their existing rows. |
+| proof and status | Governing authority: successor UseGroup/UseExclusionGroup grammar; Rowan CST-only and CST-derived diagnostics amendments; UseGroup foreign-close topology. Direct proof: `use_schema_group_entry_and_post_child_separator_missing` in `tests/declaration/use_decl.rs`, covering brace groups and parenthesized exclusion rows. M1 pre-write and post-write specification audits were clean; focused row 1/1, Use 29/29 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for these two Missing phases; all excluded sequence/caller/interpreter and ledger/API work remains open. |
+
 ### Rule ExpressionList direct caller fence Draft
 
 This bounded Draft maps RuleItem/RuleCall/RuleIndex fence handoff only. Direct

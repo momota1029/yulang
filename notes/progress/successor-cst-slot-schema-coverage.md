@@ -312,6 +312,9 @@ group-close/separator Missing occurrences are selected by parent path and
 preorder, while foreign-close recovery stays its existing wrapper topology.
 Both UseExclusionGroup openers have the corresponding separate inner spelling
 row; opener-selected matching/foreign close stays selected by the group rows.
+The shared GroupEntry-before-Comma and post-UseTree separator-Missing phases are
+also linked for brace and parenthesized exclusion groups, separate from terminal
+close and foreign-close rows.
 M2 specification and regression delta audits for the independent rows were
 clean.
 
