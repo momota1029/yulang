@@ -1949,10 +1949,13 @@ fn use_schema_glob_full_phase_composition() {
                 .children()
                 .find(|node| node.kind() == UseAnchor)
                 .unwrap();
-            assert_eq!(projection(&anchor), [(WithKw, 22..26), (UsePath, 26..33)]);
+            assert_eq!(
+                projection(&anchor),
+                [(WithKw, 22..26), (Whitespace, 26..27), (UsePath, 27..33)]
+            );
             assert_eq!(
                 projection(&anchor.children().next().unwrap()),
-                [(Whitespace, 26..27), (Identifier, 27..33)]
+                [(Identifier, 27..33)]
             );
         }
         for node in root.descendants() {
@@ -2136,17 +2139,12 @@ fn use_schema_glob_band_caller_qualifier_closure() {
             projection(&anchor),
             [
                 (WithKw, glob_end + 4..glob_end + 8),
-                (UsePath, glob_end + 8..end)
+                (Whitespace, glob_end + 8..glob_end + 9),
+                (UsePath, glob_end + 9..end)
             ]
         );
         let path = anchor.children().next().unwrap();
-        assert_eq!(
-            projection(&path),
-            [
-                (Whitespace, glob_end + 8..glob_end + 9),
-                (Identifier, glob_end + 9..end)
-            ]
-        );
+        assert_eq!(projection(&path), [(Identifier, glob_end + 9..end)]);
         for node in root.descendants() {
             for child in node.children_with_tokens() {
                 assert_eq!(child.parent().as_ref(), Some(&node));
@@ -2836,30 +2834,23 @@ fn use_schema_qualifier_anchor_path_ownership() {
             "use a with target",
             false,
             Some(6),
-            vec![(Whitespace, 10..11), (Identifier, 11..17)],
+            vec![(Identifier, 11..17)],
             None,
         ),
         (
             "use a v1 with target",
             true,
             Some(9),
-            vec![(Whitespace, 13..14), (Identifier, 14..20)],
+            vec![(Identifier, 14..20)],
             None,
         ),
         ("use a with", false, Some(6), vec![(Missing, 10..10)], None),
-        (
-            "use a with @",
-            false,
-            Some(6),
-            vec![(Whitespace, 10..11), (Error, 11..12)],
-            None,
-        ),
+        ("use a with @", false, Some(6), vec![(Error, 11..12)], None),
         (
             "use a with @ /*é*/ target",
             false,
             Some(6),
             vec![
-                (Whitespace, 10..11),
                 (Error, 11..12),
                 (Whitespace, 12..13),
                 (BlockComment, 13..19),
@@ -2873,7 +2864,6 @@ fn use_schema_qualifier_anchor_path_ownership() {
             false,
             Some(6),
             vec![
-                (Whitespace, 10..11),
                 (Identifier, 11..17),
                 (ColonColon, 17..19),
                 (Missing, 19..19),
@@ -2884,12 +2874,7 @@ fn use_schema_qualifier_anchor_path_ownership() {
             "use a with target/@",
             false,
             Some(6),
-            vec![
-                (Whitespace, 10..11),
-                (Identifier, 11..17),
-                (Slash, 17..18),
-                (Error, 18..19),
-            ],
+            vec![(Identifier, 11..17), (Slash, 17..18), (Error, 18..19)],
             None,
         ),
         (
@@ -2897,7 +2882,6 @@ fn use_schema_qualifier_anchor_path_ownership() {
             false,
             Some(6),
             vec![
-                (Whitespace, 10..11),
                 (Identifier, 11..17),
                 (ColonColon, 17..19),
                 (Error, 19..20),
@@ -2918,7 +2902,6 @@ fn use_schema_qualifier_anchor_path_ownership() {
             false,
             Some(6),
             vec![
-                (Whitespace, 10..11),
                 (Identifier, 11..17),
                 (ColonColon, 17..19),
                 (Missing, 19..19),
@@ -3000,10 +2983,13 @@ fn use_schema_qualifier_anchor_path_ownership() {
         if let Some(start) = anchor_start {
             let anchor = &anchors[0];
             assert_eq!(anchor.parent().as_ref(), Some(&qualifiers));
-            assert_eq!(
-                projection(anchor),
-                [(WithKw, start..start + 4), (UsePath, start + 4..end)]
-            );
+            let path_start = path_children[0].1.start;
+            let mut expected_anchor = vec![(WithKw, start..start + 4)];
+            if path_start > start + 4 {
+                expected_anchor.push((Whitespace, start + 4..path_start));
+            }
+            expected_anchor.push((UsePath, path_start..end));
+            assert_eq!(projection(anchor), expected_anchor);
             let path = &paths[1];
             assert_eq!(path.parent().as_ref(), Some(anchor));
             assert_eq!(
@@ -3389,12 +3375,12 @@ fn use_schema_glob_repeated_exclusion_episodes() {
                 .children()
                 .find(|node| node.kind() == UseAnchor)
                 .unwrap();
-            assert_eq!(projection(&anchor), [(WithKw, 22..26), (UsePath, 26..33)]);
-            let path = anchor.children().next().unwrap();
             assert_eq!(
-                projection(&path),
-                [(Whitespace, 26..27), (Identifier, 27..33)]
+                projection(&anchor),
+                [(WithKw, 22..26), (Whitespace, 26..27), (UsePath, 27..33)]
             );
+            let path = anchor.children().next().unwrap();
+            assert_eq!(projection(&path), [(Identifier, 27..33)]);
             for node in [qualifiers, &version, &anchor, &path] {
                 for child in node.children_with_tokens() {
                     assert_eq!(child.parent().as_ref(), Some(node));
@@ -4715,6 +4701,170 @@ fn use_schema_exclusion_form_dispatch() {
                 assert!(missing.text_range().is_empty());
                 assert!(missing.children_with_tokens().next().is_none());
             }
+        }
+    }
+}
+
+#[test]
+fn use_schema_recursive_glob_qualifier_siblings() {
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (source, close) in [
+        ("use x::* without {y::* without z v1}", 35),
+        ("use x::* without {y::* without z v1 with anchor}", 47),
+    ] {
+        let (green, records) = use_group_recoveries(source, None);
+        assert!(records.is_empty());
+        let (frozen, frozen_records) = use_group_recoveries(source, Some(&records));
+        assert_eq!(green, frozen);
+        assert_eq!(records, frozen_records);
+        assert_eq!(green.to_string(), source);
+        let root = SyntaxNode::new_root(green);
+        let group = root
+            .descendants()
+            .find(|node| node.kind() == UseExclusionGroup)
+            .unwrap();
+        assert_eq!(
+            group
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [
+                UseExclusionGroup,
+                UseExclusion,
+                UseGlob,
+                UseTree,
+                UseDeclaration,
+                Statement,
+                Root
+            ]
+        );
+        assert_eq!(
+            projection(&group),
+            [
+                (LBrace, 17..18),
+                (UseTree, 18..close),
+                (RBrace, close..close + 1)
+            ]
+        );
+        let tree = group.children().next().unwrap();
+        assert_eq!(
+            projection(&tree),
+            [
+                (UsePath, 18..19),
+                (ColonColon, 19..21),
+                (UseGlob, 21..32),
+                (UseQualifiers, 32..close)
+            ]
+        );
+        let glob = tree.children().find(|node| node.kind() == UseGlob).unwrap();
+        assert_eq!(
+            projection(&glob),
+            [
+                (Star, 21..22),
+                (Whitespace, 22..23),
+                (WithoutKw, 23..30),
+                (Whitespace, 30..31),
+                (UseExclusion, 31..32)
+            ]
+        );
+        let qualifiers = tree
+            .children()
+            .find(|node| node.kind() == UseQualifiers)
+            .unwrap();
+        let mut expected = vec![(Whitespace, 32..33), (UseVersion, 33..35)];
+        if close == 47 {
+            expected.extend([(Whitespace, 35..36), (UseAnchor, 36..47)]);
+        }
+        assert_eq!(projection(&qualifiers), expected);
+        for node in [&glob, &qualifiers] {
+            assert_eq!(
+                node.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                [
+                    node.kind(),
+                    UseTree,
+                    UseExclusionGroup,
+                    UseExclusion,
+                    UseGlob,
+                    UseTree,
+                    UseDeclaration,
+                    Statement,
+                    Root
+                ]
+            );
+        }
+        // Check every remaining shell as well as the recursive sibling boundary.
+        for node in root.descendants() {
+            let start = u32::from(node.text_range().start());
+            let expected = match (node.kind(), start) {
+                (Root, _) => vec![(Statement, 0..close + 1)],
+                (Statement, _) => vec![(UseDeclaration, 0..close + 1)],
+                (UseDeclaration, _) => {
+                    vec![(UseKw, 0..3), (Whitespace, 3..4), (UseTree, 4..close + 1)]
+                }
+                (UseTree, 4) => vec![(UsePath, 4..5), (ColonColon, 5..7), (UseGlob, 7..close + 1)],
+                (UseGlob, 7) => vec![
+                    (Star, 7..8),
+                    (Whitespace, 8..9),
+                    (WithoutKw, 9..16),
+                    (Whitespace, 16..17),
+                    (UseExclusion, 17..close + 1),
+                ],
+                (UseExclusion, 17) => vec![(UseExclusionGroup, 17..close + 1)],
+                (UsePath, 4 | 18) => vec![(Identifier, start..start + 1)],
+                (UseExclusion, 31) => vec![(Identifier, 31..32)],
+                (UseVersion, _) => vec![(Version, 33..35)],
+                (UseAnchor, _) => vec![(WithKw, 36..40), (Whitespace, 40..41), (UsePath, 41..47)],
+                (UsePath, 41) => vec![(Identifier, 41..47)],
+                (UseExclusionGroup, _) | (UseTree, 18) | (UseGlob, 21) | (UseQualifiers, _) => {
+                    continue;
+                }
+                _ => panic!("unexpected node: {node:?}"),
+            };
+            assert_eq!(projection(&node), expected);
+        }
+        for node in root.descendants() {
+            for child in node.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(&node));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(
+                        child.kind(),
+                        Statement
+                            | UseDeclaration
+                            | UseTree
+                            | UsePath
+                            | UseGlob
+                            | UseExclusion
+                            | UseExclusionGroup
+                            | UseQualifiers
+                            | UseVersion
+                            | UseAnchor
+                    )
+                );
+            }
+        }
+        for child in root.descendants_with_tokens() {
+            let range = child.text_range();
+            assert_eq!(
+                child.to_string(),
+                source[usize::from(range.start())..usize::from(range.end())]
+            );
+            assert!(!matches!(
+                child.kind(),
+                Missing | Error | Invalid | UseGroupForeignClose
+            ));
         }
     }
 }

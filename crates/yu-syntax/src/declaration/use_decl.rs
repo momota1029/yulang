@@ -1462,8 +1462,8 @@ fn parse_anchor(
     i.state.start_node(SyntaxKind::UseAnchor.into());
     emit_item_as(&mut i, item, SyntaxKind::WithKw);
     item = next_use_item(i.rb(), item_origin, line_entry, fence);
-    i.state.start_node(SyntaxKind::UsePath.into());
     if declaration_boundary(i.rb(), &item, stops, true) {
+        i.state.start_node(SyntaxKind::UsePath.into());
         missing(
             i.rb(),
             &item,
@@ -1475,9 +1475,12 @@ fn parse_anchor(
         i.state.finish_node();
         return Err(item);
     }
-    if inline_gap(&item) {
+    let has_inline_gap = inline_gap(&item);
+    if has_inline_gap {
         item.emit_all_remaining_leading(&mut *i.state);
-    } else if word_starter(&item) {
+    }
+    i.state.start_node(SyntaxKind::UsePath.into());
+    if !has_inline_gap && word_starter(&item) {
         missing(
             i.rb(),
             &item,
