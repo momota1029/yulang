@@ -352,6 +352,170 @@ fn act_source_schema_uses_equals_and_ordered_required_type_evidence() {
 }
 
 #[test]
+fn act_required_type_slots_have_direct_ordered_rowan_evidence() {
+    use SyntaxKind::*;
+
+    for (source, expected) in [
+        (
+            "act;",
+            vec![
+                (ActKw, false, 0..3),
+                (TypeExpression, true, 3..3),
+                (Semicolon, false, 3..4),
+            ],
+        ),
+        (
+            "act @ A;",
+            vec![
+                (ActKw, false, 0..3),
+                (Whitespace, false, 3..4),
+                (Error, false, 4..5),
+                (TypeExpression, true, 5..7),
+                (Semicolon, false, 7..8),
+            ],
+        ),
+        (
+            "act = B;",
+            vec![
+                (ActKw, false, 0..3),
+                (TypeExpression, true, 3..3),
+                (Whitespace, false, 3..4),
+                (Equals, false, 4..5),
+                (Whitespace, false, 5..6),
+                (TypeExpression, true, 6..7),
+                (Semicolon, false, 7..8),
+            ],
+        ),
+        (
+            "act A = ;",
+            vec![
+                (ActKw, false, 0..3),
+                (Whitespace, false, 3..4),
+                (TypeExpression, true, 4..5),
+                (Whitespace, false, 5..6),
+                (Equals, false, 6..7),
+                (TypeExpression, true, 7..7),
+                (Whitespace, false, 7..8),
+                (Semicolon, false, 8..9),
+            ],
+        ),
+        (
+            "act A = @ B;",
+            vec![
+                (ActKw, false, 0..3),
+                (Whitespace, false, 3..4),
+                (TypeExpression, true, 4..5),
+                (Whitespace, false, 5..6),
+                (Equals, false, 6..7),
+                (Whitespace, false, 7..8),
+                (Error, false, 8..9),
+                (TypeExpression, true, 9..11),
+                (Semicolon, false, 11..12),
+            ],
+        ),
+        (
+            "act A;",
+            vec![
+                (ActKw, false, 0..3),
+                (Whitespace, false, 3..4),
+                (TypeExpression, true, 4..5),
+                (Semicolon, false, 5..6),
+            ],
+        ),
+        (
+            "act A = B;",
+            vec![
+                (ActKw, false, 0..3),
+                (Whitespace, false, 3..4),
+                (TypeExpression, true, 4..5),
+                (Whitespace, false, 5..6),
+                (Equals, false, 6..7),
+                (Whitespace, false, 7..8),
+                (TypeExpression, true, 8..9),
+                (Semicolon, false, 9..10),
+            ],
+        ),
+    ] {
+        let (green, _, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+        assert_eq!(remainder, "");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        let statement = root.first_child().unwrap();
+        assert_eq!(root.children_with_tokens().count(), 1);
+        assert_eq!(statement.kind(), Statement);
+        assert_eq!(statement.parent(), Some(root.clone()));
+        let act = statement.first_child().unwrap();
+        assert_eq!(statement.children_with_tokens().count(), 1);
+        assert_eq!(act.kind(), ActDeclaration);
+        assert_eq!(act.parent(), Some(statement.clone()));
+        for node in [&root, &statement, &act] {
+            assert_eq!(node.to_string(), source);
+        }
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| child.kind() == Invalid)
+        );
+        let children = act.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len(), "{source:?}");
+        for (child, (kind, is_node, range)) in children.iter().zip(expected) {
+            assert_eq!(child.parent(), Some(act.clone()));
+            assert_eq!(child.kind(), kind, "{source:?}");
+            assert_eq!(child.as_node().is_some(), is_node);
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                range
+            );
+            assert_eq!(child.to_string(), &source[range]);
+        }
+
+        // Native Equals divides the required Head and Source slots. A fresh
+        // empty Type belongs to that Act slot; a malformed run remains Type
+        // Primary in either slot, with opaque Error tokens and a Type retry.
+        let equals = children.iter().position(|child| child.kind() == Equals);
+        for (index, child) in children.iter().enumerate() {
+            if child.kind() == TypeExpression && child.text_range().is_empty() {
+                let ty = child.as_node().unwrap();
+                let missing = ty.first_child().unwrap();
+                assert_eq!(ty.children_with_tokens().count(), 1);
+                assert_eq!(missing.kind(), Missing);
+                assert_eq!(missing.parent(), Some(ty.clone()));
+                assert_eq!(missing.text_range(), ty.text_range());
+                assert_eq!(missing.to_string(), "");
+                assert_eq!(missing.children_with_tokens().count(), 0);
+                assert_eq!(
+                    equals.is_some_and(|equals| index > equals),
+                    source == "act A = ;"
+                );
+            }
+            if child.kind() == Error {
+                assert!(child.as_token().is_some());
+                let retry = children[index + 1].as_node().unwrap();
+                assert_eq!(retry.kind(), TypeExpression);
+                let leading = retry.first_child_or_token().unwrap();
+                assert_eq!(leading.kind(), Whitespace);
+                assert!(leading.as_token().is_some());
+                assert_eq!(leading.parent(), Some(retry.clone()));
+                assert_eq!(leading.text_range().start(), child.text_range().end());
+                assert_eq!(leading.text_range().len(), 1.into());
+                assert_eq!(leading.to_string(), " ");
+                assert_eq!(
+                    equals.is_some_and(|equals| index > equals),
+                    source == "act A = @ B;"
+                );
+            }
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            usize::from(matches!(source, "act;" | "act = B;" | "act A = ;"))
+        );
+    }
+}
+
+#[test]
 fn act_inline_body_schema_requires_direct_colon_and_preserves_child_ownership() {
     use SyntaxKind::*;
     let prefix = [(ActKw, 3), (Whitespace, 1), (TypeExpression, 1), (Colon, 1)];

@@ -1152,6 +1152,18 @@ Direct Rowan proof is in `tests/declaration/act_decl.rs`; M1 specification audit
 was clean. Derives adjacency, child blocks/callers, collector and ledger removal
 remain open.
 
+### ActDeclaration required-Type Head and Equals-selected Source Draft
+
+This bounded Draft maps the two caller positions that transport the shared
+required-Type entry. Later Body and continuation phases remain separate.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and ordered grammar | `Root > Statement > ActDeclaration` directly orders `ActKw` then a Head `TypeExpression`; a native direct `Equals` selects a following Source `TypeExpression`. A fresh absent Head or Source is `TypeExpression(Missing)` with an empty, childless Missing at the same range. `act = B` demonstrates that the empty pre-Equals Type is Head, while `act A = ;` demonstrates the empty post-Equals Type is Source. |
+| malformed and retry | A nonempty malformed attempt is a maximal direct opaque `Error+` at that required-Type position, followed by an admitted retry `TypeExpression` when present. The Error occurrence remains Type(Primary), never an Act Head/Source Error. Retry-leading whitespace is owned inside the retry TypeExpression. Native Equals, a TypeExpression boundary or other direct punctuation terminates the Error group; no additional caller Missing or Invalid is produced. |
+| diagnostic projection | Direct order relative to ActKw and native Equals selects Head or Source only for the fresh empty TypeExpression slot. Error projects the established Type(Primary) row. Parentage/order and native tokens are the inputs; Error spelling, recovery records and scanner state are not. |
+| proof and status | Governing authority: [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Scope and retained authority**, **Explicit role transport** and **Publication and extents**; the recovery-authority amendment §§2–3; and the CST-derived diagnostics amendment. Direct Rowan proof: `act_required_type_slots_have_direct_ordered_rowan_evidence` in `tests/declaration/act_decl.rs`. M1 pre-write and post-write specification audits were clean; focused Act checks and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft for seven ASCII Head/Source alternatives only; Body, derives/companions, caller/fence, full nested-Type schema, interpreter and ledger removal remain open. |
+
 ### DeclarationCompanion direct recovery Draft
 
 This bounded Draft maps direct Companion Introducer, Body Missing, Item,

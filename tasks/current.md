@@ -154,6 +154,13 @@ Companion rows without publishing an aggregate recovery role. Select the next
 bounded owner from the coverage map; do not infer a global collector from this
 local proof.
 
+ActDeclaration's required-Type Head and Equals-selected Source slots are also
+now catalog-audited by direct Rowan order. A fresh absent Type remains an empty
+TypeExpression/Missing selected by its position relative to native `Equals`;
+nonempty malformed input remains the existing Type(Primary) Error path with
+retry-leading owned by Type. This does not extend into Act Body, continuation,
+caller/fence or diagnostic-interpreter work.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
