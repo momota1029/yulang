@@ -3435,6 +3435,117 @@ fn use_schema_glob_repeated_exclusion_episodes() {
 }
 
 #[test]
+fn use_schema_glob_without_probe_requires_inline_leading() {
+    use SyntaxKind::*;
+
+    for gap in ["", "\n", " /* comment\n */ ", " "] {
+        let source = format!("use p::*{gap}without a");
+        let accepted = gap == " ";
+        let mut fresh: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
+        for frozen in [false, true] {
+            let operators = OperatorTable::empty();
+            let mut input = source.as_str();
+            let mut recover = if frozen {
+                Recover::reconcile_for_test(&operators, &fresh.as_ref().unwrap().1)
+            } else {
+                Recover::new_for_test(&operators)
+            };
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            builder.finish_node();
+            let green = builder.finish();
+            let records = recover.finish_recoveries_for_test();
+            assert!(records.is_empty(), "{source:?}");
+            if let Some((fresh_green, fresh_records)) = &fresh {
+                assert_eq!(&green, fresh_green);
+                assert_eq!(&records, fresh_records);
+            } else {
+                fresh = Some((green.clone(), records));
+            }
+            let root = SyntaxNode::new_root(green);
+            let glob = root
+                .descendants()
+                .find(|node| node.kind() == UseGlob)
+                .unwrap();
+            assert_eq!(
+                glob.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                [UseGlob, UseTree, UseDeclaration, Statement, Root]
+            );
+            let children: Vec<_> = glob
+                .children_with_tokens()
+                .map(|child| {
+                    assert_eq!(child.parent().as_ref(), Some(&glob));
+                    assert_eq!(child.as_node().is_some(), child.kind() == UseExclusion);
+                    let range = child.text_range();
+                    (
+                        child.kind(),
+                        u32::from(range.start())..u32::from(range.end()),
+                    )
+                })
+                .collect();
+            let expected = if accepted {
+                vec![
+                    (Star, 7..8),
+                    (Whitespace, 8..9),
+                    (WithoutKw, 9..16),
+                    (Whitespace, 16..17),
+                    (UseExclusion, 17..18),
+                ]
+            } else {
+                vec![(Star, 7..8)]
+            };
+            assert_eq!(children, expected, "{source:?}");
+            let end = if accepted { 18 } else { 8 };
+            assert_eq!(
+                glob.text_range(),
+                rowan::TextRange::new(7.into(), end.into())
+            );
+            for child in root.descendants_with_tokens() {
+                assert!(!matches!(child.kind(), Missing | Error | Invalid));
+                if !accepted {
+                    assert!(!matches!(child.kind(), WithoutKw | UseExclusion));
+                }
+                let range = child.text_range();
+                assert_eq!(
+                    child.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+            }
+            if accepted {
+                assert_eq!(root.to_string(), source);
+                assert_eq!(input, "");
+                assert!(matches!(exit, Err(Either::Right(_))));
+                let exclusion = glob.children().next().unwrap();
+                let identifier = exclusion.first_token().unwrap();
+                assert_eq!(exclusion.children_with_tokens().count(), 1);
+                assert_eq!(identifier.kind(), Identifier);
+                assert_eq!(identifier.text(), "a");
+                assert_eq!(identifier.parent().as_ref(), Some(&exclusion));
+                assert_eq!(
+                    identifier.text_range(),
+                    rowan::TextRange::new(17.into(), 18.into())
+                );
+            } else {
+                assert_eq!(root.to_string(), "use p::*");
+                assert_eq!(input, " a");
+                let Err(Either::Left(mut pending)) = exit else {
+                    panic!("rejected without probe must remain pending")
+                };
+                let origin = source.len() - input.len();
+                let extent = pending.extent(origin);
+                assert_eq!(extent.leading(), 8..8 + gap.len());
+                assert_eq!(extent.payload(), 8 + gap.len()..15 + gap.len());
+                assert_eq!(pending.payload_view().spelling(), Some("without"));
+                let leading = emit_pending_leading_text(&mut pending);
+                assert_eq!(leading, gap);
+                assert_eq!(format!("{root}{leading}without{input}"), source);
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_glob_unseparated_exclusion_not_admitted() {
     use SyntaxKind::*;
 

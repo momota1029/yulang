@@ -1386,6 +1386,16 @@ trivia run after an admitted outer comma.
 | projection and exclusions | Both alternatives publish no recovery and retain empty records. This row covers only comma-admission and statement-owner handoff; no root continuation, fences, nested forms, qualifiers, interpreter or ledger/API claim follows. |
 | proof and status | Governing authority: successor architecture UseGlob/WithoutKw grammar; recovery current-Item/boundary authority; Rowan CST-only and CST-derived diagnostics amendments. Direct proof: `use_schema_glob_pre_comma_trivia_keeps_comma_pending` in `tests/declaration/use_decl.rs`, covering five trivia runs, UTF-8 ranges, fresh/frozen agreement and reconstruction. M1 pre-write and post-write specification audits were clean; focused row 1/1, Use 52/52 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this pre-comma boundary. |
 
+### UseGlob optional WithoutKw inline-leading probe Draft
+
+`WithoutKw` is admitted only after nonempty inline leading. Empty, newline or
+comment-with-newline leading leaves the Star-only UseGlob complete and returns
+the `without` Item unchanged; a spaced control admits the existing clause.
+No recovery is published. Direct proof:
+`use_schema_glob_without_probe_requires_inline_leading` in
+`tests/declaration/use_decl.rs`, four fresh/frozen cases. M1 reviews clean;
+focused row 1/1 and Use 53/53 passed. Broader clause recovery remains open.
+
 ### UseGlob post-comma declaration-boundary Missing(Path) Draft
 
 This bounded row separates an unconsumed declaration boundary from the distinct

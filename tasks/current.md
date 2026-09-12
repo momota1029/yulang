@@ -307,6 +307,10 @@ whole comma Item remains pending, while only trivia after an immediately
 admitted Comma belongs to UseGlob. Five whitespace/newline/comment controls
 retain empty recovery state and byte-exact handoff.
 
+The optional `without` probe now likewise requires nonempty inline leading:
+empty/newline-bearing probes leave Star-only UseGlob and return `without`
+unchanged, while a spaced control admits the clause without recovery.
+
 The repeated UseGlob post-comma reserved atom is catalog-audited: it emits one
 Path Missing while preserving the reserved item and its original leading.
 
