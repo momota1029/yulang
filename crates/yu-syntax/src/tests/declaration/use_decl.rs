@@ -1042,6 +1042,315 @@ fn use_schema_accepted_group_children_and_nested_occurrences() {
 }
 
 #[test]
+fn use_schema_qualifier_anchor_path_ownership() {
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    // Fresh Missing expects Path, post-separator Missing expects Identifier,
+    // and raw Error expects Path. This evidence selects only Rowan topology;
+    // neither recovery records nor opaque Error spelling select an occurrence.
+    for (source, version, anchor_start, path_children, pending) in [
+        ("use a v1", true, None, vec![], None),
+        (
+            "use a with target",
+            false,
+            Some(6),
+            vec![(Whitespace, 10..11), (Identifier, 11..17)],
+            None,
+        ),
+        (
+            "use a v1 with target",
+            true,
+            Some(9),
+            vec![(Whitespace, 13..14), (Identifier, 14..20)],
+            None,
+        ),
+        ("use a with", false, Some(6), vec![(Missing, 10..10)], None),
+        (
+            "use a with @",
+            false,
+            Some(6),
+            vec![(Whitespace, 10..11), (Error, 11..12)],
+            None,
+        ),
+        (
+            "use a with @ /*é*/ target",
+            false,
+            Some(6),
+            vec![
+                (Whitespace, 10..11),
+                (Error, 11..12),
+                (Whitespace, 12..13),
+                (BlockComment, 13..19),
+                (Whitespace, 19..20),
+                (Identifier, 20..26),
+            ],
+            None,
+        ),
+        (
+            "use a with target::",
+            false,
+            Some(6),
+            vec![
+                (Whitespace, 10..11),
+                (Identifier, 11..17),
+                (ColonColon, 17..19),
+                (Missing, 19..19),
+            ],
+            None,
+        ),
+        (
+            "use a with target/@",
+            false,
+            Some(6),
+            vec![
+                (Whitespace, 10..11),
+                (Identifier, 11..17),
+                (Slash, 17..18),
+                (Error, 18..19),
+            ],
+            None,
+        ),
+        (
+            "use a with target::@ next",
+            false,
+            Some(6),
+            vec![
+                (Whitespace, 10..11),
+                (Identifier, 11..17),
+                (ColonColon, 17..19),
+                (Error, 19..20),
+                (Whitespace, 20..21),
+                (Identifier, 21..25),
+            ],
+            None,
+        ),
+        (
+            "use a with ;next",
+            false,
+            Some(6),
+            vec![(Missing, 10..10)],
+            Some((10, 10..11, 11..12)),
+        ),
+        (
+            "use a with target:: ;next",
+            false,
+            Some(6),
+            vec![
+                (Whitespace, 10..11),
+                (Identifier, 11..17),
+                (ColonColon, 17..19),
+                (Missing, 19..19),
+            ],
+            Some((19, 19..20, 20..21)),
+        ),
+    ] {
+        let operators = OperatorTable::empty();
+        let mut input = source;
+        let mut recover = Recover::new_for_test(&operators);
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(Root.into());
+        let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+        if let Err(Either::Right(end)) = &mut exit {
+            emit_end(&mut builder, end);
+        }
+        builder.finish_node();
+        let root = SyntaxNode::new_root(finish_with_discarded_recoveries(builder, recover));
+        let end = pending.as_ref().map_or(source.len(), |(end, _, _)| *end) as u32;
+        let tree = root
+            .descendants()
+            .find(|node| node.kind() == UseTree)
+            .unwrap();
+        assert_eq!(
+            projection(&tree),
+            [(UsePath, 4..5), (UseQualifiers, 5..end)],
+            "{source:?}"
+        );
+        let initial = tree.children().next().unwrap();
+        assert_eq!(projection(&initial), [(Identifier, 4..5)]);
+        assert_eq!(
+            initial
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [UsePath, UseTree, UseDeclaration, Statement, Root]
+        );
+        let qualifiers = tree
+            .children()
+            .find(|node| node.kind() == UseQualifiers)
+            .unwrap();
+        assert_eq!(
+            qualifiers
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [UseQualifiers, UseTree, UseDeclaration, Statement, Root]
+        );
+        let mut expected = vec![(Whitespace, 5..6)];
+        if version {
+            expected.push((UseVersion, 6..8));
+            if anchor_start.is_some() {
+                expected.push((Whitespace, 8..9));
+            }
+        }
+        if let Some(start) = anchor_start {
+            expected.push((UseAnchor, start..end));
+        }
+        assert_eq!(projection(&qualifiers), expected);
+        let versions: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == UseVersion)
+            .collect();
+        assert_eq!(versions.len(), usize::from(version));
+        if let Some(node) = versions.first() {
+            assert_eq!(node.parent().as_ref(), Some(&qualifiers));
+            assert_eq!(projection(node), [(Version, 6..8)]);
+        }
+        let anchors: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == UseAnchor)
+            .collect();
+        assert_eq!(anchors.len(), usize::from(anchor_start.is_some()));
+        let paths: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == UsePath)
+            .collect();
+        assert_eq!(paths.len(), 1 + anchors.len());
+        if let Some(start) = anchor_start {
+            let anchor = &anchors[0];
+            assert_eq!(anchor.parent().as_ref(), Some(&qualifiers));
+            assert_eq!(
+                projection(anchor),
+                [(WithKw, start..start + 4), (UsePath, start + 4..end)]
+            );
+            let path = &paths[1];
+            assert_eq!(path.parent().as_ref(), Some(anchor));
+            assert_eq!(
+                path.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                [
+                    UsePath,
+                    UseAnchor,
+                    UseQualifiers,
+                    UseTree,
+                    UseDeclaration,
+                    Statement,
+                    Root
+                ]
+            );
+            assert_eq!(projection(path), path_children);
+            let mut runs = Vec::new();
+            let mut current: Option<std::ops::Range<u32>> = None;
+            for child in path.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(path));
+                assert_eq!(child.as_node().is_some(), child.kind() == Missing);
+                let range = child.text_range();
+                if child.kind() == Error {
+                    if let Some(run) = &mut current {
+                        assert_eq!(run.end, u32::from(range.start()));
+                        run.end = u32::from(range.end());
+                    } else {
+                        current = Some(u32::from(range.start())..u32::from(range.end()));
+                    }
+                } else if let Some(run) = current.take() {
+                    runs.push(run);
+                }
+            }
+            if let Some(run) = current {
+                runs.push(run);
+            }
+            assert_eq!(
+                runs,
+                path_children
+                    .iter()
+                    .filter(|(kind, _)| *kind == Error)
+                    .map(|(_, range)| range.clone())
+                    .collect::<Vec<_>>()
+            );
+        }
+        let recoveries: Vec<_> = root
+            .descendants_with_tokens()
+            .filter(|child| matches!(child.kind(), Missing | Error))
+            .collect();
+        let expected_recoveries: Vec<_> = path_children
+            .iter()
+            .filter(|(kind, _)| matches!(kind, Missing | Error))
+            .collect();
+        assert_eq!(recoveries.len(), expected_recoveries.len());
+        for (child, (kind, range)) in recoveries.iter().zip(expected_recoveries) {
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.parent().as_ref(), paths.get(1));
+            assert_eq!(
+                child.text_range(),
+                rowan::TextRange::new(range.start.into(), range.end.into())
+            );
+            if let Some(node) = child.as_node() {
+                assert_eq!(*kind, Missing);
+                assert!(node.text_range().is_empty());
+                assert!(node.children_with_tokens().next().is_none());
+            } else {
+                assert_eq!(*kind, Error);
+            }
+        }
+        for node in root.descendants() {
+            for child in node.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(&node));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(
+                        child.kind(),
+                        Statement
+                            | UseDeclaration
+                            | UseTree
+                            | UsePath
+                            | UseQualifiers
+                            | UseVersion
+                            | UseAnchor
+                            | Missing
+                    )
+                );
+            }
+        }
+        for child in root.descendants_with_tokens() {
+            let range = child.text_range();
+            assert_eq!(
+                child.to_string(),
+                source[usize::from(range.start())..usize::from(range.end())]
+            );
+            assert!(!matches!(child.kind(), Invalid | UseGroupForeignClose));
+        }
+        if let Some((end, leading, payload)) = pending {
+            assert_eq!(root.to_string(), source[..end]);
+            let Err(Either::Left(mut item)) = exit else {
+                panic!("protected semicolon must remain pending")
+            };
+            assert_eq!(token_kind(&item), Some(TokenKind::Semicolon));
+            assert_eq!(item.payload_view().spelling(), Some(";"));
+            let extent = item.extent(source.len() - input.len());
+            assert_eq!(extent.leading(), leading.clone());
+            assert_eq!(extent.payload(), payload);
+            let leading_text = emit_pending_leading_text(&mut item);
+            assert_eq!(leading_text, source[leading]);
+            assert_eq!(input, "next");
+            assert_eq!(format!("{root}{leading_text};{input}"), source);
+        } else {
+            assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+            assert_eq!(input, "");
+            assert_eq!(root.to_string(), source);
+        }
+    }
+}
+
+#[test]
 fn use_schema_glob_repeated_exclusion_episodes() {
     use SyntaxKind::*;
 

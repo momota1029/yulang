@@ -246,6 +246,13 @@ nested group punctuation, OperatorName delegation and normal qualifier exit
 retain their existing owners. Newline-after-comma and complete qualifier,
 recursive or fence topology remain open.
 
+The UseQualifiers/UseAnchor/anchor-UsePath aggregate is now catalog-audited for
+Version-only, Anchor-only and combined forms. Recovery remains direct under the
+ancestry-selected anchor UsePath: initial Missing expects Path, post-separator
+Missing expects Identifier, and direct Error expects Path. UTF-8 retry and
+protected semicolon handoff are lossless; broader reserved/multiline/fence and
+suffix behavior remain open.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

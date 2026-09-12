@@ -346,6 +346,12 @@ two successful repetitions, retry-leading, protected comma/semicolon, nested
 group punctuation, OperatorName delegation and normal qualifier termination
 compose the established child rows. Newline and complete recursive/fence or
 qualifier recovery remain outside this evidence.
+The UseQualifiers/UseAnchor/UsePath aggregate is now linked across Version-only,
+Anchor-only and combined forms. The nested anchor UsePath owns initial and
+post-separator recovery while the qualifier shells remain diagnostic-free.
+Ordered Rowan context distinguishes initial Missing/Path, separator
+Missing/Identifier and direct Error/Path, including UTF-8 retry and protected
+semicolon handoff.
 M2 specification and regression delta audits for the independent rows were
 clean.
 
