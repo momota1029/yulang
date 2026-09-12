@@ -9,6 +9,588 @@ use crate::tests::support::*;
 use std::sync::Arc;
 
 #[test]
+fn equals_inline_variant_sequence_composes_header_retries_and_body_occurrences() {
+    use SyntaxKind::{
+        EnumKw, EnumVariant, Equals, Error, ErrorKw, FromKw, Identifier, Invalid, LParen, Missing,
+        Pipe, RParen, TypeExpression, Whitespace,
+    };
+    // Two owners × two UTF-8 header retries × nine core/pipe classes × EOF/stop.
+    for (keyword, kw, declaration) in [
+        ("enum", EnumKw, SyntaxKind::EnumDeclaration),
+        ("error", ErrorKw, SyntaxKind::ErrorDeclaration),
+    ] {
+        for (header, header_children, error_offset) in [
+            (
+                " @ 名 ",
+                vec![
+                    (Whitespace, 1),
+                    (Error, 1),
+                    (Whitespace, 1),
+                    (Identifier, 3),
+                    (Whitespace, 1),
+                ],
+                1,
+            ),
+            (
+                " 名 @ ",
+                vec![
+                    (Whitespace, 1),
+                    (Identifier, 3),
+                    (Whitespace, 1),
+                    (Error, 1),
+                    (Whitespace, 1),
+                ],
+                5,
+            ),
+        ] {
+            for stopped in [false, true] {
+                for (body, sequence, variants, occurrence) in [
+                    (
+                        " @",
+                        vec![(EnumVariant, 2)],
+                        vec![vec![(Whitespace, 1), (Error, 1)]],
+                        Some((Error, EnumVariant, 1)),
+                    ),
+                    (
+                        " @ A",
+                        vec![(EnumVariant, 4)],
+                        vec![vec![
+                            (Whitespace, 1),
+                            (Error, 1),
+                            (Whitespace, 1),
+                            (Identifier, 1),
+                        ]],
+                        Some((Error, EnumVariant, 1)),
+                    ),
+                    (
+                        " A()B",
+                        vec![(EnumVariant, 4), (Missing, 0), (EnumVariant, 1)],
+                        vec![
+                            vec![(Whitespace, 1), (Identifier, 1), (LParen, 1), (RParen, 1)],
+                            vec![(Identifier, 1)],
+                        ],
+                        Some((Missing, declaration, 4)),
+                    ),
+                    (
+                        " A from",
+                        vec![(EnumVariant, 7)],
+                        vec![vec![
+                            (Whitespace, 1),
+                            (Identifier, 1),
+                            (Whitespace, 1),
+                            (FromKw, 4),
+                            (TypeExpression, 0),
+                        ]],
+                        Some((Missing, TypeExpression, 7)),
+                    ),
+                    (
+                        " A from @",
+                        vec![(EnumVariant, 9)],
+                        vec![vec![
+                            (Whitespace, 1),
+                            (Identifier, 1),
+                            (Whitespace, 1),
+                            (FromKw, 4),
+                            (Whitespace, 1),
+                            (Error, 1),
+                        ]],
+                        Some((Error, EnumVariant, 8)),
+                    ),
+                    (
+                        " A from @ T",
+                        vec![(EnumVariant, 11)],
+                        vec![vec![
+                            (Whitespace, 1),
+                            (Identifier, 1),
+                            (Whitespace, 1),
+                            (FromKw, 4),
+                            (Whitespace, 1),
+                            (Error, 1),
+                            (TypeExpression, 2),
+                        ]],
+                        Some((Error, EnumVariant, 8)),
+                    ),
+                    (
+                        " |A",
+                        vec![(Whitespace, 1), (Pipe, 1), (EnumVariant, 1)],
+                        vec![vec![(Identifier, 1)]],
+                        None,
+                    ),
+                    (
+                        "A|",
+                        vec![(EnumVariant, 1), (Pipe, 1)],
+                        vec![vec![(Identifier, 1)]],
+                        None,
+                    ),
+                    (
+                        "A| |B",
+                        vec![
+                            (EnumVariant, 1),
+                            (Pipe, 1),
+                            (Whitespace, 1),
+                            (EnumVariant, 0),
+                            (Pipe, 1),
+                            (EnumVariant, 1),
+                        ],
+                        vec![
+                            vec![(Identifier, 1)],
+                            vec![(Missing, 0)],
+                            vec![(Identifier, 1)],
+                        ],
+                        Some((Missing, EnumVariant, 3)),
+                    ),
+                ] {
+                    let accepted = format!("{keyword}{header}={body}");
+                    let source = format!(
+                        "{accepted}{}",
+                        if stopped { " /*pending*/ : tail" } else { "" }
+                    );
+                    let stops = if stopped { STOP_COLON } else { 0 };
+                    let (green, exit, remainder) = if keyword == "enum" {
+                        run_enum_declaration(&source, stops, 100, LineEntry::InLine, None)
+                    } else {
+                        run_error_declaration(&source, stops, 100, LineEntry::InLine, None)
+                    };
+                    let root = syntax_root(green);
+                    assert_eq!(root.kind(), SyntaxKind::Root);
+                    assert!(root.parent().is_none());
+                    assert_eq!(root.children_with_tokens().count(), 1);
+                    assert_eq!(root.to_string(), accepted, "{source:?}");
+                    let shell = root.children().next().unwrap();
+                    assert_eq!(shell.kind(), declaration);
+                    assert_eq!(shell.parent().as_ref(), Some(&root));
+                    assert_eq!(shell.text_range(), root.text_range());
+                    let mut expected = vec![(kw, keyword.len())];
+                    expected.extend_from_slice(&header_children);
+                    expected.push((Equals, 1));
+                    expected.extend_from_slice(&sequence);
+                    assert_variant_sequence_children(&shell, 0, &expected, &source);
+                    let actual_variants = shell
+                        .children()
+                        .filter(|n| n.kind() == EnumVariant)
+                        .collect::<Vec<_>>();
+                    assert_eq!(actual_variants.len(), variants.len());
+                    for (variant, children) in actual_variants.iter().zip(&variants) {
+                        assert_variant_sequence_children(
+                            variant,
+                            usize::from(variant.text_range().start()),
+                            children,
+                            &source,
+                        );
+                        for ty in variant.children().filter(|n| n.kind() == TypeExpression) {
+                            let children = if body == " A from" {
+                                vec![(Missing, 0)]
+                            } else {
+                                vec![(Whitespace, 1), (Identifier, 1)]
+                            };
+                            assert_variant_sequence_children(
+                                &ty,
+                                usize::from(ty.text_range().start()),
+                                &children,
+                                &source,
+                            );
+                        }
+                    }
+                    let header_at = keyword.len() + error_offset;
+                    let mut occurrences = vec![(Error, declaration, header_at..header_at + 1)];
+                    if let Some((kind, parent, offset)) = occurrence {
+                        let at = keyword.len() + header.len() + 1 + offset;
+                        occurrences.push((kind, parent, at..at + usize::from(kind == Error)));
+                    }
+                    assert_eq!(
+                        root.descendants_with_tokens()
+                            .filter(|c| matches!(c.kind(), Error | Missing | Invalid))
+                            .map(|c| (
+                                c.kind(),
+                                c.parent().unwrap().kind(),
+                                usize::from(c.text_range().start())
+                                    ..usize::from(c.text_range().end())
+                            ))
+                            .collect::<Vec<_>>(),
+                        occurrences,
+                        "{source:?}"
+                    );
+                    if stopped {
+                        let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit
+                        else {
+                            panic!("caller stop must remain pending: {source:?}")
+                        };
+                        assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Colon));
+                        let leading = emit_pending_leading_text(&mut item);
+                        assert_eq!(leading, " /*pending*/ ");
+                        assert_eq!(remainder, " tail");
+                        assert_eq!(
+                            format!(
+                                "{root}{leading}{}{remainder}",
+                                item.payload_view().spelling().unwrap()
+                            ),
+                            source
+                        );
+                    } else {
+                        let Some(NormalizedExit::Complete(Err(Either::Right(mut end)), _)) = exit
+                        else {
+                            panic!("EOF must remain terminal: {source:?}")
+                        };
+                        assert!(end.item.payload_view().is_eof());
+                        assert_eq!(emit_pending_leading_text(&mut end.item), "");
+                        assert_eq!(remainder, "");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn equals_inline_variant_sequence_composes_header_retries_and_with_yield() {
+    use SyntaxKind::{
+        DeclarationCompanion, EnumKw, EnumVariant, Equals, Error, ErrorKw, FromKw, Identifier,
+        Invalid, Missing, Pipe, TypeExpression, Whitespace, WithKw,
+    };
+    // Existing enum/error equals-inline literals require Missing totals 1/0/0/1/0.
+    // Add each header retry and STOP_WITH without changing that contract.
+    for (keyword, kw, declaration) in [
+        ("enum", EnumKw, SyntaxKind::EnumDeclaration),
+        ("error", ErrorKw, SyntaxKind::ErrorDeclaration),
+    ] {
+        for (header, header_children, header_error) in [
+            (
+                " E ",
+                vec![(Whitespace, 1), (Identifier, 1), (Whitespace, 1)],
+                None,
+            ),
+            (
+                " @ 名 ",
+                vec![
+                    (Whitespace, 1),
+                    (Error, 1),
+                    (Whitespace, 1),
+                    (Identifier, 3),
+                    (Whitespace, 1),
+                ],
+                Some(1),
+            ),
+            (
+                " 名 @ ",
+                vec![
+                    (Whitespace, 1),
+                    (Identifier, 3),
+                    (Whitespace, 1),
+                    (Error, 1),
+                    (Whitespace, 1),
+                ],
+                Some(5),
+            ),
+        ] {
+            for stopped in [false, true] {
+                for (body, sequence, variant_children, recovery) in [
+                    (
+                        "",
+                        vec![(EnumVariant, 0)],
+                        vec![(Missing, 0)],
+                        Some((Missing, EnumVariant, 0)),
+                    ),
+                    (
+                        " A",
+                        vec![(EnumVariant, 2)],
+                        vec![(Whitespace, 1), (Identifier, 1)],
+                        None,
+                    ),
+                    (
+                        " A |",
+                        vec![(EnumVariant, 2), (Whitespace, 1), (Pipe, 1)],
+                        vec![(Whitespace, 1), (Identifier, 1)],
+                        None,
+                    ),
+                    (
+                        " A from",
+                        vec![(EnumVariant, 7)],
+                        vec![
+                            (Whitespace, 1),
+                            (Identifier, 1),
+                            (Whitespace, 1),
+                            (FromKw, 4),
+                            (TypeExpression, 0),
+                        ],
+                        Some((Missing, TypeExpression, 7)),
+                    ),
+                    (
+                        " A from @",
+                        vec![(EnumVariant, 9)],
+                        vec![
+                            (Whitespace, 1),
+                            (Identifier, 1),
+                            (Whitespace, 1),
+                            (FromKw, 4),
+                            (Whitespace, 1),
+                            (Error, 1),
+                        ],
+                        Some((Error, EnumVariant, 8)),
+                    ),
+                ] {
+                    let accepted = format!("{keyword}{header}={body}");
+                    let source = format!("{accepted} with {{}}");
+                    let stops = if stopped {
+                        crate::lexical::stops::STOP_WITH
+                    } else {
+                        0
+                    };
+                    let (green, exit, remainder) = if keyword == "enum" {
+                        run_enum_declaration(&source, stops, 100, LineEntry::InLine, None)
+                    } else {
+                        run_error_declaration(&source, stops, 100, LineEntry::InLine, None)
+                    };
+                    let root = syntax_root(green);
+                    assert_eq!(root.kind(), SyntaxKind::Root);
+                    assert!(root.parent().is_none());
+                    assert_eq!(root.children_with_tokens().count(), 1);
+                    let shell = root.children().next().unwrap();
+                    assert_eq!(shell.kind(), declaration);
+                    assert_eq!(shell.parent().as_ref(), Some(&root));
+                    assert_eq!(shell.text_range(), root.text_range());
+                    let attached = keyword == "enum" && !stopped;
+                    assert_eq!(
+                        root.to_string(),
+                        if attached {
+                            source.as_str()
+                        } else {
+                            accepted.as_str()
+                        },
+                        "{source:?}, stopped={stopped}"
+                    );
+                    let mut expected = vec![(kw, keyword.len())];
+                    expected.extend_from_slice(&header_children);
+                    expected.push((Equals, 1));
+                    expected.extend_from_slice(&sequence);
+                    if attached {
+                        expected.push((DeclarationCompanion, 8));
+                    }
+                    assert_variant_sequence_children(&shell, 0, &expected, &source);
+                    let variant = shell.children().find(|n| n.kind() == EnumVariant).unwrap();
+                    assert_eq!(
+                        shell.children().filter(|n| n.kind() == EnumVariant).count(),
+                        1
+                    );
+                    assert_variant_sequence_children(
+                        &variant,
+                        keyword.len() + header.len() + 1,
+                        &variant_children,
+                        &source,
+                    );
+                    if let Some(ty) = variant.children().find(|n| n.kind() == TypeExpression) {
+                        assert_variant_sequence_children(
+                            &ty,
+                            accepted.len(),
+                            &[(Missing, 0)],
+                            &source,
+                        );
+                    }
+                    let mut occurrences = Vec::new();
+                    if let Some(offset) = header_error {
+                        let at = keyword.len() + offset;
+                        occurrences.push((Error, declaration, at..at + 1));
+                    }
+                    if let Some((kind, parent, offset)) = recovery {
+                        let at = keyword.len() + header.len() + 1 + offset;
+                        occurrences.push((kind, parent, at..at + usize::from(kind == Error)));
+                    }
+                    // Companion-internal diagnostics are deliberately outside this sequence gate.
+                    assert_eq!(
+                        shell
+                            .descendants_with_tokens()
+                            .filter(|c| !c.ancestors().any(|n| n.kind() == DeclarationCompanion))
+                            .filter(|c| matches!(c.kind(), Error | Missing | Invalid))
+                            .map(|c| (
+                                c.kind(),
+                                c.parent().unwrap().kind(),
+                                usize::from(c.text_range().start())
+                                    ..usize::from(c.text_range().end())
+                            ))
+                            .collect::<Vec<_>>(),
+                        occurrences,
+                        "{source:?}"
+                    );
+                    assert_eq!(count(&shell, DeclarationCompanion), usize::from(attached));
+                    let withs = shell
+                        .descendants_with_tokens()
+                        .filter(|c| c.kind() == WithKw)
+                        .collect::<Vec<_>>();
+                    assert_eq!(withs.len(), usize::from(attached));
+                    if attached {
+                        let companion = shell.children().last().unwrap();
+                        assert_eq!(companion.kind(), DeclarationCompanion);
+                        assert_eq!(withs[0].parent().as_ref(), Some(&companion));
+                        assert!(withs[0].as_token().is_some());
+                        assert_eq!(
+                            usize::from(withs[0].text_range().start())
+                                ..usize::from(withs[0].text_range().end()),
+                            accepted.len() + 1..accepted.len() + 5
+                        );
+                        assert_eq!(withs[0].to_string(), "with");
+                        assert_eq!(remainder, "");
+                    } else {
+                        let Some(NormalizedExit::Complete(
+                            Err(Either::Left(mut item)),
+                            LineEntry::InLine,
+                        )) = exit
+                        else {
+                            panic!("with must remain pending: {source:?}")
+                        };
+                        assert_eq!(item.payload_view().spelling(), Some("with"));
+                        let leading = emit_pending_leading_text(&mut item);
+                        assert_eq!(leading, " ");
+                        assert_eq!(remainder, " {}");
+                        assert_eq!(
+                            format!(
+                                "{root}{leading}{}{remainder}",
+                                item.payload_view().spelling().unwrap()
+                            ),
+                            source
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn equals_inline_variant_sequence_with_qualification_and_stop_controls() {
+    use SyntaxKind::{
+        DeclarationCompanion, EnumVariant, Error, Identifier, Invalid, Missing, WithKw,
+    };
+    for keyword in ["enum", "error"] {
+        let source = format!("{keyword} E=with");
+        let shell = variant_schema_shell(
+            &source,
+            if keyword == "enum" {
+                SyntaxKind::EnumDeclaration
+            } else {
+                SyntaxKind::ErrorDeclaration
+            },
+        );
+        assert_eq!(shell.to_string(), source);
+        let variant = shell.children().find(|n| n.kind() == EnumVariant).unwrap();
+        assert_variant_sequence_children(&variant, keyword.len() + 3, &[(Identifier, 4)], &source);
+        assert_eq!(count(&shell, EnumVariant), 1);
+        assert!(shell.descendants_with_tokens().all(|c| !matches!(
+            c.kind(),
+            Error | Missing | Invalid | DeclarationCompanion | WithKw
+        )));
+
+        for stopped in [false, true] {
+            for (prefix, gap, qualifies) in
+                [("", "\n  ", true), ("", "\n", false), ("  ", "\n ", false)]
+            {
+                let accepted = format!("{prefix}{keyword} E = A");
+                let source = format!("{accepted}{gap}with {{}}");
+                let stops = if stopped {
+                    crate::lexical::stops::STOP_WITH
+                } else {
+                    0
+                };
+                let (green, exit, remainder) = if !prefix.is_empty() {
+                    // The ordinary shell helpers fix baseline=0. This shallow
+                    // witness explicitly supplies baseline=2 to the same owner.
+                    let operators = OperatorTable::empty();
+                    let mut input = source.as_str();
+                    let mut recover = Recover::new_for_test(&operators);
+                    let mut builder = GreenNodeBuilder::new();
+                    builder.start_node(SyntaxKind::Root.into());
+                    let i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder);
+                    let exit = if keyword == "enum" {
+                        crate::declaration::enum_decl::enum_declaration_witness(
+                            i,
+                            2,
+                            stops,
+                            crate::statement::StatementLineHandoff::OrdinaryLayout,
+                            100,
+                            LineEntry::PhysicalStart,
+                            None,
+                        )
+                    } else {
+                        crate::declaration::error_decl::error_declaration_witness(
+                            i,
+                            2,
+                            stops,
+                            crate::statement::StatementLineHandoff::OrdinaryLayout,
+                            100,
+                            LineEntry::PhysicalStart,
+                            None,
+                        )
+                    };
+                    builder.finish_node();
+                    (
+                        finish_with_discarded_recoveries(builder, recover),
+                        exit,
+                        input,
+                    )
+                } else if keyword == "enum" {
+                    run_enum_declaration(&source, stops, 100, LineEntry::InLine, None)
+                } else {
+                    run_error_declaration(&source, stops, 100, LineEntry::InLine, None)
+                };
+                let root = syntax_root(green);
+                let attached = keyword == "enum" && qualifies && !stopped;
+                assert_eq!(
+                    root.to_string(),
+                    if attached {
+                        source.as_str()
+                    } else {
+                        accepted.as_str()
+                    },
+                    "{source:?}, stopped={stopped}"
+                );
+                assert_eq!(count(&root, DeclarationCompanion), usize::from(attached));
+                assert_eq!(
+                    root.descendants_with_tokens()
+                        .filter(|c| c.kind() == WithKw)
+                        .count(),
+                    usize::from(attached)
+                );
+                let shell = root.children().next().unwrap();
+                let variant = shell.children().find(|n| n.kind() == EnumVariant).unwrap();
+                assert_variant_sequence_children(
+                    &variant,
+                    accepted.len() - 2,
+                    &[(SyntaxKind::Whitespace, 1), (Identifier, 1)],
+                    &source,
+                );
+                assert!(
+                    shell
+                        .descendants_with_tokens()
+                        .filter(|c| !c.ancestors().any(|n| n.kind() == DeclarationCompanion))
+                        .all(|c| !matches!(c.kind(), Error | Missing | Invalid))
+                );
+                if attached {
+                    let companion = shell.children().last().unwrap();
+                    assert_eq!(companion.kind(), DeclarationCompanion);
+                    assert_eq!(usize::from(companion.text_range().start()), accepted.len());
+                    assert_eq!(usize::from(companion.text_range().end()), source.len());
+                    assert_eq!(remainder, "");
+                } else {
+                    let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit
+                    else {
+                        panic!("with must remain pending: {source:?}")
+                    };
+                    assert_eq!(item.payload_view().spelling(), Some("with"));
+                    let leading = emit_pending_leading_text(&mut item);
+                    assert_eq!(leading, gap);
+                    assert_eq!(remainder, " {}");
+                    assert_eq!(
+                        format!(
+                            "{root}{leading}{}{remainder}",
+                            item.payload_view().spelling().unwrap()
+                        ),
+                        source
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn colon_indented_variant_sequence_composes_header_retries_and_body_occurrences() {
     use SyntaxKind::{
         Colon, EnumKw, EnumVariant, Error, ErrorKw, Identifier, Invalid, LParen, Missing, Newline,
@@ -740,7 +1322,7 @@ fn assert_variant_sequence_children(
     expected: &[(SyntaxKind, usize)],
     source: &str,
 ) {
-    use SyntaxKind::{EnumVariant, Missing, TypeExpression};
+    use SyntaxKind::{DeclarationCompanion, EnumVariant, Missing, TypeExpression};
     let children = owner.children_with_tokens().collect::<Vec<_>>();
     assert_eq!(children.len(), expected.len(), "{source:?}");
     let mut at = start;
@@ -749,7 +1331,10 @@ fn assert_variant_sequence_children(
         assert_eq!(child.parent().as_ref(), Some(owner));
         assert_eq!(
             child.as_node().is_some(),
-            matches!(kind, EnumVariant | Missing | TypeExpression)
+            matches!(
+                kind,
+                DeclarationCompanion | EnumVariant | Missing | TypeExpression
+            )
         );
         assert_eq!(
             usize::from(child.text_range().start())..usize::from(child.text_range().end()),

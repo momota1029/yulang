@@ -1678,6 +1678,20 @@ excluded. Authority: Enum/Error header and variant recovery records plus the
 CST-derived diagnostics amendment. M1 pre-write and regression audits were
 clean. Status: catalog-audited evidence-complete Draft for this bounded form.
 
+### EqualsInline Enum/Error header to VariantSequence and successor composition Draft
+
+EqualsInline keeps native Equals and literal pipe sequence structure in the
+declaration shell, but a qualifying exact `with` is a shared-sequence handoff:
+Enum attaches it as `DeclarationCompanion`, whereas Error returns the same
+unread Item to its outer Statement. This is an ordered ancestry/continuation
+fact, not a recovery publisher or a reclassification of companion recovery.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `(EnumDeclaration or ErrorDeclaration, header retry or complete header, native Equals, EqualsInline VariantSequence, optional qualifying with successor)`. Item, Name, Separator, FromType and Type-primary recovery retain their mapped component owners. Enum alone has a following direct `DeclarationCompanion(WithKw, ...)`; Error ends before the pending `with`. |
+| ordered recovery and handoff | Header Name/BodyIntroducer Error retries retain a direct declaration Error followed by native Identifier/Equals. Terminal Item Error, Item-to-Name retry, completed-payload Separator Missing, FromType Missing, Type-primary Error/retry and pipe required-slot forms retain their component parent/order. A single leading/trailing pipe has no missing item; repeated pipes contain exactly their required empty Variant Missing. `with` qualification and active `STOP_WITH` precede attachment. The Error/stopped-Enum pending Item retains its exact leading and source remainder; a deeper qualifying line attaches only under the existing baseline rule, while equal/shallow lines remain caller handoff. |
+| projection and exclusions | Select these occurrences from shell ancestry, direct ordered child grammar, native token kinds and the successor continuation; never from Error spelling or recovery records. The 146 direct products in `equals_inline_variant_sequence_*` verify UTF-8 header ranges, EOF/STOP_COLON handoff, STOP_WITH, Enum companion versus Error pending asymmetry and reconstruction. Companion-internal recovery, foreign-close ownership, further field/type schemas, fences, global interpretation and ledger/API removal stay outside this row. Authority: Enum/Error header and declaration-variant recovery, the direct Enum/Error companion amendment and CST-derived diagnostics amendment. M2 pre-write, compiler/recovery and regression audits were clean; focused tests and package check passed (three pre-existing warnings). Status: catalog-audited evidence-complete Draft only for this bounded EqualsInline composition. |
+
 ### NamedRecordType Field/Name/Colon/Type/Separator/Close semantic rows
 
 This bounded Draft maps the six recovery-bearing slots of one committed
