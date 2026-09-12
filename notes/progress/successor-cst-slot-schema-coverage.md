@@ -372,6 +372,26 @@ reserved, missing-gap and wider boundary/fence transitions remain unlinked.
 M2 specification and regression delta audits for the independent rows were
 clean.
 
+#### 2026-09-12 Use navigation reconciliation
+
+The preceding links accumulated at different checkpoints. Their old exclusions
+do not reopen later completed bounded evidence. Consult the current catalog's
+**UseTree full composition Draft**, **UseGlob full phase composition Draft**,
+and the later newline, gap, reserved-head and boundary rows individually.
+They do not establish complete recursive or fence coverage.
+
+At `6b68a337`, **UseDeclaration Path, Alias and group-entry Draft** also links
+`use_schema_root_alias_direct_recovery_and_handoff` and
+`use_schema_group_and_glob_alias_direct_recovery_and_handoff` in
+`crates/yu-syntax/src/tests/declaration/use_decl.rs`. These prove bounded
+root/group-terminal/Glob Alias Missing, terminal Error/retry and
+EOF/semicolon/CRLF handoff, with repeated aliases for group-terminal/Glob
+parents. Group-terminal Alias is under outer UseTree, not inside UseGroup;
+Glob Alias is under UseGlob. Inner group-item Alias composition remains a
+separate candidate. The solo handoff reran the existing Use module: 58 passed.
+This paragraph synchronizes evidence locators only; it adds no schema row,
+promotion, independent audit or family-completion claim.
+
 #### Use group foreign-close Draft links
 
 `declaration::use_decl::parse_group` now wraps only its existing locally
