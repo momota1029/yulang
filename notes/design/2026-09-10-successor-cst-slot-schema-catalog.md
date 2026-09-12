@@ -1666,6 +1666,18 @@ caller handoff.
 | --- | --- |
 | proof and status | Both Enum/Error owners, Name/BodyIntroducer retries, terminal Error, Name retry, implicit layout separator and direct Separator Missing are proven across EOF/dedent products by `colon_indented_variant_sequence_composes_header_retries_and_body_occurrences` in `tests/declaration/declaration_variant.rs`. Header Error remains declaration-owned; variant recovery stays native. No records/Error spelling/aggregate occurrence participates. Authority: Enum/Error header and variant recovery records plus CST-derived diagnostics amendment. M1 pre-write and regression audits were clean. Status: catalog-audited evidence-complete Draft only for these ColonIndented products; braced/inline/Equals forms, fields, fences/stops and global migration remain separate. |
 
+### EqualsIndented Enum/Error header to VariantSequence composition Draft
+
+Native Equals is declaration content; initial layout is Variant-owned, later
+implicit layout separator is declaration-owned, and dedent remains pending.
+The 32 Enum/Error products in
+`equals_indented_variant_sequence_composes_header_retries_and_body_occurrences`
+prove retries, Error/Missing ownership and EOF/dedent handoff without records
+or Error spelling. EqualsInline and its Enum-only `with` continuation are
+excluded. Authority: Enum/Error header and variant recovery records plus the
+CST-derived diagnostics amendment. M1 pre-write and regression audits were
+clean. Status: catalog-audited evidence-complete Draft for this bounded form.
+
 ### NamedRecordType Field/Name/Colon/Type/Separator/Close semantic rows
 
 This bounded Draft maps the six recovery-bearing slots of one committed
