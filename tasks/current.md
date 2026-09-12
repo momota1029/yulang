@@ -239,6 +239,13 @@ reserved `with` and comma handoffs distinguish original Item extents from
 remaining leading without replaying emitted bytes. Repeated exclusion lists,
 broader qualifier behavior and recursive/fence work remain open.
 
+The repeated UseGlob exclusion list is now catalog-audited as one generalized
+horizontal Episode rather than ordinal-specific slots. Direct outer Comma,
+Missing/Error, accepted repetitions, retry-leading, pending comma/semicolon,
+nested group punctuation, OperatorName delegation and normal qualifier exit
+retain their existing owners. Newline-after-comma and complete qualifier,
+recursive or fence topology remain open.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

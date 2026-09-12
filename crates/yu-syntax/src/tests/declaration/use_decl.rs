@@ -1042,6 +1042,314 @@ fn use_schema_accepted_group_children_and_nested_occurrences() {
 }
 
 #[test]
+fn use_schema_glob_repeated_exclusion_episodes() {
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (suffix, tail, pending) in [
+        (
+            ", b",
+            vec![
+                (Comma, 18..19),
+                (Whitespace, 19..20),
+                (UseExclusion, 20..21),
+            ],
+            None,
+        ),
+        (
+            ", b, c",
+            vec![
+                (Comma, 18..19),
+                (Whitespace, 19..20),
+                (UseExclusion, 20..21),
+                (Comma, 21..22),
+                (Whitespace, 22..23),
+                (UseExclusion, 23..24),
+            ],
+            None,
+        ),
+        (",", vec![(Comma, 18..19), (Missing, 19..19)], None),
+        (
+            ", ;next",
+            vec![(Comma, 18..19), (Missing, 19..19)],
+            Some((19, 19..20, 20..21, ";", "next")),
+        ),
+        (
+            ", @",
+            vec![(Comma, 18..19), (Whitespace, 19..20), (Error, 20..21)],
+            None,
+        ),
+        (
+            ", @ /*é*/ b",
+            vec![
+                (Comma, 18..19),
+                (Whitespace, 19..20),
+                (Error, 20..21),
+                (UseExclusion, 21..30),
+            ],
+            None,
+        ),
+        (
+            ", @, b",
+            vec![(Comma, 18..19), (Whitespace, 19..20), (Error, 20..21)],
+            Some((21, 21..21, 21..22, ",", " b")),
+        ),
+        (
+            ", (b,c)",
+            vec![
+                (Comma, 18..19),
+                (Whitespace, 19..20),
+                (UseExclusion, 20..25),
+            ],
+            None,
+        ),
+        (
+            ", (+)",
+            vec![
+                (Comma, 18..19),
+                (Whitespace, 19..20),
+                (UseExclusion, 20..23),
+            ],
+            None,
+        ),
+        (" v1 with anchor", vec![], None),
+    ] {
+        let source = format!("use x::* without a{suffix}");
+        let operators = OperatorTable::empty();
+        let mut input = source.as_str();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(Root.into());
+        let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+        if let Err(Either::Right(end)) = &mut exit {
+            emit_end(&mut builder, end);
+        }
+        builder.finish_node();
+        let root = SyntaxNode::new_root(finish_with_discarded_recoveries(builder, recover));
+        let glob = root
+            .descendants()
+            .find(|node| node.kind() == UseGlob)
+            .unwrap();
+        assert_eq!(
+            glob.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+            [UseGlob, UseTree, UseDeclaration, Statement, Root]
+        );
+        let mut expected = vec![
+            (Star, 7..8),
+            (Whitespace, 8..9),
+            (WithoutKw, 9..16),
+            (Whitespace, 16..17),
+            (UseExclusion, 17..18),
+        ];
+        expected.extend(tail);
+        assert_eq!(projection(&glob), expected, "{source:?}");
+        let exclusions: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == UseExclusion)
+            .collect();
+        assert_eq!(
+            exclusions.len(),
+            expected
+                .iter()
+                .filter(|(kind, _)| *kind == UseExclusion)
+                .count()
+        );
+        for exclusion in &exclusions {
+            assert_eq!(exclusion.parent().as_ref(), Some(&glob));
+            assert_eq!(
+                exclusion
+                    .ancestors()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                [
+                    UseExclusion,
+                    UseGlob,
+                    UseTree,
+                    UseDeclaration,
+                    Statement,
+                    Root
+                ]
+            );
+            let range = exclusion.text_range();
+            let start = u32::from(range.start());
+            let end = u32::from(range.end());
+            let children = match (start, end) {
+                (21, 30) => vec![
+                    (Whitespace, 21..22),
+                    (BlockComment, 22..28),
+                    (Whitespace, 28..29),
+                    (Identifier, 29..30),
+                ],
+                (20, 25) => vec![(UseExclusionGroup, 20..25)],
+                (20, 23) => vec![(OperatorName, 20..23)],
+                _ => vec![(Identifier, start..end)],
+            };
+            assert_eq!(projection(exclusion), children);
+            for child in exclusion.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(exclusion));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(child.kind(), UseExclusionGroup | OperatorName)
+                );
+                if let Some(node) = child.as_node() {
+                    let nested = if node.kind() == UseExclusionGroup {
+                        vec![
+                            (LParen, 20..21),
+                            (UseTree, 21..22),
+                            (Comma, 22..23),
+                            (UseTree, 23..24),
+                            (RParen, 24..25),
+                        ]
+                    } else {
+                        vec![(LParen, 20..21), (Operator, 21..22), (RParen, 22..23)]
+                    };
+                    assert_eq!(projection(node), nested);
+                    for nested in node.children_with_tokens() {
+                        assert_eq!(nested.parent().as_ref(), Some(node));
+                        assert_eq!(nested.as_node().is_some(), nested.kind() == UseTree);
+                    }
+                }
+            }
+        }
+        let mut runs = Vec::new();
+        let mut current: Option<std::ops::Range<u32>> = None;
+        for child in glob.children_with_tokens() {
+            assert_eq!(child.parent().as_ref(), Some(&glob));
+            assert_eq!(
+                child.as_node().is_some(),
+                matches!(child.kind(), Missing | UseExclusion)
+            );
+            let range = child.text_range();
+            // A run is selected by direct adjacency, never malformed spelling.
+            if child.kind() == Error {
+                if let Some(run) = &mut current {
+                    assert_eq!(run.end, u32::from(range.start()));
+                    run.end = u32::from(range.end());
+                } else {
+                    current = Some(u32::from(range.start())..u32::from(range.end()));
+                }
+            } else if let Some(run) = current.take() {
+                runs.push(run);
+            }
+        }
+        if let Some(run) = current {
+            runs.push(run);
+        }
+        let expected_errors: Vec<_> = expected
+            .iter()
+            .filter(|(kind, _)| *kind == Error)
+            .map(|(_, range)| range.clone())
+            .collect();
+        assert_eq!(runs, expected_errors);
+        let errors: Vec<_> = root
+            .descendants_with_tokens()
+            .filter(|child| child.kind() == Error)
+            .collect();
+        assert_eq!(errors.len(), expected_errors.len());
+        assert!(
+            errors
+                .iter()
+                .all(|child| child.as_token().is_some() && child.parent().as_ref() == Some(&glob))
+        );
+        let missing: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect();
+        assert_eq!(
+            missing.len(),
+            expected.iter().filter(|(kind, _)| *kind == Missing).count()
+        );
+        for node in missing {
+            assert_eq!(node.parent().as_ref(), Some(&glob));
+            assert_eq!(node.text_range(), rowan::TextRange::empty(19.into()));
+            assert!(node.children_with_tokens().next().is_none());
+        }
+        let qualifiers: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == UseQualifiers)
+            .collect();
+        assert_eq!(qualifiers.len(), usize::from(suffix == " v1 with anchor"));
+        if let Some(qualifiers) = qualifiers.first() {
+            let tree = glob.parent().unwrap();
+            assert_eq!(qualifiers.parent().as_ref(), Some(&tree));
+            assert_eq!(
+                projection(&tree),
+                [(UsePath, 4..7), (UseGlob, 7..18), (UseQualifiers, 18..33)]
+            );
+            assert_eq!(
+                projection(qualifiers),
+                [
+                    (Whitespace, 18..19),
+                    (UseVersion, 19..21),
+                    (Whitespace, 21..22),
+                    (UseAnchor, 22..33)
+                ]
+            );
+            let version = qualifiers
+                .children()
+                .find(|node| node.kind() == UseVersion)
+                .unwrap();
+            assert_eq!(projection(&version), [(Version, 19..21)]);
+            let anchor = qualifiers
+                .children()
+                .find(|node| node.kind() == UseAnchor)
+                .unwrap();
+            assert_eq!(projection(&anchor), [(WithKw, 22..26), (UsePath, 26..33)]);
+            let path = anchor.children().next().unwrap();
+            assert_eq!(
+                projection(&path),
+                [(Whitespace, 26..27), (Identifier, 27..33)]
+            );
+            for node in [qualifiers, &version, &anchor, &path] {
+                for child in node.children_with_tokens() {
+                    assert_eq!(child.parent().as_ref(), Some(node));
+                    assert_eq!(
+                        child.as_node().is_some(),
+                        matches!(child.kind(), UseVersion | UseAnchor | UsePath)
+                    );
+                }
+            }
+        }
+        for child in root.descendants_with_tokens() {
+            let range = child.text_range();
+            assert_eq!(
+                child.to_string(),
+                source[usize::from(range.start())..usize::from(range.end())]
+            );
+            assert!(!matches!(child.kind(), Invalid | UseGroupForeignClose));
+        }
+        if let Some((end, leading, payload, spelling, remainder)) = pending {
+            assert_eq!(root.to_string(), source[..end]);
+            let Err(Either::Left(mut item)) = exit else {
+                panic!("boundary Item must remain pending")
+            };
+            let extent = item.extent(source.len() - input.len());
+            assert_eq!(extent.leading(), leading.clone());
+            assert_eq!(extent.payload(), payload);
+            assert_eq!(item.payload_view().spelling(), Some(spelling));
+            assert_eq!(input, remainder);
+            let leading_text = emit_pending_leading_text(&mut item);
+            assert_eq!(leading_text, source[leading]);
+            assert_eq!(format!("{root}{leading_text}{spelling}{input}"), source);
+        } else {
+            assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+            assert_eq!(input, "");
+            assert_eq!(root.to_string(), source);
+        }
+    }
+}
+
+#[test]
 fn use_schema_glob_first_required_exclusion_admission() {
     use SyntaxKind::*;
 

@@ -340,6 +340,12 @@ Direct UseGlob Missing/Error project Import(Path)/Path; identifier and
 OperatorName retries delegate payload and retry-leading to UseExclusion.
 Semicolon, reserved `with` and comma controls preserve three distinct pending
 Item/leading states without reclassifying comma as list punctuation.
+The repeated exclusion comma loop is linked as one generalized horizontal
+Episode rather than ordinal rows. Direct outer Comma/Missing/Error ownership,
+two successful repetitions, retry-leading, protected comma/semicolon, nested
+group punctuation, OperatorName delegation and normal qualifier termination
+compose the established child rows. Newline and complete recursive/fence or
+qualifier recovery remain outside this evidence.
 M2 specification and regression delta audits for the independent rows were
 clean.
 
