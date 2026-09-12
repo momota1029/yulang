@@ -199,6 +199,12 @@ selected by parent path and preorder, not node equality; foreign-close remains
 the existing wrapper row. This does not close complete recursive UseTree or
 exclusion coverage.
 
+The corresponding UseExclusionGroup inner spelling slot is catalog-audited for
+both brace and parenthesis openers. Its Import(Path)/OperatorName Missing remains
+separate from opener-selected group terminal/separator/foreign-close occurrences
+at the same coordinate. This remains narrower than full recursive/exclusion
+coverage.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

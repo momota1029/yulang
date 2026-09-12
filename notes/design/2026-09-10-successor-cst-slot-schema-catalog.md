@@ -1278,6 +1278,18 @@ does not extend the root row to all UseTree callers.
 | projection and exclusions | The nested LParen, Missing projects `Declaration(Import(Path))`, singleton `OperatorName`, primary zero. The direct group terminal/Separator Missing and foreign-close Error retain their existing rows; Error spelling is not an input. Admitted-operator local close, C9 post-separator Path failure, exclusion callers, broader recursion/fences and outer caller topology are excluded. |
 | proof and status | Governing authority: successor architecture UseTree/UsePath/OperatorName and UseGroup grammar; Rowan CST-only and CST-derived diagnostics amendments; UseGroup foreign-close topology. Direct proof: `use_schema_nested_operator_name_required_spelling` in `tests/declaration/use_decl.rs`. M1 pre-write and post-write specification audits were clean; focused nested spelling 1/1, Use 28/28 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this nested group-item spelling row; complete recursive/exclusion schema, interpreter and ledger/API removal remain open. |
 
+### UseExclusionGroup nested OperatorName required spelling Draft
+
+This bounded Draft maps the inner initial spelling slot for both exclusion-group
+openers. It does not generalize to complete recursive/exclusion schema.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `UseExclusionGroup > UseTree > UsePath > OperatorName` orders `LParen 18..19, Missing 19..19` after either the brace or parenthesis group opener. Accepted inner `(+)` orders LParen, Operator, RParen. The full ancestor path through UseExclusion and UseGlob selects this Import(Path)/OperatorName spelling occurrence. |
+| opener-sensitive boundaries | EOF/protected boundary has distinct spelling and terminal group-close Missing occurrences at 19, selected by parent/preorder. A following `foo` gives a direct group Separator Missing plus the next UseTree. A locally mismatched closer is one opaque UseGroupForeignClose Error: RParen for brace group, RBrace for parenthesis group; the other closer is native matching punctuation. Protected semicolon retains leading `19..20`, payload `20..21` and remainder `next`. |
+| projection and exclusions | The spelling Missing projects `Declaration(Import(Path))`, singleton `OperatorName`, primary zero. Group terminal/Separator and foreign-close occurrences keep their established rows. C9 post-separator Path Error, direct exclusion admitted-operator close, broader recursion/fences/caller topology, interpreter and ledger/API removal are excluded. Records and Error spelling are not inputs. |
+| proof and status | Governing authority: successor architecture UseTree and exclusion-group grammar; Rowan CST-only and CST-derived diagnostics amendments; UseGroup foreign-close topology. Direct proof: `use_schema_exclusion_group_operator_name_required_spelling` in `tests/declaration/use_decl.rs`. M1 pre-write and post-write specification audits were clean; focused exclusion spelling 1/1, Use 29/29 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this inner exclusion-group spelling slot; complete recursive/exclusion schema, interpreter and ledger/API removal remain open. |
+
 ### Rule ExpressionList direct caller fence Draft
 
 This bounded Draft maps RuleItem/RuleCall/RuleIndex fence handoff only. Direct

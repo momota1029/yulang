@@ -310,6 +310,8 @@ operator's local-close Missing, without reclassifying C9 Path failures.
 The nested UseGroup item has a separate direct row: same-offset spelling and
 group-close/separator Missing occurrences are selected by parent path and
 preorder, while foreign-close recovery stays its existing wrapper topology.
+Both UseExclusionGroup openers have the corresponding separate inner spelling
+row; opener-selected matching/foreign close stays selected by the group rows.
 M2 specification and regression delta audits for the independent rows were
 clean.
 

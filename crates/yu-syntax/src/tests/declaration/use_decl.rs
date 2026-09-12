@@ -582,6 +582,193 @@ fn use_schema_nested_operator_name_required_spelling() {
 }
 
 #[test]
+fn use_schema_exclusion_group_operator_name_required_spelling() {
+    use SyntaxKind::*;
+
+    for (open, close, foreign, opener, closer) in [
+        ("{", "}", ")", LBrace, RBrace),
+        ("(", ")", "}", LParen, RParen),
+    ] {
+        for (source, group_children, missing_parents) in [
+            (
+                format!("use a::* without {open}("),
+                vec![(opener, 17..18), (UseTree, 18..19), (Missing, 19..19)],
+                vec![OperatorName, UseExclusionGroup],
+            ),
+            (
+                format!("use a::* without {open}({foreign}{close}"),
+                vec![
+                    (opener, 17..18),
+                    (UseTree, 18..19),
+                    (UseGroupForeignClose, 19..20),
+                    (closer, 20..21),
+                ],
+                vec![OperatorName],
+            ),
+            (
+                format!("use a::* without {open}(foo{close}"),
+                vec![
+                    (opener, 17..18),
+                    (UseTree, 18..19),
+                    (Missing, 19..19),
+                    (UseTree, 19..22),
+                    (closer, 22..23),
+                ],
+                vec![OperatorName, UseExclusionGroup],
+            ),
+            (
+                format!("use a::* without {open}( ;next"),
+                vec![(opener, 17..18), (UseTree, 18..19), (Missing, 19..19)],
+                vec![OperatorName, UseExclusionGroup],
+            ),
+            (
+                format!("use a::* without {open}(+){close}"),
+                vec![(opener, 17..18), (UseTree, 18..21), (closer, 21..22)],
+                vec![],
+            ),
+            (
+                format!("use a::* without {open}({close}"),
+                vec![(opener, 17..18), (UseTree, 18..19), (closer, 19..20)],
+                vec![OperatorName],
+            ),
+        ] {
+            let source = source.as_str();
+            let operators = OperatorTable::empty();
+            let mut input = source;
+            let mut recover = Recover::new_for_test(&operators);
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            if let Err(Either::Right(end)) = &mut exit {
+                emit_end(&mut builder, end);
+            }
+            builder.finish_node();
+            let root = SyntaxNode::new_root(finish_with_discarded_recoveries(builder, recover));
+            let projection = |node: &SyntaxNode| {
+                node.children_with_tokens()
+                    .map(|child| {
+                        let range = child.text_range();
+                        (
+                            child.kind(),
+                            u32::from(range.start())..u32::from(range.end()),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let names: Vec<_> = root
+                .descendants()
+                .filter(|node| node.kind() == OperatorName)
+                .collect();
+            assert_eq!(names.len(), 1, "{source:?}");
+            let name = &names[0];
+            assert_eq!(
+                name.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                [
+                    OperatorName,
+                    UsePath,
+                    UseTree,
+                    UseExclusionGroup,
+                    UseExclusion,
+                    UseGlob,
+                    UseTree,
+                    UseDeclaration,
+                    Statement,
+                    Root
+                ]
+            );
+            let accepted = missing_parents.is_empty();
+            assert_eq!(
+                projection(name),
+                if accepted {
+                    vec![(LParen, 18..19), (Operator, 19..20), (RParen, 20..21)]
+                } else {
+                    vec![(LParen, 18..19), (Missing, 19..19)]
+                },
+                "{source:?}"
+            );
+            let group = name
+                .ancestors()
+                .find(|node| node.kind() == UseExclusionGroup)
+                .unwrap();
+            assert_eq!(projection(&group), group_children, "{source:?}");
+            for owner in [name, &group] {
+                assert!(owner.children_with_tokens().all(|child| {
+                    child.as_node().is_some()
+                        == matches!(child.kind(), Missing | UseTree | UseGroupForeignClose)
+                }));
+            }
+            // Preorder keeps spelling separate from same-offset terminal Close or
+            // Separator Missing; the following group child distinguishes those two.
+            let missing: Vec<_> = root
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect();
+            assert_eq!(
+                missing
+                    .iter()
+                    .map(|node| node.parent().unwrap().kind())
+                    .collect::<Vec<_>>(),
+                missing_parents
+            );
+            for node in &missing {
+                assert_eq!(node.text_range(), rowan::TextRange::empty(19.into()));
+                assert!(node.children_with_tokens().next().is_none());
+            }
+            if missing.len() == 2 {
+                assert_ne!(missing[0].parent(), missing[1].parent());
+                assert_eq!(missing[0].parent().as_ref(), Some(name));
+                assert_eq!(missing[1].parent().as_ref(), Some(&group));
+            }
+            let wrappers: Vec<_> = group
+                .children()
+                .filter(|node| node.kind() == UseGroupForeignClose)
+                .collect();
+            assert_eq!(
+                wrappers.len(),
+                usize::from(source == format!("use a::* without {open}({foreign}{close}"))
+            );
+            for wrapper in wrappers {
+                assert_eq!(projection(&wrapper), [(Error, 19..20)]);
+                assert!(
+                    wrapper
+                        .children_with_tokens()
+                        .all(|child| child.as_token().is_some())
+                );
+            }
+            assert!(
+                !root
+                    .descendants_with_tokens()
+                    .any(|child| child.kind() == Invalid)
+            );
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter(|child| child.kind() == Error)
+                    .count(),
+                usize::from(source == format!("use a::* without {open}({foreign}{close}"))
+            );
+            if source == format!("use a::* without {open}( ;next") {
+                assert_eq!(root.to_string(), format!("use a::* without {open}("));
+                let Err(Either::Left(mut item)) = exit else {
+                    panic!("protected semicolon must remain pending")
+                };
+                assert_eq!(token_kind(&item), Some(TokenKind::Semicolon));
+                assert_eq!(item.payload_view().spelling(), Some(";"));
+                let extent = item.extent(source.len() - input.len());
+                assert_eq!(extent.payload(), 20..21);
+                assert_eq!(extent.leading(), 19..20);
+                assert_eq!(emit_pending_leading_text(&mut item), " ");
+                assert_eq!(input, "next");
+                assert_eq!(format!("{root} ;{input}"), source);
+            } else {
+                assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+                assert_eq!(input, "");
+                assert_eq!(root.to_string(), source);
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_operator_name_local_close_children() {
     use SyntaxKind::*;
     use rowan::TextRange;
