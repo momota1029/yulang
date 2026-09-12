@@ -1213,10 +1213,14 @@ the bounded local terminal-close phase have their separate rows below;
 OperatorName remains separate. M2 spec and regression delta audits for the
 independent rows were clean.
 
-The root-only Alias child has direct fresh/frozen evidence for Missing, maximal
-Error/retry and EOF/semicolon/CRLF handoff in
-`use_schema_root_alias_direct_recovery_and_handoff`; nested/repeated Alias and
-wider fences remain open.
+Root, group-terminal and glob Alias slots have direct fresh/frozen evidence for
+Missing, maximal Error/retry and EOF/semicolon/CRLF handoff in
+`use_schema_root_alias_direct_recovery_and_handoff` and
+`use_schema_group_and_glob_alias_direct_recovery_and_handoff`. The latter
+proves that group-terminal aliases are ordered direct `UseTree` children outside
+`UseGroup`, while glob aliases are ordered direct `UseGlob` children; repeated
+aliases remain distinct source-order nodes. Inner group-item composition,
+broader fences and complete Group/Glob composition remain open.
 
 ### Use group foreign-close Draft
 
