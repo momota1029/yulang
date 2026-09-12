@@ -1164,6 +1164,18 @@ required-Type entry. Later Body and continuation phases remain separate.
 | diagnostic projection | Direct order relative to ActKw and native Equals selects Head or Source only for the fresh empty TypeExpression slot. Error projects the established Type(Primary) row. Parentage/order and native tokens are the inputs; Error spelling, recovery records and scanner state are not. |
 | proof and status | Governing authority: [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Scope and retained authority**, **Explicit role transport** and **Publication and extents**; the recovery-authority amendment §§2–3; and the CST-derived diagnostics amendment. Direct Rowan proof: `act_required_type_slots_have_direct_ordered_rowan_evidence` in `tests/declaration/act_decl.rs`. M1 pre-write and post-write specification audits were clean; focused Act checks and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft for seven ASCII Head/Source alternatives only; Body, derives/companions, caller/fence, full nested-Type schema, interpreter and ledger removal remain open. |
 
+### ActDeclaration actual-brace trailing Derives attachment-gap Draft
+
+This bounded Draft repairs and proves only the `derives` attachment-gap predicate
+after an actual completed braced Act body. It does not certify the broader Act
+attachment-continuation composition.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| attachment predicate and ordered grammar | After direct `BracedStatementBlockExpression` succeeds on an actual RBrace, a following `DerivesClause` is admitted with empty, same-line, or strictly-deeper ordinary LF/CRLF trivia. That trivia is a direct child of DerivesClause before DerivesKw, not a sibling direct Act child. Empty-gap `act A{}derives Eq` directly orders the block then DerivesClause without an intervening token. |
+| boundaries | Equal/shallow LF or CRLF leaves `derives` pending with its full leading gap. Active stops, ambient companion state, nonmatching words, bodyless/colon paths and unsuccessful/mismatched body close remain outside this predicate. The separate Companion guard is unchanged. |
+| projection and status | This row publishes no aggregate Act recovery role. Derives and nested Type ownership retain their existing rows; direct order and native actual-close evidence select them. Governing authority: architecture DRV-G and ACTDRV-G; CST-derived diagnostics amendment. Direct Rowan proof: `act_trailing_derives_accepts_empty_same_line_and_deeper_attachment_gaps` in `tests/declaration/act_decl.rs`. M2 pre-write, compiler/recovery and regression audits were clean; focused Act checks, scoped formatting/diff and package check passed (three pre-existing warnings). Status: catalog-audited evidence-complete Draft only for this repaired actual-brace attachment-gap predicate; header/source attachment, Companion composition, callers/fences, interpreter and ledger removal remain open. |
+
 ### DeclarationCompanion direct recovery Draft
 
 This bounded Draft maps direct Companion Introducer, Body Missing, Item,

@@ -977,7 +977,6 @@ fn derives_attachment_start(
     line_handoff: StatementLineHandoff,
 ) -> bool {
     is_word(item, "derives")
-        && item.leading_view().has_ordinary_trivia()
         && attachment_gap_continues(i.rb(), item, baseline, stops, line_handoff)
 }
 

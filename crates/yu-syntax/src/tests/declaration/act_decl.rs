@@ -1122,6 +1122,50 @@ fn act_malformed_head_or_source_recovers_once_before_the_exact_companion() {
 }
 
 #[test]
+fn act_trailing_derives_accepts_empty_same_line_and_deeper_attachment_gaps() {
+    use SyntaxKind::*;
+    for (gap, trivia) in [
+        ("", vec![]),
+        (" ", vec![(Whitespace, 1)]),
+        ("\n  ", vec![(Newline, 1), (Whitespace, 2)]),
+        ("\r\n  ", vec![(Newline, 2), (Whitespace, 2)]),
+    ] {
+        let source = format!("act A{{}}{gap}derives Eq");
+        let expected = vec![
+            (ActKw, 3),
+            (Whitespace, 1),
+            (TypeExpression, 1),
+            (BracedStatementBlockExpression, 2),
+            (DerivesClause, gap.len() + 10),
+        ];
+        let node = assert_act_body_schema(&source, &expected);
+        let clause = node
+            .children()
+            .find(|child| child.kind() == DerivesClause)
+            .unwrap();
+        let mut expected_clause = trivia;
+        expected_clause.extend([(DerivesKw, 7), (TypeExpression, 3)]);
+        assert_eq!(clause.to_string(), format!("{gap}derives Eq"));
+        assert_eq!(
+            clause
+                .children_with_tokens()
+                .map(|child| (child.kind(), usize::from(child.text_range().len())))
+                .collect::<Vec<_>>(),
+            expected_clause,
+        );
+        assert_eq!(count(&node, Missing), 0);
+        assert_eq!(count(&node, Error), 0);
+    }
+    for gap in ["\n", "\r\n"] {
+        let source = format!("act A{{}}{gap}derives Eq");
+        let (green, exit, remainder) = run_act_declaration(&source, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), "act A{}");
+        pending_word(exit, "derives", gap);
+        assert_eq!(remainder, " Eq");
+    }
+}
+
+#[test]
 fn act_rejects_post_body_companion_but_keeps_actual_brace_trailing_derives() {
     for (source, accepted, derives, pending, leading) in [
         ("act A{} derives Eq", "act A{} derives Eq", 1, None, ""),

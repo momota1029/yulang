@@ -161,6 +161,13 @@ nonempty malformed input remains the existing Type(Primary) Error path with
 retry-leading owned by Type. This does not extend into Act Body, continuation,
 caller/fence or diagnostic-interpreter work.
 
+The actual-brace trailing `derives` predicate in Act had one concrete authority
+defect: it incorrectly required nonempty ordinary trivia even though ACTDRV-G
+inherits DRV-G's empty/same-line/deeper gap. The guard is now corrected and
+direct Rowan evidence covers empty, same-line and deeper LF/CRLF attachment,
+while equal-line LF/CRLF remains pending. This is not the broader Act
+attachment-continuation composition, which remains a separate coverage gap.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
