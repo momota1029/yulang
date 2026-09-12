@@ -3564,6 +3564,152 @@ fn use_schema_glob_unseparated_exclusion_not_admitted() {
 }
 
 #[test]
+fn use_schema_glob_pre_comma_trivia_keeps_comma_pending() {
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (gap, trivia) in [
+        (" ", vec![(Whitespace, 0..1)]),
+        ("\n", vec![(Newline, 0..1)]),
+        ("\r\n", vec![(Newline, 0..2)]),
+        ("/*é*/", vec![(BlockComment, 0..6)]),
+        (
+            " /* comment\n */ ",
+            vec![
+                (Whitespace, 0..1),
+                (BlockComment, 1..15),
+                (Whitespace, 15..16),
+            ],
+        ),
+    ] {
+        for immediate_comma in [false, true] {
+            let source = if immediate_comma {
+                format!("use p::* without a,{gap}b")
+            } else {
+                format!("use p::* without a{gap},b")
+            };
+            let mut fresh: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
+            for frozen in [false, true] {
+                let operators = OperatorTable::empty();
+                let mut input = source.as_str();
+                let mut recover = if frozen {
+                    Recover::reconcile_for_test(&operators, &fresh.as_ref().unwrap().1)
+                } else {
+                    Recover::new_for_test(&operators)
+                };
+                let mut builder = GreenNodeBuilder::new();
+                builder.start_node(Root.into());
+                let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+                builder.finish_node();
+                let green = builder.finish();
+                let records = recover.finish_recoveries_for_test();
+                assert!(records.is_empty(), "{source:?}");
+                if let Some((fresh_green, fresh_records)) = &fresh {
+                    assert_eq!(&green, fresh_green, "{source:?}");
+                    assert_eq!(&records, fresh_records, "{source:?}");
+                } else {
+                    fresh = Some((green.clone(), records));
+                }
+                let root = SyntaxNode::new_root(green);
+                let glob = root
+                    .descendants()
+                    .find(|node| node.kind() == UseGlob)
+                    .unwrap();
+                assert_eq!(
+                    glob.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                    [UseGlob, UseTree, UseDeclaration, Statement, Root]
+                );
+                let mut expected = vec![
+                    (Star, 7..8),
+                    (Whitespace, 8..9),
+                    (WithoutKw, 9..16),
+                    (Whitespace, 16..17),
+                    (UseExclusion, 17..18),
+                ];
+                if immediate_comma {
+                    expected.push((Comma, 18..19));
+                    expected.extend(
+                        trivia
+                            .iter()
+                            .map(|(kind, range)| (*kind, 19 + range.start..19 + range.end)),
+                    );
+                    expected.push((UseExclusion, 19 + gap.len() as u32..source.len() as u32));
+                }
+                assert_eq!(projection(&glob), expected, "{source:?}");
+                let glob_end = if immediate_comma { source.len() } else { 18 };
+                assert_eq!(
+                    glob.text_range(),
+                    rowan::TextRange::new(7.into(), (glob_end as u32).into())
+                );
+                for child in glob.children_with_tokens() {
+                    assert_eq!(child.parent().as_ref(), Some(&glob));
+                    assert_eq!(child.as_node().is_some(), child.kind() == UseExclusion);
+                }
+                let exclusions: Vec<_> = root
+                    .descendants()
+                    .filter(|node| node.kind() == UseExclusion)
+                    .collect();
+                assert_eq!(exclusions.len(), 1 + usize::from(immediate_comma));
+                for (index, exclusion) in exclusions.iter().enumerate() {
+                    let start = if index == 0 {
+                        17
+                    } else {
+                        19 + gap.len() as u32
+                    };
+                    assert_eq!(exclusion.parent().as_ref(), Some(&glob));
+                    assert_eq!(projection(exclusion), [(Identifier, start..start + 1)]);
+                    assert!(
+                        exclusion
+                            .children_with_tokens()
+                            .all(|child| child.as_token().is_some()
+                                && child.parent().as_ref() == Some(exclusion))
+                    );
+                }
+                for child in root.descendants_with_tokens() {
+                    assert!(!matches!(child.kind(), Missing | Error | Invalid));
+                    if !immediate_comma {
+                        assert_ne!(child.kind(), Comma);
+                    }
+                    let range = child.text_range();
+                    assert_eq!(
+                        child.to_string(),
+                        source[usize::from(range.start())..usize::from(range.end())]
+                    );
+                }
+                assert_eq!(root.to_string(), source[..glob_end]);
+                if immediate_comma {
+                    assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+                    assert_eq!(input, "");
+                } else {
+                    let Err(Either::Left(mut pending)) = exit else {
+                        panic!("comma with leading trivia must remain pending: {source:?}")
+                    };
+                    assert_eq!(input, "b");
+                    let payload_start = 18 + gap.len();
+                    let extent = pending.extent(source.len() - input.len());
+                    assert_eq!(extent.leading(), 18..payload_start);
+                    assert_eq!(extent.payload(), payload_start..payload_start + 1);
+                    assert_eq!(pending.payload_view().spelling(), Some(","));
+                    let leading = emit_pending_leading_text(&mut pending);
+                    assert_eq!(leading, gap);
+                    assert_eq!(format!("{root}{leading},{input}"), source);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_glob_post_comma_boundary_missing_handoff() {
     use crate::recovery_record::*;
     use SyntaxKind::*;

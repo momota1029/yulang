@@ -302,6 +302,11 @@ without an outer Comma closes UseGlob and returns that whole next Item pending;
 it creates neither a second exclusion nor recovery. The paired comma controls
 retain native whitespace/newline under UseGlob and admit the second exclusion.
 
+Trivia before a prospective outer Comma has the same non-admission result: the
+whole comma Item remains pending, while only trivia after an immediately
+admitted Comma belongs to UseGlob. Five whitespace/newline/comment controls
+retain empty recovery state and byte-exact handoff.
+
 The repeated UseGlob post-comma reserved atom is catalog-audited: it emits one
 Path Missing while preserving the reserved item and its original leading.
 

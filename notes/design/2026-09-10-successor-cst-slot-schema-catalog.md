@@ -1375,6 +1375,17 @@ recovery slot.
 | projection and exclusions | Neither alternative publishes recovery: records are empty and no diagnostic role is selected. This row establishes only episode admission and source-conserving statement-owner handoff. Pre-comma trivia, root trailing-input versus next-statement choice, nested groups, fences, qualifiers, the global interpreter and ledger/API removal remain separate. |
 | proof and status | Governing authority: successor architecture UseGlob/WithoutKw grammar; recovery current-Item/boundary authority; Rowan CST-only and CST-derived diagnostics amendments. Direct proof: `use_schema_glob_unseparated_exclusion_not_admitted` in `tests/declaration/use_decl.rs`, covering space/LF/CRLF pending extents and paired comma admission with fresh/frozen equality and reconstruction. M1 pre-write and post-write specification audits were clean; focused row 1/1, Use 51/51 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this direct no-comma continuation. |
 
+### UseGlob pre-comma trivia non-admission Draft
+
+This bounded row distinguishes trivia before a comma from the permitted maximal
+trivia run after an admitted outer comma.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| ordered Rowan and handoff | After a completed first UseExclusion, whitespace, LF/CRLF or block-comment trivia before a comma keeps the entire comma Item pending; UseGlob ends after that first exclusion with no direct Comma, second UseExclusion, Missing, Error or Invalid. The counterpart with an immediate comma orders direct Comma, native post-comma trivia and the second direct UseExclusion. |
+| projection and exclusions | Both alternatives publish no recovery and retain empty records. This row covers only comma-admission and statement-owner handoff; no root continuation, fences, nested forms, qualifiers, interpreter or ledger/API claim follows. |
+| proof and status | Governing authority: successor architecture UseGlob/WithoutKw grammar; recovery current-Item/boundary authority; Rowan CST-only and CST-derived diagnostics amendments. Direct proof: `use_schema_glob_pre_comma_trivia_keeps_comma_pending` in `tests/declaration/use_decl.rs`, covering five trivia runs, UTF-8 ranges, fresh/frozen agreement and reconstruction. M1 pre-write and post-write specification audits were clean; focused row 1/1, Use 52/52 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this pre-comma boundary. |
+
 ### UseGlob post-comma declaration-boundary Missing(Path) Draft
 
 This bounded row separates an unconsumed declaration boundary from the distinct
