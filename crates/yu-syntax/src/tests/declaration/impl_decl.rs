@@ -1,5 +1,357 @@
 use crate::tests::support::*;
 
+#[test]
+fn impl_schema_completed_type_statement_shell_composition() {
+    use SyntaxKind::*;
+
+    // Each product starts after a completed Head or completed Description.
+    // The tuple fixes direct child kind, node/token identity and owned text;
+    // cumulative UTF-8 widths fix every ordered byte range independently.
+    let assert_shell = |source: &str,
+                        expected: &[(SyntaxKind, bool, &str)],
+                        pending_leading: &str,
+                        pending_spelling: Option<&str>,
+                        missing_count: usize,
+                        error_count: usize| {
+        let (green, exit) = run_statement(source);
+        let root = SyntaxNode::new_root(green);
+        let owned = expected.iter().map(|child| child.2).collect::<String>();
+        let owned_end = owned.len() as u32;
+        let assert_elements = |parent: &SyntaxNode, parts: &[(SyntaxKind, bool, &str)]| {
+            let children = parent.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), parts.len(), "{source:?}: {parent:#?}");
+            let mut start = u32::from(parent.text_range().start());
+            for (child, (kind, is_node, text)) in children.iter().zip(parts) {
+                let end = start + text.len() as u32;
+                assert_eq!(child.parent(), Some(parent.clone()));
+                assert_eq!(child.kind(), *kind, "{source:?}");
+                assert_eq!(child.as_node().is_some(), *is_node);
+                assert_eq!(child.to_string(), *text);
+                assert_eq!(
+                    child.text_range(),
+                    rowan::TextRange::new(start.into(), end.into())
+                );
+                if *kind == Missing {
+                    assert_eq!(child.as_node().unwrap().children_with_tokens().count(), 0);
+                }
+                start = end;
+            }
+            assert_eq!(parent.text_range().end(), start.into());
+        };
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        let mut root_parts = vec![(Statement, true, owned.as_str())];
+        // The ordinary harness emits pending EOF leading only after Statement.
+        if pending_spelling.is_none() && !pending_leading.is_empty() {
+            root_parts.push((Whitespace, false, pending_leading));
+        }
+        assert_elements(&root, &root_parts);
+        let statement = root.first_child().expect("canonical Statement");
+        assert_elements(&statement, &[(ImplDeclaration, true, owned.as_str())]);
+        let implementation = statement.first_child().expect("ImplDeclaration");
+        assert_elements(&implementation, expected);
+        assert_eq!(implementation.to_string(), &source[..owned_end as usize]);
+        for inline in implementation
+            .children()
+            .filter(|node| node.kind() == Statement && node.to_string().trim() == "x")
+        {
+            let chain = inline.first_child().expect("OperatorChain");
+            assert_eq!(chain.kind(), OperatorChain);
+            let identifier = chain.first_child().expect("IdentifierExpression");
+            assert_eq!(identifier.kind(), IdentifierExpression);
+            let text = inline.to_string();
+            assert_elements(
+                &identifier,
+                &[
+                    (Whitespace, false, &text[..text.len() - 1]),
+                    (Identifier, false, "x"),
+                ],
+            );
+            assert_eq!(identifier.parent(), Some(chain.clone()));
+            assert_eq!(chain.parent(), Some(inline));
+        }
+        if let Some(description) = implementation
+            .children()
+            .find(|node| node.kind() == ImplDescription)
+        {
+            assert_elements(
+                &description,
+                &[
+                    (Colon, false, ":"),
+                    (Whitespace, false, " "),
+                    (TypeExpression, true, "D"),
+                ],
+            );
+        }
+        for (kind, count) in [(Missing, missing_count), (Error, error_count), (Invalid, 0)] {
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter(|child| child.kind() == kind)
+                    .count(),
+                count,
+                "{source:?}: {kind:?}"
+            );
+        }
+        let mut ordinary_pending = match exit {
+            Some(Err(Either::Right(end))) => end.item,
+            Some(Err(Either::Left(item))) => item,
+            _ => panic!("{source:?}: expected pending Item"),
+        };
+        assert_eq!(ordinary_pending.payload_view().spelling(), pending_spelling);
+        assert_eq!(
+            emit_pending_leading_text(&mut ordinary_pending),
+            if pending_spelling.is_none() {
+                ""
+            } else {
+                pending_leading
+            }
+        );
+
+        // Normalized composition leaves the complete EOF/boundary Item pending.
+        let (normalized, normalized_exit, remainder) =
+            run_statement_normalized(source, 100, LineEntry::InLine, None);
+        assert_eq!(remainder, "", "{source:?}");
+        let normalized_root = SyntaxNode::new_root(normalized);
+        assert_elements(&normalized_root, &[(Statement, true, owned.as_str())]);
+        assert_eq!(
+            normalized_root
+                .first_child()
+                .unwrap()
+                .first_child()
+                .unwrap()
+                .green(),
+            implementation.green()
+        );
+        let mut pending = pending_item(Some(normalized_exit), LineEntry::InLine);
+        assert_eq!(pending.payload_view().spelling(), pending_spelling);
+        assert_eq!(pending.payload_view().is_eof(), pending_spelling.is_none());
+        assert_eq!(emit_pending_leading_text(&mut pending), pending_leading);
+        implementation
+    };
+
+    for prefix in ["impl 型", "impl 型: D"] {
+        let mut head = vec![
+            (ImplKw, false, "impl"),
+            (Whitespace, false, " "),
+            (TypeExpression, true, "型"),
+        ];
+        if prefix.ends_with('D') {
+            head.push((ImplDescription, true, ": D"));
+        }
+        for (tail, suffix, pending, missing, errors) in [
+            (";", vec![(Semicolon, false, ";")], "", 0, 0),
+            (
+                " {}",
+                vec![
+                    (Whitespace, false, " "),
+                    (BracedStatementBlockExpression, true, "{}"),
+                ],
+                "",
+                0,
+                0,
+            ),
+            (
+                "  ",
+                vec![(Whitespace, false, "  "), (Missing, true, "")],
+                "",
+                1,
+                0,
+            ),
+            (
+                " @  ",
+                vec![(Whitespace, false, " "), (Error, false, "@")],
+                "  ",
+                0,
+                1,
+            ),
+            (
+                " @  ~   ;",
+                vec![
+                    (Whitespace, false, " "),
+                    (Error, false, "@"),
+                    (Error, false, "  "),
+                    (Error, false, "~"),
+                    (Whitespace, false, "   "),
+                    (Semicolon, false, ";"),
+                ],
+                "",
+                0,
+                3,
+            ),
+            (
+                " @ {}",
+                vec![
+                    (Whitespace, false, " "),
+                    (Error, false, "@"),
+                    (Whitespace, false, " "),
+                    (BracedStatementBlockExpression, true, "{}"),
+                ],
+                "",
+                0,
+                1,
+            ),
+            (
+                " @ : x",
+                vec![
+                    (Whitespace, false, " "),
+                    (Error, false, "@"),
+                    (Whitespace, false, " "),
+                    (Colon, false, ":"),
+                    (Statement, true, " x"),
+                ],
+                "",
+                0,
+                1,
+            ),
+        ] {
+            let mut expected = head.clone();
+            expected.extend(suffix);
+            assert_shell(
+                &format!("{prefix}{tail}"),
+                &expected,
+                pending,
+                None,
+                missing,
+                errors,
+            );
+        }
+        // Native first-colon Body requires physical newline; after Description
+        // the native second colon also admits exactly one inline Statement.
+        let (tail, body) = if prefix.ends_with('D') {
+            (": x", (Statement, true, " x"))
+        } else {
+            (":\n  x", (IndentedStatementBlock, true, "\n  x"))
+        };
+        let mut expected = head;
+        expected.extend([(Colon, false, ":"), body]);
+        assert_shell(&format!("{prefix}{tail}"), &expected, "", None, 0, 0);
+    }
+
+    for (tail, suffix, pending, spelling, missing, errors) in [
+        (" x", vec![(Statement, true, " x")], "", None, 0, 0),
+        ("   ", vec![(Missing, true, "")], "   ", None, 1, 0),
+        ("  ;", vec![(Missing, true, "")], "  ", Some(";"), 1, 0),
+        (
+            " @   ",
+            vec![(Whitespace, false, " "), (Error, false, "@")],
+            "   ",
+            None,
+            0,
+            1,
+        ),
+        (
+            " @  ~   x;",
+            vec![
+                (Whitespace, false, " "),
+                (Error, false, "@"),
+                (Error, false, "  "),
+                (Error, false, "~"),
+                (Statement, true, "   x"),
+                (Semicolon, false, ";"),
+            ],
+            "",
+            None,
+            0,
+            3,
+        ),
+        (
+            " my x =",
+            vec![(Statement, true, " my x =")],
+            "",
+            None,
+            1,
+            0,
+        ),
+    ] {
+        let source = format!("impl 型: D:{tail}");
+        let mut expected = vec![
+            (ImplKw, false, "impl"),
+            (Whitespace, false, " "),
+            (TypeExpression, true, "型"),
+            (ImplDescription, true, ": D"),
+            (Colon, false, ":"),
+        ];
+        expected.extend(suffix);
+        let node = assert_shell(&source, &expected, pending, spelling, missing, errors);
+        if tail == " my x =" {
+            let statement = node
+                .children()
+                .find(|child| child.kind() == Statement)
+                .unwrap();
+            let binding = statement.first_child().unwrap();
+            assert_eq!(binding.kind(), BindingStatement);
+            let body = binding
+                .children()
+                .find(|child| child.kind() == BindingBody)
+                .unwrap();
+            assert_impl_children(&body, &[(Missing, 19..19)]);
+            assert!(!node.children().any(|child| child.kind() == Missing));
+        }
+    }
+}
+
+#[test]
+fn impl_schema_first_colon_statement_shell_keeps_description_failure_upstream() {
+    use SyntaxKind::*;
+    for (source, description_children, end, missing, errors) in [
+        (
+            "impl 型:",
+            vec![(Colon, 8..9), (TypeExpression, 9..9)],
+            9,
+            1,
+            0,
+        ),
+        (
+            "impl 型: @",
+            vec![(Colon, 8..9), (Whitespace, 9..10), (Error, 10..11)],
+            11,
+            0,
+            1,
+        ),
+    ] {
+        let (green, exit, remainder) =
+            run_statement_normalized(source, 100, LineEntry::InLine, None);
+        assert_eq!(remainder, "");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        assert_eq!(root.to_string(), source);
+        assert_impl_children(&root, &[(Statement, 0..end)]);
+        let statement = root.first_child().unwrap();
+        assert_impl_children(&statement, &[(ImplDeclaration, 0..end)]);
+        let implementation = statement.first_child().unwrap();
+        assert_impl_children(
+            &implementation,
+            &[
+                (ImplKw, 0..4),
+                (Whitespace, 4..5),
+                (TypeExpression, 5..8),
+                (ImplDescription, 8..end),
+            ],
+        );
+        let description = implementation
+            .children()
+            .find(|node| node.kind() == ImplDescription)
+            .unwrap();
+        assert_impl_children(&description, &description_children);
+        if missing == 1 {
+            let ty = description.first_child().unwrap();
+            assert_impl_children(&ty, &[(Missing, end..end)]);
+        }
+        for (kind, count) in [(Missing, missing), (Error, errors), (Invalid, 0)] {
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter(|child| child.kind() == kind)
+                    .count(),
+                count
+            );
+        }
+        let mut pending = pending_item(Some(exit), LineEntry::InLine);
+        assert!(pending.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut pending), "");
+    }
+}
+
 // Schema evidence uses ordered Rowan parentage and byte ranges, not records.
 fn assert_impl_children(node: &SyntaxNode, expected: &[(SyntaxKind, std::ops::Range<u32>)]) {
     let actual = node
