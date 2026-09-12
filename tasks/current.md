@@ -111,8 +111,11 @@ catalog-audited across header/body recovery and the intentionally asymmetric
 to Statement. The adjacent Companion-slot composition is now catalog-audited:
 Enum's direct Companion slots follow the admitted successor, while Error keeps
 that Item pending; nested Statement/Derives remain delegated. Select the next
-bounded owner from the updated coverage map; do not start a partial global
-collector before the coverage map is closed.
+bounded owner from the updated coverage map; TypeDeclaration's actual-Equals
+composition is now catalog-audited, preserving the distinct pre-Equals,
+post-Equals fresh-Missing and post-Equals Type-primary slots even when their
+Error token parent is the same. Do not start a partial global collector before
+the coverage map is closed.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing
