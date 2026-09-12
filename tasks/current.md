@@ -210,6 +210,13 @@ and post-child separator Missing phases across brace and parenthesized exclusion
 contexts. Direct preceding/following children distinguish these from terminal
 close; Error and recursive child schemas remain separate.
 
+Its direct initial GroupEntry Error phase is now separately catalog-audited for
+braced UseGroup and both UseExclusionGroup openers. Maximal immediate-parent
+adjacency selects one opaque Error occurrence; trivia, Comma, matching close and
+admitted UseTree terminate it, while a foreign close already inside the raw run
+does not acquire the later `UseGroupForeignClose` wrapper. OperatorName/C9,
+recursive child and caller/fence schemas remain separate.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct

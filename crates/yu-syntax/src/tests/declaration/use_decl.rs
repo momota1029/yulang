@@ -1307,6 +1307,151 @@ fn use_schema_group_entry_and_post_child_separator_missing() {
 }
 
 #[test]
+fn use_schema_group_entry_raw_error_runs() {
+    use SyntaxKind::*;
+
+    for (prefix, owner, open, close, closing, foreign) in [
+        ("use ", UseGroup, LBrace, RBrace, '}', ')'),
+        (
+            "use x::* without ",
+            UseExclusionGroup,
+            LBrace,
+            RBrace,
+            '}',
+            ')',
+        ),
+        (
+            "use x::* without ",
+            UseExclusionGroup,
+            LParen,
+            RParen,
+            ')',
+            '}',
+        ),
+    ] {
+        let start = prefix.len() as u32;
+        // Whitespace prevents the parenthesized exclusion from selecting an
+        // OperatorName; the following Error belongs to the group-entry slot.
+        let (opening, leading) = if open == LParen {
+            ('(', " ")
+        } else {
+            ('{', "")
+        };
+        let body = start + 1 + leading.len() as u32;
+        let ancestors = if owner == UseGroup {
+            vec![UseGroup, UseTree, UseDeclaration, Statement]
+        } else {
+            vec![
+                UseExclusionGroup,
+                UseExclusion,
+                UseGlob,
+                UseTree,
+                UseDeclaration,
+                Statement,
+            ]
+        };
+        for (text, children, error_range) in [
+            (
+                "@".to_owned(),
+                vec![(Error, body..body + 1)],
+                body..body + 1,
+            ),
+            (
+                "@a".to_owned(),
+                vec![(Error, body..body + 1), (UseTree, body + 1..body + 2)],
+                body..body + 1,
+            ),
+            (
+                "@,a".to_owned(),
+                vec![
+                    (Error, body..body + 1),
+                    (Comma, body + 1..body + 2),
+                    (UseTree, body + 2..body + 3),
+                ],
+                body..body + 1,
+            ),
+            (
+                format!("@{foreign}"),
+                vec![(Error, body..body + 1), (Error, body + 1..body + 2)],
+                body..body + 2,
+            ),
+            (
+                "/*é*/ @".to_owned(),
+                vec![
+                    (BlockComment, body..body + 6),
+                    (Whitespace, body + 6..body + 7),
+                    (Error, body + 7..body + 8),
+                ],
+                body + 7..body + 8,
+            ),
+            (
+                "@ /*é*/ a".to_owned(),
+                vec![
+                    (Error, body..body + 1),
+                    (Whitespace, body + 1..body + 2),
+                    (BlockComment, body + 2..body + 8),
+                    (Whitespace, body + 8..body + 9),
+                    (UseTree, body + 9..body + 10),
+                ],
+                body..body + 1,
+            ),
+        ] {
+            let source = format!("{prefix}{opening}{leading}{text}{closing}");
+            let end = body + text.len() as u32;
+            let mut expected = vec![(open, start..start + 1)];
+            if !leading.is_empty() {
+                expected.push((Whitespace, start + 1..body));
+            }
+            expected.extend(children);
+            expected.push((close, end..end + 1));
+            assert_use_schema_children(&source, owner, &ancestors, &expected);
+
+            let (green, _) = run_statement(&source);
+            assert_eq!(green.to_string(), source);
+            let declaration = use_declaration(&green);
+            let group = declaration
+                .descendants()
+                .find(|node| node.kind() == owner)
+                .unwrap();
+            assert!(
+                group
+                    .descendants_with_tokens()
+                    .all(|child| !matches!(child.kind(), Missing | Invalid | UseGroupForeignClose)),
+                "{source:?}"
+            );
+            let mut runs = Vec::new();
+            let mut current: Option<std::ops::Range<u32>> = None;
+            for child in group.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(&group));
+                assert_eq!(child.as_node().is_some(), child.kind() == UseTree);
+                let range = child.text_range();
+                assert_eq!(
+                    child.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+                if child.kind() == Error {
+                    // Grouping uses only adjacency and the immediate owner,
+                    // never the opaque malformed spelling or recovery ledger.
+                    let end = u32::from(range.end());
+                    if let Some(run) = &mut current {
+                        assert_eq!(run.end, u32::from(range.start()));
+                        run.end = end;
+                    } else {
+                        current = Some(u32::from(range.start())..end);
+                    }
+                } else if let Some(run) = current.take() {
+                    runs.push(run);
+                }
+            }
+            if let Some(run) = current {
+                runs.push(run);
+            }
+            assert_eq!(runs, vec![error_range], "{source:?}");
+        }
+    }
+}
+
+#[test]
 fn use_schema_group_local_terminal_close_phases() {
     use SyntaxKind::*;
     for (prefix, owner, open, close, closing, foreign) in [

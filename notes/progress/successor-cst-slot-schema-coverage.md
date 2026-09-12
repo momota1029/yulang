@@ -315,6 +315,12 @@ row; opener-selected matching/foreign close stays selected by the group rows.
 The shared GroupEntry-before-Comma and post-UseTree separator-Missing phases are
 also linked for brace and parenthesized exclusion groups, separate from terminal
 close and foreign-close rows.
+The direct initial GroupEntry Error phase is now linked across braced UseGroup
+and both UseExclusionGroup openers. Immediate-parent adjacency combines raw
+Error fragments into one occurrence; native trivia, Comma, admitted UseTree and
+matching close delimit the run. A foreign close already reached inside that run
+stays direct Error, while the separately linked `UseGroupForeignClose` wrapper
+continues to identify the later locally consumed close branch.
 M2 specification and regression delta audits for the independent rows were
 clean.
 

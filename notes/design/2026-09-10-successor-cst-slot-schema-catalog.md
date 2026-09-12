@@ -1301,6 +1301,19 @@ parenthesis-opened UseExclusionGroup proof. It excludes close and Error phases.
 | ownership and exclusions | Missing is one childless zero-width direct group node. Native punctuation and UseTree are outside it; no Error or Invalid occurs in the witnessed rows. Terminal close Missing, UseGroupForeignClose, admitted-operator/OperatorName recovery, recursive child internals and malformed GroupEntry Error retain their existing rows. |
 | proof and status | Governing authority: successor UseGroup/UseExclusionGroup grammar; Rowan CST-only and CST-derived diagnostics amendments; UseGroup foreign-close topology. Direct proof: `use_schema_group_entry_and_post_child_separator_missing` in `tests/declaration/use_decl.rs`, covering brace groups and parenthesized exclusion rows. M1 pre-write and post-write specification audits were clean; focused row 1/1, Use 29/29 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for these two Missing phases; all excluded sequence/caller/interpreter and ledger/API work remains open. |
 
+### Use group direct GroupEntry Error Draft
+
+This bounded Draft maps the shared malformed initial-entry phase for a braced
+UseGroup and brace- or parenthesis-opened UseExclusionGroup. It does not change
+the parser or assign meaning to Error spelling.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | One maximal adjacent nonempty run of direct `Error` tokens under the opener-selected `UseGroup` or `UseExclusionGroup` is the raw `GroupEntry` recovery phase. The direct opener fixes the owner and delimiter family. For a parenthesis-opened exclusion, native whitespace after `LParen` distinguishes this route from the higher-priority immediate `OperatorName` probe. |
+| completion and ownership | The raw run stops before a matching local close, native Comma, admitted UseTree or native trivia. A foreign close reached while this raw run is active remains another adjacent direct Error token in the same GroupEntry occurrence; it is not wrapped in `UseGroupForeignClose`. Native trivia, punctuation and UseTree are direct siblings and terminate the Error group. |
+| diagnostic projection | Immediate parent, phase order and maximal direct adjacency project `Declaration(Import(GroupEntry))` expecting singleton Path, primary zero, over the combined UTF-8 byte range. The interpreter does not inspect Error text or recovery records. There is no Missing, Invalid or foreign-close wrapper in this row. |
+| proof and status | Governing authority: successor UseGroup/UseExclusionGroup grammar; Rowan CST-only, CST-derived diagnostics and Error/Invalid topology amendments; UseGroup foreign-close topology. Direct proof: `use_schema_group_entry_raw_error_runs` in `tests/declaration/use_decl.rs`, covering terminal, UseTree retry, Comma retry, foreign-close-in-run and UTF-8 trivia boundaries in all three opener/owner contexts. M1 pre-write and post-write specification audits were clean; focused row 1/1, Use 30/30 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for direct initial GroupEntry Error; terminal/separator Missing, locally consumed foreign-close wrappers, OperatorName/C9, recursive child internals, caller/fence topology, the global interpreter and ledger/API removal remain separate. |
+
 ### Rule ExpressionList direct caller fence Draft
 
 This bounded Draft maps RuleItem/RuleCall/RuleIndex fence handoff only. Direct
