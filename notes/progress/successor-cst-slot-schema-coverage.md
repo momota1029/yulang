@@ -358,6 +358,11 @@ evidence-complete only for Band because `realm/*` is lexically a block-comment
 start and a spaced Star fails the marker's empty-leading admission. Marker
 dispatch stays diagnostic-free and delegates Path/OperatorName or group/glob
 recovery to its selected child.
+The separate Mod form-head required-path row is now linked. Accepted inline
+trivia is direct UseTree content and the following UsePath begins Identifier;
+malformed, reserved and protected leading remains path-owned. Initial recovery
+and all group/glob/OperatorName tails retain their established owners, so the
+repair does not create a new diagnostic source.
 M2 specification and regression delta audits for the independent rows were
 clean.
 

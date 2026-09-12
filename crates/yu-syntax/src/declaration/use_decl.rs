@@ -543,8 +543,15 @@ fn parse_mod_target(
     line_entry: &mut LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> UseResult<(Terminal, Item)> {
+    let boundary = declaration_boundary(i.rb(), &item, stops, true);
+    let gap = inline_gap(&item);
+    // Accepted Mod form-head leading belongs to UseTree. Preserve the original
+    // gap fact after emission; malformed and protected leading keeps its owner.
+    if !boundary && gap && item_word(&item).is_some_and(use_identifier_spelling) {
+        item.emit_all_remaining_leading(&mut *i.state);
+    }
     i.state.start_node(SyntaxKind::UsePath.into());
-    if declaration_boundary(i.rb(), &item, stops, true) {
+    if boundary {
         missing(
             i.rb(),
             &item,
@@ -555,7 +562,7 @@ fn parse_mod_target(
         i.state.finish_node();
         return Err(item);
     }
-    if inline_gap(&item) {
+    if gap {
         item.emit_all_remaining_leading(&mut *i.state);
     } else if word_starter(&item) {
         missing(

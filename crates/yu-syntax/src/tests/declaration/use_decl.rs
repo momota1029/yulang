@@ -1042,6 +1042,293 @@ fn use_schema_accepted_group_children_and_nested_occurrences() {
 }
 
 #[test]
+fn use_schema_mod_form_head_leading_ownership() {
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (source, tree_children, path_children, pending) in [
+        (
+            "use mod target",
+            vec![(ModKw, 4..7), (Whitespace, 7..8), (UsePath, 8..14)],
+            vec![(Identifier, 8..14)],
+            None,
+        ),
+        (
+            "use mod /*é*/ target",
+            vec![
+                (ModKw, 4..7),
+                (Whitespace, 7..8),
+                (BlockComment, 8..14),
+                (Whitespace, 14..15),
+                (UsePath, 15..21),
+            ],
+            vec![(Identifier, 15..21)],
+            None,
+        ),
+        (
+            "use mod",
+            vec![(ModKw, 4..7), (UsePath, 7..7)],
+            vec![(Missing, 7..7)],
+            None,
+        ),
+        (
+            "use mod @",
+            vec![(ModKw, 4..7), (UsePath, 7..9)],
+            vec![(Whitespace, 7..8), (Error, 8..9)],
+            None,
+        ),
+        (
+            "use mod @ /*é*/ target",
+            vec![(ModKw, 4..7), (UsePath, 7..23)],
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (BlockComment, 10..16),
+                (Whitespace, 16..17),
+                (Identifier, 17..23),
+            ],
+            None,
+        ),
+        (
+            "use mod ;next",
+            vec![(ModKw, 4..7), (UsePath, 7..7)],
+            vec![(Missing, 7..7)],
+            Some((7, 7..8, 8..9, ";", "next")),
+        ),
+        (
+            "use mod as",
+            vec![(ModKw, 4..7), (UsePath, 7..8)],
+            vec![(Whitespace, 7..8), (Missing, 8..8)],
+            Some((8, 7..8, 8..10, "as", "")),
+        ),
+        (
+            "use mod target::{x}",
+            vec![
+                (ModKw, 4..7),
+                (Whitespace, 7..8),
+                (UsePath, 8..16),
+                (UseGroup, 16..19),
+            ],
+            vec![(Identifier, 8..14), (ColonColon, 14..16)],
+            None,
+        ),
+        (
+            "use mod target::*",
+            vec![
+                (ModKw, 4..7),
+                (Whitespace, 7..8),
+                (UsePath, 8..16),
+                (UseGlob, 16..17),
+            ],
+            vec![(Identifier, 8..14), (ColonColon, 14..16)],
+            None,
+        ),
+        (
+            "use mod target::(+)",
+            vec![(ModKw, 4..7), (Whitespace, 7..8), (UsePath, 8..19)],
+            vec![
+                (Identifier, 8..14),
+                (ColonColon, 14..16),
+                (OperatorName, 16..19),
+            ],
+            None,
+        ),
+    ] {
+        let operators = OperatorTable::empty();
+        let mut input = source;
+        let mut recover = Recover::new_for_test(&operators);
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(Root.into());
+        let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+        if let Err(Either::Right(end)) = &mut exit {
+            emit_end(&mut builder, end);
+        }
+        builder.finish_node();
+        let root = SyntaxNode::new_root(finish_with_discarded_recoveries(builder, recover));
+        let tree = root
+            .descendants()
+            .find(|node| node.kind() == UseTree)
+            .unwrap();
+        assert_eq!(projection(&tree), tree_children, "{source:?}");
+        let path = tree.children().find(|node| node.kind() == UsePath).unwrap();
+        assert_eq!(
+            path.ancestors()
+                .take(4)
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [UsePath, UseTree, UseDeclaration, Statement]
+        );
+        assert_eq!(projection(&path), path_children);
+        if let Some(group) = tree.children().find(|node| node.kind() == UseGroup) {
+            assert_eq!(
+                projection(&group),
+                [(LBrace, 16..17), (UseTree, 17..18), (RBrace, 18..19)]
+            );
+            let item = group.children().next().unwrap();
+            assert_eq!(projection(&item), [(UsePath, 17..18)]);
+            assert_eq!(
+                projection(&item.children().next().unwrap()),
+                [(Identifier, 17..18)]
+            );
+        }
+        if let Some(glob) = tree.children().find(|node| node.kind() == UseGlob) {
+            assert_eq!(projection(&glob), [(Star, 16..17)]);
+        }
+        if let Some(name) = path.children().find(|node| node.kind() == OperatorName) {
+            assert_eq!(
+                projection(&name),
+                [(LParen, 16..17), (Operator, 17..18), (RParen, 18..19)]
+            );
+        }
+        let mut runs = Vec::new();
+        let mut current: Option<std::ops::Range<u32>> = None;
+        for child in path.children_with_tokens() {
+            let range = child.text_range();
+            // Group malformed leaves only by direct adjacency, never spelling.
+            if child.kind() == Error {
+                if let Some(run) = &mut current {
+                    assert_eq!(run.end, u32::from(range.start()));
+                    run.end = u32::from(range.end());
+                } else {
+                    current = Some(u32::from(range.start())..u32::from(range.end()));
+                }
+            } else if let Some(run) = current.take() {
+                runs.push(run);
+            }
+        }
+        if let Some(run) = current {
+            runs.push(run);
+        }
+        assert_eq!(
+            runs,
+            path_children
+                .iter()
+                .filter(|(kind, _)| *kind == Error)
+                .map(|(_, range)| range.clone())
+                .collect::<Vec<_>>()
+        );
+        let recoveries: Vec<_> = root
+            .descendants_with_tokens()
+            .filter(|child| matches!(child.kind(), Error | Missing))
+            .collect();
+        let expected: Vec<_> = path_children
+            .iter()
+            .filter(|(kind, _)| matches!(kind, Error | Missing))
+            .collect();
+        assert_eq!(recoveries.len(), expected.len());
+        for (child, (kind, range)) in recoveries.iter().zip(expected) {
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.parent().as_ref(), Some(&path));
+            assert_eq!(
+                child.text_range(),
+                rowan::TextRange::new(range.start.into(), range.end.into())
+            );
+            if let Some(missing) = child.as_node() {
+                assert!(missing.text_range().is_empty());
+                assert!(missing.children_with_tokens().next().is_none());
+            }
+        }
+        for node in root.descendants() {
+            for child in node.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(&node));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(
+                        child.kind(),
+                        Statement
+                            | UseDeclaration
+                            | UseTree
+                            | UsePath
+                            | UseGroup
+                            | UseGlob
+                            | OperatorName
+                            | Missing
+                    )
+                );
+            }
+        }
+        for child in root.descendants_with_tokens() {
+            let range = child.text_range();
+            assert_eq!(
+                child.to_string(),
+                source[usize::from(range.start())..usize::from(range.end())]
+            );
+            assert!(!matches!(child.kind(), Invalid | UseGroupForeignClose));
+        }
+        if let Some((end, leading, payload, spelling, remainder)) = pending {
+            assert_eq!(root.to_string(), source[..end]);
+            let Err(Either::Left(mut item)) = exit else {
+                panic!("boundary Item must remain pending")
+            };
+            let extent = item.extent(source.len() - input.len());
+            assert_eq!(extent.leading(), leading);
+            assert_eq!(extent.payload(), payload.clone());
+            assert_eq!(item.payload_view().spelling(), Some(spelling));
+            assert_eq!(input, remainder);
+            let leading_text = emit_pending_leading_text(&mut item);
+            assert_eq!(leading_text, source[end..payload.start]);
+            assert_eq!(format!("{root}{leading_text}{spelling}{input}"), source);
+        } else {
+            assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+            assert_eq!(input, "");
+            assert_eq!(root.to_string(), source);
+        }
+    }
+    let source = "use {mod target}";
+    assert_use_schema_children(
+        source,
+        UseGroup,
+        &[UseGroup, UseTree, UseDeclaration, Statement],
+        &[(LBrace, 4..5), (UseTree, 5..15), (RBrace, 15..16)],
+    );
+    assert_use_schema_occurrence(
+        source,
+        UseTree,
+        1,
+        &[UseTree, UseGroup, UseTree, UseDeclaration, Statement],
+        &[(ModKw, 5..8), (Whitespace, 8..9), (UsePath, 9..15)],
+    );
+    let (green, _) = run_statement(source);
+    assert_eq!(green.to_string(), source);
+    let root = SyntaxNode::new_root(green);
+    let path = root
+        .descendants()
+        .find(|node| node.kind() == UsePath)
+        .unwrap();
+    assert_eq!(projection(&path), [(Identifier, 9..15)]);
+    assert_eq!(
+        path.ancestors()
+            .take(6)
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [
+            UsePath,
+            UseTree,
+            UseGroup,
+            UseTree,
+            UseDeclaration,
+            Statement
+        ]
+    );
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|child| matches!(child.kind(), Error | Missing | Invalid))
+    );
+}
+
+#[test]
 fn use_schema_marker_target_dispatch() {
     use SyntaxKind::*;
 

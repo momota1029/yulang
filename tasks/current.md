@@ -259,6 +259,13 @@ accepted only for Band in ordinary source because `realm/*` is lexically a block
 comment and whitespace prevents Star admission. `mod`, marker whitespace,
 broader group/glob/recursive/fence and caller behavior remain open.
 
+The separate Mod form-head required-path row is now catalog-audited after an
+owning-parser conformance repair. Accepted inline leading belongs directly to
+UseTree and the following UsePath starts Identifier; malformed, reserved and
+protected leading stays path-owned. Initial recovery and group/glob/OperatorName
+tails retain their existing rows. Full UseTree composition and wider
+reserved/layout/fence behavior remain open.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
