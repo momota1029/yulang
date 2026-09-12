@@ -52,13 +52,16 @@ temporary diagnostic state while the schema remains incomplete.
 - The CST diagnostic interpreter and ledger/API retirement are not complete.
   `HeaderInfo` still retains recoveries, and
   `crates/yu-syntax/src/full_parse.rs::ParsedFile::diagnostics` still exists.
-- Latest implementation/evidence checkpoint: `6b68a337` (group-terminal and
-  Glob UseAlias recovery). Root, group-terminal and Glob aliases have bounded
-  fresh/frozen Missing, terminal Error/retry and EOF/semicolon/CRLF evidence,
-  with repeated-sibling controls for group-terminal/Glob aliases. Group-terminal
-  aliases are outside UseGroup under UseTree; Glob aliases are inside UseGlob.
-  This does not close inner group-item composition or broader fence coverage.
-- The focused Use module passed 58 tests at this checkpoint on 2026-09-12.
+- Latest implementation/evidence checkpoint: `1c5fed0c` (inner group-item
+  UseAlias recovery). Root, group-terminal, Glob and inner group-item aliases
+  now have bounded fresh/frozen Missing, terminal Error/retry and boundary
+  evidence. The inner evidence covers ordinary UseGroup and both brace/paren
+  UseExclusionGroup ancestry, propagated failed-Alias exits without a fabricated
+  local Close Missing, successful retry through comma/next item/actual close,
+  and successful retry followed by the existing terminal Close Missing.
+  Independent post-write schema audit and catalog promotion remain pending;
+  broader fences and complete recursive coverage remain open.
+- The focused Use module passed 59 tests at this checkpoint on 2026-09-12.
   This is fresh local health evidence, not whole-workspace certification.
 
 ## Immediate next bounded work
@@ -71,13 +74,12 @@ temporary diagnostic state while the schema remains incomplete.
    family summaries and older exclusions are historical/partial; they are not
    a trustworthy current completion count. Check the specific row and test
    before selecting a new gap or reopening completed work.
-2. Next candidate: Alias recovery inside a UseGroup item composed with the
-   enclosing group's comma/actual-close/protected-exit phases. Inspect
-   `declaration/use_decl.rs::{parse_group, parse_aliases}` and the existing
-   `tests/declaration/use_decl.rs` composition/alias tests first. Select only
-   missing transition classes; arbitrary third/fourth ordinal enumeration is
-   not a new slot. Existing tests and governing Use authority determine whether
-   more evidence is needed. This candidate is not a new approved schema row.
+2. The inner group-item Alias candidate now has direct evidence in
+   `use_schema_inner_group_alias_direct_recovery_and_handoff`: 48 source cases,
+   each fresh/frozen. The next pass is its independent post-write schema audit.
+   Only after a clean audit may the Alias catalog/coverage row be promoted;
+   until then this remains evidence, not an approved schema row. Arbitrary
+   third/fourth Alias ordinal enumeration is not a new slot.
 3. Keep component recovery under its existing parent and preserve exact pending
    Item leading. If the CST cannot distinguish required diagnostics, record the
    concrete collision and return only that owner to design; do not infer a new

@@ -392,6 +392,16 @@ separate candidate. The solo handoff reran the existing Use module: 58 passed.
 This paragraph synchronizes evidence locators only; it adds no schema row,
 promotion, independent audit or family-completion claim.
 
+At `1c5fed0c`,
+`use_schema_inner_group_alias_direct_recovery_and_handoff` adds direct evidence
+for the inner UseTree Alias slot under ordinary UseGroup and brace/parenthesis
+UseExclusionGroup. It distinguishes failed-Alias propagation from successful
+Identifier retry, composes the latter through comma/next item/actual close, and
+retains the existing group Close Missing when a completed retry reaches
+EOF/semicolon. The focused Use module passed 59 tests. This link remains
+post-write-audit pending: it does not yet promote the catalog row or close
+broader recursive/fence coverage.
+
 #### Use group foreign-close Draft links
 
 `declaration::use_decl::parse_group` now wraps only its existing locally
