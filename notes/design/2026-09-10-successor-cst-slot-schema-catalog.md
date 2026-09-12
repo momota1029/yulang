@@ -1363,6 +1363,18 @@ successful first exclusion. Episodes have no ordinal identity.
 | projection and continuation | Direct Missing and maximal adjacent direct Error groups after the Episode's Comma project `Declaration(Import(Path))`, singleton Path, primary zero. Outer Comma and accepted payloads project nothing at this phase. With no following outer Comma, a successfully admitted exclusion leaves its leading available for Version/Anchor qualifier parsing; UseQualifiers is a UseTree sibling after UseGlob, not list content. Selection uses immediate parent and phase order, never ordinal, Error spelling or recovery records. |
 | proof and status | Governing authority: successor architecture UseGlob/WithoutKw, qualifier and UseExclusion grammar; recovery current-Item/boundary authority; Rowan CST-only and CST-derived diagnostics amendments. Direct proof: `use_schema_glob_repeated_exclusion_episodes` in `tests/declaration/use_decl.rs`, covering one/two accepted episodes, EOF/protected Missing, terminal/retry Error, protected comma, nested group/operator dispatch and normal qualifier termination. M1 pre-write and post-write specification audits were clean after one test-only nested UseAnchor expectation correction; focused row 1/1, Use 34/34 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for the horizontal repeated-exclusion episode. Pre-comma trivia, complete qualifier/recursive/fence behavior, the global interpreter and ledger/API removal remain separate. |
 
+### UseGlob unseparated exclusion non-admission Draft
+
+This bounded row selects the no-comma continuation after one completed first
+exclusion. It does not describe root trailing-input handling or a new Glob
+recovery slot.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| ordered Rowan and handoff | `UseGlob` ends immediately after its first direct UseExclusion when the next candidate has space, LF or CRLF leading but no outer Comma. There is no direct Comma, Missing, Error, Invalid or second exclusion; the entire next Item, including leading and payload, returns pending unchanged. The comma-positive counterpart orders direct Comma, native Whitespace or Newline, then the second direct UseExclusion. |
+| projection and exclusions | Neither alternative publishes recovery: records are empty and no diagnostic role is selected. This row establishes only episode admission and source-conserving statement-owner handoff. Pre-comma trivia, root trailing-input versus next-statement choice, nested groups, fences, qualifiers, the global interpreter and ledger/API removal remain separate. |
+| proof and status | Governing authority: successor architecture UseGlob/WithoutKw grammar; recovery current-Item/boundary authority; Rowan CST-only and CST-derived diagnostics amendments. Direct proof: `use_schema_glob_unseparated_exclusion_not_admitted` in `tests/declaration/use_decl.rs`, covering space/LF/CRLF pending extents and paired comma admission with fresh/frozen equality and reconstruction. M1 pre-write and post-write specification audits were clean; focused row 1/1, Use 51/51 and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft only for this direct no-comma continuation. |
+
 ### UseGlob post-comma declaration-boundary Missing(Path) Draft
 
 This bounded row separates an unconsumed declaration boundary from the distinct

@@ -297,6 +297,11 @@ EOF and protected exits; public Root topology and continuation remain intact.
 UseGlob now admits authoritative newline-bearing trivia after an outer comma;
 pre-comma and newline-only separation remain rejected.
 
+After one accepted exclusion, space/LF/CRLF followed by another candidate but
+without an outer Comma closes UseGlob and returns that whole next Item pending;
+it creates neither a second exclusion nor recovery. The paired comma controls
+retain native whitespace/newline under UseGlob and admit the second exclusion.
+
 The repeated UseGlob post-comma reserved atom is catalog-audited: it emits one
 Path Missing while preserving the reserved item and its original leading.
 
