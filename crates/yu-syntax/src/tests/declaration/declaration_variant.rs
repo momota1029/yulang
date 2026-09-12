@@ -9,6 +9,265 @@ use crate::tests::support::*;
 use std::sync::Arc;
 
 #[test]
+fn braced_variant_sequence_composes_core_slots_and_outer_close() {
+    use SyntaxKind::{Comma, EnumVariant, Error, Identifier, LParen, Missing, RParen, Whitespace};
+
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        for closed in [true, false] {
+            for (body, sequence, variants) in [
+                ("@", vec![(EnumVariant, 1)], vec![vec![(Error, 1)]]),
+                (
+                    "@ A",
+                    vec![(EnumVariant, 3)],
+                    vec![vec![(Error, 1), (Whitespace, 1), (Identifier, 1)]],
+                ),
+                (
+                    "A()B",
+                    vec![(EnumVariant, 3), (Missing, 0), (EnumVariant, 1)],
+                    vec![
+                        vec![(Identifier, 1), (LParen, 1), (RParen, 1)],
+                        vec![(Identifier, 1)],
+                    ],
+                ),
+                (
+                    "A,",
+                    vec![(EnumVariant, 1), (Comma, 1)],
+                    vec![vec![(Identifier, 1)]],
+                ),
+                ("", vec![], vec![]),
+            ] {
+                let source = format!("{keyword} E{{{body}{}", if closed { "}" } else { "" });
+                let shell = braced_variant_sequence_shell(&source, declaration, &sequence, closed);
+                let actual_variants = shell
+                    .children()
+                    .filter(|node| node.kind() == EnumVariant)
+                    .collect::<Vec<_>>();
+                assert_eq!(actual_variants.len(), variants.len());
+                for (variant, expected) in actual_variants.iter().zip(&variants) {
+                    assert_variant_sequence_children(
+                        variant,
+                        usize::from(variant.text_range().start()),
+                        expected,
+                        &source,
+                    );
+                }
+                let missing = shell
+                    .descendants()
+                    .filter(|node| node.kind() == Missing)
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    missing.len(),
+                    usize::from(body == "A()B") + usize::from(!closed)
+                );
+                for node in &missing {
+                    assert_eq!(node.parent().as_ref(), Some(&shell));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn braced_variant_sequence_composes_from_type_primary_retry_and_outer_close() {
+    use SyntaxKind::{EnumVariant, Error, FromKw, Identifier, Missing, TypeExpression, Whitespace};
+
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        for closed in [true, false] {
+            let source = format!("{keyword} E{{A from @ T{}", if closed { "}" } else { "" });
+            let shell =
+                braced_variant_sequence_shell(&source, declaration, &[(EnumVariant, 10)], closed);
+            let variant = shell.children().next().unwrap();
+            let start = keyword.len() + 3;
+            // FromKw followed by raw Error and an admitted TypeExpression selects
+            // Type(Primary); the caller's FromType role applies only to absence.
+            assert_variant_sequence_children(
+                &variant,
+                start,
+                &[
+                    (Identifier, 1),
+                    (Whitespace, 1),
+                    (FromKw, 4),
+                    (Whitespace, 1),
+                    (Error, 1),
+                    (TypeExpression, 2),
+                ],
+                &source,
+            );
+            let retry = variant.children().next().unwrap();
+            assert_variant_sequence_children(
+                &retry,
+                start + 8,
+                &[(Whitespace, 1), (Identifier, 1)],
+                &source,
+            );
+            let missing = shell
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect::<Vec<_>>();
+            assert_eq!(missing.len(), usize::from(!closed));
+            if !closed {
+                assert_eq!(missing[0].parent().as_ref(), Some(&shell));
+            }
+        }
+    }
+}
+
+#[test]
+fn braced_variant_sequence_orders_from_type_missing_before_outer_close_missing() {
+    use SyntaxKind::{EnumVariant, FromKw, Identifier, Missing, TypeExpression, Whitespace};
+
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        let source = format!("{keyword} E{{A from");
+        let shell = braced_variant_sequence_shell(&source, declaration, &[(EnumVariant, 6)], false);
+        let variant = shell.children().next().unwrap();
+        assert_variant_sequence_children(
+            &variant,
+            keyword.len() + 3,
+            &[
+                (Identifier, 1),
+                (Whitespace, 1),
+                (FromKw, 4),
+                (TypeExpression, 0),
+            ],
+            &source,
+        );
+        let required_type = variant.children().next().unwrap();
+        assert_variant_sequence_children(&required_type, source.len(), &[(Missing, 0)], &source);
+        let missing = shell
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing.len(), 2);
+        assert_eq!(missing[0].parent().as_ref(), Some(&required_type));
+        assert_eq!(missing[1].parent().as_ref(), Some(&shell));
+        assert_eq!(missing[0].text_range(), missing[1].text_range());
+    }
+}
+
+#[test]
+fn braced_variant_sequence_keeps_native_close_after_from_type_missing() {
+    use SyntaxKind::{EnumVariant, FromKw, Identifier, Missing, TypeExpression, Whitespace};
+
+    for (keyword, declaration) in [
+        ("enum", SyntaxKind::EnumDeclaration),
+        ("error", SyntaxKind::ErrorDeclaration),
+    ] {
+        let source = format!("{keyword} E{{A from}}");
+        let shell = braced_variant_sequence_shell(&source, declaration, &[(EnumVariant, 6)], true);
+        let root = shell.parent().unwrap();
+        assert_eq!(root.text_range(), shell.text_range());
+        let variant = shell.children().next().unwrap();
+        assert_variant_sequence_children(
+            &variant,
+            keyword.len() + 3,
+            &[
+                (Identifier, 1),
+                (Whitespace, 1),
+                (FromKw, 4),
+                (TypeExpression, 0),
+            ],
+            &source,
+        );
+        let required_type = variant.children().next().unwrap();
+        assert_variant_sequence_children(
+            &required_type,
+            source.len() - 1,
+            &[(Missing, 0)],
+            &source,
+        );
+        let missing = shell
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing.len(), 1);
+        assert_eq!(missing[0].parent().as_ref(), Some(&required_type));
+        assert_eq!(required_type.parent().as_ref(), Some(&variant));
+    }
+}
+
+fn braced_variant_sequence_shell(
+    source: &str,
+    declaration: SyntaxKind,
+    sequence: &[(SyntaxKind, usize)],
+    closed: bool,
+) -> SyntaxNode {
+    use SyntaxKind::{EnumKw, ErrorKw, Identifier, LBrace, Missing, RBrace, Root, Whitespace};
+    let shell = variant_schema_shell(source, declaration);
+    let root = shell.parent().unwrap();
+    assert_eq!(root.kind(), Root);
+    assert!(root.parent().is_none());
+    assert_eq!(root.children_with_tokens().count(), 1);
+    assert_eq!(root.to_string(), source);
+    assert_eq!(shell.to_string(), source);
+    let (keyword, width) = if declaration == SyntaxKind::EnumDeclaration {
+        (EnumKw, 4)
+    } else {
+        (ErrorKw, 5)
+    };
+    let mut expected = vec![
+        (keyword, width),
+        (Whitespace, 1),
+        (Identifier, 1),
+        (LBrace, 1),
+    ];
+    expected.extend_from_slice(sequence);
+    expected.push(if closed { (RBrace, 1) } else { (Missing, 0) });
+    assert_variant_sequence_children(&shell, 0, &expected, source);
+    shell
+}
+
+fn assert_variant_sequence_children(
+    owner: &SyntaxNode,
+    start: usize,
+    expected: &[(SyntaxKind, usize)],
+    source: &str,
+) {
+    use SyntaxKind::{EnumVariant, Missing, TypeExpression};
+    let children = owner.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), expected.len(), "{source:?}");
+    let mut at = start;
+    for (child, &(kind, width)) in children.iter().zip(expected) {
+        assert_eq!(child.kind(), kind, "{source:?}");
+        assert_eq!(child.parent().as_ref(), Some(owner));
+        assert_eq!(
+            child.as_node().is_some(),
+            matches!(kind, EnumVariant | Missing | TypeExpression)
+        );
+        assert_eq!(
+            usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+            at..at + width
+        );
+        if kind == Missing {
+            assert_eq!(width, 0);
+            assert!(
+                child
+                    .as_node()
+                    .unwrap()
+                    .children_with_tokens()
+                    .next()
+                    .is_none()
+            );
+        } else if kind != SyntaxKind::Error && child.as_token().is_some() {
+            assert_eq!(child.to_string(), source[at..at + width]);
+        }
+        at += width;
+    }
+    assert_eq!(
+        usize::from(owner.text_range().start())..usize::from(owner.text_range().end()),
+        start..at
+    );
+}
+
+#[test]
 fn enum_error_delimited_field_sequence_composes_ordered_occurrences() {
     for (prefix, declaration) in [
         ("enum E{A{", SyntaxKind::EnumDeclaration),

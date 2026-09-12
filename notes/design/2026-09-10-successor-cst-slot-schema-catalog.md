@@ -1628,6 +1628,20 @@ primary Error, and its retry has an admitted `TypeExpression` sibling.
 | diagnostic projection | The direct maximal Error group projects `Type(Primary)` with expected `TypeExpression`, primary zero, over its UTF-8 Error range. Select it from FromKw/full ancestor/following TypeExpression ordered context, not Error spelling or recovery records. |
 | proof and status | Governing authority: [required Type missing roles](2026-09-08-successor-required-type-missing-roles.md), Scope and retained authority, [declaration-variant current-Item recovery](2026-09-08-successor-declaration-variant-current-item-recovery.md), Publication and handoff, and the CST-derived diagnostics amendment. Publisher: `type_expr/mod.rs:732–776,1015–1055`; FromKw transport: `declaration/declaration_variant.rs:459–488,628–678`. Direct Rowan proof: `declaration_variant_from_type_primary_retry_has_direct_enum_error_cst_evidence` in `crates/yu-syntax/src/tests/declaration/declaration_variant.rs`, covering exact Enum/Error source, token/node order and ranges. M1 pre-write and closure specification audits were clean. Status: catalog-audited evidence-complete Draft for this exact retry only; terminal/boundary forms, other trivia/forms, nested Type, other payload rows, global interpreter, parser API and ledger retirement remain open. |
 
+### Braced Enum/Error VariantSequence direct composition Draft
+
+This aggregate composes existing Variant core, FromType and braced outer-close
+rows. It is not an aggregate recovery publisher: ordered Rowan ancestry and
+children select the component occurrence, while payload fields remain delegated
+to `DeclarationFieldSequence`.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `(EnumDeclaration or ErrorDeclaration, direct braced VariantSequence)`. Witnesses retain distinct Enum/Error shell ancestors around shared `EnumVariant`: native body `LBrace`, zero or more direct variants/separators, then native `RBrace` or one direct outer Close Missing. |
+| ordered recovery composition | Terminal Item Error has no duplicate Item Missing; Error plus native whitespace/Identifier is Name retry. A completed tuple payload followed by a next variant has direct shell Separator Missing. `FromKw Error+ TypeExpression` is Type-primary Error/retry, whereas `FromKw TypeExpression(Missing)` is fresh FromType; at EOF the nested FromType Missing precedes direct outer Close Missing at the same coordinate, while an actual RBrace follows the nested Missing natively with no outer Missing. Empty and trailing-comma controls add no fabricated Item Missing. |
+| ownership and exclusions | Core Item/Name/Separator use caller-selected Enum/Error roles; raw FromType Error is Type(Primary), not Variant(FromType). Field payload lists, local field closes, inline/indented forms, companions, pipes, fences, caller stops and further Type internals stay outside this aggregate. |
+| projection and status | Reuse component-row projections only, selected by Enum/Error ancestor plus direct child order/ranges; neither Error spelling nor recovery records participates. Authority: [declaration-variant current-Item recovery](2026-09-08-successor-declaration-variant-current-item-recovery.md), [required Type missing roles](2026-09-08-successor-required-type-missing-roles.md), braced outer-close row and CST-derived diagnostics amendment. Direct proof: `braced_variant_sequence_*` tests in `crates/yu-syntax/src/tests/declaration/declaration_variant.rs`. M2 pre-write, compiler/recovery, regression and repaired-delta audits were clean. Status: catalog-audited evidence-complete Draft for the bounded braced witness matrix only. |
+
 ### NamedRecordType Field/Name/Colon/Type/Separator/Close semantic rows
 
 This bounded Draft maps the six recovery-bearing slots of one committed
