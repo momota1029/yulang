@@ -1452,6 +1452,238 @@ fn use_schema_group_entry_raw_error_runs() {
 }
 
 #[test]
+fn use_schema_post_child_group_entry_raw_error_runs() {
+    use SyntaxKind::*;
+
+    for (prefix, owner, open, close, opening, closing, foreign) in [
+        ("use ", UseGroup, LBrace, RBrace, '{', '}', ')'),
+        (
+            "use x::* without ",
+            UseExclusionGroup,
+            LBrace,
+            RBrace,
+            '{',
+            '}',
+            ')',
+        ),
+        (
+            "use x::* without ",
+            UseExclusionGroup,
+            LParen,
+            RParen,
+            '(',
+            ')',
+            '}',
+        ),
+    ] {
+        let start = prefix.len() as u32;
+        let body = start + 1;
+        // The admitted identifier also prevents the parenthesized exclusion
+        // from selecting OperatorName. Raw recovery preserves after_child;
+        // only the native comma clears the separator requirement on retry.
+        for (text, children, error_range, missing_at, protected) in [
+            (
+                "a@".to_owned(),
+                vec![(Error, body + 1..body + 2)],
+                body + 1..body + 2,
+                None,
+                false,
+            ),
+            (
+                "a@b".to_owned(),
+                vec![
+                    (Error, body + 1..body + 2),
+                    (Missing, body + 2..body + 2),
+                    (UseTree, body + 2..body + 3),
+                ],
+                body + 1..body + 2,
+                Some(body + 2),
+                false,
+            ),
+            (
+                "a@,b".to_owned(),
+                vec![
+                    (Error, body + 1..body + 2),
+                    (Comma, body + 2..body + 3),
+                    (UseTree, body + 3..body + 4),
+                ],
+                body + 1..body + 2,
+                None,
+                false,
+            ),
+            (
+                format!("a@{foreign}"),
+                vec![(Error, body + 1..body + 2), (Error, body + 2..body + 3)],
+                body + 1..body + 3,
+                None,
+                false,
+            ),
+            (
+                "a /*é*/ @".to_owned(),
+                vec![
+                    (Whitespace, body + 1..body + 2),
+                    (BlockComment, body + 2..body + 8),
+                    (Whitespace, body + 8..body + 9),
+                    (Error, body + 9..body + 10),
+                ],
+                body + 9..body + 10,
+                None,
+                false,
+            ),
+            (
+                "a@ /*é*/ b".to_owned(),
+                vec![
+                    (Error, body + 1..body + 2),
+                    (Whitespace, body + 2..body + 3),
+                    (BlockComment, body + 3..body + 9),
+                    (Whitespace, body + 9..body + 10),
+                    (Missing, body + 10..body + 10),
+                    (UseTree, body + 10..body + 11),
+                ],
+                body + 1..body + 2,
+                Some(body + 10),
+                false,
+            ),
+            (
+                "a@ ;next".to_owned(),
+                vec![(Error, body + 1..body + 2)],
+                body + 1..body + 2,
+                None,
+                true,
+            ),
+        ] {
+            let suffix = if protected {
+                String::new()
+            } else {
+                closing.to_string()
+            };
+            let source = format!("{prefix}{opening}{text}{suffix}");
+            let mut expected = vec![(open, start..body), (UseTree, body..body + 1)];
+            expected.extend(children);
+            if !protected {
+                let end = body + text.len() as u32;
+                expected.push((close, end..end + 1));
+            }
+            let operators = OperatorTable::empty();
+            let mut input = source.as_str();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            if let Err(Either::Right(end)) = &mut exit {
+                emit_end(&mut builder, end);
+            }
+            builder.finish_node();
+            let root = SyntaxNode::new_root(finish_with_discarded_recoveries(builder, recover));
+            let group = root
+                .descendants()
+                .find(|node| node.kind() == owner)
+                .unwrap();
+            let ancestors = if owner == UseGroup {
+                vec![UseGroup, UseTree, UseDeclaration, Statement, Root]
+            } else {
+                vec![
+                    UseExclusionGroup,
+                    UseExclusion,
+                    UseGlob,
+                    UseTree,
+                    UseDeclaration,
+                    Statement,
+                    Root,
+                ]
+            };
+            assert_eq!(
+                group
+                    .ancestors()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                ancestors
+            );
+            assert_eq!(
+                group
+                    .children_with_tokens()
+                    .map(|child| {
+                        let range = child.text_range();
+                        (
+                            child.kind(),
+                            u32::from(range.start())..u32::from(range.end()),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                expected,
+                "{source:?}",
+            );
+            assert!(
+                !root
+                    .descendants_with_tokens()
+                    .any(|child| matches!(child.kind(), Invalid | UseGroupForeignClose))
+            );
+            let missing: Vec<_> = root
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect();
+            assert_eq!(
+                missing.len(),
+                usize::from(missing_at.is_some()),
+                "{source:?}"
+            );
+            if let Some(at) = missing_at {
+                assert_eq!(missing[0].parent().as_ref(), Some(&group));
+                assert_eq!(missing[0].text_range(), rowan::TextRange::empty(at.into()));
+                assert!(missing[0].children_with_tokens().next().is_none());
+            }
+            let mut runs = Vec::new();
+            let mut current: Option<std::ops::Range<u32>> = None;
+            for child in group.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(&group));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(child.kind(), UseTree | Missing)
+                );
+                let range = child.text_range();
+                assert_eq!(
+                    child.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+                // The occurrence uses only direct adjacency, never Error spelling.
+                if child.kind() == Error {
+                    if let Some(run) = &mut current {
+                        assert_eq!(run.end, u32::from(range.start()));
+                        run.end = u32::from(range.end());
+                    } else {
+                        current = Some(u32::from(range.start())..u32::from(range.end()));
+                    }
+                } else if let Some(run) = current.take() {
+                    runs.push(run);
+                }
+            }
+            if let Some(run) = current {
+                runs.push(run);
+            }
+            assert_eq!(runs, vec![error_range], "{source:?}");
+            if protected {
+                assert_eq!(root.to_string(), source[..(body + 2) as usize]);
+                let Err(Either::Left(mut item)) = exit else {
+                    panic!("protected semicolon must remain pending")
+                };
+                assert_eq!(token_kind(&item), Some(TokenKind::Semicolon));
+                assert_eq!(item.payload_view().spelling(), Some(";"));
+                let extent = item.extent(source.len() - input.len());
+                assert_eq!(extent.leading(), (body + 2) as usize..(body + 3) as usize);
+                assert_eq!(extent.payload(), (body + 3) as usize..(body + 4) as usize);
+                assert_eq!(emit_pending_leading_text(&mut item), " ");
+                assert_eq!(input, "next");
+                assert_eq!(format!("{root} ;{input}"), source);
+            } else {
+                assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+                assert_eq!(input, "");
+                assert_eq!(root.to_string(), source);
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_group_local_terminal_close_phases() {
     use SyntaxKind::*;
     for (prefix, owner, open, close, closing, foreign) in [

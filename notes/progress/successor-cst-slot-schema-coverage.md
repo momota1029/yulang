@@ -321,6 +321,12 @@ Error fragments into one occurrence; native trivia, Comma, admitted UseTree and
 matching close delimit the run. A foreign close already reached inside that run
 stays direct Error, while the separately linked `UseGroupForeignClose` wrapper
 continues to identify the later locally consumed close branch.
+The corresponding post-child GroupEntry Error phase is separately linked. Its
+preceding direct UseTree retains the separator state: a direct UseTree retry is
+preceded by the existing Comma Missing, while a native Comma clears it. Matching
+close, foreign-close-in-run, UTF-8 trivia and protected semicolon controls fix
+the distinct completion and handoff alternatives without relabelling the Error
+from Import(GroupEntry)/Path.
 M2 specification and regression delta audits for the independent rows were
 clean.
 

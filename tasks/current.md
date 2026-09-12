@@ -217,6 +217,13 @@ admitted UseTree terminate it, while a foreign close already inside the raw run
 does not acquire the later `UseGroupForeignClose` wrapper. OperatorName/C9,
 recursive child and caller/fence schemas remain separate.
 
+The post-child direct GroupEntry Error phase is now separately catalog-audited
+for the same three owner/opener contexts. It preserves admitted-child state, so
+a direct UseTree retry orders a distinct Comma Missing before the child, while
+a native Comma clears that requirement. UTF-8 trivia, matching/foreign close and
+protected semicolon evidence retain direct Error ownership and exact handoff;
+deeper recursion, wider fences, interpreter and ledger/API work remain open.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
