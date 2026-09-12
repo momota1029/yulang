@@ -902,6 +902,288 @@ fn companion_rowan_children(
         .collect()
 }
 
+fn assert_companion_rowan_full_children(
+    node: &SyntaxNode,
+    source: &str,
+    expected: &[(SyntaxKind, std::ops::Range<usize>)],
+) {
+    use SyntaxKind::*;
+    let actual: Vec<_> = node
+        .children_with_tokens()
+        .map(|child| {
+            assert_eq!(child.parent().as_ref(), Some(node));
+            let range =
+                usize::from(child.text_range().start())..usize::from(child.text_range().end());
+            assert_eq!(
+                child.as_node().is_some(),
+                matches!(
+                    child.kind(),
+                    Missing
+                        | Statement
+                        | DeclarationCompanionIndentedBody
+                        | BlockStatementSeparator
+                        | OperatorChain
+                        | StructDeclaration
+                        | TypeDeclaration
+                )
+            );
+            if child.kind() == Missing {
+                assert!(range.is_empty());
+                assert!(child.as_node().unwrap().first_child_or_token().is_none());
+            } else if let Some(token) = child.as_token() {
+                assert!(!range.is_empty());
+                // Error is opaque: only native token/trivia spelling is inspected.
+                if token.kind() != Error {
+                    assert_eq!(token.text(), &source[range.clone()]);
+                }
+            }
+            (child.kind(), range)
+        })
+        .collect();
+    assert_eq!(actual, expected, "{source:?}");
+    assert!(
+        !node
+            .descendants()
+            .any(|child| matches!(child.kind(), Invalid | Error))
+    );
+}
+
+#[test]
+fn declaration_companion_rowan_full_children_keep_error_runs_and_retry_trivia() {
+    use SyntaxKind::*;
+    for (source, direct, statement, error_in_companion) in [
+        (
+            "with @ @: item",
+            vec![
+                (WithKw, 0..4),
+                (Whitespace, 4..5),
+                (Error, 5..6),
+                (Error, 6..7),
+                (Error, 7..8),
+                (Colon, 8..9),
+                (Statement, 9..14),
+            ],
+            vec![(OperatorChain, 9..14)],
+            true,
+        ),
+        (
+            "with: @ @ item",
+            vec![(WithKw, 0..4), (Colon, 4..5), (Statement, 5..14)],
+            vec![
+                (Whitespace, 5..6),
+                (Error, 6..7),
+                (Error, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (OperatorChain, 10..14),
+            ],
+            false,
+        ),
+        (
+            "with { @ @ item }",
+            vec![
+                (WithKw, 0..4),
+                (Whitespace, 4..5),
+                (LBrace, 5..6),
+                (Whitespace, 6..7),
+                (Statement, 7..15),
+                (Whitespace, 15..16),
+                (RBrace, 16..17),
+            ],
+            vec![
+                (Error, 7..8),
+                (Error, 8..9),
+                (Error, 9..10),
+                (Whitespace, 10..11),
+                (OperatorChain, 11..15),
+            ],
+            false,
+        ),
+        (
+            "with { item ) }",
+            vec![
+                (WithKw, 0..4),
+                (Whitespace, 4..5),
+                (LBrace, 5..6),
+                (Whitespace, 6..7),
+                (Statement, 7..11),
+                (Whitespace, 11..12),
+                (Error, 12..13),
+                (Whitespace, 13..14),
+                (RBrace, 14..15),
+            ],
+            vec![(OperatorChain, 7..11)],
+            true,
+        ),
+    ] {
+        let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source);
+        let root = syntax_root(green);
+        let companion = root.children().next().unwrap();
+        assert_companion_rowan_full_children(&companion, source, &direct);
+        let item = companion
+            .children()
+            .find(|child| child.kind() == Statement)
+            .unwrap();
+        assert_companion_rowan_full_children(&item, source, &statement);
+        if statement == [(OperatorChain, 9..14)] {
+            let expression = item.children().next().unwrap();
+            let leading = expression.first_token().unwrap();
+            assert_eq!(leading.kind(), Whitespace);
+            assert_eq!(leading.text(), " ");
+            assert_eq!(usize::from(leading.text_range().start()), 9);
+            assert_eq!(usize::from(leading.text_range().end()), 10);
+            assert!(
+                leading
+                    .parent()
+                    .unwrap()
+                    .ancestors()
+                    .any(|node| node == expression)
+            );
+        }
+        // Adjacent Error fragments have one immediate parent and uninterrupted
+        // ranges. Native trivia or punctuation seals the maximal group.
+        let error_parent = if error_in_companion {
+            &companion
+        } else {
+            &item
+        };
+        let children: Vec<_> = error_parent.children_with_tokens().collect();
+        let start = children
+            .iter()
+            .position(|child| child.kind() == Error)
+            .unwrap();
+        let end = children
+            .iter()
+            .rposition(|child| child.kind() == Error)
+            .unwrap();
+        assert!(
+            children[start..=end]
+                .iter()
+                .all(|child| child.kind() == Error && child.as_token().is_some())
+        );
+        for pair in children[start..=end].windows(2) {
+            assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+        }
+        assert!(start == 0 || children[start - 1].kind() != Error);
+        assert!(end + 1 == children.len() || children[end + 1].kind() != Error);
+    }
+}
+
+#[test]
+fn declaration_companion_rowan_full_children_keep_boundary_leading_pending() {
+    use SyntaxKind::*;
+    for (source, expected, leading) in [
+        ("with  ]tail", vec![(WithKw, 0..4), (Missing, 4..4)], "  "),
+        (
+            "with @  ]tail",
+            vec![(WithKw, 0..4), (Whitespace, 4..5), (Error, 5..6)],
+            "  ",
+        ),
+        (
+            "with:  ]tail",
+            vec![(WithKw, 0..4), (Colon, 4..5), (Missing, 5..5)],
+            "  ",
+        ),
+        (
+            "with { item  ]tail",
+            vec![
+                (WithKw, 0..4),
+                (Whitespace, 4..5),
+                (LBrace, 5..6),
+                (Whitespace, 6..7),
+                (Statement, 7..11),
+                (Missing, 11..11),
+            ],
+            "  ",
+        ),
+        (
+            "with:\r\n  item // 日本語\r\n]tail",
+            vec![
+                (WithKw, 0..4),
+                (Colon, 4..5),
+                (DeclarationCompanionIndentedBody, 5..13),
+            ],
+            " // 日本語\r\n",
+        ),
+    ] {
+        let (green, exit, remainder) = run_declaration_companion(
+            source,
+            0,
+            stops_for(TokenKind::RBracket),
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        let root = syntax_root(green);
+        let companion = root.children().next().unwrap();
+        assert_companion_rowan_full_children(&companion, source, &expected);
+        if let Some(body) = companion
+            .children()
+            .find(|child| child.kind() == DeclarationCompanionIndentedBody)
+        {
+            assert_companion_rowan_full_children(
+                &body,
+                source,
+                &[(Newline, 5..7), (Whitespace, 7..9), (Statement, 9..13)],
+            );
+        }
+        let mut boundary = pending(exit.unwrap());
+        let extent = boundary.extent(source.len() - remainder.len());
+        assert_eq!(
+            extent.leading(),
+            root.text().len().into()..source.len() - remainder.len() - 1
+        );
+        assert_eq!(
+            extent.payload(),
+            source.len() - remainder.len() - 1..source.len() - remainder.len()
+        );
+        if companion
+            .children()
+            .any(|child| child.kind() == DeclarationCompanionIndentedBody)
+        {
+            assert_eq!(extent.leading(), 13..28);
+            assert_eq!(extent.payload(), 28..29);
+        }
+        assert_eq!(
+            boundary.payload_view().token_kind(),
+            Some(TokenKind::RBracket)
+        );
+        let payload = boundary.payload_view().spelling().unwrap().to_owned();
+        let pending_leading = emit_pending_leading_text(&mut boundary);
+        assert_eq!(pending_leading, leading);
+        assert_eq!(remainder, "tail");
+        assert_eq!(
+            format!("{root}{pending_leading}{payload}{remainder}"),
+            source
+        );
+    }
+    let source = "with {struct S{} type T = Int}";
+    let (green, _, _) = run_declaration_companion(source, 0, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    let root = syntax_root(green);
+    let companion = root.children().next().unwrap();
+    assert_companion_rowan_full_children(
+        &companion,
+        source,
+        &[
+            (WithKw, 0..4),
+            (Whitespace, 4..5),
+            (LBrace, 5..6),
+            (Statement, 6..16),
+            (Missing, 16..16),
+            (Statement, 16..29),
+            (RBrace, 29..30),
+        ],
+    );
+    let retry = companion
+        .children()
+        .filter(|child| child.kind() == Statement)
+        .nth(1)
+        .unwrap();
+    assert_companion_rowan_full_children(&retry, source, &[(TypeDeclaration, 16..29)]);
+}
+
 #[test]
 fn declaration_companion_rowan_statement_and_sequence_matrix() {
     use SyntaxKind::*;

@@ -1190,13 +1190,17 @@ Companion continuation. It does not publish an aggregate Act recovery role.
 
 ### DeclarationCompanion direct recovery Draft
 
-This bounded Draft maps direct Companion Introducer, Body Missing, Item,
-IndentedItem, Separator and local Brace Close. Ordered `with`/Colon/brace and
-layout ancestors select the direct Missing/Error occurrence; malformed inline
-Statement Error remains Statement-owned. Five phase shells plus seven successful
-attachment paths prove wiring without records or Error spelling. M2 spec and
-regression/delta audits were clean. Nested Statement/Derives, caller stops,
-collector and ledger removal remain separate.
+This bounded Draft maps direct Companion Introducer, Body, Item/IndentedItem,
+Separator and local Brace Close. It does not select attachment qualification.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and ordered grammar | `DeclarationCompanion` orders Introducer then one selected inline, indented or braced body product. Inline and braced items are direct Companion children; indented items occur below `DeclarationCompanionIndentedBody`. Optional/repeated direct DerivesClause children are not Statement-wrapped. A braced sequence orders native LBrace, Item/Separator episodes and native or recovered RBrace. |
+| malformed/retry | Introducer Missing/Error expects only Colon; terminal Introducer recovery does not cascade into Body. Colon requires an item while braces permit empty. Leading/repeated separators create an empty Statement item; valid trailing separators do not. A recognizable successor can retry after one sealed recovery occurrence. Error groups are maximal adjacent opaque Error tokens within one direct slot; native trivia/punctuation, Missing, nested nodes and slot transitions terminate a group. |
+| nested ownership | `with: @`, `with {@}` and indented malformed items put Error under Statement; empty item Missing is likewise Statement-owned. Companion Separator Missing is direct. After Introducer Error retry followed by actual Colon, an ordinarily admitted Statement retains leading trivia inside its OperatorChain; malformed Statement retry instead owns retry-leading directly under Statement. Derives and nested expression recovery retain their own rows. |
+| boundaries and handoff | Protected close creates direct local Close Missing and returns the untouched close. A locally consumed wrong close is one opaque Error occurrence while a later native matching close remains represented. STOP_COLON/STOP_ELSE, dedent and CRLF fence boundaries preserve pending leading and suffix. The direct proof observes the protected Item before emission; the CRLF/Japanese-comment witness fixes leading `13..28` and payload `28..29`. |
+| diagnostic projection | Introducer projects Colon; Body/Item/IndentedItem project Statement; Separator projects StatementSeparator; local Close projects RBrace, each primary alternative zero. Missing uses its zero-width Rowan range. Immediate parent, ordered slot and maximal adjacent Error group select the projection; preorder/occurrence order resolves equal ranges. Error spelling, recovery records and scanner state are not inputs. |
+| proof and status | Governing authority: declaration Companion addendum §§3, 8.2 and 10; Companion current-Item recovery; Rowan CST-only and CST-derived diagnostics amendments. Direct proof: the existing `declaration_companion_rowan_*` matrices plus `declaration_companion_rowan_full_children_*` in `tests/declaration/declaration_companion.rs`; the latter adds complete-source reconstruction, full trivia/node-token/range evidence and protected CRLF/UTF-8 extent handoff. M2 pre-write, compiler/recovery, regression and delta audits were clean; focused full-child 2/2, Companion 31/31, scoped format/diff and package check passed (three pre-existing warnings). Status: catalog-audited evidence-complete Draft only for these bounded direct rows; attachment choice, declaration shells, complete nested schemas, broader fences/callers, interpreter and ledger/API removal remain open. |
 
 ### UseDeclaration Path, Alias and group-entry Draft
 

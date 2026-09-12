@@ -175,6 +175,12 @@ nonattachment handoffs. Boundary evidence observes real live-source suffix
 synchronization before using ItemExtent; NormalizedExit and parser state stay
 unchanged. Broader caller/fence topology remains separate.
 
+DeclarationCompanion's direct recovery schema is now catalog-audited across
+Introducer, Body, Item/IndentedItem, Separator and local Brace Close. Full-child
+evidence retains trivia and opaque Error grouping, while CRLF/UTF-8 protected
+handoff is losslessly reconstructed with its concrete byte extent. Attachment
+choice and child Statement/Derives schemas remain deliberately separate.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
