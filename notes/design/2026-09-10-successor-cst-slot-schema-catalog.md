@@ -1213,6 +1213,11 @@ the bounded local terminal-close phase have their separate rows below;
 OperatorName remains separate. M2 spec and regression delta audits for the
 independent rows were clean.
 
+The root-only Alias child has direct fresh/frozen evidence for Missing, maximal
+Error/retry and EOF/semicolon/CRLF handoff in
+`use_schema_root_alias_direct_recovery_and_handoff`; nested/repeated Alias and
+wider fences remain open.
+
 ### Use group foreign-close Draft
 
 | Fact | Candidate catalog row |
