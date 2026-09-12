@@ -6187,20 +6187,8 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
     // Alias Error occurrence as above, not a third Alias ordinal or slot.
     for (head, group_kind, open_kind, close_kind, close) in [
         ("use {", UseGroup, LBrace, RBrace, "}"),
-        (
-            "use p::* without {",
-            UseExclusionGroup,
-            LBrace,
-            RBrace,
-            "}",
-        ),
-        (
-            "use p::* without (",
-            UseExclusionGroup,
-            LParen,
-            RParen,
-            ")",
-        ),
+        ("use p::* without {", UseExclusionGroup, LBrace, RBrace, "}"),
+        ("use p::* without (", UseExclusionGroup, LParen, RParen, ")"),
     ] {
         let prefix = format!("{head}q as @ # r, x{close}");
         let range_start = prefix.find('@').unwrap();
@@ -6236,8 +6224,7 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
             };
             let mut builder = GreenNodeBuilder::new();
             builder.start_node(Root.into());
-            let mut exit =
-                statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
             if let Err(Either::Right(end)) = &mut exit {
                 emit_end(&mut builder, end);
             }
