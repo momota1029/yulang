@@ -115,7 +115,9 @@ bounded owner from the updated coverage map; TypeDeclaration's actual-Equals
 composition is now catalog-audited, preserving the distinct pre-Equals,
 post-Equals fresh-Missing and post-Equals Type-primary slots even when their
 Error token parent is the same. Do not start a partial global collector before
-the coverage map is closed.
+the coverage map is closed. Its required-Name header composition is also
+catalog-audited across fresh Missing, terminal Error, raw-name retry and direct
+Equals retry; TypeDeclaration's remaining header/RHS forms stay separate.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing

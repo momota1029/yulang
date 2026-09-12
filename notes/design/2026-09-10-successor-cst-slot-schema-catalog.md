@@ -1222,6 +1222,17 @@ indented kernel's other caller roles and later Statement slots remain separate.
 | diagnostic projection | The direct Missing or maximal adjacent direct Error-token group projects `ColonApplication(IndentedStatement)` with expected singleton Statement, primary zero, at its zero-width or combined UTF-8 Rowan range. The ancestor path and direct order select the occurrence without records, Error spelling or scanner state. |
 | proof and status | Governing authority: [Expression indented Statement recovery-role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), plus the CST-derived diagnostics amendment and Error-token topology addendum. Direct Rowan proof: `indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading` and `indented_colon_rowan_schema_uses_utf8_crlf_byte_ranges` in `crates/yu-syntax/src/tests/indented_recovery.rs`. M2 pre-write specification and post-write regression/delta audits were clean. Status: catalog-audited evidence-complete Draft for this first ColonApplication slot only; With/If/Case/Catch/For/declaration callers, later siblings, dedent/fence/outer layout, nested Statement recovery, collector, parser API and ledger retirement remain open. |
 
+### TypeDeclaration required-Name header composition Draft
+
+This bounded row composes the initial required Name phase with its immediate
+exact-Equals continuation. It keeps Name recovery declaration-owned and
+delegates the admitted RHS TypeExpression.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| ordered composition | The five witnessed alternatives are fresh Name Missing then native Equals, terminal Name Error, Error to raw Identifier retry then Equals, Error directly to native Equals, and accepted Identifier then Equals. Name Error and its retry-leading are direct TypeDeclaration content; Equals remains native and outside Error. No route adds a duplicate Name Missing. |
+| projection and status | `type_schema_required_name_composes_direct_rowan_declaration_shells` proves full `Root > Statement > TypeDeclaration` shells, direct child order/ranges, node/token form, cardinality and ordinary-EOF reconstruction for the bounded ASCII products. The empty Missing projects Declaration(Type(Name)); Error projects the same role over its direct token group. RHS contents remain delegated. Authority: type-header recovery, TD-R/TND-R and CST-derived diagnostics amendment. M1 pre-write and regression audits were clean. Status: catalog-audited evidence-complete Draft only for these five Name alternatives; parameters, nominal forms, DefinitionIntroducer/RHS recovery, visibility, `==`/`=>`, attachments, nonordinary boundaries, nested Type, global interpretation and ledger/API removal remain separate. |
+
 ### TypeDeclaration DefinitionIntroducer Draft
 
 This bounded Draft maps only the completed-name, no-parameter

@@ -1,6 +1,141 @@
 use crate::tests::support::*;
 
 #[test]
+fn type_schema_required_name_composes_direct_rowan_declaration_shells() {
+    use SyntaxKind::{
+        Equals, Error, Identifier, Invalid, Missing, Root, Statement, TypeDeclaration,
+        TypeExpression, TypeKw, Whitespace,
+    };
+
+    // Bounded ASCII Name alternatives only; accepted RHS internals are delegated.
+    // Parameters, nominal forms, introducer/RHS recovery, visibility, ==/=>,
+    // attachments, boundaries, UTF-8, fences, interpreter and ledger are excluded.
+    for (source, expected, recovery_counts) in [
+        (
+            "type = A",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Missing, true, 5..5, ""),
+                (Equals, false, 5..6, "="),
+                (Whitespace, false, 6..7, " "),
+                (TypeExpression, true, 7..8, "A"),
+            ],
+            (1, 0, 0),
+        ),
+        (
+            "type @ ",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Error, false, 5..6, "@"),
+                (Whitespace, false, 6..7, " "),
+            ],
+            (0, 1, 0),
+        ),
+        (
+            "type @ Name = A",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Error, false, 5..6, "@"),
+                (Whitespace, false, 6..7, " "),
+                (Identifier, false, 7..11, "Name"),
+                (Whitespace, false, 11..12, " "),
+                (Equals, false, 12..13, "="),
+                (Whitespace, false, 13..14, " "),
+                (TypeExpression, true, 14..15, "A"),
+            ],
+            (0, 1, 0),
+        ),
+        (
+            "type @ = A",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Error, false, 5..6, "@"),
+                (Whitespace, false, 6..7, " "),
+                (Equals, false, 7..8, "="),
+                (Whitespace, false, 8..9, " "),
+                (TypeExpression, true, 9..10, "A"),
+            ],
+            (0, 1, 0),
+        ),
+        (
+            "type Name = A",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Identifier, false, 5..9, "Name"),
+                (Whitespace, false, 9..10, " "),
+                (Equals, false, 10..11, "="),
+                (Whitespace, false, 11..12, " "),
+                (TypeExpression, true, 12..13, "A"),
+            ],
+            (0, 0, 0),
+        ),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), Root, "{source:?}");
+        assert!(root.parent().is_none(), "{source:?}");
+        let mut declaration = root;
+        for kind in [Statement, TypeDeclaration] {
+            assert_eq!(declaration.text().to_string(), source, "{source:?}");
+            assert_eq!(
+                usize::from(declaration.text_range().start())
+                    ..usize::from(declaration.text_range().end()),
+                0..source.len(),
+                "{source:?}"
+            );
+            let children = declaration.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), 1, "{source:?}");
+            let child = children[0].as_node().expect("one complete outer node");
+            assert_eq!(child.kind(), kind, "{source:?}");
+            assert_eq!(child.parent().as_ref(), Some(&declaration), "{source:?}");
+            declaration = child.clone();
+        }
+        assert_eq!(declaration.text().to_string(), source, "{source:?}");
+        assert_eq!(
+            usize::from(declaration.text_range().start())
+                ..usize::from(declaration.text_range().end()),
+            0..source.len(),
+            "{source:?}"
+        );
+
+        let children = declaration.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len(), "{source:?}");
+        for (child, (kind, is_node, range, text)) in children.iter().zip(expected) {
+            assert_eq!(child.parent().as_ref(), Some(&declaration), "{source:?}");
+            assert_eq!(child.kind(), kind, "{source:?}");
+            assert_eq!(child.as_node().is_some(), is_node, "{source:?}");
+            assert_eq!(child.as_token().is_some(), !is_node, "{source:?}");
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                range,
+                "{source:?}"
+            );
+            assert_eq!(child.to_string(), text, "{source:?}");
+            if kind == Missing {
+                assert_eq!(child.as_node().unwrap().children_with_tokens().count(), 0);
+            }
+        }
+        assert_eq!(
+            (
+                count(&declaration, Missing),
+                token_count(&declaration, Error),
+                count(&declaration, Invalid),
+            ),
+            recovery_counts,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn type_schema_required_name_after_type_keyword_uses_direct_rowan_order() {
     use SyntaxKind::{
         Equals, Error, Identifier, Invalid, Missing, Root, Statement, TypeDeclaration,
