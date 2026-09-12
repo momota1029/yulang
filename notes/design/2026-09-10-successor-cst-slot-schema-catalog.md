@@ -1642,6 +1642,18 @@ to `DeclarationFieldSequence`.
 | ownership and exclusions | Core Item/Name/Separator use caller-selected Enum/Error roles; raw FromType Error is Type(Primary), not Variant(FromType). Field payload lists, local field closes, inline/indented forms, companions, pipes, fences, caller stops and further Type internals stay outside this aggregate. |
 | projection and status | Reuse component-row projections only, selected by Enum/Error ancestor plus direct child order/ranges; neither Error spelling nor recovery records participates. Authority: [declaration-variant current-Item recovery](2026-09-08-successor-declaration-variant-current-item-recovery.md), [required Type missing roles](2026-09-08-successor-required-type-missing-roles.md), braced outer-close row and CST-derived diagnostics amendment. Direct proof: `braced_variant_sequence_*` tests in `crates/yu-syntax/src/tests/declaration/declaration_variant.rs`. M2 pre-write, compiler/recovery, regression and repaired-delta audits were clean. Status: catalog-audited evidence-complete Draft for the bounded braced witness matrix only. |
 
+### Braced Enum/Error declaration header to VariantSequence composition Draft
+
+This aggregate joins the existing owner-local Name/BodyIntroducer rows to the
+already-mapped braced VariantSequence at its native LBrace. It adds no
+declaration-level publisher or recovery role.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| ordered composition | `EnumKw|ErrorKw` admits either Name Error followed by native Identifier retry, or completed Name followed by BodyIntroducer Error; both then retain a native LBrace and enter the direct braced VariantSequence. The body witnesses terminal Item/Name Error, completed-payload Separator, FromType Error/retry, FromType Missing, empty and trailing-comma forms, then native RBrace or direct outer Close Missing. |
+| ownership | Header Error remains direct declaration content; all sequence recovery stays under EnumVariant or its direct shell separator/close. `@ {` is not a Name retry: it leaves brace admission to the retained header boundary. FromType EOF preserves nested TypeExpression Missing before the outer Close Missing; native RBrace follows the nested Missing without an outer occurrence. |
+| projection and status | Reuse header, VariantSequence and Type component projections by full Enum/Error ancestry and direct ordered Rowan children/ranges. No Error spelling, recovery record, wrapper or aggregate publication is used. Authority: [Enum/Error header recovery](2026-09-09-successor-enum-error-header-current-item-recovery.md), declaration-variant recovery, required-Type roles and CST-derived diagnostics amendment. Proof: `braced_variant_sequence_composes_header_retries_and_body_occurrences` in `tests/declaration/declaration_variant.rs`. M2 pre-write, compiler/recovery and regression audits were clean. Status: catalog-audited evidence-complete Draft for the 56 braced header/body products only; fields, inline/indented/Equals forms, derives, companions, pipes, fences, stops and deeper Type work remain separate. |
+
 ### NamedRecordType Field/Name/Colon/Type/Separator/Close semantic rows
 
 This bounded Draft maps the six recovery-bearing slots of one committed

@@ -9,6 +9,169 @@ use crate::tests::support::*;
 use std::sync::Arc;
 
 #[test]
+fn braced_variant_sequence_composes_header_retries_and_body_occurrences() {
+    use SyntaxKind::{
+        Comma, EnumKw, EnumVariant, Error, ErrorKw, FromKw, Identifier, LBrace, LParen, Missing,
+        RBrace, RParen, Root, TypeExpression, Whitespace,
+    };
+
+    // Two owners × two header slots × seven sequence classes × two closes.
+    for (keyword, keyword_kind, declaration) in [
+        ("enum", EnumKw, SyntaxKind::EnumDeclaration),
+        ("error", ErrorKw, SyntaxKind::ErrorDeclaration),
+    ] {
+        for (header, header_children, error_offset) in [
+            (
+                " @ 名 ",
+                vec![
+                    (Whitespace, 1),
+                    (Error, 1),
+                    (Whitespace, 1),
+                    (Identifier, 3),
+                    (Whitespace, 1),
+                ],
+                1,
+            ),
+            (
+                " 名 @ ",
+                vec![
+                    (Whitespace, 1),
+                    (Identifier, 3),
+                    (Whitespace, 1),
+                    (Error, 1),
+                    (Whitespace, 1),
+                ],
+                5,
+            ),
+        ] {
+            for closed in [true, false] {
+                for (body, sequence, variants) in [
+                    ("@", vec![(EnumVariant, 1)], vec![vec![(Error, 1)]]),
+                    (
+                        "@ A",
+                        vec![(EnumVariant, 3)],
+                        vec![vec![(Error, 1), (Whitespace, 1), (Identifier, 1)]],
+                    ),
+                    (
+                        "A()B",
+                        vec![(EnumVariant, 3), (Missing, 0), (EnumVariant, 1)],
+                        vec![
+                            vec![(Identifier, 1), (LParen, 1), (RParen, 1)],
+                            vec![(Identifier, 1)],
+                        ],
+                    ),
+                    (
+                        "A,",
+                        vec![(EnumVariant, 1), (Comma, 1)],
+                        vec![vec![(Identifier, 1)]],
+                    ),
+                    ("", vec![], vec![]),
+                    (
+                        "A from @ T",
+                        vec![(EnumVariant, 10)],
+                        vec![vec![
+                            (Identifier, 1),
+                            (Whitespace, 1),
+                            (FromKw, 4),
+                            (Whitespace, 1),
+                            (Error, 1),
+                            (TypeExpression, 2),
+                        ]],
+                    ),
+                    (
+                        "A from",
+                        vec![(EnumVariant, 6)],
+                        vec![vec![
+                            (Identifier, 1),
+                            (Whitespace, 1),
+                            (FromKw, 4),
+                            (TypeExpression, 0),
+                        ]],
+                    ),
+                ] {
+                    let source =
+                        format!("{keyword}{header}{{{body}{}", if closed { "}" } else { "" });
+                    let shell = variant_schema_shell(&source, declaration);
+                    let root = shell.parent().unwrap();
+                    assert_eq!(root.kind(), Root);
+                    assert!(root.parent().is_none());
+                    assert_eq!(root.children_with_tokens().count(), 1);
+                    assert_eq!(root.to_string(), source);
+                    assert_eq!(root.text_range(), shell.text_range());
+                    assert_eq!(shell.to_string(), source);
+                    let mut expected = vec![(keyword_kind, keyword.len())];
+                    expected.extend_from_slice(&header_children);
+                    expected.push((LBrace, 1));
+                    expected.extend_from_slice(&sequence);
+                    expected.push(if closed { (RBrace, 1) } else { (Missing, 0) });
+                    assert_variant_sequence_children(&shell, 0, &expected, &source);
+
+                    let start = keyword.len() + header.len() + 1;
+                    let actual_variants = shell
+                        .children()
+                        .filter(|node| node.kind() == EnumVariant)
+                        .collect::<Vec<_>>();
+                    assert_eq!(actual_variants.len(), variants.len());
+                    for (variant, expected) in actual_variants.iter().zip(&variants) {
+                        assert_variant_sequence_children(
+                            variant,
+                            usize::from(variant.text_range().start()),
+                            expected,
+                            &source,
+                        );
+                    }
+                    if body.starts_with("A from") {
+                        let required_type = actual_variants[0].children().next().unwrap();
+                        let (offset, children) = if body == "A from" {
+                            (6, vec![(Missing, 0)])
+                        } else {
+                            (8, vec![(Whitespace, 1), (Identifier, 1)])
+                        };
+                        assert_variant_sequence_children(
+                            &required_type,
+                            start + offset,
+                            &children,
+                            &source,
+                        );
+                    }
+
+                    let header_error = keyword.len() + error_offset;
+                    let mut occurrences =
+                        vec![(Error, declaration, header_error..header_error + 1)];
+                    match body {
+                        "@" | "@ A" => occurrences.push((Error, EnumVariant, start..start + 1)),
+                        "A()B" => occurrences.push((Missing, declaration, start + 3..start + 3)),
+                        "A from @ T" => {
+                            occurrences.push((Error, EnumVariant, start + 7..start + 8))
+                        }
+                        "A from" => {
+                            occurrences.push((Missing, TypeExpression, start + 6..start + 6))
+                        }
+                        _ => {}
+                    }
+                    if !closed {
+                        occurrences.push((Missing, declaration, source.len()..source.len()));
+                    }
+                    let actual = shell
+                        .descendants_with_tokens()
+                        .filter(|child| matches!(child.kind(), Error | Missing))
+                        .map(|child| {
+                            (
+                                child.kind(),
+                                child.parent().unwrap().kind(),
+                                usize::from(child.text_range().start())
+                                    ..usize::from(child.text_range().end()),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    assert_eq!(actual, occurrences, "{source:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn braced_variant_sequence_composes_core_slots_and_outer_close() {
     use SyntaxKind::{Comma, EnumVariant, Error, Identifier, LParen, Missing, RParen, Whitespace};
 
