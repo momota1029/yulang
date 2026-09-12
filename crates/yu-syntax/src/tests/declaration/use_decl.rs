@@ -3435,6 +3435,151 @@ fn use_schema_glob_repeated_exclusion_episodes() {
 }
 
 #[test]
+fn use_schema_glob_post_comma_boundary_missing_handoff() {
+    use crate::recovery_record::*;
+    use SyntaxKind::*;
+
+    for (gap, spelling, stops) in [
+        ("", "", 0),
+        ("\n", ";", 0),
+        ("\r\n  ", ")", 0),
+        (" /* comment\n */ ", "]", 0),
+        ("\n", "}", 0),
+        ("\r\n  ", "->", STOP_ARROW),
+    ] {
+        let remainder = if spelling.is_empty() { "" } else { "next" };
+        let source = format!("use p::* without a,{gap}{spelling}{remainder}");
+        let mut fresh: Option<(
+            GreenNode,
+            Vec<crate::recovery_record::CommittedRecoveryRecord>,
+        )> = None;
+        for frozen in [false, true] {
+            let operators = OperatorTable::empty();
+            let mut input = source.as_str();
+            let mut recover = if frozen {
+                let (_, records) = fresh.as_ref().unwrap();
+                Recover::reconcile_for_test(&operators, records)
+            } else {
+                Recover::new_for_test(&operators)
+            };
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let exit = statement(
+                SyntaxIn::new(&mut input, &mut recover, &mut builder),
+                0,
+                stops,
+            );
+            builder.finish_node();
+            let green = builder.finish();
+            let records = recover.finish_recoveries_for_test();
+            if spelling == ";" {
+                let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
+                assert_eq!(
+                    records,
+                    [CommittedRecoveryRecord {
+                        id: DiagnosticId(0),
+                        site: RecoverySiteKey {
+                            role,
+                            range: 19..19,
+                        },
+                        kind: RecoveryKind::Missing,
+                        unexpected: std::sync::Arc::from([]),
+                        expectations: std::sync::Arc::from([SyntaxExpectation {
+                            role,
+                            expected: ExpectedSyntax::Path,
+                            range: 19..19,
+                            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                        }]),
+                        primary_expectation: 0,
+                    }]
+                );
+            }
+            if let Some((fresh_green, fresh_records)) = &fresh {
+                assert_eq!(&green, fresh_green);
+                assert_eq!(&records, fresh_records);
+            } else {
+                fresh = Some((green.clone(), records));
+            }
+            let root = SyntaxNode::new_root(green);
+            let glob = root
+                .descendants()
+                .find(|node| node.kind() == UseGlob)
+                .unwrap();
+            assert_eq!(
+                glob.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                [UseGlob, UseTree, UseDeclaration, Statement, Root]
+            );
+            assert_eq!(
+                glob.children_with_tokens()
+                    .map(|child| {
+                        assert_eq!(child.parent().as_ref(), Some(&glob));
+                        assert_eq!(
+                            child.as_node().is_some(),
+                            matches!(child.kind(), UseExclusion | Missing)
+                        );
+                        let range = child.text_range();
+                        (
+                            child.kind(),
+                            u32::from(range.start())..u32::from(range.end()),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                [
+                    (Star, 7..8),
+                    (Whitespace, 8..9),
+                    (WithoutKw, 9..16),
+                    (Whitespace, 16..17),
+                    (UseExclusion, 17..18),
+                    (Comma, 18..19),
+                    (Missing, 19..19)
+                ]
+            );
+            let missing: Vec<_> = root
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect();
+            assert_eq!(missing.len(), 1);
+            assert_eq!(missing[0].parent().as_ref(), Some(&glob));
+            assert!(missing[0].children_with_tokens().next().is_none());
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == UseExclusion)
+                    .count(),
+                1
+            );
+            for child in root.descendants_with_tokens() {
+                assert!(!matches!(child.kind(), Error | Invalid));
+                let range = child.text_range();
+                assert_eq!(
+                    child.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+            }
+            assert_eq!(root.to_string(), source[..19]);
+            assert_eq!(input, remainder);
+            if spelling.is_empty() {
+                assert!(matches!(exit, Err(Either::Right(_))));
+            } else {
+                let Err(Either::Left(mut pending)) = exit else {
+                    panic!("post-comma boundary must remain pending")
+                };
+                let payload_start = 19 + gap.len();
+                let extent = pending.extent(source.len() - input.len());
+                assert_eq!(extent.leading(), 19..payload_start);
+                assert_eq!(
+                    extent.payload(),
+                    payload_start..payload_start + spelling.len()
+                );
+                assert_eq!(pending.payload_view().spelling(), Some(spelling));
+                let leading = emit_pending_leading_text(&mut pending);
+                assert_eq!(leading, gap);
+                assert_eq!(format!("{root}{leading}{spelling}{input}"), source);
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_glob_post_comma_reserved_with_handoff() {
     use crate::recovery_record::*;
     use SyntaxKind::*;
