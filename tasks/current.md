@@ -239,6 +239,11 @@ reserved `with` and comma handoffs distinguish original Item extents from
 remaining leading without replaying emitted bytes. Repeated exclusion lists,
 broader qualifier behavior and recursive/fence work remain open.
 
+The distinct missing-inline-gap continuation is now catalog-audited too:
+the required Path Missing precedes an immediately admitted parenthesized,
+braced or Star UseExclusion when the payload is present but the inline gap is
+not. The payload keeps its own punctuation; spaced controls are recovery-free.
+
 The repeated UseGlob exclusion list is now catalog-audited as one generalized
 horizontal Episode rather than ordinal-specific slots. Direct outer Comma,
 Missing/Error, accepted repetitions, retry-leading, pending comma/semicolon,

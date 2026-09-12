@@ -3708,6 +3708,180 @@ fn use_schema_glob_post_comma_reserved_with_handoff() {
 }
 
 #[test]
+fn use_schema_glob_first_required_exclusion_inline_gap() {
+    use crate::recovery_record::*;
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                assert_eq!(child.parent().as_ref(), Some(node));
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (payload, delimiters) in [
+        ("(a)", Some((LParen, RParen))),
+        ("{a}", Some((LBrace, RBrace))),
+        ("*", None),
+    ] {
+        for gap in ["", " "] {
+            let source = format!("use p::* without{gap}{payload}");
+            let start = 16 + gap.len() as u32;
+            let end = start + payload.len() as u32;
+            let mut fresh: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
+            for frozen in [false, true] {
+                let operators = OperatorTable::empty();
+                let mut input = source.as_str();
+                let mut recover = if frozen {
+                    Recover::reconcile_for_test(&operators, &fresh.as_ref().unwrap().1)
+                } else {
+                    Recover::new_for_test(&operators)
+                };
+                let mut builder = GreenNodeBuilder::new();
+                builder.start_node(Root.into());
+                let mut exit =
+                    statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+                if let Err(Either::Right(end)) = &mut exit {
+                    emit_end(&mut builder, end);
+                }
+                assert!(matches!(exit, Err(Either::Right(_))));
+                builder.finish_node();
+                let green = builder.finish();
+                let records = recover.finish_recoveries_for_test();
+                // Records check migration parity; CST ownership is asserted below.
+                if gap.is_empty() && payload == "(a)" {
+                    let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
+                    assert_eq!(
+                        records,
+                        [CommittedRecoveryRecord {
+                            id: DiagnosticId(0),
+                            site: RecoverySiteKey {
+                                role,
+                                range: 16..16
+                            },
+                            kind: RecoveryKind::Missing,
+                            unexpected: std::sync::Arc::from([]),
+                            expectations: std::sync::Arc::from([SyntaxExpectation {
+                                role,
+                                expected: ExpectedSyntax::Path,
+                                range: 16..16,
+                                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                            }]),
+                            primary_expectation: 0,
+                        }]
+                    );
+                }
+                if !gap.is_empty() {
+                    assert!(records.is_empty());
+                }
+                if let Some((fresh_green, fresh_records)) = &fresh {
+                    assert_eq!(&green, fresh_green);
+                    assert_eq!(&records, fresh_records);
+                } else {
+                    fresh = Some((green.clone(), records));
+                }
+                let root = SyntaxNode::new_root(green);
+                let glob = root
+                    .descendants()
+                    .find(|node| node.kind() == UseGlob)
+                    .unwrap();
+                assert_eq!(
+                    glob.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+                    [UseGlob, UseTree, UseDeclaration, Statement, Root]
+                );
+                assert_eq!(
+                    projection(&glob),
+                    [
+                        (Star, 7..8),
+                        (Whitespace, 8..9),
+                        (WithoutKw, 9..16),
+                        if gap.is_empty() {
+                            (Missing, 16..16)
+                        } else {
+                            (Whitespace, 16..17)
+                        },
+                        (UseExclusion, start..end),
+                    ],
+                    "{source:?}"
+                );
+                assert!(
+                    glob.children_with_tokens()
+                        .all(|child| child.as_node().is_some()
+                            == matches!(child.kind(), Missing | UseExclusion))
+                );
+                let missing: Vec<_> = root
+                    .descendants()
+                    .filter(|node| node.kind() == Missing)
+                    .collect();
+                assert_eq!(missing.len(), usize::from(gap.is_empty()));
+                for node in missing {
+                    assert_eq!(node.parent().as_ref(), Some(&glob));
+                    assert!(node.children_with_tokens().next().is_none());
+                }
+                let exclusions: Vec<_> = root
+                    .descendants()
+                    .filter(|node| node.kind() == UseExclusion)
+                    .collect();
+                assert_eq!(exclusions.len(), 1);
+                let exclusion = &exclusions[0];
+                assert_eq!(exclusion.parent().as_ref(), Some(&glob));
+                if let Some((open, close)) = delimiters {
+                    assert_eq!(projection(exclusion), [(UseExclusionGroup, start..end)]);
+                    let group = exclusion.children().next().unwrap();
+                    assert_eq!(
+                        projection(&group),
+                        [
+                            (open, start..start + 1),
+                            (UseTree, start + 1..end - 1),
+                            (close, end - 1..end)
+                        ]
+                    );
+                    assert!(
+                        group
+                            .children_with_tokens()
+                            .all(|child| child.as_node().is_some() == (child.kind() == UseTree))
+                    );
+                    let tree = group.children().next().unwrap();
+                    assert_eq!(projection(&tree), [(UsePath, start + 1..end - 1)]);
+                    let path = tree.children().next().unwrap();
+                    assert_eq!(projection(&path), [(Identifier, start + 1..end - 1)]);
+                    assert!(
+                        path.children_with_tokens()
+                            .all(|child| child.as_token().is_some())
+                    );
+                } else {
+                    assert_eq!(projection(exclusion), [(Star, start..end)]);
+                    assert!(
+                        exclusion
+                            .children_with_tokens()
+                            .all(|child| child.as_token().is_some())
+                    );
+                }
+                for child in root.descendants_with_tokens() {
+                    assert!(!matches!(child.kind(), Error | Invalid));
+                    let range = child.text_range();
+                    assert_eq!(
+                        child.to_string(),
+                        source[usize::from(range.start())..usize::from(range.end())]
+                    );
+                }
+                assert_eq!(
+                    root.text_range(),
+                    rowan::TextRange::new(0.into(), end.into())
+                );
+                assert_eq!(root.to_string(), source);
+                assert_eq!(input, "");
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_glob_first_required_exclusion_admission() {
     use SyntaxKind::*;
 
