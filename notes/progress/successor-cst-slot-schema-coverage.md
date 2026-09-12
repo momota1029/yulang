@@ -327,6 +327,12 @@ preceded by the existing Comma Missing, while a native Comma clears it. Matching
 close, foreign-close-in-run, UTF-8 trivia and protected semicolon controls fix
 the distinct completion and handoff alternatives without relabelling the Error
 from Import(GroupEntry)/Path.
+The finite UseExclusion dispatcher aggregate is also linked: every occurrence
+owns exactly one direct Identifier, Star, OperatorName or UseExclusionGroup
+payload. Immediate operator probing distinguishes `(+)` and `(+` from group
+forms such as `()`, `(name)` and `( +)`, while all recovery remains delegated
+to the selected child. A recursive UseGlob witness establishes the same topology
+without promoting the dispatcher into a diagnostic source.
 M2 specification and regression delta audits for the independent rows were
 clean.
 

@@ -1042,6 +1042,226 @@ fn use_schema_accepted_group_children_and_nested_occurrences() {
 }
 
 #[test]
+fn use_schema_exclusion_form_dispatch() {
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (text, payload_kind, children, recovery) in [
+        ("name", Identifier, vec![], None),
+        ("*", Star, vec![], None),
+        (
+            "{name}",
+            UseExclusionGroup,
+            vec![(LBrace, 17..18), (UseTree, 18..22), (RBrace, 22..23)],
+            None,
+        ),
+        (
+            "(name)",
+            UseExclusionGroup,
+            vec![(LParen, 17..18), (UseTree, 18..22), (RParen, 22..23)],
+            None,
+        ),
+        (
+            "()",
+            UseExclusionGroup,
+            vec![(LParen, 17..18), (RParen, 18..19)],
+            None,
+        ),
+        (
+            "(+)",
+            OperatorName,
+            vec![(LParen, 17..18), (Operator, 18..19), (RParen, 19..20)],
+            None,
+        ),
+        (
+            "( +)",
+            UseExclusionGroup,
+            vec![
+                (LParen, 17..18),
+                (Whitespace, 18..19),
+                (Error, 19..20),
+                (RParen, 20..21),
+            ],
+            Some((Error, 19..20)),
+        ),
+        (
+            "{y::* without z}",
+            UseExclusionGroup,
+            vec![(LBrace, 17..18), (UseTree, 18..32), (RBrace, 32..33)],
+            None,
+        ),
+        (
+            "{name",
+            UseExclusionGroup,
+            vec![(LBrace, 17..18), (UseTree, 18..22), (Missing, 22..22)],
+            Some((Missing, 22..22)),
+        ),
+        (
+            "(name",
+            UseExclusionGroup,
+            vec![(LParen, 17..18), (UseTree, 18..22), (Missing, 22..22)],
+            Some((Missing, 22..22)),
+        ),
+        (
+            "(+",
+            OperatorName,
+            vec![(LParen, 17..18), (Operator, 18..19), (Missing, 19..19)],
+            Some((Missing, 19..19)),
+        ),
+    ] {
+        let source = format!("use x::* without {text}");
+        let end = source.len() as u32;
+        let (green, _) = run_statement(&source);
+        assert_eq!(green.to_string(), source);
+        let declaration = use_declaration(&green);
+        let exclusions: Vec<_> = declaration
+            .descendants()
+            .filter(|node| node.kind() == UseExclusion)
+            .collect();
+        let recursive = text == "{y::* without z}";
+        assert_eq!(
+            exclusions.len(),
+            if recursive { 2 } else { 1 },
+            "{source:?}"
+        );
+        let exclusion = &exclusions[0];
+        assert_eq!(
+            exclusion.text_range(),
+            rowan::TextRange::new(17.into(), end.into())
+        );
+        assert_eq!(exclusion.to_string(), text);
+        assert_eq!(
+            exclusion
+                .ancestors()
+                .take(5)
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [UseExclusion, UseGlob, UseTree, UseDeclaration, Statement]
+        );
+        assert_eq!(
+            projection(exclusion),
+            [(payload_kind, 17..end)],
+            "{source:?}"
+        );
+        // Dispatch owns one payload; the keyword and its gaps belong to UseGlob.
+        let glob = exclusion.parent().unwrap();
+        assert_eq!(
+            projection(&glob),
+            [
+                (Star, 7..8),
+                (Whitespace, 8..9),
+                (WithoutKw, 9..16),
+                (Whitespace, 16..17),
+                (UseExclusion, 17..end)
+            ]
+        );
+        let payload = exclusion.children_with_tokens().next().unwrap();
+        assert_eq!(payload.parent().as_ref(), Some(exclusion));
+        assert_eq!(
+            payload.as_node().is_some(),
+            matches!(payload_kind, OperatorName | UseExclusionGroup)
+        );
+        if let Some(node) = payload.as_node() {
+            assert_eq!(projection(node), children, "{source:?}");
+            for child in node.children_with_tokens() {
+                assert_eq!(child.parent().as_ref(), Some(node));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(child.kind(), UseTree | Missing)
+                );
+            }
+        } else {
+            assert!(children.is_empty());
+        }
+        if recursive {
+            let inner = &exclusions[1];
+            assert_eq!(
+                inner.text_range(),
+                rowan::TextRange::new(31.into(), 32.into())
+            );
+            assert_eq!(inner.to_string(), "z");
+            assert_eq!(projection(inner), [(Identifier, 31..32)]);
+            let identifier = inner.children_with_tokens().next().unwrap();
+            assert!(identifier.as_token().is_some());
+            assert_eq!(identifier.parent().as_ref(), Some(inner));
+            assert_eq!(
+                inner
+                    .ancestors()
+                    .take(8)
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                [
+                    UseExclusion,
+                    UseGlob,
+                    UseTree,
+                    UseExclusionGroup,
+                    UseExclusion,
+                    UseGlob,
+                    UseTree,
+                    UseDeclaration
+                ]
+            );
+            let inner_glob = inner.parent().unwrap();
+            assert_eq!(
+                projection(&inner_glob),
+                [
+                    (Star, 21..22),
+                    (Whitespace, 22..23),
+                    (WithoutKw, 23..30),
+                    (Whitespace, 30..31),
+                    (UseExclusion, 31..32)
+                ]
+            );
+            let tree = inner_glob.parent().unwrap();
+            assert_eq!(projection(&tree), [(UsePath, 18..21), (UseGlob, 21..32)]);
+        }
+        // These assertions read only Rowan topology and source ranges, including
+        // delegated recovery; no diagnostic belongs to the dispatcher itself.
+        for child in declaration.descendants_with_tokens() {
+            let range = child.text_range();
+            assert_eq!(
+                child.to_string(),
+                source[usize::from(range.start())..usize::from(range.end())]
+            );
+            assert!(!matches!(child.kind(), Invalid | UseGroupForeignClose));
+        }
+        let recoveries: Vec<_> = declaration
+            .descendants_with_tokens()
+            .filter(|child| matches!(child.kind(), Error | Missing))
+            .collect();
+        assert_eq!(
+            recoveries.len(),
+            usize::from(recovery.is_some()),
+            "{source:?}"
+        );
+        if let Some((kind, range)) = recovery {
+            let child = &recoveries[0];
+            assert_eq!(child.kind(), kind);
+            assert_eq!(
+                child.text_range(),
+                rowan::TextRange::new(range.start.into(), range.end.into())
+            );
+            assert_eq!(child.parent().as_ref(), payload.as_node());
+            assert_eq!(child.as_node().is_some(), kind == Missing);
+            if let Some(missing) = child.as_node() {
+                assert!(missing.text_range().is_empty());
+                assert!(missing.children_with_tokens().next().is_none());
+            }
+        }
+    }
+}
+
+#[test]
 fn use_schema_parenthesized_exclusion_group_children() {
     use SyntaxKind::*;
     assert_use_schema_children(

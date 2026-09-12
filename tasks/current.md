@@ -224,6 +224,14 @@ a native Comma clears that requirement. UTF-8 trivia, matching/foreign close and
 protected semicolon evidence retain direct Error ownership and exact handoff;
 deeper recursion, wider fences, interpreter and ledger/API work remain open.
 
+The finite UseExclusion form dispatcher is now catalog-audited across direct
+Identifier, Star, OperatorName and UseExclusionGroup payloads. Immediate
+operator probing distinguishes `(+)`/`(+` from parenthesized group forms, and
+recursive evidence retains one-payload ownership. The dispatcher emits no
+diagnostic; malformed and missing children keep their already mapped owners.
+Required-exclusion admission, repeated lists and broader recursive/fence work
+remain open.
+
 The authoritative expression structural tails contract under
 `2026-09-09-successor-expression-structural-tails-draft.md`. It adds no
 canonical AST product: `assignment` and `type_annotation` own their distinct
