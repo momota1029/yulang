@@ -3435,6 +3435,134 @@ fn use_schema_glob_repeated_exclusion_episodes() {
 }
 
 #[test]
+fn use_schema_glob_post_comma_reserved_with_handoff() {
+    use crate::recovery_record::*;
+    use SyntaxKind::*;
+
+    let source = "use p::* without a, with";
+    let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
+    let expected_records = vec![CommittedRecoveryRecord {
+        id: DiagnosticId(0),
+        site: RecoverySiteKey {
+            role,
+            range: 20..20,
+        },
+        kind: RecoveryKind::Missing,
+        unexpected: std::sync::Arc::from([]),
+        expectations: std::sync::Arc::from([SyntaxExpectation {
+            role,
+            expected: ExpectedSyntax::Path,
+            range: 20..20,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    }];
+    let mut fresh = None;
+    for frozen in [false, true] {
+        let operators = OperatorTable::empty();
+        let mut input = source;
+        let mut recover = if frozen {
+            Recover::reconcile_for_test(&operators, &expected_records)
+        } else {
+            Recover::new_for_test(&operators)
+        };
+        let mut builder = GreenNodeBuilder::new();
+        builder.start_node(Root.into());
+        let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+        builder.finish_node();
+        let green = builder.finish();
+        let records = recover.finish_recoveries_for_test();
+        assert_eq!(records, expected_records);
+        if let Some((fresh_green, fresh_records)) = &fresh {
+            assert_eq!(&green, fresh_green);
+            assert_eq!(&records, fresh_records);
+        } else {
+            fresh = Some((green.clone(), records));
+        }
+        let root = SyntaxNode::new_root(green);
+        let glob = root
+            .descendants()
+            .find(|node| node.kind() == UseGlob)
+            .unwrap();
+        assert_eq!(
+            glob.ancestors().map(|node| node.kind()).collect::<Vec<_>>(),
+            [UseGlob, UseTree, UseDeclaration, Statement, Root]
+        );
+        assert_eq!(
+            glob.children_with_tokens()
+                .map(|child| {
+                    let range = child.text_range();
+                    assert_eq!(child.parent().as_ref(), Some(&glob));
+                    assert_eq!(
+                        child.as_node().is_some(),
+                        matches!(child.kind(), UseExclusion | Missing)
+                    );
+                    (
+                        child.kind(),
+                        u32::from(range.start())..u32::from(range.end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                (Star, 7..8),
+                (Whitespace, 8..9),
+                (WithoutKw, 9..16),
+                (Whitespace, 16..17),
+                (UseExclusion, 17..18),
+                (Comma, 18..19),
+                (Whitespace, 19..20),
+                (Missing, 20..20),
+            ]
+        );
+        let exclusions: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == UseExclusion)
+            .collect();
+        assert_eq!(exclusions.len(), 1);
+        let payloads: Vec<_> = exclusions[0].children_with_tokens().collect();
+        assert_eq!(payloads.len(), 1);
+        assert!(payloads[0].as_token().is_some());
+        assert_eq!(payloads[0].kind(), Identifier);
+        assert_eq!(
+            payloads[0].text_range(),
+            rowan::TextRange::new(17.into(), 18.into())
+        );
+        let missing: Vec<_> = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect();
+        assert_eq!(missing.len(), 1);
+        assert_eq!(missing[0].parent().as_ref(), Some(&glob));
+        assert_eq!(missing[0].text_range(), rowan::TextRange::empty(20.into()));
+        assert!(missing[0].children_with_tokens().next().is_none());
+        for child in root.descendants_with_tokens() {
+            assert!(!matches!(
+                child.kind(),
+                Error | Invalid | UseQualifiers | UseAnchor
+            ));
+            let range = child.text_range();
+            assert_eq!(
+                child.to_string(),
+                source[usize::from(range.start())..usize::from(range.end())]
+            );
+        }
+        assert_eq!(root.to_string(), source[..20]);
+        let Err(Either::Left(mut pending)) = exit else {
+            panic!("reserved with must remain pending")
+        };
+        let extent = pending.extent(source.len() - input.len());
+        assert_eq!(extent.leading(), 19..20);
+        assert_eq!(extent.payload(), 20..24);
+        assert_eq!(pending.payload_view().spelling(), Some("with"));
+        assert_eq!(input, "");
+        // The comma phase already emitted the original leading under Glob.
+        let remaining_leading = emit_pending_leading_text(&mut pending);
+        assert_eq!(remaining_leading, "");
+        assert_eq!(format!("{root}{remaining_leading}with{input}"), source);
+    }
+}
+
+#[test]
 fn use_schema_glob_first_required_exclusion_admission() {
     use SyntaxKind::*;
 
