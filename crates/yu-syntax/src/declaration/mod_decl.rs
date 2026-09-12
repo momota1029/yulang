@@ -290,7 +290,8 @@ fn required_name_normalized(
     Ok(Ok(is_test))
 }
 
-fn emit_name(i: &mut SyntaxIn, item: Item, is_test: bool) {
+fn emit_name(i: &mut SyntaxIn, mut item: Item, is_test: bool) {
+    item.emit_all_remaining_leading(&mut *i.state);
     if is_test {
         i.state.start_node(SyntaxKind::TestModuleMarker.into());
         emit_item_as(i, item, SyntaxKind::Identifier);

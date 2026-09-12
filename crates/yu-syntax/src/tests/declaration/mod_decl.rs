@@ -389,6 +389,85 @@ fn assert_mod_shell(source: &str, expected: &[(SyntaxKind, std::ops::Range<u32>)
 }
 
 #[test]
+fn mod_schema_name_retry_keeps_leading_outside_test_marker() {
+    use crate::recovery_record::{DeclarationRole, GrammarRole, ModRole, RecoveryKind};
+    use SyntaxKind::*;
+
+    let source = "mod @ test;";
+    let declaration = assert_mod_shell(
+        source,
+        &[
+            (ModKw, 0..3),
+            (Whitespace, 3..4),
+            (Error, 4..5),
+            (Whitespace, 5..6),
+            (TestModuleMarker, 6..10),
+            (Semicolon, 10..11),
+        ],
+    );
+    let marker = declaration
+        .children()
+        .find(|node| node.kind() == TestModuleMarker)
+        .unwrap();
+    let children = marker.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].kind(), Identifier);
+    assert_eq!(
+        children[0].text_range(),
+        rowan::TextRange::new(6.into(), 10.into())
+    );
+
+    for source in [
+        "mod @ test;",
+        "mod @  test;",
+        "mod @\n  test;",
+        "mod @ /*gap*/ test;",
+        "mod @ Name;",
+    ] {
+        let (green, _, records, remainder) = typed_mod(source, None, 0);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        let header = crate::header::discover_header(source);
+        let public = crate::source_file::parse_root_candidate(
+            source,
+            &OperatorTable::empty(),
+            &header.recoveries,
+        );
+        assert_eq!(public.green.to_string(), source);
+        let public_declaration = mod_declaration(&public.green);
+        for marker in public_declaration
+            .children()
+            .filter(|node| node.kind() == TestModuleMarker)
+        {
+            assert_eq!(marker.text().to_string(), "test");
+            assert_eq!(marker.children_with_tokens().count(), 1);
+        }
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.kind(), Root);
+        assert_eq!(root.children_with_tokens().count(), 1);
+        let declaration = mod_declaration(&green);
+        assert_eq!(descendants(&declaration, Missing), 0);
+        assert_eq!(records.len(), 1);
+        assert_eq!(
+            records[0].site.role,
+            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Name))
+        );
+        assert_eq!(records[0].kind, RecoveryKind::Error);
+        for marker in declaration
+            .children()
+            .filter(|node| node.kind() == TestModuleMarker)
+        {
+            assert_eq!(marker.text().to_string(), "test");
+            assert_eq!(marker.children_with_tokens().count(), 1);
+        }
+        let (again, _, frozen, remainder) = typed_mod(source, Some(&records), 0);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(remainder, "");
+    }
+}
+
+#[test]
 fn mod_schema_identity_slots_have_direct_missing_error_and_identifier_retry() {
     use SyntaxKind::*;
     for (source, suffix) in [
