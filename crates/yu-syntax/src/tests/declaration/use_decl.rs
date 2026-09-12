@@ -1,5 +1,251 @@
 use crate::tests::support::*;
 
+fn use_group_recoveries(
+    source: &str,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = match frozen {
+        Some(records) => Recover::reconcile_for_test(&operators, records),
+        None => Recover::new_for_test(&operators),
+    };
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+    let Err(Either::Right(end)) = &mut exit else {
+        panic!("complete use group must reach EOF: {source:?}")
+    };
+    emit_end(&mut builder, end);
+    builder.finish_node();
+    assert_eq!(input, "");
+    (builder.finish(), recover.finish_recoveries_for_test())
+}
+
+#[test]
+fn use_group_foreign_close_topology_and_unchanged_frozen_records() {
+    use crate::recovery_record::*;
+    use SyntaxKind::*;
+    let close_role = |delimiter| GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::ImportGroup,
+        delimiter,
+    };
+    let group_role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::GroupEntry));
+    let close_expected =
+        |delimiter| ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter));
+    for (source, owner, children, occurrences) in [
+        (
+            "use {)}",
+            UseGroup,
+            vec![(LBrace, 4..5), (UseGroupForeignClose, 5..6), (RBrace, 6..7)],
+            vec![(
+                5..6,
+                close_role(Delimiter::Brace),
+                close_expected(Delimiter::Brace),
+            )],
+        ),
+        (
+            "use {@}",
+            UseGroup,
+            vec![(LBrace, 4..5), (Error, 5..6), (RBrace, 6..7)],
+            vec![(5..6, group_role, ExpectedSyntax::Path)],
+        ),
+        (
+            "use x::* without {)}",
+            UseExclusionGroup,
+            vec![
+                (LBrace, 17..18),
+                (UseGroupForeignClose, 18..19),
+                (RBrace, 19..20),
+            ],
+            vec![(
+                18..19,
+                close_role(Delimiter::Brace),
+                close_expected(Delimiter::Brace),
+            )],
+        ),
+        (
+            "use x::* without (})",
+            UseExclusionGroup,
+            vec![
+                (LParen, 17..18),
+                (UseGroupForeignClose, 18..19),
+                (RParen, 19..20),
+            ],
+            vec![(
+                18..19,
+                close_role(Delimiter::Parenthesis),
+                close_expected(Delimiter::Parenthesis),
+            )],
+        ),
+        (
+            "use {))}",
+            UseGroup,
+            vec![
+                (LBrace, 4..5),
+                (UseGroupForeignClose, 5..6),
+                (UseGroupForeignClose, 6..7),
+                (RBrace, 7..8),
+            ],
+            vec![
+                (
+                    5..6,
+                    close_role(Delimiter::Brace),
+                    close_expected(Delimiter::Brace),
+                ),
+                (
+                    6..7,
+                    close_role(Delimiter::Brace),
+                    close_expected(Delimiter::Brace),
+                ),
+            ],
+        ),
+        (
+            "use {)@}",
+            UseGroup,
+            vec![
+                (LBrace, 4..5),
+                (UseGroupForeignClose, 5..6),
+                (Error, 6..7),
+                (RBrace, 7..8),
+            ],
+            vec![
+                (
+                    5..6,
+                    close_role(Delimiter::Brace),
+                    close_expected(Delimiter::Brace),
+                ),
+                (6..7, group_role, ExpectedSyntax::Path),
+            ],
+        ),
+        (
+            "use {@)}",
+            UseGroup,
+            vec![(LBrace, 4..5), (Error, 5..6), (Error, 6..7), (RBrace, 7..8)],
+            vec![(5..7, group_role, ExpectedSyntax::Path)],
+        ),
+        (
+            "use {]}",
+            UseGroup,
+            vec![(LBrace, 4..5), (Error, 5..6), (RBrace, 6..7)],
+            vec![(5..6, group_role, ExpectedSyntax::Path)],
+        ),
+        (
+            "use { /*é*/ )}",
+            UseGroup,
+            vec![
+                (LBrace, 4..5),
+                (Whitespace, 5..6),
+                (BlockComment, 6..12),
+                (Whitespace, 12..13),
+                (UseGroupForeignClose, 13..14),
+                (RBrace, 14..15),
+            ],
+            vec![(
+                13..14,
+                close_role(Delimiter::Brace),
+                close_expected(Delimiter::Brace),
+            )],
+        ),
+    ] {
+        let expected: Vec<_> = occurrences
+            .into_iter()
+            .enumerate()
+            .map(|(id, (range, role, expected))| CommittedRecoveryRecord {
+                id: DiagnosticId(id as u32),
+                site: RecoverySiteKey {
+                    role,
+                    range: range.clone(),
+                },
+                kind: RecoveryKind::Error,
+                unexpected: std::sync::Arc::from([UnexpectedSyntax::Token {
+                    range: range.clone(),
+                    category: UnexpectedCategory::OtherCharacter,
+                }]),
+                expectations: std::sync::Arc::from([SyntaxExpectation {
+                    role,
+                    expected,
+                    range,
+                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                }]),
+                primary_expectation: 0,
+            })
+            .collect();
+        let (green, records) = use_group_recoveries(source, None);
+        assert_eq!(records, expected, "{source:?}");
+        let (frozen_green, frozen_records) = use_group_recoveries(source, Some(&records));
+        assert_eq!(frozen_records, records, "{source:?}");
+        assert_eq!(frozen_green, green, "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), source);
+        let group = root
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .unwrap();
+        assert_eq!(
+            group
+                .children_with_tokens()
+                .map(|child| {
+                    let range = child.text_range();
+                    (
+                        child.kind(),
+                        u32::from(range.start())..u32::from(range.end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            children,
+            "{source:?}"
+        );
+        for child in group.children_with_tokens() {
+            if child.kind() == UseGroupForeignClose {
+                let wrapper = child.into_node().expect("foreign close is a node");
+                let leaves: Vec<_> = wrapper.children_with_tokens().collect();
+                assert_eq!(leaves.len(), 1, "{source:?}");
+                let token = leaves[0]
+                    .as_token()
+                    .expect("foreign close contains a token leaf");
+                assert_eq!(token.kind(), Error);
+                assert_eq!(token.text_range(), wrapper.text_range());
+                let range = token.text_range();
+                assert_eq!(
+                    token.text(),
+                    &source[usize::from(range.start())..usize::from(range.end())]
+                );
+            } else if child.kind() == Error {
+                assert!(
+                    child.as_token().is_some(),
+                    "direct group-entry Error is a token"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn use_group_accepted_groups_have_no_foreign_close_wrapper_or_records() {
+    for source in [
+        "use {}",
+        "use {a,b}",
+        "use x::* without {}",
+        "use x::* without ()",
+        "use {x::* without (a)}",
+    ] {
+        let (green, records) = use_group_recoveries(source, None);
+        assert_eq!(green.to_string(), source);
+        assert!(records.is_empty());
+        let (frozen, frozen_records) = use_group_recoveries(source, Some(&records));
+        assert_eq!(frozen, green);
+        assert_eq!(frozen_records, records);
+        assert_eq!(
+            descendants_of_kind(
+                &SyntaxNode::new_root(green),
+                SyntaxKind::UseGroupForeignClose
+            ),
+            0
+        );
+    }
+}
+
 // The matrix reads native ordered Rowan children, including adjacent Error
 // fragments and the ordinary trivia that ends their run; no Error spelling or
 // parser recovery records participate in selecting a slot.
@@ -50,8 +296,7 @@ fn assert_use_schema_occurrence(
     );
 }
 
-// Foreign/local-close recovery and OperatorName close slots remain outside
-// this matrix pending the user decision on their CST topology.
+// OperatorName close slots remain outside this matrix pending their topology decision.
 #[test]
 fn use_schema_accepted_group_children_and_nested_occurrences() {
     use SyntaxKind::*;
@@ -324,6 +569,209 @@ fn use_schema_group_entry_and_post_child_separator_missing() {
             &expected,
         );
     }
+}
+
+#[test]
+fn use_schema_group_local_terminal_close_phases() {
+    use SyntaxKind::*;
+    for (prefix, owner, open, close, closing, foreign) in [
+        ("use ", UseGroup, LBrace, RBrace, '}', ')'),
+        (
+            "use x::* without ",
+            UseExclusionGroup,
+            LBrace,
+            RBrace,
+            '}',
+            ')',
+        ),
+        (
+            "use x::* without ",
+            UseExclusionGroup,
+            LParen,
+            RParen,
+            ')',
+            '}',
+        ),
+    ] {
+        let start = prefix.len() as u32;
+        let body = start + 1;
+        let opening = if open == LBrace { '{' } else { '(' };
+        let ancestors = if owner == UseGroup {
+            vec![UseGroup, UseTree, UseDeclaration, Statement]
+        } else {
+            vec![
+                UseExclusionGroup,
+                UseExclusion,
+                UseGlob,
+                UseTree,
+                UseDeclaration,
+                Statement,
+            ]
+        };
+        // These are local terminal episodes, not a claim that every group exit
+        // produces a close Missing. Earlier entry/separator Missing nodes are
+        // distinguished by the following Comma or UseTree.
+        for (text, children) in [
+            (String::new(), vec![]),
+            ("猫".into(), vec![(UseTree, body..body + 3)]),
+            (
+                "a,".into(),
+                vec![(UseTree, body..body + 1), (Comma, body + 1..body + 2)],
+            ),
+            (
+                ",".into(),
+                vec![(Missing, body..body), (Comma, body..body + 1)],
+            ),
+            (
+                "a b".into(),
+                vec![
+                    (UseTree, body..body + 1),
+                    (Whitespace, body + 1..body + 2),
+                    (Missing, body + 2..body + 2),
+                    (UseTree, body + 2..body + 3),
+                ],
+            ),
+            (
+                foreign.to_string(),
+                vec![(UseGroupForeignClose, body..body + 1)],
+            ),
+        ] {
+            let end = body + text.len() as u32;
+            for matched in [false, true] {
+                let mut expected = vec![(open, start..body)];
+                expected.extend(children.clone());
+                expected.push(if matched {
+                    (close, end..end + 1)
+                } else {
+                    (Missing, end..end)
+                });
+                let suffix = if matched {
+                    closing.to_string()
+                } else {
+                    String::new()
+                };
+                assert_use_schema_children(
+                    &format!("{prefix}{opening}{text}{suffix}"),
+                    owner,
+                    &ancestors,
+                    &expected,
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn use_schema_group_local_close_preserves_pending_crlf_leading() {
+    use SyntaxKind::*;
+    for (prefix, owner, open) in [
+        ("use {", UseGroup, LBrace),
+        ("use x::* without {", UseExclusionGroup, LBrace),
+        ("use x::* without (", UseExclusionGroup, LParen),
+    ] {
+        let body = prefix.len() as u32;
+        let accepted = format!("{prefix}猫,");
+        let (green, exit) = run_statement(&format!("{accepted}\r\nuse b"));
+        assert_eq!(green.to_string(), accepted);
+        let declaration = use_declaration(&green);
+        let group = declaration
+            .descendants()
+            .find(|node| node.kind() == owner)
+            .unwrap();
+        assert_eq!(
+            group.parent().unwrap().kind(),
+            if owner == UseGroup {
+                UseTree
+            } else {
+                UseExclusion
+            }
+        );
+        assert_eq!(
+            group
+                .children_with_tokens()
+                .map(|child| {
+                    let range = child.text_range();
+                    (
+                        child.kind(),
+                        u32::from(range.start())..u32::from(range.end()),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                (open, body - 1..body),
+                (UseTree, body..body + 3),
+                (Comma, body + 3..body + 4),
+                (Missing, body + 4..body + 4),
+            ]
+        );
+        let Some(Err(Either::Left(mut item))) = exit else {
+            panic!("caller intro must remain pending")
+        };
+        assert_eq!(item.payload_view().spelling(), Some("use"));
+        assert_eq!(emit_pending_leading_text(&mut item), "\r\n");
+    }
+}
+
+#[test]
+fn use_schema_group_local_close_borrows_outer_close_after_leading() {
+    use SyntaxKind::*;
+    assert_use_schema_children(
+        "use {x::* without (a  }",
+        UseGroup,
+        &[UseGroup, UseTree, UseDeclaration, Statement],
+        &[(LBrace, 4..5), (UseTree, 5..22), (RBrace, 22..23)],
+    );
+    assert_use_schema_children(
+        "use {x::* without (a  }",
+        UseExclusionGroup,
+        &[UseExclusionGroup, UseExclusion, UseGlob, UseTree, UseGroup],
+        &[
+            (LParen, 18..19),
+            (UseTree, 19..20),
+            (Whitespace, 20..22),
+            (Missing, 22..22),
+        ],
+    );
+    assert_use_schema_occurrence(
+        "use x::* without ({a  )",
+        UseGroup,
+        0,
+        &[UseGroup, UseTree, UseExclusionGroup, UseExclusion, UseGlob],
+        &[
+            (LBrace, 18..19),
+            (UseTree, 19..20),
+            (Whitespace, 20..22),
+            (Missing, 22..22),
+        ],
+    );
+    assert_use_schema_children(
+        "use x::* without ({a  )",
+        UseExclusionGroup,
+        &[UseExclusionGroup, UseExclusion, UseGlob, UseTree],
+        &[(LParen, 17..18), (UseTree, 18..22), (RParen, 22..23)],
+    );
+}
+
+#[test]
+fn use_schema_group_propagated_exits_have_no_local_close_missing() {
+    use SyntaxKind::*;
+    for (source, expected) in [
+        ("use {a::", vec![(LBrace, 4..5), (UseTree, 5..8)]),
+        ("use {@", vec![(LBrace, 4..5), (Error, 5..6)]),
+    ] {
+        assert_use_schema_children(
+            source,
+            UseGroup,
+            &[UseGroup, UseTree, UseDeclaration, Statement],
+            &expected,
+        );
+    }
+    assert_use_schema_children(
+        "use {a::",
+        UsePath,
+        &[UsePath, UseTree, UseGroup],
+        &[(Identifier, 5..6), (ColonColon, 6..8), (Missing, 8..8)],
+    );
 }
 
 fn use_declaration(green: &GreenNode) -> SyntaxNode {
@@ -822,6 +1270,10 @@ fn use_c9_recovers_local_group_mismatches_without_stealing_outer_closes() {
         assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
         let declaration = use_declaration(&green);
         assert_eq!(
+            descendants_of_kind(&declaration, SyntaxKind::UseGroupForeignClose),
+            1
+        );
+        assert_eq!(
             descendants_of_kind(&declaration, SyntaxKind::Error),
             1,
             "{source:?}"
@@ -833,6 +1285,10 @@ fn use_c9_recovers_local_group_mismatches_without_stealing_outer_closes() {
     assert_eq!(green.to_string(), source);
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
     let declaration = use_declaration(&green);
+    assert_eq!(
+        descendants_of_kind(&declaration, SyntaxKind::UseGroupForeignClose),
+        0
+    );
     assert_eq!(descendants_of_kind(&declaration, SyntaxKind::Error), 0);
     assert_eq!(descendants_of_kind(&declaration, SyntaxKind::Missing), 1);
     assert_eq!(
@@ -848,6 +1304,10 @@ fn use_c9_recovers_local_group_mismatches_without_stealing_outer_closes() {
     let (green, exit) =
         run_statement_with_stops("use {a  )next", &operators, stops_for(TokenKind::RParen));
     assert_eq!(green.to_string(), "use {a");
+    assert_eq!(
+        descendants_of_kind(&use_declaration(&green), SyntaxKind::UseGroupForeignClose),
+        0
+    );
     let Some(Err(Either::Left(mut item))) = exit else {
         panic!("caller close must remain pending")
     };

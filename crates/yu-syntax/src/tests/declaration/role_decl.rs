@@ -146,6 +146,256 @@ fn role_schema_incomplete_head_does_not_select_body_introducer() {
 }
 
 #[test]
+fn role_schema_required_head_has_complete_ordered_evidence() {
+    use crate::recovery_record::{
+        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        RecoveryKind, RecoverySiteKey, RoleDeclarationRole, SyntaxExpectation, TypeRole,
+        UnexpectedCategory, UnexpectedSyntax,
+    };
+    use SyntaxKind::*;
+    use std::sync::Arc;
+
+    for (source, suffix, owned, recovery_end) in [
+        (
+            "role ;",
+            vec![
+                (TypeExpression, true, 5..5, ""),
+                (Semicolon, false, 5..6, ";"),
+            ],
+            "role ;",
+            Some(5),
+        ),
+        (
+            "role @ ;",
+            vec![(Error, false, 5..6, "@")],
+            "role @",
+            Some(6),
+        ),
+        (
+            "role @ T;",
+            vec![
+                (Error, false, 5..6, "@"),
+                (TypeExpression, true, 6..8, " T"),
+                (Semicolon, false, 8..9, ";"),
+            ],
+            "role @ T;",
+            Some(6),
+        ),
+        (
+            "role T;",
+            vec![
+                (TypeExpression, true, 5..6, "T"),
+                (Semicolon, false, 6..7, ";"),
+            ],
+            "role T;",
+            None,
+        ),
+        (
+            "role @  ~   型;",
+            vec![
+                (Error, false, 5..6, "@"),
+                (Error, false, 6..8, "  "),
+                (Error, false, 8..9, "~"),
+                (TypeExpression, true, 9..15, "   型"),
+                (Semicolon, false, 15..16, ";"),
+            ],
+            "role @  ~   型;",
+            Some(9),
+        ),
+    ] {
+        let (green, exit, records, remainder) = typed_role(source, None, 0, None);
+        assert_eq!(green.to_string(), owned, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
+        let (canonical, _, canonical_remainder) =
+            run_statement_normalized(source, 100, LineEntry::InLine, None);
+        assert_eq!(canonical_remainder, "");
+        let role = declaration(&canonical);
+        assert_eq!(role.green(), declaration(&green).green());
+        let statement = role.parent().expect("Role parent");
+        assert_eq!(statement.kind(), Statement);
+        let root = statement.parent().expect("Statement parent");
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        assert_eq!(root.to_string(), owned);
+        assert_eq!(statement.to_string(), owned);
+        assert_eq!(role.to_string(), owned);
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| child.kind() == Invalid)
+        );
+        let children = role.children_with_tokens().collect::<Vec<_>>();
+        let mut expected = vec![
+            (RoleKw, false, 0..4, "role"),
+            (Whitespace, false, 4..5, " "),
+        ];
+        expected.extend(suffix);
+        assert_eq!(children.len(), expected.len(), "{source:?}");
+        for (child, (kind, node, range, text)) in children.iter().zip(expected) {
+            assert_eq!(child.parent(), Some(role.clone()));
+            assert_eq!(child.kind(), kind);
+            assert_eq!(child.as_node().is_some(), node);
+            assert_eq!(
+                child.text_range(),
+                rowan::TextRange::new(range.start.into(), range.end.into())
+            );
+            assert_eq!(child.to_string(), text);
+        }
+
+        // The Head slot starts after keyword trivia and ends at its first
+        // completed TypeExpression. No recovery ledger selects this slot.
+        let head = children[2..].iter().find_map(|child| child.as_node());
+        let errors = children[2..]
+            .iter()
+            .take_while(|child| child.kind() == Error)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors.len(),
+            if source.contains('~') {
+                3
+            } else {
+                usize::from(source.contains('@'))
+            }
+        );
+        for pair in errors.windows(2) {
+            assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+        }
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .count(),
+            errors.len()
+        );
+        if let Some(head) = head {
+            assert_eq!(head.kind(), TypeExpression);
+            if head.text_range().is_empty() {
+                let missing = head.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(missing.len(), 1);
+                assert!(missing[0].as_node().is_some());
+                assert_eq!(missing[0].kind(), Missing);
+                assert_eq!(missing[0].parent(), Some(head.clone()));
+                assert_eq!(missing[0].text_range(), rowan::TextRange::empty(5.into()));
+                assert_eq!(missing[0].to_string(), "");
+                assert_eq!(
+                    missing[0].as_node().unwrap().children_with_tokens().count(),
+                    0
+                );
+            } else if let Some(last) = errors.last() {
+                assert_eq!(last.text_range().end(), head.text_range().start());
+                let leading = head.first_child_or_token().expect("native retry leading");
+                assert!(leading.as_token().is_some());
+                assert_eq!(leading.kind(), Whitespace);
+                assert_eq!(leading.parent(), Some(head.clone()));
+                let (start, end, text) = if source.contains('~') {
+                    (9, 12, "   ")
+                } else {
+                    (6, 7, " ")
+                };
+                assert_eq!(
+                    leading.text_range(),
+                    rowan::TextRange::new(start.into(), end.into())
+                );
+                assert_eq!(leading.to_string(), text);
+            }
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            usize::from(source == "role ;")
+        );
+        if source == "role @ ;" {
+            assert_eq!(
+                pending_token_leading(exit, TokenKind::Semicolon, ";", LineEntry::InLine),
+                vec![(Whitespace, " ".to_owned())]
+            );
+        } else {
+            let mut item = pending_item(exit, LineEntry::InLine);
+            assert!(item.payload_view().is_eof());
+            assert_eq!(emit_pending_leading_text(&mut item), "");
+        }
+
+        // Exact records and reconciliation remain a compatibility oracle only.
+        let expected_records = recovery_end
+            .map(|end| {
+                let missing = end == 5;
+                let role = if missing {
+                    GrammarRole::Declaration(DeclarationRole::Role(RoleDeclarationRole::Head))
+                } else {
+                    GrammarRole::Type(TypeRole::Primary)
+                };
+                let range = 105..100 + end;
+                CommittedRecoveryRecord {
+                    id: DiagnosticId(0),
+                    site: RecoverySiteKey {
+                        role,
+                        range: range.clone(),
+                    },
+                    kind: if missing {
+                        RecoveryKind::Missing
+                    } else {
+                        RecoveryKind::Error
+                    },
+                    unexpected: if missing {
+                        Arc::from([])
+                    } else if source.contains('~') {
+                        // Required Type records each lexical Item; the second
+                        // Item's extent includes its Error-owned leading.
+                        Arc::from([
+                            UnexpectedSyntax::Token {
+                                range: 105..106,
+                                category: UnexpectedCategory::OtherCharacter,
+                            },
+                            UnexpectedSyntax::Token {
+                                range: 106..109,
+                                category: UnexpectedCategory::OperatorLike,
+                            },
+                        ])
+                    } else {
+                        Arc::from([UnexpectedSyntax::Token {
+                            range: range.clone(),
+                            category: UnexpectedCategory::OtherCharacter,
+                        }])
+                    },
+                    expectations: Arc::from([SyntaxExpectation {
+                        role,
+                        expected: ExpectedSyntax::TypeExpression,
+                        range,
+                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+                    }]),
+                    primary_expectation: 0,
+                }
+            })
+            .into_iter()
+            .collect::<Vec<_>>();
+        assert_eq!(records, expected_records, "{source:?}");
+        for seeded in [false, true] {
+            let mut seed = records.clone();
+            if seeded {
+                for record in &mut seed {
+                    record.id = DiagnosticId(73);
+                }
+            }
+            let (again, again_exit, frozen, again_remainder) =
+                typed_role(source, Some(&seed), 0, None);
+            assert_eq!(again, green);
+            assert_eq!(frozen, seed);
+            assert_eq!(again_remainder, remainder);
+            if source == "role @ ;" {
+                assert_eq!(
+                    pending_token_leading(again_exit, TokenKind::Semicolon, ";", LineEntry::InLine),
+                    vec![(Whitespace, " ".to_owned())]
+                );
+            } else {
+                let mut item = pending_item(again_exit, LineEntry::InLine);
+                assert!(item.payload_view().is_eof());
+                assert_eq!(emit_pending_leading_text(&mut item), "");
+            }
+        }
+    }
+}
+
+#[test]
 fn role_schema_inline_binding_recovery_remains_in_child_body() {
     use SyntaxKind::*;
     let role = assert_role_shell(

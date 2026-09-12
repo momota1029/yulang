@@ -546,6 +546,235 @@ fn expression(root: &SyntaxNode, kind: SyntaxKind) -> SyntaxNode {
         .expect("case-like expression")
 }
 
+// Gate-1 evidence intentionally reads only Rowan occurrences, never recovery records.
+fn case_schema_children(node: &SyntaxNode) -> Vec<SyntaxKind> {
+    node.children_with_tokens()
+        .filter(|child| !matches!(child.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
+        .map(|child| {
+            assert_eq!(child.parent(), Some(node.clone()));
+            match child.kind() {
+                SyntaxKind::Missing => {
+                    assert!(child.as_node().is_some());
+                    assert!(child.text_range().is_empty());
+                }
+                SyntaxKind::Error => {
+                    assert!(child.as_token().is_some());
+                    assert!(!child.text_range().is_empty());
+                }
+                _ => {}
+            }
+            child.kind()
+        })
+        .collect()
+}
+
+#[test]
+fn case_schema_expression_and_pattern_slots_use_ordered_rowan_children() {
+    use SyntaxKind::*;
+    for (head, scrutinee, guard, arm) in [
+        ("case", CaseScrutinee, CaseGuard, CaseArm),
+        ("catch", CatchScrutinee, CatchGuard, CatchArm),
+    ] {
+        for (payload, expected) in [
+            ("", vec![Missing]),
+            ("@", vec![Error]),
+            ("@ x", vec![Error, IdentifierExpression]),
+        ] {
+            for (source, owner) in [
+                (format!("{head} {payload}: n -> yes"), scrutinee),
+                (format!("{head} x: n if {payload} -> yes"), guard),
+            ] {
+                let root = SyntaxNode::new_root(run(&source).0);
+                assert_eq!(root.to_string(), source);
+                let slot = expression(&root, owner);
+                let mut children = case_schema_children(&slot);
+                if owner == guard {
+                    assert_eq!(children.remove(0), IfKw);
+                }
+                assert_eq!(children, [OperatorChain], "{source}");
+                let chain = slot.children().find(|n| n.kind() == OperatorChain).unwrap();
+                assert_eq!(case_schema_children(&chain), expected, "{source}");
+                for child in chain
+                    .children_with_tokens()
+                    .filter(|c| matches!(c.kind(), Missing | Error))
+                {
+                    assert_eq!(child.parent(), Some(chain.clone()));
+                    assert_eq!(child.text_range().is_empty(), child.kind() == Missing);
+                }
+            }
+        }
+        for payload in ["", "@", "@ n"] {
+            let source = format!("{head} x: {payload} -> yes");
+            let root = SyntaxNode::new_root(run(&source).0);
+            let owner = expression(&root, arm);
+            let pattern = owner.children().find(|n| n.kind() == Pattern).unwrap();
+            let children = case_schema_children(&pattern);
+            assert_eq!(
+                children[0],
+                if payload.is_empty() { Missing } else { Error },
+                "{source}"
+            );
+            assert_eq!(
+                children.len(),
+                if payload == "@ n" { 2 } else { 1 },
+                "{source}"
+            );
+            assert_eq!(pattern.parent(), Some(owner));
+        }
+    }
+    for payload in ["", "@", "@ handler"] {
+        let source = format!("catch x: err, {payload} -> yes");
+        let root = SyntaxNode::new_root(run(&source).0);
+        let arm = expression(&root, CatchArm);
+        let children = case_schema_children(&arm);
+        assert_eq!(&children[..3], &[Pattern, Comma, Pattern], "{source}");
+        let handler = arm
+            .children()
+            .filter(|n| n.kind() == Pattern)
+            .nth(1)
+            .unwrap();
+        let mut children = case_schema_children(&handler);
+        let errors: Vec<_> = handler
+            .children_with_tokens()
+            .filter(|n| n.kind() == Error)
+            .collect();
+        for pair in errors.windows(2) {
+            assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+            assert_eq!(pair[0].next_sibling_or_token(), Some(pair[1].clone()));
+        }
+        children.dedup(); // adjacent Error fragments constitute one initial slot run
+        assert_eq!(
+            children[0],
+            if payload.is_empty() { Missing } else { Error }
+        );
+        assert_eq!(children.len(), if payload == "@ handler" { 2 } else { 1 });
+    }
+}
+
+#[test]
+fn case_schema_arm_and_block_slots_keep_distinct_direct_occurrences() {
+    use SyntaxKind::*;
+    for (head, block_kind, arm_kind) in [
+        ("case", CaseBlock, CaseArm),
+        ("catch", CatchBlock, CatchArm),
+    ] {
+        let root = SyntaxNode::new_root(run(&format!("{head} x")).0);
+        assert_eq!(
+            case_schema_children(&expression(&root, block_kind)),
+            [Missing]
+        );
+        let root = SyntaxNode::new_root(run(&format!("{head} x:\nnext")).0);
+        assert_eq!(
+            case_schema_children(&expression(&root, arm_kind)),
+            [Missing]
+        );
+        for (tail, expected) in [
+            ("yes", vec![Pattern, Missing, OperatorChain]),
+            ("->", vec![Pattern, Arrow, Missing]),
+            ("", vec![Pattern, Missing]),
+            ("@", vec![Pattern, Missing, Error]),
+            ("@ yes", vec![Pattern, Missing, Error, OperatorChain]),
+            ("-> @", vec![Pattern, Arrow, Error]),
+            ("-> @ yes", vec![Pattern, Arrow, Error, OperatorChain]),
+        ] {
+            let source = format!("{head} x: n {tail}");
+            let root = SyntaxNode::new_root(run(&source).0);
+            let arm = expression(&root, arm_kind);
+            assert_eq!(case_schema_children(&arm), expected, "{source}");
+            for missing in arm.children().filter(|n| n.kind() == Missing) {
+                assert!(missing.text_range().is_empty());
+                assert_eq!(missing.parent(), Some(arm.clone()));
+            }
+        }
+    }
+    for (source, block_kind, arm_kind, at) in [
+        ("case x: n -> [tail] -> yes", CaseBlock, CaseArm, 12),
+        ("catch x { n -> [tail] -> yes }", CatchBlock, CatchArm, 14),
+    ] {
+        let root = SyntaxNode::new_root(run(source).0);
+        let block = expression(&root, block_kind);
+        let arms: Vec<_> = block.children().filter(|n| n.kind() == arm_kind).collect();
+        assert_eq!(arms.len(), 2);
+        let body = arms[0].children().find(|n| n.kind() == Missing).unwrap();
+        let separator = block.children().find(|n| n.kind() == Missing).unwrap();
+        assert_eq!(usize::from(body.text_range().start()), at);
+        assert_eq!(body.text_range(), separator.text_range());
+        assert!(body.text_range().is_empty());
+        assert_eq!(separator.prev_sibling(), Some(arms[0].clone()));
+        assert_eq!(separator.next_sibling(), Some(arms[1].clone()));
+    }
+    for source in [
+        "catch x { n -> yes",
+        "catch x { n",
+        "catch x { n -> @",
+        "catch α { n ->",
+    ] {
+        let root = SyntaxNode::new_root(run(source).0);
+        let block = expression(&root, CatchBlock);
+        let children = case_schema_children(&block);
+        assert_eq!(children, [LBrace, CatchArm, Missing], "{source}");
+        let close = block.last_child().unwrap();
+        assert_eq!(usize::from(close.text_range().start()), source.len());
+        assert!(close.text_range().is_empty());
+        if source.ends_with('n') || source.ends_with("->") {
+            let arm = expression(&block, CatchArm);
+            assert_eq!(arm.last_child().unwrap().text_range(), close.text_range());
+        }
+    }
+}
+
+#[test]
+fn case_schema_indented_statement_owner_and_accepted_controls() {
+    use SyntaxKind::*;
+    for (head, arm_kind) in [("case", CaseArm), ("catch", CatchArm)] {
+        for (payload, expected) in [
+            ("", vec![Missing]),
+            ("@", vec![Error]),
+            ("@ yes", vec![Error, Statement]),
+        ] {
+            let source = format!("{head} α: n ->\r\n  {payload}");
+            let root = SyntaxNode::new_root(run(&source).0);
+            assert_eq!(root.to_string(), source);
+            let arm = expression(&root, arm_kind);
+            assert_eq!(
+                case_schema_children(&arm),
+                [Pattern, Arrow, IndentedStatementBlock]
+            );
+            let block = arm
+                .children()
+                .find(|n| n.kind() == IndentedStatementBlock)
+                .unwrap();
+            // This direct Arm -> IndentedStatementBlock path selects the shared
+            // ColonApplication(IndentedStatement) slot, not the inline Body slot.
+            assert_eq!(block.parent(), Some(arm));
+            assert_eq!(case_schema_children(&block), expected);
+            if let Some(error) = block.children_with_tokens().find(|n| n.kind() == Error) {
+                assert_eq!(
+                    usize::from(error.text_range().start()),
+                    source.find('@').unwrap()
+                );
+                assert_eq!(error.text_range().len(), 1.into());
+            }
+        }
+    }
+    for source in [
+        "case x: n -> yes, _ -> no",
+        "catch x: n, handler -> yes",
+        "catch x { n -> yes, }",
+        "case x:\n  n -> yes\n  _ -> no",
+        "catch x {\n  n -> yes\n  _ -> no\n}",
+    ] {
+        let root = SyntaxNode::new_root(run(source).0);
+        assert_eq!(root.to_string(), source);
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|n| matches!(n.kind(), Missing | Error | Invalid)),
+            "{source}"
+        );
+    }
+}
+
 #[test]
 fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
     use CaseLikeRole::{Arrow, Body};

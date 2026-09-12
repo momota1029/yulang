@@ -982,6 +982,7 @@ fn parse_group(
                 i.state.finish_node();
                 return Ok(item);
             }
+            i.state.start_node(SyntaxKind::UseGroupForeignClose.into());
             error_item(
                 i.rb(),
                 item,
@@ -989,6 +990,7 @@ fn parse_group(
                 closing_role(close, ConstructRole::ImportGroup),
                 ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter(close))),
             );
+            i.state.finish_node();
             item = next_use_item(i.rb(), item_origin, line_entry, fence);
             continue;
         }

@@ -1904,6 +1904,182 @@ fn standalone_pattern_annotations_delegate_mandatory_type_recovery() {
 }
 
 #[test]
+fn pattern_annotation_required_type_missing_has_direct_rowan_slot() {
+    for (source, expected_leading) in [("x:", ""), ("x:\nInt", "\n")] {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), "x:", "{source:?}");
+        let mut item = if source == "x:" {
+            let Err(Either::Right(end)) = exit else {
+                panic!("EOF handoff expected");
+            };
+            assert!(end.item.payload_view().is_eof());
+            end.item
+        } else {
+            let Err(Either::Left(item)) = exit else {
+                panic!("shallow newline handoff expected");
+            };
+            assert_eq!(
+                item.payload_view().token_kind(),
+                Some(TokenKind::Identifier)
+            );
+            item
+        };
+        assert_eq!(emit_pending_leading_text(&mut item), expected_leading);
+
+        let root = SyntaxNode::new_root(green);
+        let pattern = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Pattern)
+            .expect("Pattern");
+        let annotation = pattern
+            .children()
+            .find(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+            .expect("direct PatternTypeAnnotation");
+        assert_eq!(annotation.parent().as_ref(), Some(&pattern));
+        assert_eq!(
+            annotation.text_range(),
+            rowan::TextRange::new(1.into(), 2.into())
+        );
+        let mut children = annotation.children_with_tokens();
+        let colon = children
+            .next()
+            .expect("annotation Colon")
+            .into_token()
+            .expect("direct Colon token");
+        assert_eq!(colon.kind(), SyntaxKind::Colon);
+        assert_eq!(colon.parent().as_ref(), Some(&annotation));
+        assert_eq!(
+            colon.text_range(),
+            rowan::TextRange::new(1.into(), 2.into())
+        );
+        let type_expr = children
+            .next()
+            .expect("required TypeExpression")
+            .into_node()
+            .expect("direct TypeExpression node");
+        assert_eq!(type_expr.kind(), SyntaxKind::TypeExpression);
+        assert_eq!(type_expr.parent().as_ref(), Some(&annotation));
+        let missing_range = rowan::TextRange::empty(2.into());
+        assert_eq!(type_expr.text_range(), missing_range);
+        assert!(children.next().is_none());
+
+        let mut type_children = type_expr.children_with_tokens();
+        let missing = type_children
+            .next()
+            .expect("required Type Missing")
+            .into_node()
+            .expect("Missing node");
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(missing.parent().as_ref(), Some(&type_expr));
+        assert_eq!(missing.text_range(), missing_range);
+        assert!(missing.children_with_tokens().next().is_none());
+        assert!(type_children.next().is_none());
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == SyntaxKind::Missing)
+                .count(),
+            1
+        );
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|element| matches!(element.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+        );
+    }
+}
+
+#[test]
+fn pattern_annotation_required_type_primary_error_has_direct_rowan_slot() {
+    for (source, consumed, error_end, retry_end) in [
+        ("x: @", "x: @", 4, None),
+        ("x: @ Int", "x: @ Int", 4, Some(8)),
+        ("x: @ @ Int", "x: @ @ Int", 6, Some(10)),
+        ("x: @\nInt", "x: @", 4, None),
+    ] {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), consumed, "{source:?}");
+        if source == "x: @\nInt" {
+            let Err(Either::Left(mut item)) = exit else {
+                panic!("shallow newline handoff expected");
+            };
+            assert_eq!(
+                item.payload_view().token_kind(),
+                Some(TokenKind::Identifier)
+            );
+            assert_eq!(emit_pending_leading_text(&mut item), "\n");
+        } else {
+            assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        }
+
+        let annotation = annotation_node(&green);
+        assert_eq!(annotation.kind(), SyntaxKind::PatternTypeAnnotation);
+        assert_eq!(
+            annotation.text_range(),
+            rowan::TextRange::new(1.into(), (consumed.len() as u32).into()),
+            "{source:?}"
+        );
+        assert!(
+            !annotation
+                .descendants_with_tokens()
+                .any(|element| matches!(element.kind(), SyntaxKind::Missing | SyntaxKind::Invalid))
+        );
+        let mut children = annotation.children_with_tokens().peekable();
+        for (kind, start, end) in [(SyntaxKind::Colon, 1, 2), (SyntaxKind::Whitespace, 2, 3)] {
+            let token = children
+                .next()
+                .expect("annotation punctuation or leading")
+                .into_token()
+                .expect("direct token");
+            assert_eq!(token.kind(), kind, "{source:?}");
+            assert_eq!(token.parent().as_ref(), Some(&annotation));
+            assert_eq!(
+                token.text_range(),
+                rowan::TextRange::new(start.into(), end.into())
+            );
+        }
+
+        let mut next_start = rowan::TextSize::from(3);
+        while children
+            .peek()
+            .is_some_and(|element| element.kind() == SyntaxKind::Error)
+        {
+            let token = children.next().unwrap().into_token().expect("Error leaf");
+            assert_eq!(token.parent().as_ref(), Some(&annotation));
+            assert_eq!(token.text_range().start(), next_start, "{source:?}");
+            assert!(!token.text_range().is_empty(), "{source:?}");
+            next_start = token.text_range().end();
+        }
+        assert_eq!(next_start, rowan::TextSize::from(error_end), "{source:?}");
+
+        if let Some(end) = retry_end {
+            let retry = children
+                .next()
+                .expect("retry after maximal Error group")
+                .into_node()
+                .expect("direct TypeExpression node");
+            assert_eq!(retry.kind(), SyntaxKind::TypeExpression);
+            assert_eq!(retry.parent().as_ref(), Some(&annotation));
+            assert_eq!(
+                retry.text_range(),
+                rowan::TextRange::new(error_end.into(), end.into())
+            );
+            let leading = retry
+                .first_child_or_token()
+                .expect("retry leading")
+                .into_token()
+                .expect("retry whitespace token");
+            assert_eq!(leading.kind(), SyntaxKind::Whitespace);
+            assert_eq!(leading.parent().as_ref(), Some(&retry));
+            assert_eq!(
+                leading.text_range(),
+                rowan::TextRange::new(error_end.into(), (error_end + 1).into())
+            );
+        }
+        assert!(children.next().is_none(), "{source:?}");
+    }
+}
+
+#[test]
 fn standalone_patterns_recover_primary_alias_and_alternation_slots_locally() {
     let (green, exit) = run_pattern("");
     assert!(matches!(exit, Err(Either::Right(_))));

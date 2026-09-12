@@ -74,6 +74,180 @@ fn parse_if_into<'s>(
 }
 
 #[test]
+fn if_direct_rowan_slots_preserve_occurrence_order_and_native_trivia() {
+    use SyntaxKind::*;
+
+    // Interpret only ordered Rowan children and ancestry. In particular, two
+    // Missing occurrences at the same byte offset need not belong to one arm.
+    for (source, expected) in [
+        ("if", vec![("Condition", 0, Missing, 2..2)]),
+        (
+            "if :",
+            vec![("Condition", 0, Missing, 3..3), ("Body", 0, Missing, 4..4)],
+        ),
+        ("if x", vec![("BodyIntroducer", 0, Missing, 4..4)]),
+        ("if x:", vec![("Body", 0, Missing, 5..5)]),
+        (
+            "if x: a elsif y",
+            vec![("BodyIntroducer", 1, Missing, 15..15)],
+        ),
+        ("if x: a elsif y:", vec![("Body", 1, Missing, 16..16)]),
+        ("if x: a else", vec![("ElseBody", 1, Missing, 12..12)]),
+        ("if x: a else:", vec![("ElseBody", 1, Missing, 13..13)]),
+        ("if x:\n  ", vec![("IndentedStatement", 0, Missing, 8..8)]),
+        (
+            "if x: a elsif y:\n  ",
+            vec![("IndentedStatement", 1, Missing, 19..19)],
+        ),
+        (
+            "if x: a else:\n  ",
+            vec![("IndentedStatement", 1, Missing, 16..16)],
+        ),
+        ("if x: @ @ y", vec![("Body", 0, Error, 6..9)]),
+        ("if x: a elsif y: @ @ z", vec![("Body", 1, Error, 17..20)]),
+        ("if x: a else @ @ y", vec![("ElseBody", 1, Error, 13..16)]),
+        ("if x: a else: @ @ y", vec![("ElseBody", 1, Error, 14..17)]),
+        (
+            "if α:\r\n  @ @ y",
+            vec![("IndentedStatement", 0, Error, 10..13)],
+        ),
+        (
+            "if if:",
+            vec![
+                ("Condition", 1, Missing, 5..5),
+                ("Body", 1, Missing, 6..6),
+                ("BodyIntroducer", 0, Missing, 6..6),
+            ],
+        ),
+        ("if x: a elsif y: b else: c", vec![]),
+        ("if x:\n  a\nelse: b", vec![]),
+    ] {
+        let (green, exit) = run(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let arms: Vec<_> = root
+            .descendants()
+            .filter(|node| matches!(node.kind(), IfArm | ElseArm))
+            .collect();
+        let mut actual = Vec::new();
+        for element in root.descendants_with_tokens() {
+            assert_ne!(element.kind(), Invalid, "{source:?}");
+            if !matches!(element.kind(), Missing | Error) {
+                continue;
+            }
+            let parent = element.parent().unwrap();
+            let arm = parent
+                .ancestors()
+                .find(|node| matches!(node.kind(), IfArm | ElseArm))
+                .unwrap();
+            let ordinal = arms.iter().position(|candidate| *candidate == arm).unwrap();
+            let children: Vec<_> = parent.children_with_tokens().collect();
+            let index = children.iter().position(|child| *child == element).unwrap();
+            let role = match parent.kind() {
+                OperatorChain => {
+                    assert_eq!(parent.parent().unwrap().kind(), Condition);
+                    assert_eq!(parent.parent().unwrap().parent(), Some(arm.clone()));
+                    "Condition"
+                }
+                IndentedStatementBlock => {
+                    assert_eq!(parent.parent(), Some(arm.clone()));
+                    assert_eq!(parent.prev_sibling_or_token().unwrap().kind(), Colon);
+                    "IndentedStatement"
+                }
+                ElseArm => "ElseBody",
+                IfArm => {
+                    assert!(
+                        children[..index]
+                            .iter()
+                            .any(|child| child.kind() == Condition)
+                    );
+                    if children[..index].iter().any(|child| child.kind() == Colon) {
+                        "Body"
+                    } else {
+                        "BodyIntroducer"
+                    }
+                }
+                other => panic!("unexpected recovery parent {other:?} for {source:?}"),
+            };
+            let range = element.text_range();
+            if element.kind() == Missing {
+                let missing = element.as_node().expect("Missing is a node");
+                assert!(missing.children_with_tokens().next().is_none());
+                assert!(range.is_empty());
+            } else {
+                assert!(element.as_token().is_some());
+                assert!(!range.is_empty());
+                if index > 0 && children[index - 1].kind() == Error {
+                    assert_eq!(children[index - 1].text_range().end(), range.start());
+                    continue;
+                }
+            }
+            let end = if element.kind() == Error {
+                children[index..]
+                    .iter()
+                    .take_while(|child| child.kind() == Error)
+                    .last()
+                    .unwrap()
+                    .text_range()
+                    .end()
+            } else {
+                range.end()
+            };
+            actual.push((
+                role,
+                ordinal,
+                element.kind(),
+                u32::from(range.start())..u32::from(end),
+            ));
+        }
+        assert_eq!(actual, expected, "{source:?}");
+        for arm in &arms {
+            assert_eq!(arm.parent().unwrap().kind(), IfExpression);
+            let keyword = arm.first_token().unwrap();
+            assert_eq!(keyword.parent(), Some(arm.clone()));
+            assert!(matches!(
+                (arm.kind(), keyword.kind()),
+                (IfArm, IfKw | ElsifKw) | (ElseArm, ElseKw)
+            ));
+        }
+    }
+
+    // Initial and retry spaces are native siblings; only internal run trivia
+    // becomes Error. Exact direct children prove the maximal group boundary.
+    let (green, _) = run("if x: @ @ y");
+    let root = SyntaxNode::new_root(green);
+    let arm = root
+        .descendants()
+        .find(|node| node.kind() == IfArm)
+        .unwrap();
+    let expected = [
+        (IfKw, false, 0..2),
+        (Whitespace, false, 2..3),
+        (Condition, true, 3..4),
+        (Colon, false, 4..5),
+        (Whitespace, false, 5..6),
+        (Error, false, 6..7),
+        (Error, false, 7..8),
+        (Error, false, 8..9),
+        (Whitespace, false, 9..10),
+        (OperatorChain, true, 10..11),
+    ];
+    let actual: Vec<_> = arm
+        .children_with_tokens()
+        .map(|child| {
+            assert_eq!(child.parent(), Some(arm.clone()));
+            (
+                child.kind(),
+                child.as_node().is_some(),
+                u32::from(child.text_range().start())..u32::from(child.text_range().end()),
+            )
+        })
+        .collect();
+    assert_eq!(actual, expected);
+}
+
+#[test]
 fn if_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
     use IfExpressionRole::{Body, BodyIntroducer, Condition, ElseBody};
     use RecoveryKind::{Error, Missing};

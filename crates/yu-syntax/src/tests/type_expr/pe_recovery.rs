@@ -94,6 +94,149 @@ pub(super) fn separator(id: u32, effect: bool, at: usize) -> CommittedRecoveryRe
 }
 
 #[test]
+fn pe_foreign_close_topology_distinguishes_item_and_close_slots() {
+    for (open, end, effect, owner, foreign, delimiter) in [
+        (
+            "(",
+            ")",
+            false,
+            SyntaxKind::ParenthesizedTypeGroup,
+            "]",
+            Delimiter::Bracket,
+        ),
+        (
+            "'[",
+            "]",
+            true,
+            SyntaxKind::EffectRowType,
+            ")",
+            Delimiter::Parenthesis,
+        ),
+    ] {
+        for (parts, gap) in [
+            (vec!["@"], " "),
+            (vec![foreign], " "),
+            (vec![foreign, foreign], " "),
+            (vec![foreign, foreign], ""),
+            (vec!["@", foreign], " "),
+            (vec![foreign, "@"], " "),
+        ] {
+            let source = format!("{open} {}/*é*/A{end}", parts.join(gap));
+            for origin in [0, 40] {
+                let mut at = open.len() + 1;
+                let mut expected = Vec::new();
+                let mut slots = Vec::new();
+                for (id, part) in parts.iter().enumerate() {
+                    let range = origin + at..origin + at + part.len();
+                    let kind = if *part == foreign {
+                        expected.push(close(
+                            id as u32,
+                            effect,
+                            range,
+                            Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                                delimiter,
+                            ))),
+                        ));
+                        SyntaxKind::TypeDelimitedForeignClose
+                    } else {
+                        expected.push(item(id as u32, effect, range, true));
+                        SyntaxKind::Error
+                    };
+                    slots.push((kind, at..at + part.len(), *part));
+                    at += part.len() + gap.len();
+                }
+                let root = assert_complete_type_recovery(&source, origin, &expected);
+                let parent = root
+                    .descendants()
+                    .find(|node| node.kind() == owner)
+                    .unwrap();
+                assert_eq!(parent.to_string(), source);
+                let base = usize::from(parent.text_range().start());
+                let actual: Vec<_> = parent
+                    .children_with_tokens()
+                    .filter(|child| {
+                        matches!(
+                            child.kind(),
+                            SyntaxKind::Error | SyntaxKind::TypeDelimitedForeignClose
+                        )
+                    })
+                    .collect();
+                assert_eq!(actual.len(), slots.len());
+                for (child, (kind, range, text)) in actual.iter().zip(slots) {
+                    assert_eq!(child.kind(), kind);
+                    assert_eq!(child.to_string(), text);
+                    assert_eq!(usize::from(child.text_range().start()), base + range.start);
+                    assert_eq!(usize::from(child.text_range().end()), base + range.end);
+                    if kind == SyntaxKind::TypeDelimitedForeignClose {
+                        let wrapper = child.as_node().unwrap();
+                        assert_eq!(wrapper.parent().unwrap(), parent);
+                        let leaves: Vec<_> = wrapper.children_with_tokens().collect();
+                        assert!(!leaves.is_empty());
+                        assert!(
+                            leaves.iter().all(|leaf| leaf.as_token().is_some()
+                                && leaf.kind() == SyntaxKind::Error)
+                        );
+                        assert_eq!(
+                            leaves.first().unwrap().text_range().start(),
+                            wrapper.text_range().start()
+                        );
+                        assert_eq!(
+                            leaves.last().unwrap().text_range().end(),
+                            wrapper.text_range().end()
+                        );
+                    }
+                }
+                assert!(
+                    parent
+                        .children_with_tokens()
+                        .any(|child| child.kind() == SyntaxKind::BlockComment
+                            && child.to_string() == "/*é*/")
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn pe_foreign_close_topology_excludes_accepted_and_other_delimited_owners() {
+    for source in ["()", "(A)", "'[]", "'[A]", "T(A)", "G T[F A]->U"] {
+        let root = assert_complete_type_recovery(source, 0, &[]);
+        assert!(
+            !root
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::TypeDelimitedForeignClose)
+        );
+    }
+    for (source, expected, error_parent) in [
+        (
+            "T(A])",
+            expected_type_call_close_error(0, 3..4),
+            SyntaxKind::TypeCallClose,
+        ),
+        (
+            "T [A)] -> U",
+            bracket_recovery::close(0, 4..5, Some(Delimiter::Parenthesis)),
+            SyntaxKind::BracketRow,
+        ),
+    ] {
+        let root = assert_complete_type_recovery(source, 0, &[expected]);
+        assert_foreign_close_count(&root, 0);
+        let errors = recovery_groups(&root);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].parent().unwrap().kind(), error_parent);
+    }
+}
+
+fn assert_foreign_close_count(root: &crate::SyntaxNode, expected: usize) {
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::TypeDelimitedForeignClose)
+            .count(),
+        expected
+    );
+}
+
+#[test]
 fn pe_item_slots_publish_missing_and_error_with_retry_leading_outside_error() {
     for (source, effect, at) in [("(,)", false, 1), ("'[,]", true, 2)] {
         assert_complete_type_recovery(source, 0, &[item(0, effect, at..at, false)]);
@@ -145,6 +288,7 @@ fn pe_closes_recover_unclaimed_tokens_and_preserve_actual_matching_closes() {
             expected.push(close(1, effect, at..at, None));
         }
         let root = assert_complete_type_recovery(source, 0, &expected);
+        assert_foreign_close_count(&root, 1);
         let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(
             error.first_token().unwrap().text(),
@@ -157,9 +301,10 @@ fn pe_closes_recover_unclaimed_tokens_and_preserve_actual_matching_closes() {
         assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
     }
     for (source, effect, at) in [("(A", false, 2), ("'[A", true, 3)] {
-        assert_complete_type_recovery(source, 0, &[close(0, effect, at..at, None)]);
+        let root = assert_complete_type_recovery(source, 0, &[close(0, effect, at..at, None)]);
+        assert_foreign_close_count(&root, 0);
     }
-    assert_complete_type_recovery(
+    let root = assert_complete_type_recovery(
         "T((A] )",
         0,
         &[
@@ -174,6 +319,7 @@ fn pe_closes_recover_unclaimed_tokens_and_preserve_actual_matching_closes() {
             expected_type_call_close(1, 7),
         ],
     );
+    assert_foreign_close_count(&root, 1);
 }
 
 #[test]
@@ -194,8 +340,11 @@ fn pe_close_errors_resume_with_owner_trivia_and_protected_caller_words() {
         for gap in [" ", "/*é*/", "\r\n  "] {
             let source = format!("{prefix}{gap}A{}", if effect { "]" } else { ")" });
             let root = assert_complete_type_recovery(&source, 0, std::slice::from_ref(&error));
+            assert_foreign_close_count(&root, 1);
             let node = recovery_groups(&root).into_iter().next().unwrap();
-            let mut following = node.next_sibling_or_token();
+            let wrapper = node.parent().unwrap();
+            assert_eq!(wrapper.kind(), SyntaxKind::TypeDelimitedForeignClose);
+            let mut following = wrapper.next_sibling_or_token();
             let mut leading = String::new();
             while let Some(element) = following {
                 if element.kind() == SyntaxKind::TypeExpression {
@@ -225,6 +374,7 @@ fn pe_close_errors_resume_with_owner_trivia_and_protected_caller_words() {
                 input,
             );
             assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
+            assert_foreign_close_count(&crate::SyntaxNode::new_root(run.green.clone()), 1);
             assert_eq!(run.records, records);
             assert_eq!(run.slots, records.len());
             assert_eq!(run.remainder, " rest");
@@ -296,6 +446,10 @@ fn pe_error_runs_keep_abstract_fence_items_unconsumed() {
                 input,
             );
             assert_eq!(green.to_string(), prefix);
+            assert_foreign_close_count(
+                &crate::SyntaxNode::new_root(green.clone()),
+                usize::from(!prefix.ends_with('@')),
+            );
             assert_eq!(actual, records);
             assert_eq!(remainder, "> > ```\nouter");
             let Some(NormalizedExit::Complete(
@@ -374,6 +528,7 @@ fn pe_records_nest_inside_reserved_pv_errors_and_keep_native_pv_close() {
         ),
     ] {
         let root = assert_complete_type_recovery(source, 0, &expected);
+        assert_foreign_close_count(&root, 0);
         let pv = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::PolymorphicVariantType)
@@ -419,6 +574,7 @@ fn pe_error_handoff_preserves_caller_item_and_shifted_frozen_records() {
                 input,
             );
             assert_eq!(run.records, records);
+            assert_foreign_close_count(&crate::SyntaxNode::new_root(run.green.clone()), 0);
             assert_eq!(
                 run.green.to_string(),
                 format!("sentinel{}", &source[..at + 1])

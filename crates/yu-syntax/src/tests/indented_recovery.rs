@@ -456,6 +456,184 @@ fn indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading() {
 }
 
 #[test]
+fn indented_assignment_rowan_schema_covers_missing_error_retry_and_handoff() {
+    use SyntaxKind::*;
+
+    let assert_children = |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>)]| {
+        let children = parent.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len());
+        for (child, (kind, is_node, span)) in children.iter().zip(expected) {
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.as_node().is_some(), *is_node);
+            assert_eq!(child.parent(), Some(parent.clone()));
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                *span
+            );
+        }
+    };
+
+    for (source, missing, error, statement_start, protected) in [
+        ("x =\n  y", false, false, Some(6), false),
+        ("x =\n  ", true, false, None, false),
+        ("x =\n  @ @ y", false, true, Some(9), false),
+        ("x =\n  @ @", false, true, None, false),
+        ("x =\n  @ @ ]", false, true, None, true),
+    ] {
+        let owned_end = if protected { 9 } else { source.len() };
+        let (green, records, exit, rest) = parse(source, 0, 0, None, None);
+        assert_eq!(green.to_string(), source[..owned_end]);
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.kind(), Root);
+        assert_eq!(range(&root), 0..owned_end);
+        assert_eq!(root.parent(), None);
+        assert_children(&root, &[(Statement, true, 0..owned_end)]);
+        let statement = root.first_child().unwrap();
+        assert_children(&statement, &[(OperatorChain, true, 0..owned_end)]);
+        let chain = statement.first_child().unwrap();
+        assert_children(
+            &chain,
+            &[
+                (IdentifierExpression, true, 0..1),
+                (Whitespace, false, 1..2),
+                (AssignmentTail, true, 2..owned_end),
+            ],
+        );
+        let tail = chain.last_child().unwrap();
+        assert_children(
+            &tail,
+            &[
+                (Equals, false, 2..3),
+                (IndentedStatementBlock, true, 3..owned_end),
+            ],
+        );
+        let block = tail.first_child().unwrap();
+        // This exact ancestor/introducer path selects the Statement RHS slot,
+        // before consulting the temporary recovery records for compatibility.
+        let selected_role = GrammarRole::Assignment(AssignmentRole::IndentedStatement);
+        let mut expected = vec![(Newline, false, 3..4), (Whitespace, false, 4..6)];
+        if missing {
+            expected.push((Missing, true, 6..6));
+        }
+        if error {
+            expected.extend([
+                (Error, false, 6..7),
+                (Error, false, 7..8),
+                (Error, false, 8..9),
+            ]);
+        }
+        if let Some(start) = statement_start {
+            expected.push((Statement, true, start..owned_end));
+        }
+        assert_children(&block, &expected);
+        for element in root.descendants_with_tokens() {
+            let span =
+                usize::from(element.text_range().start())..usize::from(element.text_range().end());
+            assert_eq!(element.to_string(), source[span]);
+            assert_ne!(element.kind(), Invalid);
+        }
+        let missing_nodes = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing_nodes.len(), usize::from(missing));
+        for node in missing_nodes {
+            assert_eq!(node.parent(), Some(block.clone()));
+            assert_eq!(node.children_with_tokens().count(), 0);
+        }
+        let errors = root
+            .descendants_with_tokens()
+            .filter(|element| element.kind() == Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), if error { 3 } else { 0 });
+        if error {
+            for pair in errors.windows(2) {
+                assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+            }
+            assert_eq!(errors[0].text_range().start(), 6.into());
+            assert_eq!(errors[2].text_range().end(), 9.into());
+        }
+        if statement_start == Some(9) {
+            let retry = block.last_child().unwrap();
+            let leading = retry.first_token().unwrap();
+            assert_eq!(leading.kind(), Whitespace);
+            assert_eq!(leading.text(), " ");
+            assert_eq!(usize::from(leading.text_range().start()), 9);
+            assert_eq!(usize::from(leading.text_range().end()), 10);
+            assert!(
+                leading
+                    .parent()
+                    .unwrap()
+                    .ancestors()
+                    .any(|node| node == retry)
+            );
+            assert_ne!(leading.parent(), Some(block.clone()));
+        }
+
+        let assert_handoff = |exit, rest: &str| {
+            assert_eq!(rest, "");
+            let mut item = match exit {
+                NormalizedExit::Complete(Err(Either::Left(item)), line) if protected => {
+                    assert_eq!(line, LineEntry::InLine);
+                    assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+                    assert_eq!(item.payload_view().spelling(), Some("]"));
+                    item
+                }
+                NormalizedExit::Complete(Err(Either::Right(end)), line) if !protected => {
+                    assert_eq!(line, LineEntry::InLine);
+                    assert!(end.item.payload_view().is_eof());
+                    end.item
+                }
+                _ => panic!("expected exact EOF or protected-close handoff: {source:?}"),
+            };
+            let extent = item.extent(source.len());
+            let leading = if protected {
+                9..10
+            } else {
+                source.len()..source.len()
+            };
+            let payload = if protected {
+                10..11
+            } else {
+                source.len()..source.len()
+            };
+            if protected {
+                assert_eq!(extent.physical(), 9..11);
+                assert_eq!(extent.leading(), 9..10);
+            }
+            assert_eq!(extent.remaining(), leading);
+            assert_eq!(extent.payload(), payload.clone());
+            assert_eq!(extent.recovery_range(), owned_end..source.len());
+            assert_eq!(
+                emit_pending_leading_text(&mut item),
+                if protected { " " } else { "" }
+            );
+            let emitted = item.extent(source.len());
+            if protected {
+                assert_eq!(emitted.physical(), 9..11);
+                assert_eq!(emitted.leading(), 9..10);
+            }
+            assert_eq!(emitted.remaining(), payload.start..payload.start);
+            assert_eq!(emitted.payload(), payload.clone());
+            assert_eq!(emitted.recovery_range(), payload);
+        };
+        assert_handoff(exit, rest);
+        let expected_records = if missing {
+            vec![record(selected_role, RecoveryKind::Missing, 6..6)]
+        } else if error {
+            vec![record(selected_role, RecoveryKind::Error, 6..9)]
+        } else {
+            vec![]
+        };
+        assert_eq!(records, expected_records);
+        let (again, frozen, again_exit, again_rest) = parse(source, 0, 0, None, Some(&records));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_handoff(again_exit, again_rest);
+    }
+}
+
+#[test]
 fn indented_colon_rowan_schema_uses_utf8_crlf_byte_ranges() {
     let (green, _, _, _) = parse("f:\r\n  💥", 0, 0, None, None);
     let block = colon_indented_block(&SyntaxNode::new_root(green));

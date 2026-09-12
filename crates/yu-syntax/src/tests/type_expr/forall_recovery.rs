@@ -93,6 +93,175 @@ fn direct_kind_ranges(node: &SyntaxNode) -> Vec<(SyntaxKind, Range<usize>)> {
 }
 
 #[test]
+fn forall_head_composition_keeps_recovery_groups_in_their_direct_slots() {
+    use SyntaxKind::*;
+
+    // The same head loop composes first recovery, separator repetition and
+    // recovered-Colon binder retries; extending the list never resets Colon.
+    for suffix in [" @:@ T", "", " ", "\n"] {
+        let source = format!("for @'a,;'b @'c{suffix}");
+        let root = forall_cst(&source);
+        let forall = direct_forall(&root);
+        let mut expected = vec![
+            (ForKw, 0..3),
+            (ForallTypeBinder, 3..5),
+            (ForallTypeBinder, 5..7),
+            (ForallTypeBinder, 7..8),
+            (ForallTypeBinder, 8..9),
+            (ForallTypeBinder, 9..11),
+            (Whitespace, 11..12),
+            (Error, 12..13),
+            (ForallTypeBinder, 13..15),
+        ];
+        if suffix == " @:@ T" {
+            expected.extend([
+                (Whitespace, 15..16),
+                (Error, 16..17),
+                (Colon, 17..18),
+                (Error, 18..19),
+                (Whitespace, 19..20),
+                (TypeExpression, 20..21),
+            ]);
+        }
+        assert_eq!(direct_kind_ranges(&forall), expected, "{source:?}");
+        let binders = forall
+            .children()
+            .filter(|node| node.kind() == ForallTypeBinder)
+            .collect::<Vec<_>>();
+        let expected_binders = [
+            vec![(Whitespace, 3..4), (Error, 4..5)],
+            vec![(Missing, 5..5), (SigilIdentifier, 5..7)],
+            vec![(Error, 7..8)],
+            vec![(Error, 8..9)],
+            vec![(Missing, 9..9), (SigilIdentifier, 9..11)],
+            vec![(Missing, 13..13), (SigilIdentifier, 13..15)],
+        ];
+        assert_eq!(binders.len(), expected_binders.len(), "{source:?}");
+        for (binder, expected) in binders.iter().zip(expected_binders) {
+            assert_eq!(binder.parent(), Some(forall.clone()));
+            assert_eq!(direct_kind_ranges(binder), expected, "{source:?}");
+        }
+        // Wrapper boundaries separate the adjacent separator Error groups;
+        // the recovered binder separates the two direct Colon Error groups.
+        // Only actual-binder gaps are Missing, including on terminal exits.
+        assert_eq!(
+            forall
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .map(|node| {
+                    assert_eq!(node.parent().unwrap().kind(), ForallTypeBinder);
+                    usize::from(node.text_range().start())
+                })
+                .collect::<Vec<_>>(),
+            [5, 9, 13],
+            "{source:?}"
+        );
+        assert!(
+            forall
+                .descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .all(|child| child.as_token().is_some())
+        );
+        assert!(!forall.descendants().any(|node| node.kind() == Invalid));
+        if matches!(suffix, " " | "\n") {
+            let trailing = root.last_token().unwrap();
+            assert_eq!(trailing.parent(), Some(root.clone()));
+            assert_eq!(usize::from(trailing.text_range().start()), 15);
+            assert_eq!(usize::from(trailing.text_range().end()), source.len());
+        }
+    }
+}
+
+#[test]
+fn forall_head_composition_first_actual_binder_owns_its_gap() {
+    use SyntaxKind::*;
+
+    let root = forall_cst("for'a:T");
+    let forall = direct_forall(&root);
+    assert_eq!(
+        direct_kind_ranges(&forall),
+        [
+            (ForKw, 0..3),
+            (ForallTypeBinder, 3..5),
+            (Colon, 5..6),
+            (TypeExpression, 6..7),
+        ]
+    );
+    let binder = forall.children().next().unwrap();
+    assert_eq!(
+        direct_kind_ranges(&binder),
+        [(Missing, 3..3), (SigilIdentifier, 3..5)]
+    );
+    assert_eq!(binder.parent(), Some(forall));
+}
+
+#[test]
+fn forall_head_composition_terminal_exits_emit_only_the_current_slot() {
+    use SyntaxKind::*;
+
+    for (source, expected, expected_binders) in [
+        (
+            "for",
+            vec![(ForKw, 0..3), (ForallTypeBinder, 3..3)],
+            vec![vec![(Missing, 3..3)]],
+        ),
+        (
+            "for @",
+            vec![(ForKw, 0..3), (ForallTypeBinder, 3..5)],
+            vec![vec![(Whitespace, 3..4), (Error, 4..5)]],
+        ),
+        (
+            "for 'a",
+            vec![(ForKw, 0..3), (ForallTypeBinder, 3..6), (Missing, 6..6)],
+            vec![vec![(Whitespace, 3..4), (SigilIdentifier, 4..6)]],
+        ),
+        (
+            "for 'a,",
+            vec![
+                (ForKw, 0..3),
+                (ForallTypeBinder, 3..6),
+                (ForallTypeBinder, 6..7),
+                (Missing, 7..7),
+            ],
+            vec![
+                vec![(Whitespace, 3..4), (SigilIdentifier, 4..6)],
+                vec![(Error, 6..7)],
+            ],
+        ),
+        (
+            "for 'a:@",
+            vec![
+                (ForKw, 0..3),
+                (ForallTypeBinder, 3..6),
+                (Colon, 6..7),
+                (Error, 7..8),
+            ],
+            vec![vec![(Whitespace, 3..4), (SigilIdentifier, 4..6)]],
+        ),
+    ] {
+        let root = forall_cst(source);
+        let forall = direct_forall(&root);
+        assert_eq!(direct_kind_ranges(&forall), expected, "{source:?}");
+        let binders = forall
+            .children()
+            .filter(|node| node.kind() == ForallTypeBinder)
+            .collect::<Vec<_>>();
+        assert_eq!(binders.len(), expected_binders.len(), "{source:?}");
+        for (binder, expected) in binders.iter().zip(expected_binders) {
+            assert_eq!(binder.parent(), Some(forall.clone()));
+            assert_eq!(direct_kind_ranges(binder), expected, "{source:?}");
+        }
+        assert!(
+            forall
+                .descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .all(|child| child.as_token().is_some())
+        );
+        assert!(!forall.descendants().any(|node| node.kind() == Invalid));
+    }
+}
+
+#[test]
 fn forall_semantic_binder_slots_use_only_direct_wrapper_order() {
     use SyntaxKind::*;
 

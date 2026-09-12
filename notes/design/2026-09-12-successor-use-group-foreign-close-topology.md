@@ -1,6 +1,6 @@
 # Use group foreign-close CST topology
 
-Status: Authoritative; private construction pending
+Status: Authoritative; private M2 construction complete
 
 Date: 2026-09-12
 
@@ -166,4 +166,18 @@ node.
 
 ## Implementation status
 
-Pending the required pre-write audits and private construction.
+Private M2 construction completed on 2026-09-12. `UseGroupForeignClose` is the
+append-only SyntaxKind value 282. Only the existing locally consumed
+mismatched-close `error_item` call in `parse_group` opens it, after outer-close
+protection and before successor acquisition. The direct GroupEntry run,
+`mismatched_close`, `recover_group`, import projection, temporary records and
+handoff are unchanged.
+
+Focused UseDeclaration tests passed 20/20, SyntaxKind tests passed 3/3, and
+`cargo check -p yu-syntax`, scoped format and diff checks passed with three
+pre-existing warnings in untouched code. Fresh/frozen exact-record controls,
+both exclusion openers, repeated and mixed groups, UTF-8 leading, RBracket,
+outer/active-stop and accepted controls passed. The scoped compiler/recovery
+closure review found no issue. Benchmark use: zero samples and zero processes.
+The CST interpreter, public API migration, local Missing close, OperatorName
+close and remaining schema rows remain open.

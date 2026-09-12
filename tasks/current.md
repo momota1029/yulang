@@ -1,13 +1,15 @@
 # Current task: complete and adopt the successor syntax phase
 
-Updated: 2026-09-09. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-12. Branch: `yulang3`; do not modify frozen `main`.
 
 ## Objective and current authority
 
-Prioritize syntax-owned public header/root connection and atomic legacy
-implementation removal once the entry paths have sufficient validation functionality. Exhaustive
-private owner completion is no longer an automatic cutover prerequisite;
-deferred rows stay open. Private construction is not itself public cutover.
+Complete the ordered Rowan CST schema and direct-CST evidence needed to derive
+syntax diagnostics without parser-owned recovery state. Then implement the
+schema interpreter and remove the recovery ledger/API atomically under the
+CST-derived diagnostics amendment. No AST, second output tree or parallel
+diagnostic state is introduced. Private owner completion is not itself public
+cutover.
 
 - `notes/design/2026-09-08-successor-recovery-authority-amendment.md` is the
   current acceptance/recovery authority. Yulang2 is reference evidence only
@@ -28,6 +30,58 @@ deferred rows stay open. Private construction is not itself public cutover.
   actual public two-phase path, then remove the legacy implementation without fallback.
 
 ## Current gate and immediate next action
+
+Construction gate 1 of the CST-derived diagnostics amendment remains active.
+The P/E Item/Separator/Close, If arm, For statement and CaseLike bounded rows
+are now catalog-audited. CaseLike preserves the single composite Arrow/Body
+Missing, selects Catch's missing block introducer versus terminal braced close
+by direct LBrace order, and transports indented arm recovery as
+`ColonApplication(IndentedStatement)`. The existing TypeAnnotationTail
+nonempty required-Type primary Error and optional admitted-Type retry are now
+separately cataloged without duplicating their already sufficient Rowan test;
+the recovery remains Type(Primary), not Expression(TypeAnnotation).
+PatternTypeAnnotation's nonempty required-Type primary Error and optional Type
+retry are also catalog-audited, supported by one direct ordered-Rowan test. Its
+fresh required-Type Missing remains Pattern(TypeAnnotation); a second direct
+ordered-Rowan test fixes that separate empty TypeExpression slot and its
+catalog-delta audit is clean. TypeDeclaration's post-Equals fresh RHS Missing
+also has catalog-audited full-shell direct Rowan evidence. Its nonempty
+post-Equals Type-primary Error now has catalog-audited terminal/retry/protected
+full-shell evidence. The first DerivesClause RoleReference fresh Missing now
+has catalog-audited DerivesKw/TypeExpression(Missing) evidence across EOF,
+trivia, RBracket and newline boundaries. Fresh RoleReference absence after one
+accepted role and direct Comma now has separate ordered-occurrence evidence and
+its catalog-delta audit is clean. The next bounded sibling is initial
+RoleReference nonempty Type-primary Error and optional TypeExpression retry;
+its terminal/retry/RBracket evidence is now catalog-audited. The next bounded
+sibling, post-comma Type-primary Error, now has terminal/retry/RBracket evidence
+and its catalog-delta audit is clean. A cross-row architecture audit rejected
+third/fourth ordinal enumeration: the authorized comma loop is now represented
+by one generalized RoleEpisode repetition Draft, with seven compositional
+transition witnesses. Its post-write and catalog-delta specification audits are
+clean after fixing the zero-based ordinal wording; ViaTarget stays separately
+cataloged. The next coverage-gap audit selected the shared UseGroup /
+UseExclusionGroup local terminal-close phase rather than another bounded
+ordinal. All three opener/owner combinations now have direct ordered-Rowan
+evidence for native close versus terminal Missing, preceding group recovery,
+protected leading and propagated exits with no local-close child; pre-write and
+post-write and catalog-delta specification audits are clean. The next owner is
+the ForallType direct-head composition after rejecting a stale
+BracedStatementBlock raw-Error recommendation that duplicated an already
+catalog-audited bounded row. Three new direct-Rowan tests now compose the
+first-binder, repeated BinderBoundary and conditional Colon/body phases across
+one finite iterative state machine; pre-write and post-write specification
+audits and the catalog-delta audit are clean after correcting phase-specific
+leading ownership. The next production owner must be selected from the updated
+coverage map. The selected next owner is the complete direct `TypeCallTail`
+composition across its already-audited CallArgument, Separator and
+`TypeCallClose` phases; treat it as M2 because it crosses three Authoritative
+sources and the residual-close topology. Six direct-Rowan composition tests now
+cover its finite transition classes; pre/post specification and compiler review
+and the catalog-delta audit are clean after an evidence-helper repair and
+occurrence-ordinal clarification. The next production owner must be selected
+from the updated gap map. Do not start a partial global collector before the
+coverage map is closed.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing
@@ -734,9 +788,36 @@ bounded Draft; Derives and child owners remain separate.
 DeclarationCompanion direct recovery is catalog-audited as a bounded Draft;
 Statement/Derives and caller-stop ownership remain separate.
 UseDeclaration Path/Alias/group-entry is catalog-audited as a bounded Draft;
-the user selected option A for foreign close. The Authoritative, independently
-pre-write-audited `UseGroupForeignClose` topology is pending private M2
-construction; local close and OperatorName close remain separate.
+the user-selected option A is now privately constructed and catalog-audited.
+Append-only `UseGroupForeignClose = 282` distinguishes locally consumed close
+Error from direct GroupEntry Error under both group owners without changing
+records or handoff. Local Missing close and OperatorName close remain separate.
+Parenthesized/EffectRow Item, Separator and Close are now catalog-audited as a
+bounded evidence-complete Draft. The user-selected shared
+`TypeDelimitedForeignClose = 283` distinguishes each locally consumed P/E
+foreign close from direct Item Error using the immediate Rowan owner, without
+Error spelling or retained parser phase. P/E 9/9, SyntaxKind 3/3 and package
+check passed; compiler/recovery and repaired specification delta audits were
+clean. Call/BracketRow, accepted CST, records and continuation remain
+unchanged. Other Type rows and the global interpreter/API/ledger migration
+remain open.
+If BodyIntroducer, inline Body/ElseBody and transported IndentedStatement are
+now direct-Rowan evidence-complete as a bounded Draft. Nineteen witnesses use
+only arm ancestry, Colon order, block parentage, ranges and occurrence ordinal;
+`if if:` proves distinct same-offset Missing occurrences in preorder. No new
+node or production change is needed. The expected-output pre-write and
+post-write regression audits were clean; the catalog delta audit closed after
+correcting two source-ownership descriptions. Delegated Condition, nested
+grammar and other transported callers remain separate.
+For Pattern, InKeyword, Iterable, BodyIntroducer, shallow/inline Body and
+transported IndentedStatement are now direct-Rowan evidence-complete as a
+bounded Draft. Fifteen records-free witnesses distinguish the flat header,
+ForIterable, post-Colon OperatorChain and IndentedStatementBlock owners. Three
+draft expectations were corrected to the existing rule that retry leading is
+native content of the admitted Expression/Statement child. Exact new 1/1 and
+existing `for_c13_` 12/12 controls passed; pre/post specification audits were
+clean. The catalog-delta audit closed after correcting the ordered grammar to
+represent terminal Pattern/no-cascade and explicit missing-In alternatives.
 Rule ExpressionList caller-local fence close slots are catalog-audited as a
 bounded Draft; outer Yumark and pending Item identity remain separate.
 BracedStatementBlock direct raw Error is catalog-audited as a bounded Draft.

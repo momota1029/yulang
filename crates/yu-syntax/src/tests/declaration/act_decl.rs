@@ -99,6 +99,259 @@ fn act_body_introducer_schema_uses_completed_type_and_native_retry_boundaries() 
 }
 
 #[test]
+fn act_source_schema_uses_equals_and_ordered_required_type_evidence() {
+    use crate::recovery_record::{
+        ActDeclarationRole, DeclarationRole, GrammarRole, RecoveryKind, TypeRole,
+    };
+    use SyntaxKind::*;
+
+    for (source, suffix, missing_at) in [
+        (
+            "act A = ;",
+            vec![
+                (TypeExpression, true, 7..7, ""),
+                (Whitespace, false, 7..8, " "),
+                (Semicolon, false, 8..9, ";"),
+            ],
+            Some(7),
+        ),
+        (
+            "act = B;",
+            vec![
+                (Whitespace, false, 5..6, " "),
+                (TypeExpression, true, 6..7, "B"),
+                (Semicolon, false, 7..8, ";"),
+            ],
+            Some(3),
+        ),
+        (
+            "act A = @;",
+            vec![
+                (Whitespace, false, 7..8, " "),
+                (Error, false, 8..9, "@"),
+                (Semicolon, false, 9..10, ";"),
+            ],
+            None,
+        ),
+        (
+            "act A = @ B;",
+            vec![
+                (Whitespace, false, 7..8, " "),
+                (Error, false, 8..9, "@"),
+                (TypeExpression, true, 9..11, " B"),
+                (Semicolon, false, 11..12, ";"),
+            ],
+            None,
+        ),
+        (
+            "act A = B;",
+            vec![
+                (Whitespace, false, 7..8, " "),
+                (TypeExpression, true, 8..9, "B"),
+                (Semicolon, false, 9..10, ";"),
+            ],
+            None,
+        ),
+        (
+            "act A = @ % B;",
+            vec![
+                (Whitespace, false, 7..8, " "),
+                (Error, false, 8..9, "@"),
+                (Error, false, 9..10, " "),
+                (Error, false, 10..11, "%"),
+                (TypeExpression, true, 11..13, " B"),
+                (Semicolon, false, 13..14, ";"),
+            ],
+            None,
+        ),
+    ] {
+        let (green, exit, records, remainder) = typed_act(source, None, 0, None);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(remainder, "");
+        let (canonical, _, canonical_remainder) =
+            run_statement_normalized(source, 100, LineEntry::InLine, None);
+        assert_eq!(canonical_remainder, "");
+        let act = declaration(&canonical);
+        assert_eq!(act.green(), declaration(&green).green());
+        let statement = act.parent().expect("canonical Statement");
+        assert_eq!(statement.kind(), Statement);
+        let root = statement.parent().expect("Root");
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        assert_eq!(root.to_string(), source);
+        assert_eq!(statement.to_string(), source);
+        assert_eq!(act.to_string(), source);
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| child.kind() == Invalid)
+        );
+
+        let mut expected = if missing_at == Some(3) {
+            vec![
+                (ActKw, false, 0..3, "act"),
+                (TypeExpression, true, 3..3, ""),
+                (Whitespace, false, 3..4, " "),
+                (Equals, false, 4..5, "="),
+            ]
+        } else {
+            vec![
+                (ActKw, false, 0..3, "act"),
+                (Whitespace, false, 3..4, " "),
+                (TypeExpression, true, 4..5, "A"),
+                (Whitespace, false, 5..6, " "),
+                (Equals, false, 6..7, "="),
+            ]
+        };
+        expected.extend(suffix);
+        let children = act.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len());
+        for (child, (kind, node, range, text)) in children.iter().zip(expected) {
+            assert_eq!(child.parent(), Some(act.clone()));
+            assert_eq!(child.kind(), kind);
+            assert_eq!(child.as_node().is_some(), node);
+            assert_eq!(
+                child.text_range(),
+                rowan::TextRange::new(range.start.into(), range.end.into())
+            );
+            assert_eq!(child.to_string(), text);
+        }
+
+        // The actual Equals separates Head from Source. The collision control
+        // retains an empty Head before Equals, never a missing Source.
+        let equals = children
+            .iter()
+            .position(|child| child.kind() == Equals)
+            .unwrap();
+        let head = children[..equals]
+            .iter()
+            .find_map(|child| child.as_node())
+            .unwrap();
+        assert_eq!(head.kind(), TypeExpression);
+        assert_eq!(head.text_range().is_empty(), missing_at == Some(3));
+        let source_slot = &children[equals + 1..];
+        let source_type = source_slot.iter().find_map(|child| child.as_node());
+        if let Some(source_type) = source_type {
+            assert_eq!(source_type.kind(), TypeExpression);
+            assert_eq!(source_type.text_range().is_empty(), missing_at == Some(7));
+        } else {
+            assert_eq!(source, "act A = @;");
+        }
+        let errors = source_slot
+            .iter()
+            .skip_while(|child| child.kind() == Whitespace)
+            .take_while(|child| child.kind() == Error)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors.len(),
+            if source.contains('%') {
+                3
+            } else {
+                usize::from(source.contains('@'))
+            }
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .count(),
+            errors.len()
+        );
+        for pair in errors.windows(2) {
+            assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+        }
+        if let Some(first) = errors.first() {
+            assert_eq!(first.text_range().start(), 8.into());
+            let end = if source.contains('%') { 11 } else { 9 };
+            assert_eq!(errors.last().unwrap().text_range().end(), end.into());
+            if let Some(source_type) = source_type {
+                assert_eq!(source_type.text_range().start(), end.into());
+                let leading = source_type.first_child_or_token().unwrap();
+                assert!(leading.as_token().is_some());
+                assert_eq!(leading.parent(), Some(source_type.clone()));
+                assert_eq!(leading.kind(), Whitespace);
+                assert_eq!(
+                    leading.text_range(),
+                    rowan::TextRange::new(end.into(), (end + 1).into())
+                );
+                assert_eq!(leading.to_string(), " ");
+            }
+        }
+        let missing = root
+            .descendants()
+            .filter(|child| child.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing.len(), usize::from(missing_at.is_some()));
+        if let Some(at) = missing_at {
+            let parent = missing[0].parent().unwrap();
+            assert_eq!(
+                parent,
+                if at == 3 {
+                    head.clone()
+                } else {
+                    source_type.unwrap().clone()
+                }
+            );
+            assert_eq!(parent.children_with_tokens().count(), 1);
+            assert_eq!(parent.text_range(), rowan::TextRange::empty(at.into()));
+            assert_eq!(missing[0].text_range(), parent.text_range());
+            assert_eq!(missing[0].to_string(), "");
+            assert_eq!(missing[0].children_with_tokens().count(), 0);
+        }
+
+        let assert_handoff = |exit| {
+            let mut item = match exit {
+                Some(NormalizedExit::Complete(Err(Either::Left(item)), entry)) => {
+                    assert_eq!(entry, LineEntry::InLine);
+                    item
+                }
+                Some(NormalizedExit::Complete(Err(Either::Right(end)), entry)) => {
+                    assert_eq!(entry, LineEntry::InLine);
+                    end.item
+                }
+                _ => panic!("expected pending EOF"),
+            };
+            // Required Type preserves the body starter for Act; Act then owns
+            // that semicolon even after an absent or malformed Source.
+            assert!(item.payload_view().is_eof());
+            assert_eq!(emit_pending_leading_text(&mut item), "");
+        };
+        assert_handoff(exit);
+        // Compatibility only: the CST checks above identify the owning slot.
+        assert_eq!(
+            records.len(),
+            usize::from(missing_at.is_some() || !errors.is_empty())
+        );
+        if let Some(record) = records.first() {
+            if let Some(at) = missing_at {
+                assert_eq!(record.kind, RecoveryKind::Missing);
+                assert_eq!(
+                    record.site.role,
+                    GrammarRole::Declaration(DeclarationRole::Act(if at == 3 {
+                        ActDeclarationRole::Head
+                    } else {
+                        ActDeclarationRole::Source
+                    }))
+                );
+                assert_eq!(record.site.range, 100 + at as usize..100 + at as usize);
+            } else {
+                assert_eq!(record.kind, RecoveryKind::Error);
+                assert_eq!(record.site.role, GrammarRole::Type(TypeRole::Primary));
+                assert_eq!(
+                    record.site.range,
+                    108..if source.contains('%') { 111 } else { 109 }
+                );
+            }
+        }
+        let (again, again_exit, frozen, again_remainder) =
+            typed_act(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(again_remainder, remainder);
+        assert_handoff(again_exit);
+    }
+}
+
+#[test]
 fn act_inline_body_schema_requires_direct_colon_and_preserves_child_ownership() {
     use SyntaxKind::*;
     let prefix = [(ActKw, 3), (Whitespace, 1), (TypeExpression, 1), (Colon, 1)];

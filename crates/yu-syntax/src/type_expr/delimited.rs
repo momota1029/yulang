@@ -153,6 +153,8 @@ pub(super) fn type_delimited_normalized(
                 category: crate::type_expr::required_type_primary_unexpected_category(&item),
             };
             let kind = crate::type_expr::type_recovery_error_syntax_kind(&item);
+            i.state
+                .start_node(SyntaxKind::TypeDelimitedForeignClose.into());
             emit_recovery_error_item(
                 i.rb(),
                 item,
@@ -163,6 +165,7 @@ pub(super) fn type_delimited_normalized(
                     type_delimited_close_draft(owner, RecoveryKind::Error, range, unexpected)
                 },
             );
+            i.state.finish_node();
             (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
                 i.rb(),
                 item_origin,

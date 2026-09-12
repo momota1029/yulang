@@ -2215,6 +2215,282 @@ fn struct_named_field_records_are_exact_and_frozen() {
 }
 
 #[test]
+fn struct_named_brace_post_comma_field_and_close_missing_have_ordered_cst_evidence() {
+    use crate::recovery_record::{
+        CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter, DiagnosticId,
+        ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
+        RecoverySiteKey, StructRole, SyntaxExpectation,
+    };
+    use SyntaxKind::{
+        Colon, Comma, Identifier, LBrace, Missing, RBrace, StructDeclaration, StructField,
+        TypeExpression, Whitespace,
+    };
+    use std::sync::Arc;
+
+    let field_role = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::Field));
+    let close_role = GrammarRole::ClosingDelimiter {
+        owner: ConstructRole::StructNamedFields,
+        delimiter: Delimiter::Brace,
+    };
+    let missing_record = |id, role, expected, at| CommittedRecoveryRecord {
+        id: DiagnosticId(id),
+        site: RecoverySiteKey {
+            role,
+            range: at..at,
+        },
+        kind: RecoveryKind::Missing,
+        unexpected: Arc::from([]),
+        expectations: Arc::from([SyntaxExpectation {
+            role,
+            expected,
+            range: at..at,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation: 0,
+    };
+
+    let suffix = |declaration: &SyntaxNode| {
+        declaration
+            .children_with_tokens()
+            .skip_while(|element| element.kind() != LBrace)
+            .map(|element| {
+                (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.to_string(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    for (source, field_range, missing_at, stops) in [
+        ("struct S{x:T,", 13..13, 13, 0),
+        ("struct S{x:T,  ", 13..15, 15, 0),
+        (
+            "struct S{x:T, ;tail",
+            13..13,
+            13,
+            crate::lexical::stops::STOP_SEMICOLON,
+        ),
+    ] {
+        let (green, exit, records, remainder) =
+            typed_struct_continuation(source, 100, None, stops, None);
+        assert_eq!(green.to_string(), &source[..missing_at], "{source:?}");
+        if stops == 0 {
+            assert!(matches!(
+                exit,
+                NormalizedExit::Complete(Err(Either::Right(_)), _)
+            ));
+            assert_eq!(remainder, "");
+        } else {
+            let NormalizedExit::Complete(Err(Either::Left(mut pending)), _) = exit else {
+                panic!("semicolon must remain pending")
+            };
+            assert_eq!(
+                pending.payload_view().token_kind(),
+                Some(TokenKind::Semicolon)
+            );
+            assert_eq!(emit_pending_leading_text(&mut pending), " ");
+            assert_eq!(remainder, "tail");
+        }
+
+        let root = SyntaxNode::new_root(green.clone());
+        let declaration = root
+            .descendants()
+            .find(|node| node.kind() == StructDeclaration)
+            .expect("StructDeclaration");
+        let fields = declaration
+            .children()
+            .filter(|node| node.kind() == StructField)
+            .collect::<Vec<_>>();
+        assert_eq!(fields.len(), 2, "{source:?}");
+        let accepted = &fields[0];
+        assert_eq!(accepted.to_string(), "x:T");
+        assert_eq!(
+            accepted
+                .children()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [TypeExpression]
+        );
+        assert_eq!(
+            accepted
+                .children_with_tokens()
+                .map(|element| element.kind())
+                .collect::<Vec<_>>(),
+            [Identifier, Colon, TypeExpression]
+        );
+        assert!(
+            !accepted.descendants().any(|node| node.kind() == Missing),
+            "{source:?}"
+        );
+
+        let fresh = &fields[1];
+        assert_eq!(
+            fresh.text_range(),
+            rowan::TextRange::new(field_range.start.into(), field_range.end.into())
+        );
+        assert_eq!(fresh.parent(), Some(declaration.clone()));
+        assert_eq!(
+            fresh
+                .children_with_tokens()
+                .map(|element| (element.kind(), element.to_string()))
+                .collect::<Vec<_>>(),
+            if missing_at == 13 {
+                vec![(Missing, "".to_owned())]
+            } else {
+                vec![(Whitespace, "  ".to_owned()), (Missing, "".to_owned())]
+            },
+            "{source:?}"
+        );
+        let field_missing = fresh.last_child().expect("fresh field Missing");
+        assert_eq!(field_missing.kind(), Missing);
+        assert_eq!(usize::from(field_missing.text_range().start()), missing_at);
+        assert_eq!(usize::from(field_missing.text_range().end()), missing_at);
+        assert_eq!(field_missing.parent(), Some(fresh.clone()));
+        let close_missing = fresh.next_sibling().expect("direct close Missing");
+        assert_eq!(close_missing.kind(), Missing);
+        assert_eq!(close_missing.parent(), Some(declaration.clone()));
+        assert_eq!(close_missing.text_range(), field_missing.text_range());
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == Missing)
+                .count(),
+            2,
+            "{source:?}"
+        );
+        for (missing, ancestry) in [
+            (
+                &field_missing,
+                vec![
+                    Missing,
+                    StructField,
+                    StructDeclaration,
+                    SyntaxKind::Statement,
+                    SyntaxKind::Root,
+                ],
+            ),
+            (
+                &close_missing,
+                vec![
+                    Missing,
+                    StructDeclaration,
+                    SyntaxKind::Statement,
+                    SyntaxKind::Root,
+                ],
+            ),
+        ] {
+            assert_eq!(missing.children_with_tokens().count(), 0, "{source:?}");
+            assert_eq!(
+                missing
+                    .ancestors()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                ancestry,
+                "{source:?}"
+            );
+        }
+        assert_eq!(
+            root.preorder_with_tokens()
+                .filter_map(|event| match event {
+                    rowan::WalkEvent::Enter(element)
+                        if element.kind() == Missing
+                            && element.text_range() == field_missing.text_range() =>
+                    {
+                        Some(element.parent().unwrap().kind())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            [StructField, StructDeclaration],
+            "{source:?}"
+        );
+        assert_eq!(
+            suffix(&declaration),
+            [
+                (LBrace, false, 8..9, "{".to_owned()),
+                (StructField, true, 9..12, "x:T".to_owned()),
+                (Comma, false, 12..13, ",".to_owned()),
+                (
+                    StructField,
+                    true,
+                    field_range.start as usize..field_range.end as usize,
+                    source[13..missing_at].to_owned()
+                ),
+                (Missing, true, missing_at..missing_at, "".to_owned()),
+            ],
+            "{source:?}"
+        );
+        assert!(
+            !root.descendants_with_tokens().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::StructFieldForeignClose
+            )),
+            "{source:?}"
+        );
+
+        let expected = vec![
+            missing_record(0, field_role, ExpectedSyntax::Identifier, 100 + missing_at),
+            missing_record(
+                1,
+                close_role,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                100 + missing_at,
+            ),
+        ];
+        assert_eq!(records, expected, "{source:?}");
+        let mut seeded = expected;
+        seeded[0].id = DiagnosticId(71);
+        let (again, _, frozen, frozen_remainder) =
+            typed_struct_continuation(source, 100, Some(&seeded), stops, None);
+        assert_eq!(again, green, "{source:?}");
+        assert_eq!(frozen, seeded, "{source:?}");
+        assert_eq!(frozen_remainder, remainder);
+    }
+
+    let accepted = "struct S{x:T,}";
+    let (green, exit, records, remainder) = typed_struct_continuation(accepted, 0, None, 0, None);
+    assert_eq!(green.to_string(), accepted);
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), _)
+    ));
+    assert_eq!(remainder, "");
+    let root = SyntaxNode::new_root(green);
+    let declaration = root
+        .descendants()
+        .find(|node| node.kind() == StructDeclaration)
+        .expect("StructDeclaration");
+    assert_eq!(
+        suffix(&declaration),
+        [
+            (LBrace, false, 8..9, "{".to_owned()),
+            (StructField, true, 9..12, "x:T".to_owned()),
+            (Comma, false, 12..13, ",".to_owned()),
+            (RBrace, false, 13..14, "}".to_owned()),
+        ]
+    );
+    assert!(!root.descendants_with_tokens().any(|element| matches!(
+        element.kind(),
+        SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::StructFieldForeignClose
+    )));
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == StructField)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == Missing)
+            .count(),
+        0
+    );
+    assert!(records.is_empty());
+}
+
+#[test]
 fn struct_named_field_runs_keep_per_item_facts_and_active_stops_pending() {
     use crate::{
         lexical::stops::STOP_COLON,

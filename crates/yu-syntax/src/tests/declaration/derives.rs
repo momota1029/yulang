@@ -607,6 +607,786 @@ fn derives_slots_publish_exact_fresh_frozen_and_seeded_records() {
 }
 
 #[test]
+fn derives_initial_role_reference_missing_has_direct_ordered_slot() {
+    let operators = OperatorTable::empty();
+    for (source, leading, payload, remainder, origin, stops) in [
+        ("derives", "", None, "", 7, 0),
+        ("derives  ", "  ", None, "", 9, 0),
+        (
+            "derives ]tail",
+            " ",
+            Some(TokenKind::RBracket),
+            "tail",
+            9,
+            stops_for(TokenKind::RBracket) & crate::lexical::stops::STOP_CLOSES,
+        ),
+        (
+            "derives\nnext",
+            "\n",
+            Some(TokenKind::Identifier),
+            "",
+            12,
+            0,
+        ),
+    ] {
+        let (green, mut pending, actual_origin, line, actual_remainder, _) = run_derives_with_stops(
+            source,
+            &operators,
+            0,
+            LineEntry::InLine,
+            None,
+            StatementLineHandoff::OrdinaryLayout,
+            header_role_boundary(),
+            RecoveryHandling::Discard,
+            stops,
+        );
+        assert_eq!(green.to_string(), "derives", "{source:?}");
+        assert_eq!(pending.payload_view().token_kind(), payload, "{source:?}");
+        assert_eq!(
+            pending.payload_view().is_eof(),
+            payload.is_none(),
+            "{source:?}"
+        );
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            leading,
+            "{source:?}"
+        );
+        assert_eq!(pending.payload_view().token_kind(), payload, "{source:?}");
+        assert_eq!(actual_origin, origin, "{source:?}");
+        assert_eq!(line, LineEntry::InLine, "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.children_with_tokens().count(), 1, "{source:?}");
+        let clause = root.children().next().unwrap();
+        assert_eq!(clause.kind(), SyntaxKind::DerivesClause);
+        assert_eq!(clause.parent(), Some(root.clone()));
+        assert_eq!(
+            clause.text_range(),
+            rowan::TextRange::new(0.into(), 7.into())
+        );
+        let children = clause.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), 2, "{source:?}");
+        let keyword = children[0].as_token().unwrap();
+        assert_eq!(keyword.kind(), SyntaxKind::DerivesKw);
+        assert_eq!(keyword.parent(), Some(clause.clone()));
+        assert_eq!(
+            keyword.text_range(),
+            rowan::TextRange::new(0.into(), 7.into())
+        );
+        let role = children[1].as_node().unwrap();
+        assert_eq!(role.kind(), SyntaxKind::TypeExpression);
+        assert_eq!(role.parent(), Some(clause.clone()));
+        assert_eq!(role.text_range(), rowan::TextRange::empty(7.into()));
+        assert_eq!(role.text().to_string(), "");
+        assert_eq!(role.children_with_tokens().count(), 1, "{source:?}");
+        let missing = role.children().next().unwrap();
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(missing.parent(), Some(role.clone()));
+        assert_eq!(missing.text_range(), rowan::TextRange::empty(7.into()));
+        assert_eq!(missing.children_with_tokens().count(), 0);
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| matches!(element.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+                .count(),
+            0,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn derives_initial_role_reference_error_has_direct_type_primary_slot() {
+    let operators = OperatorTable::empty();
+    for (source, accepted, retry, leading, payload, remainder, origin, stops) in [
+        ("derives @", "derives @", false, "", None, "", 9, 0),
+        (
+            "derives @ Role",
+            "derives @ Role",
+            true,
+            "",
+            None,
+            "",
+            14,
+            0,
+        ),
+        (
+            "derives @ ]tail",
+            "derives @",
+            false,
+            " ",
+            Some(TokenKind::RBracket),
+            "tail",
+            11,
+            stops_for(TokenKind::RBracket) & crate::lexical::stops::STOP_CLOSES,
+        ),
+    ] {
+        let (green, mut pending, actual_origin, line, actual_remainder, _) = run_derives_with_stops(
+            source,
+            &operators,
+            0,
+            LineEntry::InLine,
+            None,
+            StatementLineHandoff::OrdinaryLayout,
+            header_role_boundary(),
+            RecoveryHandling::Discard,
+            stops,
+        );
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(pending.payload_view().token_kind(), payload, "{source:?}");
+        assert_eq!(
+            pending.payload_view().is_eof(),
+            payload.is_none(),
+            "{source:?}"
+        );
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            leading,
+            "{source:?}"
+        );
+        assert_eq!(pending.payload_view().token_kind(), payload, "{source:?}");
+        assert_eq!(actual_origin, origin, "{source:?}");
+        assert_eq!(line, LineEntry::InLine, "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let range = rowan::TextRange::new(0.into(), (accepted.len() as u32).into());
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.text_range(), range);
+        assert_eq!(root.children_with_tokens().count(), 1, "{source:?}");
+        let clause = root.children().next().unwrap();
+        assert_eq!(clause.kind(), SyntaxKind::DerivesClause);
+        assert_eq!(clause.parent(), Some(root.clone()));
+        assert_eq!(clause.text_range(), range);
+        assert_eq!(clause.text().to_string(), accepted);
+        let children = clause.children_with_tokens().collect::<Vec<_>>();
+        let keyword = children[0].as_token().unwrap();
+        assert_eq!(keyword.kind(), SyntaxKind::DerivesKw);
+        assert_eq!(keyword.parent(), Some(clause.clone()));
+        assert_eq!(
+            keyword.text_range(),
+            rowan::TextRange::new(0.into(), 7.into())
+        );
+
+        let errors = children[1..]
+            .iter()
+            .take_while(|element| element.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert!(!errors.is_empty(), "{source:?}");
+        let mut frontier = 7.into();
+        for element in &errors {
+            let token = element.as_token().unwrap();
+            assert_eq!(token.kind(), SyntaxKind::Error);
+            assert_eq!(token.parent(), Some(clause.clone()));
+            assert_eq!(token.text_range().start(), frontier);
+            assert!(!token.text_range().is_empty());
+            frontier = token.text_range().end();
+        }
+        assert_eq!(frontier, 9.into(), "{source:?}");
+        assert_eq!(
+            children.len(),
+            1 + errors.len() + usize::from(retry),
+            "{source:?}"
+        );
+        if retry {
+            let role = children.last().unwrap().as_node().unwrap();
+            assert_eq!(role.kind(), SyntaxKind::TypeExpression);
+            assert_eq!(role.parent(), Some(clause.clone()));
+            assert_eq!(
+                role.text_range(),
+                rowan::TextRange::new(9.into(), 14.into())
+            );
+            assert_eq!(role.text().to_string(), " Role");
+            let whitespace = role.first_child_or_token().unwrap().into_token().unwrap();
+            assert_eq!(whitespace.kind(), SyntaxKind::Whitespace);
+            assert_eq!(whitespace.parent(), Some(role.clone()));
+            assert_eq!(
+                whitespace.text_range(),
+                rowan::TextRange::new(9.into(), 10.into())
+            );
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .count(),
+            usize::from(retry),
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == SyntaxKind::Error)
+                .count(),
+            errors.len(),
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| matches!(
+                    element.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Invalid | SyntaxKind::ViaKw
+                ))
+                .count(),
+            0,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn derives_post_comma_role_reference_missing_has_direct_ordered_slot() {
+    let operators = OperatorTable::empty();
+    let stops = stops_for(TokenKind::RBracket) & crate::lexical::stops::STOP_CLOSES;
+    for (source, leading, payload, remainder, origin) in [
+        ("derives Eq,", "", None, "", 11),
+        (
+            "derives Eq, ]tail",
+            " ",
+            Some(TokenKind::RBracket),
+            "tail",
+            13,
+        ),
+    ] {
+        let (green, mut pending, actual_origin, line, actual_remainder, _) = run_derives_with_stops(
+            source,
+            &operators,
+            0,
+            LineEntry::InLine,
+            None,
+            StatementLineHandoff::OrdinaryLayout,
+            header_role_boundary(),
+            RecoveryHandling::Discard,
+            stops,
+        );
+        assert_eq!(green.to_string(), "derives Eq,", "{source:?}");
+        assert_eq!(pending.payload_view().token_kind(), payload, "{source:?}");
+        assert_eq!(
+            pending.payload_view().is_eof(),
+            payload.is_none(),
+            "{source:?}"
+        );
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            leading,
+            "{source:?}"
+        );
+        assert_eq!(pending.payload_view().token_kind(), payload, "{source:?}");
+        assert_eq!(actual_origin, origin, "{source:?}");
+        assert_eq!(line, LineEntry::InLine, "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let clause_range = rowan::TextRange::new(0.into(), 11.into());
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.text_range(), clause_range);
+        assert_eq!(root.children_with_tokens().count(), 1, "{source:?}");
+        let clause = root.children().next().unwrap();
+        assert_eq!(clause.kind(), SyntaxKind::DerivesClause);
+        assert_eq!(clause.parent(), Some(root.clone()));
+        assert_eq!(clause.text_range(), clause_range);
+        let children = clause.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), 4, "{source:?}");
+        let keyword = children[0].as_token().unwrap();
+        assert_eq!(keyword.kind(), SyntaxKind::DerivesKw);
+        assert_eq!(keyword.parent(), Some(clause.clone()));
+        assert_eq!(
+            keyword.text_range(),
+            rowan::TextRange::new(0.into(), 7.into())
+        );
+        let accepted = children[1].as_node().unwrap();
+        assert_eq!(accepted.kind(), SyntaxKind::TypeExpression);
+        assert_eq!(accepted.parent(), Some(clause.clone()));
+        assert_eq!(
+            accepted.text_range(),
+            rowan::TextRange::new(7.into(), 10.into())
+        );
+        assert_eq!(accepted.text().to_string(), " Eq");
+        let comma = children[2].as_token().unwrap();
+        assert_eq!(comma.kind(), SyntaxKind::Comma);
+        assert_eq!(comma.parent(), Some(clause.clone()));
+        assert_eq!(
+            comma.text_range(),
+            rowan::TextRange::new(10.into(), 11.into())
+        );
+        let role = children[3].as_node().unwrap();
+        assert_eq!(role.kind(), SyntaxKind::TypeExpression);
+        assert_eq!(role.parent(), Some(clause.clone()));
+        assert_eq!(role.text_range(), rowan::TextRange::empty(11.into()));
+        assert_eq!(role.text().to_string(), "");
+        assert_eq!(role.children_with_tokens().count(), 1, "{source:?}");
+        let missing = role.children().next().unwrap();
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(missing.parent(), Some(role.clone()));
+        assert_eq!(missing.text_range(), rowan::TextRange::empty(11.into()));
+        assert_eq!(missing.children_with_tokens().count(), 0);
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| matches!(
+                    element.kind(),
+                    SyntaxKind::Error | SyntaxKind::Invalid | SyntaxKind::ViaKw
+                ))
+                .count(),
+            0,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn derives_post_comma_role_reference_error_has_direct_type_primary_slot() {
+    let operators = OperatorTable::empty();
+    for (source, accepted, retry, leading, payload, remainder, origin, stops) in [
+        ("derives Eq, @", "derives Eq, @", false, "", None, "", 13, 0),
+        (
+            "derives Eq, @ Role",
+            "derives Eq, @ Role",
+            true,
+            "",
+            None,
+            "",
+            18,
+            0,
+        ),
+        (
+            "derives Eq, @ ]tail",
+            "derives Eq, @",
+            false,
+            " ",
+            Some(TokenKind::RBracket),
+            "tail",
+            15,
+            stops_for(TokenKind::RBracket) & crate::lexical::stops::STOP_CLOSES,
+        ),
+    ] {
+        let (green, mut pending, actual_origin, line, actual_remainder, _) = run_derives_with_stops(
+            source,
+            &operators,
+            0,
+            LineEntry::InLine,
+            None,
+            StatementLineHandoff::OrdinaryLayout,
+            header_role_boundary(),
+            RecoveryHandling::Discard,
+            stops,
+        );
+        assert_eq!(green.to_string(), accepted, "{source:?}");
+        assert_eq!(pending.payload_view().token_kind(), payload, "{source:?}");
+        assert_eq!(
+            pending.payload_view().is_eof(),
+            payload.is_none(),
+            "{source:?}"
+        );
+        assert_eq!(
+            emit_pending_leading_text(&mut pending),
+            leading,
+            "{source:?}"
+        );
+        assert_eq!(pending.payload_view().token_kind(), payload, "{source:?}");
+        assert_eq!(actual_origin, origin, "{source:?}");
+        assert_eq!(line, LineEntry::InLine, "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+
+        let root = SyntaxNode::new_root(green);
+        let range = rowan::TextRange::new(0.into(), (accepted.len() as u32).into());
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.text_range(), range);
+        assert_eq!(root.children_with_tokens().count(), 1, "{source:?}");
+        let clause = root.children().next().unwrap();
+        assert_eq!(clause.kind(), SyntaxKind::DerivesClause);
+        assert_eq!(clause.parent(), Some(root.clone()));
+        assert_eq!(clause.text_range(), range);
+        assert_eq!(clause.text().to_string(), accepted);
+        let children = clause.children_with_tokens().collect::<Vec<_>>();
+        let keyword = children[0].as_token().unwrap();
+        assert_eq!(keyword.kind(), SyntaxKind::DerivesKw);
+        assert_eq!(keyword.parent(), Some(clause.clone()));
+        assert_eq!(
+            keyword.text_range(),
+            rowan::TextRange::new(0.into(), 7.into())
+        );
+        let first_role = children[1].as_node().unwrap();
+        assert_eq!(first_role.kind(), SyntaxKind::TypeExpression);
+        assert_eq!(first_role.parent(), Some(clause.clone()));
+        assert_eq!(
+            first_role.text_range(),
+            rowan::TextRange::new(7.into(), 10.into())
+        );
+        assert_eq!(first_role.text().to_string(), " Eq");
+        let comma = children[2].as_token().unwrap();
+        assert_eq!(comma.kind(), SyntaxKind::Comma);
+        assert_eq!(comma.parent(), Some(clause.clone()));
+        assert_eq!(
+            comma.text_range(),
+            rowan::TextRange::new(10.into(), 11.into())
+        );
+
+        let errors = children[3..]
+            .iter()
+            .take_while(|element| element.kind() == SyntaxKind::Error)
+            .collect::<Vec<_>>();
+        assert!(!errors.is_empty(), "{source:?}");
+        let mut frontier = 11.into();
+        for element in &errors {
+            let token = element.as_token().unwrap();
+            assert_eq!(token.kind(), SyntaxKind::Error);
+            assert_eq!(token.parent(), Some(clause.clone()));
+            assert_eq!(token.text_range().start(), frontier);
+            assert!(!token.text_range().is_empty());
+            frontier = token.text_range().end();
+        }
+        assert_eq!(frontier, 13.into(), "{source:?}");
+        assert_eq!(
+            children.len(),
+            3 + errors.len() + usize::from(retry),
+            "{source:?}"
+        );
+        if retry {
+            let role = children.last().unwrap().as_node().unwrap();
+            assert_eq!(role.kind(), SyntaxKind::TypeExpression);
+            assert_eq!(role.parent(), Some(clause.clone()));
+            assert_eq!(
+                role.text_range(),
+                rowan::TextRange::new(13.into(), 18.into())
+            );
+            assert_eq!(role.text().to_string(), " Role");
+            let whitespace = role.first_child_or_token().unwrap().into_token().unwrap();
+            assert_eq!(whitespace.kind(), SyntaxKind::Whitespace);
+            assert_eq!(whitespace.parent(), Some(role.clone()));
+            assert_eq!(
+                whitespace.text_range(),
+                rowan::TextRange::new(13.into(), 14.into())
+            );
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .count(),
+            1 + usize::from(retry),
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == SyntaxKind::Error)
+                .count(),
+            errors.len(),
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| matches!(
+                    element.kind(),
+                    SyntaxKind::Missing | SyntaxKind::Invalid | SyntaxKind::ViaKw
+                ))
+                .count(),
+            0,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn derives_role_episode_repetition_has_one_compositional_rowan_schema() {
+    use SyntaxKind::{Comma, DerivesKw, Error, Identifier, TypeExpression, ViaKw, Whitespace};
+
+    struct Row {
+        source: &'static str,
+        committed: usize,
+        children: Vec<(SyntaxKind, bool, std::ops::Range<usize>)>,
+        episodes: usize,
+        missing_ordinals: Vec<usize>,
+        error_ordinals: Vec<usize>,
+        pending: Option<TokenKind>,
+        leading: &'static str,
+        origin: usize,
+        remainder: &'static str,
+    }
+
+    let operators = OperatorTable::empty();
+    for row in [
+        Row {
+            source: "derives,,",
+            committed: 9,
+            children: vec![
+                (DerivesKw, false, 0..7),
+                (TypeExpression, true, 7..7),
+                (Comma, false, 7..8),
+                (TypeExpression, true, 8..8),
+                (Comma, false, 8..9),
+                (TypeExpression, true, 9..9),
+            ],
+            episodes: 3,
+            missing_ordinals: vec![0, 1, 2],
+            error_ordinals: vec![],
+            pending: None,
+            leading: "",
+            origin: 9,
+            remainder: "",
+        },
+        Row {
+            source: "derives @, Debug,",
+            committed: 17,
+            children: vec![
+                (DerivesKw, false, 0..7),
+                (Error, false, 7..8),
+                (Error, false, 8..9),
+                (Comma, false, 9..10),
+                (TypeExpression, true, 10..16),
+                (Comma, false, 16..17),
+                (TypeExpression, true, 17..17),
+            ],
+            episodes: 3,
+            missing_ordinals: vec![2],
+            error_ordinals: vec![0],
+            pending: None,
+            leading: "",
+            origin: 17,
+            remainder: "",
+        },
+        Row {
+            source: "derives @ Eq ,",
+            committed: 14,
+            children: vec![
+                (DerivesKw, false, 0..7),
+                (Error, false, 7..8),
+                (Error, false, 8..9),
+                (TypeExpression, true, 9..12),
+                (Whitespace, false, 12..13),
+                (Comma, false, 13..14),
+                (TypeExpression, true, 14..14),
+            ],
+            episodes: 2,
+            missing_ordinals: vec![1],
+            error_ordinals: vec![0],
+            pending: None,
+            leading: "",
+            origin: 14,
+            remainder: "",
+        },
+        Row {
+            source: "derives via target,tail",
+            committed: 18,
+            children: vec![
+                (DerivesKw, false, 0..7),
+                (TypeExpression, true, 7..7),
+                (Whitespace, false, 7..8),
+                (ViaKw, false, 8..11),
+                (Whitespace, false, 11..12),
+                (Identifier, false, 12..18),
+            ],
+            episodes: 1,
+            missing_ordinals: vec![0],
+            error_ordinals: vec![],
+            pending: Some(TokenKind::Comma),
+            leading: "",
+            origin: 19,
+            remainder: "tail",
+        },
+        Row {
+            source: "derives @ via target",
+            committed: 20,
+            children: vec![
+                (DerivesKw, false, 0..7),
+                (Error, false, 7..8),
+                (Error, false, 8..9),
+                (Whitespace, false, 9..10),
+                (ViaKw, false, 10..13),
+                (Whitespace, false, 13..14),
+                (Identifier, false, 14..20),
+            ],
+            episodes: 1,
+            missing_ordinals: vec![],
+            error_ordinals: vec![0],
+            pending: None,
+            leading: "",
+            origin: 20,
+            remainder: "",
+        },
+        Row {
+            source: "derives Eq, @ Role via target,tail",
+            committed: 29,
+            children: vec![
+                (DerivesKw, false, 0..7),
+                (TypeExpression, true, 7..10),
+                (Comma, false, 10..11),
+                (Error, false, 11..12),
+                (Error, false, 12..13),
+                (TypeExpression, true, 13..18),
+                (Whitespace, false, 18..19),
+                (ViaKw, false, 19..22),
+                (Whitespace, false, 22..23),
+                (Identifier, false, 23..29),
+            ],
+            episodes: 2,
+            missing_ordinals: vec![],
+            error_ordinals: vec![1],
+            pending: Some(TokenKind::Comma),
+            leading: "",
+            origin: 30,
+            remainder: "tail",
+        },
+        Row {
+            source: "derives Eq, Debug, ]tail",
+            committed: 18,
+            children: vec![
+                (DerivesKw, false, 0..7),
+                (TypeExpression, true, 7..10),
+                (Comma, false, 10..11),
+                (TypeExpression, true, 11..17),
+                (Comma, false, 17..18),
+                (TypeExpression, true, 18..18),
+            ],
+            episodes: 3,
+            missing_ordinals: vec![2],
+            error_ordinals: vec![],
+            pending: Some(TokenKind::RBracket),
+            leading: " ",
+            origin: 20,
+            remainder: "tail",
+        },
+    ] {
+        let stops = if row.pending == Some(TokenKind::RBracket) {
+            stops_for(TokenKind::RBracket) & crate::lexical::stops::STOP_CLOSES
+        } else {
+            0
+        };
+        let (green, mut pending, origin, line, remainder, _) = run_derives_with_stops(
+            row.source,
+            &operators,
+            0,
+            LineEntry::InLine,
+            None,
+            StatementLineHandoff::OrdinaryLayout,
+            header_role_boundary(),
+            RecoveryHandling::Discard,
+            stops,
+        );
+        assert_eq!(green.to_string(), &row.source[..row.committed]);
+        assert_eq!(pending.payload_view().token_kind(), row.pending);
+        assert_eq!(pending.payload_view().is_eof(), row.pending.is_none());
+        assert_eq!(emit_pending_leading_text(&mut pending), row.leading);
+        assert_eq!(pending.payload_view().token_kind(), row.pending);
+        assert_eq!(origin, row.origin, "{:?}", row.source);
+        assert_eq!(line, LineEntry::InLine);
+        assert_eq!(remainder, row.remainder);
+
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.children_with_tokens().count(), 1);
+        let clause = root.children().next().unwrap();
+        assert_eq!(clause.kind(), SyntaxKind::DerivesClause);
+        assert_eq!(clause.parent(), Some(root.clone()));
+        let range = rowan::TextRange::new(0.into(), (row.committed as u32).into());
+        assert_eq!(root.text_range(), range);
+        assert_eq!(clause.text_range(), range);
+        let children = clause.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(
+            children
+                .iter()
+                .map(|element| (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                ))
+                .collect::<Vec<_>>(),
+            row.children,
+            "{:?}",
+            row.source
+        );
+
+        // Episode ordinals follow committed commas, including slots without a Type node.
+        let mut ordinal = 0;
+        let mut via = false;
+        let mut missing_ordinals = Vec::new();
+        let mut error_ordinals = Vec::new();
+        for (index, element) in children.iter().enumerate() {
+            assert_eq!(element.parent(), Some(clause.clone()));
+            match element.kind() {
+                Comma => {
+                    assert!(!via);
+                    ordinal += 1;
+                }
+                ViaKw => {
+                    assert!(!via);
+                    via = true;
+                }
+                Error => {
+                    assert!(!via);
+                    assert!(!element.text_range().is_empty());
+                    if children[index - 1].kind() == Error {
+                        assert_eq!(
+                            children[index - 1].text_range().end(),
+                            element.text_range().start()
+                        );
+                    } else {
+                        error_ordinals.push(ordinal);
+                    }
+                }
+                TypeExpression => {
+                    assert!(!via);
+                    let role = element.as_node().unwrap();
+                    if role.text_range().is_empty() {
+                        assert!(!error_ordinals.contains(&ordinal));
+                        missing_ordinals.push(ordinal);
+                        assert_eq!(role.children_with_tokens().count(), 1);
+                        let missing = role.children().next().unwrap();
+                        assert_eq!(missing.kind(), SyntaxKind::Missing);
+                        assert_eq!(missing.parent(), Some(role.clone()));
+                        assert_eq!(missing.text_range(), role.text_range());
+                        assert_eq!(missing.children_with_tokens().count(), 0);
+                    } else {
+                        let leading = role.first_child_or_token().unwrap();
+                        assert_eq!(leading.kind(), Whitespace);
+                        assert!(leading.as_token().is_some());
+                        assert_eq!(leading.parent(), Some(role.clone()));
+                        assert_eq!(leading.text_range().start(), role.text_range().start());
+                        assert_eq!(leading.text_range().len(), 1.into());
+                    }
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(ordinal + 1, row.episodes);
+        assert_eq!(missing_ordinals, row.missing_ordinals);
+        assert_eq!(error_ordinals, row.error_ordinals);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            missing_ordinals.len()
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|element| element.kind() == Error)
+                .count(),
+            children
+                .iter()
+                .filter(|element| element.kind() == Error)
+                .count()
+        );
+        assert!(root.descendants().all(|node| matches!(
+            node.kind(),
+            SyntaxKind::Root | SyntaxKind::DerivesClause | TypeExpression | SyntaxKind::Missing
+        )));
+    }
+}
+
+#[test]
 fn derives_via_target_raw_slot_has_direct_missing_and_error_retry() {
     struct Row {
         source: &'static str,

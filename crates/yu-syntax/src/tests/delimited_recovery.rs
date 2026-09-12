@@ -437,6 +437,217 @@ fn full(
 }
 
 #[test]
+fn ordinary_delimited_missing_slots_are_distinguished_by_ordered_cst() {
+    use SyntaxKind::*;
+    let assert_children = |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>)]| {
+        let actual = parent.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(actual.len(), expected.len(), "{parent:#?}");
+        for (child, (kind, node, range)) in actual.iter().zip(expected) {
+            assert_eq!(child.parent(), Some(parent.clone()));
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.as_node().is_some(), *node);
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                *range
+            );
+        }
+    };
+    for (form, owner_kind, prefix, open, close, closing) in [
+        (
+            Form::Group,
+            ParenthesizedExpression,
+            "",
+            LParen,
+            RParen,
+            ")",
+        ),
+        (Form::Call, CallTail, "f", LParen, RParen, ")"),
+        (Form::Index, IndexTail, "x", LBracket, RBracket, "]"),
+    ] {
+        let start = prefix.len();
+        let item_kind = if matches!(form, Form::Index) {
+            IndexItem
+        } else {
+            OperatorChain
+        };
+        for (body, has_close, slots, expected_role) in [
+            (
+                ",a",
+                true,
+                vec![
+                    (Missing, true, 1..1),
+                    (Comma, false, 1..2),
+                    (item_kind, true, 2..3),
+                ],
+                Some(GrammarRole::Expression(form.item())),
+            ),
+            (
+                "1x",
+                true,
+                vec![
+                    (item_kind, true, 1..2),
+                    (Missing, true, 2..2),
+                    (item_kind, true, 2..3),
+                ],
+                Some(GrammarRole::Expression(form.separator())),
+            ),
+            (
+                "a",
+                false,
+                vec![(item_kind, true, 1..2), (Missing, true, 2..2)],
+                Some(form.closing()),
+            ),
+            ("", true, vec![], None),
+            ("a", true, vec![(item_kind, true, 1..2)], None),
+        ] {
+            let opening = if open == LBracket { "[" } else { "(" };
+            let source = format!(
+                "{prefix}{opening}{body}{}",
+                if has_close { closing } else { "" }
+            );
+            let (green, records) = full(&source, None);
+            let root = SyntaxNode::new_root(green.clone());
+            let end = source.len();
+            assert_eq!(root.kind(), Root);
+            assert!(root.parent().is_none());
+            assert_eq!(root.to_string(), source);
+            assert_children(&root, &[(OperatorChain, true, 0..end)]);
+            let chain = root.first_child().unwrap();
+            let mut outer = vec![];
+            if start != 0 {
+                outer.push((IdentifierExpression, true, 0..1));
+            }
+            outer.push((owner_kind, true, start..end));
+            assert_children(&chain, &outer);
+            let owner = chain.last_child().unwrap();
+            let mut direct = vec![(open, false, start..start + 1)];
+            direct.extend(
+                slots.into_iter().map(|(kind, node, range)| {
+                    (kind, node, start + range.start..start + range.end)
+                }),
+            );
+            if has_close {
+                direct.push((close, false, end - 1..end));
+            }
+            assert_children(&owner, &direct);
+            for element in root.descendants_with_tokens() {
+                let range = element.text_range();
+                assert_eq!(
+                    element.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+                assert!(!matches!(
+                    element.kind(),
+                    Invalid
+                        | Error
+                        | ExpressionDelimitedSeparator
+                        | ExpressionDelimitedForeignClose
+                ));
+            }
+            for item in owner.children().filter(|node| node.kind() == item_kind) {
+                if item_kind == IndexItem {
+                    let range = item.text_range();
+                    assert_children(
+                        &item,
+                        &[(
+                            OperatorChain,
+                            true,
+                            usize::from(range.start())..usize::from(range.end()),
+                        )],
+                    );
+                }
+            }
+
+            // Classify from the owner and adjacent children, before consulting records.
+            let owner_form = match owner.kind() {
+                ParenthesizedExpression => Form::Group,
+                CallTail => Form::Call,
+                IndexTail => Form::Index,
+                _ => unreachable!(),
+            };
+            let admitted_kind = match owner.kind() {
+                IndexTail => IndexItem,
+                ParenthesizedExpression | CallTail => OperatorChain,
+                _ => unreachable!(),
+            };
+            let children = owner.children_with_tokens().collect::<Vec<_>>();
+            let mut classified = vec![];
+            for (index, child) in children
+                .iter()
+                .enumerate()
+                .filter(|(_, child)| child.kind() == Missing)
+            {
+                let missing = child.as_node().expect("Missing node");
+                assert_eq!(missing.children_with_tokens().count(), 0);
+                assert!(missing.text_range().is_empty());
+                let role = match children.get(index + 1) {
+                    Some(next) if next.kind() == Comma => {
+                        GrammarRole::Expression(owner_form.item())
+                    }
+                    Some(next) if next.kind() == admitted_kind => {
+                        assert_eq!(children[index - 1].kind(), admitted_kind);
+                        GrammarRole::Expression(owner_form.separator())
+                    }
+                    None => owner_form.closing(),
+                    _ => panic!("unclassified direct Missing: {source:?}"),
+                };
+                classified.push((role, usize::from(missing.text_range().start())));
+            }
+            assert_eq!(
+                classified.iter().map(|(role, _)| *role).collect::<Vec<_>>(),
+                expected_role.into_iter().collect::<Vec<_>>()
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == Missing)
+                    .count(),
+                classified.len()
+            );
+
+            let expected = classified
+                .into_iter()
+                .map(|(role, anchor)| {
+                    record(
+                        role,
+                        RecoveryKind::Missing,
+                        anchor..anchor,
+                        UnexpectedCategory::OtherCharacter,
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(records, expected, "{source:?}");
+            let (again, frozen) = full(&source, Some(&records));
+            assert_eq!(again, green);
+            assert_eq!(frozen, records);
+
+            // The existing loop seam exposes its exact accepted-close/EOF handoff.
+            let interior = &source[start + 1..];
+            let (_, exit, remainder, local_records) = parse(interior, form, start + 1, None, None);
+            assert_eq!(remainder, "");
+            assert_eq!(local_records, records);
+            if has_close {
+                assert!(matches!(
+                    exit,
+                    NormalizedExit::Complete(Ok(()), LineEntry::InLine)
+                ));
+            } else {
+                let NormalizedExit::Complete(Err(Either::Right(end_item)), LineEntry::InLine) =
+                    exit
+                else {
+                    panic!("EOF handoff: {source:?}")
+                };
+                assert!(end_item.item.payload_view().is_eof());
+                let extent = end_item.item.extent(end);
+                assert_eq!(extent.physical(), end..end);
+                assert_eq!(extent.leading(), end..end);
+                assert_eq!(extent.remaining(), end..end);
+                assert_eq!(extent.payload(), end..end);
+            }
+        }
+    }
+}
+
+#[test]
 fn parenthesized_collision_literals_keep_distinct_records_and_raw_slots() {
     for (source, slot, expected) in [
         (

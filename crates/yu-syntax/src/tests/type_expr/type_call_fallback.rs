@@ -29,6 +29,300 @@ fn children(node: &SyntaxNode) -> Vec<(SyntaxKind, String)> {
         .collect()
 }
 
+fn assert_call_occurrences(
+    root: &SyntaxNode,
+    direct: &[(SyntaxKind, std::ops::Range<usize>)],
+    terminal: &[(SyntaxKind, std::ops::Range<usize>)],
+) {
+    let close = close_node(root);
+    let call = close.parent().unwrap();
+    for (parent, expected) in [(&call, direct), (&close, terminal)] {
+        let actual = parent
+            .children_with_tokens()
+            .map(|child| {
+                assert_eq!(child.parent().as_ref(), Some(parent));
+                match child.kind() {
+                    SyntaxKind::TypeExpression
+                    | SyntaxKind::Missing
+                    | SyntaxKind::TypeCallClose => assert!(child.as_node().is_some()),
+                    SyntaxKind::LParen
+                    | SyntaxKind::RParen
+                    | SyntaxKind::Comma
+                    | SyntaxKind::Semicolon
+                    | SyntaxKind::Whitespace
+                    | SyntaxKind::Newline
+                    | SyntaxKind::Error => assert!(child.as_token().is_some()),
+                    kind => panic!("unexpected TypeCall evidence kind: {kind:?}"),
+                }
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{root}");
+    }
+    assert_eq!(call.last_child_or_token().unwrap().as_node(), Some(&close));
+    assert!(
+        !call
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Invalid)
+    );
+}
+
+#[test]
+fn type_call_repetition_composes_explicit_separators_and_same_slot_retry() {
+    use SyntaxKind::*;
+    let source = "T(A;@ B,,C;)";
+    let (green, _, _) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    // The opener and each explicit separator start fresh opportunities. The
+    // adjacent Error leaves and B share the opportunity after the semicolon;
+    // the consecutive commas expose a distinct empty opportunity at 8.
+    assert_call_occurrences(
+        &SyntaxNode::new_root(green),
+        &[
+            (LParen, 1..2),
+            (TypeExpression, 2..3),
+            (Semicolon, 3..4),
+            (Error, 4..5),
+            (Error, 5..6),
+            (TypeExpression, 6..7),
+            (Comma, 7..8),
+            (Missing, 8..8),
+            (Comma, 8..9),
+            (TypeExpression, 9..10),
+            (Semicolon, 10..11),
+            (TypeCallClose, 11..12),
+        ],
+        &[(RParen, 11..12)],
+    );
+
+    let source = "T(@;B,)";
+    let (green, _, _) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    // A separator may end an Error opportunity without a successful retry.
+    assert_call_occurrences(
+        &SyntaxNode::new_root(green),
+        &[
+            (LParen, 1..2),
+            (Error, 2..3),
+            (Semicolon, 3..4),
+            (TypeExpression, 4..5),
+            (Comma, 5..6),
+            (TypeCallClose, 6..7),
+        ],
+        &[(RParen, 6..7)],
+    );
+}
+
+#[test]
+fn type_call_repetition_distinguishes_close_epsilon_from_fresh_eof() {
+    use SyntaxKind::*;
+    for (source, direct, terminal) in [
+        (
+            "T()",
+            vec![(LParen, 1..2), (TypeCallClose, 2..3)],
+            vec![(RParen, 2..3)],
+        ),
+        (
+            "T(A,)",
+            vec![
+                (LParen, 1..2),
+                (TypeExpression, 2..3),
+                (Comma, 3..4),
+                (TypeCallClose, 4..5),
+            ],
+            vec![(RParen, 4..5)],
+        ),
+        (
+            "T(A;)",
+            vec![
+                (LParen, 1..2),
+                (TypeExpression, 2..3),
+                (Semicolon, 3..4),
+                (TypeCallClose, 4..5),
+            ],
+            vec![(RParen, 4..5)],
+        ),
+        (
+            "T(])",
+            vec![(LParen, 1..2), (TypeCallClose, 2..4)],
+            vec![(Error, 2..3), (RParen, 3..4)],
+        ),
+        (
+            "T(A;])",
+            vec![
+                (LParen, 1..2),
+                (TypeExpression, 2..3),
+                (Semicolon, 3..4),
+                (TypeCallClose, 4..6),
+            ],
+            vec![(Error, 4..5), (RParen, 5..6)],
+        ),
+        (
+            "T(",
+            vec![(LParen, 1..2), (Missing, 2..2), (TypeCallClose, 2..2)],
+            vec![(Missing, 2..2)],
+        ),
+        (
+            "T(A;",
+            vec![
+                (LParen, 1..2),
+                (TypeExpression, 2..3),
+                (Semicolon, 3..4),
+                (Missing, 4..4),
+                (TypeCallClose, 4..4),
+            ],
+            vec![(Missing, 4..4)],
+        ),
+    ] {
+        let (green, _, _) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source);
+        assert_call_occurrences(&SyntaxNode::new_root(green), &direct, &terminal);
+    }
+}
+
+#[test]
+fn type_call_repetition_composes_inherited_separator_and_final_fresh_slot() {
+    use SyntaxKind::*;
+    let source = "G T(F A;";
+    let (green, _, _) = run_type_with_recoveries(source, None);
+    assert_eq!(green.to_string(), source);
+    // Missing between delegated Types is the inherited-ML separator. The
+    // direct Missing after Semicolon is an argument, before the nested close.
+    assert_call_occurrences(
+        &SyntaxNode::new_root(green),
+        &[
+            (LParen, 3..4),
+            (TypeExpression, 4..5),
+            (Whitespace, 5..6),
+            (Missing, 6..6),
+            (TypeExpression, 6..7),
+            (Semicolon, 7..8),
+            (Missing, 8..8),
+            (TypeCallClose, 8..8),
+        ],
+        &[(Missing, 8..8)],
+    );
+}
+
+#[test]
+fn type_call_repetition_distinguishes_layout_retry_from_terminal_residual() {
+    use SyntaxKind::*;
+    for (source, direct, terminal) in [
+        (
+            "T(A\n@B,)",
+            vec![
+                (LParen, 1..2),
+                (TypeExpression, 2..3),
+                (Newline, 3..4),
+                (Error, 4..5),
+                (TypeExpression, 5..6),
+                (Comma, 6..7),
+                (TypeCallClose, 7..8),
+            ],
+            vec![(RParen, 7..8)],
+        ),
+        (
+            "T(A@B)",
+            vec![
+                (LParen, 1..2),
+                (TypeExpression, 2..3),
+                (TypeCallClose, 3..6),
+            ],
+            vec![(Error, 3..4), (Error, 4..5), (RParen, 5..6)],
+        ),
+        (
+            "T(@ A]B)",
+            vec![
+                (LParen, 1..2),
+                (Error, 2..3),
+                (Error, 3..4),
+                (TypeExpression, 4..5),
+                (TypeCallClose, 5..8),
+            ],
+            vec![(Error, 5..6), (Error, 6..7), (RParen, 7..8)],
+        ),
+    ] {
+        let (green, _, _) = run_type_with_recoveries(source, None);
+        assert_eq!(green.to_string(), source);
+        assert_call_occurrences(&SyntaxNode::new_root(green), &direct, &terminal);
+    }
+}
+
+#[test]
+fn type_call_repetition_pipe_payload_keeps_post_item_argument_error() {
+    use SyntaxKind::*;
+    let source = "T(A|B)";
+    let (green, _, found, _, remainder, _, _, _) =
+        run_required_type_with_outer_boundary_and_recoveries(
+            source,
+            crate::type_expr::TypeOuterBoundary::NONE,
+            true,
+            None,
+        );
+    assert!(found);
+    assert_eq!(remainder, "");
+    assert_eq!(green.to_string(), source);
+    assert_call_occurrences(
+        &SyntaxNode::new_root(green),
+        &[
+            (LParen, 1..2),
+            (TypeExpression, 2..3),
+            (Error, 3..4),
+            (TypeExpression, 4..5),
+            (TypeCallClose, 5..6),
+        ],
+        &[(RParen, 5..6)],
+    );
+}
+
+#[test]
+fn type_call_repetition_preserves_protected_stop_after_separator() {
+    use SyntaxKind::*;
+    let source = "T(A; ] tail";
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(Root.into());
+    let (exit, origin) = crate::type_expr::type_expr_with_caller_stops_for_test(
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+        crate::lexical::stops::stops_for(TokenKind::RBracket) & crate::lexical::stops::STOP_CLOSES,
+        0,
+        0,
+    )
+    .unwrap();
+    output.finish_node();
+    let root = SyntaxNode::new_root(finish_with_discarded_recoveries(output, recover));
+    let NormalizedExit::Complete(Err(Either::Left(pending)), line) = exit else {
+        panic!("protected RBracket");
+    };
+    // Horizontal leading belongs to Call; only the raw stop remains pending.
+    let (mut control, control_origin, control_line, control_remainder, _, _) =
+        scan_type_item_control(&source[4..], 4, &operators);
+    assert_eq!(emit_pending_leading_text(&mut control), " ");
+    assert_eq!(pending, control);
+    assert_eq!(origin, control_origin);
+    assert_eq!(line, control_line);
+    assert_eq!(input, control_remainder);
+    assert_eq!(root.to_string(), "T(A; ");
+    assert_call_occurrences(
+        &root,
+        &[
+            (LParen, 1..2),
+            (TypeExpression, 2..3),
+            (Semicolon, 3..4),
+            (Whitespace, 4..5),
+            (Missing, 5..5),
+            (TypeCallClose, 5..5),
+        ],
+        &[(Missing, 5..5)],
+    );
+}
+
 #[test]
 fn type_call_separator_matrix_keeps_direct_phase_ownership() {
     fn type_call(root: &SyntaxNode) -> SyntaxNode {

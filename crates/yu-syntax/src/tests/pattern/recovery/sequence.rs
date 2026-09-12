@@ -621,6 +621,241 @@ fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
 }
 
 #[test]
+fn record_raw_sequence_roles_follow_direct_ordered_children() {
+    use PatternRole::{RecordItem as I, RecordSeparator as S};
+    use SyntaxKind::{
+        Comma, Error, LBrace, Missing, RBrace, RecordPatternField as F, Whitespace as W,
+    };
+
+    // Exact leaves also expose initial/retry leading outside the raw group and
+    // internal leading as Error leaves. Record compatibility is checked separately.
+    for (source, children, recovery) in [
+        (
+            "{a,b}",
+            vec![
+                (LBrace, "{"),
+                (F, "a"),
+                (Comma, ","),
+                (F, "b"),
+                (RBrace, "}"),
+            ],
+            None,
+        ),
+        (
+            "{,a}",
+            vec![
+                (LBrace, "{"),
+                (Missing, ""),
+                (Comma, ","),
+                (F, "a"),
+                (RBrace, "}"),
+            ],
+            Some((I, 1..1, false)),
+        ),
+        (
+            "{@ @ a}",
+            vec![
+                (LBrace, "{"),
+                (Error, "@"),
+                (Error, " "),
+                (Error, "@"),
+                (W, " "),
+                (F, "a"),
+                (RBrace, "}"),
+            ],
+            Some((I, 1..4, true)),
+        ),
+        (
+            "{@}",
+            vec![(LBrace, "{"), (Error, "@"), (RBrace, "}")],
+            Some((I, 1..2, true)),
+        ),
+        (
+            "{a,@ b}",
+            vec![
+                (LBrace, "{"),
+                (F, "a"),
+                (Comma, ","),
+                (Error, "@"),
+                (W, " "),
+                (F, "b"),
+                (RBrace, "}"),
+            ],
+            Some((I, 3..4, true)),
+        ),
+        (
+            "{a b}",
+            vec![
+                (LBrace, "{"),
+                (F, "a"),
+                (W, " "),
+                (Missing, ""),
+                (F, "b"),
+                (RBrace, "}"),
+            ],
+            Some((S, 3..3, false)),
+        ),
+        (
+            "{a; b}",
+            vec![
+                (LBrace, "{"),
+                (F, "a"),
+                (Error, ";"),
+                (W, " "),
+                (F, "b"),
+                (RBrace, "}"),
+            ],
+            Some((S, 2..3, true)),
+        ),
+        (
+            "{a;}",
+            vec![(LBrace, "{"), (F, "a"), (Error, ";"), (RBrace, "}")],
+            Some((S, 2..3, true)),
+        ),
+        (
+            "{a @ ; . b}",
+            vec![
+                (LBrace, "{"),
+                (F, "a"),
+                (W, " "),
+                (Error, "@"),
+                (Error, " "),
+                (Error, ";"),
+                (Error, " "),
+                (Error, "."),
+                (W, " "),
+                (F, "b"),
+                (RBrace, "}"),
+            ],
+            Some((S, 3..8, true)),
+        ),
+        (
+            "{ @ @ a}",
+            vec![
+                (LBrace, "{"),
+                (W, " "),
+                (Error, "@"),
+                (Error, " "),
+                (Error, "@"),
+                (W, " "),
+                (F, "a"),
+                (RBrace, "}"),
+            ],
+            Some((I, 2..5, true)),
+        ),
+    ] {
+        for origin in [0, 41] {
+            let expected = recovery
+                .iter()
+                .map(|(role, range, error)| {
+                    record(1, *role, origin + range.start..origin + range.end, *error)
+                })
+                .collect::<Vec<_>>();
+            let fresh = checked(
+                source,
+                Context {
+                    origin,
+                    ..Context::default()
+                },
+                &expected,
+                source,
+                if source == "{,a}" {
+                    PatternCompletion::Incomplete
+                } else {
+                    PatternCompletion::Complete
+                },
+            );
+            assert_eq!(fresh.remainder, "");
+            let root = SyntaxNode::new_root(fresh.green);
+            let owner = root
+                .children()
+                .find(|node| node.kind() == SyntaxKind::Pattern)
+                .unwrap()
+                .children()
+                .find(|node| node.kind() == SyntaxKind::RecordPattern)
+                .unwrap();
+            assert!(!owner.descendants().any(|node| matches!(
+                node.kind(),
+                SyntaxKind::Invalid
+                    | SyntaxKind::RecordPatternSeparator
+                    | SyntaxKind::RecordPatternForeignClose
+            )));
+            let direct = owner.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(direct.len(), children.len(), "{source:?}");
+            let mut offset = 0;
+            for (child, (kind, text)) in direct.iter().zip(&children) {
+                assert_eq!(child.kind(), *kind, "{source:?}");
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(kind, F | Missing),
+                    "{source:?}"
+                );
+                assert_eq!(child.parent(), Some(owner.clone()));
+                assert_eq!(child.to_string(), *text, "{source:?}");
+                let end = offset + text.len();
+                assert_eq!(child.to_string(), source[offset..end]);
+                assert_eq!(
+                    usize::from(child.text_range().start()),
+                    "sentinel".len() + offset
+                );
+                assert_eq!(
+                    usize::from(child.text_range().end()),
+                    "sentinel".len() + end
+                );
+                if *kind == Missing {
+                    assert_eq!(child.as_node().unwrap().children_with_tokens().count(), 0);
+                }
+                offset = end;
+            }
+            assert_eq!(offset, source.len());
+
+            // This bounded schema starts in Item. Comma resets Item, accepted
+            // field/spread enters Separator, and trivia preserves the phase.
+            // A maximal direct Error group takes its entry phase, then permits
+            // Item retry. In particular, an earlier field cannot classify the
+            // post-comma group in `{a,@ b}`. Neither spelling nor records select it.
+            let mut phase = I;
+            let mut observed = Vec::new();
+            let mut index = 0;
+            while index < direct.len() {
+                let child = &direct[index];
+                let start = usize::from(child.text_range().start()) - "sentinel".len();
+                match child.kind() {
+                    Comma => phase = I,
+                    F | SyntaxKind::RecordPatternSpreadItem => phase = S,
+                    Missing => {
+                        observed.push((phase, start..start, false));
+                        phase = I;
+                    }
+                    Error => {
+                        let role = phase;
+                        let mut end = usize::from(child.text_range().end()) - "sentinel".len();
+                        while index + 1 < direct.len() && direct[index + 1].kind() == Error {
+                            index += 1;
+                            assert_eq!(
+                                usize::from(direct[index].text_range().start()),
+                                "sentinel".len() + end
+                            );
+                            end = usize::from(direct[index].text_range().end()) - "sentinel".len();
+                        }
+                        observed.push((role, start..end, true));
+                        phase = I;
+                    }
+                    LBrace | RBrace | W => {}
+                    kind => panic!("unexpected direct child {kind:?} in {source:?}"),
+                }
+                index += 1;
+            }
+            assert_eq!(
+                observed,
+                recovery.iter().cloned().collect::<Vec<_>>(),
+                "{source:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn record_wrong_kind_primaries_are_structured_in_both_sequence_phases() {
     // A same-line colon is owned by the preceding field, not its separator.
     checked(

@@ -1,6 +1,231 @@
 use crate::tests::support::*;
 
 #[test]
+fn for_cst_slots_are_selected_by_ordered_children_without_recovery_records() {
+    use SyntaxKind::*;
+
+    // Paths start at ForStatement. Direct sibling order distinguishes the
+    // structural slots; child owners retain their own recovery occurrences.
+    let header = vec![
+        (ForKw, 0..3),
+        (Whitespace, 3..4),
+        (Pattern, 4..5),
+        (Whitespace, 5..6),
+        (InKw, 6..8),
+        (Whitespace, 8..9),
+        (ForIterable, 9..11),
+    ];
+    let mut missing_introducer = header.clone();
+    missing_introducer.push((Missing, 11..11));
+    let mut retry_introducer = header.clone();
+    retry_introducer.extend([
+        (Whitespace, 11..12),
+        (Error, 12..13),
+        (Error, 13..14),
+        (Error, 14..15),
+        (Whitespace, 15..16),
+        (Colon, 16..17),
+        (Whitespace, 17..18),
+        (OperatorChain, 18..19),
+    ]);
+    let mut shallow_body = header;
+    shallow_body.extend([(Colon, 11..12), (Missing, 12..12)]);
+
+    for (source, path, expected, recovery_count, iterable_count) in [
+        ("for", vec![Pattern], vec![(Missing, 3..3)], 1, 0),
+        ("for @", vec![Pattern], vec![(Error, 4..5)], 1, 0),
+        (
+            "for x",
+            vec![],
+            vec![
+                (ForKw, 0..3),
+                (Whitespace, 3..4),
+                (Pattern, 4..5),
+                (Missing, 5..5),
+            ],
+            1,
+            0,
+        ),
+        (
+            "for x in: x",
+            vec![ForIterable, OperatorChain],
+            vec![(Missing, 8..8)],
+            1,
+            1,
+        ),
+        (
+            "for x in @ xs: x",
+            vec![ForIterable, OperatorChain],
+            vec![(Error, 9..10), (IdentifierExpression, 10..13)],
+            1,
+            1,
+        ),
+        ("for x in xs", vec![], missing_introducer, 1, 1),
+        ("for x in xs @ @ : x", vec![], retry_introducer, 1, 1),
+        ("for x in xs:\nnext", vec![], shallow_body, 1, 1),
+        (
+            "for x in xs: ]",
+            vec![OperatorChain],
+            vec![(Missing, 13..13)],
+            1,
+            1,
+        ),
+        (
+            "for x in xs: @ x",
+            vec![OperatorChain],
+            vec![(Error, 13..14), (IdentifierExpression, 14..16)],
+            1,
+            1,
+        ),
+        (
+            "for x in xs:\n  ",
+            vec![IndentedStatementBlock],
+            vec![(Newline, 12..13), (Whitespace, 13..15), (Missing, 15..15)],
+            1,
+            1,
+        ),
+        (
+            "for x in xs:\n  @",
+            vec![IndentedStatementBlock],
+            vec![(Newline, 12..13), (Whitespace, 13..15), (Error, 15..16)],
+            1,
+            1,
+        ),
+        (
+            "for x in xs:\n  @ x",
+            vec![IndentedStatementBlock],
+            vec![
+                (Newline, 12..13),
+                (Whitespace, 13..15),
+                (Error, 15..16),
+                (Statement, 16..18),
+            ],
+            1,
+            1,
+        ),
+        (
+            "for x in xs: x",
+            vec![OperatorChain],
+            vec![(IdentifierExpression, 13..14)],
+            0,
+            1,
+        ),
+        (
+            "for x in xs:\n  x",
+            vec![IndentedStatementBlock],
+            vec![(Newline, 12..13), (Whitespace, 13..15), (Statement, 15..16)],
+            0,
+            1,
+        ),
+    ] {
+        let (green, _) = run_statement(source);
+        let statement = for_node(&green);
+        let mut owner = statement.clone();
+        for kind in path {
+            let children = owner
+                .children()
+                .filter(|node| node.kind() == kind)
+                .collect::<Vec<_>>();
+            assert_eq!(children.len(), 1, "{source:?}: {kind:?}");
+            owner = children[0].clone();
+        }
+        let direct = owner.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(
+            direct
+                .iter()
+                .map(|element| (
+                    element.kind(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                ))
+                .collect::<Vec<_>>(),
+            expected,
+            "{source:?}"
+        );
+        // Adjacent Error leaves form one occurrence only within this parent.
+        // Native trivia, a retry node or punctuation ends the group.
+        let mut groups = Vec::new();
+        let mut previous_error = false;
+        for element in &direct {
+            assert_eq!(element.parent(), Some(owner.clone()));
+            if element.kind() == Error {
+                assert!(element.as_token().is_some());
+                let range = element.text_range();
+                if previous_error {
+                    let (_, end) = groups.last_mut().unwrap();
+                    assert_eq!(*end, range.start());
+                    *end = range.end();
+                } else {
+                    groups.push((range.start(), range.end()));
+                }
+            } else if element.kind() == Missing {
+                assert!(element.text_range().is_empty());
+                assert_eq!(element.as_node().unwrap().children_with_tokens().count(), 0);
+            }
+            previous_error = element.kind() == Error;
+        }
+        if matches!(source, "for x in @ xs: x" | "for x in xs: @ x") {
+            let retry = direct.last().unwrap().as_node().unwrap();
+            let start = usize::from(retry.text_range().start());
+            let end = usize::from(retry.text_range().end());
+            assert_eq!(
+                retry
+                    .children_with_tokens()
+                    .map(|element| (
+                        element.kind(),
+                        usize::from(element.text_range().start())
+                            ..usize::from(element.text_range().end()),
+                    ))
+                    .collect::<Vec<_>>(),
+                [(Whitespace, start..start + 1), (Identifier, start + 1..end)]
+            );
+        }
+        if source == "for x in xs: ]" {
+            let leading = owner.prev_sibling_or_token().unwrap();
+            assert_eq!(leading.kind(), Whitespace);
+            assert_eq!(leading.parent(), Some(statement.clone()));
+            assert_eq!(usize::from(leading.text_range().start()), 12);
+            assert_eq!(usize::from(leading.text_range().end()), 13);
+        }
+        if source == "for x in xs:\n  @ x" {
+            let retry = direct.last().unwrap().as_node().unwrap();
+            assert_eq!(
+                retry
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .map(|token| (
+                        token.kind(),
+                        usize::from(token.text_range().start())
+                            ..usize::from(token.text_range().end()),
+                    ))
+                    .collect::<Vec<_>>(),
+                [(Whitespace, 16..17), (Identifier, 17..18)]
+            );
+        }
+        let all_missing = statement
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .count();
+        for recovery in statement
+            .descendants_with_tokens()
+            .filter(|element| matches!(element.kind(), Missing | Error))
+        {
+            assert_eq!(recovery.parent(), Some(owner.clone()), "{source:?}");
+        }
+        assert_eq!(groups.len() + all_missing, recovery_count, "{source:?}");
+        assert_eq!(
+            statement
+                .children()
+                .filter(|node| node.kind() == ForIterable)
+                .count(),
+            iterable_count,
+            "{source:?}"
+        );
+        assert!(!statement.descendants().any(|node| node.kind() == Invalid));
+    }
+}
+
+#[test]
 fn for_structural_records_are_exact_shifted_and_frozen() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     use crate::recovery_record::*;

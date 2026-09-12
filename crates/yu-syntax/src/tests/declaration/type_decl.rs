@@ -1,6 +1,321 @@
 use crate::tests::support::*;
 
 #[test]
+fn type_schema_required_name_after_type_keyword_uses_direct_rowan_order() {
+    use SyntaxKind::{
+        Equals, Error, Identifier, Invalid, Missing, Root, Statement, TypeDeclaration,
+        TypeExpression, TypeKw, Whitespace,
+    };
+
+    // This is direct Rowan evidence for the pre-name slot.  The adjacent
+    // record/frozen matrices below remain the separate typed-record evidence.
+    for (source, expected, missing, errors) in [
+        (
+            "type",
+            vec![(TypeKw, false, 0..4, "type"), (Missing, true, 4..4, "")],
+            1,
+            0,
+        ),
+        (
+            "type = A",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Missing, true, 5..5, ""),
+                (Equals, false, 5..6, "="),
+                (Whitespace, false, 6..7, " "),
+                (TypeExpression, true, 7..8, "A"),
+            ],
+            1,
+            0,
+        ),
+        (
+            "type @ ",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Error, false, 5..6, "@"),
+                (Whitespace, false, 6..7, " "),
+            ],
+            0,
+            1,
+        ),
+        (
+            "type @ Name = A",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Error, false, 5..6, "@"),
+                (Whitespace, false, 6..7, " "),
+                (Identifier, false, 7..11, "Name"),
+                (Whitespace, false, 11..12, " "),
+                (Equals, false, 12..13, "="),
+                (Whitespace, false, 13..14, " "),
+                (TypeExpression, true, 14..15, "A"),
+            ],
+            0,
+            1,
+        ),
+        (
+            "type Name = A",
+            vec![
+                (TypeKw, false, 0..4, "type"),
+                (Whitespace, false, 4..5, " "),
+                (Identifier, false, 5..9, "Name"),
+                (Whitespace, false, 9..10, " "),
+                (Equals, false, 10..11, "="),
+                (Whitespace, false, 11..12, " "),
+                (TypeExpression, true, 12..13, "A"),
+            ],
+            0,
+            0,
+        ),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(
+            matches!(exit, Some(Err(Either::Right(_)))),
+            "{source:?}: the TypeDeclaration must terminate without a cascade"
+        );
+
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            declaration
+                .ancestors()
+                .take(3)
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [TypeDeclaration, Statement, Root],
+            "{source:?}"
+        );
+
+        let children = declaration.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len(), "{source:?}");
+        if missing + errors == 1 {
+            let (slot, _) = children
+                .iter()
+                .enumerate()
+                .find(|(_, child)| matches!(child.kind(), Missing | Error))
+                .expect("one direct pre-name recovery leaf");
+            assert_eq!(
+                children[..slot]
+                    .iter()
+                    .filter(|child| child.kind() != Whitespace)
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                [TypeKw],
+                "{source:?}: select the required Name slot by direct pre-name order"
+            );
+        }
+        for (child, (kind, is_node, range, text)) in children.iter().zip(expected) {
+            assert_eq!(child.parent().as_ref(), Some(&declaration), "{source:?}");
+            assert_eq!(child.kind(), kind, "{source:?}");
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                range,
+                "{source:?}"
+            );
+            assert_eq!(child.to_string(), text, "{source:?}");
+            assert_eq!(child.as_node().is_some(), is_node, "{source:?}");
+            assert_eq!(child.as_token().is_some(), !is_node, "{source:?}");
+            if kind == Missing {
+                assert_eq!(child.as_node().unwrap().children_with_tokens().count(), 0);
+            }
+            if kind == Error {
+                assert!(
+                    child.as_token().is_some(),
+                    "{source:?}: Error is a token leaf"
+                );
+            }
+        }
+
+        assert_eq!(count(&declaration, Missing), missing, "{source:?}");
+        assert_eq!(token_count(&declaration, Error), errors, "{source:?}");
+        assert_eq!(count(&declaration, Invalid), 0, "{source:?}");
+    }
+}
+
+#[test]
+fn type_schema_equality_rhs_missing_uses_direct_rowan_order() {
+    use SyntaxKind::{
+        Equals, Error, Identifier, Invalid, Missing, Root, Statement, TypeDeclaration,
+        TypeExpression, TypeKw, Whitespace,
+    };
+
+    for (source, committed, insertion) in
+        [("type T =", "type T =", 8), ("type T = ;", "type T = ", 9)]
+    {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), committed, "{source:?}");
+        if insertion == 9 {
+            let Some(Err(Either::Left(mut item))) = exit else {
+                panic!("{source:?}: the semicolon must remain pending");
+            };
+            assert_eq!(token_kind(&item), Some(TokenKind::Semicolon));
+            assert_eq!(emit_pending_leading_text(&mut item), "");
+        } else {
+            assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        }
+
+        let declaration = type_declaration_node(&green);
+        let mut expected = vec![
+            (TypeKw, false, 0..4, "type"),
+            (Whitespace, false, 4..5, " "),
+            (Identifier, false, 5..6, "T"),
+            (Whitespace, false, 6..7, " "),
+            (Equals, false, 7..8, "="),
+        ];
+        if insertion == 9 {
+            expected.push((Whitespace, false, 8..9, " "));
+        }
+        expected.push((TypeExpression, true, insertion..insertion, ""));
+        let children = declaration.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len(), "{source:?}");
+        for (child, (kind, is_node, range, text)) in children.iter().zip(expected) {
+            assert_eq!(child.parent().as_ref(), Some(&declaration), "{source:?}");
+            assert_eq!(child.kind(), kind, "{source:?}");
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                range,
+                "{source:?}"
+            );
+            assert_eq!(child.to_string(), text, "{source:?}");
+            assert_eq!(child.as_node().is_some(), is_node, "{source:?}");
+            assert_eq!(child.as_token().is_some(), !is_node, "{source:?}");
+        }
+
+        let rhs = children.last().unwrap().as_node().unwrap();
+        let rhs_children = rhs.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(rhs_children.len(), 1, "{source:?}");
+        let missing = rhs_children[0].as_node().expect("Missing is a node");
+        assert_eq!(missing.kind(), Missing, "{source:?}");
+        assert_eq!(missing.text_range(), rhs.text_range(), "{source:?}");
+        assert_eq!(missing.children_with_tokens().count(), 0, "{source:?}");
+        assert_eq!(
+            missing
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [Missing, TypeExpression, TypeDeclaration, Statement, Root],
+            "{source:?}"
+        );
+        assert_eq!(count(&declaration, Missing), 1, "{source:?}");
+        assert!(
+            !declaration.children().any(|node| node.kind() == Missing),
+            "{source:?}"
+        );
+        assert!(
+            !declaration
+                .descendants_with_tokens()
+                .any(|element| matches!(element.kind(), Error | Invalid)),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn type_schema_equality_rhs_primary_error_uses_direct_rowan_order() {
+    use SyntaxKind::{
+        Equals, Error, Identifier, Invalid, Missing, Root, Statement, TypeDeclaration,
+        TypeExpression, TypeKw, Whitespace,
+    };
+
+    for (source, committed, retry, protected) in [
+        ("type T = @", "type T = @", false, false),
+        ("type T = @ A", "type T = @ A", true, false),
+        ("type T = @;", "type T = @", false, true),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), committed, "{source:?}");
+        if protected {
+            let Some(Err(Either::Left(mut item))) = exit else {
+                panic!("{source:?}: the semicolon must remain pending");
+            };
+            assert_eq!(token_kind(&item), Some(TokenKind::Semicolon));
+            assert_eq!(emit_pending_leading_text(&mut item), "");
+        } else {
+            assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        }
+
+        let declaration = type_declaration_node(&green);
+        assert_eq!(
+            declaration
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [TypeDeclaration, Statement, Root],
+            "{source:?}"
+        );
+        let mut expected = vec![
+            (TypeKw, false, 0..4),
+            (Whitespace, false, 4..5),
+            (Identifier, false, 5..6),
+            (Whitespace, false, 6..7),
+            (Equals, false, 7..8),
+            (Whitespace, false, 8..9),
+            (Error, false, 9..10),
+        ];
+        if retry {
+            expected.push((TypeExpression, true, 10..12));
+        }
+        let children = declaration.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len(), "{source:?}");
+        for (child, (kind, is_node, range)) in children.iter().zip(expected) {
+            assert_eq!(child.parent().as_ref(), Some(&declaration), "{source:?}");
+            assert_eq!(child.kind(), kind, "{source:?}");
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                range,
+                "{source:?}"
+            );
+            assert_eq!(child.as_node().is_some(), is_node, "{source:?}");
+            assert_eq!(child.as_token().is_some(), !is_node, "{source:?}");
+        }
+
+        let start = children
+            .iter()
+            .position(|child| child.kind() == Error)
+            .unwrap();
+        let end = start
+            + children[start..]
+                .iter()
+                .take_while(|child| child.kind() == Error)
+                .count();
+        let errors = &children[start..end];
+        assert!(!errors.is_empty(), "{source:?}");
+        assert!(children[..start].iter().all(|child| child.kind() != Error));
+        assert!(children[end..].iter().all(|child| child.kind() != Error));
+        for error in errors {
+            assert!(!error.text_range().is_empty(), "{source:?}");
+        }
+        for pair in errors.windows(2) {
+            assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+        }
+        assert_eq!(usize::from(errors[0].text_range().start()), 9);
+        assert_eq!(usize::from(errors.last().unwrap().text_range().end()), 10);
+
+        if retry {
+            let rhs = children[end].as_node().unwrap();
+            let leading = rhs.first_child_or_token().unwrap();
+            assert_eq!(leading.parent().as_ref(), Some(rhs), "{source:?}");
+            assert_eq!(leading.kind(), Whitespace, "{source:?}");
+            assert!(leading.as_token().is_some(), "{source:?}");
+            assert_eq!(
+                usize::from(leading.text_range().start())..usize::from(leading.text_range().end()),
+                10..11,
+                "{source:?}"
+            );
+        }
+        assert!(
+            !declaration
+                .descendants_with_tokens()
+                .any(|element| matches!(element.kind(), Missing | Invalid)),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn type_definition_introducer_has_direct_post_name_cst_evidence() {
     use crate::recovery_record::{
         DeclarationRole, ExpectedSyntax, GrammarRole, PunctuationEvidence, TypeDeclarationRole,

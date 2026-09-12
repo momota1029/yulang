@@ -28,6 +28,259 @@ fn impl_schema_shell(source: &str, suffix: &[(SyntaxKind, std::ops::Range<u32>)]
 }
 
 #[test]
+fn impl_required_types_schema_distinguishes_head_and_description() {
+    use SyntaxKind::*;
+    let assert_elements =
+        |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, std::ops::Range<u32>, &str)]| {
+            let children = parent.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), expected.len());
+            for (child, (kind, node, range, text)) in children.iter().zip(expected) {
+                assert_eq!(child.parent(), Some(parent.clone()));
+                assert_eq!(child.kind(), *kind);
+                assert_eq!(child.as_node().is_some(), *node);
+                assert_eq!(
+                    child.text_range(),
+                    rowan::TextRange::new(range.start.into(), range.end.into())
+                );
+                assert_eq!(child.to_string(), *text);
+            }
+        };
+    for (source, head, description, missing_at) in [
+        (
+            "impl ;",
+            vec![(TypeExpression, true, 5..5, "")],
+            vec![],
+            Some(5),
+        ),
+        ("impl @", vec![(Error, false, 5..6, "@")], vec![], None),
+        (
+            "impl @ T;",
+            vec![
+                (Error, false, 5..6, "@"),
+                (TypeExpression, true, 6..8, " T"),
+            ],
+            vec![],
+            None,
+        ),
+        (
+            "impl T:",
+            vec![(TypeExpression, true, 5..6, "T")],
+            vec![(Colon, false, 6..7, ":"), (TypeExpression, true, 7..7, "")],
+            Some(7),
+        ),
+        (
+            "impl T: @",
+            vec![(TypeExpression, true, 5..6, "T")],
+            vec![
+                (Colon, false, 6..7, ":"),
+                (Whitespace, false, 7..8, " "),
+                (Error, false, 8..9, "@"),
+            ],
+            None,
+        ),
+        (
+            "impl T: @ D;",
+            vec![(TypeExpression, true, 5..6, "T")],
+            vec![
+                (Colon, false, 6..7, ":"),
+                (Whitespace, false, 7..8, " "),
+                (Error, false, 8..9, "@"),
+                (TypeExpression, true, 9..11, " D"),
+            ],
+            None,
+        ),
+        (
+            "impl T: D;",
+            vec![(TypeExpression, true, 5..6, "T")],
+            vec![
+                (Colon, false, 6..7, ":"),
+                (Whitespace, false, 7..8, " "),
+                (TypeExpression, true, 8..9, "D"),
+            ],
+            None,
+        ),
+        (
+            "impl @  ~   T;",
+            vec![
+                (Error, false, 5..6, "@"),
+                (Error, false, 6..8, "  "),
+                (Error, false, 8..9, "~"),
+                (TypeExpression, true, 9..13, "   T"),
+            ],
+            vec![],
+            None,
+        ),
+        (
+            "impl T: @  ~   D;",
+            vec![(TypeExpression, true, 5..6, "T")],
+            vec![
+                (Colon, false, 6..7, ":"),
+                (Whitespace, false, 7..8, " "),
+                (Error, false, 8..9, "@"),
+                (Error, false, 9..11, "  "),
+                (Error, false, 11..12, "~"),
+                (TypeExpression, true, 12..16, "   D"),
+            ],
+            None,
+        ),
+    ] {
+        let (green, exit, records, remainder) = typed_impl(source, None, 0, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        let (canonical, _, canonical_remainder) =
+            run_statement_normalized(source, 100, LineEntry::InLine, None);
+        assert_eq!(canonical_remainder, "");
+        let implementation = declaration(&canonical);
+        assert_eq!(implementation.green(), declaration(&green).green());
+        let statement = implementation.parent().expect("canonical Statement");
+        assert_eq!(statement.kind(), Statement);
+        let root = statement.parent().expect("Root");
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        assert_eq!(implementation.to_string(), source);
+        assert_eq!(statement.to_string(), source);
+        assert_eq!(root.to_string(), source);
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| child.kind() == Invalid)
+        );
+
+        let mut expected = vec![
+            (ImplKw, false, 0..4, "impl"),
+            (Whitespace, false, 4..5, " "),
+        ];
+        expected.extend(head.clone());
+        if let Some(last) = description.last() {
+            expected.push((
+                ImplDescription,
+                true,
+                6..last.2.end,
+                &source[6..last.2.end as usize],
+            ));
+        }
+        if source.ends_with(';') {
+            let end = source.len() as u32;
+            expected.push((Semicolon, false, end - 1..end, ";"));
+        }
+        assert_elements(&implementation, &expected);
+        let description_node = implementation
+            .children()
+            .find(|child| child.kind() == ImplDescription);
+        assert_eq!(description_node.is_some(), !description.is_empty());
+        if let Some(node) = &description_node {
+            assert_elements(node, &description);
+        }
+
+        // Head is the phase after ImplKw and before ImplDescription/body.
+        // Description Type is only inside ImplDescription after its Colon.
+        // Nested Type recovery schemas are outside this owner-slot matrix.
+        let mut slots = vec![(implementation.clone(), head)];
+        if let Some(node) = description_node {
+            assert_eq!(node.first_child_or_token().unwrap().kind(), Colon);
+            slots.push((node, description));
+        }
+        let mut missing_count = 0;
+        let mut error_count = 0;
+        for (parent, slot) in slots {
+            let children = parent.children_with_tokens().collect::<Vec<_>>();
+            let errors = children
+                .iter()
+                .filter(|child| child.kind() == Error)
+                .collect::<Vec<_>>();
+            error_count += errors.len();
+            let expected_errors = slot
+                .iter()
+                .filter(|child| child.0 == Error)
+                .collect::<Vec<_>>();
+            assert_eq!(errors.len(), expected_errors.len());
+            if let (Some(first), Some(last)) = (errors.first(), errors.last()) {
+                assert_eq!(
+                    first.text_range().start(),
+                    expected_errors[0].2.start.into()
+                );
+                assert_eq!(
+                    last.text_range().end(),
+                    expected_errors.last().unwrap().2.end.into()
+                );
+                for pair in errors.windows(2) {
+                    assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+                }
+                if let Some(retry) = parent
+                    .children()
+                    .find(|child| child.kind() == TypeExpression)
+                {
+                    assert_eq!(retry.text_range().start(), last.text_range().end());
+                    let start = u32::from(retry.text_range().start());
+                    let leading_len = if source.contains('~') { 3 } else { 1 };
+                    let end = start + leading_len;
+                    let retry_text = if parent.kind() == ImplDescription {
+                        "D"
+                    } else {
+                        "T"
+                    };
+                    assert_elements(
+                        &retry,
+                        &[
+                            (
+                                Whitespace,
+                                false,
+                                start..end,
+                                if leading_len == 3 { "   " } else { " " },
+                            ),
+                            (Identifier, false, end..end + 1, retry_text),
+                        ],
+                    );
+                }
+            }
+            for ty in parent
+                .children()
+                .filter(|child| child.kind() == TypeExpression)
+            {
+                if ty.text_range().is_empty() {
+                    let at = missing_at.expect("one absent required Type");
+                    assert_eq!(ty.text_range(), rowan::TextRange::empty(at.into()));
+                    assert_elements(&ty, &[(Missing, true, at..at, "")]);
+                    let missing = ty.first_child().unwrap();
+                    assert_eq!(missing.children_with_tokens().count(), 0);
+                    missing_count += 1;
+                }
+            }
+        }
+        assert_eq!(missing_count, usize::from(missing_at.is_some()));
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            missing_count
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .count(),
+            error_count
+        );
+        let mut item = pending_item(exit, LineEntry::InLine);
+        assert!(item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut item), "");
+
+        // Frozen records are compatibility evidence, not a slot classifier.
+        assert_eq!(
+            records.len(),
+            usize::from(missing_at.is_some() || error_count != 0)
+        );
+        let (again, again_exit, frozen, again_remainder) =
+            typed_impl(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(again_remainder, remainder);
+        let mut item = pending_item(again_exit, LineEntry::InLine);
+        assert!(item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut item), "");
+    }
+}
+
+#[test]
 fn impl_schema_completed_head_or_description_selects_body_introducer() {
     use SyntaxKind::*;
     for (prefix, base) in [("impl 型", 8), ("impl 型: D", 11)] {

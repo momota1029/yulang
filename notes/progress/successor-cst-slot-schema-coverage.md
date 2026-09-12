@@ -301,10 +301,45 @@ and delta audits were clean; nested/caller owners remain separate.
 
 `tests/declaration/use_decl.rs` maps ordered Path, Alias and group entry/comma
 slots, including nested and parenthesized routes and UTF-8. Foreign/local close
-and OperatorName close are explicitly excluded from these rows. The
-Authoritative `UseGroupForeignClose` topology is selected and pre-write-audited
-but pending construction; local close and OperatorName remain separate. M2
-specification and regression delta audits for the independent rows were clean.
+and OperatorName close are excluded from these rows. The constructed
+Authoritative `UseGroupForeignClose` topology and bounded local terminal-close
+phase have separate rows; OperatorName remains separate. M2 specification and
+regression delta audits for the independent rows were clean.
+
+#### Use group foreign-close Draft links
+
+`declaration::use_decl::parse_group` now wraps only its existing locally
+consumed mismatched-close Error in `UseGroupForeignClose`. Direct Rowan and
+fresh/frozen exact-record controls cover UseGroup, both UseExclusionGroup
+openers, repeated/mixed directions, RBracket exclusion, UTF-8 leading,
+outer/active-stop handoff and accepted groups. Direct GroupEntry Error stays
+direct. M2 pre-write and closure audits were clean; the local terminal-close
+phase is separately linked below, while OperatorName and the global interpreter
+remain separate.
+
+#### Use group local terminal-close Draft links
+
+Only present direct terminal Missing occurrences in `UseGroup` and brace- or
+parenthesis-opened `UseExclusionGroup` are linked. The direct opener and
+terminal sibling position select Brace versus Parenthesis Close; a native
+matching close is the no-diagnostic alternative. This is not a claim that
+every group exit has a terminal child: propagated nested-`UseTree` and raw
+group-recovery failures remain terminal-child-free.
+
+`crates/yu-syntax/src/declaration/use_decl.rs:920–1052,1677–1691` supplies the
+shared phase/publisher, with caller selection at `:397–407,610–620,690–700,
+1252–1289`. Direct Rowan proof is the four `use_schema_group_local_` /
+`use_schema_group_propagated_` tests in
+`crates/yu-syntax/src/tests/declaration/use_decl.rs:575–778`. Their finite
+matrix covers all three opener/owner combinations, empty/body/trailing-comma,
+earlier GroupEntry/Separator Missing, foreign-close continuation, UTF-8,
+matching closes, CRLF caller handoff, both borrowed outer-close directions and
+the two no-local-close propagated exits. Classification uses direct ordered
+children/ranges and ancestry only. M1 pre-write and post-write specification
+audits and the catalog-delta audit were clean. This bounded row is
+catalog-audited and evidence-complete within its stated scope. OperatorName,
+nested UseTree schemas, additional fence forms, outer Root/Statement
+continuation, the global interpreter and ledger/API migration remain separate.
 
 #### Rule ExpressionList direct caller fence Draft links
 
@@ -342,14 +377,137 @@ is a catalog-audited evidence-complete Draft only for `type T (A)`, `type T @ `
 and `type T @ = A`; parameters, nominal forms, `==`/`=>`, RHS internals,
 global interpreter and ledger retirement remain separate.
 
+#### TypeDeclaration equality-RHS fresh required-Type Missing Draft links
+
+Only fresh Type absence after a direct admitted Equals in a structural
+TypeDeclaration is linked. `Root > Statement > TypeDeclaration > Equals ...
+TypeExpression(Missing)` selects Declaration(Type(Rhs)); the nested empty
+TypeExpression separates it from direct DefinitionIntroducer recovery.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/declaration/type_decl.rs:495–538` | `linked` | exact Equals-selected RHS caller and required-Type handoff |
+| `crates/yu-syntax/src/type_expr/mod.rs:690–708` | `linked` | caller-role fresh Missing publication inside TypeExpression |
+| `crates/yu-syntax/src/tests/declaration/type_decl.rs:139–214` | `linked` | full-shell EOF/protected-Semicolon direct order, ranges, cardinality and handoff without records |
+
+DefinitionIntroducer/Name, malformed/retried/accepted/nested Type, parameters,
+nominal forms, other boundary/caller variants, global interpretation and ledger
+retirement remain untriaged, delegated or separately linked.
+
+#### TypeDeclaration equality-RHS Type-primary Error Draft links
+
+Only nonempty malformed Type-primary input after the declaration's actual
+Equals is linked. `TypeDeclaration > Equals Native* Error+ TypeExpression?`
+selects Type(Primary); a following TypeExpression terminates the group and owns
+retry leading. DefinitionIntroducer Error and fresh RHS Missing are separate.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/declaration/type_decl.rs:495–538` | `linked` | exact Equals-selected RHS caller and Type exit/handoff |
+| `crates/yu-syntax/src/type_expr/mod.rs:732–796` | `linked` | shared Type(Primary) Error publication and TypeExpression retry |
+| `crates/yu-syntax/src/tests/declaration/type_decl.rs:217–314` | `linked` | full-shell terminal/retry/protected-Semicolon direct order and ranges without records/Error spelling |
+
+These caller-shell witnesses contain one Error leaf each; shared-publisher
+multi-leaf support is linked from the expression annotation row. Fresh Missing,
+accepted/nested Type, other boundary/caller forms, global interpretation and
+ledger retirement remain untriaged, delegated or separately linked.
+
+#### DerivesClause arbitrary RoleReference-episode repetition Draft links
+
+The Derives RoleReference sequence is one compositional grammar, not a finite
+set of ordinal-specific slots. Episode zero follows DerivesKw; every direct
+Comma creates exactly one next episode by re-entering the same helper and
+boundary policy. An ordinal counts preceding direct commas, not TypeExpression
+children. ViaKw terminates this loop and enters the separate ViaTarget row.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/declaration/derives.rs:52–101,105–140` | `linked` | identical initial/post-comma role entry, comma induction step, Via termination and boundary handoff |
+| `crates/yu-syntax/src/type_expr/mod.rs:690–708,732–796` | `linked` | fresh TypeExpression(Missing), direct Type(Primary) Error and same-episode retry |
+| `crates/yu-syntax/src/tests/declaration/derives.rs:610–1100` | `linked` | bounded base/first-repetition Missing and Error transition cases |
+| `crates/yu-syntax/src/tests/declaration/derives.rs:1103–1387` | `linked` | seven compositional rows: consecutive absence, Error/comma, retry/comma, native comma leading, Via transitions and later protected boundary |
+
+The generalized Draft inherits the gap/boundary rules but does not claim full
+nested Type, ViaTarget composition, other caller/attachment families,
+nonordinary layout/comments/fences, repeated clauses or global interpreter/API
+and ledger completion.
+
+#### DerivesClause initial RoleReference fresh Missing Draft links
+
+Only the first required RoleReference immediately after DerivesKw is linked.
+`Root > DerivesClause > DerivesKw TypeExpression(Missing)` selects
+Declaration(Derives(RoleReference)); post-comma roles and ViaTarget are
+separate episodes.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/declaration/derives.rs:105–140,358–371` | `linked` | initial boundary priority, direct TypeExpression/Missing publication and handoff |
+| `crates/yu-syntax/src/tests/declaration/derives.rs:610–705` | `linked` | EOF/trivia/RBracket/newline direct order, ranges, unique Missing and complete pending state without records |
+
+Historical spaced-EOF records retain their physical coordinate while Rowan
+projection uses the direct Missing range `7..7`. Comma episodes, malformed or
+nested Type, ViaTarget, declaration attachments/caller boundaries, other
+layout/fence forms, global interpretation and ledger retirement remain
+untriaged, delegated or separately linked.
+
+#### DerivesClause post-comma RoleReference fresh Missing Draft links
+
+Only the second RoleReference after one accepted TypeExpression and direct
+Comma is linked. `DerivesClause > DerivesKw TypeExpression Comma
+TypeExpression(Missing)` selects a distinct occurrence of
+Declaration(Derives(RoleReference)) by sibling order and ordinal.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/declaration/derives.rs:72–84,105–140,358–371` | `linked` | direct Comma phase, next required-role boundary and Missing publication |
+| `crates/yu-syntax/src/tests/declaration/derives.rs:845–948` | `linked` | EOF/RBracket exact ordered children, ranges, unique Missing and handoff without records |
+
+Initial/further role occurrences, malformed/retried/nested Type, ViaTarget,
+attachments/caller boundaries, other layout/fences, global interpretation and
+ledger retirement remain untriaged, delegated or separately linked.
+
+#### DerivesClause initial RoleReference Type-primary Error Draft links
+
+Only the initial nonempty malformed required-Type run after DerivesKw is
+linked. `DerivesClause > DerivesKw Error+ TypeExpression?` selects
+Type(Primary); a retry TypeExpression terminates the direct group and owns its
+leading. Fresh initial/post-comma Missing and ViaTarget are separate.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/declaration/derives.rs:52–66,105–140` | `linked` | initial RoleReference caller and Type exit/handoff |
+| `crates/yu-syntax/src/type_expr/mod.rs:732–796` | `linked` | Type(Primary) Error publication, retry and terminal boundary behavior |
+| `crates/yu-syntax/src/tests/declaration/derives.rs:708–842` | `linked` | terminal/retry/RBracket direct order, maximal group/ranges and handoff without records/Error spelling |
+
+Post-comma malformed/nested Type, other boundaries/layout/fences, ViaTarget,
+attachments, global interpretation and ledger retirement remain untriaged,
+delegated or separately linked.
+
+#### DerivesClause post-comma RoleReference Type-primary Error Draft links
+
+Only the nonempty malformed second RoleReference after an accepted role and
+direct Comma is linked. `DerivesClause > DerivesKw TypeExpression Comma Error+
+TypeExpression?` selects Type(Primary); retry TypeExpression ends the group and
+owns its leading. Both fresh Missing rows and ViaTarget remain separate.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/declaration/derives.rs:72–84,105–140` | `linked` | post-comma RoleReference caller and Type exit/handoff |
+| `crates/yu-syntax/src/type_expr/mod.rs:732–796` | `linked` | Type(Primary) Error publication, retry and boundary behavior |
+| `crates/yu-syntax/src/tests/declaration/derives.rs:951–1100` | `linked` | terminal/retry/RBracket direct occurrence, ranges, maximal group and handoff without records/Error spelling |
+
+Initial/later occurrences, nested Type, other boundaries/layout/fences,
+ViaTarget, attachments, global interpretation and ledger retirement remain
+untriaged, delegated or separately linked.
+
 #### DerivesClause `via` target Draft links
 
 Only `crates/yu-syntax/src/declaration/derives.rs:40–101,144–232,320–356` is linked to
 the catalog-audited bounded direct ViaTarget Draft: direct ViaKw dispatch, missing/boundary
 priority, raw Error run, Identifier retry and protected-boundary handoff.
 Direct Rowan proof is
-`crates/yu-syntax/src/tests/declaration/derives.rs:609–770`; existing
-protected-boundary/retry support is `:772–918`. RoleReference Type recovery, comma
+`crates/yu-syntax/src/tests/declaration/derives.rs:1390–1550`; existing
+protected-boundary/retry support is `:1553–1699`. RoleReference Type recovery, comma
 repetition, declaration/companion callers, outer stops/fences and all other
 declaration/header rows remain separate.
 
@@ -629,6 +787,24 @@ specification audits were clean, so this is a catalog-audited evidence-complete
 Draft only for the two Missing paths. Type Error/retry, accepted Type, other
 boundaries/tails, global interpreter and ledger retirement remain separate.
 
+#### TypeAnnotationTail required-Type primary Error Draft links
+
+Only the nonempty required-Type primary Error immediately after exact AsKw is
+linked. `OperatorChain > TypeAnnotationTail > AsKw Error+ TypeExpression?`
+selects Type(Primary); the optional TypeExpression terminates the direct Error
+group and owns retry leading. The separately linked
+`AsKw TypeExpression(Missing)` remains Expression(TypeAnnotation).
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/tails/type_annotation.rs:18–48` | `linked` | exact AsKw caller shell, required-Type delegation and unchanged Type exit |
+| `crates/yu-syntax/src/type_expr/mod.rs:732–765` | `linked` | Type(Primary) maximal Error publication, terminal handoff and admitted Type retry |
+| `crates/yu-syntax/src/tests/expression_structural_tails.rs:89–248` | `linked` | direct terminal/retry/UTF-8 adjacency, accepted and protected-close Rowan proof; later record/frozen assertions are compatibility-only |
+
+Every other required-Type caller, annotation Missing, nested Type recovery,
+unwitnessed boundary/layout form and the global interpreter remains untriaged,
+delegated or separately linked.
+
 #### Fixed FieldTail Name and PathTail Segment row links
 
 Only the following verified `fixed_access.rs` locations are linked to the
@@ -723,6 +899,30 @@ ownership. Pre-write and post-write specification audits are clean. Status:
 `evidence-complete Draft` only for these witnessed PV-owned rows; other PV
 forms, nested Type schemas, the global collector and ledger/API migration
 remain open.
+
+#### ForallType direct-head composition Draft links
+
+The aggregate row composes the three phase-local Forall rows below with the
+previously excluded first actual-binder gap, recovered binders across covered
+Colon recovery, repeated separator placeholders and conditional terminal
+forms. It is one finite state machine over the unchanged iterative head loop,
+not a binder-ordinal enumeration and not a new Rowan wrapper.
+
+The driver is `crates/yu-syntax/src/type_expr/forall.rs:56–115,142–542`.
+Direct composition proof is the three `forall_head_composition_*` tests at
+`crates/yu-syntax/src/tests/type_expr/forall_recovery.rs:96–264`, together with
+the existing phase-local tests below. The long witness crosses first-binder
+Error, actual-binder gaps, two separate separator placeholders, repeated
+direct Colon Error groups, actual Colon, Body Error and TypeExpression retry.
+Terminal variants show that a covered Colon stays covered across later binders
+and boundary leading remains outside the Forall node; five shorter controls
+fix current-slot-only terminal recovery and no cascades. Projection uses direct
+wrapper contents, parentage, sibling order and ranges only. M1 pre-write and
+post-write and catalog-delta specification audits were clean after correcting
+the catalog's phase-specific leading-owner wording. The aggregate Draft is
+catalog-audited and evidence-complete within its stated scope. Nested Type,
+broader caller/fence paths, public/header/Yumark use, the global interpreter and
+ledger/API retirement remain separate.
 
 #### ForallType first required-binder candidate links
 
@@ -848,6 +1048,21 @@ linked facts, not a separate census assignment. Every other
 variants, forall, delimiter, and close contexts, remains `untriaged` and
 unmapped.
 
+#### TypeCallTail direct production composition Draft links
+
+Six `type_call_repetition_*` tests in
+`crates/yu-syntax/src/tests/type_expr/type_call_fallback.rs:32–326` compose the
+three audited phase rows below. They cover Comma/Semicolon repetition,
+same-slot Error retry, zero/trailing close bypass, same-offset item-before-close
+Missing, inherited separator Missing, ordinary-layout and pipe-special item
+Error, residual close recovery and protected-stop handoff. Exact direct
+node/token identity, parents, ranges and one terminal TypeCallClose are asserted
+without record or Error-spelling classification. M2 pre/post specification and
+compiler reviews and the catalog-delta audit are clean after one evidence-only
+helper repair and an ordinal-wording correction. The aggregate Draft is
+catalog-audited and evidence-complete within its stated scope; nested Type and
+global interpreter/API/ledger work stay separate.
+
 #### TypeCall terminal-close row links
 
 Only the following census emissions are linked to the Draft catalog row
@@ -959,6 +1174,41 @@ M1 pre-write and post-repair closure audits were clean. This is a
 catalog-audited evidence-complete Draft only for the direct initial slots;
 delimiter sequences/closes, defaults, other Pattern tails, nested grammar,
 the global interpreter and ledger retirement remain separate.
+
+#### PatternTypeAnnotation fresh required-Type Missing Draft links
+
+Only fresh required-Type absence after direct Pattern annotation Colon is
+linked. `Pattern > PatternTypeAnnotation > Colon TypeExpression(Missing)`
+selects Pattern(TypeAnnotation); the TypeExpression and Missing are empty at
+the direct post-Colon frontier. Nonempty Type(Primary) Error is separate.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/pattern/mod.rs:1106–1126,1384–1428` | `linked` | direct PatternTypeAnnotation/Colon shell, caller role and required-Type handoff |
+| `crates/yu-syntax/src/type_expr/mod.rs:690–708` | `linked` | fresh required-Type Missing publication inside TypeExpression |
+| `crates/yu-syntax/src/tests/pattern.rs:1907–1990` | `linked` | direct parentage/order/ranges, unique zero-width Missing, EOF and protected-newline handoff without records |
+
+Nonempty Error/retry, accepted/nested Type, other boundary/origin/layout forms,
+UTF-8/CRLF/Yumark, global interpretation and ledger retirement remain
+untriaged, delegated or separately linked.
+
+#### PatternTypeAnnotation required-Type primary Error Draft links
+
+Only nonempty Type-primary Error after the Pattern annotation's direct Colon is
+linked. `Pattern > PatternTypeAnnotation > Colon Native* Error+
+TypeExpression?` selects Type(Primary); a following TypeExpression terminates
+the adjacent Error group and owns retry leading. Fresh annotation absence is
+Pattern(TypeAnnotation) and remains separate.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/pattern/mod.rs:1106–1126,1384–1428` | `linked` | direct PatternTypeAnnotation/Colon shell, required-Type delegation and boundary handoff |
+| `crates/yu-syntax/src/type_expr/mod.rs:732–765` | `linked` | shared Type(Primary) Error publication and admitted Type retry |
+| `crates/yu-syntax/src/tests/pattern.rs:1992–2081` | `linked` | direct order/ranges, terminal/retry, multi-leaf adjacency and protected-newline evidence without records or Error spelling |
+
+Fresh Missing, accepted-only/nested Type, other caller and boundary forms,
+UTF-8/CRLF/Yumark, global interpretation and ledger retirement remain
+untriaged, delegated or separately linked.
 
 #### RecordPattern item-phase structured Invalid row links
 
@@ -1219,6 +1469,100 @@ five-owner Item/Separator/foreign-close matrix, mixed/repeated phases,
 semicolon, comments, UTF-8, LF/CRLF, quote prefixes, protected closes/fence,
 accepted controls and direct ProjectionRecord spread RHS. Every other
 expression-delimited row remains untriaged, delegated, or unmapped.
+
+#### Parenthesized/EffectRow Item, Separator and Close row links
+
+Only the following shared Type-delimited sites are linked to the bounded Draft
+catalog row `(ParenthesizedTypeGroup or EffectRowType, ordered
+Item/Separator/Close phase, immediate P/E owner)`. They do not assign Call,
+BracketRow, another Type owner, the global interpreter or API migration.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/type_expr/delimited.rs:50–204` | `linked` | shared P/E sequence entry, boundary/local-close priority and one `TypeDelimitedForeignClose` around each existing locally consumed mismatched-close Error |
+| `crates/yu-syntax/src/type_expr/delimited.rs:650–745` | `linked` | non-Call Item Error run, exact stop set and direct Error-to-retry handoff; P/E Item groups remain unwrapped |
+| `crates/yu-syntax/src/type_expr/delimited.rs:747–812` | `linked` | shared post-Error continuation, retry-leading ownership and protected/matching/EOF close disposition |
+| `crates/yu-syntax/src/type_expr/delimited.rs:1284–1324` | `linked` | owner-selected Item and inherited Separator Missing publication |
+| `crates/yu-syntax/src/type_expr/delimited.rs:1355–1425` | `linked` | owner-selected terminal Close Missing and parent-selected close expectation |
+| `crates/yu-syntax/src/syntax_kind.rs:288,527–529,785,803` | `linked` | append-only `TypeDelimitedForeignClose = 283`, raw conversion and round-trip evidence |
+
+Focused direct Rowan and retained continuation/record proof is
+`crates/yu-syntax/src/tests/type_expr/pe_recovery.rs:97–594`. It covers P/E
+collision pairs, Item/Close mixtures, separated and contiguous repeated
+closes, exact wrapper contents/ranges, retry trivia, UTF-8, shifted/frozen
+state, EOF, caller/fence/nested/PV paths and accepted/malformed Call and
+BracketRow exclusions. Every other Type row remains untriaged, delegated or
+unmapped unless separately linked above.
+
+#### If arm BodyIntroducer, Body, ElseBody and IndentedStatement row links
+
+Only the following sites are linked to the bounded Draft If-arm row. Condition
+recovery remains delegated to the required-expression row; nested expressions,
+statements, outer tails and other transported indented callers retain their own
+schemas.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/if_expr.rs:200–344` | `linked` | If/Elsif arm, required Condition, no-cascade rule, actual-Colon Body selection and direct BodyIntroducer Missing |
+| `crates/yu-syntax/src/expression/if_expr.rs:347–424` | `linked` | ElseArm ancestry and bare/colon ElseBody selection |
+| `crates/yu-syntax/src/expression/if_expr.rs:427–503` | `linked` | actual-Colon choice between inline Body/ElseBody and transported IndentedStatementBlock |
+| `crates/yu-syntax/src/expression/if_expr.rs:506–676` | `linked` | inline Missing, maximal raw Error group, retry-leading/OperatorChain continuation and role-selected projection |
+| `crates/yu-syntax/src/statement.rs:510–552,773–942` | `linked` | shared indented block construction and transported direct Statement Missing/Error/retry |
+
+Focused Rowan-only proof is
+`crates/yu-syntax/src/tests/if_expr.rs:76–249`. Its 19 witnesses cover initial
+If, Elsif and Else, inline and indented slots, no-cascade, maximal Error/retry,
+accepted controls, UTF-8/CRLF ranges and nested equal-offset occurrence order.
+Every other If boundary/caller and shared Statement row remains untriaged,
+delegated or unmapped unless separately linked above.
+
+#### For Pattern, header, iterable and body row links
+
+Only the following sites are linked to the bounded Draft For row. Accepted
+child Pattern/Expression/Statement and braced-body internals retain their own
+schemas; no global interpreter or API state is assigned here.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/for_decl.rs:180–371` | `linked` | initial Pattern wrapper, terminal no-cascade, exact InKw admission and direct InKeyword Missing before Iterable/body continuation |
+| `crates/yu-syntax/src/expression/for_decl.rs:374–524` | `linked` | ForIterable wrapper, required OperatorChain recovery and ordered handoff to body phase |
+| `crates/yu-syntax/src/expression/for_decl.rs:527–599,697–770` | `linked` | direct BodyIntroducer Missing/Error, lexical grouping, native starter retry and boundary handoff |
+| `crates/yu-syntax/src/expression/for_decl.rs:603–694` | `linked` | Colon-selected shallow Body Missing, inline required OperatorChain or transported indented Statement block |
+| `crates/yu-syntax/src/expression/for_decl.rs:822–873` | `linked` | role-selected Missing/expectation projection, including BodyIntroducer's ordered Colon/Brace alternatives |
+| `crates/yu-syntax/src/expression/required_operand.rs:73–275` | `linked` | For Iterable/Body required-expression Missing/Error grouping and retry ownership |
+| `crates/yu-syntax/src/pattern/mod.rs:415–620,1228–1276` | `linked` | caller-selected initial For Pattern Missing/Error and nested Pattern ownership |
+| `crates/yu-syntax/src/statement.rs:510–552,842–940` | `linked` | transported For IndentedStatement direct Missing/Error/retry |
+
+Focused Rowan-only proof is
+`crates/yu-syntax/src/tests/for_statement.rs:3–227`; the 15 cases cover every
+mapped owner shape, terminal no-cascade, multi-fragment Error grouping, retry
+leading and accepted inline/indented controls. Existing `for_c13_` controls
+cover 12 accepted/recovery invariants. Labels, annotated Pattern details,
+braced internals, exhaustive boundaries and nested grammar remain untriaged,
+delegated or unmapped unless separately linked above.
+
+#### CaseLike family row links
+
+Only the following sites are linked to the bounded Draft CaseLike row. Nested
+Pattern, Expression and Statement recovery remains delegated to those child
+owners; the one combined Arrow/Body Missing remains one Rowan occurrence.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/case_like.rs` | `linked` | Case/Catch wrappers, direct Block/Arm order, CaseLike-owned inline Body Error/retry, Arrow/Body union, Separator and Catch-close completion |
+| `crates/yu-syntax/src/expression/required_operand.rs:73–275` | `linked` | Scrutinee and Guard required-expression Missing/Error grouping and retry |
+| `crates/yu-syntax/src/pattern/mod.rs:415–620,1228–1276` | `linked` | caller-selected first Pattern/Handler Missing/Error/retry and nested Pattern ownership |
+| `crates/yu-syntax/src/statement.rs:510–552,842–940` | `linked` | transported `ColonApplication(IndentedStatement)` direct Missing/Error/retry |
+
+Focused Rowan-only proof is the three `case_schema_` tests in
+`crates/yu-syntax/src/tests/case_like.rs`. They cover both families, all nine
+CaseLike roles including both Block interpretations, the single combined
+Arrow/Body Missing, Body/Separator and
+nested/close equal-offset ordering, Catch's LBrace-selected close, transported
+indented Missing/Error/retry, accepted controls and UTF-8/CRLF coordinates.
+Every exhaustive boundary/layout alternative, nested child schema and the
+global interpreter remains untriaged, delegated or unmapped unless separately
+linked above.
 
 ## Boundaries
 

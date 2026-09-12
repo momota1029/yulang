@@ -86,6 +86,177 @@ fn parse_at<'s>(
 }
 
 #[test]
+fn type_annotation_required_type_schema_preserves_native_error_and_retry_leading() {
+    use SyntaxKind::*;
+    let assert_elements =
+        |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, std::ops::Range<u32>, &str)]| {
+            let children = parent.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), expected.len());
+            for (child, (kind, node, range, text)) in children.iter().zip(expected) {
+                assert_eq!(child.parent(), Some(parent.clone()));
+                assert_eq!(child.kind(), *kind);
+                assert_eq!(child.as_node().is_some(), *node);
+                assert_eq!(
+                    child.text_range(),
+                    rowan::TextRange::new(range.start.into(), range.end.into())
+                );
+                assert_eq!(child.to_string(), *text);
+            }
+        };
+    for (source, owned, suffix, type_children) in [
+        (
+            "x as Int",
+            "x as Int",
+            vec![(TypeExpression, true, 4..8, " Int")],
+            vec![
+                (Whitespace, false, 4..5, " "),
+                (Identifier, false, 5..8, "Int"),
+            ],
+        ),
+        (
+            "x as @",
+            "x as @",
+            vec![(Error, false, 4..5, " "), (Error, false, 5..6, "@")],
+            vec![],
+        ),
+        (
+            "x as @ Int",
+            "x as @ Int",
+            vec![
+                (Error, false, 4..5, " "),
+                (Error, false, 5..6, "@"),
+                (TypeExpression, true, 6..10, " Int"),
+            ],
+            vec![
+                (Whitespace, false, 6..7, " "),
+                (Identifier, false, 7..10, "Int"),
+            ],
+        ),
+        (
+            "x as @  ~   型",
+            "x as @  ~   型",
+            vec![
+                (Error, false, 4..5, " "),
+                (Error, false, 5..6, "@"),
+                (Error, false, 6..8, "  "),
+                (Error, false, 8..9, "~"),
+                (TypeExpression, true, 9..15, "   型"),
+            ],
+            vec![
+                (Whitespace, false, 9..12, "   "),
+                (Identifier, false, 12..15, "型"),
+            ],
+        ),
+        (
+            "x as @ ]",
+            "x as @",
+            vec![(Error, false, 4..5, " "), (Error, false, 5..6, "@")],
+            vec![],
+        ),
+    ] {
+        let (green, records, exit, rest) = parse(source, None, MlMode::All, 0, None);
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(rest, "");
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        let chain = root.first_child().expect("OperatorChain");
+        let end = owned.len() as u32;
+        assert_elements(&root, &[(OperatorChain, true, 0..end, owned)]);
+        assert_elements(
+            &chain,
+            &[
+                (IdentifierExpression, true, 0..1, "x"),
+                (Whitespace, false, 1..2, " "),
+                (TypeAnnotationTail, true, 2..end, &owned[2..]),
+            ],
+        );
+        let tail = chain.last_child().expect("TypeAnnotationTail");
+        assert_eq!(tail.kind(), TypeAnnotationTail);
+        let mut expected = vec![(AsKw, false, 2..4, "as")];
+        expected.extend(suffix);
+        assert_elements(&tail, &expected);
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Missing | Invalid))
+        );
+
+        // Direct TypeAnnotationTail children after AsKw are the required-Type
+        // phase. Its Error group is Type Primary, not annotation Missing.
+        // A following TypeExpression ends the group and owns retry leading.
+        let children = tail.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children[0].kind(), AsKw);
+        let errors = children[1..]
+            .iter()
+            .take_while(|child| child.kind() == Error)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .count(),
+            errors.len()
+        );
+        if let Some(first) = errors.first() {
+            assert_eq!(first.text_range().start(), 4.into());
+            let group_end = if errors.len() == 4 { 9 } else { 6 };
+            assert_eq!(errors.last().unwrap().text_range().end(), group_end.into());
+            for pair in errors.windows(2) {
+                assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+            }
+            if let Some(ty) = tail.first_child() {
+                assert_eq!(ty.kind(), TypeExpression);
+                assert_eq!(ty.text_range().start(), group_end.into());
+            }
+        }
+        if type_children.is_empty() {
+            assert_eq!(tail.children().count(), 0);
+        } else {
+            assert_eq!(tail.children().count(), 1);
+            assert_elements(&tail.first_child().unwrap(), &type_children);
+        }
+
+        let assert_handoff = |exit| {
+            let mut item = match exit {
+                NormalizedExit::Complete(Err(Either::Left(item)), entry) => {
+                    assert_eq!(entry, LineEntry::InLine);
+                    item
+                }
+                NormalizedExit::Complete(Err(Either::Right(end)), entry) => {
+                    assert_eq!(entry, LineEntry::InLine);
+                    end.item
+                }
+                _ => panic!("pending EOF or close"),
+            };
+            if source == "x as @ ]" {
+                assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+                assert_eq!(item.payload_view().spelling(), Some("]"));
+                assert_eq!(item.extent(8).recovery_range(), 6..8);
+                assert_eq!(emit_pending_leading_text(&mut item), " ");
+                assert_eq!(item.extent(8).recovery_range(), 7..8);
+            } else {
+                assert!(item.payload_view().is_eof());
+                assert_eq!(emit_pending_leading_text(&mut item), "");
+            }
+        };
+        assert_handoff(exit);
+        // Record identity is only a compatibility oracle after the CST proof.
+        assert_eq!(records.len(), usize::from(!errors.is_empty()));
+        if let Some(record) = records.first() {
+            assert_eq!(record.kind, RecoveryKind::Error);
+            assert_eq!(record.site.role, GrammarRole::Type(TypeRole::Primary));
+            assert_eq!(record.site.range, 4..if errors.len() == 4 { 9 } else { 6 });
+        }
+        let (again, frozen, again_exit, again_rest) =
+            parse(source, None, MlMode::All, 0, Some(&records));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(again_rest, rest);
+        assert_handoff(again_exit);
+    }
+}
+
+#[test]
 fn assignment_one_character_fallback_preserves_dynamic_led_priority_and_prefix_rhs() {
     for source in ["x=-y", "x=+y", "x = y", "x =\n  y"] {
         let (green, records, _, rest) = parse(source, None, MlMode::All, 0, None);

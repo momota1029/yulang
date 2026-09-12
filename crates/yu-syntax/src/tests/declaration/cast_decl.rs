@@ -955,6 +955,82 @@ fn cast_target_introducer_direct_rowan_slot_order_and_ranges() {
 }
 
 #[test]
+fn cast_target_introducer_direct_rowan_active_rparen_stays_pending() {
+    use SyntaxKind::{CastKw, CastPattern, CastTarget, Error, Invalid, Missing, TypeExpression};
+
+    for (source, pending_leading) in [("cast(x)) tail", ""), ("cast(x) ) tail", " ")] {
+        let stops = stops_for(TokenKind::RParen);
+        let (green, exit, records, remainder) = typed_cast(source, 0, None, stops, None);
+        assert_eq!(green.to_string(), "cast(x)", "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(
+            records,
+            [cast_target_introducer_record(
+                0,
+                RecoveryKind::Missing,
+                7..7
+            )],
+            "{source:?}"
+        );
+
+        let node = declaration(&green);
+        let mut children = node.children_with_tokens();
+        let keyword = children.next().expect("direct keyword");
+        assert_eq!(keyword.kind(), CastKw, "{source:?}");
+        assert!(keyword.as_token().is_some(), "{source:?}");
+        assert_eq!(
+            keyword.text_range(),
+            rowan::TextRange::new(0.into(), 4.into())
+        );
+
+        let pattern = children.next().expect("completed direct pattern");
+        assert_eq!(pattern.kind(), CastPattern, "{source:?}");
+        let pattern = pattern.as_node().expect("CastPattern is a node");
+        assert_eq!(pattern.parent(), Some(node.clone()), "{source:?}");
+        assert_eq!(
+            pattern.text_range(),
+            rowan::TextRange::new(4.into(), 7.into())
+        );
+        assert_eq!(pattern.last_token().unwrap().kind(), SyntaxKind::RParen);
+
+        let missing = children.next().expect("direct target introducer Missing");
+        assert_eq!(missing.kind(), Missing, "{source:?}");
+        assert!(missing.as_node().is_some(), "{source:?}");
+        assert_eq!(
+            missing.text_range(),
+            rowan::TextRange::new(7.into(), 7.into())
+        );
+        assert!(children.next().is_none(), "{source:?}");
+        assert_eq!(count(&node, Missing), 1, "{source:?}");
+        assert_eq!(count(&node, Error), 0, "{source:?}");
+        assert!(
+            !node
+                .descendants()
+                .any(|child| { matches!(child.kind(), CastTarget | TypeExpression | Invalid) }),
+            "{source:?}"
+        );
+
+        let mut pending = pending_item(exit);
+        assert_eq!(pending.payload_view().token_kind(), Some(TokenKind::RParen));
+        assert_eq!(emit_pending_leading_text(&mut pending), pending_leading);
+
+        let (frozen_green, _, frozen_records, frozen_remainder) =
+            typed_cast(source, 0, Some(&records), stops, None);
+        assert_eq!(frozen_green, green, "{source:?}");
+        assert_eq!(frozen_records, records, "{source:?}");
+        assert_eq!(frozen_remainder, remainder, "{source:?}");
+
+        let mut seeded = records.clone();
+        seeded[0].id = crate::recovery_record::DiagnosticId(71);
+        let (seeded_green, _, seeded_records, seeded_remainder) =
+            typed_cast(source, 0, Some(&seeded), stops, None);
+        assert_eq!(seeded_green, green, "{source:?}");
+        assert_eq!(seeded_records, seeded, "{source:?}");
+        assert_eq!(seeded_remainder, remainder, "{source:?}");
+    }
+}
+
+#[test]
 fn cast_target_introducer_direct_target_children_distinguish_type_recovery() {
     use SyntaxKind::{CastTarget, Colon, Missing, TypeExpression, Whitespace};
 
