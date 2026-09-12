@@ -1,6 +1,345 @@
 use crate::tests::support::*;
 
 #[test]
+fn type_schema_attachment_continuation_composes_direct_rowan_phases() {
+    use SyntaxKind::{
+        DeclarationCompanion, DerivesClause, DerivesKw, Equals, Error, Identifier, Missing,
+        TypeExpression, Whitespace,
+    };
+
+    // The declaration composes existing slots; nested Type, ViaTarget and
+    // companion-body recovery remain the child owners' separate contracts.
+    for (prefix, phases, missing, errors) in [
+        (
+            "type T derives Eq",
+            vec![(DerivesClause, true, " derives Eq")],
+            0,
+            0,
+        ),
+        (
+            "type T derives Eq = A derives Debug",
+            vec![
+                (DerivesClause, true, " derives Eq"),
+                (Whitespace, false, " "),
+                (Equals, false, "="),
+                (Whitespace, false, " "),
+                (TypeExpression, true, "A"),
+                (DerivesClause, true, " derives Debug"),
+            ],
+            0,
+            0,
+        ),
+        (
+            "type T derives",
+            vec![(DerivesClause, true, " derives")],
+            1,
+            0,
+        ),
+        (
+            "type T derives @",
+            vec![(DerivesClause, true, " derives @")],
+            0,
+            2,
+        ),
+        (
+            "type T =",
+            vec![
+                (Whitespace, false, " "),
+                (Equals, false, "="),
+                (TypeExpression, true, ""),
+            ],
+            1,
+            0,
+        ),
+        (
+            "type T = @",
+            vec![
+                (Whitespace, false, " "),
+                (Equals, false, "="),
+                (Whitespace, false, " "),
+                (Error, false, "@"),
+            ],
+            0,
+            1,
+        ),
+        (
+            "type T = @ A",
+            vec![
+                (Whitespace, false, " "),
+                (Equals, false, "="),
+                (Whitespace, false, " "),
+                (Error, false, "@"),
+                (TypeExpression, true, " A"),
+            ],
+            0,
+            1,
+        ),
+        (
+            "type T = A derives",
+            vec![
+                (Whitespace, false, " "),
+                (Equals, false, "="),
+                (Whitespace, false, " "),
+                (TypeExpression, true, "A"),
+                (DerivesClause, true, " derives"),
+            ],
+            1,
+            0,
+        ),
+        (
+            "type T = A derives @",
+            vec![
+                (Whitespace, false, " "),
+                (Equals, false, "="),
+                (Whitespace, false, " "),
+                (TypeExpression, true, "A"),
+                (DerivesClause, true, " derives @"),
+            ],
+            0,
+            2,
+        ),
+    ] {
+        let source = format!("{prefix} with {{}}");
+        let (green, exit, remainder) =
+            run_statement_normalized(&source, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source);
+        assert!(
+            matches!(exit, NormalizedExit::Complete(Ok(()), _)),
+            "{source:?}"
+        );
+        assert_eq!(remainder, "");
+        let mut expected = type_attachment_header();
+        expected.extend(phases);
+        expected.push((DeclarationCompanion, true, " with {}"));
+        let declaration = assert_type_attachment_shell(green, &source, &expected, missing, errors);
+        for clause in declaration
+            .children()
+            .filter(|child| child.kind() == DerivesClause)
+        {
+            let text = clause.text().to_string();
+            let mut expected = vec![(Whitespace, false, " "), (DerivesKw, false, "derives")];
+            match text.as_str() {
+                " derives" => expected.push((TypeExpression, true, "")),
+                " derives @" => expected.extend([(Error, false, " "), (Error, false, "@")]),
+                " derives Eq" => expected.push((TypeExpression, true, " Eq")),
+                " derives Debug" => expected.push((TypeExpression, true, " Debug")),
+                _ => unreachable!(),
+            }
+            assert_type_attachment_children(&clause, &expected);
+            if text == " derives" {
+                let role = clause.last_child().unwrap();
+                assert_type_attachment_children(&role, &[(Missing, true, "")]);
+                assert_type_attachment_children(&role.first_child().unwrap(), &[]);
+            }
+        }
+        if prefix == "type T =" {
+            let rhs = declaration
+                .children()
+                .find(|child| child.kind() == TypeExpression)
+                .unwrap();
+            assert_type_attachment_children(&rhs, &[(Missing, true, "")]);
+            assert_type_attachment_children(&rhs.first_child().unwrap(), &[]);
+        }
+        if prefix == "type T = @ A" {
+            let rhs = declaration
+                .children()
+                .find(|child| child.kind() == TypeExpression)
+                .unwrap();
+            assert_type_attachment_children(
+                &rhs,
+                &[(Whitespace, false, " "), (Identifier, false, "A")],
+            );
+        }
+        let companion = declaration.last_child().unwrap();
+        assert_type_attachment_children(
+            &companion,
+            &[
+                (Whitespace, false, " "),
+                (SyntaxKind::WithKw, false, "with"),
+                (Whitespace, false, " "),
+                (SyntaxKind::LBrace, false, "{"),
+                (SyntaxKind::RBrace, false, "}"),
+            ],
+        );
+    }
+}
+
+#[test]
+fn type_schema_attachment_continuation_preserves_normalized_boundaries() {
+    use SyntaxKind::{DeclarationCompanion, DerivesClause, Equals, TypeExpression, Whitespace};
+
+    for (prefix, phases) in [
+        (
+            "type T derives Eq",
+            vec![(DerivesClause, true, " derives Eq")],
+        ),
+        (
+            "type T derives Eq = A derives Debug",
+            vec![
+                (DerivesClause, true, " derives Eq"),
+                (Whitespace, false, " "),
+                (Equals, false, "="),
+                (Whitespace, false, " "),
+                (TypeExpression, true, "A"),
+                (DerivesClause, true, " derives Debug"),
+            ],
+        ),
+    ] {
+        for (baseline, gap, stops, attaches) in [
+            (0, "\n  ", 0, true),
+            (0, "\n", 0, false),
+            (2, "\n ", 0, false),
+            (0, " ", crate::lexical::stops::STOP_WITH, false),
+            (0, "\n  ", crate::lexical::stops::STOP_WITH, false),
+        ] {
+            // Header STOP_WITH form recovery needs separate authority adjudication.
+            if prefix == "type T derives Eq" && stops != 0 {
+                continue;
+            }
+            let source = format!("{prefix}{gap}with {{}}");
+            let (green, exit, remainder) = run_type_attachment_statement(&source, baseline, stops);
+            let mut expected = type_attachment_header();
+            expected.extend(phases.iter().copied());
+            let companion_text = format!("{gap}with {{}}");
+            let committed = if attaches { source.as_str() } else { prefix };
+            if attaches {
+                expected.push((DeclarationCompanion, true, companion_text.as_str()));
+                assert!(
+                    matches!(exit, NormalizedExit::Complete(Ok(()), _)),
+                    "{source:?}"
+                );
+                assert_eq!(remainder, "");
+                assert_eq!(format!("{green}{remainder}"), source);
+            } else {
+                let mut item = match exit {
+                    NormalizedExit::Complete(Err(Either::Left(item)), _) => item,
+                    NormalizedExit::Complete(Err(Either::Right(end)), _) => end.item,
+                    _ => panic!("{source:?}: expected pending with"),
+                };
+                assert_eq!(token_kind(&item), Some(TokenKind::Identifier));
+                assert_eq!(item.payload_view().spelling(), Some("with"));
+                assert_eq!(emit_pending_leading_text(&mut item), gap);
+                assert_eq!(remainder, " {}");
+                assert_eq!(format!("{green}{gap}with{remainder}"), source);
+            }
+            assert_type_attachment_shell(green, committed, &expected, 0, 0);
+        }
+        // EOF permits the existing nominal header or completed equality form.
+        let (green, exit, remainder) = run_statement_normalized(prefix, 0, LineEntry::InLine, None);
+        assert!(matches!(
+            exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), _)
+        ));
+        assert_eq!(remainder, "");
+        let mut expected = type_attachment_header();
+        expected.extend(phases);
+        assert_type_attachment_shell(green, prefix, &expected, 0, 0);
+    }
+
+    // IMPL is a header RoleReference boundary only (C15 §2).
+    let source = "type T derives Eq impl P";
+    let (green, exit, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+    let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+        panic!("the header must hand impl to its owner");
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::Identifier));
+    assert_eq!(item.payload_view().spelling(), Some("impl"));
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
+    assert_eq!(remainder, " P");
+    assert_eq!(format!("{green} impl{remainder}"), source);
+    let mut expected = type_attachment_header();
+    expected.push((DerivesClause, true, " derives Eq"));
+    assert_type_attachment_shell(green, "type T derives Eq", &expected, 0, 0);
+}
+
+fn type_attachment_header() -> Vec<(SyntaxKind, bool, &'static str)> {
+    vec![
+        (SyntaxKind::TypeKw, false, "type"),
+        (SyntaxKind::Whitespace, false, " "),
+        (SyntaxKind::Identifier, false, "T"),
+    ]
+}
+
+fn assert_type_attachment_children(parent: &SyntaxNode, expected: &[(SyntaxKind, bool, &str)]) {
+    let children = parent.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), expected.len(), "{parent:#?}");
+    let mut offset = usize::from(parent.text_range().start());
+    for (child, &(kind, is_node, text)) in children.iter().zip(expected) {
+        assert_eq!(child.parent().as_ref(), Some(parent));
+        assert_eq!(child.kind(), kind, "{parent:#?}");
+        assert_eq!(child.as_node().is_some(), is_node);
+        assert_eq!(child.as_token().is_some(), !is_node);
+        assert_eq!(child.to_string(), text);
+        assert_eq!(
+            usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+            offset..offset + text.len()
+        );
+        offset += text.len();
+    }
+    assert_eq!(offset, usize::from(parent.text_range().end()));
+}
+
+fn assert_type_attachment_shell(
+    green: GreenNode,
+    committed: &str,
+    expected: &[(SyntaxKind, bool, &str)],
+    missing: usize,
+    errors: usize,
+) -> SyntaxNode {
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.kind(), SyntaxKind::Root);
+    assert!(root.parent().is_none());
+    assert_eq!(root.text().to_string(), committed);
+    assert_eq!(
+        usize::from(root.text_range().start())..usize::from(root.text_range().end()),
+        0..committed.len()
+    );
+    assert_type_attachment_children(&root, &[(SyntaxKind::Statement, true, committed)]);
+    let statement = root.first_child().unwrap();
+    assert_type_attachment_children(
+        &statement,
+        &[(SyntaxKind::TypeDeclaration, true, committed)],
+    );
+    let declaration = statement.first_child().unwrap();
+    assert_type_attachment_children(&declaration, expected);
+    assert_eq!(count(&root, SyntaxKind::Missing), missing);
+    assert_eq!(token_count(&root, SyntaxKind::Error), errors, "{root:#?}");
+    assert_eq!(count(&root, SyntaxKind::Invalid), 0);
+    declaration
+}
+
+fn run_type_attachment_statement(
+    source: &str,
+    baseline: usize,
+    stops: Stops,
+) -> (GreenNode, NormalizedExit, &str) {
+    let operators = OperatorTable::empty();
+    let mut input = source;
+    let mut recover = Recover::new_for_test(&operators);
+    let mut builder = GreenNodeBuilder::new();
+    builder.start_node(SyntaxKind::Root.into());
+    let exit = statement_normalized(
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
+        baseline,
+        stops,
+        0,
+        LineEntry::InLine,
+        None,
+        Some(crate::ambient_claim::AmbientClaimView::root_statement(
+            baseline,
+        ))
+        .into(),
+        Some(crate::sequence::SequenceOwner::RootStatement),
+    );
+    builder.finish_node();
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
+}
+
+#[test]
 fn type_schema_required_name_composes_direct_rowan_declaration_shells() {
     use SyntaxKind::{
         Equals, Error, Identifier, Invalid, Missing, Root, Statement, TypeDeclaration,

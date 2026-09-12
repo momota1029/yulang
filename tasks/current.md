@@ -118,6 +118,10 @@ Error token parent is the same. Do not start a partial global collector before
 the coverage map is closed. Its required-Name header composition is also
 catalog-audited across fresh Missing, terminal Error, raw-name retry and direct
 Equals retry; TypeDeclaration's remaining header/RHS forms stay separate.
+Its attachment-continuation composition is catalog-audited with header/trailing
+derives, companion and impl handoff boundaries; header STOP_WITH remains an
+explicit unresolved-authority exclusion. Do not start a partial global
+collector before the coverage map is closed.
 
 The user-authorized topology cleanup has no generic internal umbrella.
 The concrete `SyntaxIn` in `cursor.rs` borrows the live source, existing

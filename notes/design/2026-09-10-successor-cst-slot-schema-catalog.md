@@ -1295,6 +1295,17 @@ slot is selected by native Equals and ordered context, not by token parent.
 | ordered composition | Header Error then actual Equals may be followed by fresh `TypeExpression(Missing)` at EOF or before protected Semicolon, or by a direct post-Equals Type-primary Error terminal/retry. In the retry, only the admitted `TypeExpression` owns its initial whitespace. The native Equals separates the two direct Error groups. DefinitionIntroducer Missing remains a distinct no-Equals path to admitted RHS. |
 | projection and status | `type_schema_header_error_then_equals_composes_required_rhs_recovery` proves five full-shell Rowan products, exact ranges/order, missing/error cardinality, retry-leading and semicolon handoff. Header Error projects `Declaration(Type(DefinitionIntroducer))`; post-Equals direct Error projects `Type(Primary)`; fresh nested Missing projects `Declaration(Type(Rhs))`. No Invalid, wrapper or record participates. Authority: type-header recovery, required-Type roles and CST-derived diagnostics amendment. M1 pre-write adjudication and regression review were clean. Status: catalog-audited evidence-complete Draft only for these actual-Equals products; names, parameters, nominal forms, `==`/`=>`, attachments, nested Type, other boundaries, global interpretation and ledger/API removal remain separate. |
 
+### TypeDeclaration attachment-continuation composition Draft
+
+This bounded row composes header/trailing DerivesClause position, Type body and
+successor ownership without creating an attachment publisher. Header `impl`
+handoff and equality continuation deliberately remain distinct.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| ordered composition | Nominal forms permit header derives followed by Companion or pending `impl`; equality forms retain header derives, native Equals/RHS, then trailing derives and Companion. Child RoleReference/RHS Missing/Error/retry remain child-owned. Equality `STOP_WITH` preserves pending `with`; ordinary/deeper qualifying leading attaches to Companion. |
+| exclusions and status | `type_schema_attachment_continuation_*` directly proves order, ranges, leading, normalized handoff and reconstruction. It excludes header `STOP_WITH`: C15’s no-DefinitionIntroducer handoff clause conflicts with TND’s With-excluding form boundary, so neither observed Missing nor no-Missing output is certified. It also excludes nested Type/ViaTarget/Companion-body recovery, repeated clauses, parameters, fences, interpreter and ledger/API removal. Authority: C15, Type header/Companion recovery and CST diagnostics amendment. M2 pre-write, compiler/recovery, regression and repair-delta audits were clean; focused checks and package check passed (three existing warnings). Status: bounded catalog-audited Draft. |
+
 ### DerivesClause arbitrary RoleReference-episode repetition Draft
 
 This compositional Draft maps the already-authorized unbounded RoleReference
