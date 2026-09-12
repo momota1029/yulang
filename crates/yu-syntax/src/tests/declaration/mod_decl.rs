@@ -468,6 +468,383 @@ fn mod_schema_name_retry_keeps_leading_outside_test_marker() {
 }
 
 #[test]
+fn mod_schema_full_direct_shell_composition() {
+    use SyntaxKind::*;
+
+    // Each row composes a confirmed identity prefix and its complete direct
+    // suffix. The end offset separates Mod ownership from Root EOF trivia.
+    for (source, identity, suffix, end, missing, errors) in [
+        (
+            "mod  ",
+            None,
+            vec![(Whitespace, 3..5), (Missing, 5..5)],
+            5,
+            1,
+            0,
+        ),
+        (
+            "mod @  ",
+            None,
+            vec![(Whitespace, 3..4), (Error, 4..5)],
+            5,
+            0,
+            1,
+        ),
+        (
+            "mod @ # 名;",
+            None,
+            vec![
+                (Whitespace, 3..4),
+                (Error, 4..5),
+                (Error, 5..6),
+                (Error, 6..7),
+                (Whitespace, 7..8),
+                (Identifier, 8..11),
+                (Semicolon, 11..12),
+            ],
+            12,
+            0,
+            3,
+        ),
+        (
+            "mod ;",
+            None,
+            vec![(Whitespace, 3..4), (Missing, 4..4), (Semicolon, 4..5)],
+            5,
+            1,
+            0,
+        ),
+        (
+            "mod @ test;",
+            None,
+            vec![
+                (Whitespace, 3..4),
+                (Error, 4..5),
+                (Whitespace, 5..6),
+                (TestModuleMarker, 6..10),
+                (Semicolon, 10..11),
+            ],
+            11,
+            0,
+            1,
+        ),
+        (
+            "mod test;",
+            Some(TestModuleMarker),
+            vec![(Semicolon, 8..9)],
+            9,
+            0,
+            0,
+        ),
+        (
+            "mod test test;",
+            Some(TestModuleMarker),
+            vec![(Whitespace, 8..9), (Identifier, 9..13), (Semicolon, 13..14)],
+            14,
+            0,
+            0,
+        ),
+        (
+            "mod test  ",
+            Some(TestModuleMarker),
+            vec![(Whitespace, 8..10), (Missing, 10..10)],
+            10,
+            1,
+            0,
+        ),
+        (
+            "mod test @  ",
+            Some(TestModuleMarker),
+            vec![(Whitespace, 8..9), (Error, 9..10)],
+            10,
+            0,
+            1,
+        ),
+        (
+            "mod test @ test;",
+            Some(TestModuleMarker),
+            vec![
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Whitespace, 10..11),
+                (Identifier, 11..15),
+                (Semicolon, 15..16),
+            ],
+            16,
+            0,
+            1,
+        ),
+        (
+            "mod test @ ;",
+            Some(TestModuleMarker),
+            vec![
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Whitespace, 10..11),
+                (Semicolon, 11..12),
+            ],
+            12,
+            0,
+            1,
+        ),
+        (
+            "mod 名;",
+            Some(Identifier),
+            vec![(Semicolon, 7..8)],
+            8,
+            0,
+            0,
+        ),
+        (
+            "mod 名  ",
+            Some(Identifier),
+            vec![(Whitespace, 7..9), (Missing, 9..9)],
+            9,
+            1,
+            0,
+        ),
+        (
+            "mod 名 x",
+            Some(Identifier),
+            vec![(Whitespace, 7..8), (Missing, 8..8), (Statement, 8..9)],
+            9,
+            1,
+            0,
+        ),
+        (
+            "mod 名 @  ",
+            Some(Identifier),
+            vec![(Whitespace, 7..8), (Error, 8..9)],
+            9,
+            0,
+            1,
+        ),
+        (
+            "mod 名 @ ;",
+            Some(Identifier),
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (Semicolon, 10..11),
+            ],
+            11,
+            0,
+            1,
+        ),
+        (
+            "mod 名 @ : x",
+            Some(Identifier),
+            vec![
+                (Whitespace, 7..8),
+                (Error, 8..9),
+                (Whitespace, 9..10),
+                (Colon, 10..11),
+                (Statement, 11..13),
+            ],
+            13,
+            0,
+            1,
+        ),
+        (
+            "mod 名 @ x",
+            Some(Identifier),
+            vec![(Whitespace, 7..8), (Error, 8..9), (Statement, 9..11)],
+            11,
+            0,
+            1,
+        ),
+        (
+            "mod 名: x",
+            Some(Identifier),
+            vec![(Colon, 7..8), (Statement, 8..10)],
+            10,
+            0,
+            0,
+        ),
+        (
+            "mod test: x",
+            Some(TestModuleMarker),
+            vec![(Colon, 8..9), (Statement, 9..11)],
+            11,
+            0,
+            0,
+        ),
+        (
+            "mod 名:  ",
+            Some(Identifier),
+            vec![(Colon, 7..8), (Missing, 8..8)],
+            8,
+            1,
+            0,
+        ),
+        (
+            "mod 名: @  ",
+            Some(Identifier),
+            vec![(Colon, 7..8), (Whitespace, 8..9), (Error, 9..10)],
+            10,
+            0,
+            1,
+        ),
+        (
+            "mod 名: @ # x;",
+            Some(Identifier),
+            vec![
+                (Colon, 7..8),
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Error, 10..11),
+                (Error, 11..12),
+                (Statement, 12..14),
+                (Semicolon, 14..15),
+            ],
+            15,
+            0,
+            3,
+        ),
+        (
+            "mod 名:;",
+            Some(Identifier),
+            vec![(Colon, 7..8), (Missing, 8..8), (Semicolon, 8..9)],
+            9,
+            1,
+            0,
+        ),
+        (
+            "mod 名: @ ;",
+            Some(Identifier),
+            vec![
+                (Colon, 7..8),
+                (Whitespace, 8..9),
+                (Error, 9..10),
+                (Whitespace, 10..11),
+                (Semicolon, 11..12),
+            ],
+            12,
+            0,
+            1,
+        ),
+    ] {
+        let (green, exit) = run_statement(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Some(Err(Either::Right(_)))), "{source:?}");
+        let root = SyntaxNode::new_root(green);
+        let assert_children =
+            |node: &SyntaxNode, expected: &[(SyntaxKind, std::ops::Range<u32>)]| {
+                let actual = node.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(
+                    actual.len(),
+                    expected.len(),
+                    "{source:?}: {:?}",
+                    node.kind()
+                );
+                for (child, (kind, range)) in actual.iter().zip(expected) {
+                    assert_eq!(child.kind(), *kind, "{source:?}");
+                    assert_eq!(
+                        child.text_range(),
+                        rowan::TextRange::new(range.start.into(), range.end.into()),
+                        "{source:?}"
+                    );
+                    assert_eq!(
+                        child.to_string(),
+                        source[range.start as usize..range.end as usize],
+                        "{source:?}"
+                    );
+                    assert_eq!(
+                        child.as_node().is_some(),
+                        matches!(
+                            kind,
+                            Statement | ModDeclaration | TestModuleMarker | Missing
+                        ),
+                        "{source:?}"
+                    );
+                }
+            };
+        assert_eq!(root.kind(), Root);
+        assert_eq!(
+            root.text_range(),
+            rowan::TextRange::new(0.into(), (source.len() as u32).into())
+        );
+        let mut outer = vec![(Statement, 0..end)];
+        if end < source.len() as u32 {
+            outer.push((Whitespace, end..source.len() as u32));
+            let (owned, exit, remainder) =
+                run_statement_normalized(source, 0, LineEntry::InLine, None);
+            assert_eq!(owned.to_string(), source[..end as usize], "{source:?}");
+            assert_eq!(remainder, "", "{source:?}");
+            let NormalizedExit::Complete(Err(Either::Right(mut terminal)), _) = exit else {
+                panic!("{source:?}: expected terminal EOF with pending leading")
+            };
+            assert!(terminal.item.payload_view().is_eof(), "{source:?}");
+            let leading = emit_pending_leading_text(&mut terminal.item);
+            assert_eq!(leading, source[end as usize..], "{source:?}");
+        }
+        assert_children(&root, &outer);
+        let statement = root.first_child().unwrap();
+        if source == "mod 名:;" {
+            let (owned, exit, remainder) =
+                run_statement_normalized(source, 0, LineEntry::InLine, None);
+            assert_eq!(owned.to_string(), source);
+            assert_eq!(remainder, "");
+            let NormalizedExit::Complete(Err(Either::Right(mut terminal)), line) = exit else {
+                panic!("initial inline semicolon must terminate at EOF")
+            };
+            assert_eq!(line, LineEntry::InLine);
+            assert!(terminal.item.payload_view().is_eof());
+            let leading = emit_pending_leading_text(&mut terminal.item);
+            assert_eq!(leading, "");
+        }
+        assert_children(&statement, &[(ModDeclaration, 0..end)]);
+        let declaration = statement.first_child().unwrap();
+        let mut expected = vec![(ModKw, 0..3)];
+        if let Some(kind) = identity {
+            expected.extend([
+                (Whitespace, 3..4),
+                (kind, 4..if kind == Identifier { 7 } else { 8 }),
+            ]);
+        }
+        expected.extend(suffix);
+        assert_children(&declaration, &expected);
+        for marker in declaration
+            .children()
+            .filter(|node| node.kind() == TestModuleMarker)
+        {
+            let range = marker.text_range();
+            assert_children(
+                &marker,
+                &[(Identifier, u32::from(range.start())..u32::from(range.end()))],
+            );
+        }
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            missing,
+            "{source:?}"
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .count(),
+            errors,
+            "{source:?}"
+        );
+        assert!(
+            !root
+                .descendants()
+                .any(|node| matches!(node.kind(), Error | Invalid)),
+            "{source:?}"
+        );
+        assert!(
+            !root.descendants_with_tokens().any(
+                |child| child.as_token().is_some() && matches!(child.kind(), Missing | Invalid)
+            ),
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn mod_schema_identity_slots_have_direct_missing_error_and_identifier_retry() {
     use SyntaxKind::*;
     for (source, suffix) in [

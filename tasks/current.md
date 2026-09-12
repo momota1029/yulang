@@ -796,7 +796,10 @@ evidence-complete Draft. Ordered Rowan children distinguish first `test` marker
 from second TestName Identifier, then completed-identity BodyIntroducer from
 actual-Colon inline Body. The direct child Statement owns its nested BindingBody
 recovery; braced/indented children, visibility, caller boundaries and remaining
-Mod rows stay open with global collection and ledger/API migration.
+Mod rows stay open with global collection and ledger/API migration. The
+first-slot marker retry-leading repair is complete: `mod @ test;` emits retry
+leading directly under ModDeclaration before a marker ranged only to `test`.
+The corrected full direct Mod shell composition is the active next gate.
 RoleDeclaration BodyIntroducer and actual-Colon inline Body are now
 catalog-audited as an evidence-complete Draft. A completed TypeExpression Head
 is the direct predecessor of BodyIntroducer; absent/malformed Head forms are
