@@ -253,7 +253,8 @@ recursive or fence topology remain open.
 
 The UseQualifiers/UseAnchor/anchor-UsePath aggregate is now catalog-audited for
 Version-only, Anchor-only and combined forms. Recovery remains direct under the
-ancestry-selected anchor UsePath: initial Missing expects Path, post-separator
+ancestry-selected anchor UsePath: boundary initial Missing expects Path, while
+an already-admitted-gap reserved head expects Identifier; post-separator
 Missing expects Identifier, and direct Error expects Path. UTF-8 retry and
 protected semicolon handoff are lossless; broader reserved/multiline/fence and
 suffix behavior remain open.

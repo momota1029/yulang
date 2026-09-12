@@ -2811,6 +2811,122 @@ fn use_schema_marker_target_dispatch() {
 }
 
 #[test]
+fn use_schema_anchor_reserved_head_missing_identifier_handoff() {
+    use crate::recovery_record::*;
+    use SyntaxKind::*;
+
+    let projection = |node: &SyntaxNode| {
+        node.children_with_tokens()
+            .map(|child| {
+                assert_eq!(child.parent().as_ref(), Some(node));
+                let range = child.text_range();
+                (
+                    child.kind(),
+                    u32::from(range.start())..u32::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    // Reserved heads reach the required-word phase after Anchor emits leading.
+    // EOF/protected boundaries instead retain the earlier Path Missing slot.
+    for word in ["mod", "as", "with", "without"] {
+        let source = format!("use a with {word}");
+        let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
+        let expected_records = vec![CommittedRecoveryRecord {
+            id: DiagnosticId(0),
+            site: RecoverySiteKey {
+                role,
+                range: 11..11,
+            },
+            kind: RecoveryKind::Missing,
+            unexpected: std::sync::Arc::from([]),
+            expectations: std::sync::Arc::from([SyntaxExpectation {
+                role,
+                expected: ExpectedSyntax::Identifier,
+                range: 11..11,
+                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+            }]),
+            primary_expectation: 0,
+        }];
+        let mut fresh = None;
+        for frozen in [false, true] {
+            let operators = OperatorTable::empty();
+            let mut input = source.as_str();
+            let mut recover = if frozen {
+                Recover::reconcile_for_test(&operators, &expected_records)
+            } else {
+                Recover::new_for_test(&operators)
+            };
+            let mut builder = GreenNodeBuilder::new();
+            builder.start_node(Root.into());
+            let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
+            builder.finish_node();
+            let green = builder.finish();
+            let records = recover.finish_recoveries_for_test();
+            assert_eq!(records, expected_records, "{source:?}");
+            if let Some((fresh_green, fresh_records)) = &fresh {
+                assert_eq!(&green, fresh_green);
+                assert_eq!(&records, fresh_records);
+            } else {
+                fresh = Some((green.clone(), records));
+            }
+            let root = SyntaxNode::new_root(green);
+            let anchor = root
+                .descendants()
+                .find(|node| node.kind() == UseAnchor)
+                .unwrap();
+            assert_eq!(
+                anchor
+                    .ancestors()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                [
+                    UseAnchor,
+                    UseQualifiers,
+                    UseTree,
+                    UseDeclaration,
+                    Statement,
+                    Root
+                ]
+            );
+            assert_eq!(
+                projection(&anchor),
+                [(WithKw, 6..10), (Whitespace, 10..11), (UsePath, 11..11)]
+            );
+            let path = anchor.children().next().unwrap();
+            assert_eq!(projection(&path), [(Missing, 11..11)]);
+            let missing: Vec<_> = root
+                .descendants()
+                .filter(|node| node.kind() == Missing)
+                .collect();
+            assert_eq!(missing.len(), 1);
+            assert_eq!(missing[0].parent().as_ref(), Some(&path));
+            assert!(missing[0].children_with_tokens().next().is_none());
+            for child in root.descendants_with_tokens() {
+                assert!(!matches!(child.kind(), Error | Invalid));
+                let range = child.text_range();
+                assert_eq!(
+                    child.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+            }
+            assert_eq!(root.to_string(), source[..11]);
+            let Err(Either::Left(mut pending)) = exit else {
+                panic!("reserved anchor head must remain pending")
+            };
+            let extent = pending.extent(source.len() - input.len());
+            assert_eq!(extent.leading(), 10..11);
+            assert_eq!(extent.payload(), 11..source.len());
+            assert_eq!(pending.payload_view().spelling(), Some(word));
+            assert_eq!(input, "");
+            let remaining_leading = emit_pending_leading_text(&mut pending);
+            assert_eq!(remaining_leading, "");
+            assert_eq!(format!("{root}{remaining_leading}{word}{input}"), source);
+        }
+    }
+}
+
+#[test]
 fn use_schema_qualifier_anchor_path_ownership() {
     use SyntaxKind::*;
 
