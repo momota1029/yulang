@@ -1666,6 +1666,14 @@ CST-derived singleton Identifier projection. Independent delta review was
 clean; the exact focused test passed 1 with 1,422 filtered out. RulePath,
 Capture, CRLF/EOF/fence/interpolation and accepted-name variants remain open.
 
+The bounded `{a::\nnext}` RulePath witness likewise proves a direct childless
+Name Missing at `4..4`, with native LF `4..5` owned by RuleAlternation and
+`next` wholly contained by the second RuleSequence/RuleItem at `5..9`. Exact
+full tree/token ownership, absence of Error/Invalid and the CST-derived
+singleton Identifier/primary-zero projection were independently delta-audited
+clean; the focused test passed 1 with 1,422 filtered out. Accepted-name,
+CRLF/parenthesis/EOF/fence/interpolation and recursive forms remain open.
+
 The RuleBody-close and opener-selected RuleItem parenthesis-close rows share
 the focused nested EOF proof `{(a` in
 `crates/yu-syntax/src/tests/rule_literal_recovery.rs:382–501`. Exact ancestry,

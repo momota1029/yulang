@@ -434,6 +434,22 @@ bounded unmapped candidate before further implementation.
 - Other leading/comment/CRLF/fence and caller variants, recursive Rule and
   gates 2–4 remain open. Select the next bounded gate-1 candidate.
 
+## RulePath LF required-Name Missing closure
+
+- The selected M1 slice strengthened the existing `{a::\nnext}` witness. A
+  physical LF stops RulePath Name admission, stays native under
+  RuleAlternation, and `next` begins its second RuleSequence.
+- One Astra implementer proved the complete exact nine-node/six-token tree,
+  direct RulePath with ColonColon and unique childless Missing at `4..4`, LF
+  `4..5`, second Item `5..9`, native braces, absence of Error/Invalid and the
+  CST-derived RulePathName singleton Identifier/primary-zero projection before
+  records. Existing assertions and siblings stayed unchanged. Independent
+  pre-write and delta audits were clean. Scoped rustfmt/diff checks and the
+  wrapper-disabled exact test passed; 1 test, 1,422 filtered out. No production
+  code, broad suite or benchmark ran.
+- Accepted names, CRLF/parenthesis/EOF/fence/interpolation, recursive Rule and
+  gates 2–4 remain open. Select the next bounded gate-1 candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
