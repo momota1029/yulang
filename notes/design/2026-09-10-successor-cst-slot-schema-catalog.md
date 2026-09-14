@@ -930,6 +930,24 @@ fence handoff, nested OperatorChain recovery, or ProjectionRecordSpreadItem.
 | diagnostic projection | A direct raw Item Error group projects its owner-specific Item expectation (`Expression`). An Error group under `ExpressionDelimitedSeparator` projects that owner's existing separator expectation (`DelimitedSequenceSeparator`). An Error group under `ExpressionDelimitedForeignClose` projects its immediate parent's existing matching close expectation. Each is one maximal adjacent group over its combined UTF-8 range, primary zero, in Rowan preorder. Neither Error spelling nor parser provenance is consulted. |
 | proof and status | Governing authority: [expression-delimited raw-slot topology](2026-09-10-successor-expression-delimited-raw-slot-draft.md) and [expression delimited current-Item recovery](2026-09-08-successor-expression-delimited-current-item-recovery.md). Direct owner/emission source: `crates/yu-syntax/src/expression/delimited.rs:154–258`; append-only kinds: `crates/yu-syntax/src/syntax_kind.rs:281–282, 500–504, 745–767`; direct Rowan proof: `crates/yu-syntax/src/tests/delimited_recovery.rs:433–1258`. Status: `mapped` after M2 pre-write and closure audits. All non-raw delimited slots, global interpreter, recovery ledger and API migration remain open. |
 
+### Ordinary expression-delimited Missing map
+
+This bounded Draft map covers only direct `Missing` children of
+ParenthesizedExpression, CallTail and IndexTail in ordinary delimited
+sequences. ProjectionTupleTail and ProjectionRecordTail, repeated or
+post-separator Missing, rejected semicolons, trivia-sensitive variants,
+delegated recovery, nested interiors, foreign/caller/fence boundaries and the
+global interpreter remain separate.
+
+| Fact | Catalog-audited bounded Draft row |
+| --- | --- |
+| identity | `(ParenthesizedExpression, CallTail or IndexTail, direct ordinary Item / Separator / terminal Close Missing, direct delimited-sequence context)` |
+| ordered Rowan grammar | A direct empty `Missing` immediately before a leading comma occupies Item. A direct empty `Missing` between two admitted items with no separator occupies Separator. A final direct empty `Missing` after one admitted item at ordinary EOF occupies Close. Native openers, commas and accepted direct `OperatorChain` children retain their order; IndexTail additionally retains its admitted item under `IndexItem`. Empty and single-item inputs with an actual matching close are recovery-free controls. |
+| source and boundary ownership | Each Missing has its exact zero-width Rowan range and no token content. The owner and ordered direct siblings select its role; Error spelling and parser-record provenance are not inputs. This row admits no Error, Invalid or transparent recovery wrapper. |
+| transition/handoff | `owner entry -> leading comma before an item / omitted separator between admitted items / EOF after an admitted item -> publish exactly one direct Missing in the corresponding ordered slot -> preserve the existing comma, accepted child, matching-close or EOF handoff`. |
+| diagnostic projection | Item projects singleton `Expression`; Separator projects singleton `DelimitedSequenceSeparator`; terminal Close projects the matching `)` or `]`. Each uses primary alternative zero and the Missing child's zero-width Rowan range, in preorder. |
+| proof and status | Governing behavior: [expression delimited current-Item recovery](2026-09-08-successor-expression-delimited-current-item-recovery.md), especially its owner descriptor, exact records, boundary capability, phases and continuation. Direct Rowan and fresh/frozen record proof: `crates/yu-syntax/src/tests/delimited_recovery.rs:440–648`. Independent audit found the bounded witnesses evidence-complete without a code change. Status: `mapped` for this bounded Draft row only. Projection owners and every excluded path remain open; this row does not authorize interpreter or ledger migration. |
+
 ### Root direct raw Error ordered-context evidence
 
 This independently audited evidence supports the bounded candidate below. The

@@ -1719,6 +1719,25 @@ semicolon, comments, UTF-8, LF/CRLF, quote prefixes, protected closes/fence,
 accepted controls and direct ProjectionRecord spread RHS. Every other
 expression-delimited row remains untriaged, delegated, or unmapped.
 
+#### Ordinary expression-delimited Missing row links
+
+Only ParenthesizedExpression, CallTail and IndexTail are linked to the bounded
+Draft catalog row for direct ordinary Item, Separator and terminal Close
+`Missing`. ProjectionTupleTail and ProjectionRecordTail and all excluded
+repeated, trivia, nested, delegated and boundary paths remain open.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/delimited.rs:176,251,478` | `linked` | shared direct Item, Separator and ordinary-EOF Close Missing publication, with the owner descriptor selecting the exact expected set |
+| `crates/yu-syntax/src/expression/tails/delimited_tail.rs:36–79` | `linked` | CallTail and IndexTail enter the shared sequence with distinct direct owner structure; Projection owners are deliberately excluded from this proof row |
+
+Focused direct Rowan and fresh/frozen record proof is
+`crates/yu-syntax/src/tests/delimited_recovery.rs:440–648`. It distinguishes
+leading-comma Item, omitted Separator and EOF Close by owner and ordered direct
+children, and retains empty and completed-item matching-close controls. An
+independent audit found this bounded row evidence-complete without a code
+change.
+
 #### Parenthesized/EffectRow Item, Separator and Close row links
 
 Only the following shared Type-delimited sites are linked to the bounded Draft

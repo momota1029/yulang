@@ -1,6 +1,6 @@
 # Current task: complete the CST-derived diagnostics prerequisite
 
-Updated: 2026-09-14. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-15. Branch: `yulang3`; do not modify frozen `main`.
 
 ## Current management instruction
 
@@ -150,6 +150,28 @@ phases, later/nested/fence/caller paths remain separate.
 CastBody's first indented Statement slice is now catalog-audited
 evidence-complete Draft for its four direct CST witnesses. Select the next
 bounded unmapped candidate before further implementation.
+
+## Staged-state integration and ordinary expression Missing closure
+
+- The user selected the staged state as authoritative during the transitional
+  conflict. Commit `cc98c8e0` atomically integrated that state by reverting the
+  later equal-indent statement gate and its five synchronized records. The
+  worktree then contained only the unrelated untracked `logs/` directory.
+- An independent read-only audit found the existing ParenthesizedExpression,
+  CallTail and IndexTail Item/Separator/terminal-Close Missing witnesses
+  evidence-complete for one bounded Draft row. No parser or test edit and no
+  verification rerun were needed for this M0 record synchronization.
+
+## Selected next candidate: Projection-tail ordinary Missing
+
+- The next bounded M1 candidate is ordinary Item, Separator and terminal Close
+  `Missing` for ProjectionTupleTail and ProjectionRecordTail. Existing evidence
+  does not prove these two owner structures directly.
+- Add ten real-shell ordered-CST witnesses: leading-comma Item, omitted
+  Separator, EOF Close, accepted empty and accepted single-item control for
+  each owner. Spread RHS, Error, nested recovery, foreign/caller/fence paths,
+  repeated/semicolon/trivia variants and global interpreter work remain
+  excluded.
 
 ## Known open boundaries and deferred work
 
