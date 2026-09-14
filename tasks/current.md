@@ -151,6 +151,14 @@ CastBody's first indented Statement slice is now catalog-audited
 evidence-complete Draft for its four direct CST witnesses. Select the next
 bounded unmapped candidate before further implementation.
 
+Selected candidate: later equal-indent Statement after an accepted first child,
+bounded to ColonApplication and With callers, accepted successor, terminal
+lexical Error and Error retry. Explicit separators, later Missing, dedent/fence,
+nested and other callers remain separate.
+
+The bounded ColonApplication/With later-statement slice is now
+catalog-audited evidence-complete Draft. Select the next unmapped candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

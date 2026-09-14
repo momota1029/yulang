@@ -1660,6 +1660,17 @@ indented kernel's other caller roles and later Statement slots remain separate.
 | diagnostic projection | The direct Missing or maximal adjacent direct Error-token group projects `ColonApplication(IndentedStatement)` with expected singleton Statement, primary zero, at its zero-width or combined UTF-8 Rowan range. The ancestor path and direct order select the occurrence without records, Error spelling or scanner state. |
 | proof and status | Governing authority: [Expression indented Statement recovery-role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), plus the CST-derived diagnostics amendment and Error-token topology addendum. Direct Rowan proof: `indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading` and `indented_colon_rowan_schema_uses_utf8_crlf_byte_ranges` in `crates/yu-syntax/src/tests/indented_recovery.rs`. M2 pre-write specification and post-write regression/delta audits were clean. Status: catalog-audited evidence-complete Draft for this first ColonApplication slot only; With/If/Case/Catch/For/declaration callers, later siblings, dedent/fence/outer layout, nested Statement recovery, collector, parser API and ledger retirement remain open. |
 
+### ColonApplication/With later indented Statement Draft
+
+This bounded Draft maps one equal-indent successor after an accepted first
+Statement for ColonApplication and With only.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `first Statement > BlockStatementSeparator(Newline Whitespace) > (later Statement | direct Error+ Statement?)` occurs under caller-selected ColonApplication or With indented block ancestry. |
+| projection | The verified caller tail plus preceding first Statement/separator selects its same `IndentedStatement` role, expected Statement, primary zero. Error is direct block content; separator owns only its newline/whitespace, while retry Statement owns retry leading. |
+| proof and status | Authority: [expression indented Statement role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), Publication/retry; CST amendments. Owner: `statement.rs:663–689,739–756,787–839`. Direct proof: `indented_later_equal_indent_rowan_schema_covers_error_retry_and_control` in `tests/indented_recovery.rs`, six witnesses at origins 0/41. M1 pre/post audits clean; focused indented tests passed 18. Status: catalog-audited evidence-complete Draft only for these later accepted/Error/retry paths; explicit separators, later Missing, dedent/fence/nested/other callers remain open. |
+
 ### TypeDeclaration required-Name header composition Draft
 
 This bounded row composes the initial required Name phase with its immediate
