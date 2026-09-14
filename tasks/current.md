@@ -237,6 +237,22 @@ bounded unmapped candidate before further implementation.
   broader boundaries, other Rule slots, nested grammar and gates 2–4 remain
   open. Select the next bounded gate-1 candidate before further implementation.
 
+## Nested Rule close-slot audit closure
+
+- The selected M1 slice was the single `{(a` EOF composition where the inner
+  RuleItem parenthesis close and outer RuleBody close Missing share `3..3`.
+  Pre-write audit found that sorting by parent masked natural Rowan preorder
+  and that exact ancestry/native-token/childless-node evidence was absent.
+- One Astra implementer replaced the sort-based check with exact nested CST,
+  source/token ranges, direct empty Missing and structurally derived close-role
+  assertions before record comparison. Independent delta review was clean.
+  Scoped rustfmt/diff checks and the wrapper-disabled exact test passed; 1 test,
+  1,422 filtered out. No production code, broad suite or benchmark changed.
+- Both rows are catalog-audited evidence-complete Draft only for this nested EOF
+  composition. Accepted closes/postfix, nonempty pending leading,
+  fence/caller/recursive variants, other Rule slots and gates 2–4 remain open.
+  Select the next bounded gate-1 candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

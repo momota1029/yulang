@@ -1586,8 +1586,8 @@ into a slot identity.
 
 | Catalog row | Direct source evidence | Status | Linked fact |
 | --- | --- | --- | --- |
-| `(RuleBody, final close phase, LBrace-selected Rule body context)` | `250–261` | `linked` | matching close versus direct Body close Missing and returned pending Item |
-| `(RuleItem, final parenthesis close phase, RuleItem whose first atom is LParen)` | `474–490` | `linked` | opener-selected matching close versus terminating parenthesis Missing |
+| `(RuleBody, final close phase, LBrace-selected Rule body context)` | `250–261` | `audited` | nested EOF witness proves direct Body close Missing after the same-offset inner occurrence |
+| `(RuleItem, final parenthesis close phase, RuleItem whose first atom is LParen)` | `474–490` | `audited` | opener-selected nested EOF witness proves terminating parenthesis Missing before the same-offset Body close |
 | `(RuleCapture, required RHS after Equals, enclosing RuleItem after non-capture postfixes)` | `545–568`, `653–679`, `864–878`, `891–894` | `audited` | terminal Error-to-valid / Error-to-Missing RHS ownership for the two witnessed forms |
 | `(RuleField, required name after Dot, RuleItem named-postfix phase)` | `683–724`, `864–878`, `891–894` | `audited` | witnessed one-item Error closes Field before separate outer-RuleItem continuation; quantifier remains outside Field |
 | `(RulePath, required name after ColonColon, RuleItem named-postfix phase)` | `683–724`, `864–878`, `891–894` | `audited` | witnessed one-item UTF-8 Error closes Path before separate outer-RuleItem continuation |
@@ -1610,6 +1610,17 @@ retained, while the existing `{a.12?}` witness keeps the quantifier outside the
 failed RuleField. Independent delta review was clean; the focused test passed 1
 with 1,422 filtered out. Missing/accepted-name and broader boundary forms are
 not promoted by this closure.
+
+The RuleBody-close and opener-selected RuleItem parenthesis-close rows share
+the focused nested EOF proof `{(a` in
+`crates/yu-syntax/src/tests/rule_literal_recovery.rs:382–501`. Exact ancestry,
+native tokens and full source lead to two direct childless Missing nodes at
+`3..3`; natural Rowan preorder is the inner parenthesis close before the outer
+body close, and CST owner/opener context derives distinct singleton Close roles
+with primary zero before record comparison. Independent delta review was
+clean; the exact focused test passed 1 with 1,422 filtered out. This does not
+promote accepted-close, postfix, pending-leading, fence/caller or recursive
+variants.
 
 #### Rule ExpressionList caller-specific row links
 

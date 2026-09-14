@@ -379,10 +379,15 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
     // The body and a parenthesized item each own a distinct close slot.  The
     // equal insertion coordinate is deliberately insufficient without the
     // parent path.
-    let (green, _) = parse("{(a", 0, None);
+    let source = "{(a";
+    let (green, records) = parse(source, 0, None);
     let root = SyntaxNode::new_root(green);
+    assert_eq!(root.kind(), SyntaxKind::Root);
+    assert_eq!(root.to_string(), source);
+    assert_eq!(child_kinds(&root), [SyntaxKind::RuleBody]);
     let body = root.children().next().expect("RuleBody");
     assert_eq!(body.kind(), SyntaxKind::RuleBody);
+    assert_eq!(body.parent(), Some(root.clone()));
     assert_eq!(
         child_kinds(&body),
         [
@@ -391,15 +396,20 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
             SyntaxKind::Missing
         ]
     );
-    let item = body
-        .descendants()
-        .find(|node| {
-            node.kind() == SyntaxKind::RuleItem
-                && node
-                    .first_token()
-                    .is_some_and(|token| token.kind() == SyntaxKind::LParen)
-        })
-        .expect("parenthesized RuleItem");
+    let mut parent = body.clone();
+    for (kind, children) in [
+        (SyntaxKind::RuleAlternation, vec![SyntaxKind::RuleSequence]),
+        (SyntaxKind::RuleSequence, vec![SyntaxKind::RuleItem]),
+    ] {
+        let child = parent.children().next().expect("direct Rule child");
+        assert_eq!(child.kind(), kind);
+        assert_eq!(child.parent(), Some(parent));
+        assert_eq!(child_kinds(&child), children);
+        parent = child;
+    }
+    let item = parent.children().next().expect("parenthesized RuleItem");
+    assert_eq!(item.kind(), SyntaxKind::RuleItem);
+    assert_eq!(item.parent(), Some(parent));
     assert_eq!(
         child_kinds(&item),
         [
@@ -408,20 +418,87 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
             SyntaxKind::Missing
         ]
     );
-    let mut missing = root
+    let mut parent = item.clone();
+    for (kind, children) in [
+        (SyntaxKind::RuleAlternation, vec![SyntaxKind::RuleSequence]),
+        (SyntaxKind::RuleSequence, vec![SyntaxKind::RuleItem]),
+        (SyntaxKind::RuleItem, vec![SyntaxKind::Identifier]),
+    ] {
+        let child = parent.children().next().expect("direct nested Rule child");
+        assert_eq!(child.kind(), kind);
+        assert_eq!(child.parent(), Some(parent));
+        assert_eq!(child_kinds(&child), children);
+        parent = child;
+    }
+    for (owner, kind, text, token_range) in [
+        (&body, SyntaxKind::LBrace, "{", 0..1),
+        (&item, SyntaxKind::LParen, "(", 1..2),
+        (&parent, SyntaxKind::Identifier, "a", 2..3),
+    ] {
+        let token = owner
+            .first_child_or_token()
+            .and_then(|child| child.into_token())
+            .expect("direct native token");
+        assert_eq!(token.kind(), kind);
+        assert_eq!(token.text(), text);
+        assert_eq!(
+            usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+            token_range
+        );
+        assert_eq!(token.parent(), Some(owner.clone()));
+    }
+    // Natural descendant preorder visits the inner close before the outer close.
+    let missing = root
         .descendants()
         .filter(|node| node.kind() == SyntaxKind::Missing)
         .collect::<Vec<_>>();
     assert_eq!(missing.len(), 2);
-    missing.sort_by_key(|node| match node.parent().expect("Missing parent").kind() {
-        SyntaxKind::RuleItem => 0,
-        SyntaxKind::RuleBody => 1,
-        other => panic!("unexpected close-slot parent: {other:?}"),
-    });
-    assert_eq!(range(&missing[0]), 3..3);
-    assert_eq!(missing[0].parent(), Some(item));
-    assert_eq!(range(&missing[1]), 3..3);
-    assert_eq!(missing[1].parent(), Some(body));
+    assert_eq!(missing[0].parent(), Some(item.clone()));
+    assert_eq!(missing[1].parent(), Some(body.clone()));
+    let mut derived = Vec::new();
+    for node in &missing {
+        assert_eq!(range(node), 3..3);
+        assert_eq!(node.children_with_tokens().count(), 0);
+        assert_eq!(node.to_string(), "");
+        let owner = node.parent().expect("direct close owner");
+        assert_eq!(owner.last_child_or_token(), Some(node.clone().into()));
+        let opener = owner
+            .first_child_or_token()
+            .and_then(|child| child.into_token())
+            .expect("direct close-owner opener");
+        let (role, delimiter) = match (owner.kind(), opener.kind()) {
+            (SyntaxKind::RuleItem, SyntaxKind::LParen) => {
+                (LiteralRole::RuleParenClose, Delimiter::Parenthesis)
+            }
+            (SyntaxKind::RuleBody, SyntaxKind::LBrace) => {
+                (LiteralRole::RuleBodyCloseBrace, Delimiter::Brace)
+            }
+            other => panic!("unexpected close-slot owner/opener: {other:?}"),
+        };
+        derived.push((role, delimiter, range(node)));
+    }
+    assert_eq!(
+        derived,
+        [
+            (LiteralRole::RuleParenClose, Delimiter::Parenthesis, 3..3),
+            (LiteralRole::RuleBodyCloseBrace, Delimiter::Brace, 3..3),
+        ]
+    );
+    let expected_records = derived
+        .into_iter()
+        .enumerate()
+        .map(|(id, (role, delimiter, range))| {
+            let expected = record(id as u32, role, range, None);
+            assert_eq!(expected.expectations.len(), 1);
+            assert_eq!(
+                expected.expectations[0].expected,
+                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
+            );
+            assert_eq!(expected.primary_expectation, 0);
+            expected
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(records, expected_records);
 
     // A capture is terminal in its outer item.  The Error is direct capture
     // content; the following Missing or admitted RuleItem selects the RHS.
