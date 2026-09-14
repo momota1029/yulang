@@ -328,6 +328,14 @@ bodyless exclusion, Colon Body and nested BindingBody separation without records
 or Error spelling. M1 specification audit was clean; Derives and child owners
 remain separate.
 
+#### ActDeclaration first indented Statement Draft link
+
+`declaration/act_decl.rs:695–720` selects the transported Act block role.
+`indented_act_rowan_schema_covers_first_statement_missing_error_retry_and_control`
+in `tests/indented_recovery.rs` derives the four occurrences from direct CST at
+origins 0/41. Both M1 audits were clean; focused indented tests passed 16.
+Source/attachment and other Act body paths remain separate.
+
 #### DeclarationCompanion direct recovery Draft links
 
 `tests/declaration/declaration_companion.rs` maps six direct roles across five

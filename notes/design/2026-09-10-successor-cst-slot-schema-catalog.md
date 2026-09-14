@@ -1248,6 +1248,17 @@ Direct Rowan proof is in `tests/declaration/act_decl.rs`; M1 specification audit
 was clean. Derives adjacency, child blocks/callers, collector and ledger removal
 remain open.
 
+### ActDeclaration first indented Statement Draft
+
+This bounded Draft maps ActDeclaration's first indented Statement after a
+completed Head and actual Colon.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `ActDeclaration(ActKw Native* TypeExpression Colon IndentedStatementBlock)` selects the first direct block Missing/Error+ or admitted Statement. |
+| projection | Direct ancestor and ordered block children select `Declaration(Act(IndentedStatement))`, singleton expected Statement, primary zero. Missing is empty; adjacent direct Error tokens form one occurrence, and retry Statement owns its leading. |
+| proof and status | Authority: [expression indented Statement role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), [Act current-Item recovery](2026-09-08-successor-act-current-item-recovery.md), CST amendments. Owner: `declaration/act_decl.rs:695–720`; shared block `statement.rs`. Direct proof: `indented_act_rowan_schema_covers_first_statement_missing_error_retry_and_control` in `tests/indented_recovery.rs`, four witnesses at origins 0/41. M1 pre/post audits clean; focused indented tests passed 16. Status: catalog-audited evidence-complete Draft only for this slice; Source/Head/BodyIntroducer, attachment, other body paths, later/nested/fence/caller paths remain open. |
+
 ### ActDeclaration required-Type Head and Equals-selected Source Draft
 
 This bounded Draft maps the two caller positions that transport the shared

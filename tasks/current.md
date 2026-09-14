@@ -133,6 +133,15 @@ Impl's second-Colon indented Statement slice is now catalog-audited
 evidence-complete Draft for its four direct CST witnesses. Select the next
 bounded unmapped candidate before further implementation.
 
+Selected candidate: ActDeclaration's first indented Statement after completed
+Head and actual Colon, limited to Missing, lexical Error, retry and accepted
+control. Source/Head/BodyIntroducer, bodyless/attachment, inline/wrong-indent/
+braced, later/nested/fence/caller paths remain separate.
+
+Act's first indented Statement slice is now catalog-audited evidence-complete
+Draft for its four direct CST witnesses. Select the next bounded unmapped
+candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
