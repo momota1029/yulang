@@ -80,11 +80,19 @@ temporary diagnostic state while the schema remains incomplete.
    family summaries and older exclusions are historical/partial; they are not
    a trustworthy current completion count. Check the specific row and test
    before selecting a new gap or reopening completed work.
-2. Select the next bounded unmapped schema candidate only after reconciling its
-   specific catalog/coverage row, direct owner and existing tests. The completed
-   inner group-item Alias audit adds no license to enumerate new Alias ordinals:
-   they remain occurrences of the existing slot. The completed With indented
-   row likewise does not cover nested/later/fence/other-caller paths.
+2. The next bounded candidate is the first required `Statement` in
+   `BindingStatement > BindingBody > IndentedStatementBlock` after an accepted
+   BindingHeader Equals: ordinary EOF Missing, terminal raw Error,
+   Error-to-Statement retry and accepted control only. Its role is already
+   Authoritative as `Declaration(Binding(IndentedStatement))`. Begin with one
+   pre-write specification audit of exact direct Rowan assertions; preserve the
+   `IdentifierExpression` ancestry and stop if the CST cannot select the role
+   without temporary records. Target/Equals recovery, inline/wrong-indent Body,
+   later/nested statements, alternate callers and fence paths remain excluded.
+   The completed inner group-item Alias audit adds no license to enumerate new
+   Alias ordinals: they remain occurrences of the existing slot. The completed
+   With indented row likewise does not cover nested/later/fence/other-caller
+   paths.
 3. Keep component recovery under its existing parent and preserve exact pending
    Item leading. If the CST cannot distinguish required diagnostics, record the
    concrete collision and return only that owner to design; do not infer a new
