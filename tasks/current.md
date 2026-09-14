@@ -335,6 +335,24 @@ bounded unmapped candidate before further implementation.
 - UTF-8 unbraced Name, other boundary/leading/CRLF/fence forms, nested Rule and
   gates 2–4 remain open. Select the next bounded gate-1 candidate.
 
+## RuleLiteral UTF-8 unbraced-Name composition closure
+
+- The selected M1 slice added one `~"é:` direct-CST witness. UTF-8 outer text
+  shifts the unbraced required Name and enclosing terminator Missing to the
+  shared byte frontier `5..5` without pretending that an admitted UTF-8 name is
+  absent.
+- One Astra implementer proved exact source/topology/ranges and
+  `EofAfterTrivia`, childless Name-before-Terminator preorder, and structural
+  selection from exact direct `[Colon token, Missing node]` children with no
+  OpenBrace. Singleton Identifier/terminator expectations and primary zero are
+  derived before records. Independent pre-write and delta audits were clean.
+  Scoped rustfmt/diff checks and the wrapper-disabled exact test passed; 1 test,
+  1,422 filtered out. No production code, broad suite or benchmark ran.
+- The four RuleLiteral indirect Missing slots now each have bounded ASCII and
+  UTF-8 direct evidence through the recorded compositions. Other
+  boundary/leading/CRLF/fence forms, nested Rule and gates 2–4 remain open.
+  Select the next bounded gate-1 candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

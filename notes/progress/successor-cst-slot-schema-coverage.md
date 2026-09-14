@@ -1545,10 +1545,12 @@ composition `~"é{α`: interpolation Close and outer terminator are distinct
 childless Missing occurrences at `7..7`. It also covers the single UTF-8
 braced-lazy EOF composition `~":{α`: lazy Close and outer terminator are
 distinct childless Missing occurrences at `6..6`, selected by direct
-Colon+OpenBrace context in natural preorder. Status: catalog-audited
-evidence-complete Draft for the witnessed direct forms only. UTF-8 unbraced
-Name, other boundary/leading variants, RuleSequence Error, nested Rule
-children, global collector and ledger/API migration remain open.
+Colon+OpenBrace context in natural preorder. Finally, `~"é:` proves the
+UTF-8-prefixed unbraced Name and outer terminator as distinct childless Missing
+occurrences at `5..5`, selected by exact direct Colon/Missing children. Status:
+catalog-audited evidence-complete Draft for the witnessed direct forms only.
+Other boundary/leading variants, RuleSequence Error, nested Rule children,
+global collector and ledger/API migration remain open.
 
 - `crates/yu-syntax/src/literal/mod.rs`
 - `crates/yu-syntax/src/rule/mod.rs`

@@ -658,6 +658,156 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
         );
     }
 
+    {
+        use crate::recovery_record::{ExpectedSyntax, GrammarRole, LiteralExpected, LiteralRole};
+
+        let source = "~\"é:";
+        let (green, exit, remainder) = run_rule_literal(source, 0, &fence(FencePrefixPolicy::None));
+        assert_eq!(remainder, "");
+        assert_eq!(green.to_string(), source);
+        let RuleLiteralExit::Boundary(pending) = exit else {
+            panic!("unterminated unbraced lazy capture must return EOF")
+        };
+        assert!(pending.payload_view().is_eof_after_trivia_boundary());
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(root.text_range(), rowan::TextRange::new(0.into(), 5.into()));
+        assert_eq!(root.parent(), None);
+
+        // Exact native topology excludes Error, Invalid, accepted lazy Name,
+        // braces, terminator and additional recovery. Ranges count UTF-8 bytes.
+        let topology = root
+            .descendants_with_tokens()
+            .filter(|element| element.parent().is_some())
+            .map(|element| {
+                (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    element.to_string(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.parent().expect("direct parent").kind(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            topology,
+            [
+                (
+                    SyntaxKind::RuleLiteral,
+                    true,
+                    source,
+                    0..5,
+                    SyntaxKind::Root
+                ),
+                (
+                    SyntaxKind::RuleLiteralStart,
+                    false,
+                    "~\"",
+                    0..2,
+                    SyntaxKind::RuleLiteral
+                ),
+                (
+                    SyntaxKind::RuleLiteralText,
+                    false,
+                    "é",
+                    2..4,
+                    SyntaxKind::RuleLiteral
+                ),
+                (
+                    SyntaxKind::RuleLazyCapture,
+                    true,
+                    ":",
+                    4..5,
+                    SyntaxKind::RuleLiteral
+                ),
+                (
+                    SyntaxKind::RuleLiteralColon,
+                    false,
+                    ":",
+                    4..5,
+                    SyntaxKind::RuleLazyCapture
+                ),
+                (
+                    SyntaxKind::Missing,
+                    true,
+                    "",
+                    5..5,
+                    SyntaxKind::RuleLazyCapture
+                ),
+                (SyntaxKind::Missing, true, "", 5..5, SyntaxKind::RuleLiteral),
+            ]
+            .map(|(kind, node, text, range, parent)| (
+                kind,
+                node,
+                text.to_owned(),
+                range,
+                parent
+            ))
+        );
+
+        // Exact unbraced owner children select Name. Preserve natural
+        // Name-before-Terminator preorder at the shared EOF coordinate.
+        let projected = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .map(|missing| {
+                assert!(missing.children_with_tokens().next().is_none());
+                let owner = missing.parent().expect("Missing owner");
+                assert_eq!(
+                    owner.children_with_tokens().last(),
+                    Some(missing.clone().into())
+                );
+                let preceding = missing.prev_sibling_or_token().expect("preceding child");
+                let (role, expected) = match (owner.kind(), preceding.kind()) {
+                    (SyntaxKind::RuleLazyCapture, SyntaxKind::RuleLiteralColon)
+                        if owner
+                            .children_with_tokens()
+                            .map(|child| (child.kind(), child.as_token().is_some()))
+                            .eq([
+                                (SyntaxKind::RuleLiteralColon, true),
+                                (SyntaxKind::Missing, false),
+                            ]) =>
+                    {
+                        (LiteralRole::RuleLazyCaptureName, ExpectedSyntax::Identifier)
+                    }
+                    (SyntaxKind::RuleLiteral, SyntaxKind::RuleLazyCapture) => (
+                        LiteralRole::RuleLiteralTerminator,
+                        ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
+                    ),
+                    context => panic!("unexpected terminal slot: {context:?}"),
+                };
+                (
+                    GrammarRole::Literal(role),
+                    usize::from(missing.text_range().start())
+                        ..usize::from(missing.text_range().end()),
+                    [expected],
+                    0usize,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            projected,
+            [
+                (
+                    GrammarRole::Literal(LiteralRole::RuleLazyCaptureName),
+                    5..5,
+                    [ExpectedSyntax::Identifier],
+                    0,
+                ),
+                (
+                    GrammarRole::Literal(LiteralRole::RuleLiteralTerminator),
+                    5..5,
+                    [ExpectedSyntax::Literal(
+                        LiteralExpected::RuleLiteralTerminator
+                    )],
+                    0,
+                ),
+            ]
+        );
+    }
+
     // The interpolation close is a direct child after its sequence.  EOF and
     // a fence leave both immediate terminal slots at the same coordinate,
     // while an outer quote completes the literal after the interpolation slot.
