@@ -253,6 +253,23 @@ bounded unmapped candidate before further implementation.
   fence/caller/recursive variants, other Rule slots and gates 2–4 remain open.
   Select the next bounded gate-1 candidate before further implementation.
 
+## RuleSequence terminal Error-group audit closure
+
+- The selected M1 slice was terminal RuleBody `{;💥}`: two adjacent direct
+  Error tokens representing one repeated-Item occurrence. Pre-write audit found
+  missing terminal-frame and CST-only projection assertions, not a parser
+  defect.
+- One Astra implementer added exact Root/Body/Alternation/Sequence structure,
+  native braces/source, absence of Missing/Invalid, exact UTF-8 leaf ranges and
+  maximal group, then derived singleton `Literal(RuleItem)`, primary zero from
+  CST ancestry. Independent delta review was clean. Scoped rustfmt/diff checks
+  and the wrapper-disabled exact test passed; 1 test, 1,422 filtered out. No
+  production code, broad suite or benchmark changed.
+- The row is catalog-audited evidence-complete Draft only for this terminal
+  RuleBody witness. Retry, parenthesized/interpolation callers,
+  separator/newline/fence, nested grammar, ExpressionList and gates 2–4 remain
+  open. Select the next bounded gate-1 candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

@@ -1591,7 +1591,7 @@ into a slot identity.
 | `(RuleCapture, required RHS after Equals, enclosing RuleItem after non-capture postfixes)` | `545–568`, `653–679`, `864–878`, `891–894` | `audited` | terminal Error-to-valid / Error-to-Missing RHS ownership for the two witnessed forms |
 | `(RuleField, required name after Dot, RuleItem named-postfix phase)` | `683–724`, `864–878`, `891–894` | `audited` | witnessed one-item Error closes Field before separate outer-RuleItem continuation; quantifier remains outside Field |
 | `(RulePath, required name after ColonColon, RuleItem named-postfix phase)` | `683–724`, `864–878`, `891–894` | `audited` | witnessed one-item UTF-8 Error closes Path before separate outer-RuleItem continuation |
-| `(RuleSequence, repeated RuleItem phase, RuleAlternation Body or Parenthesis frame)` | `334–375`, `412–447`, `864–878` | `linked` | repeated direct Error grouping and frame-stop handoff |
+| `(RuleSequence, repeated RuleItem phase, RuleAlternation Body or Parenthesis frame)` | `334–375`, `412–447`, `864–878` | `audited` | terminal RuleBody witness proves two-leaf maximal UTF-8 Error grouping and native frame completion |
 
 The RuleCapture row has focused direct Rowan proof in
 `crates/yu-syntax/src/tests/rule_literal_recovery.rs:428–569`. It preserves
@@ -1621,6 +1621,15 @@ with primary zero before record comparison. Independent delta review was
 clean; the exact focused test passed 1 with 1,422 filtered out. This does not
 promote accepted-close, postfix, pending-leading, fence/caller or recursive
 variants.
+
+The RuleSequence repeated-Item Error row has focused direct Rowan proof in the
+terminal RuleBody `{;💥}` witness at
+`crates/yu-syntax/src/tests/rule_literal_recovery.rs:803–924`. The complete
+frame owns two adjacent direct Error tokens at `1..2` and `2..6`, grouped once
+over `1..6`; the native close completes with no Missing/Invalid, and verified
+CST ancestry derives singleton `Literal(RuleItem)`, primary zero. Independent
+delta review was clean; the exact focused test passed 1 with 1,422 filtered
+out. Retry, other callers and boundary variants remain open.
 
 #### Rule ExpressionList caller-specific row links
 

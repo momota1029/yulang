@@ -800,8 +800,59 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
 
     // Consecutive raw leaves are one same-parent RuleSequence occurrence, not
     // a synthetic wrapper or one occurrence per token.
-    let (green, _) = parse("{;💥}", 0, None);
+    let source = "{;💥}";
+    let (green, _) = parse(source, 0, None);
     let root = SyntaxNode::new_root(green);
+    assert_eq!(root.kind(), SyntaxKind::Root);
+    assert_eq!(root.parent(), None);
+    assert_eq!(root.to_string(), source);
+    assert_eq!(range(&root), 0..7);
+    assert_eq!(child_kinds(&root), [SyntaxKind::RuleBody]);
+    let body = root.first_child().expect("direct RuleBody");
+    assert_eq!(body.kind(), SyntaxKind::RuleBody);
+    assert_eq!(body.parent(), Some(root.clone()));
+    assert_eq!(range(&body), 0..7);
+    assert_eq!(
+        child_kinds(&body),
+        [
+            SyntaxKind::LBrace,
+            SyntaxKind::RuleAlternation,
+            SyntaxKind::RBrace
+        ]
+    );
+    let alternation = body.first_child().expect("direct RuleAlternation");
+    assert_eq!(alternation.kind(), SyntaxKind::RuleAlternation);
+    assert_eq!(alternation.parent(), Some(body.clone()));
+    assert_eq!(range(&alternation), 1..6);
+    assert_eq!(child_kinds(&alternation), [SyntaxKind::RuleSequence]);
+    let sequence = alternation.first_child().expect("direct RuleSequence");
+    assert_eq!(sequence.kind(), SyntaxKind::RuleSequence);
+    assert_eq!(sequence.parent(), Some(alternation.clone()));
+    assert_eq!(range(&sequence), 1..6);
+    assert_eq!(
+        child_kinds(&sequence),
+        [SyntaxKind::Error, SyntaxKind::Error]
+    );
+    for (child, kind, text, token_range) in [
+        (body.first_child_or_token(), SyntaxKind::LBrace, "{", 0..1),
+        (body.last_child_or_token(), SyntaxKind::RBrace, "}", 6..7),
+    ] {
+        let token = child
+            .and_then(|child| child.into_token())
+            .expect("direct native body delimiter");
+        assert_eq!(token.kind(), kind);
+        assert_eq!(token.text(), text);
+        assert_eq!(token.parent(), Some(body.clone()));
+        assert_eq!(
+            usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+            token_range
+        );
+    }
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|child| matches!(child.kind(), SyntaxKind::Missing | SyntaxKind::Invalid))
+    );
     let groups = crate::tests::recovery_output::recovery_groups(&root);
     assert_eq!(groups.len(), 1);
     let group = &groups[0];
@@ -824,9 +875,52 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
         usize::from(group.text_range().start())..usize::from(group.text_range().end()),
         1..6
     );
+    assert_eq!(group.parent(), Some(sequence.clone()));
+    for (token, token_range) in tokens.iter().zip([1..2, 2..6]) {
+        assert_eq!(token.parent(), Some(sequence.clone()));
+        assert_eq!(
+            usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+            token_range
+        );
+    }
     assert_eq!(
-        group.parent().expect("raw group parent").kind(),
-        SyntaxKind::RuleSequence
+        sequence.first_child_or_token(),
+        Some(tokens[0].clone().into())
+    );
+    assert_eq!(
+        sequence.last_child_or_token(),
+        Some(tokens[1].clone().into())
+    );
+    assert!(tokens[0].prev_sibling_or_token().is_none());
+    assert!(tokens[1].next_sibling_or_token().is_none());
+
+    // Select the repeated-Item expectation from the verified Body frame and
+    // direct sequence slot, independently of Error spelling or parser records.
+    let derived = groups
+        .iter()
+        .map(|group| {
+            let owner = group.parent().expect("direct Error-group owner");
+            let parent = owner.parent().expect("direct alternation");
+            let frame = parent.parent().expect("direct Rule frame");
+            let expected = match (frame.kind(), parent.kind(), owner.kind()) {
+                (SyntaxKind::RuleBody, SyntaxKind::RuleAlternation, SyntaxKind::RuleSequence) => {
+                    assert_eq!(frame, body);
+                    assert_eq!(parent, alternation);
+                    assert_eq!(owner, sequence);
+                    ExpectedSyntax::Literal(LiteralExpected::RuleItem)
+                }
+                other => panic!("unexpected repeated-Item context: {other:?}"),
+            };
+            (
+                expected,
+                0usize,
+                usize::from(group.text_range().start())..usize::from(group.text_range().end()),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        derived,
+        [(ExpectedSyntax::Literal(LiteralExpected::RuleItem), 0, 1..6)]
     );
 
     // A physical line boundary belongs to RuleAlternation, after the failed
