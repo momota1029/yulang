@@ -269,6 +269,189 @@ fn eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate() {
 
 #[test]
 fn interpolation_retains_its_own_stops_and_one_item_errors() {
+    // This frame owns a direct sequence: its rejected Items form one raw
+    // Error group, terminated by the admitted retry Item and its native trivia.
+    let source = "~\"{| if ] a}\"";
+    let (green, records) = parse(source, 0, None);
+    let root = SyntaxNode::new_root(green);
+    let nodes = root.descendants().collect::<Vec<_>>();
+    assert_eq!(nodes.len(), 5);
+    for (node, (kind, text, range, parent, children)) in nodes.iter().zip([
+        (
+            SyntaxKind::Root,
+            source,
+            0..13,
+            None,
+            vec![SyntaxKind::RuleLiteral],
+        ),
+        (
+            SyntaxKind::RuleLiteral,
+            source,
+            0..13,
+            Some(0),
+            vec![
+                SyntaxKind::RuleLiteralStart,
+                SyntaxKind::RuleLiteralInterpolation,
+                SyntaxKind::RuleLiteralEnd,
+            ],
+        ),
+        (
+            SyntaxKind::RuleLiteralInterpolation,
+            "{| if ] a}",
+            2..12,
+            Some(1),
+            vec![
+                SyntaxKind::RuleLiteralOpenBrace,
+                SyntaxKind::RuleSequence,
+                SyntaxKind::RuleLiteralCloseBrace,
+            ],
+        ),
+        (
+            SyntaxKind::RuleSequence,
+            "| if ] a",
+            3..11,
+            Some(2),
+            vec![
+                SyntaxKind::Error,
+                SyntaxKind::Error,
+                SyntaxKind::Error,
+                SyntaxKind::Error,
+                SyntaxKind::Error,
+                SyntaxKind::RuleItem,
+            ],
+        ),
+        (
+            SyntaxKind::RuleItem,
+            " a",
+            9..11,
+            Some(3),
+            vec![SyntaxKind::Whitespace, SyntaxKind::Identifier],
+        ),
+    ]) {
+        assert_eq!(node.kind(), kind);
+        assert_eq!(node.to_string(), text);
+        assert_eq!(
+            usize::from(node.text_range().start())..usize::from(node.text_range().end()),
+            range
+        );
+        assert_eq!(node.parent(), parent.map(|index| nodes[index].clone()));
+        assert_eq!(
+            node.children_with_tokens()
+                .map(|child| child.kind())
+                .collect::<Vec<_>>(),
+            children
+        );
+    }
+    let tokens = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .collect::<Vec<_>>();
+    assert_eq!(tokens.len(), 11);
+    for (token, (kind, text, range, parent)) in tokens.iter().zip([
+        (SyntaxKind::RuleLiteralStart, "~\"", 0..2, 1),
+        (SyntaxKind::RuleLiteralOpenBrace, "{", 2..3, 2),
+        (SyntaxKind::Error, "|", 3..4, 3),
+        (SyntaxKind::Error, " ", 4..5, 3),
+        (SyntaxKind::Error, "if", 5..7, 3),
+        (SyntaxKind::Error, " ", 7..8, 3),
+        (SyntaxKind::Error, "]", 8..9, 3),
+        (SyntaxKind::Whitespace, " ", 9..10, 4),
+        (SyntaxKind::Identifier, "a", 10..11, 4),
+        (SyntaxKind::RuleLiteralCloseBrace, "}", 11..12, 2),
+        (SyntaxKind::RuleLiteralEnd, "\"", 12..13, 1),
+    ]) {
+        assert_eq!(token.kind(), kind);
+        assert_eq!(token.text(), text);
+        assert_eq!(
+            usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+            range
+        );
+        assert_eq!(token.parent(), Some(nodes[parent].clone()));
+    }
+    assert_eq!(root.to_string(), source);
+    let groups = crate::tests::recovery_output::recovery_groups(&root);
+    assert_eq!(groups.len(), 1);
+    let group = &groups[0];
+    let crate::tests::recovery_output::RecoveryGroup::Raw(errors) = group else {
+        panic!("interpolation sequence recovery must be raw Error tokens");
+    };
+    assert_eq!(errors.as_slice(), &tokens[2..7]);
+    assert!(errors[0].prev_sibling_or_token().is_none());
+    for pair in errors.windows(2) {
+        assert_eq!(
+            pair[0].next_sibling_or_token(),
+            Some(pair[1].clone().into())
+        );
+    }
+    assert_eq!(
+        errors[4].next_sibling_or_token(),
+        Some(nodes[4].clone().into())
+    );
+    assert_eq!(group.text(), "| if ]");
+
+    // Derive the slot from immediate ancestry before consulting the retained
+    // per-Item compatibility records; those records must not be coalesced.
+    let owner = group.parent().expect("direct Error-group owner");
+    let frame = owner.parent().expect("direct interpolation frame");
+    let (role, alternatives, primary) = match (owner.kind(), frame.kind()) {
+        (SyntaxKind::RuleSequence, SyntaxKind::RuleLiteralInterpolation) => {
+            assert_eq!(owner, nodes[3]);
+            assert_eq!(frame, nodes[2]);
+            (
+                GrammarRole::Literal(LiteralRole::RuleUnexpectedItem),
+                [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
+                0usize,
+            )
+        }
+        other => panic!("unexpected repeated-Item context: {other:?}"),
+    };
+    let derived = (
+        role,
+        alternatives,
+        primary,
+        usize::from(group.text_range().start())..usize::from(group.text_range().end()),
+    );
+    assert_eq!(
+        derived,
+        (
+            GrammarRole::Literal(LiteralRole::RuleUnexpectedItem),
+            [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
+            0,
+            3..9,
+        )
+    );
+    assert_eq!(
+        records,
+        [
+            record(
+                0,
+                LiteralRole::RuleUnexpectedItem,
+                3..4,
+                Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Pipe))
+            ),
+            record(
+                1,
+                LiteralRole::RuleUnexpectedItem,
+                4..7,
+                Some(UnexpectedCategory::Word)
+            ),
+            record(
+                2,
+                LiteralRole::RuleUnexpectedItem,
+                7..9,
+                Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
+                    Delimiter::Bracket
+                )))
+            ),
+        ]
+    );
+    for record in &records {
+        assert_eq!(record.site.role, derived.0);
+        assert_eq!(record.expectations.len(), derived.1.len());
+        assert_eq!(record.expectations[0].expected, derived.1[0]);
+        assert_eq!(record.primary_expectation, derived.2);
+    }
+
     let source = "~\"{| if ]}\"";
     let (green, records) = parse(source, 0, None);
     assert_eq!(green.to_string(), source);

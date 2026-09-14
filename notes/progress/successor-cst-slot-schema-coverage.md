@@ -49,10 +49,13 @@ Error-item, 53 Error-run and 2 structured Invalid). This is still not a
 semantic-slot completeness proof. The audit additionally confirmed ten
 `emit_rule_missing` caller expressions across `rule/mod.rs` and
 `literal/rule_literal.rs`, one newline-callback caller, and two structured
-Invalid callers yielding three semantic roles. Two essential residuals remain:
+Invalid callers yielding three semantic roles. The audit identified two
+essential residuals:
 the interpolation-frame RuleSequence Error row/proof and delegated BracketRow
-Item/Close internals. The pass did not independently re-enumerate every caller
-discriminator behind all 123 sites, so Gate 1 remains incomplete.
+Item/Close internals. The former is now separately mapped and audited below;
+BracketRow internals remain unresolved. The pass did not independently
+re-enumerate every caller discriminator behind all 123 sites, so Gate 1 remains
+incomplete.
 
 The same audit found several catalog locators under `type_expr/mod.rs` stale
 against current source line positions. On 2026-09-12 the bounded TypeCall
@@ -1633,6 +1636,19 @@ into a slot identity.
 | `(RuleField, required name after Dot, RuleItem named-postfix phase)` | `683–724`, `864–878`, `891–894` | `audited` | native body close yields direct Name Missing; witnessed one-item Error closes Field before separate outer-RuleItem continuation; quantifier remains outside Field |
 | `(RulePath, required name after ColonColon, RuleItem named-postfix phase)` | `683–724`, `864–878`, `891–894` | `audited` | native body close yields direct Name Missing; witnessed one-item UTF-8 Error closes Path before separate outer-RuleItem continuation |
 | `(RuleSequence, repeated RuleItem phase, RuleAlternation Body or Parenthesis frame)` | `334–375`, `412–447`, `864–878` | `audited` | terminal RuleBody witness proves two-leaf maximal UTF-8 Error grouping and native frame completion |
+| `(RuleSequence, repeated RuleItem phase, direct RuleLiteralInterpolation child under RuleLiteral)` | `384–447`, `864–878`, `967–984` | `audited` | the three interpolation-specific controls form one maximal raw Error group before admitted-item retry and native interpolation/literal completion |
+
+The interpolation-specific RuleSequence row has focused direct Rowan proof in
+`interpolation_retains_its_own_stops_and_one_item_errors` in
+`crates/yu-syntax/src/tests/rule_literal_recovery.rs`. The bounded
+`~"{| if ] a}"` witness proves exact five-node/eleven-token ownership, direct
+Error leaves for `|`, `if` and `]` plus leading, one maximal group `3..9`, an
+admitted retry RuleItem `9..11`, native closes and no Missing/Invalid/Error
+node. Direct sequence/interpolation ancestry derives singleton
+`Literal(RuleItem)` and primary zero before the three unchanged per-Item
+compatibility records. Independent delta audit was clean; the exact focused
+test passed 1 with 1,422 filtered out. EOF/fence/outer-quote, newline/CRLF/UTF-8,
+nested Rule and public caller variants remain open.
 
 The RuleCapture row has focused direct Rowan proof in
 `dedicated_rule_slots_are_directly_readable_from_the_rowan_tree` in

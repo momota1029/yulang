@@ -463,11 +463,29 @@ bounded unmapped candidate before further implementation.
   fence proof and three RuleLiteral UTF-8 EOF compositions. No production
   defect or new semantic decision was found. No build, test or measurement
   ran for this record-only audit.
-- Gate 1 is not complete: the strongest essential residual is the distinct
-  `RuleFrame::LiteralInterpolation` RuleSequence Error schema/proof; delegated
-  BracketRow Item/Close internals are a second major residual. The audit did
-  not independently certify every caller discriminator behind all 123 sites.
-  Audit the interpolation-frame row next without changing parser behavior.
+- Gate 1 is not complete. The distinct `RuleFrame::LiteralInterpolation`
+  RuleSequence Error residual is now closed below; delegated BracketRow
+  Item/Close internals remain the next major residual. The audit did not
+  independently certify every caller discriminator behind all 123 sites.
+
+## RuleLiteralInterpolation RuleSequence Error closure
+
+- The selected M1 slice adds one bounded `~"{| if ] a}"` direct-CST witness
+  for the interpolation-specific repeated-Item row. This frame deliberately
+  does not inherit Body/Parenthesis stops for `|`, `if`, or `]`.
+- One Astra implementer proved the exact five-node/eleven-token topology, five
+  adjacent direct Error leaves as one maximal `3..9` group, admitted retry
+  RuleItem `9..11`, native interpolation/literal closes, full source and no
+  Missing/Invalid/Error node. Direct RuleSequence-to-interpolation ancestry
+  derives singleton `Literal(RuleItem)`, primary zero and the combined group
+  range before three unchanged per-Item compatibility records. Independent
+  pre-write and delta audits were clean. Scoped rustfmt/diff checks and the
+  wrapper-disabled exact test passed; 1 test, 1,422 filtered out. No production
+  code, broad suite or benchmark ran.
+- A separate evidence-complete Draft row now records this bounded ancestor
+  identity. EOF/fence/outer-quote, newline/CRLF/UTF-8, nested Rule/public caller
+  variants and gates 2–4 remain open. Audit BracketRow Item/Close internals
+  next.
 
 ## Known open boundaries and deferred work
 
