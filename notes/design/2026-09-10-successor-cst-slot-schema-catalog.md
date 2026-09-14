@@ -396,17 +396,23 @@ production changes, followed by direct schema proof and independent audit.
 BracketRow Separator reachability and other Item/Close paths remain separate
 open obligations.
 
-The no-gap Separator Missing alternative is catalog-audited evidence-complete
-Draft for the bounded `T [A{}] -> U` witness. Direct ordered `BracketRow`
-children are `LBracket TypeExpression Missing TypeExpression RBracket`; the
-childless direct Missing at `4..4` projects singleton
-`Type(BracketRowSeparator)` / `DelimitedSequenceSeparator`, primary zero. The
-admitted second `TypeExpression` retains its authoritative nested
-`NamedRecordTypeClose`. Direct proof is
-`bracket_row_no_gap_separator_missing_is_selected_by_direct_item_order` in
+BracketRow Separator has catalog-audited direct-CST evidence for both explicit
+publication branches. The no-gap `T [A{}] -> U` witness has ordered children
+`LBracket TypeExpression Missing TypeExpression RBracket`; its childless direct
+Missing at `4..4` projects singleton `Type(BracketRowSeparator)` /
+`DelimitedSequenceSeparator`, primary zero, and the admitted second
+`TypeExpression` retains its authoritative nested `NamedRecordTypeClose`. In
+the deeper-newline `T [:{A\n  B] -> U` witness, the incomplete nested PV owns
+its terminal Close Missing at `6..6`; BracketRow then owns native newline and
+indentation before its Separator Missing at `9..9` and the next direct
+TypeExpression. Direct proofs are
+`bracket_row_no_gap_separator_missing_is_selected_by_direct_item_order` and
+`bracket_row_deeper_newline_separator_missing_follows_returned_pv_close` in
 `crates/yu-syntax/src/tests/type_expr/bracket_recovery.rs`, independently
-delta-audited clean. This does not complete the deeper-newline alternative or
-the whole Separator schema, and it does not resolve the Item/Close collision.
+delta-audited clean. Status: evidence-complete Draft for these two witnessed
+alternatives only; exhaustive callers, boundary/fence variants and global
+Separator completeness remain open. This does not resolve the Item/Close
+collision.
 
 ### BracketRow-selected required-arrow continuation map
 

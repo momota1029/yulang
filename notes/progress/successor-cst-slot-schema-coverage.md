@@ -1222,8 +1222,15 @@ children select the childless Separator Missing at `4..4` before the second
 TypeExpression, whose nested accepted record close retains its own wrapper.
 Independent delta audit was clean; the exact test and two neighboring controls
 each passed 1 with 1,424 filtered out. The deeper-newline branch at `:454`
-remains separately unproved, and the Item/Close structural decision remains
-blocking.
+is now linked to
+`bracket_row_deeper_newline_separator_missing_follows_returned_pv_close` in the
+same test file. The nested PV owns its Close Missing at `6..6`; BracketRow owns
+native Newline/Whitespace and then the Separator Missing at `9..9` before the
+next direct TypeExpression. Independent delta audit was clean; the deeper,
+no-gap and accepted-control exact tests each passed 1 with 1,425 filtered out.
+Together the two witnesses cover both explicit Separator publisher branches,
+not exhaustive callers or boundaries. The Item/Close structural decision
+remains blocking.
 
 Focused direct CST/recovery support is
 `tests/type_expr/bracket_arrow_cst.rs:17–147,151–185,189–408` and

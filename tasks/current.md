@@ -523,8 +523,26 @@ bounded unmapped candidate before further implementation.
   controls passed; each ran 1 test with 1,424 filtered out. No broad suite or
   benchmark ran.
 - This closes only the bounded no-gap alternative. Deeper-newline Separator
-  evidence remains open, and the Item/Close collision still requires an owning
+  evidence is closed below; the Item/Close collision still requires an owning
   structural decision. Gate 1 remains incomplete.
+
+## BracketRow deeper-newline Separator Missing closure
+
+- Explorer reachability analysis found the real child-return witness
+  `T [:{A\n  B] -> U`; a normal `T [A\n  B] -> U` is TypeApply and cannot prove
+  this branch. Pre-write audit corrected the proposed PV Missing range before
+  implementation: it is `6..6`, before the un-emitted newline leading, not
+  `9..9`.
+- One Astra implementer proved complete BracketRow/PV/tail topology, terminal
+  PV Close Missing `6..6`, BracketRow-owned Newline `6..7` and Whitespace
+  `7..9`, Separator Missing `9..9`, next TypeExpression and fresh/frozen green
+  equality. Both roles and singleton/primary-zero projections derive from CST
+  before records. Independent delta audit was clean. Scoped rustfmt/diff and
+  the deeper, no-gap and accepted-control exact tests passed; each ran 1 test
+  with 1,425 filtered out. No broad suite or benchmark ran.
+- Both explicit Separator publication branches now have bounded evidence.
+  Exhaustive callers/boundaries remain open, and the independent Item/Close
+  topology collision remains BLOCKING pending its owning decision.
 
 ## Known open boundaries and deferred work
 

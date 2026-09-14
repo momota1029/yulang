@@ -363,6 +363,178 @@ fn bracket_row_no_gap_separator_missing_is_selected_by_direct_item_order() {
 }
 
 #[test]
+fn bracket_row_deeper_newline_separator_missing_follows_returned_pv_close() {
+    use SyntaxKind::*;
+
+    let source = "T [:{A\n  B] -> U";
+    let run = run_contextual_type_snapshot(
+        source,
+        crate::type_expr::TypeMlContext::INACTIVE,
+        0,
+        0,
+        0,
+        LineEntry::InLine,
+        None,
+        None,
+    );
+    let root = SyntaxNode::new_root(run.green.clone());
+    let shift = "sentinel".len();
+    let relative = |range: rowan::TextRange| {
+        usize::from(range.start()) - shift..usize::from(range.end()) - shift
+    };
+    assert_eq!(root.to_string(), format!("sentinel{source}"));
+    let row = root
+        .descendants()
+        .find(|node| node.kind() == BracketRow)
+        .unwrap();
+    assert_eq!(
+        row.descendants_with_tokens()
+            .map(|element| (
+                element.kind(),
+                element.parent().map(|parent| parent.kind()),
+                element.to_string(),
+                relative(element.text_range()),
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            (BracketRow, Some(TypeArrowTail), "[:{A\n  B]".into(), 2..11),
+            (LBracket, Some(BracketRow), "[".into(), 2..3),
+            (TypeExpression, Some(BracketRow), ":{A".into(), 3..6),
+            (
+                PolymorphicVariantType,
+                Some(TypeExpression),
+                ":{A".into(),
+                3..6
+            ),
+            (Colon, Some(PolymorphicVariantType), ":".into(), 3..4),
+            (LBrace, Some(PolymorphicVariantType), "{".into(), 4..5),
+            (
+                PolymorphicVariantTag,
+                Some(PolymorphicVariantType),
+                "A".into(),
+                5..6
+            ),
+            (Identifier, Some(PolymorphicVariantTag), "A".into(), 5..6),
+            (Missing, Some(PolymorphicVariantType), "".into(), 6..6),
+            (Newline, Some(BracketRow), "\n".into(), 6..7),
+            (Whitespace, Some(BracketRow), "  ".into(), 7..9),
+            (Missing, Some(BracketRow), "".into(), 9..9),
+            (TypeExpression, Some(BracketRow), "B".into(), 9..10),
+            (Identifier, Some(TypeExpression), "B".into(), 9..10),
+            (RBracket, Some(BracketRow), "]".into(), 10..11),
+        ]
+    );
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|element| matches!(element.kind(), Error | Invalid))
+    );
+    let missing = root
+        .descendants()
+        .filter(|node| node.kind() == Missing)
+        .collect::<Vec<_>>();
+    assert_eq!(missing.len(), 2);
+    assert!(
+        missing
+            .iter()
+            .all(|node| node.children_with_tokens().count() == 0)
+    );
+    let children = row.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        children
+            .iter()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        vec![
+            LBracket,
+            TypeExpression,
+            Newline,
+            Whitespace,
+            Missing,
+            TypeExpression,
+            RBracket
+        ]
+    );
+    assert_eq!(children[4].as_node(), Some(&missing[1]));
+    let pv = missing[0].parent().unwrap();
+    assert_eq!(pv.kind(), PolymorphicVariantType);
+    assert_eq!(pv.last_child(), Some(missing[0].clone()));
+
+    let tail = row.parent().unwrap();
+    assert_eq!(tail.kind(), TypeArrowTail);
+    assert_eq!(tail.parent().unwrap().kind(), TypeExpression);
+    assert_eq!(relative(tail.text_range()), 2..source.len());
+    assert_eq!(
+        tail.children_with_tokens()
+            .skip(1)
+            .flat_map(|element| match element {
+                rowan::NodeOrToken::Node(node) =>
+                    node.descendants_with_tokens().collect::<Vec<_>>(),
+                token => vec![token],
+            })
+            .map(|element| (
+                element.kind(),
+                element.parent().unwrap().kind(),
+                element.to_string(),
+                relative(element.text_range()),
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            (Whitespace, TypeArrowTail, " ".into(), 11..12),
+            (Arrow, TypeArrowTail, "->".into(), 12..14),
+            (TypeExpression, TypeArrowTail, " U".into(), 14..16),
+            (Whitespace, TypeExpression, " ".into(), 14..15),
+            (Identifier, TypeExpression, "U".into(), 15..16),
+        ]
+    );
+
+    // Select preorder occurrences from the terminal PV slot and the row's
+    // completed-item / native leading / Missing / item order before records.
+    let expected = missing
+        .iter()
+        .enumerate()
+        .map(|(id, node)| {
+            let (role, syntax) = match node.parent().unwrap().kind() {
+                PolymorphicVariantType if pv.last_child().as_ref() == Some(node) => (
+                    GrammarRole::ClosingDelimiter {
+                        owner: ConstructRole::PolymorphicVariantType,
+                        delimiter: Delimiter::Brace,
+                    },
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                ),
+                BracketRow
+                    if children[4].as_node() == Some(node)
+                        && children[1].kind() == TypeExpression
+                        && children[5].kind() == TypeExpression =>
+                {
+                    (
+                        GrammarRole::Type(TypeRole::BracketRowSeparator),
+                        ExpectedSyntax::DelimitedSequenceSeparator,
+                    )
+                }
+                owner => panic!("unexpected missing owner: {owner:?}"),
+            };
+            row_record(id as u32, role, syntax, relative(node.text_range()), None)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        expected
+            .iter()
+            .map(|record| record.site.range.clone())
+            .collect::<Vec<_>>(),
+        vec![6..6, 9..9]
+    );
+    assert!(
+        expected
+            .iter()
+            .all(|record| record.expectations.len() == 1 && record.primary_expectation == 0)
+    );
+    assert_eq!(run.records, expected);
+    let replayed = assert_complete_type_recovery(source, 0, &expected);
+    assert_eq!(replayed.green(), root.green());
+}
+
+#[test]
 fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
     for (source, expected) in [
         ("T [,] -> U", vec![item(0, 3..3, false)]),
