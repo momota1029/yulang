@@ -288,6 +288,22 @@ bounded unmapped candidate before further implementation.
   fence lists, other fences, other Rule/ExpressionList slots and gates 2–4
   remain open. Select the next bounded gate-1 candidate before implementation.
 
+## StringLiteral outer-terminator audit closure
+
+- The selected M1 slice covered five existing outer-terminator witnesses:
+  accepted empty/UTF-8 normal and heredoc forms, a mismatched two-quote heredoc
+  text run, and two final childless heredoc Missing forms including UTF-8.
+  Pre-write audit found incomplete direct-CST assertions, not a parser defect.
+- One Astra implementer strengthened the existing named test with exact
+  Root/StringLiteral ancestry, ordered node/token spellings and UTF-8 ranges,
+  full source, opener-selected native StringEnd versus final Missing, and
+  structural slot derivation before records. Independent delta review was
+  clean. Scoped rustfmt/diff checks and the wrapper-disabled exact test passed;
+  1 test, 1,422 filtered out. No production code, broad suite or benchmark ran.
+- The row is catalog-audited evidence-complete Draft only for those five forms.
+  StringPiece interiors, arbitrary heredoc variants, expanded caller/fence
+  coverage and gates 2–4 remain open. Select the next bounded gate-1 candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

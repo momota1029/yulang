@@ -1553,12 +1553,22 @@ ledger/API migration remain open.
 Only `crates/yu-syntax/src/literal/mod.rs:849` and
 `crates/yu-syntax/src/literal/mod.rs:855` are linked to the Draft catalog row
 `(StringLiteral, final outer terminator phase, opener-selected normal/heredoc
-mode)`. Status: `linked`; linked facts: the existing boundary path publishes
+mode)`. The publisher links establish that the existing boundary path publishes
 the `StringTerminator` Missing and returns the protected pending Item. This
 evidence link does not classify the temporary shifted recovery record
 `105..105` as a schema fact: the isolated interpolation-EOF CST Missing is
-`3..3`. All StringPiece/escape/interpolation, Rule, caller, and Root
-terminal-leading evidence remains delegated or unmapped.
+`3..3`.
+
+Five-witness direct Rowan proof is
+`string_terminator_slot_has_a_final_direct_rowan_child` in
+`crates/yu-syntax/src/tests/string_literal_recovery.rs:164–277`. Exact
+Root/StringLiteral structure, native spellings and UTF-8 ranges distinguish
+accepted normal/heredoc StringEnd tokens from final childless Missing; the
+mismatched two-quote run remains StringText. Independent delta review was
+clean, and the focused test passed 1 with 1,422 filtered out. Status:
+`audited` for these bounded outer-terminator forms only. All
+StringPiece/escape/interpolation, arbitrary heredoc, expanded caller/fence,
+Rule and Root terminal-leading evidence remains delegated or unmapped.
 
 #### StringEscape and StringInterpolation brace row links
 

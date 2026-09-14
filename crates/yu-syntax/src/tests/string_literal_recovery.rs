@@ -162,69 +162,119 @@ fn parse_string_driver<'s>(
 
 #[test]
 fn string_terminator_slot_has_a_final_direct_rowan_child() {
-    // These assertions intentionally read only the produced Rowan tree.  The
-    // record tests below remain the compatibility control for the temporary
-    // recovery ledger.
+    // Select the outer slot from Rowan ancestry, opener and final position
+    // before comparing the temporary recovery ledger.
     for (source, expected_children, end_range) in [
         (
             "\"\"",
-            vec![SyntaxKind::StringStart, SyntaxKind::StringEnd],
+            vec![
+                (false, SyntaxKind::StringStart, "\"", 0..1),
+                (false, SyntaxKind::StringEnd, "\"", 1..2),
+            ],
             1..2,
         ),
         (
             "\"α\"",
             vec![
-                SyntaxKind::StringStart,
-                SyntaxKind::StringText,
-                SyntaxKind::StringEnd,
+                (false, SyntaxKind::StringStart, "\"", 0..1),
+                (false, SyntaxKind::StringText, "α", 1..3),
+                (false, SyntaxKind::StringEnd, "\"", 3..4),
             ],
             3..4,
         ),
         (
             "\"\"\"α\"\"\"",
             vec![
-                SyntaxKind::StringStart,
-                SyntaxKind::StringText,
-                SyntaxKind::StringEnd,
+                (false, SyntaxKind::StringStart, "\"\"\"", 0..3),
+                (false, SyntaxKind::StringText, "α", 3..5),
+                (false, SyntaxKind::StringEnd, "\"\"\"", 5..8),
             ],
             5..8,
         ),
+        // The mismatched two-quote run remains exact native StringText.
+        (
+            "\"\"\"α\"\"",
+            vec![
+                (false, SyntaxKind::StringStart, "\"\"\"", 0..3),
+                (false, SyntaxKind::StringText, "α\"\"", 3..7),
+                (true, SyntaxKind::Missing, "", 7..7),
+            ],
+            7..7,
+        ),
+        (
+            "\"\"\"α",
+            vec![
+                (false, SyntaxKind::StringStart, "\"\"\"", 0..3),
+                (false, SyntaxKind::StringText, "α", 3..5),
+                (true, SyntaxKind::Missing, "", 5..5),
+            ],
+            5..5,
+        ),
     ] {
-        let (green, _, remainder) = parse(source, 0, None, None);
+        let (green, records, remainder) = parse(source, 0, None, None);
         assert_eq!(remainder, "");
         let root = SyntaxNode::new_root(green);
-        let literal = string_literal(&root);
-        assert_eq!(direct_kinds(&literal), expected_children, "{source:?}");
-        let end = literal
-            .children_with_tokens()
-            .last()
-            .expect("StringLiteral has a terminator");
-        assert_eq!(end.kind(), SyntaxKind::StringEnd);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.parent(), None);
+        assert_eq!(range(&root), 0..source.len());
+        assert_eq!(root.to_string(), source);
+        let root_children = root.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(root_children.len(), 1);
+        let literal = root_children[0]
+            .as_node()
+            .expect("Root directly owns the StringLiteral node");
+        assert_eq!(literal.kind(), SyntaxKind::StringLiteral);
+        assert_eq!(literal.parent(), Some(root.clone()));
+        assert_eq!(range(literal), 0..source.len());
+        assert_eq!(literal.to_string(), source);
+        let children = literal.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected_children.len(), "{source:?}");
+        for (child, (is_node, kind, spelling, byte_range)) in children.iter().zip(expected_children)
+        {
+            assert_eq!(child.as_node().is_some(), is_node, "{source:?}");
+            assert_eq!(child.kind(), kind, "{source:?}");
+            assert_eq!(child.parent(), Some(literal.clone()));
+            assert_eq!(child.to_string(), spelling, "{source:?}");
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                byte_range,
+                "{source:?}",
+            );
+        }
+        let opener = children[0].as_token().expect("native opener token");
+        assert_eq!(opener.kind(), SyntaxKind::StringStart);
+        let close_spelling = match opener.text() {
+            "\"" => "\"",
+            "\"\"\"" => "\"\"\"",
+            _ => panic!("fixture has a normal or heredoc opener"),
+        };
+        let end = children.last().expect("final outer terminator slot");
         assert_eq!(
             usize::from(end.text_range().start())..usize::from(end.text_range().end()),
             end_range,
         );
+        let projected = match end {
+            rowan::NodeOrToken::Token(token) => {
+                assert_eq!(token.kind(), SyntaxKind::StringEnd);
+                assert_eq!(token.text(), close_spelling);
+                vec![]
+            }
+            rowan::NodeOrToken::Node(missing) => {
+                assert_eq!(missing.kind(), SyntaxKind::Missing);
+                assert!(missing.children_with_tokens().next().is_none());
+                assert!(missing.to_string().is_empty());
+                assert!(missing.text_range().is_empty());
+                assert_eq!(range(missing), source.len()..source.len());
+                vec![record(
+                    0,
+                    LiteralRole::StringTerminator,
+                    RecoveryKind::Missing,
+                    range(missing),
+                )]
+            }
+        };
+        assert_eq!(records, projected, "{source:?}");
     }
-
-    // A two-quote run cannot close a three-quote literal: it is text, then the
-    // outer slot itself is the final zero-width Missing child.
-    let source = "\"\"\"α\"\"";
-    let (green, _, remainder) = parse(source, 0, None, None);
-    assert_eq!(remainder, "");
-    let root = SyntaxNode::new_root(green);
-    let literal = string_literal(&root);
-    assert_eq!(
-        direct_kinds(&literal),
-        [
-            SyntaxKind::StringStart,
-            SyntaxKind::StringText,
-            SyntaxKind::Missing
-        ]
-    );
-    let missing = final_missing(&literal);
-    assert_eq!(missing.parent(), Some(literal.clone()));
-    assert!(missing.text_range().is_empty());
-    assert_eq!(range(&missing), source.len()..source.len());
 }
 
 #[test]
