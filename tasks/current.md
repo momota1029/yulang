@@ -62,6 +62,11 @@ temporary diagnostic state while the schema remains incomplete.
   independent post-write schema audit is clean, so this bounded Alias slice is
   now catalog-audited evidence-complete Draft. Broader fences and complete
   recursive coverage remain open.
+- Latest M1 evidence checkpoint: the first required `Statement` below actual
+  `WithBodyTail > Colon > IndentedStatementBlock` now has bounded direct Rowan
+  evidence for EOF Missing, terminal Error, Error retry and accepted control.
+  It is catalog-audited evidence-complete Draft only for these four alternatives;
+  nested/later/fence/other-caller coverage remains open.
 - The focused Use module passed 59 tests at this checkpoint on 2026-09-12.
   This is fresh local health evidence, not whole-workspace certification.
 
@@ -75,16 +80,11 @@ temporary diagnostic state while the schema remains incomplete.
    family summaries and older exclusions are historical/partial; they are not
    a trustworthy current completion count. Check the specific row and test
    before selecting a new gap or reopening completed work.
-2. The next bounded candidate is the first required `Statement` in
-   `WithBodyTail > IndentedStatementBlock` after an actual Colon: ordinary EOF
-   Missing, terminal raw Error, Error-to-Statement retry and accepted control
-   only. Its role is already Authoritative in
-   [`expression indented Statement role transport`](../notes/design/2026-09-08-successor-expression-indented-statement-role-transport.md).
-   Begin with one pre-write specification audit of the proposed direct Rowan
-   assertions; do not mechanically copy Colon-ancestry expectations. Stop if
-   With ancestry cannot select the role from the CST without temporary records.
-   The completed inner group-item Alias audit adds no license to enumerate new
-   Alias ordinals: they remain occurrences of the existing slot.
+2. Select the next bounded unmapped schema candidate only after reconciling its
+   specific catalog/coverage row, direct owner and existing tests. The completed
+   inner group-item Alias audit adds no license to enumerate new Alias ordinals:
+   they remain occurrences of the existing slot. The completed With indented
+   row likewise does not cover nested/later/fence/other-caller paths.
 3. Keep component recovery under its existing parent and preserve exact pending
    Item leading. If the CST cannot distinguish required diagnostics, record the
    concrete collision and return only that owner to design; do not infer a new
@@ -116,15 +116,18 @@ temporary diagnostic state while the schema remains incomplete.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::use_decl:: -- --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::indented_recovery:: -- --test-threads=1
 ```
 
-Result: 59 passed, 0 failed, 0 ignored; 1,353 filtered out at the inner Alias
-checkpoint. The 2026-09-14 independent audit was read-only and did not rerun
-tests. No workspace build, broad suite or performance experiment was needed for
-the M1 audit closure/M0 record update. Future checks follow `rules/testing.md`;
-inspect resource behavior before broadening. `cargo xtask check-graph` checks
-dependencies, not syntax behavior.
+Result: 11 passed, 0 failed, 0 ignored; 1,402 filtered out. Scoped
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/indented_recovery.rs`
+also passed. The default-wrapper form failed before compilation because the
+environment's sccache lacked operation permission; the wrapper-disabled rerun
+is the meaningful focused result. The prior inner Alias checkpoint passed 59
+Use-module tests. No workspace build, broad suite or performance experiment was
+needed for the M1 closure/M0 record update. Future checks follow
+`rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
+check-graph` checks dependencies, not syntax behavior.
 
 - Current daily record: [`2026-09-14`](../notes/progress/daily/2026-09-14.md).
 - Complete pre-handoff task text: [`archived navigation`](../notes/progress/task-navigation-before-solo-handoff-2026-09-12.md).

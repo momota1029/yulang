@@ -2114,7 +2114,11 @@ no argument Missing, and outer-owned commas/newlines remain outside the tail.
 `WithBodyTail` maps direct missing introducer to `WithBody(Introducer)`/Colon,
 while recovery after an actual colon maps canonical direct `Statement` body
 Missing/Error to `WithBody(Body)`/Statement. The body retains declaration,
-literal and expression admission; it is not reduced to Expression.
+literal and expression admission; it is not reduced to Expression. The first
+required child of a direct colon-selected `IndentedStatementBlock` is a distinct
+transported role, `WithBody(IndentedStatement)`/Statement, selected by the
+ordered `WithBodyTail > Colon > IndentedStatementBlock` ancestry rather than
+the block kind alone.
 
 All mapped expectations are singleton with primary zero. Missing ranges are the
 direct zero-width node range and Error ranges are maximal adjacent direct token
@@ -2124,10 +2128,18 @@ groups; retry leading stays outside Error. Direct Rowan proof is
 `colon_and_with_cst_slots_are_selected_by_ordered_direct_grammar` in
 `crates/yu-syntax/src/tests/expression_recovery.rs` and
 `colon_with_recovery.rs`. M2 specification and recovery closure audits were
-clean. Status: catalog-audited evidence-complete Draft only for these witnessed
-initial/nested, inline and boundary alternatives; indented/body recursion,
-other expression forms, global interpreter and ledger/API migration remain
-open.
+clean. `indented_with_rowan_schema_covers_first_statement_missing_error_retry_and_control`
+in `crates/yu-syntax/src/tests/indented_recovery.rs` directly proves the
+bounded With indented slot for ordinary EOF Missing, terminal Error,
+Error-to-Statement retry and accepted control: ordered node/token ancestry,
+maximal Error grouping, retry-leading ownership, ranges, source reconstruction
+and fresh/frozen equality. M1 pre-write and post-write specification audits
+were clean; the focused indented-recovery module passed 11 tests with the Rust
+wrapper disabled after the environment's default sccache wrapper failed before
+compilation. Status: catalog-audited evidence-complete Draft only for these
+witnessed initial/nested, inline, boundary and four With-indented alternatives;
+later indented/body recursion, other expression forms, global interpreter and
+ledger/API migration remain open.
 
 ## Existing evidence-complete Draft slices
 

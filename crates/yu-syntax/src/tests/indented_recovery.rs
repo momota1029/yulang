@@ -634,6 +634,177 @@ fn indented_assignment_rowan_schema_covers_missing_error_retry_and_handoff() {
 }
 
 #[test]
+fn indented_with_rowan_schema_covers_first_statement_missing_error_retry_and_control() {
+    use SyntaxKind::*;
+
+    let assert_children = |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>)]| {
+        let children = parent.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len());
+        for (child, (kind, is_node, span)) in children.iter().zip(expected) {
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.as_node().is_some(), *is_node);
+            assert_eq!(child.parent(), Some(parent.clone()));
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                *span
+            );
+        }
+    };
+
+    for (source, missing, error, statement_start) in [
+        ("f with:\n  ", true, false, None),
+        ("f with:\n  @ @", false, true, None),
+        ("f with:\n  @ @ x", false, true, Some(13)),
+        ("f with:\n  x", false, false, Some(10)),
+    ] {
+        let end = source.len();
+        let (green, records, exit, rest) = parse(source, 0, 0, None, None);
+        assert_eq!(green.to_string(), source);
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.kind(), Root);
+        assert_eq!(range(&root), 0..end);
+        assert_eq!(root.parent(), None);
+        assert_children(&root, &[(Statement, true, 0..end)]);
+        let statement = root.first_child().unwrap();
+        assert_children(&statement, &[(OperatorChain, true, 0..end)]);
+        let chain = statement.first_child().unwrap();
+        assert_children(
+            &chain,
+            &[
+                (IdentifierExpression, true, 0..1),
+                (Whitespace, false, 1..2),
+                (WithBodyTail, true, 2..end),
+            ],
+        );
+        let identifier = chain.first_child().unwrap();
+        assert_children(&identifier, &[(Identifier, false, 0..1)]);
+        let tail = chain.last_child().unwrap();
+        assert_children(
+            &tail,
+            &[
+                (WithKw, false, 2..6),
+                (Colon, false, 6..7),
+                (IndentedStatementBlock, true, 7..end),
+            ],
+        );
+        let block = tail.first_child().unwrap();
+        // The verified With ancestor and actual Colon select this first
+        // required Statement slot without inspecting Error spelling or records.
+        let selected_role = GrammarRole::WithBody(WithBodyRole::IndentedStatement);
+        let mut expected = vec![(Newline, false, 7..8), (Whitespace, false, 8..10)];
+        if missing {
+            expected.push((Missing, true, 10..10));
+        }
+        if error {
+            expected.extend([
+                (Error, false, 10..11),
+                (Error, false, 11..12),
+                (Error, false, 12..13),
+            ]);
+        }
+        if let Some(start) = statement_start {
+            expected.push((Statement, true, start..end));
+        }
+        assert_children(&block, &expected);
+        for element in root.descendants_with_tokens() {
+            let span =
+                usize::from(element.text_range().start())..usize::from(element.text_range().end());
+            assert_eq!(element.to_string(), source[span]);
+            assert_ne!(element.kind(), Invalid);
+        }
+        let missing_nodes = root
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(missing_nodes.len(), usize::from(missing));
+        for node in missing_nodes {
+            assert_eq!(node.parent(), Some(block.clone()));
+            assert_eq!(node.children_with_tokens().count(), 0);
+        }
+        let errors = root
+            .descendants_with_tokens()
+            .filter(|element| element.kind() == Error)
+            .collect::<Vec<_>>();
+        assert_eq!(errors.len(), if error { 3 } else { 0 });
+
+        // Derive occurrences from this slot's immediate children. Only adjacent
+        // Error tokens coalesce; native trivia or a node ends the raw group.
+        let mut occurrences = Vec::new();
+        let mut in_error = false;
+        for child in block.children_with_tokens() {
+            let span =
+                usize::from(child.text_range().start())..usize::from(child.text_range().end());
+            if child.kind() == Error {
+                assert!(child.as_token().is_some());
+                if in_error {
+                    let (_, _, previous): &mut (_, _, Range<usize>) =
+                        occurrences.last_mut().unwrap();
+                    assert_eq!(previous.end, span.start);
+                    previous.end = span.end;
+                } else {
+                    occurrences.push((selected_role, RecoveryKind::Error, span));
+                }
+                in_error = true;
+            } else {
+                in_error = false;
+                if child.kind() == Missing {
+                    occurrences.push((selected_role, RecoveryKind::Missing, span));
+                }
+            }
+        }
+        let expected_occurrences = if missing {
+            vec![(selected_role, RecoveryKind::Missing, 10..10)]
+        } else if error {
+            vec![(selected_role, RecoveryKind::Error, 10..13)]
+        } else {
+            vec![]
+        };
+        assert_eq!(occurrences, expected_occurrences);
+        if statement_start == Some(13) {
+            let retry = block.last_child().unwrap();
+            let leading = retry.first_token().unwrap();
+            assert_eq!(leading.kind(), Whitespace);
+            assert_eq!(leading.text(), " ");
+            assert_eq!(usize::from(leading.text_range().start()), 13);
+            assert_eq!(usize::from(leading.text_range().end()), 14);
+            assert!(
+                leading
+                    .parent()
+                    .unwrap()
+                    .ancestors()
+                    .any(|node| node == retry)
+            );
+            assert_ne!(leading.parent(), Some(block.clone()));
+        }
+
+        let assert_eof = |exit, rest: &str| {
+            assert_eq!(rest, "");
+            let NormalizedExit::Complete(Err(Either::Right(mut eof)), line) = exit else {
+                panic!("expected ordinary EOF: {source:?}")
+            };
+            assert_eq!(line, LineEntry::InLine);
+            assert!(eof.item.payload_view().is_eof());
+            let extent = eof.item.extent(end);
+            assert_eq!(extent.remaining(), end..end);
+            assert_eq!(extent.payload(), end..end);
+            assert_eq!(extent.recovery_range(), end..end);
+            assert_eq!(emit_pending_leading_text(&mut eof.item), "");
+        };
+        assert_eof(exit, rest);
+        // Temporary records are compatibility evidence, not the slot selector.
+        let expected_records = expected_occurrences
+            .into_iter()
+            .map(|(role, kind, span)| record(role, kind, span))
+            .collect::<Vec<_>>();
+        assert_eq!(records, expected_records);
+        let (again, frozen, again_exit, again_rest) = parse(source, 0, 0, None, Some(&records));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eof(again_exit, again_rest);
+    }
+}
+
+#[test]
 fn indented_colon_rowan_schema_uses_utf8_crlf_byte_ranges() {
     let (green, _, _, _) = parse("f:\r\n  💥", 0, 0, None, None);
     let block = colon_indented_block(&SyntaxNode::new_root(green));

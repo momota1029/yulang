@@ -463,6 +463,23 @@ leading, accepted control and UTF-8/CRLF ranges are covered without consulting
 records. M2 pre-write specification and post-write regression/delta audits were
 clean. Other transported callers and later/layout/nested slots remain separate.
 
+#### WithBodyTail indented Statement entry Draft links
+
+`indented_with_rowan_schema_covers_first_statement_missing_error_retry_and_control`
+in `tests/indented_recovery.rs` maps the first required Statement under the
+complete `WithBodyTail > Colon > IndentedStatementBlock` path. The actual
+Colon and ordered ancestors select `WithBody(IndentedStatement)` rather than a
+Colon caller role or block kind alone. Four direct EOF witnesses cover native
+leading, zero-width Missing, one maximal terminal Error group, Error-to-Statement
+retry with its leading under the admitted Statement, and accepted control.
+They assert node/token ancestry, ranges, source reconstruction and fresh/frozen
+equality without using Error spelling or temporary records as the selector.
+M1 pre-write and post-write specification audits were clean; the wrapper-disabled
+focused indented-recovery module passed 11 tests. This is catalog-audited
+evidence-complete Draft for this bounded first child only. Nested Statement
+grammar, later siblings, dedent/fences, other callers, full With coverage and
+global interpretation remain separate.
+
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct
