@@ -450,6 +450,25 @@ bounded unmapped candidate before further implementation.
 - Accepted names, CRLF/parenthesis/EOF/fence/interpolation, recursive Rule and
   gates 2–4 remain open. Select the next bounded gate-1 candidate.
 
+## Gate-1 publication-mechanism completeness audit
+
+- A read-only M1 Astra audit re-ran the direct publisher census at `589a1e57`.
+  It remains 123 call sites in 39 files: 59 Missing, 9 Error-item, 53
+  Error-run and 2 structured Invalid. The historical four-emitter census is
+  only a search baseline; the newline callback is a fifth publication entry
+  mechanism, and wrapper callers must not be double-counted as executions.
+- The audit reconciled ten `emit_rule_missing` callers, the single newline
+  callback and the two structured Invalid callers/three roles against current
+  mapped evidence. It corrected stale navigation for the completed bounded
+  fence proof and three RuleLiteral UTF-8 EOF compositions. No production
+  defect or new semantic decision was found. No build, test or measurement
+  ran for this record-only audit.
+- Gate 1 is not complete: the strongest essential residual is the distinct
+  `RuleFrame::LiteralInterpolation` RuleSequence Error schema/proof; delegated
+  BracketRow Item/Close internals are a second major residual. The audit did
+  not independently certify every caller discriminator behind all 123 sites.
+  Audit the interpolation-frame row next without changing parser behavior.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

@@ -21,13 +21,16 @@ At this manifest's creation, the command yields 123 matching call sites in 39
 source files. That is a publication-site census only: neither number is a
 count of semantic slots.
 
-There is one known exception outside this four-emitter census:
+The four-emitter search is not a complete publication-API inventory. A fifth
+entry mechanism sits outside it:
 `rule/expression_list.rs::emit_leading_newline_separators` calls
 `emit_required_slots_before_newlines` with a callback which creates
 `ExpressionList(Item)` Missing. It remains an `exception` because it is outside
 the four-emitter census, but is now linked to the bounded Rule ExpressionList
 catalog row below. Its committed recovery record is neither slot identity nor a
-diagnostic-ledger substitute. The caller fence-tree/range proof remains open.
+diagnostic-ledger substitute. The bounded three-caller fence-tree/range proof
+is linked below; outer Yumark, nonempty, nested and additional fence forms
+remain open.
 
 ## 2026-09-11 completion-gap audit
 
@@ -39,6 +42,17 @@ table. The RuleLiteralInterpolation frame also reaches shared RuleSequence
 Error and child helpers under a distinct ancestor context. These are required
 coverage entries, not evidence that the ordinary RuleBody/Parenthesis rows
 apply to that frame.
+
+The 2026-09-15 publication-mechanism reconciliation re-ran the census at
+`589a1e57`: it remains 123 direct call sites in 39 files (59 Missing, 9
+Error-item, 53 Error-run and 2 structured Invalid). This is still not a
+semantic-slot completeness proof. The audit additionally confirmed ten
+`emit_rule_missing` caller expressions across `rule/mod.rs` and
+`literal/rule_literal.rs`, one newline-callback caller, and two structured
+Invalid callers yielding three semantic roles. Two essential residuals remain:
+the interpolation-frame RuleSequence Error row/proof and delegated BracketRow
+Item/Close internals. The pass did not independently re-enumerate every caller
+discriminator behind all 123 sites, so Gate 1 remains incomplete.
 
 The same audit found several catalog locators under `type_expr/mod.rs` stale
 against current source line positions. On 2026-09-12 the bounded TypeCall
