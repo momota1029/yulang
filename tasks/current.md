@@ -418,6 +418,22 @@ bounded unmapped candidate before further implementation.
   recursive Rule and gates 2–4 remain open. Select the next bounded gate-1
   candidate.
 
+## Public Root Rule EOF-leading composition closure
+
+- The selected M1 slice strengthened the existing public-Root `~"{a=  `
+  witness. The RuleLiteral subtree ends at CST frontier `5`, while trailing
+  horizontal whitespace remains a direct Root child at `5..7`.
+- One Astra implementer proved the complete exact node/token topology, three
+  childless Missing occurrences at `5..5` in Capture-RHS, interpolation-Close
+  and outer-terminator preorder, absence of Error/Invalid, and CST-derived
+  singleton expectations/primary zero before compatibility records. Existing
+  scanned-EOF record coordinates and sibling cases stayed unchanged.
+  Independent pre-write and delta audits were clean. Scoped rustfmt/diff
+  checks and the wrapper-disabled exact test passed; 1 test, 1,422 filtered
+  out. No production code, broad suite or benchmark ran.
+- Other leading/comment/CRLF/fence and caller variants, recursive Rule and
+  gates 2–4 remain open. Select the next bounded gate-1 candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

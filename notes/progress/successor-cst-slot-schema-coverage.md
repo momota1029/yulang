@@ -1549,8 +1549,14 @@ Colon+OpenBrace context in natural preorder. Finally, `~"é:` proves the
 UTF-8-prefixed unbraced Name and outer terminator as distinct childless Missing
 occurrences at `5..5`, selected by exact direct Colon/Missing children. Status:
 catalog-audited evidence-complete Draft for the witnessed direct forms only.
-Other boundary/leading variants, RuleSequence Error, nested Rule children,
-global collector and ledger/API migration remain open.
+The public-Root `~"{a=  ` composition additionally fixes three childless
+Missing occurrences at the CST frontier `5..5` in Capture-RHS, interpolation-
+Close and outer-terminator preorder, while Root owns trailing Whitespace
+`5..7`. The three singleton expectations and primary zero are derived from
+their distinct Rowan owners before compatibility records; scanned-EOF record
+coordinates remain compatibility evidence only. Other boundary/leading
+variants, RuleSequence Error, nested Rule children, global collector and
+ledger/API migration remain open.
 
 - `crates/yu-syntax/src/literal/mod.rs`
 - `crates/yu-syntax/src/rule/mod.rs`
@@ -1629,6 +1635,15 @@ Missing at `3..3` before a native physical CRLF owned by RuleAlternation, with
 singleton `Literal(RuleItem)` projection were independently delta-audited
 clean; the focused test passed 1 with 1,422 filtered out. LF/EOF/fence and
 other caller variants remain open.
+
+The public-Root `~"{a=  ` witness additionally proves Capture RHS Missing at
+`5..5` inside the complete RuleLiteral interpolation ancestry. Interpolation
+Close and outer RuleLiteral terminator follow as separate same-offset Missing
+occurrences, while trailing Whitespace `5..7` remains a direct Root child.
+Exact topology, absence of Error/Invalid and CST-derived singleton projections
+were independently delta-audited clean; the focused test passed 1 with 1,422
+filtered out. Other EOF-leading, comment/CRLF, fence and caller variants remain
+open.
 
 The RuleField/RulePath required-name rows have focused direct Rowan proof in
 `dedicated_rule_slots_are_directly_readable_from_the_rowan_tree` in

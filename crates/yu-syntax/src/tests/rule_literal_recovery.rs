@@ -1587,6 +1587,175 @@ fn public_root_preserves_rule_eof_leading_outside_the_terminal_slots() {
         );
         assert_eq!(parsed.green().to_string(), source.as_ref());
         let root = SyntaxNode::new_root(parsed.green().clone());
+        if source.as_ref() == "~\"{a=  " {
+            let nodes = root.descendants().collect::<Vec<_>>();
+            assert_eq!(nodes.len(), 10);
+            for (index, (kind, node_range, text, parent, children)) in [
+                (
+                    SyntaxKind::Root,
+                    0..7,
+                    "~\"{a=  ",
+                    None,
+                    vec![SyntaxKind::OperatorChain, SyntaxKind::Whitespace],
+                ),
+                (
+                    SyntaxKind::OperatorChain,
+                    0..5,
+                    "~\"{a=",
+                    Some(0),
+                    vec![SyntaxKind::RuleLiteral],
+                ),
+                (
+                    SyntaxKind::RuleLiteral,
+                    0..5,
+                    "~\"{a=",
+                    Some(1),
+                    vec![
+                        SyntaxKind::RuleLiteralStart,
+                        SyntaxKind::RuleLiteralInterpolation,
+                        SyntaxKind::Missing,
+                    ],
+                ),
+                (
+                    SyntaxKind::RuleLiteralInterpolation,
+                    2..5,
+                    "{a=",
+                    Some(2),
+                    vec![
+                        SyntaxKind::RuleLiteralOpenBrace,
+                        SyntaxKind::RuleSequence,
+                        SyntaxKind::Missing,
+                    ],
+                ),
+                (
+                    SyntaxKind::RuleSequence,
+                    3..5,
+                    "a=",
+                    Some(3),
+                    vec![SyntaxKind::RuleItem],
+                ),
+                (
+                    SyntaxKind::RuleItem,
+                    3..5,
+                    "a=",
+                    Some(4),
+                    vec![SyntaxKind::Identifier, SyntaxKind::RuleCapture],
+                ),
+                (
+                    SyntaxKind::RuleCapture,
+                    4..5,
+                    "=",
+                    Some(5),
+                    vec![SyntaxKind::Equals, SyntaxKind::Missing],
+                ),
+                (SyntaxKind::Missing, 5..5, "", Some(6), vec![]),
+                (SyntaxKind::Missing, 5..5, "", Some(3), vec![]),
+                (SyntaxKind::Missing, 5..5, "", Some(2), vec![]),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let node = &nodes[index];
+                assert_eq!(node.kind(), kind);
+                assert_eq!(range(node), node_range);
+                assert_eq!(node.to_string(), text);
+                assert_eq!(node.parent(), parent.map(|index| nodes[index].clone()));
+                assert_eq!(child_kinds(node), children);
+            }
+            let tokens = root
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .collect::<Vec<_>>();
+            assert_eq!(tokens.len(), 5);
+            for (token, (kind, token_range, text, parent)) in tokens.iter().zip([
+                (SyntaxKind::RuleLiteralStart, 0..2, "~\"", 2),
+                (SyntaxKind::RuleLiteralOpenBrace, 2..3, "{", 3),
+                (SyntaxKind::Identifier, 3..4, "a", 5),
+                (SyntaxKind::Equals, 4..5, "=", 6),
+                (SyntaxKind::Whitespace, 5..7, "  ", 0),
+            ]) {
+                assert_eq!(token.kind(), kind);
+                assert_eq!(
+                    usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+                    token_range
+                );
+                assert_eq!(token.text(), text);
+                assert_eq!(token.parent(), Some(nodes[parent].clone()));
+            }
+            assert!(
+                root.descendants_with_tokens().all(|element| !matches!(
+                    element.kind(),
+                    SyntaxKind::Error | SyntaxKind::Invalid
+                ))
+            );
+            let missing = root
+                .descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .collect::<Vec<_>>();
+            assert_eq!(missing, nodes[7..10]);
+            // Derive each singleton expectation from the complete ordered CST
+            // before consulting compatibility records or their EOF coordinates.
+            let derived = missing
+                .iter()
+                .map(|node| {
+                    let owner = node.parent().expect("direct Missing owner");
+                    let (role, expected) = match owner.kind() {
+                        SyntaxKind::RuleCapture => {
+                            assert_eq!(owner, nodes[6]);
+                            (
+                                LiteralRole::RuleCaptureRightItem,
+                                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+                            )
+                        }
+                        SyntaxKind::RuleLiteralInterpolation => {
+                            assert_eq!(owner, nodes[3]);
+                            (
+                                LiteralRole::RuleLiteralInterpolationCloseBrace,
+                                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                                    Delimiter::Brace,
+                                )),
+                            )
+                        }
+                        SyntaxKind::RuleLiteral => {
+                            assert_eq!(owner, nodes[2]);
+                            (
+                                LiteralRole::RuleLiteralTerminator,
+                                ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
+                            )
+                        }
+                        other => panic!("unexpected Missing owner: {other:?}"),
+                    };
+                    (role, range(node), [expected], 0usize)
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                derived,
+                [
+                    (
+                        LiteralRole::RuleCaptureRightItem,
+                        5..5,
+                        [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
+                        0
+                    ),
+                    (
+                        LiteralRole::RuleLiteralInterpolationCloseBrace,
+                        5..5,
+                        [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                            Delimiter::Brace
+                        ))],
+                        0
+                    ),
+                    (
+                        LiteralRole::RuleLiteralTerminator,
+                        5..5,
+                        [ExpectedSyntax::Literal(
+                            LiteralExpected::RuleLiteralTerminator
+                        )],
+                        0
+                    ),
+                ]
+            );
+        }
         let literal = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::RuleLiteral)
