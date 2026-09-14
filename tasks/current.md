@@ -92,8 +92,15 @@ temporary diagnostic state while the schema remains incomplete.
    family summaries and older exclusions are historical/partial; they are not
    a trustworthy current completion count. Check the specific row and test
    before selecting a new gap or reopening completed work.
-2. Select the next bounded unmapped schema candidate only after reconciling its
-   specific catalog/coverage row, direct owner and existing tests. The completed
+2. The next bounded candidate is the direct lexical Item/Separator sequence
+   schema under `RecordPattern`. Existing `record_raw_sequence_roles_follow_direct_ordered_children`
+   evidence distinguishes its same-parent Missing/Error+ shapes by ordered
+   sequence phase: comma resets Item, an admitted field selects Separator and
+   direct trivia preserves phase. Begin with one independent evidence-to-schema
+   specification audit before adding any test. Stop if that phase cannot be
+   derived from ordered CST without records or Error spelling. Structured
+   Invalid, foreign/local close, spread/default/field-internal, nested Pattern,
+   layout/fence/caller and broader sequence paths remain excluded. The completed
    inner group-item Alias audit adds no license to enumerate new Alias ordinals:
    they remain occurrences of the existing slot. The completed With, Binding and
    Mod indented rows likewise do not cover nested/later/fence/other-caller paths.
