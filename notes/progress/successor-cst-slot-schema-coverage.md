@@ -270,6 +270,20 @@ evidence-complete Draft only for these four first-child EOF alternatives.
 Marker/visibility/header, inline/wrong-indent/braced, later/nested,
 dedent/fence and other-caller paths remain separate.
 
+#### RoleDeclaration fresh required-Head Missing link
+
+The fresh Role Head Missing is linked only for the bounded `role ;` witness.
+`crates/yu-syntax/src/declaration/role_decl.rs:229–278,322–349` calls the shared
+required-Type publisher at `type_expr/mod.rs:690–708,822–842` with the Head
+role. `role_schema_required_head_has_complete_ordered_evidence` in
+`crates/yu-syntax/src/tests/declaration/role_decl.rs` proves ordered
+`RoleKw Whitespace TypeExpression(Missing) Semicolon`, unique childless Missing
+at CST `5..5`, no Error/Invalid, structural singleton TypeExpression/primary
+zero before the shifted `105..105` compatibility record, and fresh/frozen
+seeded replay. Independent delta audit was clean; the exact test passed 1 with
+1,425 filtered out. Other Head boundaries/layout/fences, malformed/retried or
+nested Type and other Role phases remain open.
+
 #### RoleDeclaration BodyIntroducer/inline Body Draft links
 
 Only `crates/yu-syntax/src/declaration/role_decl.rs:300–606,790–894` is linked
@@ -1161,6 +1175,19 @@ protected body handoff. Direct Rowan proof is
 ordinary/polymorphic-variant-colon distinction is intentionally not a separate
 row because both emit `SyntaxKind::Colon`; recovered binders, first/later binder
 phases, nested Type and caller-boundary handling remain separate rows.
+
+#### Shared required-Type fresh Missing caller reconciliation
+
+The shared publisher at `crates/yu-syntax/src/type_expr/mod.rs:690–708` has 12
+production call expressions carrying 20 owner/shape transports. Five
+transports cannot reach its fresh-Missing branch after their caller priority
+checks, leaving 15 reachable production role contexts. Eight have bounded
+mapped evidence: Type RHS; Act Head/Source; Derives RoleReference; Pattern and
+Expression annotations; and Enum/Error FromType. Seven remain unmapped: Role
+Head; Impl Head/Description; Cast TargetType; and Struct/Enum/Error named-field
+Type. The Role Head context is mapped below after focused proof closure; the
+other six remain open. These counts describe role transports, not occurrence
+or boundary-variant counts, and do not certify nested Type grammar.
 
 #### LeadingEffectTypeHead required-head row links
 

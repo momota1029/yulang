@@ -461,6 +461,40 @@ fn role_schema_required_head_has_complete_ordered_evidence() {
                     missing[0].as_node().unwrap().children_with_tokens().count(),
                     0
                 );
+                let projected = match children.as_slice() {
+                    [keyword, trivia, type_expression, semicolon]
+                        if role.kind() == RoleDeclaration
+                            && keyword.kind() == RoleKw
+                            && trivia.kind() == Whitespace
+                            && type_expression.as_node() == Some(head)
+                            && semicolon.kind() == Semicolon =>
+                    {
+                        missing
+                            .iter()
+                            .filter(|child| child.kind() == Missing)
+                            .map(|child| {
+                                (
+                                    GrammarRole::Declaration(DeclarationRole::Role(
+                                        RoleDeclarationRole::Head,
+                                    )),
+                                    vec![ExpectedSyntax::TypeExpression],
+                                    0,
+                                    child.text_range(),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    }
+                    _ => panic!("fresh Head Missing requires the ordered Role shell"),
+                };
+                assert_eq!(
+                    projected,
+                    vec![(
+                        GrammarRole::Declaration(DeclarationRole::Role(RoleDeclarationRole::Head)),
+                        vec![ExpectedSyntax::TypeExpression],
+                        0,
+                        rowan::TextRange::empty(5.into()),
+                    )]
+                );
             } else if let Some(last) = errors.last() {
                 assert_eq!(last.text_range().end(), head.text_range().start());
                 let leading = head.first_child_or_token().expect("native retry leading");

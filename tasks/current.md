@@ -544,6 +544,39 @@ bounded unmapped candidate before further implementation.
   Exhaustive callers/boundaries remain open, and the independent Item/Close
   topology collision remains BLOCKING pending its owning decision.
 
+## Required-Type fresh Missing caller reconciliation
+
+- A read-only M1 Astra audit found 12 production call expressions and 20
+  owner/shape transports into the shared required-Type entry. Five transports
+  cannot reach fresh Missing after caller priority checks; 15 production role
+  contexts remain reachable.
+- Eight contexts already have bounded mappings: Type RHS, Act Head/Source,
+  Derives RoleReference, Pattern/Expression annotations and Enum/Error
+  FromType. Seven initially lacked their own row: Role Head, Impl
+  Head/Description, Cast TargetType and Struct/Enum/Error named-field Type.
+  Role Head is closed below; the other six remain open. No build, test or
+  benchmark ran for the reconciliation itself.
+- The audit also refreshed the stale named-field required-Type source locator.
+  This finite transport audit does not certify all boundary variants or nested
+  Type recovery.
+
+## RoleDeclaration fresh required-Head Missing closure
+
+- The selected M1 slice strengthened existing `role ;` evidence with a
+  structure-selected projection before records. Ordered
+  `RoleKw Whitespace TypeExpression(Missing) Semicolon` selects exactly one
+  `Declaration(Role(Head))`, singleton TypeExpression, primary zero at CST
+  `5..5`; the shifted compatibility record remains `105..105`.
+- One Astra implementer added 34 test-only lines. Exact ancestry, unique
+  childless Missing, no Error/Invalid, semicolon handoff, EOF and fresh/frozen
+  seeded replay were already pinned. Independent pre-write and delta audits
+  were clean. Scoped rustfmt/diff and the exact test passed; 1 test, 1,425
+  filtered out. No production code, broad suite or benchmark ran.
+- The bounded `role ;` Head row is now catalog-audited evidence-complete Draft.
+  Other boundaries/layout/fences, malformed/retried/nested Type, other Role
+  phases and gates 2–4 remain open. Select another unmapped required-Type
+  caller while the BracketRow structural decision remains pending.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
