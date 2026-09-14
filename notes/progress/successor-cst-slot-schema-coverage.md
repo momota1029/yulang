@@ -207,6 +207,14 @@ Direct Rowan proof is the three `cast_body_direct_rowan_*` tests in
 parentage/ranges only. M1 post-write audit was clean. Nested Expression,
 fence and other Cast rows remain open.
 
+#### CastBody first indented Statement Draft link
+
+`declaration/cast_decl.rs:1088–1120` selects the deep-indent Cast role.
+`indented_cast_rowan_schema_covers_first_statement_missing_error_retry_and_control`
+in `tests/indented_recovery.rs` proves direct CastBody/block CST selection at
+origins 0/41. Both M1 audits were clean; focused indented tests passed 17.
+Inline and other Cast paths remain separate.
+
 #### ModDeclaration Name/TestName/BodyIntroducer/inline Body Draft links
 
 Only `crates/yu-syntax/src/declaration/mod_decl.rs:76–328,760–894` is linked

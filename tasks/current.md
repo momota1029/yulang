@@ -142,6 +142,15 @@ Act's first indented Statement slice is now catalog-audited evidence-complete
 Draft for its four direct CST witnesses. Select the next bounded unmapped
 candidate before further implementation.
 
+Selected candidate: CastBody's first indented Statement after completed
+CastPattern/CastTarget and actual Equals, limited to Missing, lexical Error,
+retry and accepted control. Inline/wrong-indent/braced, malformed earlier
+phases, later/nested/fence/caller paths remain separate.
+
+CastBody's first indented Statement slice is now catalog-audited
+evidence-complete Draft for its four direct CST witnesses. Select the next
+bounded unmapped candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

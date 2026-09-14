@@ -1100,6 +1100,17 @@ recovery, and the strictly-deeper indented Statement path.
 | diagnostic projection | A direct CastBody Missing or maximal direct Error group projects `Declaration(Cast(Body))` with singleton expected `Expression`, primary zero, at its direct range. Parentage under actual Equals and direct child order distinguish it from BodyIntroducer and nested Expression recovery; records, Error spelling and scanner state are not inputs. |
 | proof and status | Governing authority: [cast Body current-Item recovery](2026-09-09-successor-cast-body-current-item-recovery.md), plus the CST-derived diagnostics amendment. Publisher: `crates/yu-syntax/src/declaration/cast_decl.rs:1088–1231,1481–1518,1715–1761`. Direct Rowan proof: `cast_inline_body_direct_rowan_slot_order_and_ranges`, `cast_inline_body_direct_rowan_boundary_leading_stays_pending`, and `cast_inline_body_direct_rowan_keeps_indented_statement_owner` in `crates/yu-syntax/src/tests/declaration/cast_decl.rs`. M1 post-write audit was clean. Status: catalog-audited evidence-complete Draft for these witnesses only; nested Expression recovery, fence topology, remaining Cast rows, global collector, parser API and recovery-ledger retirement remain open. |
 
+### CastBody first indented Statement Draft
+
+This bounded Draft maps CastBody's first indented Statement after completed
+CastPattern/CastTarget and actual Equals.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `CastDeclaration(... CastTarget Whitespace Equals CastBody(IndentedStatementBlock))` selects the block child, distinct from CastBody's inline OperatorChain. |
+| projection | Direct Cast shell, CastBody and ordered block children select `Declaration(Cast(IndentedStatement))`, expected Statement, primary zero. Missing is empty; adjacent Error tokens are one occurrence and retry Statement owns its leading. |
+| proof and status | Authority: [expression indented Statement role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), [Cast Body recovery](2026-09-09-successor-cast-body-current-item-recovery.md), CST amendments. Owner: `declaration/cast_decl.rs:1088–1120`; shared block `statement.rs`. Direct proof: `indented_cast_rowan_schema_covers_first_statement_missing_error_retry_and_control` in `tests/indented_recovery.rs`, four witnesses at origins 0/41. M1 pre/post audits clean; focused indented tests passed 17. Status: catalog-audited evidence-complete Draft only for this strict-indent slice; inline/wrong-indent/braced, earlier/later/nested/fence/caller paths remain open. |
+
 ### CastDeclaration accepted shell and ordered Error composition Draft
 
 This aggregate composes the already-audited Cast phase rows. It is not a new
