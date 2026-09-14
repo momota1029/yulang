@@ -437,6 +437,170 @@ fn full(
 }
 
 #[test]
+fn projection_delimited_missing_slots_are_distinguished_by_ordered_cst() {
+    use SyntaxKind::*;
+    let assert_children = |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>)]| {
+        let actual = parent.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(actual.len(), expected.len(), "{parent:#?}");
+        for (child, (kind, node, range)) in actual.iter().zip(expected) {
+            assert_eq!(child.parent(), Some(parent.clone()));
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.as_node().is_some(), *node);
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                *range
+            );
+        }
+    };
+    for (form, owner_kind, opening, closing, open, close) in [
+        (Form::Tuple, ProjectionTupleTail, "(", ")", LParen, RParen),
+        (Form::Record, ProjectionRecordTail, "{", "}", LBrace, RBrace),
+    ] {
+        for (body, has_close, slots, expected_role) in [
+            (
+                ",a",
+                true,
+                vec![
+                    (Missing, true, 3..3),
+                    (Comma, false, 3..4),
+                    (OperatorChain, true, 4..5),
+                ],
+                Some(GrammarRole::Expression(form.item())),
+            ),
+            (
+                "1x",
+                true,
+                vec![
+                    (OperatorChain, true, 3..4),
+                    (Missing, true, 4..4),
+                    (OperatorChain, true, 4..5),
+                ],
+                Some(GrammarRole::Expression(form.separator())),
+            ),
+            (
+                "a",
+                false,
+                vec![(OperatorChain, true, 3..4), (Missing, true, 4..4)],
+                Some(form.closing()),
+            ),
+            ("", true, vec![], None),
+            ("a", true, vec![(OperatorChain, true, 3..4)], None),
+        ] {
+            let source = format!("x.{opening}{body}{}", if has_close { closing } else { "" });
+            let (green, records) = full(&source, None);
+            let root = SyntaxNode::new_root(green.clone());
+            let end = source.len();
+            assert_eq!(root.kind(), Root);
+            assert!(root.parent().is_none());
+            assert_eq!(root.to_string(), source);
+            assert_children(&root, &[(OperatorChain, true, 0..end)]);
+            let chain = root.first_child().unwrap();
+            assert_children(
+                &chain,
+                &[
+                    (IdentifierExpression, true, 0..1),
+                    (owner_kind, true, 1..end),
+                ],
+            );
+            assert_children(&chain.first_child().unwrap(), &[(Identifier, false, 0..1)]);
+            let owner = chain.last_child().unwrap();
+            let mut direct = vec![(Dot, false, 1..2), (open, false, 2..3)];
+            direct.extend(slots);
+            if has_close {
+                direct.push((close, false, end - 1..end));
+            }
+            assert_children(&owner, &direct);
+            for item in owner.children().filter(|node| node.kind() == OperatorChain) {
+                let range = item.text_range();
+                let range = usize::from(range.start())..usize::from(range.end());
+                let (expression, token) = if body == "1x" && range.start == 3 {
+                    (IntegerLiteral, Integer)
+                } else {
+                    (IdentifierExpression, Identifier)
+                };
+                assert_children(&item, &[(expression, true, range.clone())]);
+                assert_children(&item.first_child().unwrap(), &[(token, false, range)]);
+            }
+            for element in root.descendants_with_tokens() {
+                let range = element.text_range();
+                assert_eq!(
+                    element.to_string(),
+                    source[usize::from(range.start())..usize::from(range.end())]
+                );
+                assert!(!matches!(
+                    element.kind(),
+                    Invalid
+                        | Error
+                        | IndexItem
+                        | ProjectionRecordSpreadItem
+                        | ExpressionDelimitedSeparator
+                        | ExpressionDelimitedForeignClose
+                ));
+            }
+
+            // Classify from the real owner and ordered siblings before consulting records.
+            let owner_form = match owner.kind() {
+                ProjectionTupleTail => Form::Tuple,
+                ProjectionRecordTail => Form::Record,
+                _ => unreachable!(),
+            };
+            let children = owner.children_with_tokens().collect::<Vec<_>>();
+            let mut classified = vec![];
+            for (index, child) in children
+                .iter()
+                .enumerate()
+                .filter(|(_, child)| child.kind() == Missing)
+            {
+                let missing = child.as_node().expect("Missing node");
+                assert_eq!(missing.children_with_tokens().count(), 0);
+                assert!(missing.text_range().is_empty());
+                let role = match children.get(index + 1) {
+                    Some(next) if next.kind() == Comma => {
+                        assert!(matches!(children[index - 1].kind(), LParen | LBrace));
+                        GrammarRole::Expression(owner_form.item())
+                    }
+                    Some(next) if next.kind() == OperatorChain => {
+                        assert_eq!(children[index - 1].kind(), OperatorChain);
+                        GrammarRole::Expression(owner_form.separator())
+                    }
+                    None => {
+                        assert_eq!(children[index - 1].kind(), OperatorChain);
+                        owner_form.closing()
+                    }
+                    _ => panic!("unclassified direct Missing: {source:?}"),
+                };
+                classified.push((role, usize::from(missing.text_range().start())));
+            }
+            assert_eq!(
+                classified.iter().map(|(role, _)| *role).collect::<Vec<_>>(),
+                expected_role.into_iter().collect::<Vec<_>>()
+            );
+            assert_eq!(
+                root.descendants()
+                    .filter(|node| node.kind() == Missing)
+                    .count(),
+                classified.len()
+            );
+            let expected = classified
+                .into_iter()
+                .map(|(role, anchor)| {
+                    record(
+                        role,
+                        RecoveryKind::Missing,
+                        anchor..anchor,
+                        UnexpectedCategory::OtherCharacter,
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(records, expected, "{source:?}");
+            let (again, frozen) = full(&source, Some(&records));
+            assert_eq!(again, green);
+            assert_eq!(frozen, records);
+        }
+    }
+}
+
+#[test]
 fn ordinary_delimited_missing_slots_are_distinguished_by_ordered_cst() {
     use SyntaxKind::*;
     let assert_children = |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>)]| {

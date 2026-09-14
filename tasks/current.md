@@ -173,6 +173,21 @@ bounded unmapped candidate before further implementation.
   repeated/semicolon/trivia variants and global interpreter work remain
   excluded.
 
+## Projection-tail ordinary Missing audit closure
+
+- One additive ten-witness test now proves Item, Separator and terminal Close
+  `Missing`, plus accepted empty and single-item controls, in real
+  ProjectionTupleTail and ProjectionRecordTail shells. It classifies each role
+  from ordered CST before record comparison and proves exact ranges, parentage,
+  lossless source, excluded-node absence and fresh/frozen equality.
+- The independent post-write specification audit was clean. Scoped rustfmt and
+  diff checks passed; the wrapper-disabled focused test passed 1 with 1,422
+  filtered out. No benchmark process or broad suite was used.
+- Spread RHS, Error, nested recovery, foreign/caller/fence paths,
+  repeated/semicolon/trivia variants, interpreter construction and ledger/API
+  migration remain separate. Select the next bounded unmapped candidate before
+  further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

@@ -1693,7 +1693,7 @@ slots or the nested `OperatorChain` schema.
 
 Focused direct Rowan proof is
 `crates/yu-syntax/src/tests/owners.rs:553–906`; exact retained-role controls
-are `crates/yu-syntax/src/tests/delimited_recovery.rs:304–335, 517–555`.
+are `crates/yu-syntax/src/tests/delimited_recovery.rs:304–335, 681–719`.
 Every other delimited owner/phase remains untriaged, delegated, or unmapped.
 
 #### Expression-delimited raw Item/Separator/foreign-close row links
@@ -1713,7 +1713,7 @@ or ProjectionRecord spread-RHS schemas.
 | `crates/yu-syntax/src/syntax_kind.rs:281–282, 500–504` | `linked` | append-only Rowan kinds and raw conversion are `ExpressionDelimitedSeparator = 276` and `ExpressionDelimitedForeignClose = 277` |
 
 Focused direct Rowan proof is
-`crates/yu-syntax/src/tests/delimited_recovery.rs:433–1258`; it covers the
+`crates/yu-syntax/src/tests/delimited_recovery.rs:815–1422`; it covers the
 five-owner Item/Separator/foreign-close matrix, mixed/repeated phases,
 semicolon, comments, UTF-8, LF/CRLF, quote prefixes, protected closes/fence,
 accepted controls and direct ProjectionRecord spread RHS. Every other
@@ -1732,11 +1732,30 @@ repeated, trivia, nested, delegated and boundary paths remain open.
 | `crates/yu-syntax/src/expression/tails/delimited_tail.rs:36–79` | `linked` | CallTail and IndexTail enter the shared sequence with distinct direct owner structure; Projection owners are deliberately excluded from this proof row |
 
 Focused direct Rowan and fresh/frozen record proof is
-`crates/yu-syntax/src/tests/delimited_recovery.rs:440–648`. It distinguishes
+`crates/yu-syntax/src/tests/delimited_recovery.rs:604–814`. It distinguishes
 leading-comma Item, omitted Separator and EOF Close by owner and ordered direct
 children, and retains empty and completed-item matching-close controls. An
 independent audit found this bounded row evidence-complete without a code
 change.
+
+#### Projection-tail ordinary Missing row links
+
+Only ProjectionTupleTail and ProjectionRecordTail are linked to the bounded
+Draft catalog row for direct ordinary Item, Separator and terminal Close
+`Missing` in a real projection shell. Spread RHS and every Error, nested,
+boundary, repeated, semicolon and trivia-sensitive variant remain open.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/expression/tails/fixed_access.rs:52` | `linked` | the accepted outer expression enters fixed-access parsing before the real projection-tail owner |
+| `crates/yu-syntax/src/expression/tails/delimited_tail.rs:121` | `linked` | tuple/record projection selects its distinct owner, opener and matching close before the shared sequence |
+| `crates/yu-syntax/src/expression/delimited.rs:176,251,478` | `linked` | shared Item, Separator and ordinary-EOF Close Missing publication retains owner-selected roles and handoff |
+
+Focused direct Rowan and fresh/frozen record proof is
+`crates/yu-syntax/src/tests/delimited_recovery.rs:440–603`. Ten real-shell
+witnesses cover leading-comma Item, omitted Separator, EOF Close, accepted
+empty and accepted single-item forms for each owner. The independent post-write
+audit was clean; the focused test passed one case with 1,422 filtered out.
 
 #### Parenthesized/EffectRow Item, Separator and Close row links
 
