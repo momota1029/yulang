@@ -532,14 +532,6 @@ evidence-complete Draft for this bounded first child only. Nested Statement
 grammar, later siblings, dedent/fences, other callers, full With coverage and
 global interpretation remain separate.
 
-#### ColonApplication/With later indented Statement Draft link
-
-`statement.rs:663–689,739–756,787–839` drives the equal-indent successor.
-`indented_later_equal_indent_rowan_schema_covers_error_retry_and_control` in
-`tests/indented_recovery.rs` proves caller ancestry, separator-owned leading,
-later direct Error/retry and accepted control at origins 0/41. Both M1 audits
-were clean; focused indented tests passed 18. Other later paths remain separate.
-
 #### TypeDeclaration DefinitionIntroducer Draft links
 
 Only the completed-name/no-parameter exact-Equals phase is linked. Direct
