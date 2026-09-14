@@ -1302,6 +1302,20 @@ after a completed Head and actual Colon.
 | projection | Direct ancestor/child order selects `Declaration(Role(IndentedStatement))`, singleton expected Statement, primary zero. The Missing is empty; one maximal adjacent Error group is one occurrence, and retry Statement owns its leading. |
 | proof and status | Authority: [expression indented Statement role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), Role transport/Publication; Role recovery; CST amendments. Owner: `declaration/role_decl.rs:444–471`; shared block: `statement.rs:510–557,757–942`. Direct proof: `indented_role_rowan_schema_covers_first_statement_missing_error_retry_and_control` in `tests/indented_recovery.rs`, four witnesses at origins 0/41. M1 pre/post audits clean; focused indented tests passed 14. Status: catalog-audited evidence-complete Draft only for these alternatives; all Head/BodyIntroducer, inline/wrong-indent/braced, later/nested/fence/caller paths remain open. |
 
+### ImplDeclaration fresh required-Head and Description Missing Draft
+
+This bounded Draft maps only `impl ;` and `impl T:`.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | Head is the direct empty TypeExpression after ImplKw/native space and before Semicolon. Description is the empty TypeExpression inside direct ImplDescription, immediately after its actual Colon, beneath ImplDeclaration. Both retain `Root > Statement` ancestry. |
+| ordered Rowan grammar | Head is `ImplDeclaration(ImplKw Whitespace TypeExpression(Missing) Semicolon)`, with TypeExpression/Missing at `5..5`. Description is `ImplDeclaration(ImplKw Whitespace TypeExpression ImplDescription(Colon TypeExpression(Missing)))`, with actual Colon at `6..7` and TypeExpression/Missing at `7..7`. Each Missing is the sole direct childless node of its empty TypeExpression. |
+| admission and completion | `impl ;` reaches a fresh required-Head boundary, emits Head Missing, then consumes the actual Semicolon and completes at EOF. `impl T:` reaches fresh Description EOF after the first same-line Colon, emits Description Missing and returns EOF without BodyIntroducer cascade. |
+| nested ownership | Accepted/nested Type and nonempty Type-primary Error/retry retain their own schemas. BodyIntroducer, second-colon Body and braced/indented children remain separate. |
+| transition/handoff | Head: `ImplKw → native space → required Head boundary → TypeExpression(Missing) → Semicolon returned to Impl → consume Semicolon → EOF`. Description: `completed Head → ImplDescription actual Colon → required Description EOF → TypeExpression(Missing) → EOF without body recovery`. |
+| diagnostic projection | Ordered ancestry selects one `Declaration(Impl(Head))` at `5..5` or `Declaration(Impl(Description))` at `7..7`, each with singleton expected TypeExpression and primary zero. Range comes from the direct Missing; fixtures and recovery records do not select the occurrence. |
+| proof and status | Authority: [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Explicit role transport** and **Publication and extents**; [Impl current-Item typed recovery](2026-09-08-successor-impl-current-item-recovery.md), **Phase correction and records**; CST-derived diagnostics amendment. Owners: `crates/yu-syntax/src/declaration/impl_tail.rs:72–95,145–178,248–303`; shared publisher: `crates/yu-syntax/src/type_expr/mod.rs:690–708,822–842`. Direct proof: `impl_required_types_schema_distinguishes_head_and_description` in `crates/yu-syntax/src/tests/declaration/impl_decl.rs`, covering exact ancestry/order/ranges, unique childless Missing, structural projection, no cascade and fresh/frozen replay. Pre-write and post-write specification audits were clean; exact test and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft for these two witnesses only. Other boundaries/layout/fences, malformed/retried/nested Type, body schemas, public promotion and global Gate 1 remain open. |
+
 ### ImplDeclaration BodyIntroducer and inline Body Draft
 
 This bounded Draft maps only Impl's direct body phases. It excludes Head and

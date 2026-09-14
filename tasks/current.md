@@ -577,6 +577,23 @@ bounded unmapped candidate before further implementation.
   phases and gates 2–4 remain open. Select another unmapped required-Type
   caller while the BracketRow structural decision remains pending.
 
+## ImplDeclaration fresh required-Type Missing closure
+
+- The selected M1 slice strengthened the existing `impl ;` Head and `impl T:`
+  Description witnesses. Exact ordered declaration placement versus actual-
+  Colon `ImplDescription` ancestry now selects the two roles before records;
+  each projects singleton TypeExpression, primary zero from its sole childless
+  Missing at `5..5` or `7..7`.
+- One Astra implementer added 57 test-only lines. Existing exact topology,
+  no-cascade behavior, Error/Invalid exclusions and fresh/frozen replay stayed
+  unchanged. Independent pre-write and delta audits were clean. Scoped
+  rustfmt/diff and the exact test passed 1. No production code, broad suite or
+  benchmark ran.
+- The bounded two-role row is now catalog-audited evidence-complete Draft.
+  Required-Type fresh Missing has four unmapped reachable contexts left: Cast
+  TargetType plus Struct/Enum/Error named-field Type. Other Impl boundaries,
+  malformed/retried/nested Type and gates 2–4 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

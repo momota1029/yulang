@@ -314,6 +314,21 @@ occurrences from CST ancestry and ordered block children at origins 0/41. Both
 M1 audits were clean; focused indented tests passed 14. Head/BodyIntroducer,
 inline/wrong-indent/braced, later/nested/fence/caller paths remain separate.
 
+#### ImplDeclaration fresh required-Head and Description Missing links
+
+Impl Head and Description fresh Missing are linked only for `impl ;` and
+`impl T:`. `crates/yu-syntax/src/declaration/impl_tail.rs:72–95,145–178,
+248–303` supplies the two caller phases, and the shared publisher is
+`type_expr/mod.rs:690–708,822–842`. In
+`impl_required_types_schema_distinguishes_head_and_description` in
+`crates/yu-syntax/src/tests/declaration/impl_decl.rs`, direct declaration
+placement selects Head while actual-Colon `ImplDescription` ancestry selects
+Description. Each has one childless TypeExpression Missing, singleton
+TypeExpression/primary zero derived before records, no cascade and fresh/frozen
+replay. Independent delta audit was clean; the exact test and scoped
+formatting/diff passed. Broader boundaries/layout/fences, malformed/retried or
+nested Type and body schemas remain outside this entry.
+
 #### ImplDeclaration BodyIntroducer/inline Body Draft links
 
 Only `crates/yu-syntax/src/declaration/impl_tail.rs:130–460,760–875` is linked
@@ -1183,11 +1198,12 @@ production call expressions carrying 20 owner/shape transports. Five
 transports cannot reach its fresh-Missing branch after their caller priority
 checks, leaving 15 reachable production role contexts. Eight have bounded
 mapped evidence: Type RHS; Act Head/Source; Derives RoleReference; Pattern and
-Expression annotations; and Enum/Error FromType. Seven remain unmapped: Role
-Head; Impl Head/Description; Cast TargetType; and Struct/Enum/Error named-field
-Type. The Role Head context is mapped below after focused proof closure; the
-other six remain open. These counts describe role transports, not occurrence
-or boundary-variant counts, and do not certify nested Type grammar.
+Expression annotations; and Enum/Error FromType. Seven were initially unmapped:
+Role Head; Impl Head/Description; Cast TargetType; and Struct/Enum/Error
+named-field Type. Role Head and both Impl contexts are mapped below after
+focused proof closure; Cast and the three named-field contexts remain open.
+These counts describe role transports, not occurrence or boundary-variant
+counts, and do not certify nested Type grammar.
 
 #### LeadingEffectTypeHead required-head row links
 

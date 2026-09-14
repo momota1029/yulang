@@ -381,6 +381,7 @@ fn impl_schema_shell(source: &str, suffix: &[(SyntaxKind, std::ops::Range<u32>)]
 
 #[test]
 fn impl_required_types_schema_distinguishes_head_and_description() {
+    use crate::recovery_record::{DeclarationRole, ExpectedSyntax, GrammarRole, ImplRole};
     use SyntaxKind::*;
     let assert_elements =
         |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, std::ops::Range<u32>, &str)]| {
@@ -595,6 +596,62 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                     assert_elements(&ty, &[(Missing, true, at..at, "")]);
                     let missing = ty.first_child().unwrap();
                     assert_eq!(missing.children_with_tokens().count(), 0);
+                    let projected = match children.as_slice() {
+                        [keyword, trivia, type_expression, semicolon]
+                            if parent.kind() == ImplDeclaration
+                                && keyword.kind() == ImplKw
+                                && trivia.kind() == Whitespace
+                                && type_expression.as_node() == Some(&ty)
+                                && semicolon.kind() == Semicolon =>
+                        {
+                            (
+                                GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Head)),
+                                vec![ExpectedSyntax::TypeExpression],
+                                0,
+                                missing.text_range(),
+                            )
+                        }
+                        [colon, type_expression]
+                            if parent.kind() == ImplDescription
+                                && colon.kind() == Colon
+                                && type_expression.as_node() == Some(&ty) =>
+                        {
+                            let enclosing = parent.parent().expect("enclosing ImplDeclaration");
+                            assert_eq!(enclosing.kind(), ImplDeclaration);
+                            assert_elements(
+                                &enclosing,
+                                &[
+                                    (ImplKw, false, 0..4, "impl"),
+                                    (Whitespace, false, 4..5, " "),
+                                    (TypeExpression, true, 5..6, "T"),
+                                    (ImplDescription, true, 6..7, ":"),
+                                ],
+                            );
+                            (
+                                GrammarRole::Declaration(DeclarationRole::Impl(
+                                    ImplRole::Description,
+                                )),
+                                vec![ExpectedSyntax::TypeExpression],
+                                0,
+                                missing.text_range(),
+                            )
+                        }
+                        _ => panic!("fresh required Type Missing requires the ordered Impl shell"),
+                    };
+                    let expected = match parent.kind() {
+                        ImplDeclaration => (ImplRole::Head, 5),
+                        ImplDescription => (ImplRole::Description, 7),
+                        _ => unreachable!(),
+                    };
+                    assert_eq!(
+                        projected,
+                        (
+                            GrammarRole::Declaration(DeclarationRole::Impl(expected.0)),
+                            vec![ExpectedSyntax::TypeExpression],
+                            0,
+                            rowan::TextRange::empty(expected.1.into()),
+                        )
+                    );
                     missing_count += 1;
                 }
             }
