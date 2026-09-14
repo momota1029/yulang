@@ -1623,6 +1623,13 @@ Missing, and retains terminal Capture ownership. Independent post-write audits
 were clean; the focused test passed 1 with 1,422 filtered out. This closure is
 limited to the bare-Missing, Error-to-Missing and Error-to-RuleItem witnesses.
 
+The bounded `{a=\r\nnext}` witness additionally proves bare Capture RHS
+Missing at `3..3` before a native physical CRLF owned by RuleAlternation, with
+`next` in the second RuleSequence. Exact full tree/token ranges and CST-derived
+singleton `Literal(RuleItem)` projection were independently delta-audited
+clean; the focused test passed 1 with 1,422 filtered out. LF/EOF/fence and
+other caller variants remain open.
+
 The RuleField/RulePath required-name rows have focused direct Rowan proof in
 `dedicated_rule_slots_are_directly_readable_from_the_rowan_tree` in
 `crates/yu-syntax/src/tests/rule_literal_recovery.rs`. Paired `{a.}` and

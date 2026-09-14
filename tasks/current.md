@@ -402,6 +402,22 @@ bounded unmapped candidate before further implementation.
   recursive Rule and gates 2–4 remain open. Select the next bounded gate-1
   candidate.
 
+## RuleCapture CRLF required-RHS Missing closure
+
+- The selected M1 slice strengthened the existing `{a=\r\nnext}` witness. The
+  terminal Capture publishes its bare RHS Missing before physical CRLF, while
+  `next` begins the second RuleSequence.
+- One Astra implementer proved the full exact tree/token inventory, terminal
+  Capture with direct Equals and unique childless Missing at `3..3`, native
+  CRLF `3..5` under RuleAlternation, second Item `5..9`, native close and
+  CST-derived singleton `Literal(RuleItem)`/primary zero before records.
+  Independent pre-write and delta audits were clean. Scoped rustfmt/diff checks
+  and the wrapper-disabled exact test passed; 1 test, 1,422 filtered out. No
+  production code, broad suite or benchmark ran.
+- Accepted RHS, longer Error runs, LF/EOF/fence/interpolation callers,
+  recursive Rule and gates 2–4 remain open. Select the next bounded gate-1
+  candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
