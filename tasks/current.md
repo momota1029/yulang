@@ -205,6 +205,22 @@ bounded unmapped candidate before further implementation.
   reservations/IDs/frozen reconciliation and diagnostic transport/storage are
   scheduled for atomic retirement after Construction gates 1–3 close.
 
+## RuleCapture required-RHS audit closure
+
+- The selected M1 slice covered only existing `{a=;}` Error-to-Missing and
+  `{a=; b?}` Error-to-RuleItem witnesses after a direct Capture Equals. The
+  pre-write audit found a direct-proof gap, and one Astra implementer added
+  bounded assertions for source flattening, native closing brace, childless
+  Missing and the exact retry RHS token/node shell.
+- Independent delta review was clean. Scoped rustfmt and diff checks passed;
+  the wrapper-disabled exact focused test passed 1 with 1,422 filtered out.
+  No production code, existing expectation or test name changed, and no broad
+  suite or benchmark process was used.
+- This promotes only those two forms to catalog-audited evidence-complete
+  Draft. Bare Missing/accepted-only forms, longer Error runs, deeper RHS,
+  interpolation/fence/caller variants, other Rule slots and gates 2–4 remain
+  open. Select the next bounded gate-1 candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -215,7 +231,8 @@ bounded unmapped candidate before further implementation.
   neither observed result is certified by the attachment row. Resolve the
   governing sources before changing that affected behavior.
 - The source census is not a semantic-slot count or retirement proof. Its
-  indirect `emit_rule_missing` publishers remain explicit exceptions. The
+  indirect `emit_rule_missing` publishers remain explicit census exceptions,
+  although the four RuleLiteral child slots are now mapped. The
   previously stale mapped-Type locators were revalidated and refreshed on
   2026-09-12; consult per-row evidence before treating any old gap as open.
 - Production outer Yumark document/fence integration and broader actual
@@ -245,7 +262,7 @@ closure/M0 record update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
 check-graph` checks dependencies, not syntax behavior.
 
-- Current daily record: [`2026-09-14`](../notes/progress/daily/2026-09-14.md).
+- Current daily record: [`2026-09-15`](../notes/progress/daily/2026-09-15.md).
 - Complete pre-handoff task text: [`archived navigation`](../notes/progress/task-navigation-before-solo-handoff-2026-09-12.md).
   It preserves all 1,737 original lines, including older confirmed facts,
   rejected approaches, verification history and source locators. It is not an

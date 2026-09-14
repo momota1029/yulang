@@ -1588,10 +1588,18 @@ into a slot identity.
 | --- | --- | --- | --- |
 | `(RuleBody, final close phase, LBrace-selected Rule body context)` | `250–261` | `linked` | matching close versus direct Body close Missing and returned pending Item |
 | `(RuleItem, final parenthesis close phase, RuleItem whose first atom is LParen)` | `474–490` | `linked` | opener-selected matching close versus terminating parenthesis Missing |
-| `(RuleCapture, required RHS after Equals, enclosing RuleItem after non-capture postfixes)` | `545–568`, `653–679`, `864–878`, `891–894` | `linked` | terminal Error-to-valid / Error-to-Missing RHS ownership |
+| `(RuleCapture, required RHS after Equals, enclosing RuleItem after non-capture postfixes)` | `545–568`, `653–679`, `864–878`, `891–894` | `audited` | terminal Error-to-valid / Error-to-Missing RHS ownership for the two witnessed forms |
 | `(RuleField, required name after Dot, RuleItem named-postfix phase)` | `691–720`, `864–878`, `891–894` | `linked` | one-item Error or Missing then outer-RuleItem continuation |
 | `(RulePath, required name after ColonColon, RuleItem named-postfix phase)` | `691–720`, `864–878`, `891–894` | `linked` | one-item Error or Missing then outer-RuleItem continuation |
 | `(RuleSequence, repeated RuleItem phase, RuleAlternation Body or Parenthesis frame)` | `334–375`, `412–447`, `864–878` | `linked` | repeated direct Error grouping and frame-stop handoff |
+
+The RuleCapture row has focused direct Rowan proof in
+`crates/yu-syntax/src/tests/rule_literal_recovery.rs:428–569`. It preserves
+the native closing brace and full source, proves direct childless Missing after
+one Error or the exact admitted RHS token/node shell without duplicate Missing,
+and retains terminal Capture ownership. The independent post-write audit was
+clean; the focused test passed 1 with 1,422 filtered out. This closure is
+limited to the two Error-to-Missing/Error-to-RuleItem witnesses.
 
 #### Rule ExpressionList caller-specific row links
 

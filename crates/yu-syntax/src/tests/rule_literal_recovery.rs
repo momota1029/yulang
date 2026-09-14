@@ -425,20 +425,38 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
 
     // A capture is terminal in its outer item.  The Error is direct capture
     // content; the following Missing or admitted RuleItem selects the RHS.
-    for (source, expected, rhs) in [
+    for (source, expected, rhs, close_range) in [
         (
             "{a=;}",
             vec![SyntaxKind::Equals, SyntaxKind::Error, SyntaxKind::Missing],
             None,
+            4..5,
         ),
         (
             "{a=; b?}",
             vec![SyntaxKind::Equals, SyntaxKind::Error, SyntaxKind::RuleItem],
             Some(" b?"),
+            7..8,
         ),
     ] {
         let (green, _) = parse(source, 0, None);
         let root = SyntaxNode::new_root(green);
+        assert_eq!(root.to_string(), source);
+        let body = root.children().next().expect("RuleBody");
+        assert_eq!(body.kind(), SyntaxKind::RuleBody);
+        assert_eq!(body.parent(), Some(root.clone()));
+        let close = body
+            .last_child_or_token()
+            .and_then(|child| child.into_token())
+            .expect("final native RuleBody RBrace");
+        assert_eq!(close.kind(), SyntaxKind::RBrace);
+        assert_eq!(close.text(), "}");
+        assert_eq!(
+            usize::from(close.text_range().start())..usize::from(close.text_range().end()),
+            close_range
+        );
+        assert_eq!(close.parent(), Some(body));
+        assert_eq!(root.last_token(), Some(close));
         let capture = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::RuleCapture)
@@ -471,6 +489,8 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
                 assert_eq!(missing.kind(), SyntaxKind::Missing);
                 assert_eq!(range(&missing), 4..4);
                 assert_eq!(missing.parent(), Some(capture.clone()));
+                assert_eq!(missing.children_with_tokens().count(), 0);
+                assert_eq!(missing.to_string(), "");
                 assert_eq!(capture.to_string(), "=;");
             }
             Some(rhs) => {
@@ -487,6 +507,50 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
                 );
                 assert_eq!(range(&rhs_item), 4..7);
                 assert_eq!(rhs_item.parent(), Some(capture.clone()));
+                let mut elements = rhs_item.children_with_tokens();
+                for (kind, text, expected_range) in [
+                    (SyntaxKind::Whitespace, " ", 4..5),
+                    (SyntaxKind::Identifier, "b", 5..6),
+                ] {
+                    let token = elements
+                        .next()
+                        .and_then(|child| child.into_token())
+                        .expect("direct RHS token");
+                    assert_eq!(token.kind(), kind);
+                    assert_eq!(token.text(), text);
+                    assert_eq!(
+                        usize::from(token.text_range().start())
+                            ..usize::from(token.text_range().end()),
+                        expected_range
+                    );
+                    assert_eq!(token.parent(), Some(rhs_item.clone()));
+                }
+                let quantifier = elements
+                    .next()
+                    .and_then(|child| child.into_node())
+                    .expect("direct RHS RuleQuantifier");
+                assert!(elements.next().is_none());
+                assert_eq!(quantifier.kind(), SyntaxKind::RuleQuantifier);
+                assert_eq!(range(&quantifier), 6..7);
+                assert_eq!(quantifier.parent(), Some(rhs_item.clone()));
+                assert_eq!(child_kinds(&quantifier), [SyntaxKind::RuleQuantifierToken]);
+                let punctuation = quantifier
+                    .first_child_or_token()
+                    .and_then(|child| child.into_token())
+                    .expect("quantifier punctuation token");
+                assert_eq!(punctuation.kind(), SyntaxKind::RuleQuantifierToken);
+                assert_eq!(punctuation.text(), "?");
+                assert_eq!(
+                    usize::from(punctuation.text_range().start())
+                        ..usize::from(punctuation.text_range().end()),
+                    6..7
+                );
+                assert_eq!(punctuation.parent(), Some(quantifier));
+                assert!(
+                    capture
+                        .descendants()
+                        .all(|node| node.kind() != SyntaxKind::Missing)
+                );
             }
         }
         let outer = capture.parent().expect("capturing RuleItem");
