@@ -1190,6 +1190,17 @@ handoffs, and nested Statement recovery.
 | diagnostic projection | A direct phase Missing or maximal direct Error group in either completed-Head body entry or post-ImplDescription entry projects `Declaration(Impl(BodyIntroducer))` with ordered expected `[Semicolon, Open(Brace), Colon]`, primary zero. Direct Missing/Error after a direct body Colon projects `Declaration(Impl(Body))` expected `Statement`. Parentage and ordered children exclude the first Colon/Description; Error spelling, records, scanner state and pending-boundary coordinates are not inputs. |
 | proof and status | Governing authority: [Impl current-Item typed recovery](2026-09-08-successor-impl-current-item-recovery.md), **Phase correction and records** and **Boundary, leading and retry**, plus the CST-derived diagnostics amendment. `impl_schema_completed_type_statement_shell_composition` provides full completed-Head/Description shell, EOF/pending and retry evidence; existing component proofs retain upstream first-colon and nested BindingBody controls. M1 pre-write and regression audits were clean. Status: catalog-audited evidence-complete Draft only for these witnessed direct Impl rows; Head/Description Type schema, braced/indented/nested Statement recovery, caller/fence topology, global collector, parser API and recovery-ledger retirement remain open. |
 
+### ImplDeclaration first indented Statement Draft
+
+This bounded Draft maps Impl's first indented Statement only after completed
+Head, completed ImplDescription and the direct second body Colon.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `ImplDeclaration(ImplKw Native* TypeExpression ImplDescription Colon IndentedStatementBlock)` distinguishes the Description Colon inside ImplDescription from the direct body Colon. |
+| projection | The direct block's first Missing/Error+ or admitted Statement projects `Declaration(Impl(IndentedStatement))`, expected Statement, primary zero. One maximal direct Error group is one occurrence; retry Statement owns its leading. |
+| proof and status | Authority: [expression indented Statement role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), [Impl current-Item recovery](2026-09-08-successor-impl-current-item-recovery.md), CST amendments. Owners: `declaration/impl_tail.rs:354–371,460–487`; shared block `statement.rs`. Direct proof: `indented_impl_rowan_schema_covers_first_statement_missing_error_retry_and_control` in `tests/indented_recovery.rs`, four witnesses at origins 0/41. M1 pre/post audits clean; focused indented tests passed 15. Status: catalog-audited evidence-complete Draft only for this second-Colon slice; Description, other body paths, later/nested/fence/caller paths remain open. |
+
 ### Enum/Error declaration header Name and BodyIntroducer Draft
 
 This bounded Draft maps paired declaration-header recovery only; variants,

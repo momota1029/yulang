@@ -124,6 +124,15 @@ Role's first indented Statement slice is now catalog-audited evidence-complete
 Draft for its four direct CST witnesses. Select the next bounded unmapped
 candidate before further implementation.
 
+Selected candidate: Impl's first indented Statement after completed Head,
+completed ImplDescription and the direct second body Colon. It is limited to
+EOF Missing, lexical Error, retry and accepted control; first-colon Description,
+other body forms, later/nested/fence/caller paths remain separate.
+
+Impl's second-Colon indented Statement slice is now catalog-audited
+evidence-complete Draft for its four direct CST witnesses. Select the next
+bounded unmapped candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

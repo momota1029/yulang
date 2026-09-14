@@ -295,6 +295,15 @@ state. M1 post-write specification audit was clean. Head/Description Type,
 braced/indented children, caller/fence suites and remaining Impl rows remain
 separate.
 
+#### ImplDeclaration first indented Statement Draft link
+
+`declaration/impl_tail.rs:460–487` selects the second-Colon transported role.
+`indented_impl_rowan_schema_covers_first_statement_missing_error_retry_and_control`
+in `tests/indented_recovery.rs` proves direct CST selection at origins 0/41,
+including the first-Description versus second-body Colon distinction. Both M1
+audits were clean; focused indented tests passed 15. Other Impl paths remain
+separate.
+
 #### Enum/Error declaration header Name/BodyIntroducer Draft links
 
 Paired direct Rowan proof in `tests/declaration/enum_decl.rs` and
