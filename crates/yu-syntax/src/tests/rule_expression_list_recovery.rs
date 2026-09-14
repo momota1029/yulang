@@ -5,7 +5,10 @@ use crate::{
         ExpressionListRole, GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey,
         SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
     },
-    rule::{rule_body_witness, scan_rule_current_item_witness, scan_rule_item_witness},
+    rule::{
+        RuleWitnessExit, rule_body_normalized_witness, scan_rule_current_item_witness,
+        scan_rule_item_witness,
+    },
 };
 use std::{ops::Range, sync::Arc};
 
@@ -33,6 +36,22 @@ fn parse_with_fence_remainder(
     frozen: Option<&[CommittedRecoveryRecord]>,
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, Vec<CommittedRecoveryRecord>, String) {
+    let (green, records, remainder, _, _) = parse_with_fence_handoff(source, origin, frozen, fence);
+    (green, records, remainder)
+}
+
+fn parse_with_fence_handoff(
+    source: &str,
+    origin: usize,
+    frozen: Option<&[CommittedRecoveryRecord]>,
+    fence: Option<&FenceBoundary>,
+) -> (
+    GreenNode,
+    Vec<CommittedRecoveryRecord>,
+    String,
+    RuleWitnessExit,
+    LineEntry,
+) {
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
@@ -60,7 +79,7 @@ fn parse_with_fence_remainder(
         fence,
     );
     let end = origin + source.len() - input.len();
-    rule_body_witness(
+    let (exit, line_entry) = rule_body_normalized_witness(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         opener,
         current.item,
@@ -73,6 +92,8 @@ fn parse_with_fence_remainder(
         output.finish(),
         recover.finish_recoveries_for_test(),
         input.to_owned(),
+        exit,
+        line_entry,
     )
 }
 
@@ -840,7 +861,10 @@ fn direct_rowan_expression_list_newline_missing_ranges_cover_all_callers() {
 
 #[test]
 fn direct_rowan_expression_list_fence_handoff_is_caller_owned_but_not_a_complete_tree() {
-    use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::lexical::{
+        item::{BorrowedTarget, Boundary, LeadingTrivia, Payload, PendingBoundary},
+        yumark::{FenceCloseFacts, FenceOpener, FencePrefixPolicy, QuotePrefixFacts},
+    };
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -873,7 +897,61 @@ fn direct_rowan_expression_list_fence_handoff_is_caller_owned_but_not_a_complete
             3,
         ),
     ] {
-        let (green, _, remainder) = parse_with_fence_remainder(source, 100, None, Some(&fence));
+        let origin = 100;
+        let (green, _, remainder, exit, line_entry) =
+            parse_with_fence_handoff(source, origin, None, Some(&fence));
+        let RuleWitnessExit::Returned(item) = exit else {
+            panic!("the caller returns its protected fence Item")
+        };
+        assert_eq!(line_entry, LineEntry::PhysicalStart);
+        let b = origin + prefix.len() + 2;
+        let expected_boundary = PendingBoundary::new(
+            b..b + 6,
+            Boundary::BorrowedClose(BorrowedTarget::YumarkFence(Box::new(FenceCloseFacts {
+                line: b,
+                inspected: b..b + 6,
+                prefix: Some(QuotePrefixFacts {
+                    indentation: b..b,
+                    marker: b..b + 1,
+                    extent: b..b + 2,
+                    depth: 1,
+                    marker_len: 2,
+                    marker_end: 1,
+                    explicit: false,
+                }),
+                indentation: b + 2..b + 2,
+                indentation_column: 0,
+                marker: b + 2..b + 5,
+                marker_width: 3,
+                horizontal_suffix: b + 5..b + 5,
+                newline: Some(b + 5..b + 6),
+            }))),
+        );
+        let pending = item
+            .payload_view()
+            .pending_boundary()
+            .expect("fence boundary");
+        assert_eq!(pending.coordinate(), b);
+        assert_eq!(pending.inspected(), &(b..b + 6));
+        assert_eq!(pending, &expected_boundary);
+        let extent = item.extent(b);
+        assert_eq!(extent.physical(), origin + prefix.len()..b);
+        assert_eq!(extent.leading(), origin + prefix.len()..b);
+        assert_eq!(extent.remaining(), origin + prefix.len()..b);
+        assert_eq!(extent.payload(), b..b);
+        assert_eq!(
+            item,
+            Item::plain(
+                LeadingTrivia::ordinary(
+                    vec![ordinary_trivia(TriviaKind::Newline, "\r\n")].into_boxed_slice(),
+                ),
+                Payload::Boundary(expected_boundary.clone()),
+            )
+        );
+        let (leading, pending) = emit_terminal_leading_text(item);
+        assert_eq!(leading, "\r\n");
+        assert_eq!(pending, expected_boundary);
+        assert_eq!(format!("{green}{leading}{remainder}"), source);
         assert_eq!(
             green.to_string(),
             prefix,

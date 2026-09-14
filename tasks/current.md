@@ -270,6 +270,24 @@ bounded unmapped candidate before further implementation.
   separator/newline/fence, nested grammar, ExpressionList and gates 2–4 remain
   open. Select the next bounded gate-1 candidate before further implementation.
 
+## Rule ExpressionList pending-fence handoff closure
+
+- The selected M1 slice covered the pending fence Item returned through the
+  existing empty-list RuleItem/RuleCall/RuleIndex callers. CST prefix, Close
+  Missing and native-close controls were already audited; the remaining harness
+  gap discarded `RuleWitnessExit` and `LineEntry`.
+- One Astra implementer added a richer test-only wrapper and proved `Returned`,
+  `PhysicalStart`, complete Yumark fence facts and coordinates, exact Item
+  extent/equality with unconsumed CRLF leading, terminal-leading emission and
+  source reconstruction for all three callers. No production API changed.
+  Independent delta review was clean. Scoped rustfmt/diff checks and the
+  wrapper-disabled exact test passed; 1 test, 1,422 filtered out. No broad suite
+  or benchmark ran.
+- The stale catalog/coverage statements that called fence CST/range or pending
+  Item identity open are reconciled. Outer Yumark construction, nonempty/nested
+  fence lists, other fences, other Rule/ExpressionList slots and gates 2–4
+  remain open. Select the next bounded gate-1 candidate before implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

@@ -770,7 +770,7 @@ after `ExpressionListExit::Close`; a foreign close is not consumed as Error.
 | malformed admission and completion | Required Item Error is a maximal adjacent direct Error group before the first completed Expression or after a direct Comma/Newline reset; it can retry one direct Expression. Separator Error is a maximal adjacent direct Error group after a completed Expression and before accepted comma/newline/close. Item Missing occurs at the existing required-item positions, including immediately before a direct physical LF/whole-CRLF Newline. At EOF, fence, boundary or foreign close, the list emits its caller Close Missing and returns the pending Item unchanged. A terminal Item Error followed by a matching close is ordered `Error+, Missing(Item), CloseC`; only boundary termination is `Error+, Missing(Item), Missing(Close)`. Equal ranges remain distinct by direct child ordinal and phase path. Empty and accepted trailing comma/newline contents introduce no Item Missing. |
 | source and boundary ownership | Rejected Item leading is Error content. Retry leading belongs to its admitted Expression; protected/boundary leading stays pending on the returned Item. Matching-close leading and accepted native trivia are direct caller content. The newline helper emits Item Missing before its direct newline token at the physical LF/CRLF start. Foreign close, fence and Deferred exits preserve their Item/leading without local close emission. |
 | diagnostic projection | A direct maximal Item Error/Missing projects singleton `Expression`; a direct maximal Separator Error projects `DelimitedSequenceSeparator`; the final direct Close Missing projects the caller's matching close punctuation. Projection is preorder. Adjacent Error leaves form one group only within the same direct parent and phase; no Error spelling or parser record is consulted. |
-| proof and status | Governing authority: [Rule ExpressionList current-Item recovery](2026-09-08-successor-rule-expression-list-current-item-recovery.md) and [error-admission clarification](2026-09-09-successor-error-admission-schema-clarification.md), Rule ExpressionList phases. Direct owner/caller links: `crates/yu-syntax/src/rule/expression_list.rs:54–223`, `crates/yu-syntax/src/rule/mod.rs:513–538, 590–635`. Direct CST evidence: `crates/yu-syntax/src/tests/rule_expression_list_recovery.rs:139–209, 624–839, 895–932`. Status: `catalog-audited evidence-complete Draft`. The direct-caller fence CST/range proof remains open at `:842–893`; it does not create a slot collision or authorize a synthetic row. |
+| proof and status | Governing authority: [Rule ExpressionList current-Item recovery](2026-09-08-successor-rule-expression-list-current-item-recovery.md) and [error-admission clarification](2026-09-09-successor-error-admission-schema-clarification.md), Rule ExpressionList phases. Direct owner/caller links: `crates/yu-syntax/src/rule/expression_list.rs:54–223`, `crates/yu-syntax/src/rule/mod.rs:513–538, 590–635`. Direct CST evidence is the `direct_rowan_expression_list_` test family in `crates/yu-syntax/src/tests/rule_expression_list_recovery.rs`; its three-caller fence CST and pending-Item handoff proof is `direct_rowan_expression_list_fence_handoff_is_caller_owned_but_not_a_complete_tree`, with native-close controls in `direct_rowan_expression_list_fence_close_slots_have_native_caller_controls`. Status: `catalog-audited evidence-complete Draft`. Outer Yumark construction, nonempty/nested fence lists and other fence forms remain separate; the fence handoff creates no slot collision or synthetic row. |
 
 ### FieldTail required-name map
 
@@ -1687,8 +1687,11 @@ This bounded Draft maps RuleItem/RuleCall/RuleIndex fence handoff only. Direct
 caller opener plus terminal zero-width Missing selects each matching close;
 fence bytes and pending boundary remain outside CST. Native matching close stays
 recovery-free. Direct Rowan proof in `tests/rule_expression_list_recovery.rs`
-has M1 specification audit clean. Outer Yumark construction, pending Item
-identity and other list slots remain separate.
+has M1 specification audit clean. The three empty-list real callers also prove
+the unchanged returned pending Item and `PhysicalStart`, exact Yumark boundary
+facts/coordinates, complete CRLF leading and source reconstruction. Outer
+Yumark construction, nonempty/nested fence lists, other fence forms and other
+list slots remain separate.
 
 ### BracedStatementBlock direct raw Error Draft
 

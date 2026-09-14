@@ -496,8 +496,11 @@ continuation, the global interpreter and ledger/API migration remain separate.
 
 `tests/rule_expression_list_recovery.rs` proves direct RuleItem/RuleCall/
 RuleIndex fence prefixes, matching close Missing and native close controls.
-Fence bytes remain outside CST. M1 specification audit was clean; outer Yumark,
-pending Item identity and other list slots remain separate.
+Fence bytes remain outside CST. The three empty-list callers additionally prove
+unchanged returned Item/`PhysicalStart`, exact Yumark fence facts and
+coordinates, complete CRLF leading and source reconstruction. M1 pre-write and
+post-write specification audits were clean; outer Yumark construction,
+nonempty/nested fence lists, other fences and other list slots remain separate.
 
 #### BracedStatementBlock direct raw Error Draft links
 
@@ -1635,8 +1638,9 @@ out. Retry, other callers and boundary variants remain open.
 
 Only the following direct caller/owner sites are linked to the bounded Draft
 catalog row for RuleItem bracket, RuleCall and RuleIndex Item/Separator/Close
-phases. The direct-caller fence tree/range proof remains open; this does not
-classify a parser record or invent a fence CST slot.
+phases. The separately audited three-caller fence proof also preserves the
+pending Item and complete leading; this does not classify a parser record or
+invent a fence CST slot.
 
 | Source evidence | Status | Linked fact |
 | --- | --- | --- |
@@ -1644,10 +1648,14 @@ classify a parser record or invent a fence CST slot.
 | `crates/yu-syntax/src/rule/expression_list.rs:196–223` | `linked` | newline callback emits Item Missing before direct LF/CRLF Newline |
 | `crates/yu-syntax/src/rule/mod.rs:513–538, 590–635` | `linked` | bracket RuleItem, RuleCall and RuleIndex delimiter/close ownership |
 
-Direct Rowan proof is
-`crates/yu-syntax/src/tests/rule_expression_list_recovery.rs:139–209, 624–839,
-895–932`; its direct-caller fence limitation is `:842–893`. Every other Rule
-and ExpressionList-related row remains untriaged, delegated or unmapped.
+Direct Rowan proof is the `direct_rowan_expression_list_` test family in
+`crates/yu-syntax/src/tests/rule_expression_list_recovery.rs`. The bounded
+three-caller fence CST/handoff proof is
+`direct_rowan_expression_list_fence_handoff_is_caller_owned_but_not_a_complete_tree`;
+native-close controls are
+`direct_rowan_expression_list_fence_close_slots_have_native_caller_controls`.
+Every other Rule and ExpressionList-related row remains untriaged, delegated or
+unmapped.
 
 ### Root, statement, and virtual layout — 3 files / 11 calls
 
