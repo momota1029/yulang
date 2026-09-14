@@ -353,6 +353,22 @@ bounded unmapped candidate before further implementation.
   boundary/leading/CRLF/fence forms, nested Rule and gates 2–4 remain open.
   Select the next bounded gate-1 candidate.
 
+## RuleField/RulePath native-close Missing closure
+
+- The selected M1 slice added paired `{a.}` and `{a::}` direct-CST witnesses
+  for required Name Missing immediately before the native RuleBody close.
+- One Astra implementer proved exact complete ancestry/inventories, native
+  introducers and braces, unique childless Missing at `3..3` / `4..4`, absence
+  of Error/Invalid/later continuation, and CST-derived field/path Name roles
+  with singleton Identifier and primary zero before records. Independent
+  pre-write and delta audits were clean. Scoped rustfmt/diff checks and the
+  wrapper-disabled exact test passed; 1 test, 1,422 filtered out. No production
+  code, broad suite or benchmark ran.
+- The two named-postfix rows now cover the witnessed native-close Missing and
+  prior Error continuations. Accepted names, newline/EOF/fence/interpolation
+  callers, recursive Rule grammar and gates 2–4 remain open. Select the next
+  bounded gate-1 candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

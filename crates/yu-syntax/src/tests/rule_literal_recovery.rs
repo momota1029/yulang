@@ -646,6 +646,143 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
         );
     }
 
+    // A protected body close leaves the required name Missing in its direct
+    // postfix owner, while the body consumes the native close unchanged.
+    for (source, tail, introducer_kind, introducer_text, close_start, role) in [
+        (
+            "{a.}",
+            SyntaxKind::RuleField,
+            SyntaxKind::Dot,
+            ".",
+            3,
+            LiteralRole::RuleFieldName,
+        ),
+        (
+            "{a::}",
+            SyntaxKind::RulePath,
+            SyntaxKind::ColonColon,
+            "::",
+            4,
+            LiteralRole::RulePathName,
+        ),
+    ] {
+        let (green, records) = parse(source, 0, None);
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.parent(), None);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(range(&root), 0..close_start + 1);
+        assert_eq!(child_kinds(&root), [SyntaxKind::RuleBody]);
+        let body = root.first_child().expect("direct RuleBody");
+        assert_eq!(body.kind(), SyntaxKind::RuleBody);
+        assert_eq!(body.parent(), Some(root.clone()));
+        assert_eq!(range(&body), 0..close_start + 1);
+        assert_eq!(
+            child_kinds(&body),
+            [
+                SyntaxKind::LBrace,
+                SyntaxKind::RuleAlternation,
+                SyntaxKind::RBrace
+            ]
+        );
+        let mut parent = body.clone();
+        for (kind, children) in [
+            (SyntaxKind::RuleAlternation, vec![SyntaxKind::RuleSequence]),
+            (SyntaxKind::RuleSequence, vec![SyntaxKind::RuleItem]),
+            (SyntaxKind::RuleItem, vec![SyntaxKind::Identifier, tail]),
+        ] {
+            let child = parent.first_child().expect("direct Rule child");
+            assert_eq!(child.kind(), kind);
+            assert_eq!(child.parent(), Some(parent));
+            assert_eq!(range(&child), 1..close_start);
+            assert_eq!(child_kinds(&child), children);
+            parent = child;
+        }
+        let item = parent;
+        let owner = item.first_child().expect("direct required-name owner");
+        assert_eq!(owner.kind(), tail);
+        assert_eq!(owner.parent(), Some(item.clone()));
+        assert_eq!(range(&owner), 2..close_start);
+        assert_eq!(child_kinds(&owner), [introducer_kind, SyntaxKind::Missing]);
+        for (token_owner, kind, text, token_range) in [
+            (&body, SyntaxKind::LBrace, "{", 0..1),
+            (&item, SyntaxKind::Identifier, "a", 1..2),
+            (&owner, introducer_kind, introducer_text, 2..close_start),
+        ] {
+            let token = token_owner
+                .first_child_or_token()
+                .and_then(|child| child.into_token())
+                .expect("direct native token");
+            assert_eq!(token.kind(), kind);
+            assert_eq!(token.text(), text);
+            assert_eq!(token.parent(), Some(token_owner.clone()));
+            assert_eq!(
+                usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+                token_range
+            );
+        }
+        let missing = owner.first_child().expect("direct name Missing");
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(missing.parent(), Some(owner.clone()));
+        assert_eq!(range(&missing), close_start..close_start);
+        assert_eq!(missing.children_with_tokens().count(), 0);
+        assert_eq!(missing.to_string(), "");
+        assert_eq!(owner.last_child_or_token(), Some(missing.clone().into()));
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .collect::<Vec<_>>(),
+            [missing.clone()]
+        );
+        assert!(
+            root.descendants_with_tokens()
+                .all(|element| !matches!(element.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+        );
+        let close = body
+            .last_child_or_token()
+            .and_then(|child| child.into_token())
+            .expect("final native RuleBody RBrace");
+        assert_eq!(close.kind(), SyntaxKind::RBrace);
+        assert_eq!(close.text(), "}");
+        assert_eq!(close.parent(), Some(body));
+        assert_eq!(
+            usize::from(close.text_range().start())..usize::from(close.text_range().end()),
+            close_start..close_start + 1
+        );
+        assert_eq!(root.last_token(), Some(close));
+
+        let missing_owner = missing.parent().expect("required-name owner");
+        let introducer = missing_owner
+            .first_child_or_token()
+            .and_then(|child| child.into_token())
+            .expect("required-name introducer");
+        let derived_role = match (missing_owner.kind(), introducer.kind()) {
+            (SyntaxKind::RuleField, SyntaxKind::Dot) => LiteralRole::RuleFieldName,
+            (SyntaxKind::RulePath, SyntaxKind::ColonColon) => LiteralRole::RulePathName,
+            other => panic!("unexpected required-name owner/introducer: {other:?}"),
+        };
+        let derived = (
+            GrammarRole::Literal(derived_role),
+            range(&missing),
+            [ExpectedSyntax::Identifier],
+            0,
+        );
+        assert_eq!(
+            derived,
+            (
+                GrammarRole::Literal(role),
+                close_start..close_start,
+                [ExpectedSyntax::Identifier],
+                0,
+            )
+        );
+        let expected = record(0, derived_role, derived.1, None);
+        assert_eq!(expected.expectations.len(), derived.2.len());
+        assert_eq!(expected.expectations[0].expected, derived.2[0]);
+        assert_eq!(expected.primary_expectation, derived.3);
+        assert_eq!(records, [expected]);
+    }
+
     // Name failure consumes exactly one lexical item.  The subsequent item is
     // owned by the outer sequence, rather than retried inside RuleField/Path.
     for (source, tail, opener_kind, opener_text, error_text, expected_range) in [
