@@ -304,6 +304,22 @@ bounded unmapped candidate before further implementation.
   StringPiece interiors, arbitrary heredoc variants, expanded caller/fence
   coverage and gates 2–4 remain open. Select the next bounded gate-1 candidate.
 
+## RuleLiteral UTF-8 equal-offset composition closure
+
+- The selected M1 slice added one `~"é{α` EOF witness to the mapped RuleLiteral
+  indirect Missing row. It exercises UTF-8 in both outer raw text and the
+  admitted interpolation RuleItem without adding redundant ASCII coverage.
+- One Astra implementer proved the exact native topology and byte ranges,
+  source/remainder, two childless Missing nodes at `7..7`, natural inner
+  interpolation-Close before outer-terminator preorder, and CST-context-derived
+  singleton expectations with primary zero. The owning fence-aware EOF path is
+  correctly observed as `EofAfterTrivia`. Independent delta review was clean.
+  Scoped rustfmt/diff checks and the wrapper-disabled exact test passed; 1 test,
+  1,422 filtered out. No production code, broad suite or benchmark ran.
+- Only this UTF-8 EOF composition extends the audited row. UTF-8 lazy capture,
+  other boundary/leading variants, nested Rule recovery and gates 2–4 remain
+  open. Select the next bounded gate-1 candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

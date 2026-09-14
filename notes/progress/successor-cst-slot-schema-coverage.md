@@ -1536,12 +1536,16 @@ Name and outer terminator remain distinct by owner and ordered children.
 | `crates/yu-syntax/src/rule/mod.rs:891–894` | `linked` | all five calls delegate construction of one empty direct Missing node without adding a classifier |
 
 Direct ordered Rowan proof is
-`crates/yu-syntax/src/tests/literal/rule_literal.rs:323–469`; fresh/frozen and
+`rule_literal_child_slots_are_directly_distinguished_by_rowan_context` in
+`crates/yu-syntax/src/tests/literal/rule_literal.rs:323–638`; fresh/frozen and
 lossless compatibility support is
 `crates/yu-syntax/src/tests/rule_literal_recovery.rs:131–211`. The independent
-audit was clean. Status: catalog-audited evidence-complete Draft for the four
-ASCII direct witnesses only. Direct-CST UTF-8 ranges, RuleSequence Error,
-nested Rule children, broader boundary variants, global collector and
+audits were clean. Direct evidence additionally covers the single UTF-8 EOF
+composition `~"é{α`: interpolation Close and outer terminator are distinct
+childless Missing occurrences at `7..7`, selected from ordered CST context in
+natural preorder. Status: catalog-audited evidence-complete Draft for the
+witnessed direct forms only. UTF-8 lazy-capture slots, other boundary/leading
+variants, RuleSequence Error, nested Rule children, global collector and
 ledger/API migration remain open.
 
 - `crates/yu-syntax/src/literal/mod.rs`

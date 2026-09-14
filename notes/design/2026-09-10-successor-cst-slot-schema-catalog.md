@@ -655,11 +655,11 @@ Fresh absence remains the distinct Pattern(TypeAnnotation) Missing row.
 
 This bounded Draft map covers four direct RuleLiteral child slots behind five
 indirect `emit_rule_missing` publishers. The two interpolation exits share one
-Close slot. Its direct malformed witnesses are ASCII; existing shifted,
-UTF-8 and frozen-record tests are compatibility support, not direct-CST UTF-8
-range certification. Nested Rule grammar, RuleSequence Error, broader
-caller/fence variants, CRLF/prefix variants, the global interpreter and
-ledger/API migration remain separate.
+Close slot. Its direct malformed witnesses are ASCII plus one bounded UTF-8 EOF
+composition for interpolation Close and outer terminator; other shifted, UTF-8
+and frozen-record tests remain compatibility support. Nested Rule grammar,
+RuleSequence Error, broader caller/fence variants, CRLF/prefix variants, the
+global interpreter and ledger/API migration remain separate.
 
 | Fact | Catalog-audited bounded Draft row |
 | --- | --- |
@@ -668,7 +668,7 @@ ledger/API migration remain separate.
 | source and boundary ownership | Interpolation Close Missing follows its completed RuleSequence and any emitted outer-quote leading. On the outer-quote exit, the quote payload becomes the enclosing RuleLiteralEnd exactly once; on the boundary exit, the boundary remains pending and the enclosing literal may publish its distinct terminator Missing. Braced lazy and unbraced lazy structure is selected by the direct OpenBrace discriminator. The outer terminator is the final direct RuleLiteral child after all child productions. Equal-offset interpolation-close and outer-terminator Missing nodes remain distinct by parent path and preorder. |
 | transition/handoff | `interpolation sequence completion -> matching brace or one close Missing -> return outer quote/boundary according to the established exit`; `lazy Colon -> direct OpenBrace selects braced final Close, absence selects unbraced required Name`; `outer literal children -> accepted RuleLiteralEnd or one final terminator Missing`. No exit provenance is needed after CST construction. |
 | diagnostic projection | Interpolation Close projects `Literal(RuleLiteralInterpolationCloseBrace)` with singleton close brace; braced lazy Close projects `Literal(RuleLazyCaptureCloseBrace)` with singleton close brace; unbraced lazy Name projects `Literal(RuleLazyCaptureName)` with singleton Identifier; outer Missing projects `Literal(RuleLiteralTerminator)` with singleton `Literal(RuleLiteralTerminator)`. Every occurrence uses primary alternative zero at its direct zero-width Rowan range. |
-| proof and status | Governing authority: [Rule literal current-Item recovery](2026-09-08-successor-rule-literal-current-item-recovery.md), **Records, stops and retry**, the normative literal table in [typed output recovery](2026-09-06-successor-typed-output-recovery-amendment.md), and the CST-derived diagnostics amendment. Five publishers: `crates/yu-syntax/src/literal/rule_literal.rs:176,188,263,297,357`; shared node publisher: `crates/yu-syntax/src/rule/mod.rs:891–894`. Direct ordered Rowan proof: `crates/yu-syntax/src/tests/literal/rule_literal.rs:323–469`; fresh/frozen and lossless compatibility support: `crates/yu-syntax/src/tests/rule_literal_recovery.rs:131–211`. Independent audit found the bounded four-slot map evidence-complete without a code change. Status: `mapped` only for these witnessed direct forms; direct-CST UTF-8 ranges and all exclusions remain open. |
+| proof and status | Governing authority: [Rule literal current-Item recovery](2026-09-08-successor-rule-literal-current-item-recovery.md), **Records, stops and retry**, the normative literal table in [typed output recovery](2026-09-06-successor-typed-output-recovery-amendment.md), and the CST-derived diagnostics amendment. Five publishers: `crates/yu-syntax/src/literal/rule_literal.rs:176,188,263,297,357`; shared node publisher: `crates/yu-syntax/src/rule/mod.rs:891–894`. Direct ordered Rowan proof: `rule_literal_child_slots_are_directly_distinguished_by_rowan_context` in `crates/yu-syntax/src/tests/literal/rule_literal.rs:323–638`; fresh/frozen and lossless compatibility support: `crates/yu-syntax/src/tests/rule_literal_recovery.rs:131–211`. Independent audits found the bounded four-slot map and its single `~"é{α` UTF-8 EOF extension clean. Status: `mapped` only for these witnessed direct forms; UTF-8 lazy-capture slots, other boundary/leading variants and all remaining exclusions remain open. |
 
 ### Dedicated Rule-owned slot map
 

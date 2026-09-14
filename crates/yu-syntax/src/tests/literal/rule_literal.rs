@@ -321,6 +321,175 @@ fn rule_lazy_capture_missing_slots_preserve_outer_quote_or_boundary() {
 
 #[test]
 fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
+    {
+        use crate::recovery_record::{
+            Delimiter, ExpectedSyntax, GrammarRole, LiteralExpected, LiteralRole,
+            PunctuationEvidence,
+        };
+
+        let source = "~\"é{α";
+        let (green, exit, remainder) = run_rule_literal(source, 0, &fence(FencePrefixPolicy::None));
+        assert_eq!(remainder, "");
+        assert_eq!(green.to_string(), source);
+        let RuleLiteralExit::Boundary(pending) = exit else {
+            panic!("unterminated interpolation must return EOF")
+        };
+        assert!(pending.payload_view().is_eof_after_trivia_boundary());
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(root.text_range(), rowan::TextRange::new(0.into(), 7.into()));
+        assert_eq!(root.parent(), None);
+
+        // Exact native topology also excludes Error, Invalid, accepted closes,
+        // trivia, and additional recovery. Ranges are UTF-8 byte coordinates.
+        let topology = root
+            .descendants_with_tokens()
+            .filter(|element| element.parent().is_some())
+            .map(|element| {
+                (
+                    element.kind(),
+                    element.as_node().is_some(),
+                    element.to_string(),
+                    usize::from(element.text_range().start())
+                        ..usize::from(element.text_range().end()),
+                    element.parent().expect("direct parent").kind(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            topology,
+            [
+                (
+                    SyntaxKind::RuleLiteral,
+                    true,
+                    source,
+                    0..7,
+                    SyntaxKind::Root
+                ),
+                (
+                    SyntaxKind::RuleLiteralStart,
+                    false,
+                    "~\"",
+                    0..2,
+                    SyntaxKind::RuleLiteral
+                ),
+                (
+                    SyntaxKind::RuleLiteralText,
+                    false,
+                    "é",
+                    2..4,
+                    SyntaxKind::RuleLiteral
+                ),
+                (
+                    SyntaxKind::RuleLiteralInterpolation,
+                    true,
+                    "{α",
+                    4..7,
+                    SyntaxKind::RuleLiteral
+                ),
+                (
+                    SyntaxKind::RuleLiteralOpenBrace,
+                    false,
+                    "{",
+                    4..5,
+                    SyntaxKind::RuleLiteralInterpolation
+                ),
+                (
+                    SyntaxKind::RuleSequence,
+                    true,
+                    "α",
+                    5..7,
+                    SyntaxKind::RuleLiteralInterpolation
+                ),
+                (
+                    SyntaxKind::RuleItem,
+                    true,
+                    "α",
+                    5..7,
+                    SyntaxKind::RuleSequence
+                ),
+                (
+                    SyntaxKind::Identifier,
+                    false,
+                    "α",
+                    5..7,
+                    SyntaxKind::RuleItem
+                ),
+                (
+                    SyntaxKind::Missing,
+                    true,
+                    "",
+                    7..7,
+                    SyntaxKind::RuleLiteralInterpolation
+                ),
+                (SyntaxKind::Missing, true, "", 7..7, SyntaxKind::RuleLiteral),
+            ]
+            .map(|(kind, node, text, range, parent)| (
+                kind,
+                node,
+                text.to_owned(),
+                range,
+                parent
+            ))
+        );
+
+        // Derive terminal roles from immediate owner and ordered CST context,
+        // retaining natural descendant preorder for the equal-offset slots.
+        let projected = root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .map(|missing| {
+                assert!(missing.children_with_tokens().next().is_none());
+                let owner = missing.parent().expect("Missing owner");
+                assert_eq!(
+                    owner.children_with_tokens().last(),
+                    Some(missing.clone().into())
+                );
+                let preceding = missing.prev_sibling_or_token().expect("preceding child");
+                let (role, expected) = match (owner.kind(), preceding.kind()) {
+                    (SyntaxKind::RuleLiteralInterpolation, SyntaxKind::RuleSequence) => (
+                        LiteralRole::RuleLiteralInterpolationCloseBrace,
+                        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                    ),
+                    (SyntaxKind::RuleLiteral, SyntaxKind::RuleLiteralInterpolation) => (
+                        LiteralRole::RuleLiteralTerminator,
+                        ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
+                    ),
+                    context => panic!("unexpected terminal slot: {context:?}"),
+                };
+                (
+                    GrammarRole::Literal(role),
+                    usize::from(missing.text_range().start())
+                        ..usize::from(missing.text_range().end()),
+                    [expected],
+                    0usize,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            projected,
+            [
+                (
+                    GrammarRole::Literal(LiteralRole::RuleLiteralInterpolationCloseBrace),
+                    7..7,
+                    [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                        Delimiter::Brace
+                    ))],
+                    0,
+                ),
+                (
+                    GrammarRole::Literal(LiteralRole::RuleLiteralTerminator),
+                    7..7,
+                    [ExpectedSyntax::Literal(
+                        LiteralExpected::RuleLiteralTerminator
+                    )],
+                    0,
+                ),
+            ]
+        );
+    }
+
     // The interpolation close is a direct child after its sequence.  EOF and
     // a fence leave both immediate terminal slots at the same coordinate,
     // while an outer quote completes the literal after the interpolation slot.
