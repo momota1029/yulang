@@ -400,9 +400,10 @@ for the inner UseTree Alias slot under ordinary UseGroup and brace/parenthesis
 UseExclusionGroup. It distinguishes failed-Alias propagation from successful
 Identifier retry, composes the latter through comma/next item/actual close, and
 retains the existing group Close Missing when a completed retry reaches
-EOF/semicolon. The focused Use module passed 59 tests. This link remains
-post-write-audit pending: it does not yet promote the catalog row or close
-broader recursive/fence coverage.
+EOF/semicolon. The focused Use module passed 59 tests. Its 2026-09-14
+independent post-write specification audit was clean, promoting this bounded
+inner Alias slice to catalog-audited evidence-complete Draft. This neither
+approves a new schema nor closes broader recursive/fence coverage.
 
 #### Use group foreign-close Draft links
 

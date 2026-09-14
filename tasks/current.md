@@ -1,18 +1,18 @@
 # Current task: complete the CST-derived diagnostics prerequisite
 
-Updated: 2026-09-12. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-14. Branch: `yulang3`; do not modify frozen `main`.
 
 ## Current management instruction
 
-The user's latest instruction is temporary solo management by the primary
-(Astra): establish current state and continue appropriate work, asking only for
-necessary decisions. It supersedes the earlier session's subagent request;
-do not spawn subagents for this pass. This is not a permanent repository-rule
-change. Primary inspection and deterministic tests are not independent review,
-and no still-required schema audit or approval is declared complete by them.
+The user's 2026-09-14 instruction supersedes the temporary solo-management
+restriction for this pass and permits bounded subagent delegation. An
+architect assessment selected the already-recorded inner group-item Alias
+post-write audit; an independent specification audit closed it cleanly. This
+does not alter the repository's role, approval, or design-authority rules.
 
-This handoff is M0: records/navigation only, zero reviewers, no repair round,
-one focused existing Use test run, and zero benchmark samples/processes.
+The completed audit closure was M1: one read-only `spec_auditor`, no repair
+round, no new test run or benchmark process. The following record
+synchronization is M0 only.
 
 ## Objective and governing authority
 
@@ -58,9 +58,10 @@ temporary diagnostic state while the schema remains incomplete.
   evidence. The inner evidence covers ordinary UseGroup and both brace/paren
   UseExclusionGroup ancestry, propagated failed-Alias exits without a fabricated
   local Close Missing, successful retry through comma/next item/actual close,
-  and successful retry followed by the existing terminal Close Missing.
-  Independent post-write schema audit and catalog promotion remain pending;
-  broader fences and complete recursive coverage remain open.
+  and successful retry followed by the existing terminal Close Missing. Its
+  independent post-write schema audit is clean, so this bounded Alias slice is
+  now catalog-audited evidence-complete Draft. Broader fences and complete
+  recursive coverage remain open.
 - The focused Use module passed 59 tests at this checkpoint on 2026-09-12.
   This is fresh local health evidence, not whole-workspace certification.
 
@@ -74,12 +75,16 @@ temporary diagnostic state while the schema remains incomplete.
    family summaries and older exclusions are historical/partial; they are not
    a trustworthy current completion count. Check the specific row and test
    before selecting a new gap or reopening completed work.
-2. The inner group-item Alias candidate now has direct evidence in
-   `use_schema_inner_group_alias_direct_recovery_and_handoff`: 48 source cases,
-   each fresh/frozen. The next pass is its independent post-write schema audit.
-   Only after a clean audit may the Alias catalog/coverage row be promoted;
-   until then this remains evidence, not an approved schema row. Arbitrary
-   third/fourth Alias ordinal enumeration is not a new slot.
+2. The next bounded candidate is the first required `Statement` in
+   `WithBodyTail > IndentedStatementBlock` after an actual Colon: ordinary EOF
+   Missing, terminal raw Error, Error-to-Statement retry and accepted control
+   only. Its role is already Authoritative in
+   [`expression indented Statement role transport`](../notes/design/2026-09-08-successor-expression-indented-statement-role-transport.md).
+   Begin with one pre-write specification audit of the proposed direct Rowan
+   assertions; do not mechanically copy Colon-ancestry expectations. Stop if
+   With ancestry cannot select the role from the CST without temporary records.
+   The completed inner group-item Alias audit adds no license to enumerate new
+   Alias ordinals: they remain occurrences of the existing slot.
 3. Keep component recovery under its existing parent and preserve exact pending
    Item leading. If the CST cannot distinguish required diagnostics, record the
    concrete collision and return only that owner to design; do not infer a new
@@ -108,18 +113,20 @@ temporary diagnostic state while the schema remains incomplete.
 
 ## Verification and continuity
 
-Fresh check (180-second cap, one build job, one test thread):
+Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
 timeout 180s env CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::use_decl:: -- --test-threads=1
 ```
 
-Result: 58 passed, 0 failed, 0 ignored; 1,353 filtered out. No workspace build,
-broad suite or performance experiment was needed for this M0 record update.
-Future checks follow `rules/testing.md`; inspect resource behavior before
-broadening. `cargo xtask check-graph` checks dependencies, not syntax behavior.
+Result: 59 passed, 0 failed, 0 ignored; 1,353 filtered out at the inner Alias
+checkpoint. The 2026-09-14 independent audit was read-only and did not rerun
+tests. No workspace build, broad suite or performance experiment was needed for
+the M1 audit closure/M0 record update. Future checks follow `rules/testing.md`;
+inspect resource behavior before broadening. `cargo xtask check-graph` checks
+dependencies, not syntax behavior.
 
-- Current daily record: [`2026-09-12`](../notes/progress/daily/2026-09-12.md).
+- Current daily record: [`2026-09-14`](../notes/progress/daily/2026-09-14.md).
 - Complete pre-handoff task text: [`archived navigation`](../notes/progress/task-navigation-before-solo-handoff-2026-09-12.md).
   It preserves all 1,737 original lines, including older confirmed facts,
   rejected approaches, verification history and source locators. It is not an

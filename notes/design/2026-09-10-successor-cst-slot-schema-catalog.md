@@ -1219,8 +1219,17 @@ Missing, maximal Error/retry and EOF/semicolon/CRLF handoff in
 `use_schema_group_and_glob_alias_direct_recovery_and_handoff`. The latter
 proves that group-terminal aliases are ordered direct `UseTree` children outside
 `UseGroup`, while glob aliases are ordered direct `UseGlob` children; repeated
-aliases remain distinct source-order nodes. Inner group-item composition,
-broader fences and complete Group/Glob composition remain open.
+aliases remain distinct source-order nodes. The inner group-item Alias
+composition is separately evidenced by
+`use_schema_inner_group_alias_direct_recovery_and_handoff`: 48 fresh/frozen
+sources cover ordinary UseGroup and brace/parenthesis UseExclusionGroup
+ancestry, Alias Missing and maximal Error/retry, propagated failed-child exits
+without a fabricated group Close Missing, and retry continuation through comma,
+next item, actual close, or the existing terminal Close Missing. A 2026-09-14
+independent post-write specification audit was clean. Status:
+catalog-audited evidence-complete Draft for this bounded inner Alias slice;
+Alias ordinals are occurrences, not new slots. Broader fences and complete
+Group/Glob composition remain open.
 
 ### Use group foreign-close Draft
 
