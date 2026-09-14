@@ -227,6 +227,24 @@ delegation without records, Error spelling or scanner state. M2 spec/regression
 audits and the marker-body delta audit were clean. Visibility, braced/indented
 children, caller boundaries and all other Mod rows remain separate.
 
+#### ModDeclaration first indented Statement Draft links
+
+`indented_mod_rowan_schema_covers_first_statement_missing_error_retry_and_control`
+in `tests/indented_recovery.rs` maps the first required Statement under the
+complete `Root > Statement > ModDeclaration(ModKw Identifier Colon) >
+IndentedStatementBlock` path. Four direct EOF witnesses establish native block
+leading, zero-width Missing, one maximal terminal Error group,
+Error-to-Statement retry with leading under the admitted IdentifierExpression,
+and accepted control. Ordinary Mod ancestry plus actual Colon select
+`Declaration(Mod(IndentedStatement))`; direct Mod Body recovery, Error spelling
+and temporary records do not select the slot. The proof asserts node/token
+parentage, byte ranges, source reconstruction and fresh/frozen equality. M1
+pre-write and post-write specification audits were clean; the wrapper-disabled
+focused indented-recovery module passed 13 tests. This is catalog-audited
+evidence-complete Draft only for these four first-child EOF alternatives.
+Marker/visibility/header, inline/wrong-indent/braced, later/nested,
+dedent/fence and other-caller paths remain separate.
+
 #### RoleDeclaration BodyIntroducer/inline Body Draft links
 
 Only `crates/yu-syntax/src/declaration/role_decl.rs:300–606,790–894` is linked

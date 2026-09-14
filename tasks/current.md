@@ -73,6 +73,12 @@ temporary diagnostic state while the schema remains incomplete.
   accepted control. It is catalog-audited evidence-complete Draft only for
   these four alternatives; target/Equals, inline/wrong-indent, later/nested,
   fence and other-caller coverage remains open.
+- Latest M1 evidence checkpoint: the first required `Statement` below ordinary
+  `ModDeclaration Colon > IndentedStatementBlock` now has bounded direct Rowan
+  evidence for EOF Missing, terminal Error, Error retry and accepted control.
+  It is catalog-audited evidence-complete Draft only for these four alternatives;
+  marker/visibility/header, inline/wrong-indent/braced, later/nested, fence and
+  other-caller coverage remains open.
 - The focused Use module passed 59 tests at this checkpoint on 2026-09-12.
   This is fresh local health evidence, not whole-workspace certification.
 
@@ -89,8 +95,8 @@ temporary diagnostic state while the schema remains incomplete.
 2. Select the next bounded unmapped schema candidate only after reconciling its
    specific catalog/coverage row, direct owner and existing tests. The completed
    inner group-item Alias audit adds no license to enumerate new Alias ordinals:
-   they remain occurrences of the existing slot. The completed With and Binding
-   indented rows likewise do not cover nested/later/fence/other-caller paths.
+   they remain occurrences of the existing slot. The completed With, Binding and
+   Mod indented rows likewise do not cover nested/later/fence/other-caller paths.
 3. Keep component recovery under its existing parent and preserve exact pending
    Item leading. If the CST cannot distinguish required diagnostics, record the
    concrete collision and return only that owner to design; do not infer a new
@@ -125,14 +131,14 @@ Most recent focused check (180-second cap, one build job, one test thread):
 timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::indented_recovery:: -- --test-threads=1
 ```
 
-Result: 12 passed, 0 failed, 0 ignored; 1,402 filtered out. Scoped
+Result: 13 passed, 0 failed, 0 ignored; 1,402 filtered out. Scoped
 `rustfmt --edition 2024 --check crates/yu-syntax/src/tests/indented_recovery.rs`
 also passed. The default-wrapper form failed before compilation because the
 environment's sccache lacked operation permission; the wrapper-disabled rerun
-is the meaningful focused result. The prior With checkpoint passed 11 and the
-inner Alias checkpoint passed 59 Use-module tests. No workspace build, broad
-suite or performance experiment was needed for the M1 closure/M0 record update.
-Future checks follow
+is the meaningful focused result. The prior Binding/With checkpoints passed 12
+and 11; the inner Alias checkpoint passed 59 Use-module tests. No workspace
+build, broad suite or performance experiment was needed for the M1 closure/M0
+record update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
 check-graph` checks dependencies, not syntax behavior.
 
