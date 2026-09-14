@@ -3,6 +3,230 @@ use crate::tests::pattern::recovery::delimited::close_record;
 use crate::tests::pattern::recovery::*;
 
 #[test]
+fn record_default_expression_slot_is_derived_from_direct_rowan_order() {
+    use PatternRole::{RecordDefaultExpression as D, RecordItem as I, RecordSeparator as S};
+    use SyntaxKind::{
+        Colon, Comma, Equals, Error, Identifier, LBrace, Missing, OperatorChain, Pattern, RBrace,
+        RecordPattern, RecordPatternField as F, Whitespace as W,
+    };
+
+    // All ranges below are source-relative; the harness prefixes the Rowan tree.
+    fn assert_children(owner: &SyntaxNode, start: usize, expected: &[(SyntaxKind, &str)]) {
+        let direct = owner.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(direct.len(), expected.len());
+        let mut offset = start;
+        for (child, (kind, text)) in direct.iter().zip(expected) {
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.parent(), Some(owner.clone()));
+            assert_eq!(child.to_string(), *text);
+            assert_eq!(
+                child.as_node().is_some(),
+                matches!(kind, F | Pattern | OperatorChain | Missing)
+            );
+            assert_eq!(
+                usize::from(child.text_range().start()),
+                "sentinel".len() + offset
+            );
+            offset += text.len();
+            assert_eq!(
+                usize::from(child.text_range().end()),
+                "sentinel".len() + offset
+            );
+        }
+        assert_eq!(
+            usize::from(owner.text_range().start()),
+            "sentinel".len() + start
+        );
+        assert_eq!(
+            usize::from(owner.text_range().end()),
+            "sentinel".len() + offset
+        );
+    }
+
+    for (source, children, field_children, default_at, separator) in [
+        (
+            "{a=}",
+            vec![(LBrace, "{"), (F, "a="), (RBrace, "}")],
+            vec![(Identifier, "a"), (Equals, "="), (OperatorChain, "")],
+            Some(3),
+            false,
+        ),
+        (
+            "{a= }",
+            vec![(LBrace, "{"), (F, "a= "), (RBrace, "}")],
+            vec![
+                (Identifier, "a"),
+                (Equals, "="),
+                (W, " "),
+                (OperatorChain, ""),
+            ],
+            Some(4),
+            false,
+        ),
+        (
+            "{a=,b}",
+            vec![
+                (LBrace, "{"),
+                (F, "a="),
+                (Comma, ","),
+                (F, "b"),
+                (RBrace, "}"),
+            ],
+            vec![(Identifier, "a"), (Equals, "="), (OperatorChain, "")],
+            Some(3),
+            false,
+        ),
+        (
+            "{a: p =}",
+            vec![(LBrace, "{"), (F, "a: p ="), (RBrace, "}")],
+            vec![
+                (Identifier, "a"),
+                (Colon, ":"),
+                (W, " "),
+                (Pattern, "p"),
+                (W, " "),
+                (Equals, "="),
+                (OperatorChain, ""),
+            ],
+            Some(7),
+            false,
+        ),
+        (
+            "{a=@ x}",
+            vec![
+                (LBrace, "{"),
+                (F, "a="),
+                (Error, "@"),
+                (W, " "),
+                (F, "x"),
+                (RBrace, "}"),
+            ],
+            vec![(Identifier, "a"), (Equals, "="), (OperatorChain, "")],
+            Some(3),
+            true,
+        ),
+        (
+            "{a=1}",
+            vec![(LBrace, "{"), (F, "a=1"), (RBrace, "}")],
+            vec![(Identifier, "a"), (Equals, "="), (OperatorChain, "1")],
+            None,
+            false,
+        ),
+    ] {
+        for origin in [0, 41] {
+            // Compatibility records are checked by the existing tests. This
+            // bounded projection uses only ordered CST, never those records.
+            let fresh = run(
+                source,
+                Context {
+                    origin,
+                    ..Context::default()
+                },
+                None,
+            );
+            assert_eq!(fresh.remainder, "");
+            let root = SyntaxNode::new_root(fresh.green);
+            assert_eq!(root.to_string(), format!("sentinel{source}"));
+            let pattern = root.children().find(|node| node.kind() == Pattern).unwrap();
+            let owner = pattern
+                .children()
+                .find(|node| node.kind() == RecordPattern)
+                .unwrap();
+            assert_eq!(owner.parent(), Some(pattern.clone()));
+            assert_children(&owner, 0, &children);
+            let first_field = owner.children().next().unwrap();
+            assert_children(&first_field, 1, &field_children);
+
+            let mut phase = I;
+            let mut observed = Vec::new();
+            for child in owner.children_with_tokens() {
+                let start = usize::from(child.text_range().start()) - "sentinel".len();
+                let end = usize::from(child.text_range().end()) - "sentinel".len();
+                match child.kind() {
+                    F => {
+                        let field = child.into_node().unwrap();
+                        if field != first_field {
+                            assert_children(&field, start, &[(Identifier, &field.to_string())]);
+                        }
+                        let direct = field.children_with_tokens().collect::<Vec<_>>();
+                        if let Some(equals) = direct.iter().position(|child| child.kind() == Equals)
+                        {
+                            assert!(direct[equals].as_token().is_some());
+                            let mut suffix = direct[equals + 1..]
+                                .iter()
+                                .filter(|child| child.kind() != W);
+                            let expression = suffix.next().unwrap().as_node().unwrap();
+                            assert!(suffix.next().is_none());
+                            assert_eq!(expression.kind(), OperatorChain);
+                            assert_eq!(expression.parent(), Some(field.clone()));
+                            if expression.text_range().is_empty() {
+                                let at =
+                                    usize::from(expression.text_range().start()) - "sentinel".len();
+                                assert_children(expression, at, &[(Missing, "")]);
+                                let missing = expression.children().next().unwrap();
+                                assert_eq!(missing.children_with_tokens().count(), 0);
+                                observed.push((
+                                    D,
+                                    at..at,
+                                    RecoveryKind::Missing,
+                                    ExpectedSyntax::Expression,
+                                    0,
+                                ));
+                            }
+                        }
+                        phase = S;
+                    }
+                    Comma => phase = I,
+                    Error => {
+                        assert!(child.as_token().is_some());
+                        observed.push((
+                            phase,
+                            start..end,
+                            RecoveryKind::Error,
+                            ExpectedSyntax::DelimitedSequenceSeparator,
+                            0,
+                        ));
+                        phase = I;
+                    }
+                    LBrace | RBrace | W => {}
+                    kind => panic!("unexpected direct child {kind:?} in {source:?}"),
+                }
+            }
+            let mut expected = Vec::new();
+            if let Some(at) = default_at {
+                expected.push((
+                    D,
+                    at..at,
+                    RecoveryKind::Missing,
+                    ExpectedSyntax::Expression,
+                    0,
+                ));
+            }
+            if separator {
+                expected.push((
+                    S,
+                    3..4,
+                    RecoveryKind::Error,
+                    ExpectedSyntax::DelimitedSequenceSeparator,
+                    0,
+                ));
+            }
+            assert_eq!(observed, expected, "{source:?}");
+            // No default Error/retry, duplicate sequence Missing, or recovery
+            // hidden inside the accepted nested Pattern/Expression control.
+            assert_eq!(
+                pattern
+                    .descendants_with_tokens()
+                    .filter(|child| matches!(child.kind(), Missing | Error | SyntaxKind::Invalid))
+                    .count(),
+                observed.len(),
+                "{source:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn record_default_missing_publishes_its_required_expression_wrapper_and_role() {
     for origin in [0, 41] {
         for (source, at) in [

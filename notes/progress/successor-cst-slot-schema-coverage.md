@@ -1423,6 +1423,25 @@ structured transitions, EOF/protected handoff, field/default interiors,
 structured Invalid, foreign/local close, nested Pattern and broader sequence
 paths remain separate.
 
+#### RecordPatternField default Expression Missing Draft link
+
+`crates/yu-syntax/src/pattern/delimited.rs:711–925` links both field-entry
+routes through `record_default_after_equals` to one required default Expression
+slot. Direct CST proof is
+`record_default_cst_schema_selects_missing_and_later_sequence_recovery` in
+`tests/pattern/recovery/default_expression.rs`: actual Equals selects an empty
+field-owned `OperatorChain(Missing)` when no NUD is admitted, while the current
+Item returns untouched to a later sequence owner. The six witnesses fix direct
+child order, node/token parents, zero-width/source-relative ranges, accepted
+control and fresh/frozen compatibility. In `{a=@ x}`, direct CST order proves
+default Missing before a separately selected Separator Error, without records
+or Error spelling selecting either role. M1 pre-write and post-write
+specification audits were clean; the wrapper-disabled focused default-expression
+module passed 7 tests. This is catalog-audited evidence-complete Draft only for
+these six witnesses. Carried-close/fence, nested defaults/Invalid, field
+Pattern/Expression internals, close recovery, exact-Equals lexing and global
+migration remain separate.
+
 #### RecordPattern separator-phase structured Invalid row link
 
 Only the existing structured-recovery emission at
