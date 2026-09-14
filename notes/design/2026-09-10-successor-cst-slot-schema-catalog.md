@@ -517,6 +517,17 @@ recursive Pattern behavior.
 | diagnostic projection | The final direct Missing projects one owner-specific close expectation, `Punctuation(Close(Parenthesis | Bracket | Brace))`, with primary alternative zero at its zero-width Rowan range. Direct opener, immediate owner and terminal sibling position select the occurrence; records, recovery IDs, Error spelling and range alone are not inputs. Native accepted closes project nothing. |
 | proof and status | Governing authority: [Pattern delimiter slot publication](2026-09-08-successor-pattern-delimited-slot-publication.md), **Exact publication mapping** and **Missing close**; [Pattern sequence current-Item recovery](2026-09-08-successor-pattern-sequence-current-item-recovery.md), local-close/EOF priority; Rowan CST-only and CST-derived diagnostics amendments. Owner: `crates/yu-syntax/src/pattern/delimited.rs:48–86,220–245,928–974`. Direct CST proof: `delimited_terminal_close_is_derived_from_direct_rowan_order` in `crates/yu-syntax/src/tests/pattern/recovery/delimited.rs`, covering empty and completed-child EOF/native-close forms plus `"({a:"` at origins 0 and 41. M1 pre-write and post-write specification audits were clean; wrapper-disabled focused delimited tests passed 8. Status: catalog-audited evidence-complete Draft only for these witnessed EOF/native controls and same-offset composition; all excluded paths remain open. |
 
+### Parenthesized/ListPattern post-item Separator Draft
+
+This bounded Draft maps direct post-item separator `Missing` and lexical `Error+`
+for ParenthesizedPattern and ListPattern only.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | After a direct completed Pattern child, same-line next Pattern selects a direct separator Missing; a lexical non-start selects one maximal direct Error+ group. Native comma or qualifying layout remains native. |
+| projection | Immediate P/L owner, completed preceding Pattern and ordered direct sibling select `Pattern(ParenthesizedSeparator)` or `Pattern(ListSeparator)`, expected DelimitedSequenceSeparator, primary zero. Retry/comma leaves no duplicate Missing. |
+| proof and status | Authority: [Pattern delimiter slot publication](2026-09-08-successor-pattern-delimited-slot-publication.md), **Exact publication mapping**; [Pattern sequence recovery](2026-09-08-successor-pattern-sequence-current-item-recovery.md), **Sequence rule and exact records**; CST amendments. Owner: `crates/yu-syntax/src/pattern/delimited.rs:287–342,417–475`. Direct proof: `parenthesized_and_list_separator_recovery_follows_direct_ordered_children` in `tests/pattern/recovery/sequence.rs`, 24 witnesses at origins 0/41. M1 pre/post audits clean; focused sequence tests passed 15. Status: catalog-audited evidence-complete Draft only for Missing, lexical Error/retry/comma and accepted comma/layout witnesses; all other paths remain open. |
+
 ### RecordPattern separator-phase structured Invalid map
 
 This bounded referenced row records only the existing separator-phase

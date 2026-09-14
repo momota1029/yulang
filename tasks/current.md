@@ -111,6 +111,10 @@ temporary diagnostic state while the schema remains incomplete.
    concrete collision and return only that owner to design; do not infer a new
    wrapper or change an expectation to match output.
 
+The parenthesized/list post-item Separator slice is now catalog-audited
+evidence-complete Draft for its 24 direct CST witnesses. Select the next bounded
+unmapped candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

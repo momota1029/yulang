@@ -1459,6 +1459,16 @@ EOF/native controls and this same-offset composition. Foreign/caller/fence
 close paths, sequence recovery, child interiors and broader recursion remain
 separate.
 
+#### Parenthesized/ListPattern post-item Separator Draft link
+
+`crates/yu-syntax/src/pattern/delimited.rs:287–342,417–475` supplies the
+shared post-item separator selection and lexical-run retry. Direct proof is
+`parenthesized_and_list_separator_recovery_follows_direct_ordered_children` in
+`tests/pattern/recovery/sequence.rs`: direct children/ranges distinguish Missing,
+maximal Error, retry/comma and accepted comma/layout without records. Both M1
+audits were clean; focused sequence tests passed 15. This bounded Draft excludes
+RecordPattern, initial/nested/spread/close/fence/foreign and recursive paths.
+
 #### RecordPattern separator-phase structured Invalid row link
 
 Only the existing structured-recovery emission at

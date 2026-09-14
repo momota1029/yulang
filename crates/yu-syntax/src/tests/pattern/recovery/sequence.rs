@@ -621,6 +621,154 @@ fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
 }
 
 #[test]
+fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
+    use SyntaxKind::{Comma, Error, Missing, Newline, Pattern, Whitespace as W};
+
+    for (interior, middle, recovery) in [
+        ("a b", vec![(W, " "), (Missing, "")], Some((3..3, false))),
+        ("a; b", vec![(Error, ";"), (W, " ")], Some((2..3, true))),
+        (
+            "a @ ; b",
+            vec![(W, " "), (Error, "@"), (Error, " "), (Error, ";"), (W, " ")],
+            Some((3..6, true)),
+        ),
+        (
+            "a; ,b",
+            vec![(Error, ";"), (W, " "), (Comma, ",")],
+            Some((2..3, true)),
+        ),
+        ("a,b", vec![(Comma, ",")], None),
+        ("a\nb", vec![(Newline, "\n")], None),
+    ] {
+        for (open, close, owner_kind, open_kind, close_kind, role) in [
+            (
+                "(",
+                ")",
+                SyntaxKind::ParenthesizedPattern,
+                SyntaxKind::LParen,
+                SyntaxKind::RParen,
+                PatternRole::ParenthesizedSeparator,
+            ),
+            (
+                "[",
+                "]",
+                SyntaxKind::ListPattern,
+                SyntaxKind::LBracket,
+                SyntaxKind::RBracket,
+                PatternRole::ListSeparator,
+            ),
+        ] {
+            let source = format!("{open}{interior}{close}");
+            for origin in [0, 41] {
+                // Records test compatibility only; the occurrence below is
+                // selected from direct CST order, kinds and source ranges.
+                let expected = recovery
+                    .iter()
+                    .map(|(range, error)| {
+                        record(1, role, origin + range.start..origin + range.end, *error)
+                    })
+                    .collect::<Vec<_>>();
+                let fresh = checked(
+                    &source,
+                    Context {
+                        origin,
+                        ..Context::default()
+                    },
+                    &expected,
+                    &source,
+                    PatternCompletion::Complete,
+                );
+                assert_eq!(fresh.remainder, "");
+                let root = SyntaxNode::new_root(fresh.green);
+                assert_eq!(root.to_string(), format!("sentinel{source}"));
+                let pattern = root.children().find(|node| node.kind() == Pattern).unwrap();
+                let owner = pattern.children().next().unwrap();
+                assert_eq!(owner.kind(), owner_kind);
+                assert_eq!(owner.parent(), Some(pattern));
+                let direct = owner.children_with_tokens().collect::<Vec<_>>();
+                let mut children = vec![(open_kind, open), (Pattern, "a")];
+                children.extend(middle.iter().copied());
+                children.extend([(Pattern, "b"), (close_kind, close)]);
+                assert_eq!(direct.len(), children.len(), "{source:?}");
+                let mut offset = 0;
+                for (child, (kind, text)) in direct.iter().zip(children) {
+                    assert_eq!(child.kind(), kind, "{source:?}");
+                    assert_eq!(child.parent(), Some(owner.clone()));
+                    assert_eq!(child.as_node().is_some(), matches!(kind, Pattern | Missing));
+                    let end = offset + text.len();
+                    assert_eq!(child.to_string(), text, "{source:?}");
+                    assert_eq!(child.to_string(), source[offset..end]);
+                    assert_eq!(
+                        usize::from(child.text_range().start()),
+                        "sentinel".len() + offset
+                    );
+                    assert_eq!(
+                        usize::from(child.text_range().end()),
+                        "sentinel".len() + end
+                    );
+                    if kind == Missing {
+                        assert_eq!(child.as_node().unwrap().children_with_tokens().count(), 0);
+                    }
+                    offset = end;
+                }
+                assert_eq!(offset, source.len());
+
+                // An accepted direct Pattern establishes the post-item phase.
+                // A maximal Error group takes that phase, then permits retry;
+                // native comma/layout also permits the following Pattern.
+                let separator_role = match owner.kind() {
+                    SyntaxKind::ParenthesizedPattern => PatternRole::ParenthesizedSeparator,
+                    SyntaxKind::ListPattern => PatternRole::ListSeparator,
+                    _ => unreachable!(),
+                };
+                let mut after_item = false;
+                let mut observed = Vec::new();
+                let mut index = 0;
+                while index < direct.len() {
+                    let child = &direct[index];
+                    let start = usize::from(child.text_range().start()) - "sentinel".len();
+                    match child.kind() {
+                        Pattern => after_item = true,
+                        Comma | Newline => after_item = false,
+                        Missing => {
+                            assert!(after_item, "{source:?}");
+                            observed.push((separator_role, start..start, false));
+                            after_item = false;
+                        }
+                        Error => {
+                            assert!(after_item, "{source:?}");
+                            let mut end = usize::from(child.text_range().end()) - "sentinel".len();
+                            while index + 1 < direct.len() && direct[index + 1].kind() == Error {
+                                index += 1;
+                                assert_eq!(
+                                    usize::from(direct[index].text_range().start()),
+                                    "sentinel".len() + end
+                                );
+                                end = usize::from(direct[index].text_range().end())
+                                    - "sentinel".len();
+                            }
+                            observed.push((separator_role, start..end, true));
+                            after_item = false;
+                        }
+                        kind if kind == open_kind || kind == close_kind || kind == W => {}
+                        kind => panic!("unexpected direct child {kind:?} in {source:?}"),
+                    }
+                    index += 1;
+                }
+                assert_eq!(
+                    observed,
+                    recovery
+                        .iter()
+                        .map(|(range, error)| (role, range.clone(), *error))
+                        .collect::<Vec<_>>(),
+                    "{source:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn record_raw_sequence_roles_follow_direct_ordered_children() {
     use PatternRole::{RecordItem as I, RecordSeparator as S};
     use SyntaxKind::{
