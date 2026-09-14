@@ -1215,8 +1215,15 @@ passed 1 with 1,423 filtered out. Error spelling cannot select the slot.
 `BracketRowSeparator` at `type_expr/delimited.rs:1312` is live through the
 explicit owner branches at `:454` and `:500`. `inherited_separator = false` at
 `:78` disables Type-ML splitting only; it does not make Separator recovery
-unreachable. Separator schema/proof remains open independently of the blocking
-Item/Close structural decision.
+unreachable. The no-gap branch at `:500` is linked to
+`bracket_row_no_gap_separator_missing_is_selected_by_direct_item_order` in
+`crates/yu-syntax/src/tests/type_expr/bracket_recovery.rs`: direct ordered row
+children select the childless Separator Missing at `4..4` before the second
+TypeExpression, whose nested accepted record close retains its own wrapper.
+Independent delta audit was clean; the exact test and two neighboring controls
+each passed 1 with 1,424 filtered out. The deeper-newline branch at `:454`
+remains separately unproved, and the Item/Close structural decision remains
+blocking.
 
 Focused direct CST/recovery support is
 `tests/type_expr/bracket_arrow_cst.rs:17–147,151–185,189–408` and

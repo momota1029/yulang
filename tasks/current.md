@@ -507,6 +507,25 @@ bounded unmapped candidate before further implementation.
   production topology. Separator mapping and unrelated Gate-1 work can proceed
   independently.
 
+## BracketRow no-gap Separator Missing closure
+
+- The selected M1 slice strengthened the authoritative `T [A{}] -> U` no-gap
+  alternative. One Astra implementer proved exact ordered BracketRow and nested
+  `NamedRecordTypeClose` topology, a unique childless direct Missing `4..4`
+  between two TypeExpression children, no Error/Invalid, full sentinel/source
+  and the accepted Arrow/RHS suffix.
+- Direct item order derives `Type(BracketRowSeparator)`, singleton
+  `DelimitedSequenceSeparator` and primary zero before fresh/frozen records.
+  The first inferred test topology omitted the already-authoritative record
+  close wrapper; the single allowed repair corrected that assertion without
+  changing production or expected output. Independent final audit was clean.
+  Scoped rustfmt/diff checks plus the new exact test and two neighboring
+  controls passed; each ran 1 test with 1,424 filtered out. No broad suite or
+  benchmark ran.
+- This closes only the bounded no-gap alternative. Deeper-newline Separator
+  evidence remains open, and the Item/Close collision still requires an owning
+  structural decision. Gate 1 remains incomplete.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

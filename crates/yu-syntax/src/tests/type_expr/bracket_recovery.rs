@@ -223,6 +223,146 @@ fn bracket_row_item_and_close_roles_collide_in_direct_cst_topology() {
 }
 
 #[test]
+fn bracket_row_no_gap_separator_missing_is_selected_by_direct_item_order() {
+    use SyntaxKind::*;
+
+    let source = "T [A{}] -> U";
+    let run = run_contextual_type_snapshot(
+        source,
+        crate::type_expr::TypeMlContext::INACTIVE,
+        0,
+        0,
+        0,
+        LineEntry::InLine,
+        None,
+        None,
+    );
+    let root = SyntaxNode::new_root(run.green.clone());
+    let shift = "sentinel".len();
+    let relative = |range: rowan::TextRange| {
+        usize::from(range.start()) - shift..usize::from(range.end()) - shift
+    };
+    assert_eq!(root.to_string(), format!("sentinel{source}"));
+    let row = root
+        .descendants()
+        .find(|node| node.kind() == BracketRow)
+        .unwrap();
+    assert_eq!(
+        row.descendants_with_tokens()
+            .map(|element| (
+                element.kind(),
+                element.parent().map(|parent| parent.kind()),
+                element.to_string(),
+                relative(element.text_range()),
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            (BracketRow, Some(TypeArrowTail), "[A{}]".into(), 2..7),
+            (LBracket, Some(BracketRow), "[".into(), 2..3),
+            (TypeExpression, Some(BracketRow), "A".into(), 3..4),
+            (Identifier, Some(TypeExpression), "A".into(), 3..4),
+            (Missing, Some(BracketRow), "".into(), 4..4),
+            (TypeExpression, Some(BracketRow), "{}".into(), 4..6),
+            (NamedRecordType, Some(TypeExpression), "{}".into(), 4..6),
+            (LBrace, Some(NamedRecordType), "{".into(), 4..5),
+            (
+                NamedRecordTypeClose,
+                Some(NamedRecordType),
+                "}".into(),
+                5..6
+            ),
+            (RBrace, Some(NamedRecordTypeClose), "}".into(), 5..6),
+            (RBracket, Some(BracketRow), "]".into(), 6..7),
+        ]
+    );
+    let children = row.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(
+        children
+            .iter()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        vec![LBracket, TypeExpression, Missing, TypeExpression, RBracket]
+    );
+    let missing = children[2].as_node().unwrap();
+    assert_eq!(missing.parent(), Some(row.clone()));
+    assert_eq!(missing.children_with_tokens().count(), 0);
+    assert_eq!(
+        row.children().filter(|node| node.kind() == Missing).count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>(),
+        vec![missing.clone()]
+    );
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|element| matches!(element.kind(), Error | Invalid))
+    );
+
+    let tail = row.parent().unwrap();
+    assert_eq!(tail.parent().unwrap().kind(), TypeExpression);
+    assert_eq!(relative(tail.text_range()), 2..source.len());
+    assert_eq!(
+        tail.children_with_tokens()
+            .skip(1)
+            .flat_map(|element| {
+                match element {
+                    rowan::NodeOrToken::Node(node) => {
+                        node.descendants_with_tokens().collect::<Vec<_>>()
+                    }
+                    token => vec![token],
+                }
+            })
+            .map(|element| (
+                element.kind(),
+                element.parent().unwrap().kind(),
+                element.to_string(),
+                relative(element.text_range()),
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            (Whitespace, TypeArrowTail, " ".into(), 7..8),
+            (Arrow, TypeArrowTail, "->".into(), 8..10),
+            (TypeExpression, TypeArrowTail, " U".into(), 10..12),
+            (Whitespace, TypeExpression, " ".into(), 10..11),
+            (Identifier, TypeExpression, "U".into(), 11..12),
+        ]
+    );
+
+    // Select this occurrence from the direct completed-item / Missing / item
+    // order, before consulting compatibility records. This covers only the
+    // authoritative no-gap witness, not the deeper-newline alternative.
+    let role = match (
+        row.kind(),
+        children[1].kind(),
+        children[2].kind(),
+        children[3].kind(),
+    ) {
+        (BracketRow, TypeExpression, Missing, TypeExpression) => {
+            GrammarRole::Type(TypeRole::BracketRowSeparator)
+        }
+        identity => panic!("unexpected missing boundary identity: {identity:?}"),
+    };
+    let range = relative(missing.text_range());
+    assert_eq!(range, 4..4);
+    let expected = row_record(
+        0,
+        role,
+        ExpectedSyntax::DelimitedSequenceSeparator,
+        range,
+        None,
+    );
+    assert_eq!(expected.expectations.len(), 1);
+    assert_eq!(expected.primary_expectation, 0);
+    assert_eq!(run.records, vec![expected.clone()]);
+    let replayed = assert_complete_type_recovery(source, 0, &[expected]);
+    assert_eq!(replayed.green(), root.green());
+}
+
+#[test]
 fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
     for (source, expected) in [
         ("T [,] -> U", vec![item(0, 3..3, false)]),

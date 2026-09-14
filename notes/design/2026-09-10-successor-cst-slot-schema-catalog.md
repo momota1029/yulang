@@ -396,6 +396,18 @@ production changes, followed by direct schema proof and independent audit.
 BracketRow Separator reachability and other Item/Close paths remain separate
 open obligations.
 
+The no-gap Separator Missing alternative is catalog-audited evidence-complete
+Draft for the bounded `T [A{}] -> U` witness. Direct ordered `BracketRow`
+children are `LBracket TypeExpression Missing TypeExpression RBracket`; the
+childless direct Missing at `4..4` projects singleton
+`Type(BracketRowSeparator)` / `DelimitedSequenceSeparator`, primary zero. The
+admitted second `TypeExpression` retains its authoritative nested
+`NamedRecordTypeClose`. Direct proof is
+`bracket_row_no_gap_separator_missing_is_selected_by_direct_item_order` in
+`crates/yu-syntax/src/tests/type_expr/bracket_recovery.rs`, independently
+delta-audited clean. This does not complete the deeper-newline alternative or
+the whole Separator schema, and it does not resolve the Item/Close collision.
+
 ### BracketRow-selected required-arrow continuation map
 
 This bounded Draft row records the required-arrow continuation immediately
