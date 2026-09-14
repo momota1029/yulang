@@ -1537,16 +1537,18 @@ Name and outer terminator remain distinct by owner and ordered children.
 
 Direct ordered Rowan proof is
 `rule_literal_child_slots_are_directly_distinguished_by_rowan_context` in
-`crates/yu-syntax/src/tests/literal/rule_literal.rs:323–638`; fresh/frozen and
+`crates/yu-syntax/src/tests/literal/rule_literal.rs`; fresh/frozen and
 lossless compatibility support is
 `crates/yu-syntax/src/tests/rule_literal_recovery.rs:131–211`. The independent
 audits were clean. Direct evidence additionally covers the single UTF-8 EOF
 composition `~"é{α`: interpolation Close and outer terminator are distinct
-childless Missing occurrences at `7..7`, selected from ordered CST context in
-natural preorder. Status: catalog-audited evidence-complete Draft for the
-witnessed direct forms only. UTF-8 lazy-capture slots, other boundary/leading
-variants, RuleSequence Error, nested Rule children, global collector and
-ledger/API migration remain open.
+childless Missing occurrences at `7..7`. It also covers the single UTF-8
+braced-lazy EOF composition `~":{α`: lazy Close and outer terminator are
+distinct childless Missing occurrences at `6..6`, selected by direct
+Colon+OpenBrace context in natural preorder. Status: catalog-audited
+evidence-complete Draft for the witnessed direct forms only. UTF-8 unbraced
+Name, other boundary/leading variants, RuleSequence Error, nested Rule
+children, global collector and ledger/API migration remain open.
 
 - `crates/yu-syntax/src/literal/mod.rs`
 - `crates/yu-syntax/src/rule/mod.rs`

@@ -320,6 +320,21 @@ bounded unmapped candidate before further implementation.
   other boundary/leading variants, nested Rule recovery and gates 2–4 remain
   open. Select the next bounded gate-1 candidate.
 
+## RuleLiteral UTF-8 braced-lazy composition closure
+
+- The selected M1 slice added the existing `~":{α` compatibility source as one
+  direct-CST witness. It proves the braced lazy Close and enclosing RuleLiteral
+  terminator as distinct childless Missing nodes at `6..6`.
+- One Astra implementer added exact UTF-8 topology/ranges/source and
+  `EofAfterTrivia` assertions, natural Close-before-Terminator preorder, and
+  structural role selection requiring direct Colon+OpenBrace before singleton
+  expectation/primary-zero comparison. Independent pre-write and post-write
+  audits were clean. Scoped rustfmt/diff checks and the wrapper-disabled exact
+  test passed; 1 test, 1,422 filtered out. No production code, broad suite or
+  benchmark ran.
+- UTF-8 unbraced Name, other boundary/leading/CRLF/fence forms, nested Rule and
+  gates 2–4 remain open. Select the next bounded gate-1 candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
