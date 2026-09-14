@@ -1193,6 +1193,172 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
         [(ExpectedSyntax::Literal(LiteralExpected::RuleItem), 0, 1..6)]
     );
 
+    // The field-name vacancy ends at LF; the next name starts a second
+    // sequence, with no retry inside the completed RuleField.
+    let source = "{a.\nnext}";
+    let (green, records) = parse(source, 0, None);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.kind(), SyntaxKind::Root);
+    assert_eq!(root.parent(), None);
+    assert_eq!(root.to_string(), source);
+    assert_eq!(range(&root), 0..9);
+    assert_eq!(child_kinds(&root), [SyntaxKind::RuleBody]);
+    let body = root.first_child().expect("direct RuleBody");
+    let alternation = body.first_child().expect("direct RuleAlternation");
+    let sequences = alternation.children().collect::<Vec<_>>();
+    assert_eq!(sequences.len(), 2);
+    let first = sequences[0].first_child().expect("first direct RuleItem");
+    let field = first.first_child().expect("direct RuleField");
+    let missing = field.first_child().expect("direct name Missing");
+    let next = sequences[1].first_child().expect("next direct RuleItem");
+    for (node, parent, kind, node_range, text, children) in [
+        (
+            &body,
+            &root,
+            SyntaxKind::RuleBody,
+            0..9,
+            source,
+            vec![
+                SyntaxKind::LBrace,
+                SyntaxKind::RuleAlternation,
+                SyntaxKind::RBrace,
+            ],
+        ),
+        (
+            &alternation,
+            &body,
+            SyntaxKind::RuleAlternation,
+            1..8,
+            "a.\nnext",
+            vec![
+                SyntaxKind::RuleSequence,
+                SyntaxKind::Newline,
+                SyntaxKind::RuleSequence,
+            ],
+        ),
+        (
+            &sequences[0],
+            &alternation,
+            SyntaxKind::RuleSequence,
+            1..3,
+            "a.",
+            vec![SyntaxKind::RuleItem],
+        ),
+        (
+            &first,
+            &sequences[0],
+            SyntaxKind::RuleItem,
+            1..3,
+            "a.",
+            vec![SyntaxKind::Identifier, SyntaxKind::RuleField],
+        ),
+        (
+            &field,
+            &first,
+            SyntaxKind::RuleField,
+            2..3,
+            ".",
+            vec![SyntaxKind::Dot, SyntaxKind::Missing],
+        ),
+        (&missing, &field, SyntaxKind::Missing, 3..3, "", vec![]),
+        (
+            &sequences[1],
+            &alternation,
+            SyntaxKind::RuleSequence,
+            4..8,
+            "next",
+            vec![SyntaxKind::RuleItem],
+        ),
+        (
+            &next,
+            &sequences[1],
+            SyntaxKind::RuleItem,
+            4..8,
+            "next",
+            vec![SyntaxKind::Identifier],
+        ),
+    ] {
+        assert_eq!(node.kind(), kind);
+        assert_eq!(node.parent(), Some(parent.clone()));
+        assert_eq!(range(node), node_range);
+        assert_eq!(node.to_string(), text);
+        assert_eq!(child_kinds(node), children);
+    }
+    assert_eq!(
+        root.descendants().collect::<Vec<_>>(),
+        [
+            root.clone(),
+            body.clone(),
+            alternation.clone(),
+            sequences[0].clone(),
+            first.clone(),
+            field.clone(),
+            missing.clone(),
+            sequences[1].clone(),
+            next.clone()
+        ]
+    );
+    let tokens = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .collect::<Vec<_>>();
+    assert_eq!(tokens.len(), 6);
+    for (token, (kind, text, token_range, parent)) in tokens.iter().zip([
+        (SyntaxKind::LBrace, "{", 0..1, &body),
+        (SyntaxKind::Identifier, "a", 1..2, &first),
+        (SyntaxKind::Dot, ".", 2..3, &field),
+        (SyntaxKind::Newline, "\n", 3..4, &alternation),
+        (SyntaxKind::Identifier, "next", 4..8, &next),
+        (SyntaxKind::RBrace, "}", 8..9, &body),
+    ]) {
+        assert_eq!(token.kind(), kind);
+        assert_eq!(token.text(), text);
+        assert_eq!(token.parent(), Some(parent.clone()));
+        assert_eq!(
+            usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+            token_range
+        );
+    }
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .collect::<Vec<_>>(),
+        [missing.clone()]
+    );
+    assert!(
+        root.descendants_with_tokens()
+            .all(|element| !matches!(element.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+    );
+    let owner = missing.parent().expect("required-name owner");
+    let introducer = owner
+        .first_child_or_token()
+        .and_then(|element| element.into_token())
+        .expect("required-name introducer");
+    let derived_role = match (owner.kind(), introducer.kind()) {
+        (SyntaxKind::RuleField, SyntaxKind::Dot) => LiteralRole::RuleFieldName,
+        other => panic!("unexpected required-name owner/introducer: {other:?}"),
+    };
+    let derived = (
+        GrammarRole::Literal(derived_role),
+        range(&missing),
+        [ExpectedSyntax::Identifier],
+        0,
+    );
+    assert_eq!(
+        derived,
+        (
+            GrammarRole::Literal(LiteralRole::RuleFieldName),
+            3..3,
+            [ExpectedSyntax::Identifier],
+            0
+        )
+    );
+    let expected = record(0, derived_role, derived.1, None);
+    assert_eq!(expected.expectations.len(), derived.2.len());
+    assert_eq!(expected.expectations[0].expected, derived.2[0]);
+    assert_eq!(expected.primary_expectation, derived.3);
+    assert_eq!(records, [expected]);
+
     // A physical line boundary belongs to RuleAlternation, after the failed
     // slot; it is not swallowed by name/RHS recovery.
     for (source, tail) in [

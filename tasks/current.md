@@ -386,6 +386,22 @@ bounded unmapped candidate before further implementation.
   boundary/caller variants and gates 2–4 remain open. Select the next bounded
   gate-1 candidate.
 
+## RuleField LF required-Name Missing closure
+
+- The selected M1 slice strengthened the existing `{a.\nnext}` witness. A
+  physical LF stops RuleField Name admission, stays native under
+  RuleAlternation, and `next` begins its second RuleSequence.
+- One Astra implementer proved the complete exact tree and token sequence,
+  unique childless Missing at `3..3`, absence of Error/Invalid, full source and
+  native close, plus CST-derived RuleFieldName singleton Identifier/primary
+  zero before records. Existing shared LF/Capture assertions stayed unchanged.
+  Independent pre-write and delta audits were clean. Scoped rustfmt/diff checks
+  and the wrapper-disabled exact test passed; 1 test, 1,422 filtered out. No
+  production code, broad suite or benchmark ran.
+- RulePath/Capture LF promotion, CRLF/EOF/fence/interpolation, accepted names,
+  recursive Rule and gates 2–4 remain open. Select the next bounded gate-1
+  candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

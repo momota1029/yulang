@@ -1637,6 +1637,13 @@ failed RuleField. Independent delta reviews were clean; the focused test passed
 1 with 1,422 filtered out. Accepted-name and broader boundary forms are not
 promoted by this closure.
 
+The bounded `{a.\nnext}` RuleField witness additionally proves a direct
+childless Name Missing at `3..3`, native LF owned by RuleAlternation and `next`
+owned by its second RuleSequence, with exact full tree/token ranges and
+CST-derived singleton Identifier projection. Independent delta review was
+clean; the exact focused test passed 1 with 1,422 filtered out. RulePath,
+Capture, CRLF/EOF/fence/interpolation and accepted-name variants remain open.
+
 The RuleBody-close and opener-selected RuleItem parenthesis-close rows share
 the focused nested EOF proof `{(a` in
 `crates/yu-syntax/src/tests/rule_literal_recovery.rs:382–501`. Exact ancestry,
