@@ -591,10 +591,39 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
     ] {
         let (green, _) = parse(source, 0, None);
         let root = SyntaxNode::new_root(green);
-        let failed = root
-            .descendants()
-            .find(|node| node.kind() == tail)
-            .expect("failed name tail");
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(child_kinds(&root), [SyntaxKind::RuleBody]);
+        let body = root.first_child().expect("direct RuleBody");
+        assert_eq!(body.parent(), Some(root.clone()));
+        assert_eq!(
+            child_kinds(&body),
+            [
+                SyntaxKind::LBrace,
+                SyntaxKind::RuleAlternation,
+                SyntaxKind::RBrace
+            ]
+        );
+        let alternation = body.first_child().expect("direct RuleAlternation");
+        assert_eq!(alternation.kind(), SyntaxKind::RuleAlternation);
+        assert_eq!(alternation.parent(), Some(body.clone()));
+        assert_eq!(child_kinds(&alternation), [SyntaxKind::RuleSequence]);
+        let sequence = alternation.first_child().expect("direct RuleSequence");
+        assert_eq!(sequence.kind(), SyntaxKind::RuleSequence);
+        assert_eq!(sequence.parent(), Some(alternation));
+        assert_eq!(
+            child_kinds(&sequence),
+            [SyntaxKind::RuleItem, SyntaxKind::RuleItem]
+        );
+        let items = sequence.children().collect::<Vec<_>>();
+        assert_eq!(items.len(), 2, "{source:?}");
+        assert_eq!(items[0].parent(), Some(sequence.clone()));
+        assert_eq!(range(&items[0]), 1..expected_range.end);
+        assert_eq!(child_kinds(&items[0]), [SyntaxKind::Identifier, tail]);
+        let failed = items[0].first_child().expect("direct failed name tail");
+        assert_eq!(failed.kind(), tail);
+        assert_eq!(failed.parent(), Some(items[0].clone()));
+        assert_eq!(range(&failed), 2..expected_range.end);
         assert_eq!(
             child_kinds(&failed),
             [opener_kind, SyntaxKind::Error],
@@ -605,30 +634,69 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
             .next()
             .and_then(|child| child.into_token())
             .expect("tail opener");
+        assert_eq!(opener_token.kind(), opener_kind);
         assert_eq!(opener_token.text(), opener_text);
+        assert_eq!(opener_token.parent(), Some(failed.clone()));
+        assert_eq!(
+            usize::from(opener_token.text_range().start())
+                ..usize::from(opener_token.text_range().end()),
+            2..expected_range.start
+        );
         let error = failed
             .children_with_tokens()
             .nth(1)
             .and_then(|child| child.into_token())
             .expect("name Error leaf");
+        assert_eq!(error.kind(), SyntaxKind::Error);
         assert_eq!(error.text(), error_text);
+        assert_eq!(error.parent(), Some(failed));
         assert_eq!(
             usize::from(error.text_range().start())..usize::from(error.text_range().end()),
             expected_range
         );
-        let sequence = failed
-            .ancestors()
-            .find(|node| node.kind() == SyntaxKind::RuleSequence)
-            .expect("outer RuleSequence");
-        let items = sequence
-            .children()
-            .filter(|node| node.kind() == SyntaxKind::RuleItem)
-            .collect::<Vec<_>>();
-        assert_eq!(items.len(), 2, "{source:?}");
+        assert_eq!(items[1].parent(), Some(sequence));
+        assert_eq!(range(&items[1]), expected_range.end..source.len() - 1);
         assert_eq!(items[1].to_string(), " b", "{source:?}");
         assert_eq!(
-            items[1].first_token().unwrap().kind(),
-            SyntaxKind::Whitespace
+            child_kinds(&items[1]),
+            [SyntaxKind::Whitespace, SyntaxKind::Identifier]
+        );
+        let mut continuation = items[1].children_with_tokens();
+        for (kind, text, token_range) in [
+            (
+                SyntaxKind::Whitespace,
+                " ",
+                expected_range.end..expected_range.end + 1,
+            ),
+            (
+                SyntaxKind::Identifier,
+                "b",
+                expected_range.end + 1..expected_range.end + 2,
+            ),
+        ] {
+            let token = continuation
+                .next()
+                .and_then(|child| child.into_token())
+                .expect("direct continuation token");
+            assert_eq!(token.kind(), kind);
+            assert_eq!(token.text(), text);
+            assert_eq!(token.parent(), Some(items[1].clone()));
+            assert_eq!(
+                usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+                token_range
+            );
+        }
+        assert!(continuation.next().is_none());
+        let close = body
+            .last_child_or_token()
+            .and_then(|child| child.into_token())
+            .expect("direct native body close");
+        assert_eq!(close.kind(), SyntaxKind::RBrace);
+        assert_eq!(close.text(), "}");
+        assert_eq!(close.parent(), Some(body));
+        assert_eq!(
+            usize::from(close.text_range().start())..usize::from(close.text_range().end()),
+            source.len() - 1..source.len()
         );
     }
 

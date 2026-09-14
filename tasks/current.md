@@ -221,6 +221,22 @@ bounded unmapped candidate before further implementation.
   interpolation/fence/caller variants, other Rule slots and gates 2–4 remain
   open. Select the next bounded gate-1 candidate before further implementation.
 
+## RuleField/RulePath required-name audit closure
+
+- The selected M1 slice covered `{a.12 b}` and `{a::💥 b}` one-item name Error
+  followed by a separate outer RuleItem, plus the existing `{a.12?}` proof that
+  a quantifier remains outside the failed RuleField. The pre-write audit found
+  an assertion gap rather than a parser defect.
+- One Astra implementer replaced permissive ancestor/text checks with exact
+  immediate ancestry, direct token/node ownership and ranges, full-source and
+  native-close assertions. Independent delta review was clean. Scoped rustfmt
+  and diff checks passed; the wrapper-disabled exact test passed 1 with 1,422
+  filtered out. No production code, broad suite or benchmark process changed.
+- The two rows are catalog-audited evidence-complete Draft only for those
+  witnessed Error/continuation forms. Missing/accepted-name, newline/fence and
+  broader boundaries, other Rule slots, nested grammar and gates 2–4 remain
+  open. Select the next bounded gate-1 candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
