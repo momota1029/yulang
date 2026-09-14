@@ -188,6 +188,23 @@ bounded unmapped candidate before further implementation.
   migration remain separate. Select the next bounded unmapped candidate before
   further implementation.
 
+## RuleLiteral indirect Missing audit closure
+
+- A read-only M1 audit mapped the five indirect `emit_rule_missing` calls to
+  four structural slots: one interpolation Close reached through two exits,
+  braced lazy Close, unbraced lazy Name and the outer RuleLiteral terminator.
+  Existing direct Rowan evidence was sufficient, so no producer, repair round
+  or test rerun was needed; this synchronization is M0.
+- The catalog row is bounded to its ASCII direct witnesses. Shifted/UTF-8 and
+  fresh/frozen tests remain compatibility support; direct-CST UTF-8 Missing
+  ranges, RuleSequence Error, nested Rule grammar, broader boundary variants,
+  interpreter work and ledger/API migration remain open.
+- Cursor-wide deletion is not the next gate. `SyntaxIn`, `LexIn`, source and
+  lexical transactions, immutable operator observation, current-Item scanning
+  and lossless CST recovery remain. Only the parser-owned diagnostic ledger,
+  reservations/IDs/frozen reconciliation and diagnostic transport/storage are
+  scheduled for atomic retirement after Construction gates 1–3 close.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

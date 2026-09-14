@@ -1519,16 +1519,27 @@ every other Pattern emission remain unmapped.
 
 #### RuleLiteral indirect Missing publishers
 
-The four semantic slots behind five `literal/rule_literal.rs` publishers are
-now linked to direct Rowan proof in
-`tests/literal/rule_literal.rs:rule_literal_child_slots_are_directly_distinguished_by_rowan_context`
-and `interpolation_rule_sequence_error_group_is_direct_and_maximal`: two
-interpolation-close exits share one `RuleLiteralInterpolation` Close slot;
-braced lazy Close, unbraced lazy Name and outer terminator remain distinct.
-Interpolation RuleSequence Error grouping uses its direct parent/context, never
-temporary record count or Error spelling. Status: `evidence-complete Draft`
-for those slots only; nested Rule children, global collector and ledger/API
-migration remain open.
+The bounded catalog row links the four semantic slots behind five
+`literal/rule_literal.rs` publishers. Two interpolation-close exits share one
+direct `RuleLiteralInterpolation` Close slot; braced lazy Close, unbraced lazy
+Name and outer terminator remain distinct by owner and ordered children.
+
+| Source evidence | Status | Linked fact |
+| --- | --- | --- |
+| `crates/yu-syntax/src/literal/rule_literal.rs:176,188` | `linked` | outer-quote and boundary exits publish the same interpolation Close identity; the former preserves the quote once as outer RuleLiteralEnd and the latter leaves the boundary pending |
+| `crates/yu-syntax/src/literal/rule_literal.rs:263` | `linked` | direct OpenBrace selects the braced lazy-capture final Close slot |
+| `crates/yu-syntax/src/literal/rule_literal.rs:297` | `linked` | Colon without direct OpenBrace selects the unbraced lazy required-Name slot |
+| `crates/yu-syntax/src/literal/rule_literal.rs:357` | `linked` | final direct RuleLiteral Missing owns the outer terminator occurrence |
+| `crates/yu-syntax/src/rule/mod.rs:891–894` | `linked` | all five calls delegate construction of one empty direct Missing node without adding a classifier |
+
+Direct ordered Rowan proof is
+`crates/yu-syntax/src/tests/literal/rule_literal.rs:323–469`; fresh/frozen and
+lossless compatibility support is
+`crates/yu-syntax/src/tests/rule_literal_recovery.rs:131–211`. The independent
+audit was clean. Status: catalog-audited evidence-complete Draft for the four
+ASCII direct witnesses only. Direct-CST UTF-8 ranges, RuleSequence Error,
+nested Rule children, broader boundary variants, global collector and
+ledger/API migration remain open.
 
 - `crates/yu-syntax/src/literal/mod.rs`
 - `crates/yu-syntax/src/rule/mod.rs`
