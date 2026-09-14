@@ -376,6 +376,26 @@ arrow RHS, structured-primary internals, or any other Type context.
 | diagnostic projection | The direct Missing projects singleton `TypeExpression`, primary alternative zero, at its Rowan zero-width range. One maximal adjacent direct Error-token group under this immediate `TypeExpression` parent projects the same singleton over the combined UTF-8 group range; native leading or post-Error EOF trailing trivia is outside that range, and an admitted retry primary, sibling/nested syntax, or a handoff splits groups. Projection order is preorder: an enclosing existing `Invalid`, when any, precedes this descendant head occurrence, and this occurrence precedes recovery projected by its descendants. For explicit `[e`, the nested BracketRow close Missing occurs first, then the direct sibling head Missing at the same offset; they are not merged. |
 | proof and status | Governing Draft evidence: error-admission clarification, **Proposed schema slice: LeadingEffectTypeHead**. Direct CST/recovery controls: `crates/yu-syntax/src/tests/type_expr/leading_row_cst.rs:347` (protected boundaries), `:410` (layout), `:469` (quoted-fence pending ownership), and `:536–580` (outer `Invalid` nesting and public Root conservation); `crates/yu-syntax/src/tests/type_expr/leading_row_recovery.rs:20–100, 244–257`; and `crates/yu-syntax/src/tests/type_expr.rs:9076–9164, 7923–7928`. Concrete publishers are limited to `crates/yu-syntax/src/type_expr/mod.rs:1568` (incomplete-row exit Missing), `1671` (direct malformed Error-run), and `1727` (boundary/ordinary leading head Missing). Status: `mapped` for this bounded evidence-complete Draft row only; the interpreter, recovery ledger, promotions, and global Type rows remain open. |
 
+### BracketRow internal Item/Close collision stop
+
+BracketRow Item/Close mapping is `BLOCKING`. The independently audited
+`bracket_row_item_and_close_roles_collide_in_direct_cst_topology` witness in
+`crates/yu-syntax/src/tests/type_expr/bracket_recovery.rs` proves that
+`T [A@] -> U` and `T [A)] -> U` have the same direct `BracketRow` grammar:
+`LBracket TypeExpression(Identifier) Error RBracket`, including the same direct
+Error range `4..5` and trailing-arrow ancestry. The retained recovery contract
+requires respectively `Type(BracketRowItem)` with singleton `TypeExpression`
+and `ClosingDelimiter(BracketRow, Bracket)` with singleton `]`, both primary
+zero. Opaque Error spelling is the only remaining distinction and cannot select
+a CST schema identity.
+
+This is evidence of an owner-level structural collision, not a mapped or
+evidence-complete row. Do not merge the roles, inspect Error text, or change
+their expectations. A structural resolution requires explicit approval before
+production changes, followed by direct schema proof and independent audit.
+BracketRow Separator reachability and other Item/Close paths remain separate
+open obligations.
+
 ### BracketRow-selected required-arrow continuation map
 
 This bounded Draft row records the required-arrow continuation immediately

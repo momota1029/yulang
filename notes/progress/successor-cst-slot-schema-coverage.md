@@ -1201,6 +1201,23 @@ assigned to it.
 | `crates/yu-syntax/src/type_expr/mod.rs:1830–1903` | `linked` | completed-row boundary, actual-Arrow, malformed-run, and retry classification |
 | `crates/yu-syntax/src/type_expr/mod.rs:1900–1904` | `linked` | arrowless admitted-Type leading, its one required-arrow Missing, then `TypeExpression` continuation |
 
+BracketRow internal Item and Close remain unmapped because their current CST
+topology collides. Item dispatch at `type_expr/delimited.rs:457` and Error
+publication at `:686`, versus terminal Close dispatch at `:431` and Error
+publication at `:1116`, are pinned by
+`bracket_row_item_and_close_roles_collide_in_direct_cst_topology` in
+`crates/yu-syntax/src/tests/type_expr/bracket_recovery.rs`: `T [A@] -> U` and
+`T [A)] -> U` have identical direct row ancestry and Error range `4..5` but
+retain distinct Item/TypeExpression and Close/`]` singleton roles. Independent
+delta audit was clean; the collision test and two neighboring exact tests each
+passed 1 with 1,423 filtered out. Error spelling cannot select the slot.
+
+`BracketRowSeparator` at `type_expr/delimited.rs:1312` is live through the
+explicit owner branches at `:454` and `:500`. `inherited_separator = false` at
+`:78` disables Type-ML splitting only; it does not make Separator recovery
+unreachable. Separator schema/proof remains open independently of the blocking
+Item/Close structural decision.
+
 Focused direct CST/recovery support is
 `tests/type_expr/bracket_arrow_cst.rs:17–147,151–185,189–408` and
 `tests/type_expr/bracket_arrow_recovery.rs:35–100,104–222,226–244`.

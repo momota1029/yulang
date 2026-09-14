@@ -130,6 +130,99 @@ fn bracket_row_item_errors_keep_retry_trivia_outside_the_error() {
 }
 
 #[test]
+fn bracket_row_item_and_close_roles_collide_in_direct_cst_topology() {
+    use SyntaxKind::*;
+
+    // The approved Item retry and close-only retry select different roles.
+    // These are compatibility inputs, not roles inferred from Error spelling.
+    let cases = [
+        ("T [A@] -> U", item(0, 4..5, true)),
+        ("T [A)] -> U", close(0, 4..5, Some(Delimiter::Parenthesis))),
+    ];
+    assert_ne!(cases[0].1.site.role, cases[1].1.site.role);
+    assert_eq!(
+        cases[0].1.expectations[0].expected,
+        ExpectedSyntax::TypeExpression
+    );
+    assert_eq!(
+        cases[1].1.expectations[0].expected,
+        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket))
+    );
+
+    let mut topologies = Vec::new();
+    for (source, expected) in cases {
+        let root = assert_complete_type_recovery(source, 0, &[expected.clone()]);
+        let shift = "sentinel".len();
+        assert_eq!(root.to_string(), format!("sentinel{source}"));
+        let relative = |range: rowan::TextRange| {
+            usize::from(range.start()) - shift..usize::from(range.end()) - shift
+        };
+        let row = root
+            .descendants()
+            .find(|node| node.kind() == BracketRow)
+            .unwrap();
+        assert_eq!(relative(row.text_range()), 2..6);
+        assert_eq!(
+            row.text_range(),
+            rowan::TextRange::new((shift as u32 + 2).into(), (shift as u32 + 6).into())
+        );
+        let topology = row
+            .descendants_with_tokens()
+            .map(|element| {
+                (
+                    element.kind(),
+                    element.parent().map(|parent| parent.kind()),
+                    relative(element.text_range()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            topology,
+            vec![
+                (BracketRow, Some(TypeArrowTail), 2..6),
+                (LBracket, Some(BracketRow), 2..3),
+                (TypeExpression, Some(BracketRow), 3..4),
+                (Identifier, Some(TypeExpression), 3..4),
+                (Error, Some(BracketRow), 4..5),
+                (RBracket, Some(BracketRow), 5..6),
+            ]
+        );
+        assert!(
+            !row.descendants()
+                .any(|node| matches!(node.kind(), Missing | Invalid))
+        );
+        let groups = recovery_groups(&row);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].parent(), Some(row.clone()));
+        assert_eq!(relative(groups[0].text_range()), 4..5);
+        let tail = row.parent().unwrap();
+        assert_eq!(tail.kind(), TypeArrowTail);
+        assert_eq!(tail.parent().unwrap().kind(), TypeExpression);
+        assert_eq!(relative(tail.text_range()), 2..source.len());
+        assert_eq!(
+            tail.children_with_tokens()
+                .skip(1)
+                .map(|element| (
+                    element.kind(),
+                    element.to_string(),
+                    relative(element.text_range())
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (Whitespace, " ".into(), 6..7),
+                (Arrow, "->".into(), 7..9),
+                (TypeExpression, " U".into(), 9..11),
+            ]
+        );
+        assert_eq!(expected.expectations.len(), 1);
+        assert_eq!(expected.expectations[0].role, expected.site.role);
+        assert_eq!(expected.primary_expectation, 0);
+        topologies.push(topology);
+    }
+    assert_eq!(topologies[0], topologies[1]);
+}
+
+#[test]
 fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
     for (source, expected) in [
         ("T [,] -> U", vec![item(0, 3..3, false)]),

@@ -487,6 +487,26 @@ bounded unmapped candidate before further implementation.
   variants and gates 2–4 remain open. Audit BracketRow Item/Close internals
   next.
 
+## BracketRow Item/Close CST-role collision proof
+
+- A pre-write Astra audit traced all reachable BracketRow owner phases and
+  confirmed that `BracketRowSeparator` is live through explicit branches;
+  disabling inherited separators only disables Type-ML splitting.
+- One Astra implementer added the bounded collision witness
+  `T [A@] -> U` versus `T [A)] -> U`. Both have the same exact six-element
+  BracketRow subtree, normalized Error range `4..5`, one direct Error group and
+  the same trailing-arrow ancestry, while the retained contract requires
+  Item/TypeExpression versus Close/`]` singleton roles with primary zero.
+  Fresh/frozen replay, full source and sentinel shifts are pinned. Independent
+  delta audit was clean. Scoped rustfmt/diff checks plus the collision and two
+  neighboring exact tests passed; each ran 1 test with 1,423 filtered out. No
+  production code, broad suite or benchmark ran.
+- This is a BLOCKING owner-level structural ambiguity for the affected mapping,
+  not an implementation repair or mapped schema. Do not merge roles or inspect
+  Error spelling. An explicit structural decision is required before changing
+  production topology. Separator mapping and unrelated Gate-1 work can proceed
+  independently.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
