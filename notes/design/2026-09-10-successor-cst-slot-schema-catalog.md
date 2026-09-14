@@ -1163,6 +1163,17 @@ caller/fence handoff suites, and every nested Statement recovery.
 | diagnostic projection | A direct Missing or maximal direct Error group after completed `TypeExpression` projects `Declaration(Role(BodyIntroducer))` with ordered expected `[Semicolon, Open(Brace), Colon]`, primary zero. A direct Missing/Error group after actual Colon projects `Declaration(Role(Body))` expected `Statement`. Ordered direct siblings distinguish both from Head Type recovery and child Statement diagnostics. Error spelling, recovery records, scanner state and pending-boundary coordinates are not inputs. |
 | proof and status | Governing authority: [Role current-Item typed recovery](2026-09-08-successor-role-current-item-recovery.md), **Records and ownership** and **Boundary, leading and retry**, plus the CST-derived diagnostics amendment. `role_schema_completed_head_statement_shell_composition` supplies nine full statement-shell products, including terminal Error and Root-owned EOF suffixes; existing component proofs retain excluded Head/nested forms. M1 pre-write, regression and leading-ownership delta audits were clean. Status: catalog-audited evidence-complete Draft for these witnessed direct Role rows only; Head Type schema, braced/indented/nested Statement recovery, caller/fence topology, global collector, parser API and recovery-ledger retirement remain open. |
 
+### RoleDeclaration first indented Statement Draft
+
+This bounded Draft maps RoleDeclaration's first required indented Statement
+after a completed Head and actual Colon.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and grammar | `RoleDeclaration(RoleKw Native* TypeExpression Colon IndentedStatementBlock)` selects the first direct block Missing/Error+ or admitted Statement. |
+| projection | Direct ancestor/child order selects `Declaration(Role(IndentedStatement))`, singleton expected Statement, primary zero. The Missing is empty; one maximal adjacent Error group is one occurrence, and retry Statement owns its leading. |
+| proof and status | Authority: [expression indented Statement role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), Role transport/Publication; Role recovery; CST amendments. Owner: `declaration/role_decl.rs:444–471`; shared block: `statement.rs:510–557,757–942`. Direct proof: `indented_role_rowan_schema_covers_first_statement_missing_error_retry_and_control` in `tests/indented_recovery.rs`, four witnesses at origins 0/41. M1 pre/post audits clean; focused indented tests passed 14. Status: catalog-audited evidence-complete Draft only for these alternatives; all Head/BodyIntroducer, inline/wrong-indent/braced, later/nested/fence/caller paths remain open. |
+
 ### ImplDeclaration BodyIntroducer and inline Body Draft
 
 This bounded Draft maps only Impl's direct body phases. It excludes Head and

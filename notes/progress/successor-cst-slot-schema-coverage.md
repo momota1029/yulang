@@ -266,6 +266,15 @@ state. M1 post-write specification audit was clean. Head Type recovery,
 braced/indented child internals, caller/fence suites and remaining Role rows
 remain separate.
 
+#### RoleDeclaration first indented Statement Draft link
+
+`declaration/role_decl.rs:444–471` selects the transported Role block role.
+`indented_role_rowan_schema_covers_first_statement_missing_error_retry_and_control`
+in `tests/indented_recovery.rs` derives the four direct Missing/Error/retry/control
+occurrences from CST ancestry and ordered block children at origins 0/41. Both
+M1 audits were clean; focused indented tests passed 14. Head/BodyIntroducer,
+inline/wrong-indent/braced, later/nested/fence/caller paths remain separate.
+
 #### ImplDeclaration BodyIntroducer/inline Body Draft links
 
 Only `crates/yu-syntax/src/declaration/impl_tail.rs:130–460,760–875` is linked

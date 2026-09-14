@@ -115,6 +115,15 @@ The parenthesized/list post-item Separator slice is now catalog-audited
 evidence-complete Draft for its 24 direct CST witnesses. Select the next bounded
 unmapped candidate before further implementation.
 
+Selected candidate: RoleDeclaration's first indented Statement after completed
+Head and actual Colon, limited to EOF Missing, lexical Error, Error-to-Statement
+retry and accepted control. Head/BodyIntroducer, inline/wrong-indent/braced,
+later/nested/fence and other callers remain separate.
+
+Role's first indented Statement slice is now catalog-audited evidence-complete
+Draft for its four direct CST witnesses. Select the next bounded unmapped
+candidate before further implementation.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
