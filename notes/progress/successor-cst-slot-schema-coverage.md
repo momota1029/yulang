@@ -1405,6 +1405,24 @@ Focused direct Rowan proof is
 other Pattern row remain untriaged, delegated, or unmapped unless separately
 linked below.
 
+#### RecordPattern direct lexical Item/Separator Missing and Error Draft link
+
+`crates/yu-syntax/src/pattern/delimited.rs:263` fresh-comma Missing, `:293`
+absent-separator Missing, `:298–335` phase-selected lexical admission,
+`:417–421` retry transition and `:426–472` maximal lexical run map to the
+bounded direct RecordPattern Item/Separator row. Direct CST proof is
+`record_raw_sequence_roles_follow_direct_ordered_children` in
+`tests/pattern/recovery/sequence.rs:624–856`: comma resets Item, an accepted
+field enters Separator and direct Whitespace preserves phase. It derives each
+direct Missing/Error+ role from ordered children and ranges, not records or
+Error spelling; the `checked` harness retains fresh/frozen compatibility.
+M1 independent evidence-to-schema audit was clean. This is
+catalog-audited evidence-complete Draft only for the ten witnessed lexical
+alternatives. Spreads, other trivia, repeated Missing, Error-to-comma/
+structured transitions, EOF/protected handoff, field/default interiors,
+structured Invalid, foreign/local close, nested Pattern and broader sequence
+paths remain separate.
+
 #### RecordPattern separator-phase structured Invalid row link
 
 Only the existing structured-recovery emission at
