@@ -501,6 +501,22 @@ exact-Equals lexing or other field/sequence slots.
 | diagnostic projection | Ordered `RecordPattern > RecordPatternField > Equals > OperatorChain > Missing` ancestry selects `Pattern(RecordDefaultExpression)` with singleton expected Expression and primary zero at its zero-width range. In `{a=@ x}`, this Missing precedes the separately phase-selected direct Separator Error range. Records, Error spelling and source origin do not select either occurrence. |
 | proof and status | Governing authority: [Pattern default-Expression Missing publication](2026-09-08-successor-pattern-default-expression-publication.md), **Exact owning rule** and **Evidence and pre-write adjudication**; [Pattern sequence current-Item recovery](2026-09-08-successor-pattern-sequence-current-item-recovery.md), **Sequence rule and exact records**; Rowan CST-only and CST-derived diagnostics amendments. Owners: `crates/yu-syntax/src/pattern/delimited.rs:711–925`. Direct CST proof: `record_default_cst_schema_selects_missing_and_later_sequence_recovery` in `crates/yu-syntax/src/tests/pattern/recovery/default_expression.rs`, covering `{a=}`, `{a= }`, `{a=,b}`, `{a: p =}`, `{a=@ x}` and `{a=1}`. M1 pre-write and post-write specification audits were clean; wrapper-disabled focused default-expression tests passed 7. Status: catalog-audited evidence-complete Draft for these six witnesses only; all excluded paths remain open. |
 
+### Pattern terminal local Close Missing Draft
+
+This bounded Draft maps ordinary EOF terminal local-close `Missing` and native
+matching-close controls for `ParenthesizedPattern`, `ListPattern`, and
+`RecordPattern`. It does not map foreign or carried closes, caller/fence
+handoff, sequence Item/Separator, field/default/spread interiors, or broader
+recursive Pattern behavior.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and ordered grammar | `(ParenthesizedPattern | ListPattern | RecordPattern, native opener, direct terminal Missing)`. The owner-specific native opener selects `ClosingDelimiter(ParenthesizedPattern, Parenthesis)`, `ClosingDelimiter(ListPattern, Bracket)`, or `ClosingDelimiter(RecordPattern, Brace)`. The witnessed EOF forms are `Open Missing` and `Open CompletedChild Missing`; accepted controls replace that final direct empty node with the matching native close token. |
+| malformed admission and completion | After the existing child/sequence path reaches ordinary EOF, the owner emits one final direct empty Missing. The matching local close wins first and finishes natively, so it publishes no occurrence. This row neither claims a terminal Error route nor changes completion; it preserves the existing child recovery and owner-selected close behavior. |
+| nested ownership and ordering | A completed child retains its own recovery. In `"({a:"`, `RecordPatternField > Pattern > Missing` precedes the final direct RecordPattern Missing, which precedes the final direct ParenthesizedPattern Missing. All three may share one zero-width coordinate; direct path and Rowan preorder distinguish them. |
+| diagnostic projection | The final direct Missing projects one owner-specific close expectation, `Punctuation(Close(Parenthesis | Bracket | Brace))`, with primary alternative zero at its zero-width Rowan range. Direct opener, immediate owner and terminal sibling position select the occurrence; records, recovery IDs, Error spelling and range alone are not inputs. Native accepted closes project nothing. |
+| proof and status | Governing authority: [Pattern delimiter slot publication](2026-09-08-successor-pattern-delimited-slot-publication.md), **Exact publication mapping** and **Missing close**; [Pattern sequence current-Item recovery](2026-09-08-successor-pattern-sequence-current-item-recovery.md), local-close/EOF priority; Rowan CST-only and CST-derived diagnostics amendments. Owner: `crates/yu-syntax/src/pattern/delimited.rs:48–86,220–245,928–974`. Direct CST proof: `delimited_terminal_close_is_derived_from_direct_rowan_order` in `crates/yu-syntax/src/tests/pattern/recovery/delimited.rs`, covering empty and completed-child EOF/native-close forms plus `"({a:"` at origins 0 and 41. M1 pre-write and post-write specification audits were clean; wrapper-disabled focused delimited tests passed 8. Status: catalog-audited evidence-complete Draft only for these witnessed EOF/native controls and same-offset composition; all excluded paths remain open. |
+
 ### RecordPattern separator-phase structured Invalid map
 
 This bounded referenced row records only the existing separator-phase

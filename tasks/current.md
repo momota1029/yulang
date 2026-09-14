@@ -89,27 +89,24 @@ temporary diagnostic state while the schema remains incomplete.
   witnesses. It is selected before later sequence recovery by ordered CST;
   carried-close/fence, nested defaults/Invalid, field Pattern/Expression
   internals, close recovery and exact-Equals lexing remain open.
+- Latest M1 evidence checkpoint: terminal local Close Missing for
+  ParenthesizedPattern, ListPattern and RecordPattern is catalog-audited
+  evidence-complete Draft for empty/completed-child ordinary EOF controls,
+  matching native closes and the same-offset `"({a:"` composition. Ordered
+  direct Rowan ancestry selects nested Pattern then Record then Parenthesized
+  close occurrences without diagnostic records. Foreign/caller/fence closes,
+  sequence recovery, child interiors and broader recursion remain open.
 - The focused Use module passed 59 tests at this checkpoint on 2026-09-12.
   This is fresh local health evidence, not whole-workspace certification.
 
 ## Immediate next bounded work
 
-1. Use the reconciled evidence links in the two existing navigation layers:
-   the [`slot catalog`](../notes/design/2026-09-10-successor-cst-slot-schema-catalog.md),
-   especially **UseDeclaration Path, Alias and group-entry Draft**, and the
-   [`source coverage manifest`](../notes/progress/successor-cst-slot-schema-coverage.md),
-   especially **2026-09-12 Use navigation reconciliation**. Their
-   family summaries and older exclusions are historical/partial; they are not
-   a trustworthy current completion count. Check the specific row and test
-   before selecting a new gap or reopening completed work.
-2. Select the next bounded unmapped schema candidate only after reconciling its
-   specific catalog/coverage row, direct owner and existing tests. The completed
-   inner group-item Alias audit adds no license to enumerate new Alias ordinals:
-   they remain occurrences of the existing slot. The completed With, Binding and
-   Mod indented rows likewise do not cover nested/later/fence/other-caller paths;
-   the RecordPattern lexical/default rows likewise exclude structured/boundary
-   and nested-expression paths.
-3. Keep component recovery under its existing parent and preserve exact pending
+1. Select the next bounded unmapped schema candidate only after reconciling its
+   specific catalog/coverage row, direct owner and existing tests. Do not
+   expand the completed Pattern terminal-close slice into foreign/caller/fence
+   closes, sequence recovery, child interiors or broader recursion without a
+   distinct candidate and audit.
+2. Keep component recovery under its existing parent and preserve exact pending
    Item leading. If the CST cannot distinguish required diagnostics, record the
    concrete collision and return only that owner to design; do not infer a new
    wrapper or change an expectation to match output.

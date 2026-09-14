@@ -1442,6 +1442,23 @@ these six witnesses. Carried-close/fence, nested defaults/Invalid, field
 Pattern/Expression internals, close recovery, exact-Equals lexing and global
 migration remain separate.
 
+#### Pattern terminal local Close Missing Draft link
+
+`crates/yu-syntax/src/pattern/delimited.rs:48–86` maps the three concrete
+owner/delimiter pairs, `:220–245` gives a matching local close priority, and
+`:928–974` appends the owner-selected direct terminal Missing at ordinary EOF.
+Direct CST proof is `delimited_terminal_close_is_derived_from_direct_rowan_order`
+in `tests/pattern/recovery/delimited.rs`: it checks empty and completed-child
+EOF/native-close forms for Parenthesized/List/Record at origins 0 and 41, then
+derives the nested `"({a:"` ordering from direct Rowan paths. It selects the
+close occurrence from native opener, immediate owner and final direct sibling,
+not records, diagnostic IDs or coordinates alone. M1 pre-write and post-write
+specification audits were clean; wrapper-disabled focused delimited tests
+passed 8. This is catalog-audited evidence-complete Draft only for ordinary
+EOF/native controls and this same-offset composition. Foreign/caller/fence
+close paths, sequence recovery, child interiors and broader recursion remain
+separate.
+
 #### RecordPattern separator-phase structured Invalid row link
 
 Only the existing structured-recovery emission at

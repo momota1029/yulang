@@ -253,6 +253,185 @@ fn delimited_missing_close_order_follows_nested_slot_records() {
 }
 
 #[test]
+fn delimited_terminal_close_is_derived_from_direct_rowan_order() {
+    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
+    use Delimiter::{Brace, Bracket, Parenthesis};
+    use SyntaxKind::{
+        Colon, Identifier, LBrace, LBracket, LParen, ListPattern, Missing, ParenthesizedPattern,
+        Pattern, RBrace, RBracket, RParen, RecordPattern, RecordPatternField,
+    };
+
+    fn assert_children(owner: &SyntaxNode, start: usize, expected: &[(SyntaxKind, &str)]) {
+        let direct = owner.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(direct.len(), expected.len());
+        let mut at = "sentinel".len() + start;
+        for (child, (kind, text)) in direct.iter().zip(expected) {
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.parent(), Some(owner.clone()));
+            assert_eq!(child.to_string(), *text);
+            assert_eq!(
+                child.as_node().is_some(),
+                matches!(kind, Pattern | RecordPattern | RecordPatternField | Missing)
+            );
+            assert_eq!(usize::from(child.text_range().start()), at);
+            at += text.len();
+            assert_eq!(usize::from(child.text_range().end()), at);
+            if *kind == Missing {
+                assert_eq!(child.as_node().unwrap().children_with_tokens().count(), 0);
+            }
+        }
+    }
+
+    for origin in [0, 41] {
+        for (open, close, owner_kind, child_kind, role, delimiter, open_kind, close_kind) in [
+            (
+                "(",
+                ")",
+                ParenthesizedPattern,
+                Pattern,
+                P,
+                Parenthesis,
+                LParen,
+                RParen,
+            ),
+            (
+                "[",
+                "]",
+                ListPattern,
+                Pattern,
+                L,
+                Bracket,
+                LBracket,
+                RBracket,
+            ),
+            (
+                "{",
+                "}",
+                RecordPattern,
+                RecordPatternField,
+                R,
+                Brace,
+                LBrace,
+                RBrace,
+            ),
+        ] {
+            for item in ["", "a"] {
+                for has_close in [false, true] {
+                    let source = format!("{open}{item}{}", if has_close { close } else { "" });
+                    let records = if has_close {
+                        vec![]
+                    } else {
+                        vec![close_record(1, role, delimiter, origin + source.len())]
+                    };
+                    let fresh = checked(
+                        &source,
+                        Context {
+                            origin,
+                            ..Context::default()
+                        },
+                        &records,
+                        &source,
+                        if has_close {
+                            PatternCompletion::Complete
+                        } else {
+                            PatternCompletion::Incomplete
+                        },
+                    );
+                    assert_eq!(fresh.remainder, "");
+                    let root = SyntaxNode::new_root(fresh.green);
+                    assert_eq!(root.to_string(), format!("sentinel{source}"));
+                    // Select the slot from its direct CST owner, not recovery records.
+                    let pattern = root.children().find(|node| node.kind() == Pattern).unwrap();
+                    let owner = pattern
+                        .children()
+                        .find(|node| node.kind() == owner_kind)
+                        .unwrap();
+                    let mut expected = vec![(open_kind, open)];
+                    if !item.is_empty() {
+                        expected.push((child_kind, item));
+                    }
+                    expected.push(if has_close {
+                        (close_kind, close)
+                    } else {
+                        (Missing, "")
+                    });
+                    assert_children(&owner, 0, &expected);
+                    let recovery = owner
+                        .descendants()
+                        .filter(|node| {
+                            matches!(
+                                node.kind(),
+                                Missing | SyntaxKind::Error | SyntaxKind::Invalid
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    if has_close {
+                        assert!(recovery.is_empty());
+                    } else {
+                        assert_eq!(recovery, vec![owner.last_child().unwrap()]);
+                        assert!(
+                            !owner
+                                .descendants_with_tokens()
+                                .any(|child| child.kind() == close_kind)
+                        );
+                    }
+                }
+            }
+        }
+
+        let source = "({a:";
+        let at = origin + source.len();
+        let fresh = checked(
+            source,
+            Context {
+                origin,
+                ..Context::default()
+            },
+            &[
+                record(1, PatternRole::RecordNestedPattern, at..at, false),
+                close_record(2, R, Brace, at),
+                close_record(3, P, Parenthesis, at),
+            ],
+            source,
+            PatternCompletion::Incomplete,
+        );
+        assert_eq!(fresh.remainder, "");
+        let root = SyntaxNode::new_root(fresh.green);
+        assert_eq!(root.to_string(), format!("sentinel{source}"));
+        let pattern = root.children().find(|node| node.kind() == Pattern).unwrap();
+        let paren = pattern
+            .children()
+            .find(|node| node.kind() == ParenthesizedPattern)
+            .unwrap();
+        assert_children(&paren, 0, &[(LParen, "("), (Pattern, "{a:"), (Missing, "")]);
+        let element = paren.first_child().unwrap();
+        assert_children(&element, 1, &[(RecordPattern, "{a:")]);
+        let record = element.first_child().unwrap();
+        assert_children(
+            &record,
+            1,
+            &[(LBrace, "{"), (RecordPatternField, "a:"), (Missing, "")],
+        );
+        let field = record.first_child().unwrap();
+        assert_children(&field, 2, &[(Identifier, "a"), (Colon, ":"), (Pattern, "")]);
+        let nested = field.first_child().unwrap();
+        assert_children(&nested, 4, &[(Missing, "")]);
+        let missing = paren
+            .descendants()
+            .filter(|node| node.kind() == Missing)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            missing,
+            vec![
+                nested.first_child().unwrap(),
+                record.last_child().unwrap(),
+                paren.last_child().unwrap()
+            ]
+        );
+    }
+}
+
+#[test]
 fn delimited_missing_closes_keep_caller_items_and_real_outer_close_ownership() {
     use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
     use Delimiter::{Brace, Bracket, Parenthesis};
