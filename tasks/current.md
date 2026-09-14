@@ -369,6 +369,23 @@ bounded unmapped candidate before further implementation.
   callers, recursive Rule grammar and gates 2–4 remain open. Select the next
   bounded gate-1 candidate.
 
+## RuleCapture bare required-RHS Missing closure
+
+- The selected M1 slice added one `{a=}` direct-CST witness for the zero-Error
+  required RHS Missing before the native RuleBody close. Existing Capture proof
+  covered only Error-to-Missing and Error-to-RuleItem.
+- One Astra implementer proved the complete exact tree/source, terminal
+  RuleCapture with direct Equals and childless Missing at `3..3`, unique
+  Missing/no Error/Invalid, native RBrace and CST-derived singleton
+  `Literal(RuleItem)` with primary zero before records. Independent pre-write
+  and delta audits were clean. Scoped rustfmt/diff checks and the
+  wrapper-disabled exact test passed; 1 test, 1,422 filtered out. No production
+  code, broad suite or benchmark ran.
+- The row now covers three witnessed zero/one-Error terminal/retry forms.
+  Accepted-only RHS, longer Error runs, deeper/recursive Rule, other
+  boundary/caller variants and gates 2–4 remain open. Select the next bounded
+  gate-1 candidate.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

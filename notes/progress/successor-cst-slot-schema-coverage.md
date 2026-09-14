@@ -1615,12 +1615,13 @@ into a slot identity.
 | `(RuleSequence, repeated RuleItem phase, RuleAlternation Body or Parenthesis frame)` | `334–375`, `412–447`, `864–878` | `audited` | terminal RuleBody witness proves two-leaf maximal UTF-8 Error grouping and native frame completion |
 
 The RuleCapture row has focused direct Rowan proof in
-`crates/yu-syntax/src/tests/rule_literal_recovery.rs:428–569`. It preserves
-the native closing brace and full source, proves direct childless Missing after
-one Error or the exact admitted RHS token/node shell without duplicate Missing,
-and retains terminal Capture ownership. The independent post-write audit was
-clean; the focused test passed 1 with 1,422 filtered out. This closure is
-limited to the two Error-to-Missing/Error-to-RuleItem witnesses.
+`dedicated_rule_slots_are_directly_readable_from_the_rowan_tree` in
+`crates/yu-syntax/src/tests/rule_literal_recovery.rs`. It preserves the native
+closing brace and full source, proves direct childless Missing after zero or
+one Error, or the exact admitted RHS token/node shell without duplicate
+Missing, and retains terminal Capture ownership. Independent post-write audits
+were clean; the focused test passed 1 with 1,422 filtered out. This closure is
+limited to the bare-Missing, Error-to-Missing and Error-to-RuleItem witnesses.
 
 The RuleField/RulePath required-name rows have focused direct Rowan proof in
 `dedicated_rule_slots_are_directly_readable_from_the_rowan_tree` in

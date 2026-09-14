@@ -500,6 +500,139 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
         .collect::<Vec<_>>();
     assert_eq!(records, expected_records);
 
+    // A bare absent capture RHS is terminal before the native body close.
+    {
+        let source = "{a=}";
+        let (green, records) = parse(source, 0, None);
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.parent(), None);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(range(&root), 0..4);
+        assert_eq!(child_kinds(&root), [SyntaxKind::RuleBody]);
+        let body = root.first_child().expect("direct RuleBody");
+        assert_eq!(body.kind(), SyntaxKind::RuleBody);
+        assert_eq!(body.parent(), Some(root.clone()));
+        assert_eq!(body.to_string(), source);
+        assert_eq!(range(&body), 0..4);
+        assert_eq!(
+            child_kinds(&body),
+            [
+                SyntaxKind::LBrace,
+                SyntaxKind::RuleAlternation,
+                SyntaxKind::RBrace
+            ]
+        );
+        let mut parent = body.clone();
+        for (kind, children) in [
+            (SyntaxKind::RuleAlternation, vec![SyntaxKind::RuleSequence]),
+            (SyntaxKind::RuleSequence, vec![SyntaxKind::RuleItem]),
+            (
+                SyntaxKind::RuleItem,
+                vec![SyntaxKind::Identifier, SyntaxKind::RuleCapture],
+            ),
+        ] {
+            let child = parent.first_child().expect("direct Rule child");
+            assert_eq!(child.kind(), kind);
+            assert_eq!(child.parent(), Some(parent));
+            assert_eq!(child.to_string(), "a=");
+            assert_eq!(range(&child), 1..3);
+            assert_eq!(child_kinds(&child), children);
+            parent = child;
+        }
+        let item = parent;
+        let capture = item.first_child().expect("direct terminal RuleCapture");
+        assert_eq!(capture.kind(), SyntaxKind::RuleCapture);
+        assert_eq!(capture.parent(), Some(item.clone()));
+        assert_eq!(capture.to_string(), "=");
+        assert_eq!(range(&capture), 2..3);
+        assert_eq!(
+            child_kinds(&capture),
+            [SyntaxKind::Equals, SyntaxKind::Missing]
+        );
+        assert_eq!(item.last_child_or_token(), Some(capture.clone().into()));
+        for (owner, kind, text, token_range) in [
+            (&body, SyntaxKind::LBrace, "{", 0..1),
+            (&item, SyntaxKind::Identifier, "a", 1..2),
+            (&capture, SyntaxKind::Equals, "=", 2..3),
+        ] {
+            let token = owner
+                .first_child_or_token()
+                .and_then(|child| child.into_token())
+                .expect("direct native token");
+            assert_eq!(token.kind(), kind);
+            assert_eq!(token.text(), text);
+            assert_eq!(token.parent(), Some(owner.clone()));
+            assert_eq!(
+                usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+                token_range
+            );
+        }
+        let missing = capture.first_child().expect("direct RHS Missing");
+        assert_eq!(missing.kind(), SyntaxKind::Missing);
+        assert_eq!(missing.parent(), Some(capture.clone()));
+        assert_eq!(range(&missing), 3..3);
+        assert_eq!(missing.children_with_tokens().count(), 0);
+        assert_eq!(missing.to_string(), "");
+        assert_eq!(capture.last_child_or_token(), Some(missing.clone().into()));
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .collect::<Vec<_>>(),
+            [missing.clone()]
+        );
+        assert!(
+            root.descendants_with_tokens()
+                .all(|element| !matches!(element.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+        );
+        let close = body
+            .last_child_or_token()
+            .and_then(|child| child.into_token())
+            .expect("final native RuleBody RBrace");
+        assert_eq!(close.kind(), SyntaxKind::RBrace);
+        assert_eq!(close.text(), "}");
+        assert_eq!(close.parent(), Some(body));
+        assert_eq!(
+            usize::from(close.text_range().start())..usize::from(close.text_range().end()),
+            3..4
+        );
+        assert_eq!(root.last_token(), Some(close));
+
+        let owner = missing.parent().expect("required RHS owner");
+        let introducer = owner
+            .first_child_or_token()
+            .and_then(|child| child.into_token())
+            .expect("required RHS introducer");
+        let (role, alternatives, primary) = match (owner.kind(), introducer.kind()) {
+            (SyntaxKind::RuleCapture, SyntaxKind::Equals) => (
+                LiteralRole::RuleCaptureRightItem,
+                [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
+                0,
+            ),
+            other => panic!("unexpected required RHS owner/introducer: {other:?}"),
+        };
+        let derived = (
+            GrammarRole::Literal(role),
+            range(&missing),
+            alternatives,
+            primary,
+        );
+        assert_eq!(
+            derived,
+            (
+                GrammarRole::Literal(LiteralRole::RuleCaptureRightItem),
+                3..3,
+                [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
+                0,
+            )
+        );
+        let expected = record(0, role, derived.1, None);
+        assert_eq!(expected.expectations.len(), derived.2.len());
+        assert_eq!(expected.expectations[0].expected, derived.2[0]);
+        assert_eq!(expected.primary_expectation, derived.3);
+        assert_eq!(records, [expected]);
+    }
+
     // A capture is terminal in its outer item.  The Error is direct capture
     // content; the following Missing or admitted RuleItem selects the RHS.
     for (source, expected, rhs, close_range) in [
