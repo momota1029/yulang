@@ -638,6 +638,23 @@ boundary/frozen support is `:42–143,577–668`. Binding target, Equals admissi
 indented body, Root progression, fences/active-stop callers and nested expression
 recovery remain separate.
 
+#### BindingBody first indented Statement Draft links
+
+`indented_binding_rowan_schema_covers_first_statement_missing_error_retry_and_control`
+in `tests/indented_recovery.rs` maps the first required Statement under the
+complete `BindingStatement > BindingHeader(... Equals) + BindingBody >
+IndentedStatementBlock` path. Four direct EOF witnesses establish block-native
+leading, zero-width Missing, one maximal terminal Error group,
+Error-to-Statement retry with leading under the admitted IdentifierExpression,
+and accepted control. Ordered Header/Body/block ancestry selects
+`Declaration(Binding(IndentedStatement))`; Error spelling and temporary records
+do not select the slot. The proof asserts node/token parentage, byte ranges,
+source reconstruction and fresh/frozen equality. M1 pre-write and post-write
+specification audits were clean; the wrapper-disabled focused indented-recovery
+module passed 12 tests. This is catalog-audited evidence-complete Draft only for
+these four first-child EOF alternatives. Target/Equals, inline/wrong-indent,
+later/nested, dedent/fence and other-caller paths remain separate.
+
 #### Shared named declaration-field head Draft links
 
 Only `crates/yu-syntax/src/declaration/fields.rs:555–567,644–950` and its actual
