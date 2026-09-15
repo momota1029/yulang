@@ -536,6 +536,173 @@ fn nested_expression_recovery_keeps_its_child_role() {
 }
 
 #[test]
+fn nested_field_missing_has_one_cst_occurrence_in_every_rule_list_caller() {
+    use crate::recovery_record::ExpressionRole;
+    use SyntaxKind::*;
+
+    let range = |node: &SyntaxNode| {
+        usize::from(node.text_range().start())..usize::from(node.text_range().end())
+    };
+    // Only Rowan occurrences and their direct grammar context select this slot.
+    let project = |root: &SyntaxNode| {
+        root.descendants()
+            .filter(|node| node.kind() == Missing)
+            .map(|missing| {
+                assert_eq!(missing.children_with_tokens().count(), 0);
+                let owner = missing.parent().expect("name slot owner");
+                let (role, expected) = match (owner.kind(), direct_kinds(&owner).as_slice()) {
+                    (FieldTail, [Dot, Missing]) => (
+                        GrammarRole::Expression(ExpressionRole::FieldName),
+                        ExpectedSyntax::Identifier,
+                    ),
+                    other => panic!("unexpected nested recovery context: {other:?}"),
+                };
+                (
+                    role,
+                    range(&missing),
+                    RecoveryKind::Missing,
+                    vec![expected],
+                    0,
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+
+    for (source, caller_kind, open, close, at) in [
+        ("{[x.]}", RuleItem, LBracket, RBracket, 4),
+        ("{a(x.)}", RuleCall, LParen, RParen, 5),
+        ("{a[x.]}", RuleIndex, LBracket, RBracket, 5),
+    ] {
+        let (green, records, remainder, exit, line_entry) =
+            parse_with_fence_handoff(source, 0, None, None);
+        let root = SyntaxNode::new_root(green.clone());
+        let end = source.len();
+        let separate_caller = caller_kind != RuleItem;
+        let caller_index = if separate_caller { 5 } else { 4 };
+        let chain_index = caller_index + 1;
+        let field_index = chain_index + 2;
+        let mut expected_nodes = vec![
+            (Root, 0..end, None, vec![RuleBody]),
+            (
+                RuleBody,
+                0..end,
+                Some(0),
+                vec![LBrace, RuleAlternation, RBrace],
+            ),
+            (RuleAlternation, 1..end - 1, Some(1), vec![RuleSequence]),
+            (RuleSequence, 1..end - 1, Some(2), vec![RuleItem]),
+        ];
+        if separate_caller {
+            expected_nodes.push((RuleItem, 1..end - 1, Some(3), vec![Identifier, caller_kind]));
+        }
+        expected_nodes.extend([
+            (
+                caller_kind,
+                at - 3..at + 1,
+                Some(if separate_caller { 4 } else { 3 }),
+                vec![open, OperatorChain, close],
+            ),
+            (
+                OperatorChain,
+                at - 2..at,
+                Some(caller_index),
+                vec![IdentifierExpression, FieldTail],
+            ),
+            (
+                IdentifierExpression,
+                at - 2..at - 1,
+                Some(chain_index),
+                vec![Identifier],
+            ),
+            (FieldTail, at - 1..at, Some(chain_index), vec![Dot, Missing]),
+            (Missing, at..at, Some(field_index), vec![]),
+        ]);
+        let nodes = root.descendants().collect::<Vec<_>>();
+        assert_eq!(nodes.len(), expected_nodes.len(), "{source:?}");
+        for (node, (kind, span, parent, children)) in nodes.iter().zip(expected_nodes) {
+            assert_eq!(node.kind(), kind, "{source:?}");
+            assert_eq!(range(node), span, "{source:?}");
+            assert_eq!(node.to_string(), &source[span]);
+            assert_eq!(node.parent(), parent.map(|index| nodes[index].clone()));
+            assert_eq!(direct_kinds(node), children, "{source:?}");
+        }
+        let mut expected_tokens = vec![(LBrace, 0..1, 1)];
+        if separate_caller {
+            expected_tokens.push((Identifier, 1..2, 4));
+        }
+        expected_tokens.extend([
+            (open, at - 3..at - 2, caller_index),
+            (Identifier, at - 2..at - 1, chain_index + 1),
+            (Dot, at - 1..at, field_index),
+            (close, at..at + 1, caller_index),
+            (RBrace, at + 1..end, 1),
+        ]);
+        let tokens = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .collect::<Vec<_>>();
+        assert_eq!(tokens.len(), expected_tokens.len(), "{source:?}");
+        for (token, (kind, span, parent)) in tokens.iter().zip(expected_tokens) {
+            assert_eq!(token.kind(), kind);
+            assert_eq!(
+                usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+                span
+            );
+            assert_eq!(token.text(), &source[span]);
+            assert_eq!(token.parent(), Some(nodes[parent].clone()));
+        }
+        let recovery = root
+            .descendants_with_tokens()
+            .filter(|element| matches!(element.kind(), Missing | Error | Invalid))
+            .collect::<Vec<_>>();
+        assert_eq!(recovery.len(), 1, "{source:?}");
+        assert_eq!(recovery[0].as_node(), Some(&nodes[field_index + 1]));
+        let projected = project(&root);
+        assert_eq!(
+            projected,
+            vec![(
+                GrammarRole::Expression(ExpressionRole::FieldName),
+                at..at,
+                RecoveryKind::Missing,
+                vec![ExpectedSyntax::Identifier],
+                0
+            )]
+        );
+        assert_eq!(green.to_string(), source);
+        assert!(remainder.is_empty());
+        assert_eq!(exit, RuleWitnessExit::Complete);
+        assert_eq!(line_entry, LineEntry::InLine);
+
+        // Temporary records are compatibility output, never projection input.
+        let compatibility = records
+            .iter()
+            .map(|record| {
+                (
+                    record.site.role,
+                    record.site.range.clone(),
+                    record.kind,
+                    record
+                        .expectations
+                        .iter()
+                        .map(|expectation| expectation.expected)
+                        .collect::<Vec<_>>(),
+                    record.primary_expectation,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(compatibility, projected);
+        let (again, frozen, frozen_remainder, frozen_exit, frozen_line_entry) =
+            parse_with_fence_handoff(source, 0, Some(&records), None);
+        assert_eq!(project(&SyntaxNode::new_root(again.clone())), projected);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(frozen_remainder, remainder);
+        assert_eq!(frozen_exit, exit);
+        assert_eq!(frozen_line_entry, line_entry);
+    }
+}
+
+#[test]
 fn fenced_repeated_newlines_use_physical_end_coordinates_and_frozen_records() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {

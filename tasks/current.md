@@ -1012,6 +1012,18 @@ bounded unmapped candidate before further implementation.
 - Interpolation, separator/newline/fence/EOF and recursive Rule contexts remain
   open.
 
+## Rule ExpressionList nested FieldName composition closure
+
+- M1 direct Rowan proof now covers opener-selected RuleItem `{[x.]}`, RuleCall
+  `{a(x.)}` and RuleIndex `{a[x.]}`. Each caller owns opener/OperatorChain/native
+  close; its sole recovery is child `FieldTail > Missing` at `4..4`, `5..5` or
+  `5..5`, projecting Expression(FieldName)/Identifier/primary zero.
+- Independent specification audit and primary exact rerun were clean: 1 passed,
+  1,438 filtered out. The producer used one compile-repair retry then one actual
+  successful test; no production change, broad suite or measurement.
+- Other nested expression roles, trivia/EOF/fence, recursive compositions and
+  global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

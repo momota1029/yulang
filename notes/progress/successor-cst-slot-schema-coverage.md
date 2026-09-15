@@ -2082,6 +2082,16 @@ boundary/interpolation/recursive forms remain separate.
 
 #### Rule ExpressionList caller-specific row links
 
+`nested_field_missing_has_one_cst_occurrence_in_every_rule_list_caller` links
+the three caller shells to their admitted Expression child without inventing a
+list recovery: `{[x.]}`, `{a(x.)}` and `{a[x.]}` retain native list closes and
+have exactly one childless `FieldTail > Missing` at `4..4`, `5..5`, `5..5`.
+Direct FieldTail context derives Expression(FieldName), singleton Identifier
+and primary zero before compatibility comparison; Error, Invalid and caller
+Item/Close Missing are absent. Independent audit was clean; the exact test
+passed 1 with 1,438 filtered out. Other nested child roles and boundaries stay
+separate.
+
 Only the following direct caller/owner sites are linked to the bounded Draft
 catalog row for RuleItem bracket, RuleCall and RuleIndex Item/Separator/Close
 phases. The separately audited three-caller fence proof also preserves the
