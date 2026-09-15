@@ -979,6 +979,26 @@ bounded unmapped candidate before further implementation.
 - Scope is one parenthesized UTF-8 EOF-leading composition. Other Rule EOF/
   comment/newline/fence/public/recursive contexts and global Gate 1 remain open.
 
+## Parenthesized Rule required-slot CRLF composition closure
+
+- Mode: M1 with one Astra architect/pre-write audit, one Astra implementer and
+  one independent post-write specification audit; no repair round.
+- The new `parenthesized_required_slots_leave_crlf_to_inner_alternation` test
+  closes only `{(a.\r\nnext)}`, `{(a::\r\nnext)}` and `{(a=\r\nnext)}`.
+  Each has the complete 12-node/8-token CST: first inner RuleSequence owns the
+  Field Name, Path Name or Capture RHS childless Missing; direct inner
+  RuleAlternation owns CRLF; second inner RuleSequence owns accepted `next`.
+- CST owner and direct introducer derive RuleFieldName/Identifier,
+  RulePathName/Identifier or RuleCaptureRightItem/Literal(RuleItem), each
+  primary zero, before comparison with temporary records. There is exactly one
+  Missing, no Error/Invalid or close-Missing cascade; native RParen/RBrace,
+  source, completion, remainder and fresh/frozen parity remain pinned.
+- Scoped rustfmt/diff and the wrapper-disabled exact test passed: 1 passed, 0
+  failed, 1,436 filtered out. Two test invocations ran; no production change,
+  broad suite or benchmark, measurement usage zero.
+- Other parenthesized newline/EOF/fence/interpolation/recursive contexts and
+  global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

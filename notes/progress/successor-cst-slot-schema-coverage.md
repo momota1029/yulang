@@ -2019,6 +2019,21 @@ singleton Identifier/primary-zero projection were independently delta-audited
 clean; the focused test passed 1 with 1,422 filtered out. Accepted-name,
 CRLF/parenthesis/EOF/fence/interpolation and recursive forms remain open.
 
+The three parenthesized CRLF witnesses `{(a.\r\nnext)}`, `{(a::\r\nnext)}`
+and `{(a=\r\nnext)}` in
+`parenthesized_required_slots_leave_crlf_to_inner_alternation` now prove the
+same frame transition without moving the Missing to `next`: complete
+`RuleBody > RuleAlternation > RuleSequence > RuleItem(LParen) >
+RuleAlternation` ancestry contains two direct inner sequences, with physical
+CRLF as their native alternation sibling. The first sequence retains exactly
+one Field Name, Path Name or Capture RHS Missing at `4..4`, `5..5` or `4..4`;
+the second owns accepted `next`; native closes remain with the parenthesized
+item/body. CST-first owner/introducer projection derives the corresponding
+singleton expectation and primary zero before fresh/frozen record comparison.
+Independent delta audit was clean; the exact focused test passed 1 with 1,436
+filtered out. This is only the bounded parenthesized CRLF transition, not a
+general parenthesized/newline or recursive Rule closure.
+
 #### RulePath/parenthesis/RuleBody UTF-8 EOF-leading composition links
 
 Only `{(a:: /*α*/` at origins 0 and 137 in
