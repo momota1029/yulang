@@ -999,6 +999,19 @@ bounded unmapped candidate before further implementation.
 - Other parenthesized newline/EOF/fence/interpolation/recursive contexts and
   global Gate 1 remain open.
 
+## RuleSequence Body/Parenthesis Error-retry closure
+
+- M1 direct Rowan evidence now covers `{;💥 a}` and `{(;💥 a)}`: one maximal
+  direct Error group at `1..6`/`2..7` precedes the native-leading retry Item at
+  `6..8`/`7..9`. Complete Body/Parenthesis ancestry derives
+  Literal(RuleUnexpectedItem), singleton Literal(RuleItem), primary zero, with
+  no Missing/Invalid and native closes.
+- Independent specification audit was clean. Scoped rustfmt/diff and the exact
+  focused test passed 1 with 1,437 filtered out; producer plus primary made two
+  test invocations, with no production change, broad suite or measurement.
+- Interpolation, separator/newline/fence/EOF and recursive Rule contexts remain
+  open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

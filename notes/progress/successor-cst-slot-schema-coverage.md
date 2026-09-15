@@ -2070,6 +2070,16 @@ CST ancestry derives singleton `Literal(RuleItem)`, primary zero. Independent
 delta review was clean; the exact focused test passed 1 with 1,422 filtered
 out. Retry, other callers and boundary variants remain open.
 
+`rule_sequence_adjacent_errors_end_at_native_item_retry` additionally proves
+ordinary Body `{;💥 a}` and Parenthesis `{(;💥 a)}` retry. Each two-leaf direct
+Error group is `1..6` or `2..7`; the next direct RuleItem owns space plus `a`
+at `6..8` or `7..9`, ending the group. Direct ancestry derives
+Literal(RuleUnexpectedItem), singleton Literal(RuleItem) and primary zero
+before the two temporary compatibility records. Native closes, source,
+complete exit and fresh/frozen parity remain pinned. Independent delta audit
+was clean; the exact focused test passed 1 with 1,437 filtered out. Other
+boundary/interpolation/recursive forms remain separate.
+
 #### Rule ExpressionList caller-specific row links
 
 Only the following direct caller/owner sites are linked to the bounded Draft

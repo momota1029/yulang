@@ -210,6 +210,218 @@ fn all_ten_rule_roles_have_exact_shifted_and_frozen_records() {
 }
 
 #[test]
+fn rule_sequence_adjacent_errors_end_at_native_item_retry() {
+    use SyntaxKind::*;
+
+    fn body<'a>(
+        source: &'a str,
+        frozen: Option<&[CommittedRecoveryRecord]>,
+    ) -> (
+        GreenNode,
+        Vec<CommittedRecoveryRecord>,
+        crate::rule::RuleWitnessExit,
+        LineEntry,
+        &'a str,
+    ) {
+        let operators = OperatorTable::empty();
+        let mut recover = match frozen {
+            Some(records) => Recover::reconcile_for_test(&operators, records),
+            None => Recover::new_for_test(&operators),
+        };
+        let mut input = source;
+        let mut lexical = crate::cursor::LexRecover::new_for_test(&operators);
+        let opener = scan_rule_item_witness(chasa_recover::In::new(&mut input, &mut lexical, ()))
+            .expect("RuleBody opener");
+        let current = scan_rule_current_item_witness(
+            chasa_recover::In::new(&mut input, &mut lexical, ()),
+            1,
+            LineEntry::InLine,
+            None,
+        );
+        let end = source.len() - input.len();
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(Root.into());
+        let (exit, line_entry) = crate::rule::rule_body_normalized_witness(
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+            opener,
+            current.item,
+            current.next_line_entry,
+            end,
+            None,
+        );
+        output.finish_node();
+        (
+            output.finish(),
+            recover.finish_recoveries_for_test(),
+            exit,
+            line_entry,
+            input,
+        )
+    }
+
+    for (source, parenthesized) in [("{;💥 a}", false), ("{(;💥 a)}", true)] {
+        let (green, records, exit, line_entry, remainder) = body(source, None);
+        let root = SyntaxNode::new_root(green.clone());
+        let end = source.len();
+        let start = if parenthesized { 2 } else { 1 };
+        let sequence_index = if parenthesized { 6 } else { 3 };
+        let retry_index = sequence_index + 1;
+        let mut expected_nodes = vec![
+            (Root, 0..end, None, vec![RuleBody]),
+            (
+                RuleBody,
+                0..end,
+                Some(0),
+                vec![LBrace, RuleAlternation, RBrace],
+            ),
+            (RuleAlternation, 1..end - 1, Some(1), vec![RuleSequence]),
+        ];
+        if parenthesized {
+            expected_nodes.extend([
+                (RuleSequence, 1..end - 1, Some(2), vec![RuleItem]),
+                (
+                    RuleItem,
+                    1..end - 1,
+                    Some(3),
+                    vec![LParen, RuleAlternation, RParen],
+                ),
+                (RuleAlternation, 2..end - 2, Some(4), vec![RuleSequence]),
+            ]);
+        }
+        expected_nodes.extend([
+            (
+                RuleSequence,
+                start..start + 7,
+                Some(sequence_index - 1),
+                vec![Error, Error, RuleItem],
+            ),
+            (
+                RuleItem,
+                start + 5..start + 7,
+                Some(sequence_index),
+                vec![Whitespace, Identifier],
+            ),
+        ]);
+        let nodes = root.descendants().collect::<Vec<_>>();
+        assert_eq!(nodes.len(), expected_nodes.len(), "{source:?}");
+        for (node, (kind, node_range, parent, children)) in nodes.iter().zip(expected_nodes) {
+            assert_eq!(node.kind(), kind);
+            assert_eq!(range(node), node_range);
+            assert_eq!(node.to_string(), &source[node_range]);
+            assert_eq!(node.parent(), parent.map(|index| nodes[index].clone()));
+            assert_eq!(child_kinds(node), children);
+        }
+        let mut expected_tokens = vec![(LBrace, 0..1, 1)];
+        if parenthesized {
+            expected_tokens.push((LParen, 1..2, 4));
+        }
+        expected_tokens.extend([
+            (Error, start..start + 1, sequence_index),
+            (Error, start + 1..start + 5, sequence_index),
+            (Whitespace, start + 5..start + 6, retry_index),
+            (Identifier, start + 6..start + 7, retry_index),
+        ]);
+        if parenthesized {
+            expected_tokens.push((RParen, end - 2..end - 1, 4));
+        }
+        expected_tokens.push((RBrace, end - 1..end, 1));
+        let tokens = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .collect::<Vec<_>>();
+        assert_eq!(tokens.len(), expected_tokens.len());
+        for (token, (kind, token_range, parent)) in tokens.iter().zip(expected_tokens) {
+            assert_eq!(token.kind(), kind);
+            assert_eq!(
+                usize::from(token.text_range().start())..usize::from(token.text_range().end()),
+                token_range
+            );
+            assert_eq!(token.text(), &source[token_range]);
+            assert_eq!(token.parent(), Some(nodes[parent].clone()));
+        }
+        assert!(
+            root.descendants_with_tokens()
+                .all(|element| !matches!(element.kind(), Missing | Invalid))
+        );
+
+        // Project in natural preorder from direct ordered children only. The
+        // admitted RuleItem ends the group before its native leading space.
+        let mut projected = Vec::new();
+        for owner in root
+            .descendants()
+            .filter(|node| node.kind() == RuleSequence)
+        {
+            let mut children = owner.children_with_tokens().peekable();
+            while let Some(child) = children.next() {
+                if child.kind() != Error {
+                    continue;
+                }
+                let mut group = child.text_range();
+                assert!(child.as_token().is_some());
+                while children.peek().is_some_and(|next| next.kind() == Error) {
+                    let next = children.next().unwrap();
+                    assert!(next.as_token().is_some());
+                    group = group.cover(next.text_range());
+                }
+                assert_eq!(children.peek().unwrap().kind(), RuleItem);
+                projected.push((
+                    GrammarRole::Literal(LiteralRole::RuleUnexpectedItem),
+                    RecoveryKind::Error,
+                    usize::from(group.start())..usize::from(group.end()),
+                    [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
+                    0usize,
+                ));
+            }
+        }
+        assert_eq!(
+            projected,
+            [(
+                GrammarRole::Literal(LiteralRole::RuleUnexpectedItem),
+                RecoveryKind::Error,
+                start..start + 5,
+                [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
+                0
+            )]
+        );
+        assert_eq!(root.to_string(), source);
+        assert_eq!(exit, crate::rule::RuleWitnessExit::Complete);
+        assert_eq!(line_entry, LineEntry::InLine);
+        assert_eq!(remainder, "");
+        assert_eq!(remainder.as_ptr(), source.as_ptr().wrapping_add(end));
+
+        // Compatibility remains per lexical Item; these two temporary records
+        // do not determine the single future CST-derived occurrence above.
+        assert_eq!(
+            records,
+            [
+                record(
+                    0,
+                    LiteralRole::RuleUnexpectedItem,
+                    start..start + 1,
+                    Some(UnexpectedCategory::Punctuation(
+                        PunctuationEvidence::Semicolon
+                    ))
+                ),
+                record(
+                    1,
+                    LiteralRole::RuleUnexpectedItem,
+                    start + 1..start + 5,
+                    Some(UnexpectedCategory::OperatorLike)
+                ),
+            ]
+        );
+        let (again, frozen, frozen_exit, frozen_line_entry, frozen_remainder) =
+            body(source, Some(&records));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(
+            (frozen_exit, frozen_line_entry, frozen_remainder),
+            (exit, line_entry, remainder)
+        );
+    }
+}
+
+#[test]
 fn required_slots_stop_before_body_and_paren_newline_name_admission() {
     for (source, role, at) in [
         ("{a.\nnext}", LiteralRole::RuleFieldName, 3),
