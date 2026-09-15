@@ -797,14 +797,14 @@ fn braced_statement_raw_error_terminal_prefixes() {
         ("{@\r\n  ]tail", None),
         ("{@\r\n> ```\nouter", Some(&fence)),
     ] {
-        let (green, _, _, _) = parse(source, 0, boundary, None);
-        let root = SyntaxNode::new_root(green);
+        let (green, records, exit, suffix) = parse(source, 0, boundary, None);
+        let root = SyntaxNode::new_root(green.clone());
         let block = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
             .unwrap();
-        // Only the Statement Error prefix is in scope; terminal close recovery
-        // is a separate slot even when it shares this immediate parent.
+        // Preserve the prefix proof for every witness; the non-fence cases
+        // below additionally compose it with the distinct terminal Close slot.
         assert_braced_error_children(
             &block,
             &[(SyntaxKind::LBrace, 0..1), (SyntaxKind::Error, 1..2)],
@@ -818,6 +818,208 @@ fn braced_statement_raw_error_terminal_prefixes() {
                 .collect::<Vec<_>>(),
             [rowan::TextRange::new(1.into(), 2.into())]
         );
+        if boundary.is_some() {
+            // The fence witness retains its prefix-only evidence scope.
+            continue;
+        }
+
+        let owned = if source.ends_with("tail") {
+            "{@"
+        } else {
+            source
+        };
+        assert_eq!(green.to_string(), owned);
+        let mut parent = root.clone();
+        for kind in [
+            SyntaxKind::Statement,
+            SyntaxKind::OperatorChain,
+            SyntaxKind::BracedStatementBlockExpression,
+        ] {
+            let children = parent.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), 1);
+            let child = children[0].as_node().unwrap();
+            assert_eq!(child.kind(), kind);
+            assert_eq!(child.parent(), Some(parent.clone()));
+            assert_eq!(child.text_range(), root.text_range());
+            assert_eq!(child.text().to_string(), owned);
+            parent = child.clone();
+        }
+        assert_eq!(parent, block);
+        assert_eq!(root.kind(), SyntaxKind::Root);
+        assert_eq!(root.parent(), None);
+        assert_eq!(
+            root.text_range(),
+            rowan::TextRange::new(0.into(), (owned.len() as u32).into())
+        );
+        let mut direct = vec![(SyntaxKind::LBrace, 0..1), (SyntaxKind::Error, 1..2)];
+        if owned.len() > 2 {
+            direct.push((SyntaxKind::Whitespace, 2..4));
+        }
+        direct.push((SyntaxKind::Missing, owned.len()..owned.len()));
+        let children = block.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), direct.len());
+        for (child, (kind, range)) in children.iter().zip(&direct) {
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.parent(), Some(block.clone()));
+            assert_eq!(
+                child.text_range(),
+                rowan::TextRange::new((range.start as u32).into(), (range.end as u32).into())
+            );
+            if *kind == SyntaxKind::Missing {
+                let missing = child.as_node().unwrap();
+                assert!(missing.children_with_tokens().next().is_none());
+                assert_eq!(missing.text().to_string(), "");
+            } else {
+                assert_eq!(child.as_token().unwrap().text(), &owned[range.clone()]);
+            }
+        }
+
+        // Ordered direct children select Statement Error followed by terminal
+        // closing-brace Missing, without consulting compatibility records.
+        let statement = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
+        let close = GrammarRole::ClosingDelimiter {
+            owner: ConstructRole::BracedStatementBlockExpression,
+            delimiter: Delimiter::Brace,
+        };
+        let mut projected = Vec::new();
+        let mut index = 1;
+        while index < children.len() {
+            let child = &children[index];
+            match child.kind() {
+                SyntaxKind::Error => {
+                    let start = child.text_range().start();
+                    let mut end = start;
+                    while index < children.len() && children[index].kind() == SyntaxKind::Error {
+                        let token = children[index].as_token().unwrap();
+                        assert_eq!(token.text_range().start(), end);
+                        end = token.text_range().end();
+                        index += 1;
+                    }
+                    projected.push((
+                        RecoveryKind::Error,
+                        statement,
+                        ExpectedSyntax::Statement,
+                        0,
+                        usize::from(start)..usize::from(end),
+                    ));
+                    continue;
+                }
+                SyntaxKind::Whitespace => {}
+                SyntaxKind::Missing => {
+                    assert_eq!(index + 1, children.len());
+                    assert!(
+                        !children
+                            .iter()
+                            .any(|child| child.kind() == SyntaxKind::RBrace)
+                    );
+                    projected.push((
+                        RecoveryKind::Missing,
+                        close,
+                        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                        0,
+                        usize::from(child.text_range().start())
+                            ..usize::from(child.text_range().end()),
+                    ));
+                }
+                _ => panic!("unexpected terminal child: {source:?}"),
+            }
+            index += 1;
+        }
+        assert_eq!(
+            projected,
+            vec![
+                (
+                    RecoveryKind::Error,
+                    statement,
+                    ExpectedSyntax::Statement,
+                    0,
+                    1..2
+                ),
+                (
+                    RecoveryKind::Missing,
+                    close,
+                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                    0,
+                    owned.len()..owned.len()
+                ),
+            ]
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|child| matches!(
+                    child.kind(),
+                    SyntaxKind::Error | SyntaxKind::Missing | SyntaxKind::Invalid
+                ))
+                .map(|child| (child.kind(), child.text_range()))
+                .collect::<Vec<_>>(),
+            vec![
+                (SyntaxKind::Error, children[1].text_range()),
+                (SyntaxKind::Missing, children.last().unwrap().text_range())
+            ]
+        );
+
+        let inspect_exit = |exit: NormalizedExit, suffix: &str| {
+            let NormalizedExit::Complete(exit, line_entry) = exit else {
+                panic!("completed terminal handoff: {source:?}")
+            };
+            assert_eq!(line_entry, LineEntry::InLine);
+            if owned == source {
+                assert_eq!(suffix, "");
+                let Err(Either::Right(end)) = exit else {
+                    panic!("EOF handoff")
+                };
+                assert!(end.item.payload_view().is_eof());
+                assert_eq!(
+                    end.item.extent(source.len()).recovery_range(),
+                    source.len()..source.len()
+                );
+            } else {
+                assert_eq!(suffix, "tail");
+                let Err(Either::Left(item)) = exit else {
+                    panic!("protected close handoff")
+                };
+                let end = source.len() - suffix.len();
+                assert_eq!(item.payload_view().spelling(), Some(&source[end - 1..end]));
+                assert_eq!(
+                    item.payload_view().token_kind(),
+                    Some(if source.contains(')') {
+                        crate::lexical::item::TokenKind::RParen
+                    } else {
+                        crate::lexical::item::TokenKind::RBracket
+                    })
+                );
+                let extent = item.extent(end);
+                assert_eq!(extent.recovery_range(), 2..end);
+                assert_eq!(extent.leading(), 2..end - 1);
+                assert_eq!(extent.payload(), end - 1..end);
+                let mut leading = GreenNodeBuilder::new();
+                leading.start_node(SyntaxKind::Root.into());
+                let mut pending = item;
+                pending.emit_all_remaining_leading(&mut leading);
+                leading.finish_node();
+                assert_eq!(leading.finish().to_string(), &source[2..end - 1]);
+            }
+        };
+        inspect_exit(exit, suffix);
+        assert_eq!(records.len(), projected.len());
+        for (record, (kind, role, expected, primary, range)) in records.iter().zip(&projected) {
+            assert_eq!(record.kind, *kind);
+            assert_eq!(record.site.role, *role);
+            assert_eq!(record.site.range, *range);
+            assert_eq!(
+                record
+                    .expectations
+                    .iter()
+                    .map(|expectation| expectation.expected)
+                    .collect::<Vec<_>>(),
+                vec![*expected]
+            );
+            assert_eq!(record.primary_expectation, *primary);
+        }
+        let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        inspect_exit(frozen_exit, frozen_suffix);
     }
 }
 

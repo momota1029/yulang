@@ -621,6 +621,22 @@ M1 pre-write and post-write audits were clean after one assertion repair.
 Terminal/protected-close/fence prefixes, exact exit metadata, nested recovery,
 Missing/Close and other statement sequences remain separate.
 
+#### BracedStatementBlock terminal Error-to-Close composition links
+
+Only `crates/yu-syntax/src/statement.rs:986–1000,1004–1164,1277–1328` and four
+non-fence witnesses in
+`tests/braced_statement_recovery.rs::braced_statement_raw_error_terminal_prefixes`
+are linked to this composition row. Direct ordered children project Statement
+Error `1..2` before closing-delimiter Missing at `2..2` or horizontal-EOF
+`4..4`. EOF consumes block whitespace before Missing; protected `)`/`]` keeps
+leading, payload and extent outside the `{@` tree. Exact exit/remainder and
+fresh/frozen equality follow only after structural projection.
+
+The independently audited row adds no wrapper and does not merge the two roles.
+Its fifth Yumark fence prefix remains prefix-only; fence composition, other
+boundaries/trivia, nested recovery and other Statement sequences remain
+untriaged or mapped only by separate rows.
+
 #### ColonApplication indented Statement entry Draft links
 
 `tests/indented_recovery.rs` maps the first required Statement under the full

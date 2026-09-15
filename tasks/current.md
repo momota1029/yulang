@@ -863,6 +863,32 @@ bounded unmapped candidate before further implementation.
   sequence slots, nested Statements, caller-local introducers, other
   boundaries/layout/fences and global Gate 1 remain open.
 
+## BracedStatementBlock terminal Error-to-Close composition closure
+
+- Mode: M1 with one Astra architect/pre-write audit, one Astra implementer and
+  one independent post-write specification audit; one mechanical repair and
+  one comment correction.
+- Four existing non-fence prefix witnesses now prove the full direct
+  composition: required-Statement Error `1..2` followed in preorder by local
+  closing-Brace Missing at `2..2` or horizontal-EOF `4..4`. Complete shell
+  ancestry/order selects `BracedStatementBlock(Statement)` and the distinct
+  `ClosingDelimiter` role before records, with singleton expectations and
+  primary zero.
+- EOF witnesses retain full source, block-owned trailing space, `InLine`, empty
+  remainder and EOF payload. Protected `)`/`]` witnesses retain only `{@` in
+  CST and preserve exact pending leading, token, extent, `InLine` and `tail`.
+  Fresh/frozen trees, records and handoffs agree without extra Statement
+  Missing, retry, separator or Invalid.
+- The mechanical repair consumed a non-cloneable pending Item while inspecting
+  its leading; a comment-only correction removed a misleading nonexistent
+  Close role name. Existing fixtures and semantic expectations were unchanged.
+- Scoped rustfmt/diff and the wrapper-disabled exact test passed: 1 passed, 0
+  failed, 1,435 filtered out. Four test invocations ran; no production change,
+  broad suite or benchmark, and measurement usage was zero.
+- This closes only the four non-fence compositions. The fifth Yumark fence
+  prefix, other boundaries/trivia, nested recovery and global Gate 1 remain
+  open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -890,13 +916,14 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax tests::braced_statement_recovery::braced_statement_raw_error_ordered_children -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax tests::braced_statement_recovery::braced_statement_raw_error_terminal_prefixes -- --exact --test-threads=1
 ```
 
 Result: 1 passed, 0 failed, 0 ignored; 1,435 filtered out. Scoped
 `rustfmt --edition 2024 --check crates/yu-syntax/src/tests/braced_statement_recovery.rs`
-and `git diff --check` also passed. Earlier Act/tuple/positional/named-field/
-Cast/Role/Impl evidence remains historical rather than the latest check. No workspace build,
+and `git diff --check` also passed. Earlier matching-close braced/Act/tuple/
+positional/named-field/Cast/Role/Impl evidence remains historical rather than
+the latest check. No workspace build,
 broad suite or performance experiment was needed for this M1 closure/M0 record
 update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
