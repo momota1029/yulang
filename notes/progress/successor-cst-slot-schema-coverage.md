@@ -608,10 +608,18 @@ nonempty/nested fence lists, other fences and other list slots remain separate.
 
 #### BracedStatementBlock direct raw Error Draft links
 
-`tests/braced_statement_recovery.rs` maps direct block Error groups, retry
-Statement, separator/BlockStatementSeparator ownership, UTF-8 and
-terminal/protected prefixes without records or Error spelling. M1 specification
-audit was clean; Missing/Close and other statement sequences remain separate.
+Only `crates/yu-syntax/src/statement.rs:1004–1164` and the seven ordinary
+matching-close witnesses in
+`tests/braced_statement_recovery.rs::braced_statement_raw_error_ordered_children`
+are linked to this bounded row. Complete shell ancestry and direct sequence
+order select `BracedStatementBlock(Statement)` before records. Maximal adjacent
+groups cover singleton, one three-leaf ASCII run, two UTF-8/LF occurrences and
+two CRLF-separated occurrences; separator nodes, retry Statement ownership and
+native matching close remain distinct. The strengthened proof asserts no
+Missing/Invalid cascade, full source/empty remainder and fresh/frozen parity.
+M1 pre-write and post-write audits were clean after one assertion repair.
+Terminal/protected-close/fence prefixes, exact exit metadata, nested recovery,
+Missing/Close and other statement sequences remain separate.
 
 #### ColonApplication indented Statement entry Draft links
 

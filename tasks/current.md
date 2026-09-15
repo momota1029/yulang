@@ -814,6 +814,31 @@ bounded unmapped candidate before further implementation.
   20-transport count is unchanged. Multileaf, EOF-terminal, other
   boundaries/layout/attachments, recursive Type and global Gate 1 remain open.
 
+## BracedStatementBlock direct Statement Error proof closure
+
+- Mode: M1 with one Astra architect/pre-write audit, one Astra implementer and
+  one independent post-write specification audit; one assertion repair.
+- The existing short catalog row claimed direct raw Error evidence, but its
+  seven-witness test did not explicitly derive maximal groups or
+  `BracedStatementBlock(Statement)` projection. The coverage text also
+  overclaimed terminal/protected prefixes contrary to the catalog exclusion.
+- Additive assertions now use complete
+  Statement/OperatorChain/BracedStatementBlock ancestry and direct sequence
+  order before records. They prove singleton, three-leaf ASCII, UTF-8/LF and
+  CRLF-separated maximal groups, Statement expectation/primary zero,
+  separator/retry/native-close ownership, no Missing/Invalid cascade, full
+  source/empty remainder and fresh/frozen parity.
+- The one repair removed an incorrect direct-child assumption: retry leading
+  belongs inside the admitted Statement subtree, while the semicolon separator
+  owns its following space in the corresponding witness. Existing fixtures and
+  semantic expectations were unchanged.
+- Scoped rustfmt/diff and the wrapper-disabled exact test passed: 1 passed, 0
+  failed, 1,435 filtered out. Three test invocations ran; no production change,
+  broad suite or benchmark, and measurement budget usage was zero.
+- This closes only the seven ordinary matching-close witnesses. Terminal/
+  protected-close/fence variants, exact `LineEntry` and pending EOF payload,
+  nested recovery, other Statement sequences and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -841,13 +866,13 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::act_decl::act_required_type_terminal_error_has_direct_head_and_source_slots -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax tests::braced_statement_recovery::braced_statement_raw_error_ordered_children -- --exact --test-threads=1
 ```
 
 Result: 1 passed, 0 failed, 0 ignored; 1,435 filtered out. Scoped
-`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/act_decl.rs`
-and `git diff --check` also passed. Earlier tuple/positional/named-field/Cast/
-Role/Impl evidence remains historical rather than the latest check. No workspace build,
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/braced_statement_recovery.rs`
+and `git diff --check` also passed. Earlier Act/tuple/positional/named-field/
+Cast/Role/Impl evidence remains historical rather than the latest check. No workspace build,
 broad suite or performance experiment was needed for this M1 closure/M0 record
 update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask

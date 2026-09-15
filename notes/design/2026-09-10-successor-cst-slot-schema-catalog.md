@@ -1842,11 +1842,17 @@ list slots remain separate.
 
 ### BracedStatementBlock direct raw Error Draft
 
-This bounded Draft maps only direct BracedStatementBlockExpression Error groups.
-Ordered sibling retry Statement, separator and BlockStatementSeparator distinguish
-the raw run; terminal/protected prefixes and nested-for recovery remain separate.
-M1 Rowan proof in `tests/braced_statement_recovery.rs` and specification audit
-are clean. Missing/Close and other statement sequences remain unmapped.
+This bounded Draft maps only direct Error groups in seven ordinary
+matching-close `BracedStatementBlockExpression` witnesses. Terminal/protected
+prefixes and nested-for recovery remain separate.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | `(Statement > OperatorChain > BracedStatementBlockExpression, required direct Statement sequence slot, one maximal group of direct Error tokens)`. The complete shell ancestry and direct sequence order select `BracedStatementBlock(Statement)`; nested Statement diagnostics remain delegated. |
+| ordered Rowan grammar | The bounded alternatives are `LBrace Native* Error+ (Statement | BlockStatementSeparator (Statement | Error+ Statement)?)? RBrace`. Initial native leading precedes Error. Adjacent Error tokens form one group; a direct separator node or retry Statement ends it. Retry leading is contained within its Statement subtree except when a preceding `BlockStatementSeparator` already owns that space. The matching `RBrace` is native direct block content. |
+| admission and completion | The seven witnesses are `{@}`, `{@ use a}`, `{@,}`, `{@; use a}`, `{ @ @ α}`, `{💥\n💥 use a}` and `{@\r\n@ use a}`. A nonempty failed Statement attempt emits Error without a duplicate Statement Missing. Comma/semicolon/LF/CRLF separator ownership and admitted Statement retry remain distinct. Every witness preserves the full source, consumes the matching close, has empty remainder and returns the observed completed EOF handoff shape; exact `LineEntry` and pending EOF payload are not claimed. |
+| grouping and projection | Maximal groups are `1..2` for the first four witnesses, `2..5` for the three-leaf ASCII run, `1..5` then `6..10` for the UTF-8/LF pair, and `1..2` then `4..5` for CRLF. Each projects `BracedStatementBlock(Statement)`, singleton expected `Statement`, primary zero, in Rowan source order. No Missing or Invalid occurs. Error spelling and recovery records are not selection inputs. |
+| proof and status | Governing authority: [braced Statement sequence current-Item recovery](2026-09-08-successor-braced-statement-sequence-current-item-recovery.md), **Slots, boundary and retry**, and the CST-derived diagnostics amendment, **Construction and proof gates**. Publisher: `crates/yu-syntax/src/statement.rs:1004–1164`. Direct proof: `braced_statement_raw_error_ordered_children` in `crates/yu-syntax/src/tests/braced_statement_recovery.rs`, including compatibility records only after structural projection and fresh/frozen parity. M1 pre-write and post-write specification audits were clean after one ownership-assertion repair; the final exact test passed 1 with 1,435 filtered out. Status: catalog-audited evidence-complete Draft for these seven closed-block witnesses only. Terminal/protected-close/fence variants, exact exit metadata, nested recovery, Missing/Close, other Statement sequences, interpreter and ledger retirement remain open. |
 
 ### ColonApplication indented Statement entry Draft
 

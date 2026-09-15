@@ -563,14 +563,180 @@ fn braced_statement_raw_error_ordered_children() {
             ],
         ),
     ] {
-        let (green, _, _, _) = parse(source, 0, None, None);
+        let (green, records, exit, suffix) = parse(source, 0, None, None);
         assert_eq!(green.to_string(), source);
-        let root = SyntaxNode::new_root(green);
+        assert_eq!(suffix, "", "{source:?}");
+        assert!(matches!(
+            exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), _)
+        ));
+        let root = SyntaxNode::new_root(green.clone());
         let block = root
             .descendants()
             .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
             .unwrap();
+        assert_eq!(
+            block
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            vec![
+                SyntaxKind::BracedStatementBlockExpression,
+                SyntaxKind::OperatorChain,
+                Statement,
+                SyntaxKind::Root,
+            ],
+            "{source:?}",
+        );
         assert_braced_error_children(&block, &direct, false);
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), SyntaxKind::Missing | SyntaxKind::Invalid))
+        );
+
+        let children = block.children_with_tokens().collect::<Vec<_>>();
+        let close = children.last().unwrap().as_token().unwrap();
+        assert_eq!(close.kind(), RBrace);
+        assert_eq!(close.text(), "}");
+        assert_eq!(
+            close.text_range(),
+            rowan::TextRange::new(
+                (source.len() as u32 - 1).into(),
+                (source.len() as u32).into()
+            )
+        );
+
+        // The direct sequence phase selects the slot before consulting records.
+        // Only adjacent Error tokens share an occurrence; a separator or retry
+        // Statement ends it even when the next malformed slot has the same role.
+        let role = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
+        let mut projected = Vec::new();
+        let mut required_statement = true;
+        let mut index = 1;
+        while index + 1 < children.len() {
+            let child = &children[index];
+            match child.kind() {
+                Error => {
+                    assert!(required_statement, "{source:?}");
+                    let start = child.text_range().start();
+                    let mut end = start;
+                    while index < children.len() && children[index].kind() == Error {
+                        let token = children[index].as_token().unwrap();
+                        assert_eq!(token.text_range().start(), end);
+                        end = token.text_range().end();
+                        index += 1;
+                    }
+                    projected.push((
+                        role,
+                        vec![ExpectedSyntax::Statement],
+                        0,
+                        rowan::TextRange::new(start, end),
+                    ));
+                    continue;
+                }
+                Whitespace => {
+                    assert_eq!(index, 1);
+                    let leading = child.as_token().unwrap();
+                    assert_eq!(leading.text(), " ");
+                    assert_eq!(
+                        leading.text_range(),
+                        rowan::TextRange::new(1.into(), 2.into())
+                    );
+                }
+                BlockStatementSeparator => {
+                    let separator = child.as_node().unwrap();
+                    let native = separator.children_with_tokens().collect::<Vec<_>>();
+                    let expected = match source {
+                        "{@,}" => vec![(SyntaxKind::Comma, ",")],
+                        "{@; use a}" => vec![(SyntaxKind::Semicolon, ";"), (Whitespace, " ")],
+                        "{💥\n💥 use a}" => vec![(SyntaxKind::Newline, "\n")],
+                        "{@\r\n@ use a}" => vec![(SyntaxKind::Newline, "\r\n")],
+                        _ => unreachable!(),
+                    };
+                    assert_eq!(native.len(), expected.len());
+                    for (token, (kind, text)) in native.iter().zip(expected) {
+                        assert_eq!(token.parent(), Some(separator.clone()));
+                        let token = token.as_token().unwrap();
+                        assert_eq!(token.kind(), kind);
+                        assert_eq!(token.text(), text);
+                    }
+                    required_statement = true;
+                }
+                Statement => {
+                    assert!(required_statement, "{source:?}");
+                    let retry = child.as_node().unwrap();
+                    let leading = retry.first_token().unwrap();
+                    if source == "{@; use a}" {
+                        // The explicit separator already owns this leading.
+                        assert_eq!(leading.kind(), SyntaxKind::UseKw);
+                    } else {
+                        assert_eq!(leading.kind(), Whitespace);
+                        assert_eq!(leading.text(), " ");
+                        assert!(
+                            leading
+                                .parent()
+                                .unwrap()
+                                .ancestors()
+                                .any(|node| node == *retry)
+                        );
+                        assert_eq!(leading.text_range().start(), child.text_range().start());
+                        assert_eq!(leading.text_range().len(), 1.into());
+                    }
+                    required_statement = false;
+                }
+                _ => panic!("unexpected direct sequence child for {source:?}"),
+            }
+            index += 1;
+        }
+        let ranges = match source {
+            "{@}" | "{@ use a}" | "{@,}" | "{@; use a}" => vec![1..2],
+            "{ @ @ α}" => vec![2..5],
+            "{💥\n💥 use a}" => vec![1..5, 6..10],
+            "{@\r\n@ use a}" => vec![1..2, 4..5],
+            _ => unreachable!(),
+        };
+        assert_eq!(
+            projected,
+            ranges
+                .iter()
+                .map(|range| (
+                    role,
+                    vec![ExpectedSyntax::Statement],
+                    0,
+                    rowan::TextRange::new(range.start.into(), range.end.into()),
+                ))
+                .collect::<Vec<_>>(),
+            "{source:?}",
+        );
+
+        // Compatibility is checked only after the independent Rowan projection.
+        assert_eq!(records.len(), projected.len(), "{source:?}");
+        for (record, (role, expected, primary, range)) in records.iter().zip(&projected) {
+            assert_eq!(record.kind, RecoveryKind::Error);
+            assert_eq!(record.site.role, *role);
+            assert_eq!(
+                record.site.range,
+                usize::from(range.start())..usize::from(range.end())
+            );
+            assert_eq!(
+                record
+                    .expectations
+                    .iter()
+                    .map(|expectation| expectation.expected)
+                    .collect::<Vec<_>>(),
+                *expected
+            );
+            assert_eq!(record.primary_expectation, *primary);
+        }
+        let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+        assert_eq!(again, green, "{source:?}");
+        assert_eq!(frozen, records, "{source:?}");
+        assert_eq!(frozen_suffix, suffix, "{source:?}");
+        assert!(matches!(
+            frozen_exit,
+            NormalizedExit::Complete(Err(Either::Right(_)), _)
+        ));
     }
 }
 
