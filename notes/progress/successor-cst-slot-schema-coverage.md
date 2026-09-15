@@ -1106,6 +1106,31 @@ any other AssignmentTail context, or nested `OperatorChain` slots.
 Every other emission and helper in `assignment.rs`, `inline_slot.rs`, and
 `operator_chain.rs` remains untriaged and unmapped unless separately linked.
 
+#### Shared indented first-Statement transport reconciliation
+
+The shared kernel at `crates/yu-syntax/src/statement.rs:510` has exactly 12
+production call expressions: Assignment, Colon, With, If, CaseLike, For,
+Binding, Mod, Role, Impl, Act and Cast. These are transport calls, not twelve
+unique diagnostic roles or exhaustive boundary variants. All invoke the kernel
+only after strict indentation; caller-local shallow/wrong-indent/inline paths
+do not create an `IndentedStatementBlock` and remain separate.
+
+Eleven transports already have bounded catalog-linked first-slot rows. The
+final Assignment link is `expression/tails/assignment.rs:29–73` plus shared
+block implementation `statement.rs:510–552,773–942`, proved by
+`indented_assignment_rowan_schema_covers_missing_error_retry_and_handoff` at
+`crates/yu-syntax/src/tests/indented_recovery.rs:459`. Its five witnesses cover
+accepted Statement, EOF Missing `6..6`, terminal maximal Error `6..9`,
+Error-to-Statement retry with child-owned leading, and protected `]` handoff.
+`AssignmentTail > IndentedStatementBlock` ancestry with direct preceding Equals
+selects `Assignment(IndentedStatement)`, singleton Statement expectation and
+primary zero before compatibility evidence.
+
+The independently audited current-state census is therefore closed at 12/12
+for these bounded first slots. Later sequence slots, nested Statements,
+caller-local introducers, other boundary/layout/fence alternatives and global
+Gate 1 remain untriaged or mapped only by their separate rows.
+
 #### TypeAnnotationTail required-Type Missing Draft links
 
 Only the exact `as` required-Type absence at EOF and a protected RBracket is

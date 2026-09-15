@@ -839,6 +839,30 @@ bounded unmapped candidate before further implementation.
   protected-close/fence variants, exact `LineEntry` and pending EOF payload,
   nested recovery, other Statement sequences and global Gate 1 remain open.
 
+## Shared indented first-Statement transport reconciliation
+
+- Mode: read-only M1 census plus independent specification audit and M0
+  record synchronization; no implementer or repair round.
+- An explorer enumerated exactly 12 production calls into the shared indented
+  Statement block kernel: Assignment, Colon, With, If, CaseLike, For, Binding,
+  Mod, Role, Impl, Act and Cast. Eleven already had bounded linked rows;
+  Assignment was the sole partial transport because its existing evidence had
+  no dedicated catalog link.
+- Independent audit found the existing five-case Assignment test sufficient:
+  complete AssignmentTail/block ancestry with direct preceding Equals,
+  accepted Statement, EOF Missing `6..6`, terminal maximal Error `6..9`,
+  Error-to-Statement retry,
+  protected `]` handoff, exact exits/remainders and fresh/frozen equality. It
+  structurally selects `Assignment(IndentedStatement)`, singleton Statement
+  expectation and primary zero before compatibility checks.
+- Catalog and coverage now link this final transport, closing the bounded
+  first-slot census at 12/12 without code or test changes. No test, broad suite
+  or benchmark ran for the record-only synchronization; measurement usage was
+  zero and the prior braced exact check remains the latest verification.
+- This is not twelve unique roles or exhaustive indented-block coverage. Later
+  sequence slots, nested Statements, caller-local introducers, other
+  boundaries/layout/fences and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
