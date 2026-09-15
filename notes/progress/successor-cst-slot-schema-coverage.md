@@ -343,6 +343,21 @@ replay. Independent delta audit was clean; the exact test and scoped
 formatting/diff passed. Broader boundaries/layout/fences, malformed/retried or
 nested Type and body schemas remain outside this entry.
 
+#### ImplDeclaration initial required-Type Error links
+
+Impl Head and Description initial required-Type Error are linked for terminal,
+singleton retry and three-leaf retry witnesses in
+`impl_required_types_schema_distinguishes_head_and_description` at
+`crates/yu-syntax/src/tests/declaration/impl_decl.rs:383`. Ordered declaration
+versus actual-Colon ImplDescription ancestry selects the occurrence; both
+project `Type(Primary)`, not caller Head/Description roles. Direct maximal
+grouping, retry-leading ownership, no Missing cascade, semicolon/EOF completion
+and retained frozen replay are independently audited. Production is
+`crates/yu-syntax/src/declaration/impl_tail.rs:80,276` plus the shared
+`type_expr/mod.rs:732–819` publisher/projection. This is bounded to six
+witnesses; other required-Type Error callers, boundaries/layout and nested Type
+remain separate.
+
 #### ImplDeclaration BodyIntroducer/inline Body Draft links
 
 Only `crates/yu-syntax/src/declaration/impl_tail.rs:130–460,760–875` is linked
@@ -830,8 +845,7 @@ Only initial-comma and post-comma EOF NeedField Missing in the shared tuple
 sequence are linked to this bounded Draft. Source is
 `crates/yu-syntax/src/declaration/fields.rs:371–640,951–979,1190–1219` plus
 the required-Type delegation in `type_expr/mod.rs:622–733`. Direct Rowan proof
-is `crates/yu-syntax/src/tests/declaration/struct_decl.rs:800–956` and
-`declaration_variant.rs:44–56`: it fixes
+is `crates/yu-syntax/src/tests/declaration/struct_decl.rs:1290–1508`: it fixes
 `StructField(TypeExpression(Missing))`, comma/field order, post-comma EOF
 field-before-close preorder, matching-`)` priority, Type-owned `=T` Error and
 single-field TypeApply grouping across Struct/Enum/Error. Other absence,
@@ -1062,7 +1076,7 @@ group and owns retry leading. The separately linked
 | Source evidence | Status | Linked fact |
 | --- | --- | --- |
 | `crates/yu-syntax/src/expression/tails/type_annotation.rs:18–48` | `linked` | exact AsKw caller shell, required-Type delegation and unchanged Type exit |
-| `crates/yu-syntax/src/type_expr/mod.rs:732–765` | `linked` | Type(Primary) maximal Error publication, terminal handoff and admitted Type retry |
+| `crates/yu-syntax/src/type_expr/mod.rs:732–796` | `linked` | Type(Primary) maximal Error publication, terminal handoff and admitted Type retry |
 | `crates/yu-syntax/src/tests/expression_structural_tails.rs:89–248` | `linked` | direct terminal/retry/UTF-8 adjacency, accepted and protected-close Rowan proof; later record/frozen assertions are compatibility-only |
 
 Every other required-Type caller, annotation Missing, nested Type recovery,
@@ -1526,7 +1540,7 @@ Pattern(TypeAnnotation) and remains separate.
 | Source evidence | Status | Linked fact |
 | --- | --- | --- |
 | `crates/yu-syntax/src/pattern/mod.rs:1106–1126,1384–1428` | `linked` | direct PatternTypeAnnotation/Colon shell, required-Type delegation and boundary handoff |
-| `crates/yu-syntax/src/type_expr/mod.rs:732–765` | `linked` | shared Type(Primary) Error publication and admitted Type retry |
+| `crates/yu-syntax/src/type_expr/mod.rs:732–796` | `linked` | shared Type(Primary) Error publication and admitted Type retry |
 | `crates/yu-syntax/src/tests/pattern.rs:1992–2081` | `linked` | direct order/ranges, terminal/retry, multi-leaf adjacency and protected-newline evidence without records or Error spelling |
 
 Fresh Missing, accepted-only/nested Type, other caller and boundary forms,

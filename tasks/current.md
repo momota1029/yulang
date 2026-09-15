@@ -698,6 +698,27 @@ bounded unmapped candidate before further implementation.
   benchmark ran. This closes only the bounded reachable initial caller table;
   boundaries, nested grammar and global Gate 1 remain open.
 
+## Required-Type initial Error inventory and Impl closure
+
+- A read-only M1 audit found 12 production calls and 20 reachable owner/shape
+  transports for initial nonempty Type Error. Unlike fresh Missing, tuple and
+  positional guards admit malformed non-NUDs, so all 20 can reach
+  `Type(Primary)` terminal/retry recovery.
+- Existing mapped rows covered six contexts completely and Act Head/Source
+  retry in two more. One Astra implementer added structure-selected projection
+  assertions for Impl Head and Description terminal, singleton-retry and
+  three-leaf-retry witnesses.
+- Ordered ImplDeclaration versus actual-Colon ImplDescription ancestry selects
+  both groups as `Type(Primary)`/TypeExpression/primary zero. Retry leading,
+  semicolon/EOF ownership and no caller Missing cascade are pinned before
+  compatibility records.
+- Independent pre-write and post-write audits were clean. After one
+  formatting-only repair, scoped rustfmt/diff and the exact test passed 1 with
+  1,431 filtered out; no production change, broad suite or benchmark ran.
+- Impl closes two contexts, leaving ten without dedicated mapped Error
+  coverage. Act terminal coverage remains a separate bounded residual;
+  broader boundaries/layout, nested Type and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -725,15 +746,15 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::cast_decl::cast_pattern_initial_shared_slots_have_direct_rowan_selectors -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::impl_decl::impl_required_types_schema_distinguishes_head_and_description -- --exact --test-threads=1
 ```
 
 Result: 1 passed, 0 failed, 0 ignored; 1,431 filtered out. Scoped
-`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/cast_decl.rs`
-and `git diff --check` also passed. Earlier default-expression evidence remains
-historical rather than the latest check. No workspace build, broad suite or
-performance experiment was needed for this M1 closure/M0 record update. Future
-checks follow
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/impl_decl.rs`
+and `git diff --check` also passed. Earlier Cast/default-expression evidence
+remains historical rather than the latest check. No workspace build, broad
+suite or performance experiment was needed for this M1 closure/M0 record
+update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
 check-graph` checks dependencies, not syntax behavior.
 

@@ -381,7 +381,9 @@ fn impl_schema_shell(source: &str, suffix: &[(SyntaxKind, std::ops::Range<u32>)]
 
 #[test]
 fn impl_required_types_schema_distinguishes_head_and_description() {
-    use crate::recovery_record::{DeclarationRole, ExpectedSyntax, GrammarRole, ImplRole};
+    use crate::recovery_record::{
+        DeclarationRole, ExpectedSyntax, GrammarRole, ImplRole, TypeRole,
+    };
     use SyntaxKind::*;
     let assert_elements =
         |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, std::ops::Range<u32>, &str)]| {
@@ -548,6 +550,104 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                 .collect::<Vec<_>>();
             assert_eq!(errors.len(), expected_errors.len());
             if let (Some(first), Some(last)) = (errors.first(), errors.last()) {
+                // Select the initial required-Type slot from ordered CST ancestry.
+                let group_start = children
+                    .iter()
+                    .position(|child| child.kind() == Error)
+                    .unwrap();
+                let (owner, start) = match children[..group_start].as_ref() {
+                    [keyword, trivia]
+                        if parent == implementation
+                            && keyword.kind() == ImplKw
+                            && keyword.as_token().is_some()
+                            && trivia.kind() == Whitespace
+                            && trivia.as_token().is_some() =>
+                    {
+                        (ImplRole::Head, 5u32)
+                    }
+                    [colon, trivia]
+                        if parent.kind() == ImplDescription
+                            && colon.kind() == Colon
+                            && colon.as_token().is_some()
+                            && trivia.kind() == Whitespace
+                            && trivia.as_token().is_some() =>
+                    {
+                        let enclosing = parent.parent().expect("enclosing ImplDeclaration");
+                        assert_eq!(enclosing, implementation);
+                        let shell = enclosing.children_with_tokens().collect::<Vec<_>>();
+                        assert_eq!(shell[0].kind(), ImplKw);
+                        assert_eq!(shell[1].kind(), Whitespace);
+                        assert_eq!(shell[2].kind(), TypeExpression);
+                        assert_eq!(shell[3].as_node(), Some(&parent));
+                        assert!(
+                            shell[4..].is_empty()
+                                || (shell.len() == 5 && shell[4].kind() == Semicolon)
+                        );
+                        assert_eq!(shell[2].text_range().end(), colon.text_range().start());
+                        assert_eq!(colon.text_range().end(), trivia.text_range().start());
+                        (ImplRole::Description, 8u32)
+                    }
+                    _ => panic!("initial Type Error requires the complete ordered Impl shell"),
+                };
+                let group = children[group_start..]
+                    .iter()
+                    .take_while(|child| child.kind() == Error && child.as_token().is_some())
+                    .collect::<Vec<_>>();
+                assert_eq!(group, errors);
+                assert_eq!(
+                    children[group_start - 1].text_range().end(),
+                    first.text_range().start()
+                );
+                let combined_range = rowan::TextRange::new(
+                    group.first().unwrap().text_range().start(),
+                    group.last().unwrap().text_range().end(),
+                );
+                let projected = (
+                    GrammarRole::Type(TypeRole::Primary),
+                    vec![ExpectedSyntax::TypeExpression],
+                    0usize,
+                    combined_range,
+                );
+                let end = match (owner, group.len()) {
+                    (ImplRole::Head, 1) => 6u32,
+                    (ImplRole::Head, 3) => 9,
+                    (ImplRole::Description, 1) => 9,
+                    (ImplRole::Description, 3) => 12,
+                    _ => panic!("unexpected initial Type Error group"),
+                };
+                assert_eq!(
+                    projected,
+                    (
+                        GrammarRole::Type(TypeRole::Primary),
+                        vec![ExpectedSyntax::TypeExpression],
+                        0usize,
+                        rowan::TextRange::new(start.into(), end.into()),
+                    )
+                );
+                assert!(!root.descendants().any(|node| node.kind() == Missing));
+                let suffix = &children[group_start + group.len()..];
+                if let Some(retry) = suffix.first() {
+                    assert_eq!(retry.kind(), TypeExpression);
+                    let retry = retry.as_node().expect("native retry TypeExpression");
+                    assert_eq!(retry.text_range().start(), combined_range.end());
+                    let leading = retry.first_child_or_token().expect("native retry leading");
+                    assert_eq!(leading.kind(), Whitespace);
+                    assert!(leading.as_token().is_some());
+                    assert_eq!(leading.text_range().start(), combined_range.end());
+                    assert!(!leading.text_range().is_empty());
+                    let semicolon = implementation.last_child_or_token().unwrap();
+                    assert_eq!(semicolon.kind(), Semicolon);
+                    assert!(semicolon.as_token().is_some());
+                    assert_eq!(semicolon.text_range().start(), retry.text_range().end());
+                    if owner == ImplRole::Head {
+                        assert_eq!(suffix.len(), 2);
+                        assert_eq!(suffix[1], semicolon);
+                    } else {
+                        assert_eq!(suffix.len(), 1);
+                    }
+                } else {
+                    assert_eq!(combined_range.end(), root.text_range().end());
+                }
                 assert_eq!(
                     first.text_range().start(),
                     expected_errors[0].2.start.into()
