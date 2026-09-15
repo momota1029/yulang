@@ -365,10 +365,212 @@ fn accepted_braced_sequence_controls_stay_record_free() {
 
 #[test]
 fn declaration_body_callers_publish_the_braced_child_role() {
+    use SyntaxKind::*;
+
     for prefix in ["mod M ", "role R ", "impl T ", "act A ", "for x in xs "] {
         let source = format!("{prefix}{{ @ }}");
-        let (green, records, _, _) = parse(&source, 0, None, None);
+        let (green, records, exit, suffix) = parse(&source, 0, None, None);
         assert_eq!(green.to_string(), source);
+        assert_eq!(suffix, "");
+        let p = prefix.len();
+        let root = SyntaxNode::new_root(green.clone());
+        let (caller_kind, header) = match prefix {
+            "mod M " => (
+                ModDeclaration,
+                vec![
+                    (ModKw, 0..3),
+                    (Whitespace, 3..4),
+                    (Identifier, 4..5),
+                    (Whitespace, 5..6),
+                ],
+            ),
+            "role R " => (
+                RoleDeclaration,
+                vec![
+                    (RoleKw, 0..4),
+                    (Whitespace, 4..5),
+                    (TypeExpression, 5..6),
+                    (Whitespace, 6..7),
+                ],
+            ),
+            "impl T " => (
+                ImplDeclaration,
+                vec![
+                    (ImplKw, 0..4),
+                    (Whitespace, 4..5),
+                    (TypeExpression, 5..6),
+                    (Whitespace, 6..7),
+                ],
+            ),
+            "act A " => (
+                ActDeclaration,
+                vec![
+                    (ActKw, 0..3),
+                    (Whitespace, 3..4),
+                    (TypeExpression, 4..5),
+                    (Whitespace, 5..6),
+                ],
+            ),
+            "for x in xs " => (
+                ForStatement,
+                vec![
+                    (ForKw, 0..3),
+                    (Whitespace, 3..4),
+                    (Pattern, 4..5),
+                    (Whitespace, 5..6),
+                    (InKw, 6..8),
+                    (Whitespace, 8..9),
+                    (ForIterable, 9..11),
+                    (Whitespace, 11..12),
+                ],
+            ),
+            _ => unreachable!(),
+        };
+        let statement = root.children().next().unwrap();
+        assert_eq!(root.kind(), Root);
+        assert_eq!(root.children_with_tokens().count(), 1);
+        assert_eq!(statement.kind(), Statement);
+        assert_eq!(statement.children_with_tokens().count(), 1);
+        let caller = statement.children().next().unwrap();
+        assert_eq!(caller.kind(), caller_kind);
+        let children = caller.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), header.len() + 1);
+        for (child, (kind, range)) in children.iter().zip(&header) {
+            assert_eq!(child.parent(), Some(caller.clone()));
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                *range
+            );
+            assert_eq!(child.to_string(), source[range.clone()]);
+            assert_eq!(
+                child.as_node().is_some(),
+                matches!(kind, TypeExpression | Pattern | ForIterable)
+            );
+            if let Some(node) = child.as_node() {
+                let expected_nodes = match kind {
+                    TypeExpression => vec![TypeExpression],
+                    Pattern => vec![Pattern, IdentifierPattern],
+                    ForIterable => vec![ForIterable, OperatorChain, IdentifierExpression],
+                    _ => unreachable!(),
+                };
+                assert_eq!(
+                    node.descendants()
+                        .map(|node| node.kind())
+                        .collect::<Vec<_>>(),
+                    expected_nodes
+                );
+                let tokens = node
+                    .descendants_with_tokens()
+                    .filter_map(|child| child.into_token())
+                    .collect::<Vec<_>>();
+                assert_eq!(tokens.len(), 1);
+                assert_eq!(tokens[0].kind(), Identifier);
+                assert_eq!(tokens[0].text_range(), node.text_range());
+                assert_eq!(tokens[0].text(), &source[range.clone()]);
+            }
+        }
+        let block = children.last().unwrap().as_node().unwrap();
+        assert_eq!(
+            block
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            vec![BracedStatementBlockExpression, caller_kind, Statement, Root]
+        );
+        assert_eq!(block.parent(), Some(caller.clone()));
+        assert_braced_error_children(
+            block,
+            &[
+                (LBrace, p..p + 1),
+                (Whitespace, p + 1..p + 2),
+                (Error, p + 2..p + 3),
+                (Whitespace, p + 3..p + 4),
+                (RBrace, p + 4..p + 5),
+            ],
+            false,
+        );
+        let body = block.children_with_tokens().collect::<Vec<_>>();
+        for (child, text) in body.iter().zip(["{", " ", "@", " ", "}"]) {
+            assert_eq!(child.as_token().unwrap().text(), text);
+        }
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|child| matches!(child.kind(), Missing | Invalid))
+        );
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Statement)
+                .count(),
+            1
+        );
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|child| child.kind() == Error)
+                .count(),
+            1
+        );
+
+        // The required-Statement phase and immediate block own this maximal
+        // Error group; caller ancestry does not change its schema projection.
+        let role = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
+        let mut projected = Vec::new();
+        let mut index = 1;
+        while index + 1 < body.len() {
+            if body[index].kind() != Error {
+                assert_eq!(body[index].kind(), Whitespace);
+                index += 1;
+                continue;
+            }
+            let start = body[index].text_range().start();
+            let mut end = start;
+            while index < body.len() && body[index].kind() == Error {
+                let token = body[index].as_token().unwrap();
+                assert_eq!(token.parent(), Some(block.clone()));
+                assert_eq!(token.text_range().start(), end);
+                end = token.text_range().end();
+                index += 1;
+            }
+            projected.push((
+                role,
+                vec![ExpectedSyntax::Statement],
+                0,
+                usize::from(start)..usize::from(end),
+            ));
+        }
+        assert_eq!(
+            projected,
+            vec![(role, vec![ExpectedSyntax::Statement], 0, p + 2..p + 3)]
+        );
+        let NormalizedExit::Complete(tail, line) = exit else {
+            panic!("deferred: {source:?}")
+        };
+        assert_eq!(line, LineEntry::InLine);
+        if caller_kind == ForStatement {
+            assert_eq!(tail, Ok(()));
+        } else {
+            let Err(Either::Right(end)) = &tail else {
+                panic!("EOF: {source:?}")
+            };
+            assert!(end.item.payload_view().is_eof());
+        }
+
+        // Temporary ledger compatibility follows the structural proof.
+        assert_eq!(records.len(), projected.len());
+        for (record, (role, expected, primary, range)) in records.iter().zip(&projected) {
+            assert_eq!(record.site.role, *role);
+            assert_eq!(record.site.range, *range);
+            assert_eq!(
+                record
+                    .expectations
+                    .iter()
+                    .map(|expectation| expectation.expected)
+                    .collect::<Vec<_>>(),
+                *expected
+            );
+            assert_eq!(record.primary_expectation, *primary);
+        }
         assert_eq!(
             records,
             [record(
@@ -379,9 +581,15 @@ fn declaration_body_callers_publish_the_braced_child_role() {
             )],
             "{source:?}"
         );
-        let (again, frozen, _, _) = parse(&source, 0, None, Some(&records));
+        let (again, frozen, frozen_exit, frozen_suffix) = parse(&source, 0, None, Some(&records));
         assert_eq!(again, green);
         assert_eq!(frozen, records);
+        assert_eq!(frozen_suffix, suffix);
+        let NormalizedExit::Complete(frozen_tail, frozen_line) = frozen_exit else {
+            panic!("frozen deferred: {source:?}")
+        };
+        assert_eq!(frozen_tail, tail);
+        assert_eq!(frozen_line, line);
     }
 }
 

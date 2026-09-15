@@ -652,6 +652,24 @@ replay. It does not harmonize these coordinates or add syntax. Other fences,
 outer Yumark construction, other braced callers and nested recovery remain
 untriaged or mapped only by separate rows.
 
+#### BracedStatementBlock direct Statement Error caller reconciliation
+
+`statement.rs::braced_statement_block_normalized` has six direct production
+call expressions: one expression NUD entry and five non-NUD callers (Mod, Role,
+Impl, Act and For). The completed ordinary braced rows cover the NUD entry; the
+five non-NUD calls are linked here through
+`declaration_body_callers_publish_the_braced_child_role` in
+`tests/braced_statement_recovery.rs`.
+
+Complete caller ancestry and accepted headers identify the block, but its
+direct required-Statement Error has the same structural projection in every
+case: one maximal group, `BracedStatementBlock(Statement)`, singleton Statement
+expectation and primary zero. Mod/Role/Impl/Act finish at EOF; For finishes with
+its accepted outer `Ok(())` completion. This 6-call reconciliation proves only
+the listed matching-close Error alternative; NUD variants, protected/fence,
+caller-local header/body recovery, Missing/Separator/Close and nested recovery
+remain separate.
+
 #### ColonApplication indented Statement entry Draft links
 
 `tests/indented_recovery.rs` maps the first required Statement under the full
