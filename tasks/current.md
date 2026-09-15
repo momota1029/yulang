@@ -1024,6 +1024,18 @@ bounded unmapped candidate before further implementation.
 - Other nested expression roles, trivia/EOF/fence, recursive compositions and
   global Gate 1 remain open.
 
+## PV Invalid → nested record-field Error preorder closure
+
+- M1 direct CST proof now covers `:{{a @ B}}` and `:{{a: @ B}}`: outer TagName
+  Invalid at `2..9`/`2..10` precedes child field Colon/Type Error at `5..6`/`6..7`.
+  Field-native retry whitespace and accepted `B`, native closes and no Missing
+  cascade/additional Invalid are fixed by ordered Rowan children.
+- The independent audit caught a removed seeded/frozen compatibility helper;
+  its one repair restored all original successor/cursor/EOF-item controls after
+  CST-first projection. Repaired-delta audit and primary exact rerun were clean
+  (1 passed, 1,438 filtered); no production change or benchmark.
+- Other nested Type/PV forms, separators, fences and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

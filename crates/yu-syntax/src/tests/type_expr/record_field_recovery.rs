@@ -425,19 +425,204 @@ fn record_field_fence_handoff_keeps_missing_and_error_anchors_truthful() {
 
 #[test]
 fn record_field_structured_pv_reservations_order_parent_before_each_nested_slot() {
+    use SyntaxKind::{
+        Colon, Error, Identifier, Invalid, LBrace, NamedRecordType, NamedRecordTypeClose,
+        PolymorphicVariantTag, PolymorphicVariantType, RBrace, Root, TypeExpression,
+        TypeRecordField, Whitespace,
+    };
     use TypeRole::{RecordFieldColon as C, RecordFieldType as T};
-    for (source, extent, nested) in [
-        (":{{a @ B}}", 2..9, field_record(1, C, 5..6, true)),
-        (":{{a: @ B}}", 2..10, field_record(1, T, 6..7, true)),
+
+    fn children(node: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>, &str)]) {
+        let actual = node
+            .children_with_tokens()
+            .map(|child| {
+                (
+                    child.kind(),
+                    child.as_node().is_some(),
+                    usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                    child.to_string(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let expected = expected
+            .iter()
+            .map(|(kind, node, range, text)| (*kind, *node, range.clone(), text.to_string()))
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected);
+    }
+
+    for (source, extent, nested_role, error_range) in [
+        (":{{a @ B}}", 2..9, C, 5..6),
+        (":{{a: @ B}}", 2..10, T, 6..7),
     ] {
-        assert_complete_type_recovery(
-            source,
-            0,
-            &[
-                expected_type_error(0, TypeRole::PolymorphicVariantTagName, extent),
-                nested,
-            ],
-        );
+        let mut fresh_green = None;
+        let expected = [
+            expected_type_error(0, TypeRole::PolymorphicVariantTagName, extent.clone()),
+            field_record(1, nested_role, error_range.clone(), true),
+        ];
+        let frozen = frozen_recovery_ids(&expected);
+        for input in [None, Some(frozen.as_slice())] {
+            let (green, exit, remainder, records) =
+                run_type_normalized_with_recoveries(source, 0, LineEntry::InLine, None, input);
+            let root = SyntaxNode::new_root(green.clone());
+            assert_eq!(root.text(), source);
+            assert_eq!(remainder, "");
+            assert!(matches!(
+                exit,
+                Some(NormalizedExit::Complete(
+                    Err(Either::Right(_)),
+                    LineEntry::InLine
+                ))
+            ));
+            let invalid = root
+                .descendants()
+                .find(|node| node.kind() == Invalid)
+                .unwrap();
+            let tag = invalid.parent().unwrap();
+            let pv = tag.parent().unwrap();
+            assert_eq!(
+                invalid
+                    .ancestors()
+                    .map(|node| node.kind())
+                    .collect::<Vec<_>>(),
+                [
+                    Invalid,
+                    PolymorphicVariantTag,
+                    PolymorphicVariantType,
+                    TypeExpression,
+                    Root
+                ]
+            );
+            let end = source.len();
+            children(
+                &pv,
+                &[
+                    (Colon, false, 0..1, ":"),
+                    (LBrace, false, 1..2, "{"),
+                    (PolymorphicVariantTag, true, 2..end - 1, &source[2..end - 1]),
+                    (RBrace, false, end - 1..end, "}"),
+                ],
+            );
+            children(&tag, &[(Invalid, true, 2..end - 1, &source[2..end - 1])]);
+            children(
+                &invalid,
+                &[(TypeExpression, true, 2..end - 1, &source[2..end - 1])],
+            );
+            let retained_type = invalid.first_child().unwrap();
+            children(
+                &retained_type,
+                &[(NamedRecordType, true, 2..end - 1, &source[2..end - 1])],
+            );
+            let record = retained_type.first_child().unwrap();
+            children(
+                &record,
+                &[
+                    (LBrace, false, 2..3, "{"),
+                    (TypeRecordField, true, 3..end - 2, &source[3..end - 2]),
+                    (NamedRecordTypeClose, true, end - 2..end - 1, "}"),
+                ],
+            );
+            children(
+                &record.last_child().unwrap(),
+                &[(RBrace, false, end - 2..end - 1, "}")],
+            );
+            let field = record.first_child().unwrap();
+            let mut field_children = vec![(Identifier, false, 3..4, "a")];
+            if nested_role == T {
+                field_children.push((Colon, false, 4..5, ":"));
+            }
+            field_children.extend([
+                (
+                    Whitespace,
+                    false,
+                    error_range.start - 1..error_range.start,
+                    " ",
+                ),
+                (Error, false, error_range.clone(), "@"),
+                (Whitespace, false, error_range.end..error_range.end + 1, " "),
+                (TypeExpression, true, end - 3..end - 2, "B"),
+            ]);
+            children(&field, &field_children);
+            children(
+                &field.last_child().unwrap(),
+                &[(Identifier, false, end - 3..end - 2, "B")],
+            );
+
+            // Enter Invalid before descending to the field. Select the nested
+            // slot from actual Colon/order, never from temporary record facts.
+            let mut projection = Vec::new();
+            for event in root.preorder_with_tokens() {
+                let rowan::WalkEvent::Enter(child) = event else {
+                    continue;
+                };
+                let (role, expected_syntax) = match child.kind() {
+                    Invalid => {
+                        assert_eq!(child.as_node(), Some(&invalid));
+                        (
+                            TypeRole::PolymorphicVariantTagName,
+                            ExpectedSyntax::Identifier,
+                        )
+                    }
+                    Error => {
+                        assert!(child.as_token().is_some());
+                        assert_eq!(child.parent(), Some(field.clone()));
+                        let direct = field.children_with_tokens().collect::<Vec<_>>();
+                        let at = direct.iter().position(|element| element == &child).unwrap();
+                        assert_ne!(direct[at - 1].kind(), Error);
+                        assert_ne!(direct[at + 1].kind(), Error);
+                        assert_eq!(direct[at + 1].kind(), Whitespace);
+                        assert_eq!(direct[at + 2].kind(), TypeExpression);
+                        if direct[..at].iter().any(|element| element.kind() == Colon) {
+                            (T, ExpectedSyntax::TypeExpression)
+                        } else {
+                            (C, ExpectedSyntax::Punctuation(PunctuationEvidence::Colon))
+                        }
+                    }
+                    SyntaxKind::Missing => panic!("no nested Missing cascade"),
+                    _ => continue,
+                };
+                projection.push((
+                    child.kind(),
+                    role,
+                    [expected_syntax],
+                    0usize,
+                    usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                ));
+            }
+            assert_eq!(
+                projection,
+                [
+                    (
+                        Invalid,
+                        TypeRole::PolymorphicVariantTagName,
+                        [ExpectedSyntax::Identifier],
+                        0,
+                        extent.clone()
+                    ),
+                    (
+                        Error,
+                        nested_role,
+                        [if nested_role == C {
+                            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
+                        } else {
+                            ExpectedSyntax::TypeExpression
+                        }],
+                        0,
+                        error_range.clone()
+                    ),
+                ]
+            );
+
+            // Temporary compatibility assertions follow the independent CST projection.
+            assert_eq!(records, input.unwrap_or(&expected));
+            if let Some(fresh) = &fresh_green {
+                assert_eq!(&green, fresh);
+            } else {
+                fresh_green = Some(green);
+            }
+        }
+        // Retain seeded output, cursor state, and exact fresh/frozen EOF Item coverage.
+        assert_complete_type_recovery(source, 0, &expected);
     }
 }
 

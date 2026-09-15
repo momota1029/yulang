@@ -1628,6 +1628,16 @@ as support. These are support/proof links, not census assignments. The bounded
 PV semantic Draft now maps the witnessed malformed prefix, payload/list-tag,
 separator and close forms; other PV and nested Type rows remain open.
 
+The bounded `record_field_structured_pv_reservations_order_parent_before_each_nested_slot`
+composition adds an outer-to-inner preorder proof: `:{{a @ B}}` and
+`:{{a: @ B}}` retain exactly one `Invalid > TypeExpression > NamedRecordType`
+path and then one direct field Error. CST entry projects TagName/Identifier at
+`2..9`/`2..10` before field Colon/Colon `5..6` or field Type/TypeExpression
+`6..7`; field-native retry whitespace precedes accepted `B`. No Missing
+cascade/additional Invalid occurs. The old seeded/frozen compatibility helper
+also remains after the CST-first assertions. Independent repaired-delta audit
+was clean; the primary exact test passed 1 with 1,438 filtered out.
+
 ### Pattern — 2 files / 8 calls
 
 - `crates/yu-syntax/src/pattern/delimited.rs`
