@@ -785,9 +785,25 @@ Type retry, including Type/Colon retry,
 UTF-8/CRLF and dedent handoff. Fresh FieldItem, FieldSeparator, list close,
 tuple fields, and the entire required-Type RHS remain separate, including
 Type-owned direct Error leaves before optional `TypeExpression`
-(`type_expr/mod.rs:640–652,682–726`) and nested Type recovery.
+(`type_expr/mod.rs:690–708,732–796`) and nested Type recovery.
 Delta specification audit closed all three record findings without a topology
 or implementation change.
+
+#### Shared named declaration-field required-Type fresh Missing links
+
+Named-field required-Type fresh Missing is linked for one complete named-brace
+witness under each of Struct, Enum and Error. Owners are
+`declaration/fields.rs:874–950`, `struct_decl.rs:599–644`,
+`declaration_variant.rs:490–535` and shared `type_expr/mod.rs:690–708,822–842`.
+`named_field_required_type_missing_has_direct_three_owner_rowan_slots` in
+`crates/yu-syntax/src/tests/type_expr/required_recovery.rs` proves exact
+canonical topology for `struct S {a:}`, `enum E { A {a:} }` and
+`error E { A {a:} }`. Full ancestry distinguishes the common
+StructField/TypeExpression/Missing shape; actual field Colon and native braces
+select the phase. Singleton TypeExpression/primary zero is derived before
+records, and sentinel fresh/frozen replay is preserved. Independent repaired
+delta audit was clean; exact test passed 1 with 1,427 filtered out. Struct
+indented fields, other layout/boundary and recovery alternatives remain open.
 
 #### Shared fresh named declaration FieldItem Draft links
 
@@ -1215,8 +1231,8 @@ mapped evidence: Type RHS; Act Head/Source; Derives RoleReference; Pattern and
 Expression annotations; and Enum/Error FromType. Seven were initially unmapped:
 Role Head; Impl Head/Description; Cast TargetType; and Struct/Enum/Error
 named-field Type. Role Head and both Impl contexts are mapped below after
-focused proof closure; Cast is mapped above and the three named-field contexts
-remain open.
+focused proof closure; Cast and the three named-field contexts are now mapped
+above/below.
 These counts describe role transports, not occurrence or boundary-variant
 counts, and do not certify nested Type grammar.
 

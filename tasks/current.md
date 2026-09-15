@@ -611,6 +611,24 @@ bounded unmapped candidate before further implementation.
   named-field Type are now the three remaining unmapped reachable contexts in
   this required-Type inventory. Broader Cast/Type and gates 2–4 remain open.
 
+## Named-field required-Type fresh Missing closure
+
+- The selected M1 slice added one coherent three-owner matrix for
+  `struct S {a:}`, `enum E { A {a:} }` and `error E { A {a:} }`. Complete
+  declaration/variant/named-brace ancestry distinguishes Struct FieldType from
+  Enum/Error Variant NamedFieldType despite their common StructField shape.
+- One Astra implementer proved exact canonical node/token ownership, unique
+  childless TypeExpression Missing at `12..12` / `14..14` / `15..15`, native
+  closes, EOF and sentinel fresh/frozen replay. The one repair added explicit
+  singleton TypeExpression/primary-zero projection before record construction.
+  Independent final audit was clean. Scoped rustfmt/diff and exact test passed
+  1 with 1,427 filtered out. No production code, broad suite or benchmark ran.
+- All 15 reachable role contexts in the bounded shared required-Type fresh-
+  Missing transport inventory now have mapped witnesses. This does not certify
+  every layout/boundary alternative or nested Type, and Gate 1 remains
+  incomplete. Struct indented fields, tuple/positional exclusions, broader
+  recovery and gates 2–4 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

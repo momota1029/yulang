@@ -381,6 +381,230 @@ fn required_type_real_declaration_callers_publish_their_own_missing_roles() {
 }
 
 #[test]
+fn named_field_required_type_missing_has_direct_three_owner_rowan_slots() {
+    use SyntaxKind::{
+        Colon, EnumDeclaration, EnumKw, EnumVariant, ErrorDeclaration, ErrorKw, Identifier, LBrace,
+        Missing, RBrace, Root, Statement, StructDeclaration, StructField, StructKw, TypeExpression,
+        Whitespace,
+    };
+
+    fn children(parent: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>, &str)]) {
+        let actual = parent.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(actual.len(), expected.len(), "{parent:#?}");
+        for (child, (kind, node, range, text)) in actual.iter().zip(expected) {
+            assert_eq!(child.parent().as_ref(), Some(parent));
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.as_node().is_some(), *node);
+            assert_eq!(child.as_token().is_some(), !node);
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                *range
+            );
+            assert_eq!(child.to_string(), *text);
+        }
+    }
+
+    for (source, declaration_kind, keyword, keyword_end, field_start) in [
+        ("struct S {a:}", StructDeclaration, StructKw, 6, 10),
+        ("enum E { A {a:} }", EnumDeclaration, EnumKw, 4, 12),
+        ("error E { A {a:} }", ErrorDeclaration, ErrorKw, 5, 13),
+    ] {
+        let (green, exit, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        let NormalizedExit::Complete(Err(Either::Right(mut end)), LineEntry::InLine) = exit else {
+            panic!("{source:?}: expected EOF InLine");
+        };
+        assert!(end.item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut end.item), "");
+
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), Root);
+        assert_eq!(root.parent(), None);
+        assert_eq!(
+            root.text_range(),
+            rowan::TextRange::new(0.into(), (source.len() as u32).into())
+        );
+        children(&root, &[(Statement, true, 0..source.len(), source)]);
+        let statement = root.first_child().unwrap();
+        children(
+            &statement,
+            &[(declaration_kind, true, 0..source.len(), source)],
+        );
+        let declaration = statement.first_child().unwrap();
+        let mut shell = vec![
+            (keyword, false, 0..keyword_end, &source[..keyword_end]),
+            (Whitespace, false, keyword_end..keyword_end + 1, " "),
+            (
+                Identifier,
+                false,
+                keyword_end + 1..keyword_end + 2,
+                &source[keyword_end + 1..keyword_end + 2],
+            ),
+            (Whitespace, false, keyword_end + 2..keyword_end + 3, " "),
+            (LBrace, false, keyword_end + 3..keyword_end + 4, "{"),
+        ];
+        if declaration_kind == StructDeclaration {
+            shell.push((StructField, true, field_start..field_start + 2, "a:"));
+        } else {
+            shell.push((
+                EnumVariant,
+                true,
+                keyword_end + 4..field_start + 3,
+                &source[keyword_end + 4..field_start + 3],
+            ));
+            shell.push((Whitespace, false, field_start + 3..field_start + 4, " "));
+        }
+        shell.push((RBrace, false, source.len() - 1..source.len(), "}"));
+        children(&declaration, &shell);
+        let field_owner = declaration.first_child().unwrap();
+        let field = if field_owner.kind() == EnumVariant {
+            children(
+                &field_owner,
+                &[
+                    (Whitespace, false, keyword_end + 4..keyword_end + 5, " "),
+                    (Identifier, false, keyword_end + 5..keyword_end + 6, "A"),
+                    (Whitespace, false, keyword_end + 6..keyword_end + 7, " "),
+                    (LBrace, false, keyword_end + 7..field_start, "{"),
+                    (StructField, true, field_start..field_start + 2, "a:"),
+                    (RBrace, false, field_start + 2..field_start + 3, "}"),
+                ],
+            );
+            field_owner.first_child().unwrap()
+        } else {
+            field_owner
+        };
+        let at = field_start + 2;
+        children(
+            &field,
+            &[
+                (Identifier, false, field_start..field_start + 1, "a"),
+                (Colon, false, field_start + 1..at, ":"),
+                (TypeExpression, true, at..at, ""),
+            ],
+        );
+        let type_expr = field.first_child().unwrap();
+        children(&type_expr, &[(Missing, true, at..at, "")]);
+        let missing_node = type_expr.first_child().unwrap();
+        children(&missing_node, &[]);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == Missing)
+                .count(),
+            1
+        );
+        assert!(
+            !root
+                .descendants_with_tokens()
+                .any(|element| matches!(element.kind(), SyntaxKind::Error | SyntaxKind::Invalid))
+        );
+
+        // Select the slot from the actual ordered CST before consulting records.
+        let owner = field.parent().unwrap();
+        let owner_children = owner.children_with_tokens().collect::<Vec<_>>();
+        let field_index = owner_children
+            .iter()
+            .position(|child| child.as_node() == Some(&field))
+            .unwrap();
+        assert_eq!(owner_children[field_index - 1].kind(), LBrace);
+        assert!(owner_children[field_index - 1].as_token().is_some());
+        assert_eq!(owner_children[field_index + 1].kind(), RBrace);
+        assert!(owner_children[field_index + 1].as_token().is_some());
+        let ancestry = missing_node
+            .ancestors()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>();
+        let role = GrammarRole::Declaration(match ancestry.as_slice() {
+            [
+                Missing,
+                TypeExpression,
+                StructField,
+                StructDeclaration,
+                Statement,
+                Root,
+            ] => DeclarationRole::Struct(StructRole::FieldType),
+            [
+                Missing,
+                TypeExpression,
+                StructField,
+                EnumVariant,
+                EnumDeclaration,
+                Statement,
+                Root,
+            ] => DeclarationRole::Enum(EnumDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldType,
+            )),
+            [
+                Missing,
+                TypeExpression,
+                StructField,
+                EnumVariant,
+                ErrorDeclaration,
+                Statement,
+                Root,
+            ] => DeclarationRole::Error(ErrorDeclarationRole::Variant(
+                VariantDeclarationRole::NamedFieldType,
+            )),
+            _ => panic!("unexpected named-field ancestry: {ancestry:?}"),
+        });
+        let range = missing_node.text_range();
+        assert!(range.is_empty());
+        assert_eq!(usize::from(range.start())..usize::from(range.end()), at..at);
+        let structural_projection = type_expr
+            .children()
+            .map(|child| {
+                assert_eq!(child, missing_node);
+                assert_eq!(child.kind(), Missing);
+                assert!(child.children_with_tokens().next().is_none());
+                (
+                    role,
+                    [ExpectedSyntax::TypeExpression],
+                    0,
+                    child.text_range(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            structural_projection,
+            [(role, [ExpectedSyntax::TypeExpression], 0, range)]
+        );
+        let expected = [missing(0, role, usize::from(range.start()))];
+        let mut fresh = run_statement_records(source, 0, None);
+        let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) = &mut fresh.exit
+        else {
+            panic!("{source:?}: seeded harness must also return EOF InLine");
+        };
+        assert!(end.item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut end.item), "");
+        assert_eq!(fresh.green.to_string(), format!("sentinel{source}"));
+        let seeded_root = SyntaxNode::new_root(fresh.green.clone());
+        let seeded_statement = seeded_root
+            .children()
+            .find(|node| node.kind() == Statement)
+            .unwrap();
+        assert_eq!(seeded_statement.green(), statement.green());
+        assert_eq!(fresh.records, expected);
+        assert_eq!(fresh.slots, 1);
+        assert_eq!(fresh.diagnostics, (Some(1), 0));
+        assert_eq!(fresh.mark, ());
+        assert!(fresh.same_operators);
+        assert_eq!(fresh.successor_origin, source.len());
+        assert_eq!(fresh.remainder, "");
+        let frozen = frozen_recovery_ids(&expected);
+        let replay = run_statement_records(source, 0, Some(&frozen));
+        assert_eq!(replay.green, fresh.green);
+        assert_eq!(replay.records, frozen);
+        assert_eq!(replay.slots, 1);
+        assert_eq!(replay.diagnostics, (Some(8), 1));
+        assert_eq!(replay.mark, ());
+        assert!(replay.same_operators);
+        assert_same_exit(&fresh.exit, &replay.exit);
+        assert_eq!(replay.successor_origin, fresh.successor_origin);
+        assert_eq!(replay.remainder, fresh.remainder);
+    }
+}
+
+#[test]
 fn required_caller_role_never_remaps_malformed_or_nested_type_recovery() {
     for (source, expected) in [
         (
