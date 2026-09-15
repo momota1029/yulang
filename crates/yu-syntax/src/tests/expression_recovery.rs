@@ -763,3 +763,129 @@ fn required_operand_cst_orders_caller_and_nested_nud_recovery_in_one_chain() {
             .any(|child| child.kind() == SyntaxKind::Missing)
     );
 }
+
+#[test]
+fn required_operand_cst_selects_post_infix_missing_from_ordered_children() {
+    let source = "a +";
+    let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
+        "+",
+        OperatorFixities::new().with_infix(BindingPower::scalar(50), BindingPower::scalar(50)),
+    )])
+    .unwrap();
+    let (green, exit, _records) = expression_with_recoveries(source, &operators);
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.kind(), SyntaxKind::Root);
+    assert!(root.parent().is_none());
+    assert_eq!(root.text_range(), rowan::TextRange::new(0.into(), 3.into()));
+    assert_eq!(root.to_string(), source);
+    let root_children = root.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(root_children.len(), 1);
+    let chain = root_children[0].as_node().unwrap();
+    assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+    assert_eq!(chain.parent(), Some(root.clone()));
+    assert_eq!(chain.text_range(), root.text_range());
+    assert_eq!(chain.to_string(), source);
+    let children = chain.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(children.len(), 3);
+    for (child, kind, text, start, end) in [
+        (&children[0], SyntaxKind::IdentifierExpression, "a", 0, 1),
+        (&children[1], SyntaxKind::InfixOperatorUse, " +", 1, 3),
+        (&children[2], SyntaxKind::Missing, "", 3, 3),
+    ] {
+        assert!(child.as_node().is_some());
+        assert_eq!(child.parent(), Some(chain.clone()));
+        assert_eq!(child.kind(), kind);
+        assert_eq!(child.to_string(), text);
+        assert_eq!(
+            child.text_range(),
+            rowan::TextRange::new(start.into(), end.into())
+        );
+    }
+    let identifier = children[0].as_node().unwrap();
+    let identifier_children = identifier.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(identifier_children.len(), 1);
+    let infix = children[1].as_node().unwrap();
+    let infix_children = infix.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(infix_children.len(), 2);
+    for (child, parent, kind, text, start, end) in [
+        (
+            &identifier_children[0],
+            identifier,
+            SyntaxKind::Identifier,
+            "a",
+            0,
+            1,
+        ),
+        (&infix_children[0], infix, SyntaxKind::Whitespace, " ", 1, 2),
+        (&infix_children[1], infix, SyntaxKind::Operator, "+", 2, 3),
+    ] {
+        let token = child.as_token().unwrap();
+        assert_eq!(token.parent(), Some(parent.clone()));
+        assert_eq!(token.kind(), kind);
+        assert_eq!(token.text(), text);
+        assert_eq!(
+            token.text_range(),
+            rowan::TextRange::new(start.into(), end.into())
+        );
+    }
+    let missing = children[2].as_node().unwrap();
+    assert!(missing.children_with_tokens().next().is_none());
+    assert_eq!(missing.prev_sibling_or_token(), Some(children[1].clone()));
+    assert!(missing.next_sibling_or_token().is_none());
+    let recoveries = root
+        .descendants_with_tokens()
+        .filter(|element| {
+            matches!(
+                element.kind(),
+                SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(recoveries, vec![children[2].clone()]);
+    assert!(
+        !root
+            .descendants_with_tokens()
+            .any(|element| element.kind() == SyntaxKind::PrefixOperatorUse)
+    );
+
+    // Select the operand slot from ancestry and ordered nodes, without records
+    // or operator spelling as classification input.
+    let selected = match (root.kind(), chain.kind(), children.as_slice()) {
+        (SyntaxKind::Root, SyntaxKind::OperatorChain, [lhs, operator, absent])
+            if chain.parent() == Some(root.clone())
+                && lhs.parent() == Some(chain.clone())
+                && operator.parent() == Some(chain.clone())
+                && absent.parent() == Some(chain.clone())
+                && lhs.kind() == SyntaxKind::IdentifierExpression
+                && operator.kind() == SyntaxKind::InfixOperatorUse
+                && absent.kind() == SyntaxKind::Missing =>
+        {
+            (
+                GrammarRole::Expression(ExpressionRole::Nud),
+                [ExpectedSyntax::Expression],
+                0usize,
+                usize::from(absent.text_range().start())..usize::from(absent.text_range().end()),
+            )
+        }
+        _ => panic!("expected Root > OperatorChain with an accepted infix operand slot"),
+    };
+    assert_eq!(
+        selected,
+        (
+            GrammarRole::Expression(ExpressionRole::Nud),
+            [ExpectedSyntax::Expression],
+            0usize,
+            3..3,
+        )
+    );
+    let Some(NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine)) = exit else {
+        panic!("the missing infix operand must preserve ordinary EOF and InLine handoff")
+    };
+    assert!(end.item.payload_view().is_eof());
+    let extent = end.item.extent(source.len());
+    assert_eq!(extent.physical(), 3..3);
+    assert_eq!(extent.leading(), 3..3);
+    assert_eq!(extent.remaining(), 3..3);
+    assert_eq!(extent.payload(), 3..3);
+    assert_eq!(extent.recovery_range(), 3..3);
+}

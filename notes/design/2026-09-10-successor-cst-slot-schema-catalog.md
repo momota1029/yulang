@@ -2430,6 +2430,11 @@ alternatives, and
 `crates/yu-syntax/src/tests/if_expr.rs` for three Elsif Condition Missing,
 terminal maximal-Error and IdentifierExpression-retry alternatives before the
 actual Colon, and
+`required_operand_cst_selects_post_infix_missing_from_ordered_children` in
+`crates/yu-syntax/src/tests/expression_recovery.rs`, with the retained
+`dangling_operator_recovery_is_direct_cst_only` controls in
+`crates/yu-syntax/src/tests/operators.rs`, for the ordinary-EOF production
+infix-operand Missing discriminator, and
 `colon_and_with_cst_slots_are_selected_by_ordered_direct_grammar` in
 `crates/yu-syntax/src/tests/expression_recovery.rs` and
 `colon_with_recovery.rs`. M2 specification and recovery closure audits were
@@ -2443,10 +2448,13 @@ were clean; the focused indented-recovery module passed 11 tests with the Rust
 wrapper disabled after the environment's default sccache wrapper failed before
 compilation. Status: catalog-audited evidence-complete Draft only for these
 witnessed initial/nested, inline, boundary and four With-indented alternatives;
-direct production infix-operand Missing discriminator evidence remains open in
-the finite required-expression caller reconciliation. Later indented/body
-recursion, other expression forms, global interpreter and ledger/API migration
-remain open.
+ordinary-EOF production infix-operand Missing now has independently audited
+direct Rowan evidence: accepted lhs, InfixOperatorUse and final childless
+Missing share one ordered chain, and structural selection projects
+Expression(Nud)/Expression/primary zero at `3..3`. This closes the last
+identified direct-proof gap in the bounded caller reconciliation, not all
+recursive/boundary combinations. Later indented/body recursion, other
+expression forms, global interpreter and ledger/API migration remain open.
 
 ## Existing evidence-complete Draft slices
 

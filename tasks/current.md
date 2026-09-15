@@ -642,10 +642,10 @@ bounded unmapped candidate before further implementation.
 - Independent pre-write and post-write audits were clean. Scoped rustfmt/diff
   and four focused `case_schema_` tests passed; no production code, broad suite
   or benchmark ran. These six alternatives are evidence-complete Draft only.
-- Elsif Condition is closed below. The remaining bounded direct-proof gap is
-  the production infix-operand Missing discriminator. Prefix/infix contextual
-  recursion, broader boundaries/layout, nested owners and Gate 1 completion
-  remain open.
+- Elsif Condition and the ordinary-EOF production infix-operand Missing
+  discriminator are closed below. All identified direct-proof gaps in this
+  bounded reconciliation are closed. Prefix/infix contextual recursion,
+  broader boundaries/layout, nested owners and Gate 1 completion remain open.
 
 ## Elsif Condition required-expression closure
 
@@ -661,7 +661,24 @@ bounded unmapped candidate before further implementation.
   change, broad suite or benchmark ran.
 - These three alternatives are evidence-complete Draft only. EOF/fence
   absence, missing introducer, later companions, layout, nested Nud and the
-  remaining production infix-operand discriminator stay open.
+  broader required-expression surface stay open.
+
+## Production infix-operand Missing discriminator closure
+
+- One Astra implementer added the ordinary-EOF `a +` direct-CST witness.
+  Accepted lhs, InfixOperatorUse and final childless Missing occur as the exact
+  three direct OperatorChain children; full ancestry and order select
+  Expression(Nud)/Expression/primary zero at `3..3` without records or operator
+  spelling.
+- Exact node/token ownership and ranges, sole recovery, lossless source and EOF
+  Item extent are pinned. The existing dangling-operator tests remain retained
+  controls.
+- Independent pre-write and post-write audits were clean. After one
+  formatting-only repair, scoped rustfmt/diff and the exact test passed 1 with
+  1,430 filtered out. No production change, broad suite or benchmark ran.
+- This closes the last identified direct-proof gap in the bounded 12-class,
+  24-cell caller reconciliation only. Recursive/boundary combinations, nested
+  owners and global Gate 1 remain open.
 
 ## Known open boundaries and deferred work
 

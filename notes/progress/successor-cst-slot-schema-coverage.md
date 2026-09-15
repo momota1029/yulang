@@ -2116,8 +2116,14 @@ Guard/Expression/primary-zero projection. This does not close other
 required-expression callers.
 
 The bounded shared required-expression inventory has 12 caller/phase classes
-and 24 fresh-Missing/initial-Error cells. The remaining direct-proof gap is the
-production infix-operand Missing discriminator. Prefix/infix contextual
+and 24 fresh-Missing/initial-Error cells. The ordinary-EOF production
+infix-operand Missing discriminator is directly proved by
+`required_operand_cst_selects_post_infix_missing_from_ordered_children` at
+`crates/yu-syntax/src/tests/expression_recovery.rs:768`: accepted lhs,
+InfixOperatorUse and final childless Missing share one ordered chain and project
+Expression(Nud)/Expression/primary zero at `3..3`. Together with the retained
+`crates/yu-syntax/src/tests/operators.rs:455` controls, this closes the last
+identified direct-proof gap in this bounded inventory. Prefix/infix contextual
 recursion, broader boundaries/layout and nested owners remain outside this
 bounded reconciliation.
 Every exhaustive boundary/layout alternative, nested child schema and the
