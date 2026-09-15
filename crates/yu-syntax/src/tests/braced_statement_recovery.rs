@@ -1307,15 +1307,25 @@ fn braced_statement_raw_error_terminal_prefixes() {
 #[test]
 fn braced_statement_raw_error_stays_in_nested_for_body() {
     let source = "{for x in xs {@}; use a}";
-    let (green, _, _, _) = parse(source, 0, None, None);
+    let (green, records, exit, suffix) = parse(source, 0, None, None);
     assert_eq!(green.to_string(), source);
-    let root = SyntaxNode::new_root(green);
-    let outer = root
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
-        .unwrap();
+    assert_eq!(suffix, "");
+    let root = SyntaxNode::new_root(green.clone());
+    assert_eq!(root.kind(), SyntaxKind::Root);
+    let root_children = root.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(root_children.len(), 1);
+    let root_statement = root_children[0].as_node().unwrap();
+    assert_eq!(root_statement.kind(), SyntaxKind::Statement);
+    let statement_children = root_statement.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(statement_children.len(), 1);
+    let chain = statement_children[0].as_node().unwrap();
+    assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
+    let chain_children = chain.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(chain_children.len(), 1);
+    let outer = chain_children[0].as_node().unwrap();
+    assert_eq!(outer.kind(), SyntaxKind::BracedStatementBlockExpression);
     assert_braced_error_children(
-        &outer,
+        outer,
         &[
             (SyntaxKind::LBrace, 0..1),
             (SyntaxKind::Statement, 1..16),
@@ -1325,11 +1335,29 @@ fn braced_statement_raw_error_stays_in_nested_for_body() {
         ],
         false,
     );
-    let statement = outer.children().next().unwrap();
-    let nested = statement
-        .descendants()
-        .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
-        .unwrap();
+    let outer_children = outer.children_with_tokens().collect::<Vec<_>>();
+    let statement = outer_children[1].as_node().unwrap();
+    let statement_children = statement.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(statement_children.len(), 1);
+    let for_statement = statement_children[0].as_node().unwrap();
+    assert_eq!(for_statement.kind(), SyntaxKind::ForStatement);
+    let nested = for_statement.children().last().unwrap();
+    assert_eq!(nested.kind(), SyntaxKind::BracedStatementBlockExpression);
+    assert_eq!(
+        nested
+            .ancestors()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        vec![
+            SyntaxKind::BracedStatementBlockExpression,
+            SyntaxKind::ForStatement,
+            SyntaxKind::Statement,
+            SyntaxKind::BracedStatementBlockExpression,
+            SyntaxKind::OperatorChain,
+            SyntaxKind::Statement,
+            SyntaxKind::Root,
+        ]
+    );
     assert_braced_error_children(
         &nested,
         &[
@@ -1339,6 +1367,116 @@ fn braced_statement_raw_error_stays_in_nested_for_body() {
         ],
         false,
     );
+    let inner_children = nested.children_with_tokens().collect::<Vec<_>>();
+    for (child, text) in inner_children.iter().zip(["{", "@", "}"]) {
+        assert_eq!(child.as_token().unwrap().text(), text);
+    }
+    assert_eq!(outer_children[0].as_token().unwrap().text(), "{");
+    assert_eq!(outer_children[4].as_token().unwrap().text(), "}");
+    let separator = outer_children[2].as_node().unwrap();
+    assert_eq!(
+        separator
+            .children_with_tokens()
+            .map(|child| {
+                let token = child.into_token().unwrap();
+                (token.kind(), token.text().to_owned())
+            })
+            .collect::<Vec<_>>(),
+        vec![
+            (SyntaxKind::Semicolon, ";".to_owned()),
+            (SyntaxKind::Whitespace, " ".to_owned()),
+        ]
+    );
+    let use_statement = outer_children[3].as_node().unwrap();
+    assert_ne!(use_statement, statement);
+    let use_children = use_statement.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(use_children.len(), 1);
+    let use_declaration = use_children[0].as_node().unwrap();
+    assert_eq!(use_declaration.kind(), SyntaxKind::UseDeclaration);
+    assert_eq!(use_declaration.text().to_string(), "use a");
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter(|child| matches!(
+                child.kind(),
+                SyntaxKind::Error | SyntaxKind::Missing | SyntaxKind::Invalid
+            ))
+            .collect::<Vec<_>>(),
+        vec![inner_children[1].clone()]
+    );
+
+    // Interpret each block's direct slots independently: the accepted For
+    // carries its child's recovery without adding one to the outer sequence.
+    let role = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
+    let mut projected = Vec::new();
+    for (children, expected_count) in [(&outer_children, 0), (&inner_children, 1)] {
+        let mut direct = Vec::new();
+        let mut index = 1;
+        while index + 1 < children.len() {
+            if children[index].kind() != SyntaxKind::Error {
+                index += 1;
+                continue;
+            }
+            // This witness's only Error group starts in the required slot.
+            assert_eq!(index, 1);
+            let start = children[index].text_range().start();
+            let mut end = start;
+            while index < children.len() && children[index].kind() == SyntaxKind::Error {
+                let token = children[index].as_token().unwrap();
+                assert_eq!(token.text_range().start(), end);
+                end = token.text_range().end();
+                index += 1;
+            }
+            assert_eq!(children[index].kind(), SyntaxKind::RBrace);
+            direct.push((
+                role,
+                vec![ExpectedSyntax::Statement],
+                0,
+                usize::from(start)..usize::from(end),
+            ));
+        }
+        assert_eq!(direct.len(), expected_count);
+        projected.extend(direct);
+    }
+    assert_eq!(
+        projected,
+        vec![(role, vec![ExpectedSyntax::Statement], 0, 14..15)]
+    );
+    let NormalizedExit::Complete(tail, line) = exit else {
+        panic!("completed outer block")
+    };
+    assert_eq!(line, LineEntry::InLine);
+    let Err(Either::Right(end)) = &tail else {
+        panic!("outer EOF handoff")
+    };
+    assert!(end.item.payload_view().is_eof());
+    assert_eq!(end.item.extent(source.len()).recovery_range(), 24..24);
+
+    // Temporary ledger compatibility follows the independent structural proof.
+    assert_eq!(records.len(), projected.len());
+    for (record, (role, expected, primary, range)) in records.iter().zip(&projected) {
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(record.site.role, *role);
+        assert_eq!(record.site.range, *range);
+        assert_eq!(
+            record
+                .expectations
+                .iter()
+                .map(|expectation| expectation.expected)
+                .collect::<Vec<_>>(),
+            *expected
+        );
+        assert_eq!(record.primary_expectation, *primary);
+    }
+    assert_eq!(records, vec![record(0, role, 14..15, true)]);
+    let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+    assert_eq!(again, green);
+    assert_eq!(frozen, records);
+    assert_eq!(frozen_suffix, suffix);
+    let NormalizedExit::Complete(frozen_tail, frozen_line) = frozen_exit else {
+        panic!("frozen completed outer block")
+    };
+    assert_eq!(frozen_tail, tail);
+    assert_eq!(frozen_line, line);
 }
 
 #[test]

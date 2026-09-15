@@ -670,6 +670,21 @@ the listed matching-close Error alternative; NUD variants, protected/fence,
 caller-local header/body recovery, Missing/Separator/Close and nested recovery
 remain separate.
 
+#### Nested For-body BracedStatementBlock Error composition links
+
+Only `{for x in xs {@}; use a}` in
+`tests/braced_statement_recovery.rs::braced_statement_raw_error_stays_in_nested_for_body`
+is linked to this bounded recursive composition. Complete direct ancestry keeps
+the inner Error `14..15` in the For body's block while the outer block has zero
+direct occurrences, resumes through its native `; ` separator and accepts the
+following `use a` Statement. The one projected role is
+`BracedStatementBlock(Statement)`, singleton Statement, primary zero.
+
+The proof fixes inner/outer close ownership, one whole-tree Error/no
+Missing-or-Invalid invariant, EOF `24..24`, `InLine`, empty remainder and
+fresh/frozen parity. It does not cover deeper recursion, malformed For headers,
+other outer siblings, protected/fence exits or other block slots.
+
 #### ColonApplication indented Statement entry Draft links
 
 `tests/indented_recovery.rs` maps the first required Statement under the full

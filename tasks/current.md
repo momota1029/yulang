@@ -936,6 +936,27 @@ bounded unmapped candidate before further implementation.
   header/attachment, Missing/Separator/Close, nested recovery and global Gate
   1 remain open.
 
+## Nested For-body BracedStatementBlock Error composition closure
+
+- Mode: M1 with one Astra architect/pre-write audit, one Astra implementer and
+  one independent post-write specification audit; no repair round.
+- Existing `{for x in xs {@}; use a}` topology now proves its full nested path:
+  Root/Statement/OperatorChain/outer block/first Statement/For/inner block,
+  plus the distinct accepted outer Use sibling after native `; `.
+- The outer block has zero direct recovery occurrences. Its admitted For carries
+  the inner block's sole maximal Error `14..15`, which projects
+  `BracedStatementBlock(Statement)`, singleton Statement and primary zero. No
+  Missing, Invalid, duplicate outer recovery or caller recovery occurs.
+- Inner close, outer separator, accepted Use and outer close retain native
+  owners; the outer handoff is EOF `24..24` with `InLine` and empty remainder.
+  Fresh/frozen trees, records and exits agree after structural projection.
+- Scoped rustfmt/diff and the wrapper-disabled exact test passed: 1 passed, 0
+  failed, 1,435 filtered out. Three test invocations ran; no production change,
+  broad suite or benchmark, and measurement usage was zero.
+- This closes one nested For/Use composition only. Deeper recursion, malformed
+  For headers, other siblings, protected/fence exits, other block slots and
+  global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -963,7 +984,7 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax tests::braced_statement_recovery::declaration_body_callers_publish_the_braced_child_role -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax tests::braced_statement_recovery::braced_statement_raw_error_stays_in_nested_for_body -- --exact --test-threads=1
 ```
 
 Result: 1 passed, 0 failed, 0 ignored; 1,435 filtered out. Scoped
