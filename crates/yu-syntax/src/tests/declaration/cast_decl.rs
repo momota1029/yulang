@@ -1636,6 +1636,202 @@ fn cast_pattern_value_direct_rowan_boundary_has_no_later_slot() {
 }
 
 #[test]
+fn cast_pattern_initial_shared_slots_have_direct_rowan_selectors() {
+    use crate::recovery_record::{ExpectedSyntax, GrammarRole, PatternRole};
+    use SyntaxKind::*;
+
+    for (source, pattern_end, initial_children, tail_children, expected_recoveries) in [
+        (
+            "cast(|x): T;",
+            7,
+            vec![(Missing, 5..5), (PatternAlternationTail, 5..7)],
+            vec![(Pipe, 5..6), (Pattern, 6..7)],
+            vec![(Missing, PatternRole::Primary, 5..5)],
+        ),
+        (
+            "cast(@ x): T;",
+            8,
+            vec![(Error, 5..6), (Whitespace, 6..7), (IdentifierPattern, 7..8)],
+            vec![],
+            vec![(Error, PatternRole::Primary, 5..6)],
+        ),
+        (
+            "cast(|): T;",
+            6,
+            vec![(Missing, 5..5), (PatternAlternationTail, 5..6)],
+            vec![(Pipe, 5..6), (Pattern, 6..6)],
+            vec![
+                (Missing, PatternRole::Primary, 5..5),
+                (Missing, PatternRole::AlternationRhs, 6..6),
+            ],
+        ),
+    ] {
+        let (green, exit, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), Root);
+        assert_eq!(root.parent(), None);
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(
+            root.text_range(),
+            rowan::TextRange::new(0.into(), (source.len() as u32).into())
+        );
+        let exact = |node: &SyntaxNode, expected: &[(SyntaxKind, std::ops::Range<usize>)]| {
+            let children = node.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(children.len(), expected.len(), "{source}: {node:?}");
+            for (child, (kind, range)) in children.iter().zip(expected) {
+                assert_eq!(child.kind(), *kind);
+                assert_eq!(child.parent().as_ref(), Some(node));
+                assert_eq!(
+                    child.as_node().is_some(),
+                    matches!(
+                        kind,
+                        Statement
+                            | CastDeclaration
+                            | CastPattern
+                            | CastTarget
+                            | Pattern
+                            | PatternAlternationTail
+                            | IdentifierPattern
+                            | TypeExpression
+                            | Missing
+                    )
+                );
+                assert_eq!(
+                    child.text_range(),
+                    rowan::TextRange::new((range.start as u32).into(), (range.end as u32).into())
+                );
+                assert_eq!(child.to_string(), &source[range.clone()]);
+            }
+        };
+        exact(&root, &[(Statement, 0..source.len())]);
+        let statement = root.first_child().unwrap();
+        exact(&statement, &[(CastDeclaration, 0..source.len())]);
+        let cast = statement.first_child().unwrap();
+        exact(
+            &cast,
+            &[
+                (CastKw, 0..4),
+                (CastPattern, 4..pattern_end + 1),
+                (CastTarget, pattern_end + 1..pattern_end + 4),
+                (Semicolon, pattern_end + 4..pattern_end + 5),
+            ],
+        );
+        let cast_pattern = cast.first_child().unwrap();
+        exact(
+            &cast_pattern,
+            &[
+                (LParen, 4..5),
+                (Pattern, 5..pattern_end),
+                (RParen, pattern_end..pattern_end + 1),
+            ],
+        );
+        let pattern = cast_pattern.first_child().unwrap();
+        exact(&pattern, &initial_children);
+        if let Some(tail) = pattern
+            .children()
+            .find(|node| node.kind() == PatternAlternationTail)
+        {
+            exact(&tail, &tail_children);
+            let rhs = tail.first_child().unwrap();
+            if rhs.text_range().is_empty() {
+                exact(&rhs, &[(Missing, 6..6)]);
+            } else {
+                exact(&rhs, &[(IdentifierPattern, 6..7)]);
+                exact(&rhs.first_child().unwrap(), &[(Identifier, 6..7)]);
+                assert!(
+                    !rhs.descendants_with_tokens()
+                        .any(|element| matches!(element.kind(), Missing | Error | Invalid))
+                );
+            }
+        } else {
+            exact(&pattern.first_child().unwrap(), &[(Identifier, 7..8)]);
+        }
+        let target = cast.children().nth(1).unwrap();
+        exact(
+            &target,
+            &[
+                (Colon, pattern_end + 1..pattern_end + 2),
+                (Whitespace, pattern_end + 2..pattern_end + 3),
+                (TypeExpression, pattern_end + 3..pattern_end + 4),
+            ],
+        );
+
+        // Select from direct Rowan ancestry and child position before consulting
+        // any parser recovery records. The two Missing nodes have distinct owners.
+        let projected = root
+            .descendants_with_tokens()
+            .filter(|element| matches!(element.kind(), Missing | Error | Invalid))
+            .map(|element| {
+                let owner = element.parent().unwrap();
+                assert_eq!(owner.kind(), Pattern);
+                assert_eq!(owner.first_child_or_token().as_ref(), Some(&element));
+                match element.kind() {
+                    Missing => assert!(
+                        element
+                            .as_node()
+                            .unwrap()
+                            .children_with_tokens()
+                            .next()
+                            .is_none()
+                    ),
+                    Error => {
+                        assert!(element.as_token().is_some());
+                        assert_eq!(element.next_sibling_or_token().unwrap().kind(), Whitespace);
+                    }
+                    _ => panic!("unexpected recovery category"),
+                }
+                let parent = owner.parent().unwrap();
+                let role = match parent.kind() {
+                    CastPattern => {
+                        assert_eq!(parent, cast_pattern);
+                        PatternRole::Primary
+                    }
+                    PatternAlternationTail => {
+                        assert_eq!(parent.parent().as_ref(), Some(&pattern));
+                        assert_eq!(parent.first_child_or_token().unwrap().kind(), Pipe);
+                        assert_eq!(
+                            parent.last_child_or_token().unwrap().as_node(),
+                            Some(&owner)
+                        );
+                        PatternRole::AlternationRhs
+                    }
+                    _ => panic!("unexpected initial Pattern owner"),
+                };
+                let range = element.text_range();
+                (
+                    element.kind(),
+                    GrammarRole::Pattern(role),
+                    [ExpectedSyntax::Pattern],
+                    0,
+                    usize::from(range.start())..usize::from(range.end()),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            projected,
+            expected_recoveries
+                .into_iter()
+                .map(|(kind, role, range)| (
+                    kind,
+                    GrammarRole::Pattern(role),
+                    [ExpectedSyntax::Pattern],
+                    0,
+                    range
+                ))
+                .collect::<Vec<_>>(),
+            "{source}"
+        );
+        assert_eq!(remainder, "");
+        let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) = exit else {
+            panic!("bodyless Cast must return the EOF Item in-line")
+        };
+        let mut item = end.item;
+        assert!(item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut item), "");
+    }
+}
+
+#[test]
 fn cast_pattern_value_direct_rowan_nonempty_error_keeps_pattern_owner() {
     use SyntaxKind::{CastPattern, Error, LParen, Pattern, RParen};
 

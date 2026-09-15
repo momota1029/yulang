@@ -680,6 +680,24 @@ bounded unmapped candidate before further implementation.
   24-cell caller reconciliation only. Recursive/boundary combinations, nested
   owners and global Gate 1 remain open.
 
+## Shared initial Pattern Cast caller closure
+
+- A read-only M1 specification audit enumerated ordinary, alternation, five
+  delimiter, Binding, For, Case/Catch and guarded caller classes. It found one
+  omitted reachable class: the parenthesized Cast mandatory-policy entry into
+  shared initial Pattern recovery.
+- One Astra implementer added three direct-Rowan Cast witnesses. Current-tail
+  Primary Missing, singleton initial Error-to-Identifier retry and nested
+  AlternationRhs reset are selected from complete
+  Root/Statement/Cast/Pattern ancestry and direct order before records.
+- Direct Cast-owned absence remains distinct. Bare accepted/retry Cast and
+  structured Record wrong-kind entries admit a NUD before delegation and do
+  not reach shared initial Missing/Error.
+- Independent post-write audit was clean. Scoped rustfmt/diff and the exact
+  test passed 1 with 1,431 filtered out; no production change, broad suite or
+  benchmark ran. This closes only the bounded reachable initial caller table;
+  boundaries, nested grammar and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -707,17 +725,15 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::pattern::recovery::default_expression:: -- --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::cast_decl::cast_pattern_initial_shared_slots_have_direct_rowan_selectors -- --exact --test-threads=1
 ```
 
-Result: 7 passed, 0 failed, 0 ignored; 1,409 filtered out. Scoped
-`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/pattern/recovery/default_expression.rs`
-also passed. The default-wrapper form failed before compilation because the
-environment's sccache lacked operation permission; the wrapper-disabled rerun
-is the meaningful focused result. The prior Mod/Binding/With checkpoints passed
-13, 12 and 11; the inner Alias checkpoint passed 59 Use-module tests. No
-workspace build, broad suite or performance experiment was needed for the M1
-closure/M0 record update. Future checks follow
+Result: 1 passed, 0 failed, 0 ignored; 1,431 filtered out. Scoped
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/cast_decl.rs`
+and `git diff --check` also passed. Earlier default-expression evidence remains
+historical rather than the latest check. No workspace build, broad suite or
+performance experiment was needed for this M1 closure/M0 record update. Future
+checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
 check-graph` checks dependencies, not syntax behavior.
 

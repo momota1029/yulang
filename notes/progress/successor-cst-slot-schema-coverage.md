@@ -1469,11 +1469,12 @@ retirement remain separate.
 The shared initial kernel now has direct Rowan-only evidence for its finite
 transported-role table: ordinary Primary, AlternationRhs, the five delimited
 element/spread/nested slots, Binding Target, For Pattern, Case/Catch first
-Pattern, and Catch handler Pattern after its native comma. The direct Pattern
-prefix selects a zero-width Missing or a maximal direct Error group; retry
-leading is native direct Pattern content and an admitted primary is distinct
-from that group. Caller context and ordered children, rather than Error
-spelling or recovery records, select the role.
+Pattern, Catch handler Pattern after its native comma, and the parenthesized
+Cast mandatory-policy entry. The direct Pattern prefix selects a zero-width
+Missing or a maximal direct Error group; retry leading is native direct Pattern
+content and an admitted primary is distinct from that group. Caller context
+and ordered children, rather than Error spelling or recovery records, select
+the role.
 
 `crates/yu-syntax/src/tests/pattern.rs` proves all Missing, terminal Error and
 Error-to-retry alternatives through actual caller shells. It also pins
@@ -1484,6 +1485,18 @@ M1 pre-write and post-repair closure audits were clean. This is a
 catalog-audited evidence-complete Draft only for the direct initial slots;
 delimiter sequences/closes, defaults, other Pattern tails, nested grammar,
 the global interpreter and ledger retirement remain separate.
+
+Cast's added direct proof is
+`cast_pattern_initial_shared_slots_have_direct_rowan_selectors` at
+`crates/yu-syntax/src/tests/declaration/cast_decl.rs:1639`. Its three witnesses
+cover current-tail Primary Missing, singleton initial Error-to-Identifier retry,
+and Primary-to-AlternationRhs role reset. Retained terminal shared-Error and
+composition controls are at `:1835` and `:2322`; the existing direct
+CastPattern Missing remains a separate Cast-owned absence. Bare accepted/retry
+Cast entries and both structured Record wrong-kind entries admit a NUD before
+delegation, so shared initial Missing/Error is unreachable at those entries.
+This closes the bounded reachable caller reconciliation, not universal
+boundary or nested-grammar combinations.
 
 #### PatternTypeAnnotation fresh required-Type Missing Draft links
 
