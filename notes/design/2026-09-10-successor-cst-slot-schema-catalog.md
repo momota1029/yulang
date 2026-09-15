@@ -1187,6 +1187,21 @@ This bounded Draft maps only `cast(x): ;`.
 | diagnostic projection | The ordered CastTarget occurrence projects one `Declaration(Cast(TargetType))`, singleton expected TypeExpression, primary zero, at `Missing.text_range() = 9..9`. Records and spelling do not select the slot. |
 | proof and status | Authority: Cast architecture CAST-R/CAST-T, [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Explicit role transport** and **Publication and extents**, and CST-derived diagnostics amendment. Owners: `crates/yu-syntax/src/declaration/cast_decl.rs:807–999,1005–1034,1245–1263`; shared publisher: `crates/yu-syntax/src/type_expr/mod.rs:690–708,822–842`. Direct proof: `cast_target_type_fresh_missing_has_direct_ordered_rowan_slot` in `crates/yu-syntax/src/tests/declaration/cast_decl.rs`, proving canonical topology, structural projection, EOF handoff, CastDeclaration-subtree agreement across entrypoints and fresh/frozen replay inside the typed harness. Pre-write and repaired post-write audits were clean; the exact test passed 1 with 1,426 filtered out. Status: catalog-audited evidence-complete Draft for `cast(x): ;` only. Other boundaries, recovered Colon, body continuation, malformed/retried/nested Type, broader Cast phases, public promotion and global Gate 1 remain open. |
 
+### CastTarget initial required-Type Error Draft
+
+This bounded Draft maps initial malformed Type recovery after a completed Cast
+Pattern and actual target Colon. It excludes TargetIntroducer and later form or
+body recovery.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | The selected direct CastTarget follows completed CastPattern under `Root > Statement > CastDeclaration`. Actual Colon and native leading precede the initial required-Type Error group. |
+| ordered Rowan grammar | `CastTarget(Colon Whitespace Error+ TypeExpression?)`. The optional retry contains native Whitespace then Identifier. The terminal witness instead has native Whitespace and Semicolon directly under CastDeclaration; retry witnesses have a direct declaration Semicolon immediately after CastTarget. |
+| admission and completion | `cast(x): @ ;` terminates required-Type Error at the form boundary, returns the semicolon unchanged, then Cast emits its pending space and consumes the semicolon. `cast(x): @ T;` and `cast(x): @  ~   T;` retry Type before consuming the semicolon. All three return EOF. |
+| grouping and ownership | One maximal direct Error group spans `9..10` or `9..13`. Retry leading belongs inside TypeExpression; terminal form-leading belongs to CastDeclaration. No Missing, Invalid or additional Error occurs. |
+| diagnostic projection | Each group projects one `Type(Primary)` occurrence with singleton expected TypeExpression and primary zero over its combined direct Error-token range. Completed Pattern, actual Colon and ordered children select the occurrence before records. |
+| proof and status | Authority: Cast architecture CAST-R, [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Scope and retained authority**, and CST-derived diagnostics amendment. Production: `crates/yu-syntax/src/declaration/cast_decl.rs:948–1034`; shared publisher: `type_expr/mod.rs:732–819`. Direct proof: `cast_target_type_initial_error_has_direct_ordered_rowan_slots` at `crates/yu-syntax/src/tests/declaration/cast_decl.rs:1195`, including canonical/typed declaration-subtree agreement and typed fresh/frozen replay. Independent pre-write and post-write audits were clean; the exact test passed 1 with 1,432 filtered out. Status: catalog-audited evidence-complete Draft for these three witnesses only; recovered Colon, equals/body continuation, other boundaries/layout/fences, nested Type, public promotion and global Gate 1 remain open. |
+
 ### Cast BodyIntroducer Draft
 
 This bounded Draft maps only the required semicolon after completed

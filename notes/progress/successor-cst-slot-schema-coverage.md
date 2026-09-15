@@ -210,6 +210,21 @@ the exact test passed 1 with 1,426 filtered out and scoped formatting/diff
 passed. Other target boundaries, recovered Colon, malformed/retried/nested Type
 and broader Cast phases remain open.
 
+#### CastTarget initial required-Type Error links
+
+CastTarget initial required-Type Error is linked for one form-boundary
+terminal, one singleton retry and one three-leaf retry witness in
+`cast_target_type_initial_error_has_direct_ordered_rowan_slots` at
+`crates/yu-syntax/src/tests/declaration/cast_decl.rs:1195`. Complete canonical
+topology distinguishes it from TargetIntroducer and later BodyIntroducer
+recovery. The direct maximal CastTarget Error group projects `Type(Primary)`;
+retry leading belongs to TypeExpression while terminal form-leading and the
+semicolon belong to CastDeclaration. Structural projection precedes records,
+declaration subtrees agree across harnesses and typed fresh/frozen replay is
+pinned. Production is `declaration/cast_decl.rs:948–1034` plus the shared
+`type_expr/mod.rs:732–819` publisher. Recovered Colon, later body/form paths,
+other boundaries/layout/fences and nested Type remain separate.
+
 #### Cast BodyIntroducer Draft links
 
 Only the required semicolon after completed CastPattern and CastTarget is

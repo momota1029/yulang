@@ -1192,6 +1192,214 @@ fn cast_target_type_fresh_missing_has_direct_ordered_rowan_slot() {
 }
 
 #[test]
+fn cast_target_type_initial_error_has_direct_ordered_rowan_slots() {
+    use crate::recovery_record::{ExpectedSyntax, GrammarRole, TypeRole};
+    use SyntaxKind::*;
+
+    // Only the initial required-Type run after a completed Pattern and actual
+    // Colon belongs here. TargetIntroducer `cast(x) @ : T;` and recovery after
+    // accepted Type `cast(x): A @ ;` are distinct slots outside this matrix.
+    for (source, error_ranges, retry, target_end, declaration_leading) in [
+        ("cast(x): @ ;", vec![9..10], None, 10, Some(10..11)),
+        (
+            "cast(x): @ T;",
+            vec![9..10],
+            Some((10..11, 11..12)),
+            12,
+            None,
+        ),
+        (
+            "cast(x): @  ~   T;",
+            vec![9..10, 10..12, 12..13],
+            Some((13..16, 16..17)),
+            17,
+            None,
+        ),
+    ] {
+        let (green, exit, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+        let root = SyntaxNode::new_root(green.clone());
+        let end = source.len();
+        let mut expected = vec![
+            (Root, true, 0..end, None),
+            (Statement, true, 0..end, Some(0)),
+            (CastDeclaration, true, 0..end, Some(1)),
+            (CastKw, false, 0..4, Some(2)),
+            (CastPattern, true, 4..7, Some(2)),
+            (LParen, false, 4..5, Some(4)),
+            (Pattern, true, 5..6, Some(4)),
+            (IdentifierPattern, true, 5..6, Some(6)),
+            (Identifier, false, 5..6, Some(7)),
+            (RParen, false, 6..7, Some(4)),
+            (CastTarget, true, 7..target_end, Some(2)),
+            (Colon, false, 7..8, Some(10)),
+            (Whitespace, false, 8..9, Some(10)),
+        ];
+        expected.extend(
+            error_ranges
+                .iter()
+                .cloned()
+                .map(|range| (Error, false, range, Some(10))),
+        );
+        if let Some((leading, identifier)) = retry {
+            let parent = expected.len();
+            expected.extend([
+                (
+                    TypeExpression,
+                    true,
+                    leading.start..identifier.end,
+                    Some(10),
+                ),
+                (Whitespace, false, leading, Some(parent)),
+                (Identifier, false, identifier, Some(parent)),
+            ]);
+        }
+        if let Some(leading) = declaration_leading {
+            expected.push((Whitespace, false, leading, Some(2)));
+        }
+        expected.push((Semicolon, false, end - 1..end, Some(2)));
+        let elements = root.descendants_with_tokens().collect::<Vec<_>>();
+        assert_eq!(root.text().to_string(), source);
+        assert_eq!(elements.len(), expected.len(), "{source:?}");
+        for (index, (element, (kind, is_node, range, parent))) in
+            elements.iter().zip(&expected).enumerate()
+        {
+            assert_eq!(element.kind(), *kind, "{source:?} element {index}");
+            assert_eq!(element.as_node().is_some(), *is_node);
+            assert_eq!(
+                element.text_range(),
+                rowan::TextRange::new((range.start as u32).into(), (range.end as u32).into())
+            );
+            assert_eq!(element.to_string(), &source[range.clone()]);
+            assert_eq!(
+                element.parent(),
+                parent.map(|parent| elements[parent].as_node().unwrap().clone())
+            );
+            if let Some(node) = element.as_node() {
+                let children = expected.iter().enumerate().filter_map(|(child, entry)| {
+                    (entry.3 == Some(index)).then(|| elements[child].clone())
+                });
+                assert_eq!(
+                    node.children_with_tokens().collect::<Vec<_>>(),
+                    children.collect::<Vec<_>>()
+                );
+            }
+        }
+
+        // Select before reading records: the completed Pattern and native
+        // Colon locate the required-Type slot; its adjacent direct Error
+        // leaves end at either the target frontier or the retry TypeExpression.
+        let cast = elements[2].as_node().unwrap();
+        let children = cast.children_with_tokens().collect::<Vec<_>>();
+        let [keyword, pattern, target, ..] = children.as_slice() else {
+            panic!("Cast requires its ordered prefix");
+        };
+        assert_eq!(keyword.kind(), CastKw);
+        let pattern = pattern.as_node().unwrap();
+        assert_eq!(pattern.kind(), CastPattern);
+        assert_eq!(pattern.first_token().unwrap().kind(), LParen);
+        assert_eq!(pattern.last_token().unwrap().kind(), RParen);
+        let target = target.as_node().unwrap();
+        assert_eq!(target.kind(), CastTarget);
+        let target_children = target.children_with_tokens().collect::<Vec<_>>();
+        let [colon, leading, malformed @ ..] = target_children.as_slice() else {
+            panic!("required-Type slot follows actual Colon and native leading");
+        };
+        assert_eq!(colon.as_token().unwrap().kind(), Colon);
+        assert_eq!(leading.as_token().unwrap().kind(), Whitespace);
+        let group = malformed
+            .iter()
+            .take_while(|child| child.kind() == Error)
+            .collect::<Vec<_>>();
+        assert!(!group.is_empty());
+        assert!(group.iter().all(|child| child.as_token().is_some()));
+        for pair in group.windows(2) {
+            assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+        }
+        let range = rowan::TextRange::new(
+            group.first().unwrap().text_range().start(),
+            group.last().unwrap().text_range().end(),
+        );
+        match &malformed[group.len()..] {
+            [] => assert_eq!(range.end(), target.text_range().end()),
+            [retry] => {
+                let retry = retry.as_node().unwrap();
+                assert_eq!(retry.kind(), TypeExpression);
+                assert_eq!(retry.text_range().start(), range.end());
+                assert_eq!(retry.first_token().unwrap().kind(), Whitespace);
+                assert_eq!(retry.text_range().end(), target.text_range().end());
+            }
+            _ => panic!("initial Error group ends before exactly one retry TypeExpression"),
+        }
+        assert!(
+            !elements
+                .iter()
+                .any(|element| matches!(element.kind(), Missing | Invalid))
+        );
+        assert_eq!(
+            elements
+                .iter()
+                .filter(|element| element.kind() == Error)
+                .collect::<Vec<_>>(),
+            group
+        );
+        let selected = (
+            GrammarRole::Type(TypeRole::Primary),
+            [ExpectedSyntax::TypeExpression],
+            0usize,
+            range,
+        );
+        assert_eq!(
+            selected.3,
+            rowan::TextRange::new(9.into(), (error_ranges.last().unwrap().end as u32).into())
+        );
+        let check_exit = |exit, remainder: &str| {
+            assert_eq!(remainder, "");
+            let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) = exit else {
+                panic!("bodyless Cast must return EOF in-line");
+            };
+            let mut item = end.item;
+            assert!(item.payload_view().is_eof());
+            assert_eq!(emit_pending_leading_text(&mut item), "");
+        };
+        check_exit(exit, remainder);
+        let (fresh_green, fresh_exit, records, fresh_remainder) =
+            typed_cast(source, 0, None, 0, None);
+        let typed_root = SyntaxNode::new_root(fresh_green.clone());
+        assert_eq!(typed_root.kind(), Root);
+        let typed_children = typed_root.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(typed_children.len(), 1);
+        assert_eq!(typed_children[0].kind(), CastDeclaration);
+        assert!(typed_children[0].as_node().is_some());
+        assert_eq!(declaration(&fresh_green).green(), cast.green());
+        assert_eq!(records.len(), 1);
+        let record = &records[0];
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(
+            (
+                record.site.role,
+                record
+                    .expectations
+                    .iter()
+                    .map(|expectation| expectation.expected)
+                    .collect::<Vec<_>>(),
+                record.primary_expectation,
+                rowan::TextRange::new(
+                    (record.site.range.start as u32).into(),
+                    (record.site.range.end as u32).into()
+                ),
+            ),
+            (selected.0, selected.1.to_vec(), selected.2, selected.3)
+        );
+        check_exit(fresh_exit.unwrap(), fresh_remainder);
+        let (frozen_green, frozen_exit, frozen_records, frozen_remainder) =
+            typed_cast(source, 0, Some(&records), 0, None);
+        assert_eq!(frozen_green, fresh_green);
+        assert_eq!(frozen_records, records);
+        check_exit(frozen_exit.unwrap(), frozen_remainder);
+    }
+}
+
+#[test]
 fn cast_target_introducer_direct_target_children_distinguish_type_recovery() {
     use SyntaxKind::{CastTarget, Colon, Missing, TypeExpression, Whitespace};
 

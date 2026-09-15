@@ -737,6 +737,25 @@ bounded unmapped candidate before further implementation.
   transports without dedicated mapping. Act terminal and broader
   boundaries/layout/nested Type remain open; global Gate 1 is incomplete.
 
+## Cast TargetType initial required-Type Error closure
+
+- One Astra implementer added a three-case direct-CST matrix after completed
+  CastPattern and actual target Colon: form-boundary terminal, singleton retry
+  and three-leaf retry.
+- Complete canonical topology selects the direct CastTarget Error group as
+  `Type(Primary)`/TypeExpression/primary zero over `9..10` or `9..13` before
+  records. Retry leading stays inside TypeExpression; terminal form-leading and
+  semicolon remain CastDeclaration-owned.
+- No Missing/Invalid/other Error occurs. Canonical and typed CastDeclaration
+  subtrees agree, typed fresh/frozen trees agree, and all three complete at
+  EOF. TargetIntroducer and later BodyIntroducer recovery remain excluded.
+- Independent pre-write and post-write audits were clean. Scoped rustfmt/diff
+  and the exact test passed 1 with 1,432 filtered out; no repair, production
+  change, broad suite or benchmark ran.
+- Cast closes one context, leaving eight of 20 required-Type Error transports
+  without dedicated mapping. Act terminal and broader Cast/Type boundaries,
+  layout, nesting and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -764,12 +783,12 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::role_decl::role_schema_required_head_has_complete_ordered_evidence -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::cast_decl::cast_target_type_initial_error_has_direct_ordered_rowan_slots -- --exact --test-threads=1
 ```
 
-Result: 1 passed, 0 failed, 0 ignored; 1,431 filtered out. Scoped
-`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/role_decl.rs`
-and `git diff --check` also passed. Earlier Impl/Cast/default-expression
+Result: 1 passed, 0 failed, 0 ignored; 1,432 filtered out. Scoped
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/cast_decl.rs`
+and `git diff --check` also passed. Earlier Role/Impl/Cast/default-expression
 evidence remains historical rather than the latest check. No workspace build,
 broad suite or performance experiment was needed for this M1 closure/M0 record
 update. Future checks follow
