@@ -849,6 +849,24 @@ records, and sentinel fresh/frozen replay is preserved. Independent repaired
 delta audit was clean; exact test passed 1 with 1,427 filtered out. Struct
 indented fields, other layout/boundary and recovery alternatives remain open.
 
+#### Shared named declaration-field initial required-Type Error links
+
+Named-field initial Type-primary Error is linked for Struct, Enum and Error
+named-brace ancestors, each with terminal, singleton-retry and multileaf-retry
+witnesses in
+`named_field_required_type_initial_error_has_direct_three_owner_rowan_slots` at
+`crates/yu-syntax/src/tests/type_expr/required_recovery.rs:608`. Actual field
+Identifier/Colon and complete ancestry select the direct maximal StructField
+group before records. Retry leading belongs to TypeExpression; matching and
+outer closes remain native owner content. Singleton ranges are
+`13..14`/`15..16`/`16..17` and multileaf ranges are
+`13..17`/`15..19`/`16..20`; no Missing/Invalid/other Error occurs. The
+multileaf compatibility record retains two lexical Item facts despite three
+CST Error leaves. Production is `declaration/fields.rs:874–950`, its three
+caller adapters and shared `type_expr/mod.rs:732–819`. Indented fields,
+Name/Colon recovery, separators, other boundaries/layout and nested Type remain
+separate.
+
 #### Shared fresh named declaration FieldItem Draft links
 
 Only the witnessed NeedField comma Missing, malformed-start raw-name retry

@@ -605,6 +605,272 @@ fn named_field_required_type_missing_has_direct_three_owner_rowan_slots() {
 }
 
 #[test]
+fn named_field_required_type_initial_error_has_direct_three_owner_rowan_slots() {
+    use SyntaxKind::{
+        Colon, EnumDeclaration, EnumKw, EnumVariant, Error, ErrorDeclaration, ErrorKw, Identifier,
+        LBrace, RBrace, Root, Statement, StructDeclaration, StructField, StructKw, TypeExpression,
+        Whitespace,
+    };
+
+    fn children(parent: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>, &str)]) {
+        let actual = parent.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(actual.len(), expected.len(), "{parent:#?}");
+        for (child, (kind, node, range, text)) in actual.iter().zip(expected) {
+            assert_eq!(child.parent().as_ref(), Some(parent));
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.as_node().is_some(), *node);
+            assert_eq!(child.as_token().is_some(), !node);
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                *range
+            );
+            assert_eq!(child.to_string(), *text);
+        }
+    }
+
+    for (prefix, suffix, declaration_kind, keyword, keyword_end, f) in [
+        ("struct S {a: ", "}", StructDeclaration, StructKw, 6, 10),
+        ("enum E { A {a: ", "} }", EnumDeclaration, EnumKw, 4, 12),
+        ("error E { A {a: ", "} }", ErrorDeclaration, ErrorKw, 5, 13),
+    ] {
+        for (rhs, retry, multileaf) in [
+            ("@", false, false),
+            ("@ T", true, false),
+            ("@  ~   T", true, true),
+        ] {
+            let source = format!("{prefix}{rhs}{suffix}");
+            let source = source.as_str();
+            let e = f + 3 + rhs.len();
+            let (green, exit, remainder) =
+                run_statement_normalized(source, 0, LineEntry::InLine, None);
+            assert_eq!(green.to_string(), source);
+            assert_eq!(remainder, "");
+            let NormalizedExit::Complete(Err(Either::Right(mut end)), LineEntry::InLine) = exit
+            else {
+                panic!("{source:?}: expected EOF InLine");
+            };
+            assert!(end.item.payload_view().is_eof());
+            assert_eq!(emit_pending_leading_text(&mut end.item), "");
+            let root = SyntaxNode::new_root(green);
+            assert_eq!(root.kind(), Root);
+            assert_eq!(root.parent(), None);
+            assert_eq!(
+                root.text_range(),
+                rowan::TextRange::new(0.into(), (source.len() as u32).into())
+            );
+            children(&root, &[(Statement, true, 0..source.len(), source)]);
+            let statement = root.first_child().unwrap();
+            children(
+                &statement,
+                &[(declaration_kind, true, 0..source.len(), source)],
+            );
+            let declaration = statement.first_child().unwrap();
+            let mut shell = vec![
+                (keyword, false, 0..keyword_end, &source[..keyword_end]),
+                (Whitespace, false, keyword_end..keyword_end + 1, " "),
+                (
+                    Identifier,
+                    false,
+                    keyword_end + 1..keyword_end + 2,
+                    &source[keyword_end + 1..keyword_end + 2],
+                ),
+                (Whitespace, false, keyword_end + 2..keyword_end + 3, " "),
+                (LBrace, false, keyword_end + 3..keyword_end + 4, "{"),
+            ];
+            if declaration_kind == StructDeclaration {
+                shell.push((StructField, true, f..e, &source[f..e]));
+            } else {
+                shell.push((
+                    EnumVariant,
+                    true,
+                    keyword_end + 4..e + 1,
+                    &source[keyword_end + 4..e + 1],
+                ));
+                shell.push((Whitespace, false, e + 1..e + 2, " "));
+            }
+            shell.push((RBrace, false, source.len() - 1..source.len(), "}"));
+            children(&declaration, &shell);
+            let owner = declaration.first_child().unwrap();
+            let field = if owner.kind() == EnumVariant {
+                children(
+                    &owner,
+                    &[
+                        (Whitespace, false, keyword_end + 4..keyword_end + 5, " "),
+                        (Identifier, false, keyword_end + 5..keyword_end + 6, "A"),
+                        (Whitespace, false, keyword_end + 6..keyword_end + 7, " "),
+                        (LBrace, false, keyword_end + 7..f, "{"),
+                        (StructField, true, f..e, &source[f..e]),
+                        (RBrace, false, e..e + 1, "}"),
+                    ],
+                );
+                owner.first_child().unwrap()
+            } else {
+                owner
+            };
+            let mut slots = vec![
+                (Identifier, false, f..f + 1, "a"),
+                (Colon, false, f + 1..f + 2, ":"),
+                (Whitespace, false, f + 2..f + 3, " "),
+                (Error, false, f + 3..f + 4, "@"),
+            ];
+            let error_end = if multileaf { f + 7 } else { f + 4 };
+            if multileaf {
+                slots.extend([
+                    (Error, false, f + 4..f + 6, "  "),
+                    (Error, false, f + 6..f + 7, "~"),
+                ]);
+            }
+            if retry {
+                slots.push((TypeExpression, true, error_end..e, &source[error_end..e]));
+            }
+            children(&field, &slots);
+            if retry {
+                children(
+                    &field.first_child().unwrap(),
+                    &[
+                        (
+                            Whitespace,
+                            false,
+                            error_end..e - 1,
+                            &source[error_end..e - 1],
+                        ),
+                        (Identifier, false, e - 1..e, "T"),
+                    ],
+                );
+            }
+
+            // Identify the mandatory Type slot from complete ancestry and actual punctuation.
+            let ancestry = field
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>();
+            assert!(matches!(
+                ancestry.as_slice(),
+                [StructField, StructDeclaration, Statement, Root]
+                    | [StructField, EnumVariant, EnumDeclaration, Statement, Root]
+                    | [StructField, EnumVariant, ErrorDeclaration, Statement, Root]
+            ));
+            let owner = field.parent().unwrap();
+            let native = owner.children_with_tokens().collect::<Vec<_>>();
+            let index = native
+                .iter()
+                .position(|child| child.as_node() == Some(&field))
+                .unwrap();
+            assert_eq!(native[index - 1].kind(), LBrace);
+            assert!(native[index - 1].as_token().is_some());
+            assert_eq!(native[index + 1].kind(), RBrace);
+            assert!(native[index + 1].as_token().is_some());
+            let direct = field.children_with_tokens().collect::<Vec<_>>();
+            assert_eq!(direct[0].kind(), Identifier);
+            assert!(direct[0].as_token().is_some());
+            assert_eq!(direct[1].kind(), Colon);
+            assert!(direct[1].as_token().is_some());
+            assert_eq!(direct[2].kind(), Whitespace);
+            assert!(direct[2].as_token().is_some());
+            let group = direct
+                .iter()
+                .skip(3)
+                .take_while(|child| child.kind() == Error)
+                .collect::<Vec<_>>();
+            assert!(!group.is_empty());
+            for fragment in &group {
+                assert!(fragment.as_token().is_some());
+                assert_eq!(fragment.parent().as_ref(), Some(&field));
+            }
+            for pair in group.windows(2) {
+                assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+            }
+            let range = usize::from(group[0].text_range().start())
+                ..usize::from(group.last().unwrap().text_range().end());
+            let projection = [(
+                GrammarRole::Type(TypeRole::Primary),
+                [ExpectedSyntax::TypeExpression],
+                0usize,
+                range.clone(),
+            )];
+            assert_eq!(
+                projection,
+                [(
+                    GrammarRole::Type(TypeRole::Primary),
+                    [ExpectedSyntax::TypeExpression],
+                    0usize,
+                    f + 3..error_end
+                )]
+            );
+            assert_eq!(direct.len(), 3 + group.len() + usize::from(retry));
+            if retry {
+                assert_eq!(direct[3 + group.len()].kind(), TypeExpression);
+                assert!(direct[3 + group.len()].as_node().is_some());
+            }
+            assert!(
+                !root
+                    .descendants_with_tokens()
+                    .any(|child| matches!(child.kind(), SyntaxKind::Missing | SyntaxKind::Invalid))
+            );
+            assert_eq!(
+                root.descendants_with_tokens()
+                    .filter(|child| child.kind() == Error)
+                    .count(),
+                group.len()
+            );
+
+            // Records are compatibility evidence only, after CST-derived selection.
+            let mut unexpected = vec![UnexpectedSyntax::Token {
+                range: f + 3..f + 4,
+                category: UnexpectedCategory::OtherCharacter,
+            }];
+            if multileaf {
+                unexpected.push(UnexpectedSyntax::Token {
+                    range: f + 4..f + 7,
+                    category: UnexpectedCategory::OperatorLike,
+                });
+            }
+            let expected = [expected_required_type_primary_error(
+                0,
+                range,
+                Arc::from(unexpected),
+            )];
+            let mut fresh = run_statement_records(source, 0, None);
+            let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) =
+                &mut fresh.exit
+            else {
+                panic!("{source:?}: seeded harness must also return EOF InLine");
+            };
+            assert!(end.item.payload_view().is_eof());
+            assert_eq!(emit_pending_leading_text(&mut end.item), "");
+            assert_eq!(fresh.green.to_string(), format!("sentinel{source}"));
+            let seeded_root = SyntaxNode::new_root(fresh.green.clone());
+            assert_eq!(
+                seeded_root
+                    .children()
+                    .find(|node| node.kind() == Statement)
+                    .unwrap()
+                    .green(),
+                statement.green()
+            );
+            assert_eq!(fresh.records, expected);
+            assert_eq!(fresh.slots, 1);
+            assert_eq!(fresh.diagnostics, (Some(1), 0));
+            assert_eq!(fresh.mark, ());
+            assert!(fresh.same_operators);
+            assert_eq!(fresh.successor_origin, source.len());
+            assert_eq!(fresh.remainder, "");
+            let frozen = frozen_recovery_ids(&expected);
+            let replay = run_statement_records(source, 0, Some(&frozen));
+            assert_eq!(replay.green, fresh.green);
+            assert_eq!(replay.records, frozen);
+            assert_eq!(replay.slots, 1);
+            assert_eq!(replay.diagnostics, (Some(8), 1));
+            assert_eq!(replay.mark, ());
+            assert!(replay.same_operators);
+            assert_same_exit(&fresh.exit, &replay.exit);
+            assert_eq!(replay.successor_origin, fresh.successor_origin);
+            assert_eq!(replay.remainder, fresh.remainder);
+        }
+    }
+}
+
+#[test]
 fn required_caller_role_never_remaps_malformed_or_nested_type_recovery() {
     for (source, expected) in [
         (

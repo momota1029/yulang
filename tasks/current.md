@@ -756,6 +756,25 @@ bounded unmapped candidate before further implementation.
   without dedicated mapping. Act terminal and broader Cast/Type boundaries,
   layout, nesting and global Gate 1 remain open.
 
+## Named-field initial required-Type Error closure
+
+- One Astra implementer added a nine-case matrix for Struct, Enum and Error
+  named-brace fields crossed with terminal, singleton retry and three-leaf
+  retry Type errors.
+- Complete declaration/variant/StructField ancestry plus actual Identifier and
+  Colon select `Type(Primary)`/TypeExpression/primary zero before records.
+  Retry leading belongs to TypeExpression; inner and outer closes retain their
+  native owners and every path completes at EOF without Missing cascade.
+- One repair corrected only a new compatibility fact: three CST Error leaves
+  arise from two lexical Items, so the second legacy fact includes its internal
+  leading. CST topology, grouping and projected ranges were unchanged.
+- Independent pre-write and post-write audits were clean. The final scoped
+  rustfmt/diff and exact test passed 1 with 1,433 filtered out; two test
+  invocations, no production change, broad suite or benchmark.
+- Three contexts close, leaving five of 20 required-Type Error transports
+  unmapped: three tuple-field and two positional-payload contexts. Act terminal
+  and broader boundary/layout/nested Type work remain open; Gate 1 is incomplete.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -783,12 +802,12 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::cast_decl::cast_target_type_initial_error_has_direct_ordered_rowan_slots -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::type_expr::required_recovery::named_field_required_type_initial_error_has_direct_three_owner_rowan_slots -- --exact --test-threads=1
 ```
 
-Result: 1 passed, 0 failed, 0 ignored; 1,432 filtered out. Scoped
-`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/cast_decl.rs`
-and `git diff --check` also passed. Earlier Role/Impl/Cast/default-expression
+Result: 1 passed, 0 failed, 0 ignored; 1,433 filtered out. Scoped
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/type_expr/required_recovery.rs`
+and `git diff --check` also passed. Earlier Cast/Role/Impl/default-expression
 evidence remains historical rather than the latest check. No workspace build,
 broad suite or performance experiment was needed for this M1 closure/M0 record
 update. Future checks follow
