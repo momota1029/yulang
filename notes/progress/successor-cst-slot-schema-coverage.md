@@ -1284,18 +1284,39 @@ phases, nested Type and caller-boundary handling remain separate rows.
 
 #### Shared required-Type fresh Missing caller reconciliation
 
-The shared publisher at `crates/yu-syntax/src/type_expr/mod.rs:690–708` has 12
-production call expressions carrying 20 owner/shape transports. Five
-transports cannot reach its fresh-Missing branch after their caller priority
-checks, leaving 15 reachable production role contexts. Eight have bounded
-mapped evidence: Type RHS; Act Head/Source; Derives RoleReference; Pattern and
-Expression annotations; and Enum/Error FromType. Seven were initially unmapped:
-Role Head; Impl Head/Description; Cast TargetType; and Struct/Enum/Error
-named-field Type. Role Head and both Impl contexts are mapped below after
-focused proof closure; Cast and the three named-field contexts are now mapped
-above/below.
-These counts describe role transports, not occurrence or boundary-variant
-counts, and do not certify nested Type grammar.
+The shared publisher has 12 production call expressions carrying 20
+owner/shape transports. Five transports cannot reach its fresh-Missing branch
+after caller priority checks, leaving 15 reachable fresh-Missing contexts; its
+initial nonempty Error branch can reach all 20. Bounded mapped-ready evidence
+now covers every one of those 20 transports: Type RHS, Act Head/Source retry,
+Derives RoleReference, Pattern and Expression annotations, Enum/Error FromType,
+Role Head, Impl Head/Description, Cast TargetType, Struct/Enum/Error named-field
+Type, Struct/Enum/Error tuple-field Type and Enum/Error positional-payload Type.
+The tuple and positional rows below close the final five dedicated transports.
+Act terminal evidence remains a separate bounded residual. These counts
+describe role transports, not occurrence or boundary-variant counts, and do
+not certify nested Type grammar or global Gate 1.
+
+#### Tuple-field and positional-payload initial required-Type Error links
+
+Only `crates/yu-syntax/src/declaration/fields.rs:951–979`,
+`declaration/declaration_variant.rs:564–644` and the shared publisher at
+`type_expr/mod.rs:732–819` are linked to these two bounded rows. Direct proof is
+`tuple_and_positional_required_type_initial_error_have_direct_five_owner_slots`
+at `crates/yu-syntax/src/tests/type_expr/required_recovery.rs:874`.
+
+- Nine tuple-field witnesses use complete Struct/Enum/Error ancestry and actual
+  parentheses to select a direct `StructField` Error group.
+- Six positional witnesses use direct Enum/Error `EnumVariant` children without
+  `FromKw`, parentheses or `StructField` to select the positional occurrence.
+- Both rows prove terminal, singleton-retry and multileaf-retry grouping,
+  `Type(Primary)` projection, native close ownership, no cascade, EOF handoff
+  and fresh/frozen agreement.
+
+The independently audited matrix closes only these exact five ancestor
+contexts and three malformed shapes. Act terminal, other boundaries/layout,
+recursive Type and occurrence combinations remain untriaged or unmapped unless
+separately linked.
 
 #### LeadingEffectTypeHead required-head row links
 

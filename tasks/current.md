@@ -775,6 +775,25 @@ bounded unmapped candidate before further implementation.
   unmapped: three tuple-field and two positional-payload contexts. Act terminal
   and broader boundary/layout/nested Type work remain open; Gate 1 is incomplete.
 
+## Tuple-field and positional-payload initial required-Type Error closure
+
+- Mode: M1 with one Astra pre-write audit, one Astra implementer and one
+  independent post-write specification audit; no repair round.
+- Fifteen witnesses cross Struct/Enum/Error tuple fields and Enum/Error
+  positional payloads with terminal, singleton-retry and three-leaf-retry
+  malformed Type. Separate ordered CST discriminators select direct
+  `StructField` versus direct `EnumVariant` ownership before records.
+- Both owner families derive `Type(Primary)`/TypeExpression/primary zero,
+  maximal Error ranges, retry-leading ownership, native closes, no recovery
+  cascade, EOF handoff and fresh/frozen agreement.
+- Scoped rustfmt/diff and the wrapper-disabled exact test passed: 1 passed, 0
+  failed, 1,434 filtered out. One test invocation ran; no repair, production
+  change, broad suite or benchmark, and measurement budget usage was zero.
+- These five contexts close the bounded mapping for all 20 reachable
+  required-Type initial Error owner/shape transports. Act terminal remains a
+  separate residual; broader boundaries/layout, recursive Type, occurrence
+  combinations and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -802,13 +821,13 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::type_expr::required_recovery::named_field_required_type_initial_error_has_direct_three_owner_rowan_slots -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::type_expr::required_recovery::tuple_and_positional_required_type_initial_error_have_direct_five_owner_slots -- --exact --test-threads=1
 ```
 
-Result: 1 passed, 0 failed, 0 ignored; 1,433 filtered out. Scoped
+Result: 1 passed, 0 failed, 0 ignored; 1,434 filtered out. Scoped
 `rustfmt --edition 2024 --check crates/yu-syntax/src/tests/type_expr/required_recovery.rs`
-and `git diff --check` also passed. Earlier Cast/Role/Impl/default-expression
-evidence remains historical rather than the latest check. No workspace build,
+and `git diff --check` also passed. Earlier named-field/Cast/Role/Impl evidence
+remains historical rather than the latest check. No workspace build,
 broad suite or performance experiment was needed for this M1 closure/M0 record
 update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
