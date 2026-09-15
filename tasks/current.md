@@ -957,6 +957,28 @@ bounded unmapped candidate before further implementation.
   For headers, other siblings, protected/fence exits, other block slots and
   global Gate 1 remain open.
 
+## RulePath/parenthesis/RuleBody UTF-8 EOF-leading composition closure
+
+- Mode: M1 with one Astra architect/pre-write audit, one Astra implementer and
+  one independent post-write specification audit; one test-only assertion repair.
+- Existing `{(a:: /*α*/` evidence now fixes the complete 12-node/4-token CST at
+  both origins 0 and 137. RulePath Name, parenthesis Close and RuleBody Close
+  are three ordered childless Missing occurrences at the same Rowan range
+  `5..5`, distinguished only by complete ancestor/direct-introducer paths.
+- Their CST-derived roles are RulePathName/Identifier, RuleParenClose/
+  Close(Parenthesis), and RuleBodyCloseBrace/Close(Brace), all primary zero.
+  No Error, Invalid, accepted closer or duplicate Missing occurs.
+- UTF-8 pending leading ` /*α*/` stays outside CST at `5..12`; temporary legacy
+  records intentionally use successor `origin+12` and do not move the Rowan
+  ranges. Returned EOF, `InLine`, empty remainder, source reconstruction and
+  fresh/frozen parity are pinned.
+- The repair replaced invalid red-node inequality with the required complete
+  occurrence-path proof. Scoped rustfmt/diff and the wrapper-disabled exact
+  test passed: 1 passed, 0 failed, 1,435 filtered out. Five test invocations
+  ran; no production change, broad suite or benchmark, measurement usage zero.
+- Scope is one parenthesized UTF-8 EOF-leading composition. Other Rule EOF/
+  comment/newline/fence/public/recursive contexts and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -984,14 +1006,14 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax tests::braced_statement_recovery::braced_statement_raw_error_stays_in_nested_for_body -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax tests::rule_literal_recovery::eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate -- --exact --test-threads=1
 ```
 
 Result: 1 passed, 0 failed, 0 ignored; 1,435 filtered out. Scoped
-`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/braced_statement_recovery.rs`
-and `git diff --check` also passed. Earlier fence/matching-close braced/Act/
-tuple/positional/named-field/Cast/Role/Impl evidence remains historical rather
-than the latest check. No workspace build,
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/rule_literal_recovery.rs`
+and `git diff --check` also passed. Earlier braced/Act/tuple/positional/
+named-field/Cast/Role/Impl evidence remains historical rather than the latest
+check. No workspace build,
 broad suite or performance experiment was needed for this M1 closure/M0 record
 update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask

@@ -228,6 +228,52 @@ fn required_slots_stop_before_body_and_paren_newline_name_admission() {
 #[test]
 fn eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate() {
     use LiteralRole::*;
+    fn pending_body<'source>(
+        source: &'source str,
+        origin: usize,
+        frozen: Option<&[CommittedRecoveryRecord]>,
+    ) -> (
+        GreenNode,
+        Vec<CommittedRecoveryRecord>,
+        crate::rule::RuleWitnessExit,
+        LineEntry,
+        &'source str,
+    ) {
+        let operators = OperatorTable::empty();
+        let mut recover = match frozen {
+            Some(records) => Recover::reconcile_for_test(&operators, records),
+            None => Recover::new_for_test(&operators),
+        };
+        let mut input = source;
+        let mut lexical = crate::cursor::LexRecover::new_for_test(&operators);
+        let opener = scan_rule_item_witness(chasa_recover::In::new(&mut input, &mut lexical, ()))
+            .expect("RuleBody opener");
+        let current = scan_rule_current_item_witness(
+            chasa_recover::In::new(&mut input, &mut lexical, ()),
+            origin + 1,
+            LineEntry::InLine,
+            None,
+        );
+        let end = origin + source.len() - input.len();
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let (exit, line_entry) = crate::rule::rule_body_normalized_witness(
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+            opener,
+            current.item,
+            current.next_line_entry,
+            end,
+            None,
+        );
+        output.finish_node();
+        (
+            output.finish(),
+            recover.finish_recoveries_for_test(),
+            exit,
+            line_entry,
+            input,
+        )
+    }
     for (source, emitted, roles) in [
         (
             "{a=  ",
@@ -257,12 +303,262 @@ fn eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate() {
                 .enumerate()
                 .map(|(id, role)| record(id as u32, *role, at..at, None))
                 .collect();
-            let (green, records) = parse(source, origin, None);
+            let (green, records, pending) = if source == "{(a:: /*α*/" {
+                let (green, records, exit, line_entry, remainder) =
+                    pending_body(source, origin, None);
+                (green, records, Some((exit, line_entry, remainder)))
+            } else {
+                let (green, records) = parse(source, origin, None);
+                (green, records, None)
+            };
             assert_eq!(green.to_string(), emitted, "{source:?}");
+            if let Some((exit, line_entry, remainder)) = &pending {
+                let root = SyntaxNode::new_root(green.clone());
+                let nodes = root.descendants().collect::<Vec<_>>();
+                assert_eq!(nodes.len(), 12);
+                for (node, (kind, node_range, text, parent, children)) in nodes.iter().zip([
+                    (
+                        SyntaxKind::Root,
+                        0..5,
+                        "{(a::",
+                        None,
+                        vec![SyntaxKind::RuleBody],
+                    ),
+                    (
+                        SyntaxKind::RuleBody,
+                        0..5,
+                        "{(a::",
+                        Some(0),
+                        vec![
+                            SyntaxKind::LBrace,
+                            SyntaxKind::RuleAlternation,
+                            SyntaxKind::Missing,
+                        ],
+                    ),
+                    (
+                        SyntaxKind::RuleAlternation,
+                        1..5,
+                        "(a::",
+                        Some(1),
+                        vec![SyntaxKind::RuleSequence],
+                    ),
+                    (
+                        SyntaxKind::RuleSequence,
+                        1..5,
+                        "(a::",
+                        Some(2),
+                        vec![SyntaxKind::RuleItem],
+                    ),
+                    (
+                        SyntaxKind::RuleItem,
+                        1..5,
+                        "(a::",
+                        Some(3),
+                        vec![
+                            SyntaxKind::LParen,
+                            SyntaxKind::RuleAlternation,
+                            SyntaxKind::Missing,
+                        ],
+                    ),
+                    (
+                        SyntaxKind::RuleAlternation,
+                        2..5,
+                        "a::",
+                        Some(4),
+                        vec![SyntaxKind::RuleSequence],
+                    ),
+                    (
+                        SyntaxKind::RuleSequence,
+                        2..5,
+                        "a::",
+                        Some(5),
+                        vec![SyntaxKind::RuleItem],
+                    ),
+                    (
+                        SyntaxKind::RuleItem,
+                        2..5,
+                        "a::",
+                        Some(6),
+                        vec![SyntaxKind::Identifier, SyntaxKind::RulePath],
+                    ),
+                    (
+                        SyntaxKind::RulePath,
+                        3..5,
+                        "::",
+                        Some(7),
+                        vec![SyntaxKind::ColonColon, SyntaxKind::Missing],
+                    ),
+                    (SyntaxKind::Missing, 5..5, "", Some(8), vec![]),
+                    (SyntaxKind::Missing, 5..5, "", Some(4), vec![]),
+                    (SyntaxKind::Missing, 5..5, "", Some(1), vec![]),
+                ]) {
+                    assert_eq!(node.kind(), kind);
+                    assert_eq!(range(node), node_range);
+                    assert_eq!(node.to_string(), text);
+                    assert_eq!(node.parent(), parent.map(|index| nodes[index].clone()));
+                    assert_eq!(child_kinds(node), children);
+                }
+                let tokens = root
+                    .descendants_with_tokens()
+                    .filter_map(|element| element.into_token())
+                    .collect::<Vec<_>>();
+                assert_eq!(tokens.len(), 4);
+                for (token, (kind, text, token_range, parent)) in tokens.iter().zip([
+                    (SyntaxKind::LBrace, "{", 0..1, 1),
+                    (SyntaxKind::LParen, "(", 1..2, 4),
+                    (SyntaxKind::Identifier, "a", 2..3, 7),
+                    (SyntaxKind::ColonColon, "::", 3..5, 8),
+                ]) {
+                    assert_eq!(token.kind(), kind);
+                    assert_eq!(token.text(), text);
+                    assert_eq!(
+                        usize::from(token.text_range().start())
+                            ..usize::from(token.text_range().end()),
+                        token_range
+                    );
+                    assert_eq!(token.parent(), Some(nodes[parent].clone()));
+                }
+                assert!(root.descendants_with_tokens().all(|element| !matches!(
+                    element.kind(),
+                    SyntaxKind::Error
+                        | SyntaxKind::Invalid
+                        | SyntaxKind::RParen
+                        | SyntaxKind::RBrace
+                )));
+                let missing = root
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::Missing)
+                    .collect::<Vec<_>>();
+                assert_eq!(missing, nodes[9..12]);
+                let occurrence_paths = missing
+                    .iter()
+                    .map(|node| {
+                        let mut path = node
+                            .ancestors()
+                            .filter(|ancestor| ancestor.parent().is_some())
+                            .map(|ancestor| ancestor.index())
+                            .collect::<Vec<_>>();
+                        path.reverse();
+                        path
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    occurrence_paths,
+                    [
+                        vec![0, 1, 0, 0, 1, 0, 0, 1, 1],
+                        vec![0, 1, 0, 0, 2],
+                        vec![0, 2]
+                    ]
+                );
+                // Occurrence ancestry and ordered native introducers select the
+                // slots before the compatibility ledger or its shifted ranges.
+                let derived = missing
+                    .iter()
+                    .map(|node| {
+                        let owner = node.parent().expect("direct Missing owner");
+                        let introducer = owner.first_child_or_token().expect("native introducer");
+                        let (role, expected) = match (owner.kind(), introducer.kind()) {
+                            (SyntaxKind::RulePath, SyntaxKind::ColonColon) => {
+                                assert_eq!(owner, nodes[8]);
+                                (RulePathName, ExpectedSyntax::Identifier)
+                            }
+                            (SyntaxKind::RuleItem, SyntaxKind::LParen) => {
+                                assert_eq!(owner, nodes[4]);
+                                (
+                                    RuleParenClose,
+                                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                                        Delimiter::Parenthesis,
+                                    )),
+                                )
+                            }
+                            (SyntaxKind::RuleBody, SyntaxKind::LBrace) => {
+                                assert_eq!(owner, nodes[1]);
+                                (
+                                    RuleBodyCloseBrace,
+                                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                                        Delimiter::Brace,
+                                    )),
+                                )
+                            }
+                            other => panic!("unexpected Missing slot: {other:?}"),
+                        };
+                        (role, range(node), [expected], 0usize)
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    derived,
+                    [
+                        (RulePathName, 5..5, [ExpectedSyntax::Identifier], 0),
+                        (
+                            RuleParenClose,
+                            5..5,
+                            [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                                Delimiter::Parenthesis
+                            ))],
+                            0
+                        ),
+                        (
+                            RuleBodyCloseBrace,
+                            5..5,
+                            [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
+                                Delimiter::Brace
+                            ))],
+                            0
+                        ),
+                    ]
+                );
+                let crate::rule::RuleWitnessExit::Returned(item) = exit else {
+                    panic!("EOF Item remains returned")
+                };
+                use crate::lexical::item::{LeadingTrivia, Payload};
+                assert_eq!(
+                    *item,
+                    Item::plain(
+                        LeadingTrivia::ordinary(
+                            vec![
+                                ordinary_trivia(TriviaKind::Whitespace, " "),
+                                ordinary_trivia(TriviaKind::BlockComment, "/*α*/"),
+                            ]
+                            .into_boxed_slice()
+                        ),
+                        Payload::Eof
+                    )
+                );
+                assert_eq!(*line_entry, LineEntry::InLine);
+                assert_eq!(*remainder, "");
+                assert_eq!(remainder.as_ptr(), source.as_ptr().wrapping_add(12));
+                let extent = item.extent(origin + 12);
+                assert_eq!(extent.physical(), origin + 5..origin + 12);
+                assert_eq!(extent.leading(), origin + 5..origin + 12);
+                assert_eq!(extent.remaining(), origin + 5..origin + 12);
+                assert_eq!(extent.payload(), origin + 12..origin + 12);
+                assert_eq!(&source[5..12], " /*α*/");
+                assert_eq!(format!("{root}{}{remainder}", &source[5..12]), source);
+                for (record, (role, rowan_range, expectations, primary)) in
+                    records.iter().zip(derived)
+                {
+                    assert_eq!(record.site.role, GrammarRole::Literal(role));
+                    assert_eq!(record.site.range, origin + 12..origin + 12);
+                    assert_ne!(
+                        record.site.range,
+                        origin + rowan_range.start..origin + rowan_range.end
+                    );
+                    assert_eq!(record.expectations.len(), 1);
+                    assert_eq!(record.expectations[0].expected, expectations[0]);
+                    assert_eq!(record.primary_expectation, primary);
+                }
+            }
             assert_eq!(records, expected, "{source:?}");
             let (again, frozen) = parse(source, origin, Some(&records));
             assert_eq!(again, green);
             assert_eq!(frozen, records);
+            if let Some(pending) = pending {
+                let (again, frozen, exit, line_entry, remainder) =
+                    pending_body(source, origin, Some(&records));
+                assert_eq!(again, green);
+                assert_eq!(frozen, records);
+                assert_eq!((exit, line_entry, remainder), pending);
+            }
         }
     }
 }

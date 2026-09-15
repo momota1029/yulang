@@ -2019,9 +2019,25 @@ singleton Identifier/primary-zero projection were independently delta-audited
 clean; the focused test passed 1 with 1,422 filtered out. Accepted-name,
 CRLF/parenthesis/EOF/fence/interpolation and recursive forms remain open.
 
+#### RulePath/parenthesis/RuleBody UTF-8 EOF-leading composition links
+
+Only `{(a:: /*α*/` at origins 0 and 137 in
+`tests/rule_literal_recovery.rs::eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate`
+is linked to this bounded composition. Complete ordered ancestry and native
+LBrace/LParen/ColonColon distinguish three childless Missing occurrences in
+preorder: RulePath Name, parenthesis Close and RuleBody Close. Each Rowan range
+is `5..5`; parent occurrence paths and direct introducers select the roles,
+not equal range, node value or compatibility records.
+
+Pending UTF-8 leading ` /*α*/` remains outside CST at `5..12`; temporary
+records use `origin+12` without moving the three CST ranges. The proof includes
+returned EOF/`InLine`, source reconstruction and fresh/frozen parity. Other
+EOF/comment/newline/fence/public/recursive Rule contexts remain separate.
+
 The RuleBody-close and opener-selected RuleItem parenthesis-close rows share
 the focused nested EOF proof `{(a` in
-`crates/yu-syntax/src/tests/rule_literal_recovery.rs:382–501`. Exact ancestry,
+`dedicated_rule_slots_are_directly_readable_from_the_rowan_tree` at
+`crates/yu-syntax/src/tests/rule_literal_recovery.rs:857–980`. Exact ancestry,
 native tokens and full source lead to two direct childless Missing nodes at
 `3..3`; natural Rowan preorder is the inner parenthesis close before the outer
 body close, and CST owner/opener context derives distinct singleton Close roles
