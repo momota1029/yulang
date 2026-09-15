@@ -196,6 +196,20 @@ catalog-audited evidence-complete Draft only for these direct alternatives;
 explicit active-RParen, all remaining Cast rows, global interpreter and ledger
 retirement remain separate.
 
+#### CastTarget fresh required-Type Missing link
+
+Cast TargetType fresh Missing is linked only for `cast(x): ;`. Completed
+CastPattern and actual-Colon CastTarget ancestry select the direct empty
+TypeExpression/Missing independently of records. Direct proof is
+`cast_target_type_fresh_missing_has_direct_ordered_rowan_slot` in
+`crates/yu-syntax/src/tests/declaration/cast_decl.rs`, covering exact canonical
+topology, unique childless Missing at `9..9`, no Error/Invalid, EOF handoff,
+CastDeclaration-subtree agreement across the canonical and isolated harnesses,
+and typed fresh/frozen equality. Independent repaired delta audit was clean;
+the exact test passed 1 with 1,426 filtered out and scoped formatting/diff
+passed. Other target boundaries, recovered Colon, malformed/retried/nested Type
+and broader Cast phases remain open.
+
 #### Cast BodyIntroducer Draft links
 
 Only the required semicolon after completed CastPattern and CastTarget is
@@ -1201,7 +1215,8 @@ mapped evidence: Type RHS; Act Head/Source; Derives RoleReference; Pattern and
 Expression annotations; and Enum/Error FromType. Seven were initially unmapped:
 Role Head; Impl Head/Description; Cast TargetType; and Struct/Enum/Error
 named-field Type. Role Head and both Impl contexts are mapped below after
-focused proof closure; Cast and the three named-field contexts remain open.
+focused proof closure; Cast is mapped above and the three named-field contexts
+remain open.
 These counts describe role transports, not occurrence or boundary-variant
 counts, and do not certify nested Type grammar.
 

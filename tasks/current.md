@@ -594,6 +594,23 @@ bounded unmapped candidate before further implementation.
   TargetType plus Struct/Enum/Error named-field Type. Other Impl boundaries,
   malformed/retried/nested Type and gates 2–4 remain open.
 
+## CastTarget fresh required-Type Missing closure
+
+- The selected M1 slice added one complete `cast(x): ;` direct-CST proof.
+  Completed CastPattern plus actual-Colon CastTarget ancestry selects the empty
+  TypeExpression/Missing as `Declaration(Cast(TargetType))`, singleton
+  TypeExpression, primary zero at `9..9` before records.
+- One Astra implementer proved the full canonical node/token inventory, unique
+  childless Missing, no Error/Invalid, semicolon/EOF handoff, isolated typed
+  harness shape and fresh/frozen replay. The single repair replaced invalid
+  cross-harness Root equality with CastDeclaration-subtree equality while
+  retaining same-harness whole-tree equality. Independent final audit was
+  clean. Scoped rustfmt/diff and exact test passed 1 with 1,426 filtered out.
+  No production code, broad suite or benchmark ran.
+- Status: evidence-complete Draft for `cast(x): ;` only. Struct/Enum/Error
+  named-field Type are now the three remaining unmapped reachable contexts in
+  this required-Type inventory. Broader Cast/Type and gates 2–4 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

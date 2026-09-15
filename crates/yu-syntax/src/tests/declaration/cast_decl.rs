@@ -1031,6 +1031,167 @@ fn cast_target_introducer_direct_rowan_active_rparen_stays_pending() {
 }
 
 #[test]
+fn cast_target_type_fresh_missing_has_direct_ordered_rowan_slot() {
+    use crate::recovery_record::{
+        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
+        RecoverySiteKey, SyntaxExpectation,
+    };
+    use SyntaxKind::*;
+
+    let source = "cast(x): ;";
+    let (green, exit, remainder) = run_statement_normalized(source, 0, LineEntry::InLine, None);
+    let root = SyntaxNode::new_root(green.clone());
+    assert_eq!(root.kind(), Root);
+    assert_eq!(root.text().to_string(), source);
+    assert_eq!(
+        root.text_range(),
+        rowan::TextRange::new(0.into(), 10.into())
+    );
+    assert_eq!(root.parent(), None);
+
+    // The complete ordered inventory includes every node and token, with its
+    // actual parent. It distinguishes fresh target absence from introducer
+    // recovery and from recovery inside an accepted nested Type.
+    let elements = root.descendants_with_tokens().collect::<Vec<_>>();
+    let expected = [
+        (Root, true, 0..10, None),
+        (Statement, true, 0..10, Some(0)),
+        (CastDeclaration, true, 0..10, Some(1)),
+        (CastKw, false, 0..4, Some(2)),
+        (CastPattern, true, 4..7, Some(2)),
+        (LParen, false, 4..5, Some(4)),
+        (Pattern, true, 5..6, Some(4)),
+        (IdentifierPattern, true, 5..6, Some(6)),
+        (Identifier, false, 5..6, Some(7)),
+        (RParen, false, 6..7, Some(4)),
+        (CastTarget, true, 7..9, Some(2)),
+        (Colon, false, 7..8, Some(10)),
+        (Whitespace, false, 8..9, Some(10)),
+        (TypeExpression, true, 9..9, Some(10)),
+        (Missing, true, 9..9, Some(13)),
+        (Semicolon, false, 9..10, Some(2)),
+    ];
+    assert_eq!(elements.len(), expected.len());
+    for (index, (element, (kind, is_node, range, parent))) in
+        elements.iter().zip(&expected).enumerate()
+    {
+        assert_eq!(element.kind(), *kind, "element {index}");
+        assert_eq!(element.as_node().is_some(), *is_node, "element {index}");
+        assert_eq!(
+            element.text_range(),
+            rowan::TextRange::new((range.start as u32).into(), (range.end as u32).into()),
+            "element {index}"
+        );
+        assert_eq!(
+            element.to_string(),
+            &source[range.clone()],
+            "element {index}"
+        );
+        assert_eq!(
+            element.parent(),
+            parent.map(|parent| elements[parent].as_node().unwrap().clone()),
+            "element {index}"
+        );
+        if let Some(node) = element.as_node() {
+            let children = expected.iter().enumerate().filter_map(|(child, entry)| {
+                (entry.3 == Some(index)).then(|| elements[child].clone())
+            });
+            assert_eq!(
+                node.children_with_tokens().collect::<Vec<_>>(),
+                children.collect::<Vec<_>>()
+            );
+        }
+    }
+    assert_eq!(count(&root, Missing), 1);
+    assert!(
+        !elements
+            .iter()
+            .any(|element| matches!(element.kind(), Error | Invalid))
+    );
+    let missing = elements[14].as_node().unwrap();
+    assert!(missing.children_with_tokens().next().is_none());
+
+    // Select the slot and facts from the proven completed Pattern, actual
+    // target Colon, native leading, and empty TypeExpression before records.
+    let pattern = elements[4].as_node().unwrap();
+    let target = missing.parent().unwrap().parent().unwrap();
+    let target_children = target
+        .children_with_tokens()
+        .map(|child| child.kind())
+        .collect::<Vec<_>>();
+    let selected = match (
+        pattern.kind(),
+        pattern.last_token().unwrap().kind(),
+        target.kind(),
+        target_children.as_slice(),
+        missing.parent().unwrap().text_range().is_empty(),
+    ) {
+        (CastPattern, RParen, CastTarget, [Colon, Whitespace, TypeExpression], true) => (
+            GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetType)),
+            [ExpectedSyntax::TypeExpression],
+            0,
+            missing.text_range(),
+        ),
+        _ => panic!("fresh target Missing must be selected by its ordered Rowan slot"),
+    };
+    assert_eq!(
+        selected,
+        (
+            GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetType)),
+            [ExpectedSyntax::TypeExpression],
+            0,
+            missing.text_range(),
+        )
+    );
+    let (role, [expected_syntax], primary_expectation, _) = selected;
+    let range = usize::from(missing.text_range().start())..usize::from(missing.text_range().end());
+    let expected_record = CommittedRecoveryRecord {
+        id: DiagnosticId(0),
+        site: RecoverySiteKey {
+            role,
+            range: range.clone(),
+        },
+        kind: RecoveryKind::Missing,
+        unexpected: std::sync::Arc::from([]),
+        expectations: std::sync::Arc::from([SyntaxExpectation {
+            role,
+            expected: expected_syntax,
+            range,
+            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
+        }]),
+        primary_expectation,
+    };
+    let check_exit = |exit, remainder: &str| {
+        assert_eq!(remainder, "");
+        let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) = exit else {
+            panic!("bodyless Cast must return the EOF Item in-line")
+        };
+        let mut item = end.item;
+        assert!(item.payload_view().is_eof());
+        assert_eq!(emit_pending_leading_text(&mut item), "");
+    };
+    check_exit(exit, remainder);
+    let (fresh_green, fresh_exit, records, fresh_remainder) = typed_cast(source, 0, None, 0, None);
+    let typed_root = SyntaxNode::new_root(fresh_green.clone());
+    assert_eq!(typed_root.kind(), Root);
+    let typed_children = typed_root.children_with_tokens().collect::<Vec<_>>();
+    assert_eq!(typed_children.len(), 1);
+    assert_eq!(typed_children[0].kind(), CastDeclaration);
+    assert!(typed_children[0].as_node().is_some());
+    assert_eq!(
+        declaration(&fresh_green).green(),
+        declaration(&green).green()
+    );
+    assert_eq!(records, [expected_record]);
+    check_exit(fresh_exit.unwrap(), fresh_remainder);
+    let (frozen_green, frozen_exit, frozen_records, frozen_remainder) =
+        typed_cast(source, 0, Some(&records), 0, None);
+    assert_eq!(frozen_green, fresh_green);
+    assert_eq!(frozen_records, records);
+    check_exit(frozen_exit.unwrap(), frozen_remainder);
+}
+
+#[test]
 fn cast_target_introducer_direct_target_children_distinguish_type_recovery() {
     use SyntaxKind::{CastTarget, Colon, Missing, TypeExpression, Whitespace};
 
