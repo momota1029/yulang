@@ -629,6 +629,24 @@ bounded unmapped candidate before further implementation.
   incomplete. Struct indented fields, tuple/positional exclusions, broader
   recovery and gates 2–4 remain open.
 
+## Required-expression caller reconciliation and WhereKw Guard closure
+
+- A read-only M1 audit bounded the shared required-expression surface to 12
+  caller/phase classes and 24 fresh-Missing/initial-Error cells. This is a
+  caller-discriminator inventory, not exhaustive parser coverage.
+- One Astra implementer added an additive six-case Case/Catch WhereKw Guard
+  matrix. Direct Rowan ancestry and child order prove empty Missing, terminal
+  maximal Error and IdentifierExpression retry as
+  `CaseLike(Guard)`/Expression/primary zero, with exact ranges, trivia
+  ownership, Arrow/body handoff and no record- or spelling-based selection.
+- Independent pre-write and post-write audits were clean. Scoped rustfmt/diff
+  and four focused `case_schema_` tests passed; no production code, broad suite
+  or benchmark ran. These six alternatives are evidence-complete Draft only.
+- Remaining bounded direct-proof gaps are Elsif Condition
+  Missing/terminal-Error/retry and the production infix-operand Missing
+  discriminator. Prefix/infix contextual recursion, broader boundaries/layout,
+  nested owners and Gate 1 completion remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,

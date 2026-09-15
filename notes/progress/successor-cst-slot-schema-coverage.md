@@ -2093,12 +2093,26 @@ owners; the one combined Arrow/Body Missing remains one Rowan occurrence.
 | `crates/yu-syntax/src/pattern/mod.rs:415–620,1228–1276` | `linked` | caller-selected first Pattern/Handler Missing/Error/retry and nested Pattern ownership |
 | `crates/yu-syntax/src/statement.rs:510–552,842–940` | `linked` | transported `ColonApplication(IndentedStatement)` direct Missing/Error/retry |
 
-Focused Rowan-only proof is the three `case_schema_` tests in
+Focused Rowan-only proof is the four `case_schema_` tests in
 `crates/yu-syntax/src/tests/case_like.rs`. They cover both families, all nine
 CaseLike roles including both Block interpretations, the single combined
 Arrow/Body Missing, Body/Separator and
 nested/close equal-offset ordering, Catch's LBrace-selected close, transported
 indented Missing/Error/retry, accepted controls and UTF-8/CRLF coordinates.
+The additive
+`case_schema_where_guard_missing_error_and_retry_use_ordered_rowan_children`
+test (`crates/yu-syntax/src/tests/case_like.rs:654`) separately closes six
+Case/Catch WhereKw Guard alternatives: direct Missing, terminal maximal Error
+and IdentifierExpression retry. Its independently audited evidence fixes full
+ancestry, trivia ownership, exact ranges, grouping and CST-only
+Guard/Expression/primary-zero projection. This does not close other
+required-expression callers.
+
+The bounded shared required-expression inventory has 12 caller/phase classes
+and 24 fresh-Missing/initial-Error cells. The remaining direct-proof gaps are
+Elsif Condition Missing/terminal Error/retry and the production infix-operand
+Missing discriminator. Prefix/infix contextual recursion, broader
+boundaries/layout and nested owners remain outside this bounded reconciliation.
 Every exhaustive boundary/layout alternative, nested child schema and the
 global interpreter remains untriaged, delegated or unmapped unless separately
 linked above.

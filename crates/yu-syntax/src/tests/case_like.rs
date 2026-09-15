@@ -652,6 +652,221 @@ fn case_schema_expression_and_pattern_slots_use_ordered_rowan_children() {
 }
 
 #[test]
+fn case_schema_where_guard_missing_error_and_retry_use_ordered_rowan_children() {
+    use SyntaxKind::*;
+    for (head, expression_kind, block_kind, arm_kind, guard_kind) in [
+        ("case", CaseExpression, CaseBlock, CaseArm, CaseGuard),
+        ("catch", CatchExpression, CatchBlock, CatchArm, CatchGuard),
+    ] {
+        for payload in ["", "@ @", "@ @ g"] {
+            let source = format!("{head} x: n where {payload} -> yes");
+            let h = head.len();
+            let root = SyntaxNode::new_root(run(&source).0);
+            assert_eq!(root.to_string(), source);
+            let range = |element: &rowan::NodeOrToken<SyntaxNode, crate::SyntaxToken>| {
+                usize::from(element.text_range().start())..usize::from(element.text_range().end())
+            };
+            let guard = expression(&root, guard_kind);
+            let ancestry: Vec<_> = guard.ancestors().map(|node| node.kind()).collect();
+            assert_eq!(
+                ancestry,
+                [
+                    guard_kind,
+                    arm_kind,
+                    block_kind,
+                    expression_kind,
+                    OperatorChain,
+                    Root
+                ],
+                "{source}"
+            );
+            for kind in [expression_kind, block_kind, arm_kind, guard_kind] {
+                assert_eq!(
+                    root.descendants()
+                        .filter(|node| node.kind() == kind)
+                        .count(),
+                    1
+                );
+            }
+            let arm = guard.parent().unwrap();
+            let guard_children: Vec<_> = guard.children_with_tokens().collect();
+            assert_eq!(
+                guard_children
+                    .iter()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                [WhereKw, Whitespace, OperatorChain]
+            );
+            for child in &guard_children {
+                assert_eq!(child.parent(), Some(guard.clone()));
+            }
+            assert!(guard_children[0].as_token().is_some());
+            assert_eq!(guard_children[0].to_string(), "where");
+            assert_eq!(range(&guard_children[0]), h + 6..h + 11);
+            let empty = payload.is_empty();
+            let retry = payload == "@ @ g";
+            let chain_start = h + if empty { 13 } else { 12 };
+            let chain_end = h + if empty {
+                13
+            } else if retry {
+                17
+            } else {
+                15
+            };
+            assert_eq!(range(&guard_children[1]), h + 11..chain_start);
+            assert_eq!(
+                guard_children[1].to_string(),
+                if empty { "  " } else { " " }
+            );
+            assert!(guard_children[1].as_token().is_some());
+            let chain = guard_children[2].as_node().unwrap();
+            assert_eq!(range(&guard_children[2]), chain_start..chain_end);
+            assert_eq!(range(&guard.clone().into()), h + 6..chain_end);
+            let children: Vec<_> = chain.children_with_tokens().collect();
+            for child in &children {
+                assert_eq!(child.parent(), Some(chain.clone()));
+            }
+            let expected_children = if empty {
+                vec![Missing]
+            } else if retry {
+                vec![Error, Error, Error, IdentifierExpression]
+            } else {
+                vec![Error, Error, Error]
+            };
+            assert_eq!(
+                children
+                    .iter()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                expected_children
+            );
+            let recovery_range = if empty {
+                let missing = children[0].as_node().unwrap();
+                assert_eq!(missing.children_with_tokens().count(), 0);
+                assert_eq!(range(&children[0]), h + 13..h + 13);
+                range(&children[0])
+            } else {
+                for (index, text) in ["@", " ", "@"].into_iter().enumerate() {
+                    assert!(children[index].as_token().is_some());
+                    assert_eq!(children[index].to_string(), text);
+                    assert_eq!(range(&children[index]), h + 12 + index..h + 13 + index);
+                }
+                for pair in children[..3].windows(2) {
+                    assert_eq!(pair[0].next_sibling_or_token(), Some(pair[1].clone()));
+                    assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+                }
+                assert!(children[0].prev_sibling_or_token().is_none());
+                assert_eq!(
+                    children[2]
+                        .next_sibling_or_token()
+                        .map(|child| child.kind()),
+                    retry.then_some(IdentifierExpression)
+                );
+                range(&children[0]).start..range(&children[2]).end
+            };
+            let recovery: Vec<_> = root
+                .descendants_with_tokens()
+                .filter(|child| matches!(child.kind(), Missing | Error | Invalid))
+                .collect();
+            assert_eq!(recovery, children[..if empty { 1 } else { 3 }]);
+            if retry {
+                let admitted = children[3].as_node().unwrap();
+                assert_eq!(range(&children[3]), h + 15..h + 17);
+                let tokens: Vec<_> = admitted.children_with_tokens().collect();
+                assert_eq!(tokens.len(), 2);
+                for (token, kind, text, span) in [
+                    (&tokens[0], Whitespace, " ", h + 15..h + 16),
+                    (&tokens[1], Identifier, "g", h + 16..h + 17),
+                ] {
+                    assert_eq!(token.parent(), Some(admitted.clone()));
+                    assert!(token.as_token().is_some());
+                    assert_eq!(token.kind(), kind);
+                    assert_eq!(token.to_string(), text);
+                    assert_eq!(range(token), span);
+                }
+            }
+            let arm_children: Vec<_> = arm.children_with_tokens().collect();
+            let guard_index = arm_children
+                .iter()
+                .position(|child| child == &guard.clone().into())
+                .unwrap();
+            let leading = &arm_children[guard_index - 1];
+            assert_eq!(leading.kind(), Whitespace);
+            assert!(leading.as_token().is_some());
+            assert_eq!(leading.to_string(), " ");
+            assert_eq!(range(leading), h + 5..h + 6);
+            let mut successor = guard_index + 1;
+            if !empty {
+                let leading = &arm_children[successor];
+                assert_eq!(leading.kind(), Whitespace);
+                assert!(leading.as_token().is_some());
+                assert_eq!(leading.to_string(), " ");
+                assert_eq!(range(leading), chain_end..chain_end + 1);
+                successor += 1;
+            }
+            let arrow = &arm_children[successor];
+            let arrow_start = chain_end + usize::from(!empty);
+            assert_eq!(arrow.kind(), Arrow);
+            assert!(arrow.as_token().is_some());
+            assert_eq!(arrow.to_string(), "->");
+            assert_eq!(range(arrow), arrow_start..arrow_start + 2);
+            for child in &arm_children {
+                assert_eq!(child.parent(), Some(arm.clone()));
+            }
+            let body = arm_children.last().unwrap().as_node().unwrap();
+            assert_eq!(body.kind(), OperatorChain);
+            assert_eq!(body.to_string().trim(), "yes");
+            assert!(body.text_range().start() >= arrow.text_range().end());
+            assert!(!body.ancestors().any(|node| node == guard));
+
+            // Select the slot from the complete family ancestry and the direct
+            // WhereKw -> OperatorChain grammar, before consulting any records.
+            let projection = match (ancestry.as_slice(), guard_children[0].kind(), chain.kind()) {
+                (
+                    [
+                        CaseGuard,
+                        CaseArm,
+                        CaseBlock,
+                        CaseExpression,
+                        OperatorChain,
+                        Root,
+                    ]
+                    | [
+                        CatchGuard,
+                        CatchArm,
+                        CatchBlock,
+                        CatchExpression,
+                        OperatorChain,
+                        Root,
+                    ],
+                    WhereKw,
+                    OperatorChain,
+                ) => (
+                    GrammarRole::CaseLike(CaseLikeRole::Guard),
+                    [ExpectedSyntax::Expression],
+                    0usize,
+                    recovery_range,
+                ),
+                _ => panic!("not a complete where-guard slot: {source}"),
+            };
+            assert_eq!(
+                projection,
+                (
+                    GrammarRole::CaseLike(CaseLikeRole::Guard),
+                    [ExpectedSyntax::Expression],
+                    0,
+                    if empty {
+                        h + 13..h + 13
+                    } else {
+                        h + 12..h + 15
+                    },
+                )
+            );
+        }
+    }
+}
+
+#[test]
 fn case_schema_arm_and_block_slots_keep_distinct_direct_occurrences() {
     use SyntaxKind::*;
     for (head, block_kind, arm_kind) in [
