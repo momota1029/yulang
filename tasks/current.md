@@ -885,9 +885,32 @@ bounded unmapped candidate before further implementation.
 - Scoped rustfmt/diff and the wrapper-disabled exact test passed: 1 passed, 0
   failed, 1,435 filtered out. Four test invocations ran; no production change,
   broad suite or benchmark, and measurement usage was zero.
-- This closes only the four non-fence compositions. The fifth Yumark fence
-  prefix, other boundaries/trivia, nested recovery and global Gate 1 remain
-  open.
+- This closes only the four non-fence compositions. The fifth quoted Yumark
+  fence is mapped separately below; other boundaries/trivia, nested recovery
+  and global Gate 1 remain open.
+
+## BracedStatementBlock quoted-Yumark-fence composition closure
+
+- Mode: M1 with one Astra architect/pre-write audit, one Astra implementer and
+  one independent post-write specification audit; one mechanical helper repair.
+- The fifth existing terminal-prefix witness now proves owned CST `{@`,
+  Statement Error `1..2`, then closing-delimiter Missing `2..2` before records.
+  It separately proves pending CRLF `2..4`, borrowed boundary/temporary record
+  coordinate `4`, and inspected quote/fence/newline extent `4..10`; none of
+  these coordinates is harmonized or relocated.
+- Exact borrowed fence facts, pending Item equality/extents, `PhysicalStart`,
+  unconsumed remainder and source conservation are fixed. Fence-aware
+  fresh/frozen trees, records and handoffs agree with no duplicate recovery,
+  retry, separator, native close or Invalid.
+- The mechanical repair replaced the ordinary leading emitter, which rejects
+  boundary Items, with the existing terminal-boundary helper. Structural and
+  range assertions were unchanged.
+- Scoped rustfmt/diff and the wrapper-disabled exact test passed: 1 passed, 0
+  failed, 1,435 filtered out. Three test invocations ran; no production change,
+  broad suite or benchmark, and measurement usage was zero.
+- This closes only the one quoted-fence composition. Other fences/prefixes,
+  outer Yumark construction, other braced callers, nested recovery and global
+  Gate 1 remain open.
 
 ## Known open boundaries and deferred work
 

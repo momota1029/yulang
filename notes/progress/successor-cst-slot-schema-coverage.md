@@ -633,8 +633,23 @@ leading, payload and extent outside the `{@` tree. Exact exit/remainder and
 fresh/frozen equality follow only after structural projection.
 
 The independently audited row adds no wrapper and does not merge the two roles.
-Its fifth Yumark fence prefix remains prefix-only; fence composition, other
+Its fifth Yumark fence prefix is mapped separately below; other
 boundaries/trivia, nested recovery and other Statement sequences remain
+untriaged or mapped only by separate rows.
+
+#### BracedStatementBlock quoted-Yumark-fence Error-to-Close links
+
+Only the existing source `{@\r\n> ```\nouter` in
+`tests/braced_statement_recovery.rs::braced_statement_raw_error_terminal_prefixes`
+is linked to this dual-coordinate row. Owned CST ends at byte 2 and projects
+Statement Error `1..2` then closing-delimiter Missing `2..2`. Pending CRLF
+remains outside CST; the borrowed boundary coordinate and temporary record are
+at byte 4, while inspected quote/fence/newline facts span `4..10`.
+
+The proof separately checks exact boundary facts, Item extents/leading/payload,
+`PhysicalStart`, remainder/source conservation and fence-aware fresh/frozen
+replay. It does not harmonize these coordinates or add syntax. Other fences,
+outer Yumark construction, other braced callers and nested recovery remain
 untriaged or mapped only by separate rows.
 
 #### ColonApplication indented Statement entry Draft links

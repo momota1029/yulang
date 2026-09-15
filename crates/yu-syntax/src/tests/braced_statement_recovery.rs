@@ -803,8 +803,7 @@ fn braced_statement_raw_error_terminal_prefixes() {
             .descendants()
             .find(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression)
             .unwrap();
-        // Preserve the prefix proof for every witness; the non-fence cases
-        // below additionally compose it with the distinct terminal Close slot.
+        // Compose each prefix with its distinct terminal Close slot below.
         assert_braced_error_children(
             &block,
             &[(SyntaxKind::LBrace, 0..1), (SyntaxKind::Error, 1..2)],
@@ -818,12 +817,7 @@ fn braced_statement_raw_error_terminal_prefixes() {
                 .collect::<Vec<_>>(),
             [rowan::TextRange::new(1.into(), 2.into())]
         );
-        if boundary.is_some() {
-            // The fence witness retains its prefix-only evidence scope.
-            continue;
-        }
-
-        let owned = if source.ends_with("tail") {
+        let owned = if boundary.is_some() || source.ends_with("tail") {
             "{@"
         } else {
             source
@@ -957,6 +951,85 @@ fn braced_statement_raw_error_terminal_prefixes() {
                 (SyntaxKind::Missing, children.last().unwrap().text_range())
             ]
         );
+
+        if boundary.is_some() {
+            use crate::lexical::{
+                item::{BorrowedTarget, Boundary, LeadingTrivia, Payload, PendingBoundary},
+                yumark::{FenceCloseFacts, QuotePrefixFacts},
+            };
+            let inspect_fence_exit = |exit: NormalizedExit, suffix: &str| {
+                let NormalizedExit::Complete(Err(Either::Left(item)), line_entry) = exit else {
+                    panic!("protected fence handoff")
+                };
+                assert_eq!(line_entry, LineEntry::PhysicalStart);
+                assert_eq!(suffix, "> ```\nouter");
+                let expected_boundary = PendingBoundary::new(
+                    4..10,
+                    Boundary::BorrowedClose(BorrowedTarget::YumarkFence(Box::new(
+                        FenceCloseFacts {
+                            line: 4,
+                            inspected: 4..10,
+                            prefix: Some(QuotePrefixFacts {
+                                indentation: 4..4,
+                                marker: 4..5,
+                                extent: 4..6,
+                                depth: 1,
+                                marker_len: 2,
+                                marker_end: 1,
+                                explicit: false,
+                            }),
+                            indentation: 6..6,
+                            indentation_column: 0,
+                            marker: 6..9,
+                            marker_width: 3,
+                            horizontal_suffix: 9..9,
+                            newline: Some(9..10),
+                        },
+                    ))),
+                );
+                let pending = item
+                    .payload_view()
+                    .pending_boundary()
+                    .expect("fence boundary");
+                assert_eq!(pending.coordinate(), 4);
+                assert_eq!(pending.inspected(), &(4..10));
+                assert_eq!(pending, &expected_boundary);
+                let extent = item.extent(4);
+                assert_eq!(extent.physical(), 2..4);
+                assert_eq!(extent.remaining(), 2..4);
+                assert_eq!(extent.leading(), 2..4);
+                assert_eq!(extent.payload(), 4..4);
+                assert_eq!(
+                    item,
+                    Item::plain(
+                        LeadingTrivia::ordinary(
+                            vec![ordinary_trivia(TriviaKind::Newline, "\r\n")].into_boxed_slice(),
+                        ),
+                        Payload::Boundary(expected_boundary.clone()),
+                    )
+                );
+                let (leading, pending) = emit_terminal_leading_text(item);
+                assert_eq!(leading, "\r\n");
+                assert_eq!(pending, expected_boundary);
+                assert_eq!(format!("{green}{leading}{suffix}"), source);
+            };
+            inspect_fence_exit(exit, suffix);
+            // Rowan ends at 2; the temporary compatibility close record anchors
+            // at the inspected fence coordinate 4, beyond the pending CRLF.
+            assert_eq!(
+                records,
+                vec![
+                    record(0, statement, 1..2, true),
+                    record(1, close, 4..4, false)
+                ]
+            );
+            let (again, frozen, frozen_exit, frozen_suffix) =
+                parse(source, 0, Some(&fence), Some(&records));
+            assert_eq!(again, green);
+            assert_eq!(frozen, records);
+            inspect_fence_exit(frozen_exit, frozen_suffix);
+            continue;
+        }
 
         let inspect_exit = |exit: NormalizedExit, suffix: &str| {
             let NormalizedExit::Complete(exit, line_entry) = exit else {
