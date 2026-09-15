@@ -925,7 +925,7 @@ continuation remain separately owned.
 | source and boundary ownership | The arm keyword token and arm-internal native leading are direct arm content. Leading consumed before an arm keyword remains outside that arm: the caller owns initial-If leading, while IfExpression directly owns continuation-keyword leading. Initial inline-body leading is native before Error; Error-internal leading is an Error token; retry leading belongs outside Error before the retried OperatorChain. Indented block prefix trivia remains direct block content and retry leading belongs to the admitted Statement. Protected newline/fence/dedent/caller Item and leading retain the ownership fixed by the If and indented-Statement authorities. Missing is zero-width and raw Error groups use their combined UTF-8 ranges. |
 | transition/handoff | `arm keyword → required Condition → missing Condition completes with no arm cascade; otherwise completed Condition → actual Colon enters Body or no introducer emits BodyIntroducer Missing`. `Colon or bare Else body entry → boundary emits one Body/ElseBody Missing; malformed input emits one maximal arm Error group and retries an OperatorChain or hands off its boundary without a second Missing; admitted NUD enters OperatorChain`. `actual Colon plus deeper layout → IndentedStatementBlock → direct Missing/Error/retried Statement with transported If role → existing sibling/dedent/boundary continuation`. Every arm closes before the outer If continuation/tail resumes. |
 | diagnostic projection | Delegated `Condition > OperatorChain` recovery projects Condition from its existing required-expression row. A direct `IfArm` Missing without preceding Colon projects BodyIntroducer with singleton expected Colon; a direct post-Colon `IfArm` Missing/Error group projects Body with singleton Expression; a direct `ElseArm` Missing/Error group projects ElseBody with singleton Expression. A direct block Missing/maximal Error group projects IndentedStatement with singleton Statement. All have primary zero. Rowan preorder, occurrence ancestry and arm ordinal distinguish equal-offset occurrences: in `if if:`, inner Condition Missing precedes inner Body Missing, which precedes the outer BodyIntroducer Missing at the same final offset. Records, Error spelling and parser phase are not inputs. |
-| proof and status | Governing authority: [If current-Item recovery](2026-09-08-successor-if-current-item-recovery.md), [indented Statement role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), and the CST-derived diagnostics amendment. Publishers: `crates/yu-syntax/src/expression/if_expr.rs:200–344,347–676` and `crates/yu-syntax/src/statement.rs:510–552,773–942`. Direct Rowan proof: `if_direct_rowan_slots_preserve_occurrence_order_and_native_trivia` in `crates/yu-syntax/src/tests/if_expr.rs`, with 19 Condition/no-cascade, If/Elsif/Else, inline/indented, Error-retry, accepted, UTF-8/CRLF and equal-offset cases. M1 expected-output pre-write, post-write regression and catalog-delta audits were clean after two source-ownership wording corrections. Status: catalog-audited evidence-complete Draft for these bounded If-owned rows only; delegated Condition, nested grammar, exhaustive boundaries, other transported callers, global interpreter, parser API and recovery-ledger retirement remain open. |
+| proof and status | Governing authority: [If current-Item recovery](2026-09-08-successor-if-current-item-recovery.md), [indented Statement role transport](2026-09-08-successor-expression-indented-statement-role-transport.md), and the CST-derived diagnostics amendment. Publishers: `crates/yu-syntax/src/expression/if_expr.rs:200–344,347–676` and `crates/yu-syntax/src/statement.rs:510–552,773–942`. Direct Rowan proof: `if_direct_rowan_slots_preserve_occurrence_order_and_native_trivia` in `crates/yu-syntax/src/tests/if_expr.rs`, with 19 Condition/no-cascade, If/Elsif/Else, inline/indented, Error-retry, accepted, UTF-8/CRLF and equal-offset cases. The separately owned required-expression row links `if_elsif_condition_missing_error_and_retry_use_ordered_rowan_children` for three independently audited Elsif Condition Missing, terminal maximal-Error and retry alternatives; this does not make Condition part of the arm-owned row. M1 expected-output pre-write, post-write regression and catalog-delta audits were clean after two source-ownership wording corrections; the Elsif Condition proof also passed clean pre-write and post-write specification audits. Status: catalog-audited evidence-complete Draft for these bounded If-owned rows only; other delegated Condition alternatives, nested grammar, exhaustive boundaries, other transported callers, global interpreter, parser API and recovery-ledger retirement remain open. |
 
 ### For Pattern, header, iterable and body slots Draft
 
@@ -2426,6 +2426,10 @@ groups; retry leading stays outside Error. Direct Rowan proof is
 in `crates/yu-syntax/src/tests/case_like.rs` for the six Case/Catch WhereKw
 Guard Missing, terminal maximal-Error and IdentifierExpression-retry
 alternatives, and
+`if_elsif_condition_missing_error_and_retry_use_ordered_rowan_children` in
+`crates/yu-syntax/src/tests/if_expr.rs` for three Elsif Condition Missing,
+terminal maximal-Error and IdentifierExpression-retry alternatives before the
+actual Colon, and
 `colon_and_with_cst_slots_are_selected_by_ordered_direct_grammar` in
 `crates/yu-syntax/src/tests/expression_recovery.rs` and
 `colon_with_recovery.rs`. M2 specification and recovery closure audits were
@@ -2439,11 +2443,10 @@ were clean; the focused indented-recovery module passed 11 tests with the Rust
 wrapper disabled after the environment's default sccache wrapper failed before
 compilation. Status: catalog-audited evidence-complete Draft only for these
 witnessed initial/nested, inline, boundary and four With-indented alternatives;
-the Elsif Condition direct Missing/Error/retry and direct production
-infix-operand Missing discriminator evidence remain open in the finite
-required-expression caller reconciliation. Later indented/body recursion,
-other expression forms, global interpreter and ledger/API migration remain
-open.
+direct production infix-operand Missing discriminator evidence remains open in
+the finite required-expression caller reconciliation. Later indented/body
+recursion, other expression forms, global interpreter and ledger/API migration
+remain open.
 
 ## Existing evidence-complete Draft slices
 

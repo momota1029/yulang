@@ -2052,6 +2052,13 @@ Focused Rowan-only proof is
 `crates/yu-syntax/src/tests/if_expr.rs:76–249`. Its 19 witnesses cover initial
 If, Elsif and Else, inline and indented slots, no-cascade, maximal Error/retry,
 accepted controls, UTF-8/CRLF ranges and nested equal-offset occurrence order.
+The separately owned required-expression proof at
+`crates/yu-syntax/src/tests/if_expr.rs:250–433` adds exactly three Elsif
+Condition alternatives before actual Colon: Missing, terminal maximal Error
+and IdentifierExpression retry. Complete ancestry, second-arm ElsifKw
+selection, exact grouping/ranges, leading ownership and accepted body handoff
+derive Condition/Expression/primary-zero solely from Rowan; Condition remains
+outside the arm-owned row.
 Every other If boundary/caller and shared Statement row remains untriaged,
 delegated or unmapped unless separately linked above.
 
@@ -2109,10 +2116,10 @@ Guard/Expression/primary-zero projection. This does not close other
 required-expression callers.
 
 The bounded shared required-expression inventory has 12 caller/phase classes
-and 24 fresh-Missing/initial-Error cells. The remaining direct-proof gaps are
-Elsif Condition Missing/terminal Error/retry and the production infix-operand
-Missing discriminator. Prefix/infix contextual recursion, broader
-boundaries/layout and nested owners remain outside this bounded reconciliation.
+and 24 fresh-Missing/initial-Error cells. The remaining direct-proof gap is the
+production infix-operand Missing discriminator. Prefix/infix contextual
+recursion, broader boundaries/layout and nested owners remain outside this
+bounded reconciliation.
 Every exhaustive boundary/layout alternative, nested child schema and the
 global interpreter remains untriaged, delegated or unmapped unless separately
 linked above.

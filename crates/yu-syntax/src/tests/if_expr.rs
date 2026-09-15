@@ -248,6 +248,190 @@ fn if_direct_rowan_slots_preserve_occurrence_order_and_native_trivia() {
 }
 
 #[test]
+fn if_elsif_condition_missing_error_and_retry_use_ordered_rowan_children() {
+    use SyntaxKind::*;
+
+    fn children(
+        node: &SyntaxNode,
+        expected: &[(SyntaxKind, bool, Range<usize>, &str)],
+    ) -> Vec<rowan::NodeOrToken<SyntaxNode, crate::SyntaxToken>> {
+        let actual: Vec<_> = node.children_with_tokens().collect();
+        assert_eq!(actual.len(), expected.len(), "{node:?}");
+        for (child, (kind, is_node, range, text)) in actual.iter().zip(expected) {
+            assert_eq!(child.parent(), Some(node.clone()));
+            assert_eq!(child.kind(), *kind);
+            assert_eq!(child.as_node().is_some(), *is_node);
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                *range
+            );
+            assert_eq!(child.to_string(), *text);
+        }
+        actual
+    }
+
+    for (payload, end, recovery_range) in
+        [("", 14, 14..14), ("@ @", 17, 14..17), ("@ @ g", 19, 14..17)]
+    {
+        let source = format!("if x: a elsif {payload}: b");
+        let (green, exit) = run(&source);
+        assert_eq!(green.to_string(), source);
+        assert!(matches!(exit, Some(Err(Either::Right(_)))));
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        let root_children = children(&root, &[(OperatorChain, true, 0..source.len(), &source)]);
+        let outer = root_children[0].as_node().unwrap();
+        let outer_children = children(outer, &[(IfExpression, true, 0..source.len(), &source)]);
+        let expression = outer_children[0].as_node().unwrap();
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == IfExpression)
+                .count(),
+            1
+        );
+        let expression_children = children(
+            expression,
+            &[
+                (IfArm, true, 0..7, "if x: a"),
+                (Whitespace, false, 7..8, " "),
+                (IfArm, true, 8..source.len(), &source[8..]),
+            ],
+        );
+        let arms: Vec<_> = expression.children().collect();
+        assert_eq!(arms.len(), 2);
+        assert!(
+            root.descendants()
+                .all(|node| !matches!(node.kind(), ElseArm | PrefixOperatorUse | InfixOperatorUse))
+        );
+        let first = expression_children[0].as_node().unwrap();
+        children(
+            first,
+            &[
+                (IfKw, false, 0..2, "if"),
+                (Whitespace, false, 2..3, " "),
+                (Condition, true, 3..4, "x"),
+                (Colon, false, 4..5, ":"),
+                (Whitespace, false, 5..6, " "),
+                (OperatorChain, true, 6..7, "a"),
+            ],
+        );
+        let arm = expression_children[2].as_node().unwrap();
+        assert_eq!(arms.iter().position(|candidate| candidate == arm), Some(1));
+        let arm_children = children(
+            arm,
+            &[
+                (ElsifKw, false, 8..13, "elsif"),
+                (Whitespace, false, 13..14, " "),
+                (Condition, true, 14..end, payload),
+                (Colon, false, end..end + 1, ":"),
+                (Whitespace, false, end + 1..end + 2, " "),
+                (OperatorChain, true, end + 2..end + 3, "b"),
+            ],
+        );
+        let condition = arm_children[2].as_node().unwrap();
+        let condition_children = children(condition, &[(OperatorChain, true, 14..end, payload)]);
+        let chain = condition_children[0].as_node().unwrap();
+        let mut expected_recovery = if payload.is_empty() {
+            vec![(Missing, true, 14..14, "")]
+        } else {
+            vec![
+                (Error, false, 14..15, "@"),
+                (Error, false, 15..16, " "),
+                (Error, false, 16..17, "@"),
+            ]
+        };
+        if end == 19 {
+            expected_recovery.push((IdentifierExpression, true, 17..19, " g"));
+        }
+        let chain_children = children(chain, &expected_recovery);
+        let first_recovery = &chain_children[0];
+        let recovery = if first_recovery.kind() == Missing {
+            assert!(
+                first_recovery
+                    .as_node()
+                    .unwrap()
+                    .children_with_tokens()
+                    .next()
+                    .is_none()
+            );
+            assert!(first_recovery.text_range().is_empty());
+            vec![first_recovery.clone()]
+        } else {
+            let group: Vec<_> = chain_children
+                .iter()
+                .take_while(|child| child.kind() == Error)
+                .cloned()
+                .collect();
+            assert_eq!(group.len(), 3);
+            for pair in group.windows(2) {
+                assert_eq!(pair[0].text_range().end(), pair[1].text_range().start());
+            }
+            group
+        };
+
+        // The complete ancestry, second-arm ordinal and direct keyword select
+        // the initial Condition slot before any accepted operator operand.
+        // No parser record or malformed spelling participates in selection.
+        assert_eq!(chain.parent(), Some(condition.clone()));
+        assert_eq!(condition.parent(), Some(arms[1].clone()));
+        assert_eq!(arms[1].parent(), Some(expression.clone()));
+        assert_eq!(expression.parent(), Some(outer.clone()));
+        assert_eq!(outer.parent(), Some(root.clone()));
+        assert_eq!(arm_children[0].kind(), ElsifKw);
+        let derived = match (
+            condition.kind(),
+            arm.kind(),
+            arm_children[0].kind(),
+            chain.kind(),
+            first_recovery.kind(),
+        ) {
+            (Condition, IfArm, ElsifKw, OperatorChain, Missing | Error) => (
+                GrammarRole::IfExpression(IfExpressionRole::Condition),
+                [ExpectedSyntax::Expression],
+                0usize,
+                usize::from(recovery[0].text_range().start())
+                    ..usize::from(recovery.last().unwrap().text_range().end()),
+            ),
+            other => panic!("unexpected initial Elsif condition slot: {other:?}"),
+        };
+        assert_eq!(
+            derived,
+            (
+                GrammarRole::IfExpression(IfExpressionRole::Condition),
+                [ExpectedSyntax::Expression],
+                0usize,
+                recovery_range
+            )
+        );
+        let census: Vec<_> = root
+            .descendants_with_tokens()
+            .filter(|child| matches!(child.kind(), Missing | Error | Invalid))
+            .collect();
+        assert_eq!(census, recovery);
+        if end == 19 {
+            children(
+                chain_children[3].as_node().unwrap(),
+                &[
+                    (Whitespace, false, 17..18, " "),
+                    (Identifier, false, 18..19, "g"),
+                ],
+            );
+        }
+        let body = arm_children[5].as_node().unwrap();
+        let body_children = children(body, &[(IdentifierExpression, true, end + 2..end + 3, "b")]);
+        children(
+            body_children[0].as_node().unwrap(),
+            &[(Identifier, false, end + 2..end + 3, "b")],
+        );
+        assert_eq!(
+            condition.text_range().end(),
+            arm_children[3].text_range().start()
+        );
+    }
+}
+
+#[test]
 fn if_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
     use IfExpressionRole::{Body, BodyIntroducer, Condition, ElseBody};
     use RecoveryKind::{Error, Missing};

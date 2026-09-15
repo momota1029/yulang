@@ -642,10 +642,26 @@ bounded unmapped candidate before further implementation.
 - Independent pre-write and post-write audits were clean. Scoped rustfmt/diff
   and four focused `case_schema_` tests passed; no production code, broad suite
   or benchmark ran. These six alternatives are evidence-complete Draft only.
-- Remaining bounded direct-proof gaps are Elsif Condition
-  Missing/terminal-Error/retry and the production infix-operand Missing
-  discriminator. Prefix/infix contextual recursion, broader boundaries/layout,
-  nested owners and Gate 1 completion remain open.
+- Elsif Condition is closed below. The remaining bounded direct-proof gap is
+  the production infix-operand Missing discriminator. Prefix/infix contextual
+  recursion, broader boundaries/layout, nested owners and Gate 1 completion
+  remain open.
+
+## Elsif Condition required-expression closure
+
+- One Astra implementer added a three-case direct-Rowan matrix for Missing,
+  terminal maximal Error and IdentifierExpression retry before actual Colon.
+  Complete ancestry, second-arm ordinal and direct ElsifKw distinguish this
+  Condition from the initial If and nested Nud slots.
+- Exact node/token ranges and ownership prove the maximal Error group, retry
+  leading, Colon/body handoff, accepted body and whole-tree recovery census.
+  The CST-only projection is Condition/Expression/primary zero.
+- Independent pre-write and post-write audits were clean. Scoped rustfmt/diff
+  and the exact test passed 1 with 1,429 filtered out; no repair, production
+  change, broad suite or benchmark ran.
+- These three alternatives are evidence-complete Draft only. EOF/fence
+  absence, missing introducer, later companions, layout, nested Nud and the
+  remaining production infix-operand discriminator stay open.
 
 ## Known open boundaries and deferred work
 
