@@ -1471,6 +1471,18 @@ required-Type entry. Later Body and continuation phases remain separate.
 | diagnostic projection | Direct order relative to ActKw and native Equals selects Head or Source only for the fresh empty TypeExpression slot. Error projects the established Type(Primary) row. Parentage/order and native tokens are the inputs; Error spelling, recovery records and scanner state are not. |
 | proof and status | Governing authority: [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Scope and retained authority**, **Explicit role transport** and **Publication and extents**; the recovery-authority amendment §§2–3; and the CST-derived diagnostics amendment. Direct Rowan proof: `act_required_type_slots_have_direct_ordered_rowan_evidence` in `tests/declaration/act_decl.rs`. M1 pre-write and post-write specification audits were clean; focused Act checks and scoped formatting/diff passed. Status: catalog-audited evidence-complete Draft for seven ASCII Head/Source alternatives only; Body, derives/companions, caller/fence, full nested-Type schema, interpreter and ledger removal remain open. |
 
+### ActDeclaration semicolon-terminal required-Type Error Draft
+
+This separate bounded Draft closes only the no-retry Type-primary Error ending
+at an actual Act-owned semicolon in Head and Equals-selected Source.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity and ordered grammar | Under `Root > Statement > ActDeclaration`, `ActKw Whitespace Error Semicolon` selects terminal Head recovery. `ActKw Whitespace TypeExpression Whitespace Equals Whitespace Error Semicolon` selects terminal Source recovery from the completed Head and actual Equals. Both Error groups remain shared `Type(Primary)`, not Act Head/Source Error roles. |
+| admission, ownership and handoff | In `act @;` and `act A = @;`, required Type admits one malformed primary token and terminates without a retry `TypeExpression` at the actual Semicolon. It returns that item unchanged; Act consumes the native semicolon and finishes at EOF with `InLine`, empty pending leading and empty remainder. No Missing, Invalid, additional Error or BodyIntroducer recovery occurs. |
+| grouping and projection | The sole maximal direct Error group spans `4..5` for Head or `8..9` for Source and projects `Type(Primary)`, singleton expected `TypeExpression`, primary zero. Complete direct order selects the Head/Source transport before this shared Type projection; records and Error spelling are compatibility evidence only. |
+| proof and status | Authority: [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Scope and retained authority** and **Explicit role transport**; [Act current-Item recovery](2026-09-08-successor-act-current-item-recovery.md), **Boundary, retry and ownership**; CST-derived diagnostics amendment. Production: `crates/yu-syntax/src/declaration/act_decl.rs:323–331,568–687`; shared publisher: `type_expr/mod.rs:732–819`. Direct proof: `act_required_type_terminal_error_has_direct_head_and_source_slots` at `crates/yu-syntax/src/tests/declaration/act_decl.rs:899`, including canonical/isolated Act subtree equality and isolated fresh/frozen replay. Independent pre-write and post-write audits were clean; the exact test passed 1 with 1,435 filtered out. Status: catalog-audited evidence-complete Draft for these two semicolon-terminal witnesses only; multileaf, EOF-terminal, other boundaries/layout/attachments, nested Type, interpreter, ledger removal and global Gate 1 remain open. |
+
 ### ActDeclaration actual-brace trailing Derives attachment-gap Draft
 
 This bounded Draft repairs and proves only the `derives` attachment-gap predicate

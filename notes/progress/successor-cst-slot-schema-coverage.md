@@ -1293,9 +1293,27 @@ Derives RoleReference, Pattern and Expression annotations, Enum/Error FromType,
 Role Head, Impl Head/Description, Cast TargetType, Struct/Enum/Error named-field
 Type, Struct/Enum/Error tuple-field Type and Enum/Error positional-payload Type.
 The tuple and positional rows below close the final five dedicated transports.
-Act terminal evidence remains a separate bounded residual. These counts
-describe role transports, not occurrence or boundary-variant counts, and do
-not certify nested Type grammar or global Gate 1.
+The separate Head/Source semicolon-terminal slice is also mapped below. These
+counts describe role transports, not occurrence or boundary-variant counts,
+and do not certify EOF-terminal or other boundary alternatives, nested Type
+grammar or global Gate 1.
+
+#### Act Head/Source semicolon-terminal required-Type Error links
+
+Only the two no-retry witnesses `act @;` and `act A = @;` are linked to this
+bounded terminal row. Direct proof is
+`act_required_type_terminal_error_has_direct_head_and_source_slots` at
+`crates/yu-syntax/src/tests/declaration/act_decl.rs:899`; the owning production
+is `crates/yu-syntax/src/declaration/act_decl.rs:323–331,568–687`, delegating to
+the shared required-Type publisher at `type_expr/mod.rs:732–819`.
+
+Complete Act child order selects Head versus completed-Head/Equals Source,
+then one maximal direct Error group projects `Type(Primary)`, singleton
+TypeExpression expectation and primary zero. Required Type returns the actual
+semicolon, Act consumes it, and isolated fresh/frozen runs finish at EOF with
+no recovery cascade. The 20-transport count is unchanged. Multileaf,
+EOF-terminal, other boundaries/layout/attachments and nested Type remain
+untriaged or unmapped unless separately linked.
 
 #### Tuple-field and positional-payload initial required-Type Error links
 
@@ -1314,9 +1332,9 @@ at `crates/yu-syntax/src/tests/type_expr/required_recovery.rs:874`.
   and fresh/frozen agreement.
 
 The independently audited matrix closes only these exact five ancestor
-contexts and three malformed shapes. Act terminal, other boundaries/layout,
-recursive Type and occurrence combinations remain untriaged or unmapped unless
-separately linked.
+contexts and three malformed shapes. Other boundaries/layout, recursive Type
+and occurrence combinations remain untriaged or unmapped unless separately
+linked.
 
 #### LeadingEffectTypeHead required-head row links
 

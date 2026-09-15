@@ -896,6 +896,194 @@ fn act_required_type_slots_have_direct_ordered_rowan_evidence() {
 }
 
 #[test]
+fn act_required_type_terminal_error_has_direct_head_and_source_slots() {
+    use crate::recovery_record::{
+        ActDeclarationRole, ExpectedSyntax, GrammarRole, RecoveryKind, TypeRole,
+    };
+    use SyntaxKind::*;
+
+    for (source, expected_slot, error_start, expected) in [
+        (
+            "act @;",
+            ActDeclarationRole::Head,
+            4u32,
+            vec![
+                (ActKw, false, 0..3),
+                (Whitespace, false, 3..4),
+                (Error, false, 4..5),
+                (Semicolon, false, 5..6),
+            ],
+        ),
+        (
+            "act A = @;",
+            ActDeclarationRole::Source,
+            8u32,
+            vec![
+                (ActKw, false, 0..3),
+                (Whitespace, false, 3..4),
+                (TypeExpression, true, 4..5),
+                (Whitespace, false, 5..6),
+                (Equals, false, 6..7),
+                (Whitespace, false, 7..8),
+                (Error, false, 8..9),
+                (Semicolon, false, 9..10),
+            ],
+        ),
+    ] {
+        let (canonical, _, remainder) =
+            run_statement_normalized(source, 100, LineEntry::InLine, None);
+        assert_eq!(remainder, "");
+        let root = SyntaxNode::new_root(canonical);
+        assert_eq!(root.kind(), Root);
+        assert!(root.parent().is_none());
+        assert_eq!(root.children_with_tokens().count(), 1);
+        let statement = root.first_child().unwrap();
+        assert_eq!(statement.kind(), Statement);
+        assert_eq!(statement.parent(), Some(root.clone()));
+        assert_eq!(statement.children_with_tokens().count(), 1);
+        let act = statement.first_child().unwrap();
+        assert_eq!(act.kind(), ActDeclaration);
+        assert_eq!(act.parent(), Some(statement.clone()));
+        for node in [&root, &statement, &act] {
+            assert_eq!(node.to_string(), source);
+            assert_eq!(
+                node.text_range(),
+                rowan::TextRange::new(0.into(), (source.len() as u32).into())
+            );
+        }
+        let children = act.children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), expected.len());
+        for (child, (kind, is_node, range)) in children.iter().zip(expected) {
+            assert_eq!(child.parent(), Some(act.clone()));
+            assert_eq!(child.kind(), kind);
+            assert_eq!(child.as_node().is_some(), is_node);
+            assert_eq!(child.as_token().is_some(), !is_node);
+            assert_eq!(
+                usize::from(child.text_range().start())..usize::from(child.text_range().end()),
+                range
+            );
+            assert_eq!(child.to_string(), &source[range]);
+        }
+
+        // Select the mandatory slot from the ordered shell, before consulting
+        // compatibility records. Only a completed Head plus actual Equals
+        // enters Source; a direct post-ActKw Error still occupies Head.
+        let (slot, group_start) = match children.as_slice() {
+            [kw, space, error, terminal]
+                if kw.kind() == ActKw
+                    && space.kind() == Whitespace
+                    && error.kind() == Error
+                    && terminal.kind() == Semicolon =>
+            {
+                (ActDeclarationRole::Head, 2)
+            }
+            [
+                kw,
+                space,
+                head,
+                before_equals,
+                equals,
+                leading,
+                error,
+                terminal,
+            ] if kw.kind() == ActKw
+                && space.kind() == Whitespace
+                && head.kind() == TypeExpression
+                && before_equals.kind() == Whitespace
+                && equals.kind() == Equals
+                && leading.kind() == Whitespace
+                && error.kind() == Error
+                && terminal.kind() == Semicolon =>
+            {
+                let head = head.as_node().unwrap();
+                let identifier = head.first_child_or_token().unwrap();
+                assert_eq!(head.children_with_tokens().count(), 1);
+                assert_eq!(identifier.kind(), Identifier);
+                assert!(identifier.as_token().is_some());
+                assert_eq!(identifier.parent(), Some(head.clone()));
+                assert_eq!(identifier.text_range(), head.text_range());
+                assert_eq!(identifier.to_string(), "A");
+                (ActDeclarationRole::Source, 6)
+            }
+            _ => panic!("terminal Type Error requires the ordered Act shell"),
+        };
+        assert_eq!(slot, expected_slot);
+        let group = children[group_start..]
+            .iter()
+            .take_while(|child| child.kind() == Error && child.as_token().is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(group.len(), 1);
+        assert_eq!(
+            root.descendants_with_tokens()
+                .filter(|child| matches!(child.kind(), Missing | Invalid | Error))
+                .collect::<Vec<_>>(),
+            vec![group[0].clone()]
+        );
+        let range = rowan::TextRange::new(
+            group.first().unwrap().text_range().start(),
+            group.last().unwrap().text_range().end(),
+        );
+        let projected = (
+            GrammarRole::Type(TypeRole::Primary),
+            vec![ExpectedSyntax::TypeExpression],
+            0usize,
+            range,
+        );
+        assert_eq!(
+            projected,
+            (
+                GrammarRole::Type(TypeRole::Primary),
+                vec![ExpectedSyntax::TypeExpression],
+                0usize,
+                rowan::TextRange::new(error_start.into(), (error_start + 1).into()),
+            )
+        );
+        // Required Type hands its terminal to Act, which consumes the direct
+        // semicolon with no Type retry and leaves only an empty EOF Item.
+        let suffix = &children[group_start + group.len()..];
+        assert_eq!(suffix.len(), 1);
+        assert_eq!(suffix[0].kind(), Semicolon);
+        assert_eq!(suffix[0].text_range().start(), range.end());
+        let assert_eof = |exit| {
+            let mut item = match exit {
+                Some(NormalizedExit::Complete(Err(Either::Left(item)), entry)) => {
+                    assert_eq!(entry, LineEntry::InLine);
+                    item
+                }
+                Some(NormalizedExit::Complete(Err(Either::Right(end)), entry)) => {
+                    assert_eq!(entry, LineEntry::InLine);
+                    end.item
+                }
+                _ => panic!("expected pending EOF"),
+            };
+            assert!(item.payload_view().is_eof());
+            assert_eq!(emit_pending_leading_text(&mut item), "");
+        };
+        let (green, exit, records, remainder) = typed_act(source, None, 0, None);
+        assert_eq!(act.green(), declaration(&green).green());
+        assert_eq!(green.to_string(), source);
+        assert_eq!(remainder, "");
+        assert_eof(exit);
+        assert_eq!(records.len(), 1);
+        let record = &records[0];
+        assert_eq!(record.kind, RecoveryKind::Error);
+        assert_eq!(record.site.role, projected.0);
+        assert_eq!(
+            record.site.range,
+            100 + error_start as usize..101 + error_start as usize
+        );
+        assert_eq!(record.expectations.len(), 1);
+        assert_eq!(record.expectations[0].expected, projected.1[0]);
+        assert_eq!(record.primary_expectation, projected.2);
+        let (again, exit, frozen, remainder) = typed_act(source, Some(&records), 0, None);
+        assert_eq!(again, green);
+        assert_eq!(frozen, records);
+        assert_eq!(remainder, "");
+        assert_eof(exit);
+    }
+}
+
+#[test]
 fn act_inline_body_schema_requires_direct_colon_and_preserves_child_ownership() {
     use SyntaxKind::*;
     let prefix = [(ActKw, 3), (Whitespace, 1), (TypeExpression, 1), (Colon, 1)];

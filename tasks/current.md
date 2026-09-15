@@ -794,6 +794,26 @@ bounded unmapped candidate before further implementation.
   separate residual; broader boundaries/layout, recursive Type, occurrence
   combinations and global Gate 1 remain open.
 
+## Act Head/Source semicolon-terminal required-Type Error closure
+
+- Mode: M1 with one Astra pre-write audit, one Astra implementer and one
+  independent post-write specification audit; no repair round.
+- The audit separated occurrence shape from transport identity: Act Head and
+  Source were already two of the closed 20 transports through retry evidence,
+  while their no-retry semicolon-terminal alternatives lacked one common
+  structural proof.
+- Additive `act @;` and `act A = @;` witnesses now select Head versus completed
+  Head plus actual Equals Source from ordered CST, then derive one
+  `Type(Primary)` group, singleton TypeExpression expectation and primary zero
+  before records. Act consumes the returned semicolon and fresh/frozen runs
+  finish at EOF without Missing, Invalid, retry or BodyIntroducer cascade.
+- Scoped rustfmt/diff and the wrapper-disabled exact test passed: 1 passed, 0
+  failed, 1,435 filtered out. Two test invocations ran; no repair, production
+  change, broad suite or benchmark, and measurement budget usage was zero.
+- This closes only the bounded Act semicolon-terminal residual; the
+  20-transport count is unchanged. Multileaf, EOF-terminal, other
+  boundaries/layout/attachments, recursive Type and global Gate 1 remain open.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -821,13 +841,13 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::type_expr::required_recovery::tuple_and_positional_required_type_initial_error_have_direct_five_owner_slots -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::act_decl::act_required_type_terminal_error_has_direct_head_and_source_slots -- --exact --test-threads=1
 ```
 
-Result: 1 passed, 0 failed, 0 ignored; 1,434 filtered out. Scoped
-`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/type_expr/required_recovery.rs`
-and `git diff --check` also passed. Earlier named-field/Cast/Role/Impl evidence
-remains historical rather than the latest check. No workspace build,
+Result: 1 passed, 0 failed, 0 ignored; 1,435 filtered out. Scoped
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/act_decl.rs`
+and `git diff --check` also passed. Earlier tuple/positional/named-field/Cast/
+Role/Impl evidence remains historical rather than the latest check. No workspace build,
 broad suite or performance experiment was needed for this M1 closure/M0 record
 update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
