@@ -298,6 +298,20 @@ seeded replay. Independent delta audit was clean; the exact test passed 1 with
 1,425 filtered out. Other Head boundaries/layout/fences, malformed/retried or
 nested Type and other Role phases remain open.
 
+#### RoleDeclaration initial required-Type Error links
+
+Role Head initial required-Type Error is linked for one protected-semicolon
+terminal witness, one singleton retry and one three-leaf UTF-8 retry in
+`role_schema_required_head_has_complete_ordered_evidence` at
+`crates/yu-syntax/src/tests/declaration/role_decl.rs:330`. Complete ordered Role
+ancestry selects `Type(Primary)`; maximal grouping, native retry-leading
+ownership, no Missing cascade and retained fresh/frozen handoff are
+independently audited. Production is
+`crates/yu-syntax/src/declaration/role_decl.rs:239–278,322–349` plus the shared
+`type_expr/mod.rs:732–819` publisher. The terminal witness preserves the
+pending semicolon and is not an EOF Error proof. Other boundaries/layout,
+nested Type and Role phases remain separate.
+
 #### RoleDeclaration BodyIntroducer/inline Body Draft links
 
 Only `crates/yu-syntax/src/declaration/role_decl.rs:300–606,790–894` is linked

@@ -1289,6 +1289,21 @@ This bounded Draft maps only the fresh Head absence in `role ;`.
 | diagnostic projection | Ordered shell and direct child identity select one `Declaration(Role(Head))`, singleton expected `TypeExpression`, primary zero, at `Missing.text_range() = 5..5`. The retained shifted compatibility record at `105..105` does not relocate the CST occurrence. |
 | proof and status | Authority: [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Explicit role transport** and **Publication and extents**; [Role current-Item typed recovery](2026-09-08-successor-role-current-item-recovery.md), **Records and ownership**; CST-derived diagnostics amendment. Owners: `crates/yu-syntax/src/declaration/role_decl.rs:229–278,322–349`; shared publisher: `crates/yu-syntax/src/type_expr/mod.rs:690–708,822–842`. Direct proof: `role_schema_required_head_has_complete_ordered_evidence` in `crates/yu-syntax/src/tests/declaration/role_decl.rs`, including ordered ancestry/ranges, unique childless Missing, structural projection and fresh/frozen seeded replay. Independent pre-write and post-write specification audits were clean; the exact test passed 1 with 1,425 filtered out. Status: catalog-audited evidence-complete Draft for `role ;` only. Other boundaries/layout/fences, malformed/retried/nested Type, other Role phases, public promotion and global Gate 1 remain open. |
 
+### RoleDeclaration initial required-Type Error Draft
+
+This bounded Draft maps the existing protected-semicolon terminal witness and
+two admitted-Type retry witnesses for malformed Role Head input. It remains
+separate from the caller-owned fresh Head Missing row.
+
+| Fact | Candidate catalog row |
+| --- | --- |
+| identity | Initial required-Type Error is direct RoleDeclaration content after native RoleKw and Whitespace under `Root > Statement`. A following direct TypeExpression, when present, is the admitted retry. |
+| ordered Rowan grammar | The witnessed alternatives are `RoleKw Whitespace Error+` and `RoleKw Whitespace Error+ TypeExpression(Whitespace Identifier) Semicolon`. The first CST alternative ends before a protected pending semicolon; it is not an EOF Error witness. |
+| admission and completion | `role @ ;` consumes only `role @`, preserving semicolon and its space without caller Missing or body cascade. `role @ T;` and `role @  ~   型;` retry Type, consume their actual semicolon and return EOF. |
+| grouping and ownership | One maximal adjacent direct Error-token group spans `5..6` or `5..9`. Retry leading belongs inside TypeExpression and semicolon is direct declaration content. No Missing or Invalid occurs. |
+| diagnostic projection | Each group projects one `Type(Primary)` occurrence with singleton expected TypeExpression and primary zero over the combined Error-token range. Ordered ancestry selects the occurrence; source/Error spelling and records do not. |
+| proof and status | Authority: [required-Type Missing roles](2026-09-08-successor-required-type-missing-roles.md), **Scope and retained authority**; [Role current-Item typed recovery](2026-09-08-successor-role-current-item-recovery.md), **Records and ownership**; CST-derived diagnostics amendment. Production: `crates/yu-syntax/src/declaration/role_decl.rs:239–278,322–349` and `type_expr/mod.rs:732–819`. Direct proof: `role_schema_required_head_has_complete_ordered_evidence` in `crates/yu-syntax/src/tests/declaration/role_decl.rs`, retaining pending-Item and fresh/frozen compatibility checks. Independent pre-write and post-write audits were clean; the exact test passed 1 with 1,431 filtered out. Status: catalog-audited evidence-complete Draft for these three witnesses only; other Role phases, boundaries/layout, nested Type, public promotion and global Gate 1 remain open. |
+
 ### RoleDeclaration BodyIntroducer and inline Body Draft
 
 This bounded Draft maps only the direct body phases after a completed Role

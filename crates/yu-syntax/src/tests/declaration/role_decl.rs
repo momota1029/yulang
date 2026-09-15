@@ -447,6 +447,108 @@ fn role_schema_required_head_has_complete_ordered_evidence() {
                 .count(),
             errors.len()
         );
+        if !errors.is_empty() {
+            // Select the malformed mandatory Type slot from its complete
+            // ordered Role ancestry, before consulting compatibility records.
+            assert_eq!(root.children_with_tokens().count(), 1);
+            assert_eq!(statement.children_with_tokens().count(), 1);
+            assert_eq!(role.kind(), RoleDeclaration);
+            let malformed = match children.as_slice() {
+                [keyword, trivia, suffix @ ..]
+                    if keyword.as_token().is_some()
+                        && keyword.kind() == RoleKw
+                        && keyword.text_range() == rowan::TextRange::new(0.into(), 4.into())
+                        && trivia.as_token().is_some()
+                        && trivia.kind() == Whitespace
+                        && trivia.text_range() == rowan::TextRange::new(4.into(), 5.into()) =>
+                {
+                    suffix
+                }
+                _ => panic!("Type Primary Error requires the ordered Role prefix"),
+            };
+            let group = malformed
+                .iter()
+                .take_while(|child| child.kind() == Error)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                group,
+                children
+                    .iter()
+                    .filter(|child| child.kind() == Error)
+                    .collect::<Vec<_>>()
+            );
+            assert!(group.iter().all(|child| child.as_token().is_some()));
+            let range = rowan::TextRange::new(
+                group.first().unwrap().text_range().start(),
+                group.last().unwrap().text_range().end(),
+            );
+            let expected_end = match group.as_slice() {
+                [one] => {
+                    assert_eq!(one.text_range(), rowan::TextRange::new(5.into(), 6.into()));
+                    6
+                }
+                [first, leading, last] => {
+                    assert_eq!(
+                        first.text_range(),
+                        rowan::TextRange::new(5.into(), 6.into())
+                    );
+                    assert_eq!(
+                        leading.text_range(),
+                        rowan::TextRange::new(6.into(), 8.into())
+                    );
+                    assert_eq!(last.text_range(), rowan::TextRange::new(8.into(), 9.into()));
+                    9
+                }
+                _ => panic!("unexpected direct Type Primary Error group"),
+            };
+            let projected = vec![(
+                GrammarRole::Type(TypeRole::Primary),
+                vec![ExpectedSyntax::TypeExpression],
+                0usize,
+                range,
+            )];
+            assert_eq!(
+                projected,
+                vec![(
+                    GrammarRole::Type(TypeRole::Primary),
+                    vec![ExpectedSyntax::TypeExpression],
+                    0usize,
+                    rowan::TextRange::new(5.into(), expected_end.into()),
+                )]
+            );
+            assert!(
+                !root
+                    .descendants_with_tokens()
+                    .any(|child| child.kind() == Missing)
+            );
+            match &malformed[group.len()..] {
+                [] => {
+                    assert_eq!(range.end(), rowan::TextSize::from(6));
+                    assert_eq!(role.text_range(), rowan::TextRange::new(0.into(), 6.into()));
+                }
+                [retry, semicolon] => {
+                    let retry = retry.as_node().expect("retry TypeExpression node");
+                    assert_eq!(retry.kind(), TypeExpression);
+                    assert_eq!(retry.text_range().start(), range.end());
+                    let retry_children = retry.children_with_tokens().collect::<Vec<_>>();
+                    let [leading, identifier] = retry_children.as_slice() else {
+                        panic!("retry owns exactly native leading and Identifier");
+                    };
+                    assert!(leading.as_token().is_some());
+                    assert_eq!(leading.kind(), Whitespace);
+                    assert_eq!(leading.text_range().start(), range.end());
+                    assert!(identifier.as_token().is_some());
+                    assert_eq!(identifier.kind(), Identifier);
+                    assert_eq!(leading.text_range().end(), identifier.text_range().start());
+                    assert_eq!(identifier.text_range().end(), retry.text_range().end());
+                    assert!(semicolon.as_token().is_some());
+                    assert_eq!(semicolon.kind(), Semicolon);
+                    assert_eq!(semicolon.text_range().start(), retry.text_range().end());
+                    assert_eq!(semicolon.text_range().end(), role.text_range().end());
+                }
+                _ => panic!("malformed Head ends or retries through TypeExpression and semicolon"),
+            }
+        }
         if let Some(head) = head {
             assert_eq!(head.kind(), TypeExpression);
             if head.text_range().is_empty() {

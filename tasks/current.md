@@ -719,6 +719,24 @@ bounded unmapped candidate before further implementation.
   coverage. Act terminal coverage remains a separate bounded residual;
   broader boundaries/layout, nested Type and global Gate 1 remain open.
 
+## Role Head initial required-Type Error closure
+
+- One Astra implementer added structure-only projections to the existing Role
+  Head schema test for a protected-semicolon terminal Error, singleton retry
+  and three-leaf UTF-8 retry.
+- Complete Root/Statement/Role ancestry and the direct RoleKw/native-leading
+  prefix select `Type(Primary)`/TypeExpression/primary zero over `5..6` or
+  `5..9`. Retry TypeExpression owns its leading; no caller Missing is emitted.
+- `role @ ;` retains its semicolon and leading as a pending boundary and is not
+  presented as an EOF Error witness. Existing fresh/frozen and seeded-record
+  compatibility checks remain unchanged.
+- Independent pre-write and post-write audits were clean. After one
+  formatting-only repair, scoped rustfmt/diff and the exact test passed 1 with
+  1,431 filtered out; no production change, broad suite or benchmark ran.
+- Role closes one context, leaving nine of the 20 required-Type Error
+  transports without dedicated mapping. Act terminal and broader
+  boundaries/layout/nested Type remain open; global Gate 1 is incomplete.
+
 ## Known open boundaries and deferred work
 
 - The global schema remains partial across expressions, Pattern, Type,
@@ -746,14 +764,14 @@ bounded unmapped candidate before further implementation.
 Most recent focused check (180-second cap, one build job, one test thread):
 
 ```sh
-timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::impl_decl::impl_required_types_schema_distinguishes_head_and_description -- --exact --test-threads=1
+timeout 180s env RUSTC_WRAPPER= CARGO_BUILD_JOBS=1 cargo test -p yu-syntax --lib tests::declaration::role_decl::role_schema_required_head_has_complete_ordered_evidence -- --exact --test-threads=1
 ```
 
 Result: 1 passed, 0 failed, 0 ignored; 1,431 filtered out. Scoped
-`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/impl_decl.rs`
-and `git diff --check` also passed. Earlier Cast/default-expression evidence
-remains historical rather than the latest check. No workspace build, broad
-suite or performance experiment was needed for this M1 closure/M0 record
+`rustfmt --edition 2024 --check crates/yu-syntax/src/tests/declaration/role_decl.rs`
+and `git diff --check` also passed. Earlier Impl/Cast/default-expression
+evidence remains historical rather than the latest check. No workspace build,
+broad suite or performance experiment was needed for this M1 closure/M0 record
 update. Future checks follow
 `rules/testing.md`; inspect resource behavior before broadening. `cargo xtask
 check-graph` checks dependencies, not syntax behavior.
