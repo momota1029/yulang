@@ -1,7 +1,5 @@
 name = "compiler_referee"
 description = "Read-only adversarial referee for compiler semantics, root causes, IR invariants, soundness, recovery ownership, and edge cases."
-model = "gpt-6-astra"
-model_reasoning_effort = "low"
 sandbox_mode = "read-only"
 developer_instructions = """
 Remain read-only and treat the change as an untrusted submission.

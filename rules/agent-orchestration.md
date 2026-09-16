@@ -31,7 +31,32 @@ The primary agent's reread is useful for integration but does not count as indep
 | `performance_auditor` | read-only | work, allocation, cache, parallelism and resource risk |
 | `docs_writer` | workspace-write | confirmed public documentation under artifact style rules |
 
-Model and effort are fixed in `.codex/agents/*.toml`. Do not route active work using legacy Level numbers, Fable/Sonnet availability, or ad hoc Sol/Terra/Luna tier prose.
+## Model routing and Astra escalation
+
+| role | normal model / effort | configuration |
+|---|---|---|
+| `architect`, `compiler_referee`, `spec_auditor` | Sol / high | inherit `.codex/config.toml` `[agents]` defaults; omit role-file model/effort pins |
+| `implementer`, `docs_writer`, `performance_auditor`, `regression_auditor` | Terra / high | explicit role-file pins |
+| built-in `explorer` | current primary/runtime selection | built-in role |
+
+Use the normal model first. A task is not an Astra task merely because it is architectural, semantic, high-risk, cross-layer, an independent review, or a large diff. Sol is the normal high-judgment tier; Terra is the normal implementation and bounded-audit tier.
+
+Astra is not a standing role pin. Use `gpt-6-astra` only as a bounded escalation from a fresh Sol assignment when all of the following hold:
+
+1. Sol has already inspected the current evidence and reduced the problem to one concrete unresolved bottleneck, contradiction, counterexample target, or small set of genuinely competing interpretations.
+2. The remaining uncertainty has material silent-failure or blast-radius risk and cannot be closed cheaply by an existing deterministic check, focused measurement, exact authority lookup, or another bounded Sol check.
+3. The Astra assignment is narrower than the Sol assignment and names the decisive question, relevant files/evidence, and stop condition.
+4. Astra is used for adjudication or hard reasoning, not as the routine implementation worker. After the result, return to Sol or Terra for ordinary implementation, review, checks, and follow-up.
+
+Start an eligible Astra escalation at `low` reasoning effort. Use `medium` only when the bounded question genuinely needs deeper end-to-end reasoning. Raise to `high` only after a concrete Astra low/medium attempt leaves a specific unresolved point. Do not use `xhigh` or higher merely because it is available; reserve it for an explicit user request or a concrete reason exposed by a prior bounded Astra attempt.
+
+By default, allow at most one Astra assignment per decision point. Do not fan out several speculative Astra routes in parallel, do not retry the same question with the same evidence, and do not escalate every reviewer in a panel. If several routes need exploration, run them with Sol first and escalate only the surviving bottleneck. A second Astra assignment requires a materially new bounded question or an explicit user request.
+
+`implementer`, `docs_writer`, `performance_auditor`, and `regression_auditor` keep their Terra role-file pins and are not Astra escalation paths. In particular, implementing a confirmed Authoritative gate is a Terra task even when the gate itself was difficult to design.
+
+For an eligible escalation, use the native spawn arguments rather than prompt prose alone: set `agent_type` to the unpinned role, `model` to `gpt-6-astra`, `reasoning_effort` to the chosen bounded level (normally `low`), and `fork_turns` to `none`. Role-file pins take precedence over spawn overrides. If the live tool schema does not support the requested model or effort override, keep the work on Sol and report the limitation rather than silently changing roles or increasing cost elsewhere.
+
+Do not route active work using legacy Level numbers, Fable/Sonnet availability, or ad hoc model-tier prose. This section and `.codex/config.toml` / `.codex/agents/*.toml` are the active routing contract.
 
 ## Task classification
 
