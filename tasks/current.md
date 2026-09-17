@@ -47,6 +47,21 @@ Do not delete that temporary machinery before the new shadow interpreter is exer
 
 This is the active implementation gate.
 
+Status: the walk **shape** is fixed at test level in
+`crates/yu-syntax/src/tests/recovery_output.rs` (see
+`notes/progress/daily/2026-09-17.md`, "Gate 1 shadow CST diagnostic interpreter -
+walk shape fixed"). The production walk itself is still unwritten.
+
+Confirmed from CST alone, so the production walk can rely on it:
+
+- a structured `Invalid` is the outermost recovery node at its offset, and no
+  two sibling nodes ever start at the same offset;
+- a maximal run of adjacent `Error` leaves at one immediate parent is already
+  one committed record, so grouping the leaves is faithful, not lossy;
+- same-slot same-offset occurrences are distinguishable only by preorder
+  ordinal. Two encounters of the *same* kind at the *same* offset would be a
+  genuine collision to report, not to merge.
+
 Implement a whole-tree structural diagnostic walk in `yu-syntax` while leaving the temporary parser ledger intact for migration comparison.
 
 Required behavior:

@@ -6,6 +6,8 @@ use std::{
 
 use rowan::GreenNodeBuilder;
 
+use crate::tests::support::{Either, run};
+
 use crate::{
     SyntaxKind, SyntaxNode,
     operator_table::OperatorTable,
@@ -59,15 +61,25 @@ fn singleton_draft(
     unexpected: Arc<[UnexpectedSyntax]>,
     expected: ExpectedSyntax,
 ) -> RecoveryDraft {
+    singleton_role_draft(role(slot), kind, range, unexpected, expected)
+}
+
+fn singleton_role_draft(
+    role: GrammarRole,
+    kind: RecoveryKind,
+    range: Range<usize>,
+    unexpected: Arc<[UnexpectedSyntax]>,
+    expected: ExpectedSyntax,
+) -> RecoveryDraft {
     RecoveryDraft::new(
         RecoverySiteKey {
-            role: role(slot),
+            role,
             range: range.clone(),
         },
         kind,
         unexpected,
         Arc::from([expectation(
-            role(slot),
+            role,
             expected,
             range,
             ExpectationSources::COMMITTED_RECOVERY_RULE,
@@ -2567,4 +2579,443 @@ fn rule_local_unexpected_categories_cover_field_path_and_nonoperator_unknown() {
         rule_item_unexpected_category(&unknown_item("@")),
         UnexpectedCategory::OtherCharacter
     );
+}
+
+/// Two recovery facts share one offset and one slot: the required-item Missing
+/// that the slot itself discloses at offset 9, and the raw Error run that
+/// immediately retries the same Item. Both are read from one CST; the walk
+/// separates them by kind, ancestry and preorder ordinal alone.
+#[test]
+fn shadow_walk_keeps_same_offset_occurrences_distinct_by_ordinal() {
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    output.start_node(SyntaxKind::Invalid.into());
+    emit_recovery_missing(
+        crate::cursor::SyntaxIn::new(&mut "", &mut recover, &mut output),
+        LeadingTrivia::default(),
+        9,
+        |range| {
+            singleton_draft(
+                LiteralRole::RuleCaptureRightItem,
+                RecoveryKind::Missing,
+                range,
+                Arc::from([]),
+                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+            )
+        },
+    );
+    let error = emit_recovery_error_item(
+        crate::cursor::SyntaxIn::new(&mut "", &mut recover, &mut output),
+        unknown_item("@"),
+        10,
+        SyntaxKind::Unknown,
+        UnexpectedSyntax::Token {
+            range: 9..10,
+            category: UnexpectedCategory::OtherCharacter,
+        },
+        |range, unexpected| path_segment_draft(RecoveryKind::Error, range, unexpected),
+    );
+    output.finish_node();
+    output.finish_node();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    assert_eq!(green.to_string(), "@", "the witness owns one source byte");
+    assert_eq!(error.recovery_range(), 9..10);
+    assert_eq!(
+        records
+            .iter()
+            .map(|record| record.site.range.clone())
+            .collect::<Vec<_>>(),
+        [9..9, 9..10],
+        "the same-slot Missing and the retried Error are separate records"
+    );
+    assert_eq!(records[0].kind, RecoveryKind::Missing);
+    assert_eq!(records[1].kind, RecoveryKind::Error);
+
+    let root = SyntaxNode::new_root(green);
+    let run = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Invalid)
+        .expect("the retried run is the direct structured child");
+    assert_eq!(usize::from(run.text_range().start()), 0);
+    let nested = run
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .expect("the nested Missing survives inside the run");
+    assert_eq!(usize::from(nested.text_range().start()), 0);
+
+    let walk = shadow_occurrences(&root);
+    assert_eq!(
+        walk,
+        [
+            ShadowOccurrence {
+                kind: RecoveryKind::Error,
+                range: 0..1,
+                ordinal: 0,
+            },
+            ShadowOccurrence {
+                kind: RecoveryKind::Missing,
+                range: 0..0,
+                ordinal: 1,
+            },
+            ShadowOccurrence {
+                kind: RecoveryKind::Error,
+                range: 0..1,
+                ordinal: 2,
+            },
+        ],
+        "the structured run wraps its own nested same-offset Missing"
+    );
+}
+
+/// A structured Invalid over a multi-byte, CRLF-bearing payload keeps byte-
+/// accurate ranges inside its own node, and its nested Missing stays inside
+/// that node rather than escaping to the parent. The walk reads all of this
+/// from the CST, so it never needs an opaque Error replay to know where the
+/// window ends.
+///
+/// This fixture owns no source bytes, so it witnesses the walk's structural
+/// derivation rather than record order: the enclosing window precedes its own
+/// nested record even though the committed records arrive the other way round.
+#[test]
+fn shadow_walk_keeps_uncataloged_structured_window_byte_accurate() {
+    const SOURCE: &str = "/*L */{β\r\n>";
+    const STRUCTURED: Range<usize> = 6..12;
+    const NESTED: Range<usize> = 6..6;
+
+    let mut primary = Item::finish(
+        PhysicalLeadingTrivia::from_ordinary(LeadingTrivia::ordinary(
+            vec![Trivia::block_comment("/*L */".into())].into_boxed_slice(),
+        )),
+        Payload::Token(Token {
+            kind: TokenKind::Identifier,
+            text: "{β\r\n>".into(),
+        }),
+        None,
+        6,
+    )
+    .expect("leading-only structured window");
+    let mut input = "";
+    let operators = OperatorTable::empty();
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    primary.emit_all_remaining_leading(&mut output);
+    emit_structured_recovery_error_from_item(
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+        primary,
+        12,
+        structured_spec(LiteralRole::RulePathName),
+        |mut nested, primary| {
+            emit_recovery_missing(nested.rb(), LeadingTrivia::default(), 6, |range| {
+                singleton_draft(
+                    LiteralRole::RuleFieldName,
+                    RecoveryKind::Missing,
+                    range,
+                    Arc::from([]),
+                    ExpectedSyntax::Literal(LiteralExpected::RuleItem),
+                )
+            });
+            primary.emit_remaining(&mut *nested.state, SyntaxKind::Unknown);
+            ((), 12)
+        },
+    );
+    output.finish_node();
+    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    assert_eq!(green.to_string(), SOURCE);
+    assert_eq!(
+        records
+            .iter()
+            .map(|record| record.site.range.clone())
+            .collect::<Vec<_>>(),
+        [STRUCTURED.clone(), NESTED.clone()],
+        "the enclosing window is committed after its nested record"
+    );
+
+    let root = SyntaxNode::new_root(green);
+    let walk = shadow_occurrences(&root);
+    assert_eq!(
+        walk,
+        [
+            ShadowOccurrence {
+                kind: RecoveryKind::Error,
+                range: STRUCTURED.clone(),
+                ordinal: 0,
+            },
+            ShadowOccurrence {
+                kind: RecoveryKind::Missing,
+                range: NESTED.clone(),
+                ordinal: 1,
+            },
+        ],
+        "the walk derives the window from the CST, not from record order"
+    );
+    let invalid = root
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Invalid)
+        .expect("the uncataloged structured occurrence");
+    assert_eq!(
+        usize::from(invalid.text_range().start())..usize::from(invalid.text_range().end()),
+        STRUCTURED.clone()
+    );
+    assert!(
+        invalid
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::Missing),
+        "the nested Missing stays inside its structured owner"
+    );
+    assert_eq!(
+        root.clone()
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        1
+    );
+}
+
+/// One witness for the shadow walk. `recorded` is the source extent occupied
+/// by the witness's own recovery, and `walk` is the CST-derived occurrence the
+/// shadow walk must report for it. They coincide except for a raw run of
+/// several adjacent Error leaves, which the walk groups into one occurrence.
+#[derive(Clone, Copy, Debug)]
+struct ShadowWitness {
+    source: &'static str,
+    recorded: &'static [Range<usize>],
+    walk: &'static [Range<usize>],
+}
+
+#[test]
+fn shadow_walk_orders_every_witness_preorder() {
+    // One precise cataloged Error, one raw run over two leaves, one raw run
+    // whose retry continuation follows it, and multi-byte/CRLF witnesses. Each
+    // Each witness is parsed here, so the walk and the in-source recovery
+    // offsets come from one tree. The `recorded` column is the source extent
+    // that witness's recovery actually occupies; a raw multi-leaf run is
+    // reported by the walk as one grouped occurrence over that same extent.
+    let witnesses = [
+        ShadowWitness {
+            source: "(@a)",
+            recorded: &[1..2],
+            walk: &[1..2],
+        },
+        ShadowWitness {
+            source: "(@@a)",
+            recorded: &[1..2, 2..3],
+            walk: &[1..3],
+        },
+        ShadowWitness {
+            source: "f(@a)",
+            recorded: &[2..3],
+            walk: &[2..3],
+        },
+        ShadowWitness {
+            source: "(aβ)",
+            recorded: &[],
+            walk: &[],
+        },
+        ShadowWitness {
+            source: "(@aβ)",
+            recorded: &[1..2],
+            walk: &[1..2],
+        },
+        ShadowWitness {
+            source: "(@β)",
+            recorded: &[1..2],
+            walk: &[1..2],
+        },
+        ShadowWitness {
+            source: "(aβ )",
+            recorded: &[],
+            walk: &[],
+        },
+        ShadowWitness {
+            source: "(@β\r\n)",
+            recorded: &[1..2],
+            walk: &[1..2],
+        },
+    ];
+    assert_eq!(witnesses.len(), 8);
+    assert!(
+        witnesses.iter().any(|witness| witness.recorded.len() > 1),
+        "a grouped raw run is witnessed by several leaves, not one extent"
+    );
+
+    for witness in witnesses {
+        let (green, exit) = run(witness.source);
+        assert_eq!(green.to_string(), witness.source, "{}", witness.source);
+        assert!(
+            matches!(exit, Some(Err(Either::Right(_)))),
+            "{}",
+            witness.source
+        );
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            witness
+                .recorded
+                .iter()
+                .map(|range| &witness.source[range.clone()])
+                .collect::<String>(),
+            witness
+                .walk
+                .iter()
+                .map(|range| &witness.source[range.clone()])
+                .collect::<String>(),
+            "{}: the walk covers the same source bytes as the recovery",
+            witness.source
+        );
+        assert!(
+            witness
+                .recorded
+                .last()
+                .is_none_or(|last| witness.walk.last().is_some_and(|end| end.end == last.end)),
+            "{}: the walk ends where the recovery ends",
+            witness.source
+        );
+        let walk = shadow_occurrences(&root);
+        assert_eq!(
+            walk.iter().map(|o| o.range.clone()).collect::<Vec<_>>(),
+            witness.walk.to_vec(),
+            "{}: {walk:?}",
+            witness.source
+        );
+        for occurrence in &walk {
+            assert_eq!(
+                occurrence.kind,
+                if occurrence.range.start == occurrence.range.end {
+                    RecoveryKind::Missing
+                } else {
+                    RecoveryKind::Error
+                },
+                "{}",
+                witness.source
+            );
+        }
+    }
+
+    // The recovery witnesses are all direct Error runs over their
+    // continuation, so each walk reports exactly one raw occurrence.
+    let (green, _) = run("f(@a)");
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        shadow_occurrences(&root)
+            .iter()
+            .map(|occurrence| occurrence.range.clone())
+            .collect::<Vec<_>>(),
+        [2..3],
+        "the retried run is one raw group at byte 2"
+    );
+    assert_eq!(
+        shadow_occurrences(&root)
+            .iter()
+            .map(|occurrence| occurrence.kind)
+            .collect::<Vec<_>>(),
+        [RecoveryKind::Error]
+    );
+
+    // The two-byte β shifts the trailing separator and the close by byte
+    // offsets. A separator Missing can sit at either boundary, so the walk is
+    // checked against a source whose recovery offset is genuinely known, and
+    // the byte-exact expectation is asserted in the `(aβ )` witness above.
+    let (green, _) = run("(aβ)");
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(
+        usize::from(root.text_range().end()),
+        5,
+        "the parenthesized source keeps its byte length, not its char count"
+    );
+    assert_eq!(
+        shadow_occurrences(&root),
+        Vec::new(),
+        "this spelling recovers at the close without an intermediate record"
+    );
+}
+
+/// A structural diagnostic derived from the CST alone, as the shadow walk
+/// reports it: the recovery kind, the physical extent, and the source/preorder
+/// ordinal that keeps even same-slot same-offset encounters distinct.
+#[derive(Debug, Eq, PartialEq)]
+struct ShadowOccurrence {
+    kind: RecoveryKind,
+    range: Range<usize>,
+    ordinal: u32,
+}
+
+/// Reads recovery structure from one Rowan tree without any parser ledger. A
+/// structured `Invalid` is one Error occurrence whose own bytes belong to the
+/// structural node, and its nested recovery may sit at a different offset, so
+/// the walk never requires the whole subtree to be byte-adjacent. Raw `Error`
+/// leaves are grouped into maximal adjacent runs at their immediate parent.
+fn shadow_occurrences(root: &SyntaxNode) -> Vec<ShadowOccurrence> {
+    fn visit(
+        node: &SyntaxNode,
+        run: &mut Option<(Range<usize>, usize)>,
+        walk: &mut Vec<(RecoveryKind, Range<usize>)>,
+    ) {
+        let flush = |run: &mut Option<(Range<usize>, usize)>,
+                     walk: &mut Vec<(RecoveryKind, Range<usize>)>| {
+            if let Some((range, _)) = run.take() {
+                walk.push((RecoveryKind::Error, range));
+            }
+        };
+        let children = node.children_with_tokens();
+        for child in children {
+            match child {
+                rowan::NodeOrToken::Node(node) => {
+                    flush(run, walk);
+                    match node.kind() {
+                        SyntaxKind::Missing => {
+                            let start = usize::from(node.text_range().start());
+                            assert_eq!(
+                                usize::from(node.text_range().end()),
+                                start,
+                                "Missing stays zero-width"
+                            );
+                            walk.push((RecoveryKind::Missing, start..start));
+                        }
+                        SyntaxKind::Invalid => {
+                            let start = usize::from(node.text_range().start());
+                            let end = usize::from(node.text_range().end());
+                            assert!(start < end, "structured Error keeps a nonempty extent");
+                            walk.push((RecoveryKind::Error, start..end));
+                            visit(&node, run, walk);
+                        }
+                        SyntaxKind::Error => panic!("Error must be a token"),
+                        _ => visit(&node, run, walk),
+                    }
+                }
+                rowan::NodeOrToken::Token(token) if token.kind() == SyntaxKind::Error => {
+                    assert_eq!(token.parent().as_ref(), Some(node));
+                    let start = usize::from(token.text_range().start());
+                    let end = usize::from(token.text_range().end());
+                    assert!(
+                        !token.text().is_empty(),
+                        "an Error leaf keeps nonempty text"
+                    );
+                    assert_eq!(end - start, token.text().len(), "byte-accurate Error leaf");
+                    match run {
+                        Some((range, count)) if range.end == start => {
+                            range.end = end;
+                            *count += 1;
+                        }
+                        Some(_) => unreachable!("adjacent Error leaves stay contiguous"),
+                        None => *run = Some((start..end, 1)),
+                    }
+                }
+                _ => {}
+            }
+        }
+        flush(run, walk);
+    }
+
+    let mut walk = Vec::new();
+    visit(root, &mut None, &mut walk);
+    walk.into_iter()
+        .enumerate()
+        .map(|(ordinal, (kind, range))| ShadowOccurrence {
+            kind,
+            range,
+            ordinal: ordinal.try_into().expect("honest ordinal"),
+        })
+        .collect()
 }
