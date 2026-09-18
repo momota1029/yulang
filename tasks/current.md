@@ -81,14 +81,16 @@ tree-shape difference.
 
 ## After the shadow interpreter
 
-Immediate next action: Gate 3 is blocked on a design decision. A bounded Draft,
-`notes/design/2026-09-18-hir-operator-association-first-slice-draft.md`, proposes
-the first `yu-hir` slice as a whole-CST operator-chain association pass. Its
-D1-D4 choices need independent review and user approval before implementation;
-`yu-hir` and `yu-types` remain empty until then.
+Immediate next action: Gate 3, the approved first `yu-hir` slice. The user
+approved `notes/design/2026-09-18-hir-operator-association-first-slice-draft.md`
+on 2026-09-18 (D1a/D2b/D3a/D4a): a whole-CST operator-chain association pass
+producing a minimal pre-HIR product, with no type. `yu-hir` and `yu-types` remain
+empty until implementation starts.
 
-Once the slice design is approved, proceed in this order unless a concrete
-blocker changes it:
+The question of how a type attaches to an associated expression is captured, not
+decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
+
+Proceed in this order unless a concrete blocker changes it:
 
 1. Select the smallest **existing accepted** fixture that can exercise a useful valid-program path from source -> Rowan CST -> HIR/type analysis. Do not design new syntax for this slice.
 2. Build that vertical frontend slice. Let implementation expose missing design information instead of pre-enumerating it.

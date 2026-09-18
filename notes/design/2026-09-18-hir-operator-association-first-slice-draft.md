@@ -1,8 +1,6 @@
 # First HIR slice: operator-chain association
 
-Status: Draft
-
-Date: 2026-09-18
+Status: Authoritative
 
 Scope: the first `yu-hir` slice required by Gate 3 of
 `2026-09-17-syntax-freeze-and-vertical-implementation-amendment.md`. It defines
@@ -10,6 +8,10 @@ the association-phase input/output and the minimal HIR product for one accepted
 fixture. It does not define the module graph, stable `DefId`s, name resolution,
 type/effect representation, solver, or core IR.
 
+Approved-by: user
+Approved-at: 2026-09-18
+Drafted-by: primary agent
+Reviewed-by: architect (independent review and delta review, 2026-09-18)
 Supersedes: none
 
 ## Authority and current state
@@ -172,10 +174,18 @@ Return to design, naming the concrete counterexample, if any of these occurs:
 - implementing association would force a `yu-syntax` CST or `ParsedFile` change;
 - association defects do not converge after the normal round limit.
 
-## Open questions for the user
+## Approved decisions
 
-1. D1-D4 choices.
-2. Should the first slice stop at association, or also produce a placeholder
-   type for the fixture to touch `yu-types`?
-3. Is `header-operator-order-plus-then-star` the right fixture, or is a
-   stable-core fixture preferred once an operator-declaring mechanism exists?
+The user approved the proposed default on 2026-09-18:
+
+- **D1a** — add `yu-syntax` as a `yu-hir` dependency now; leave `yu-types` for
+  the next slice.
+- **D2b** — introduce a narrower pre-HIR product (for example `AssociatedChains`)
+  and defer `HirModule` until declarations and names exist.
+- **D3a** — a recursive owned expression tree with source ranges.
+- **D4a** — `tests/contracts/phase2-parser/v0/cases/header-operator-order-plus-then-star/main.yu`.
+
+The slice stops at association: it produces no type and does not touch
+`yu-types`. The question of how a type attaches to an associated expression is
+captured in `2026-09-18-hir-type-attachment-open-questions.md` and is not
+decided here.
