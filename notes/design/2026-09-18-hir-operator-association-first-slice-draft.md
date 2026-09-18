@@ -58,7 +58,7 @@ names and types stay unlowered, so the slice needs no `DefId` model and does not
 guess the eventual `HirModule` shape. This mirrors the Gate 1 shadow walk: a
 total structural pass with source provenance.
 
-## Decisions required before implementation
+## Decisions
 
 - **D1 crate boundary.** The architecture graph is `yu-syntax -> yu-hir ->
   yu-types`.
@@ -96,7 +96,7 @@ total structural pass with source provenance.
     `OperatorChain`, so it exercises the walk but no dynamic operator.
   - D4d: vendoring an external std prelude is out of scope for this slice.
 
-## Proposed default for review
+## Approved default and rationale
 
 D1a, D2b, D3a, and D4a.
 
