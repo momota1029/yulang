@@ -29,6 +29,7 @@ mod rule_expression_list_recovery;
 mod rule_literal_recovery;
 mod statement;
 mod string_literal_recovery;
+mod structural_diagnostic;
 mod support;
 mod tails;
 mod type_expr;

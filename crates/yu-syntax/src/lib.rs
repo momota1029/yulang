@@ -21,6 +21,7 @@ mod rule;
 mod sequence;
 mod source_file;
 mod statement;
+mod structural_diagnostic;
 mod syntax_diagnostic;
 mod syntax_environment;
 mod syntax_kind;

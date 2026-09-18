@@ -2941,81 +2941,22 @@ struct ShadowOccurrence {
     ordinal: u32,
 }
 
-/// Reads recovery structure from one Rowan tree without any parser ledger. A
-/// structured `Invalid` is one Error occurrence whose own bytes belong to the
-/// structural node, and its nested recovery may sit at a different offset, so
-/// the walk never requires the whole subtree to be byte-adjacent. Raw `Error`
-/// leaves are grouped into maximal adjacent runs at their immediate parent.
+/// Reads recovery structure from one Rowan tree without any parser ledger.
+///
+/// The walk itself now lives in `crate::structural_diagnostic`; this test-only
+/// adapter keeps the earlier shape witnesses expressed in the binary
+/// `RecoveryKind` vocabulary, folding a structured `Invalid` back into `Error`.
 fn shadow_occurrences(root: &SyntaxNode) -> Vec<ShadowOccurrence> {
-    fn visit(
-        node: &SyntaxNode,
-        run: &mut Option<(Range<usize>, usize)>,
-        walk: &mut Vec<(RecoveryKind, Range<usize>)>,
-    ) {
-        let flush = |run: &mut Option<(Range<usize>, usize)>,
-                     walk: &mut Vec<(RecoveryKind, Range<usize>)>| {
-            if let Some((range, _)) = run.take() {
-                walk.push((RecoveryKind::Error, range));
-            }
-        };
-        let children = node.children_with_tokens();
-        for child in children {
-            match child {
-                rowan::NodeOrToken::Node(node) => {
-                    flush(run, walk);
-                    match node.kind() {
-                        SyntaxKind::Missing => {
-                            let start = usize::from(node.text_range().start());
-                            assert_eq!(
-                                usize::from(node.text_range().end()),
-                                start,
-                                "Missing stays zero-width"
-                            );
-                            walk.push((RecoveryKind::Missing, start..start));
-                        }
-                        SyntaxKind::Invalid => {
-                            let start = usize::from(node.text_range().start());
-                            let end = usize::from(node.text_range().end());
-                            assert!(start < end, "structured Error keeps a nonempty extent");
-                            walk.push((RecoveryKind::Error, start..end));
-                            visit(&node, run, walk);
-                        }
-                        SyntaxKind::Error => panic!("Error must be a token"),
-                        _ => visit(&node, run, walk),
-                    }
-                }
-                rowan::NodeOrToken::Token(token) if token.kind() == SyntaxKind::Error => {
-                    assert_eq!(token.parent().as_ref(), Some(node));
-                    let start = usize::from(token.text_range().start());
-                    let end = usize::from(token.text_range().end());
-                    assert!(
-                        !token.text().is_empty(),
-                        "an Error leaf keeps nonempty text"
-                    );
-                    assert_eq!(end - start, token.text().len(), "byte-accurate Error leaf");
-                    match run {
-                        Some((range, count)) if range.end == start => {
-                            range.end = end;
-                            *count += 1;
-                        }
-                        Some(_) => unreachable!("adjacent Error leaves stay contiguous"),
-                        None => *run = Some((start..end, 1)),
-                    }
-                }
-                _ => {}
-            }
-        }
-        flush(run, walk);
-    }
-
-    let mut walk = Vec::new();
-    visit(root, &mut None, &mut walk);
-    walk.into_iter()
-        .enumerate()
-        .map(|(ordinal, (kind, range))| ShadowOccurrence {
-            kind,
-            range,
-            ordinal: ordinal.try_into().expect("honest ordinal"),
+    crate::structural_diagnostic::collect(root)
+        .into_iter()
+        .map(|occurrence| ShadowOccurrence {
+            kind: match occurrence.kind() {
+                crate::structural_diagnostic::StructuralKind::Missing => RecoveryKind::Missing,
+                crate::structural_diagnostic::StructuralKind::ErrorGroup
+                | crate::structural_diagnostic::StructuralKind::Invalid => RecoveryKind::Error,
+            },
+            range: occurrence.range().clone(),
+            ordinal: occurrence.ordinal(),
         })
         .collect()
 }

@@ -43,52 +43,31 @@ Direct Rowan construction and Error-token/structured-Invalid topology are alread
 
 Do not delete that temporary machinery before the new shadow interpreter is exercised. Also do not treat its continued presence as permission to make it a final dependency.
 
-## Immediate next work: shadow CST diagnostic interpreter
+## Gate 1: shadow CST diagnostic interpreter
 
-This is the active implementation gate.
+Status: implemented (2026-09-18). The production whole-tree walk lives in
+`crates/yu-syntax/src/structural_diagnostic.rs`; its focused witnesses are in
+`crates/yu-syntax/src/tests/structural_diagnostic.rs`. The temporary parser
+ledger is untouched. See `notes/progress/daily/2026-09-18.md`.
 
-Status: the walk **shape** is fixed at test level in
-`crates/yu-syntax/src/tests/recovery_output.rs` (see
-`notes/progress/daily/2026-09-17.md`, "Gate 1 shadow CST diagnostic interpreter -
-walk shape fixed"). The production walk itself is still unwritten.
+The walk derives zero-width `Missing`, maximal adjacent same-immediate-parent
+raw `Error` groups, and structured `Invalid` preorder from the CST alone. It
+emits precise schema information for the mapped expression-delimited `Missing`
+and raw-`Error` rows, and a deterministic generic fallback (kind, range,
+ordinal, ancestor path) for every other occurrence. It does not consult parser
+recovery records, replay parsing, relex `Error`, or synthesize recovery nodes.
 
-Confirmed from CST alone, so the production walk can rely on it:
+Known deferred items, not blockers:
 
-- a structured `Invalid` is the outermost recovery node at its offset, and no
-  two sibling nodes ever start at the same offset;
-- a maximal run of adjacent `Error` leaves at one immediate parent is already
-  one committed record, so grouping the leaves is faithful, not lossy;
-- same-slot same-offset occurrences are distinguishable only by preorder
-  ordinal. Two encounters of the *same* kind at the *same* offset would be a
-  genuine collision to report, not to merge.
-
-Implement a whole-tree structural diagnostic walk in `yu-syntax` while leaving the temporary parser ledger intact for migration comparison.
-
-Required behavior:
-
-1. Walk every Rowan syntax child in deterministic source/preorder order.
-2. Derive zero-width `Missing`, maximal adjacent same-slot/immediate-parent raw `Error` groups, and structured `Invalid` preorder from CST only.
-3. When an occurrence matches an existing precise catalog entry, emit the precise schema-derived slot/expectation information.
-4. When an occurrence is not yet precisely cataloged, emit a conservative generic structural diagnostic derived only from its CST occurrence: kind, range, occurrence/parent path and deterministic ordinal. Specialized expected alternatives/primary wording may be absent.
-5. Do not consult parser recovery records to classify the new walk. No parse replay, Error relexing, hidden episode inference or synthetic recovery nodes.
-6. If an occurrence cannot even be represented uniquely by the CST facts needed for distinct diagnostics, record the concrete collision and return only that owner to design. Missing specialized wording alone is not a collision.
-
-### Focused evidence for this gate
-
-Use a small representative set, not a coverage campaign. Include:
-
-- one precise cataloged `Missing` case;
-- one raw Error-group case with continuation/retry;
-- one nested or same-offset case;
-- one structured `Invalid` case if the current reachable topology supplies one;
-- one UTF-8/range-sensitive witness;
-- one deliberately uncataloged case proving the generic fallback is total and deterministic.
-
-Do not add sibling permutations unless a failing implementation path requires them. Do not run a workspace-wide suite until a coherent phase boundary unless shared infrastructure changes make that necessary.
+- the two mapped structured `Invalid` owners still take the generic fallback;
+- trivia-interleaved forms of the mapped delimited row are classified by the
+  nearest structural sibling and are fixed by a focused witness rather than by
+  a separate catalog row.
 
 ## After the shadow interpreter
 
-Proceed in this order unless a concrete blocker changes it:
+Immediate next action: Gate 2, the non-diagnostic effective operator-table
+unification. Then proceed in this order unless a concrete blocker changes it:
 
 1. Complete the non-diagnostic effective operator-table unification so parsing and analysis use the same accepted table/site information.
 2. Select the smallest **existing accepted** fixture that can exercise a useful valid-program path from source -> Rowan CST -> HIR/type analysis. Do not design new syntax for this slice.

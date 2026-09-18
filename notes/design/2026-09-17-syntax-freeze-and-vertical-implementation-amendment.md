@@ -78,6 +78,8 @@ Record the freeze, stop selecting the next unmapped slot solely for completeness
 
 ### Gate 1 — shadow CST diagnostic interpreter
 
+Status: implemented (2026-09-18) in `crates/yu-syntax/src/structural_diagnostic.rs`; see `notes/progress/daily/2026-09-18.md`.
+
 Implement a whole-tree structural diagnostic walk in `yu-syntax` without removing the temporary parser ledger yet.
 
 The walk must:

@@ -346,7 +346,7 @@ impl DelimitedOwner {
     fn is_record(self) -> bool {
         matches!(self, Self::ProjectionRecord)
     }
-    fn item_role(self) -> GrammarRole {
+    pub(crate) fn item_role(self) -> GrammarRole {
         GrammarRole::Expression(match self {
             Self::Parenthesized => ExpressionRole::Nud,
             Self::Call => ExpressionRole::CallArgument,
@@ -355,7 +355,7 @@ impl DelimitedOwner {
             Self::ProjectionRecord => ExpressionRole::ProjectionRecordItem,
         })
     }
-    fn separator_role(self) -> GrammarRole {
+    pub(crate) fn separator_role(self) -> GrammarRole {
         GrammarRole::Expression(match self {
             Self::Parenthesized => ExpressionRole::ParenthesizedSeparator,
             Self::Call => ExpressionRole::CallArgumentSeparator,
@@ -364,7 +364,7 @@ impl DelimitedOwner {
             Self::ProjectionRecord => ExpressionRole::ProjectionRecordSeparator,
         })
     }
-    fn close_role(self) -> GrammarRole {
+    pub(crate) fn close_role(self) -> GrammarRole {
         let (owner, delimiter) = match self {
             Self::Parenthesized => (ConstructRole::ExpressionGroup, Delimiter::Parenthesis),
             Self::Call => (ConstructRole::ArgumentList, Delimiter::Parenthesis),
