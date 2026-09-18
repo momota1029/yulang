@@ -22,13 +22,6 @@ pub(crate) fn compile_full_parse_operators(
     Ok(builder.build())
 }
 
-/// The deterministic, degraded full-parse table and every rejected duplicate
-/// capability encountered while building it.
-pub(crate) struct FullParseOperatorCompilation {
-    pub(crate) table: OperatorTable,
-    pub(crate) rejected_conflicts: Vec<RejectedOperatorFixity>,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RejectedOperatorFixity {
     pub(crate) spelling: Box<str>,
@@ -47,15 +40,17 @@ pub(crate) enum FullParseOperatorConstructionError {
     },
 }
 
-/// Compiles the full-parse table in one builder pass, retaining the first
-/// accepted capability for a duplicate fixity and recording the rejected one.
-pub(crate) fn compile_full_parse_operators_recovering(
+/// Builds the one immutable effective full-parse table, without diagnostics.
+///
+/// Imported capabilities merge first, then source-header declarations in source
+/// order. The first accepted capability wins a duplicate spelling/fixity; the
+/// later declaration is ignored here and is reported separately by
+/// [`conflicting_local_operators`] against this exact table.
+pub(crate) fn effective_full_parse_operators(
     imported: &OperatorTable,
     local: &[HeaderOperator],
-) -> Result<FullParseOperatorCompilation, FullParseOperatorConstructionError> {
+) -> Result<OperatorTable, FullParseOperatorConstructionError> {
     let mut builder = OperatorTableBuilder::default();
-    let mut rejected_conflicts = Vec::new();
-
     for (entry, sites) in imported.entries_with_sites() {
         for fixity in [
             OperatorFixity::Prefix,
@@ -66,61 +61,66 @@ pub(crate) fn compile_full_parse_operators_recovering(
             let Some(site) = sites.site(fixity) else {
                 continue;
             };
-            merge_full_parse_operator_recovering(
+            merge_effective(
                 &mut builder,
                 OperatorDeclaration::from_site(
                     entry.spelling(),
                     fixities_for(entry.fixities(), fixity),
                     site,
                 ),
-                &mut rejected_conflicts,
             )?;
         }
     }
     for header in local.iter().cloned() {
-        merge_full_parse_operator_recovering(
-            &mut builder,
-            from_header_operator(header),
-            &mut rejected_conflicts,
-        )?;
+        merge_effective(&mut builder, from_header_operator(header))?;
     }
-
-    Ok(FullParseOperatorCompilation {
-        table: builder.build(),
-        rejected_conflicts,
-    })
+    Ok(builder.build())
 }
 
-fn merge_full_parse_operator_recovering(
+fn merge_effective(
     builder: &mut OperatorTableBuilder,
     declaration: OperatorDeclaration,
-    rejected_conflicts: &mut Vec<RejectedOperatorFixity>,
 ) -> Result<(), FullParseOperatorConstructionError> {
     let origin = declaration.origin();
     match builder.merge(declaration) {
         Ok(()) => Ok(()),
-        Err(OperatorTableBuildError::ConflictingFixity {
-            spelling,
-            fixity,
-            first_origin,
-            first_range,
-            second_origin,
-            second_range,
-        }) => {
-            rejected_conflicts.push(RejectedOperatorFixity {
-                spelling,
-                fixity,
-                first_origin,
-                first_range,
-                second_origin,
-                second_range,
-            });
-            Ok(())
-        }
+        Err(OperatorTableBuildError::ConflictingFixity { .. }) => Ok(()),
         Err(OperatorTableBuildError::EmptySpelling { range }) => {
             Err(FullParseOperatorConstructionError::EmptySpelling { origin, range })
         }
     }
+}
+
+/// Every local header declaration that the retained effective table did not
+/// accept, paired with the site that already won its spelling and fixity.
+///
+/// This is analysis over the one table the parser used. It recompiles nothing,
+/// mutates no CST, and retains no parser-produced conflict vector.
+pub(crate) fn conflicting_local_operators(
+    table: &OperatorTable,
+    local: &[HeaderOperator],
+) -> Vec<RejectedOperatorFixity> {
+    let mut conflicts = Vec::new();
+    for header in local {
+        let Some(site) = table
+            .fixity_sites(header.name())
+            .and_then(|sites| sites.site(header.fixity()))
+        else {
+            continue;
+        };
+        if site.origin() == OperatorOrigin::Local && site.range() == header.range() {
+            continue;
+        }
+        conflicts.push(RejectedOperatorFixity {
+            spelling: header.name().into(),
+            fixity: header.fixity(),
+            first_origin: site.origin(),
+            first_range: site.range().clone(),
+            second_origin: OperatorOrigin::Local,
+            second_range: header.range().clone(),
+        });
+    }
+    conflicts
 }
 
 /// Compiles declaration-local header facts into spelling-level fixities.
@@ -399,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn recovering_full_parse_merge_retains_first_local_fixity_and_later_capabilities() {
+    fn effective_full_parse_table_retains_first_local_fixity_and_later_capabilities() {
         let local = [
             HeaderOperator::new(
                 0..15,
@@ -430,9 +430,9 @@ mod tests {
             ),
         ];
 
-        let compilation = compile_full_parse_operators_recovering(&OperatorTable::empty(), &local)
+        let table = effective_full_parse_operators(&OperatorTable::empty(), &local)
             .expect("duplicate fixity is recoverable");
-        let entry = compilation.table.get("+").expect("accepted spelling");
+        let entry = table.get("+").expect("accepted spelling");
         assert_eq!(
             entry
                 .fixities()
@@ -443,7 +443,7 @@ mod tests {
         );
         assert!(entry.fixities().infix().is_some());
         assert_eq!(
-            compilation.rejected_conflicts,
+            conflicting_local_operators(&table, &local),
             [RejectedOperatorFixity {
                 spelling: "+".into(),
                 fixity: OperatorFixity::Prefix,
@@ -456,7 +456,7 @@ mod tests {
     }
 
     #[test]
-    fn recovering_full_parse_merge_retains_imported_first_fixity() {
+    fn effective_full_parse_table_retains_imported_first_fixity() {
         let dependency = SyntaxDependencySlot::from_index(0).expect("slot fits");
         let imported = OperatorTable::from_declarations([OperatorDeclaration::imported_at_range(
             "+",
@@ -474,13 +474,22 @@ mod tests {
             BindingPowers::prefix(HeaderBindingPower::from_components([71])),
         )];
 
-        let compilation = compile_full_parse_operators_recovering(&imported, &local)
+        let table = effective_full_parse_operators(&imported, &local)
             .expect("duplicate fixity is recoverable");
+        let conflicts = conflicting_local_operators(&table, &local);
         assert_eq!(
-            compilation.rejected_conflicts[0].first_origin,
+            conflicts[0].first_origin,
             OperatorOrigin::Imported(dependency)
         );
-        assert_eq!(compilation.rejected_conflicts[0].first_range, 4..18);
-        assert_eq!(compilation.rejected_conflicts[0].second_range, 20..35);
+        assert_eq!(conflicts[0].first_range, 4..18);
+        assert_eq!(conflicts[0].second_range, 20..35);
+        assert_eq!(
+            table
+                .fixity_sites("+")
+                .and_then(|sites| sites.site(OperatorFixity::Prefix))
+                .map(|site| (site.origin(), site.range().clone())),
+            Some((OperatorOrigin::Imported(dependency), 4..18)),
+            "analysis reads the same retained site the parser used"
+        );
     }
 }

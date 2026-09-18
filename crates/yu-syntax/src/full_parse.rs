@@ -4,7 +4,8 @@ use rowan::GreenNode;
 
 use crate::{
     HeaderInfo, SourceText,
-    operator_compilation::compile_full_parse_operators_recovering,
+    operator_compilation::{conflicting_local_operators, effective_full_parse_operators},
+    operator_table::OperatorTable,
     source_file::parse_root_candidate,
     syntax_diagnostic::SyntaxDiagnostic,
     syntax_environment::{SourceRevision, SyntaxEnvironment, SyntaxEnvironmentKey},
@@ -12,9 +13,7 @@ use crate::{
 
 #[cfg(test)]
 use crate::{
-    OperatorFixity,
-    operator_table::{OperatorOrigin, OperatorTable},
-    syntax_diagnostic::SyntaxDiagnosticCause,
+    OperatorFixity, operator_table::OperatorOrigin, syntax_diagnostic::SyntaxDiagnosticCause,
 };
 
 /// Immutable full-parse product for one source revision.
@@ -24,6 +23,7 @@ pub struct ParsedFile {
     revision: SourceRevision,
     header: Arc<HeaderInfo>,
     syntax_environment: SyntaxEnvironmentKey,
+    operators: Arc<OperatorTable>,
     green: GreenNode,
     diagnostics: Arc<[SyntaxDiagnostic]>,
 }
@@ -43,6 +43,11 @@ impl ParsedFile {
 
     pub fn syntax_environment(&self) -> SyntaxEnvironmentKey {
         self.syntax_environment
+    }
+
+    /// The one effective operator table the parser used, retained for analysis.
+    pub fn operators(&self) -> &OperatorTable {
+        &self.operators
     }
 
     pub fn green(&self) -> &GreenNode {
@@ -65,16 +70,11 @@ pub fn parse_file(
         "HeaderInfo must originate from the supplied source allocation"
     );
     // The accepted table is prepared once before the direct root loop. Duplicate
-    // capabilities produce construction diagnostics without replacing this
-    // parser authority or mutating the table while parsing.
-    let operator_compilation =
-        compile_full_parse_operators_recovering(syntax.operators(), header.operators())
-            .expect("complete header operators and validated imports never have empty spellings");
-    let candidate = parse_root_candidate(
-        source.as_ref(),
-        &operator_compilation.table,
-        &header.recoveries,
-    );
+    // capabilities keep the first accepted site without replacing this parser
+    // authority or mutating the table while parsing.
+    let operators = effective_full_parse_operators(syntax.operators(), header.operators())
+        .expect("complete header operators and validated imports never have empty spellings");
+    let candidate = parse_root_candidate(source.as_ref(), &operators, &header.recoveries);
     let green = candidate.green;
     let recoveries = candidate.committed_recoveries;
     let next_construction_event = recoveries
@@ -88,8 +88,7 @@ pub fn parse_file(
         .into_iter()
         .map(SyntaxDiagnostic::recovery)
         .chain(
-            operator_compilation
-                .rejected_conflicts
+            conflicting_local_operators(&operators, header.operators())
                 .into_iter()
                 .enumerate()
                 .map(|(event, conflict)| {
@@ -107,6 +106,7 @@ pub fn parse_file(
         revision: SourceRevision::UNTRACKED,
         header,
         syntax_environment: syntax.key(),
+        operators: Arc::new(operators),
         green,
         diagnostics,
     }
@@ -418,5 +418,169 @@ mod tests {
         ));
         assert_ne!(recovery.id(), conflict.id());
         assert!(recovery.id() < conflict.id());
+    }
+
+    #[test]
+    fn retained_operator_table_is_the_one_analysis_reads() {
+        // Equal binding powers do not admit a second declaration, so the first
+        // local site wins and the retained table keeps exactly that site.
+        let source: Arc<SourceText> =
+            Arc::from("infix (<+>) 40 41 = left\ninfix (<+>) 40 41 = right\n");
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        assert_eq!(header.operators().len(), 2);
+        let parsed = parse_file(
+            Arc::clone(&source),
+            Arc::clone(&header),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+
+        let site = parsed
+            .operators()
+            .fixity_sites("<+>")
+            .and_then(|sites| sites.site(OperatorFixity::Infix))
+            .expect("accepted infix site");
+        assert_eq!(site.origin(), OperatorOrigin::Local);
+        assert_eq!(site.range(), header.operators()[0].range());
+
+        let [diagnostic] = parsed.diagnostics() else {
+            panic!("one rejected duplicate: {:?}", parsed.diagnostics());
+        };
+        let SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) = diagnostic.cause() else {
+            panic!("duplicate fixity must not masquerade as CST recovery");
+        };
+        assert_eq!(conflict.first_range(), site.range());
+        assert_eq!(conflict.first_range(), header.operators()[0].range());
+        assert_eq!(conflict.second_range(), header.operators()[1].range());
+    }
+
+    #[test]
+    fn retained_operator_table_keeps_the_imported_site_for_a_local_duplicate() {
+        let dependency = SyntaxDependencySlot::from_index(0).expect("first slot fits");
+        let source: Arc<SourceText> = Arc::from("prefix (?) 71 = value\n");
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        assert_eq!(header.operators().len(), 1);
+        let syntax = Arc::new(
+            SyntaxEnvironment::from_imported(
+                SyntaxEnvironmentKey::from_raw(9),
+                Arc::new(
+                    OperatorTable::from_declarations([OperatorDeclaration::imported_at_range(
+                        "?",
+                        OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
+                        dependency,
+                        4..20,
+                    )])
+                    .unwrap(),
+                ),
+                Arc::from([SyntaxDependencyProvenance::new(
+                    Arc::from("dependency/operators"),
+                    SourceRevision::UNTRACKED,
+                )]),
+            )
+            .expect("validated imported environment"),
+        );
+        let parsed = parse_file(Arc::clone(&source), Arc::clone(&header), syntax);
+
+        let site = parsed
+            .operators()
+            .fixity_sites("?")
+            .and_then(|sites| sites.site(OperatorFixity::Prefix))
+            .expect("accepted prefix site");
+        assert_eq!(site.origin(), OperatorOrigin::Imported(dependency));
+        assert_eq!(site.range(), &(4..20));
+
+        let [diagnostic] = parsed.diagnostics() else {
+            panic!("one rejected local duplicate: {:?}", parsed.diagnostics());
+        };
+        let SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) = diagnostic.cause() else {
+            panic!("imported/local duplicate must not masquerade as CST recovery");
+        };
+        assert_eq!(conflict.first_range(), site.range());
+        assert_eq!(conflict.second_range(), header.operators()[0].range());
+    }
+
+    #[test]
+    fn retained_operator_table_keeps_mixed_fixities_for_one_spelling() {
+        let source: Arc<SourceText> = Arc::from("prefix (?) 70 = a\nsuffix (?) 71 = b\n");
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        assert_eq!(header.operators().len(), 2, "{:?}", header.operators());
+        let parsed = parse_file(
+            Arc::clone(&source),
+            Arc::clone(&header),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+
+        let sites = parsed
+            .operators()
+            .fixity_sites("?")
+            .expect("accepted spelling");
+        assert_eq!(
+            sites
+                .site(OperatorFixity::Prefix)
+                .map(|site| site.range().clone()),
+            Some(header.operators()[0].range().clone())
+        );
+        assert_eq!(
+            sites
+                .site(OperatorFixity::Suffix)
+                .map(|site| site.range().clone()),
+            Some(header.operators()[1].range().clone())
+        );
+        assert!(
+            parsed.diagnostics().is_empty(),
+            "{:?}",
+            parsed.diagnostics()
+        );
+    }
+
+    #[test]
+    fn retained_operator_table_reports_every_rejected_duplicate_in_source_order() {
+        let source: Arc<SourceText> =
+            Arc::from("infix (<+>) 40 41 = a\ninfix (<+>) 41 42 = b\ninfix (<+>) 43 44 = c\n");
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        assert_eq!(header.operators().len(), 3);
+        let parsed = parse_file(
+            Arc::clone(&source),
+            Arc::clone(&header),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+
+        let conflicts = parsed
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| match diagnostic.cause() {
+                SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) => conflict.clone(),
+                other => panic!("unexpected cause: {other:?}"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(conflicts.len(), 2);
+        assert_eq!(conflicts[0].first_range(), header.operators()[0].range());
+        assert_eq!(conflicts[0].second_range(), header.operators()[1].range());
+        assert_eq!(conflicts[1].first_range(), header.operators()[0].range());
+        assert_eq!(conflicts[1].second_range(), header.operators()[2].range());
+        assert!(
+            parsed
+                .diagnostics()
+                .windows(2)
+                .all(|pair| pair[0].id() < pair[1].id()),
+            "conflict ids continue after the recovery ids in source order"
+        );
+    }
+
+    #[test]
+    fn retained_operator_table_excludes_operators_after_the_header_cutoff() {
+        let source: Arc<SourceText> = Arc::from("my x = 1\nprefix (?) 70 = value\n");
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        assert!(header.operators().is_empty());
+        let parsed = parse_file(
+            Arc::clone(&source),
+            Arc::clone(&header),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.operators().fixity_sites("?").is_none());
+        assert!(
+            parsed.diagnostics().is_empty(),
+            "{:?}",
+            parsed.diagnostics()
+        );
     }
 }

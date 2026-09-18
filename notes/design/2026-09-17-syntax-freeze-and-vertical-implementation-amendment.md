@@ -94,6 +94,8 @@ Test representative existing witnesses, including at least one precise catalog m
 
 ### Gate 2 — effective syntax-table unification
 
+Status: implemented (2026-09-18) in `crates/yu-syntax/src/operator_compilation.rs` and `crates/yu-syntax/src/full_parse.rs`; see `notes/progress/daily/2026-09-18.md`.
+
 Perform the previously specified non-diagnostic effective-operator-table work. Parsing and analysis must consult the same accepted table/site information. Keep environment conflict analysis outside CST mutation.
 
 ### Gate 3 — first valid-program vertical frontend slice

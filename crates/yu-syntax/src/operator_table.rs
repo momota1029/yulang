@@ -40,6 +40,12 @@ impl OperatorTable {
         self.entries.get(entry)
     }
 
+    /// The accepted declaration site per present fixity for one spelling.
+    pub(crate) fn fixity_sites(&self, spelling: &str) -> Option<&OperatorFixitySites> {
+        let entry = self.trie.find(spelling)?;
+        self.sites.get(entry)
+    }
+
     /// Traverses the frozen all-spelling trie directly from source. Terminal
     /// candidates are offered longest first; rejecting one continues at the
     /// next shorter terminal without retaining source-specific matcher state.
@@ -588,7 +594,6 @@ impl OperatorTrie {
         self.nodes[node].entry = Some(entry);
     }
 
-    #[cfg(test)]
     fn find(&self, spelling: &str) -> Option<usize> {
         let mut node = 0;
         for character in spelling.chars() {

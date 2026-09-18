@@ -766,14 +766,16 @@ mod cell_tests {
     #[test]
     fn cell_uses_host_operators_without_activating_local_declarations() {
         let header = crate::header::discover_header("infix (<+>) 50 51 = value\n");
-        let compilation = crate::operator_compilation::compile_full_parse_operators_recovering(
+        let operators = crate::operator_compilation::effective_full_parse_operators(
             &OperatorTable::empty(),
             &header.operators,
         )
         .unwrap();
         assert!(header.recoveries.is_empty());
-        assert!(compilation.rejected_conflicts.is_empty());
-        let operators = compilation.table;
+        assert!(
+            crate::operator_compilation::conflicting_local_operators(&operators, &header.operators)
+                .is_empty()
+        );
         for source in [
             "a <+> b\n```",
             "prefix (?) 70 = 値\na <+> b\n```",

@@ -64,17 +64,31 @@ Known deferred items, not blockers:
   nearest structural sibling and are fixed by a focused witness rather than by
   a separate catalog row.
 
+## Gate 2: effective syntax-table unification
+
+Status: implemented (2026-09-18). The planner in
+`crates/yu-syntax/src/operator_compilation.rs` builds the effective table without
+diagnostics (`effective_full_parse_operators`), and `conflicting_local_operators`
+derives conflicts by reading the accepted site in that same table. `ParsedFile`
+retains the exact table the parser used and exposes it through `operators()`.
+The temporary diagnostic ledger is unchanged. See
+`notes/progress/daily/2026-09-18.md`.
+
+Known limitation, not a blocker: the operator-chain CST is flat and binding
+powers do not change it, so "parse and analysis consult the same accepted site"
+is proved by the shared table instance plus analysis agreement rather than by a
+tree-shape difference.
+
 ## After the shadow interpreter
 
-Immediate next action: Gate 2, the non-diagnostic effective operator-table
-unification. Then proceed in this order unless a concrete blocker changes it:
+Immediate next action: Gate 3, the first valid-program vertical frontend slice.
+Proceed in this order unless a concrete blocker changes it:
 
-1. Complete the non-diagnostic effective operator-table unification so parsing and analysis use the same accepted table/site information.
-2. Select the smallest **existing accepted** fixture that can exercise a useful valid-program path from source -> Rowan CST -> HIR/type analysis. Do not design new syntax for this slice.
-3. Build that vertical frontend slice. Let implementation expose missing design information instead of pre-enumerating it.
-4. Refine only the schema/recovery cases that the vertical slice or failing tests actually require.
-5. Once the shadow interpreter has real frontend exercise and total CST-derived handling, perform the coherent parser-ledger/API retirement migration.
-6. Reserve broad catalog completion, fuzz/property matrices and presentation specialization for explicit release/certification work.
+1. Select the smallest **existing accepted** fixture that can exercise a useful valid-program path from source -> Rowan CST -> HIR/type analysis. Do not design new syntax for this slice.
+2. Build that vertical frontend slice. Let implementation expose missing design information instead of pre-enumerating it.
+3. Refine only the schema/recovery cases that the vertical slice or failing tests actually require.
+4. Once the shadow interpreter has real frontend exercise and total CST-derived handling, perform the coherent parser-ledger/API retirement migration.
+5. Reserve broad catalog completion, fuzz/property matrices and presentation specialization for explicit release/certification work.
 
 ## Concrete triggers that may reopen syntax/schema design
 
