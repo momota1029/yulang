@@ -1,108 +1,68 @@
 # List pattern
 
-## 1. Status、正本、最終確認
+## 1. syntax-v0の対象範囲
 
-originalのAuthoritative ListPattern追補は`notes/design/2026-08-20-yu-syntax-chasa-architecture.md` 8019–8612行にある。comma-only separator scopeはAuthoritative layout追補 9314–9696行で明示的にsupersedeされ、ambient recoveryは`ASOB-G` 18358–19161行でさらにrevisionされている。original opening statusは古いが、relevant addendumのclosing signatureは査読・確定とユーザ承認を記録している。
+ListPattern は、bracket で囲む Pattern primary である。
+empty form と trailing separator を含め、通常の Pattern item と spread item を受け入れる。
+このページは構文と recovery topology を定め、spread の matching や capture の意味は定めない。
 
-implementation commitは`af9c85f4`、`c852d878`、`81ef211d`、`f38c77d8`、`0da2d26e`である。このページは`f9393004`に対して確認した。
-
-## 2. Scopeとnon-scope
-
-ListPatternはordinary Pattern itemまたはliteral spread itemから成るbracketed sequenceである。empty list、trailing comma、arbitrary spread count/position、full recursive Pattern spread RHS、typed recovery、caller-boundary handoffを扱う。
-
-Record pattern、Pattern annotation、constructor/ML tail、expression list literal、spread matching semantics、cardinality validation、resolution、typing、Pattern HIR、lowering、diagnostics wordingはscope外である。
-
-## 3. BNF-equivalent grammar
+## 2. grammar
 
 ```text
 ListPattern := LBracket OpeningTrivia [ ListPatternItem { ListPatternSeparator ListPatternItem } [ ListPatternSeparator ] ] RBracket
-ListPatternSeparator := ExplicitCommaBoundary | ImplicitNewlineBoundary(list_pattern_base)
 ListPatternItem := Pattern@Lowest | ListPatternSpreadItem
 ListPatternSpreadItem := DotDot G* Pattern@Lowest
+ListPatternSeparator := ExplicitCommaBoundary | ImplicitNewlineBoundary(list_pattern_base)
 ```
 
-baseは`[`直後にopening triviaとincoming indentationからcaptureする。following indentationが`<= list_pattern_base`のnewlineはseparator、deeper newlineはcontinuationである。semicolonはList separatorにならない。`..tail`と`.. tail`はspread formで、`...`と`..+`は`DotDot`へprefix-splitしない。
+`..tail` と `.. tail` は spread item である。
+`...` と `..+` は `DotDot` と別の token に分割しない。
+semicolon は ListPattern separator ではない。
+`OpeningTrivia` と base snapshot は、[Pattern core](pattern-core.md)の定義を使う。
 
-## 4. Judge、priority、owner boundary
+## 3. itemとdelimiterの所有権
 
-`[`をacceptした後、ListPatternはbracket delimiterとlocal comma/right-bracket stopを所有する。item judgeはmatching close、exact `DotDot`、ordinary Pattern NUD、comma missing-item boundary、malformed recoveryの順に見る。List-local commaはCatch handler / arm separatorにならない。
+`[` の後は、ListPattern が comma と対応する `]` を所有する。
+item judge は、対応する close、exact `DotDot`、通常の Pattern primary の順に判定する。
+外側の close は消費せずに返す。
 
-explicit commaは同じboundary cluster内のqualifying newlineより優先する。implicit newlineはliteral triviaであり、synthetic tokenではない。own `]`がfirst、propagated caller right closeはnon-consuming returnになる。`ASOB-G`はstrict ambient dedentまたはactive If companionでlocal implicit boundaryをvetoし、ordinary same-indent non-companion competitionはこのmechanismのscope外に残す。
+spread marker は、RHS が incomplete でも `ListPatternSpreadItem` に属する。
+nested Pattern の recovery はその owner node を保ち、list の recovery へ付け替えない。
 
-## 5. Byte-exact CST worked examples
+## 4. Direct Rowan CST
 
-ListPatternとlayout addendumにはexact CST shapeがあるが、このexample群のbyte-range-annotated CST treeはない。ここではrangeを作らない。
+direct Rowan CST は、外側の `Pattern` の下に `ListPattern` を置く。
+`ListPattern` は `LBracket`、`RBracket`、source の comma と trivia、通常の子 `Pattern`、`ListPatternSpreadItem` を含む。
+各 spread node は `DotDot` と RHS の Pattern を含む。
 
-```text
-[head, ..middle, tail]
-```
+separator となる newline は list の子の間の source trivia のままである。
+CST は、その newline や source にない separator の node を作らない。
 
-design 8289–8311行は`Pattern > ListPattern`が`head`と`tail`のdirect ordinary `Pattern` child、raw `Comma` token、`DotDot`とRHS Pattern `middle`を持つ1個の`ListPatternSpreadItem`を持つことを示す。
+## 5. recovery topology
 
-```text
-[..left, ..right,]
-```
+通常の item がなければ、list-item slot に zero-width の `Missing` を 1 個置く。
+spread RHS がなければ、既存の `ListPatternSpreadItem` 内に `Missing` を 1 個置く。
+comma と close は list owner のまま残る。
 
-design 8313–8336行は2個の`ListPatternSpreadItem` childとraw trailing commaを示す。spread multiplicityでouter nodeは変わらない。
+同一行に次の item が隣接すれば、zero-width の missing separator を 1 個置き、その item で retry する。
+malformed な通常 item は、最大の lexical run に対する nonempty の raw `Error` を 1 個置き、valid item で retry する。
+malformed separator または unclaimed wrong close は、それを所有する sequence phase の raw `Error` 1 個となる。
+recovery は comma、close、caller boundary、fence、valid retry item の前で止まり、同じ原因の 2 個目の Missing を置かない。
 
-```text
-[
-  head
-  ..middle
-  tail
-]
-```
+## 6. layoutとcaller boundary
 
-design 9574行はbase two、3個のListPattern item、valid trailing implicit boundaryと分類する。newlineとindentationはliteral triviaであり、`Separator` nodeを追加しない。
+list base は `[` の直後に capture する。
+次行の indentation がその base 以下なら newline は item boundary になる。
+より深い indentation は current item に残る。
+同じ boundary cluster では explicit comma が qualifying newline より先に勝つ。
 
-```text
-[a
-b]
-```
+対応する `]` は caller-close 処理より先に勝つ。
+caller boundary または fence では、pending trivia と boundary を caller のために消費しない。
 
-design 9575行はbase zeroのequal-indent newlineをvalid two itemsと分類する。design 9576行はdeeper newlineをsecond List itemではなくfirst Patternのcontinuationとして対比する。
+## 7. 範囲外と関連ページ
 
-## 6. Parser-side AST shape
+ListPattern は spread の個数、位置、matching、binding、型付け、lowering の規則を定めない。
+式の list 構文も定めない。
 
-current AST primaryは`PatternPrimary::List(ListPattern)`である。`ListPattern`は`open`、recovered ordered `items`、literal `trailing_comma`、recovered `close`、`range`を持つ。各`ListPatternItem`はdirect `Pattern`または`Spread(ListPatternSpreadItem)`であり、spread nodeは`marker`、recovered boxed RHS Pattern、rangeを持つ。
-
-accepted `DotDot`はRHSがincompleteでも保持する。ASTはitem orderとliteral trailing-comma evidenceを保持するが、every separator tokenをduplicateせず、spread semanticsも決めない。
-
-## 7. Typed recovery table
-
-| condition | recoveryとcontinuation |
-| --- | --- |
-| `[]` / `[a,]` | valid empty/trailing-comma list。recoveryなし |
-| `[,a]` / `[a,,b]` | absent itemごとに`PatternRole::ListItem` Missingを1個置き、same-position item retryする |
-| same-line next item or spread | `PatternRole::ListSeparator` Missingを1個置き、same-position retryする |
-| `[a; b]` | non-empty `PatternRole::ListSeparator` Errorを置き、`b`をnext itemとしてretryする |
-| malformed ordinary item | `PatternRole::ListItem` Errorを1個置き、same-slot retryする |
-| `[..]` / `[..,a]` | `ListPatternSpreadItem`を保持し、`PatternRole::ListSpreadRhs` Missingを1個置く。comma/closeはownerに残す |
-| `[..@tail]` | RHS Errorを1個置き、`tail`でsame-slot retryする |
-| `[...,a]` / `[..+,a]` | malformed item Error。prefix splitでspread nodeを作らない |
-| missing/mismatched `]` | ListPattern closing-delimiter Missing/Errorを1個置き、caller boundaryをconsumeしない |
-| ambient-vetoed newline | outer gapで止まり、それまでに必要なlocal recoveryだけを保持する |
-
-committed rangeごとにrecovery nodeとrecordが1個ある。nested list frameはnormal close、terminal boundary、recoveryでexactly once balanceする。
-
-## 8. Boundaryとstate-restoration contract
-
-bracket frameはopener後にbaseを1回captureし、every exitでdelimiter、stop、layout、scanner、sink stateをrestoreする。AST/direct fixtureはnested bracket、outer arm arrow、handler comma、implicit newline、malformed item、missing close、propagated caller close、ambient If vetoをcoverする。`ASOB-G`はambient/If、indentation、expression/type-owner、ML、positional-fence stateのexact restoreも要求する。
-
-## 9. Yulang2 divergences
-
-Yulang3はbracket ownership、ordinary/spread item、unrestricted spread placement、layout-separated item formを保つ。implicit newlineはYulang2のempty `Separator` nodeではなくliteral triviaで表し、generic invalid token / silent closeの代わりにtyped Missing/Errorとsame-position retryを使う。
-
-## 10. Known residual / deferred surface
-
-`ASOB-G`はmissing nested delimiterの背後に隠れるcaller boundaryのうち、strict dedentでもactive If companionでもないresidual caseをdocumentする。これらをsuccessとして隠さない。later Cast addendumはCast-contained ListPattern caseのseparate condition-based characterizationを持つ。
-
-deferred workはrecord-list unification、spread matching/capture semantics、multiplicity/position validation、list element typing、Pattern HIR、lowering、expression list literalである。
-
-## 11. Implementationとregression cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/pattern/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/pattern.rs`では`parse_list_pattern`、`commit_direct_list_pattern`、`parse_pattern_delimited_items_ast`、`commit_direct_pattern_delimited_items`、`commit_direct_pattern_delimited_item`、`recover_pattern_delimited_separator_or_close`、`outer_pattern_close_stop_pending`を使う。
-
-fixtureには`list_patterns_accept_comma_or_layout_newline_and_keep_spread_items`、`list_pattern_recovery_preserves_item_and_separator_boundaries`、`list_pattern_typed_recovery_contract_has_direct_coverage_for_every_list_row`、`ambient_if_companion_vetoes_every_pattern_delimited_implicit_newline`、`binding_list_pattern_preserves_else_arm_after_an_ambient_veto`、`pattern_delimited_malformed_recovery_returns_the_same_ambient_gap`、`pattern_caller_close_propagation_is_right_close_only`がある。
+syntax-v0 の recovery は、Pattern の delimited-slot と sequence の確定済み決定に従う。
+共通の Pattern の挙動は [Pattern core](pattern-core.md)、brace で囲む形式は [record pattern](record-pattern.md)を参照する。

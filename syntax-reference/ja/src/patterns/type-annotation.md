@@ -1,101 +1,84 @@
-# Trailing Pattern type annotation
+# Pattern型注釈
 
-## 1. 状態・正本・最終確認
+## 1. syntax-v0の対象範囲
 
-Authoritative な trailing annotation 追補は `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の 16042–16556 行にあり、canonical な `PTA-G`、`PTA-J`、`PTA-C`、`PTA-A`、`PTA-O`、`PTA-R` を持つ。mandatory TypeExpression の malformed-newline behavior は 16557–16861 行の Authoritative `TMN` 追補と、その implementation authority である 16862–17289 行の positional-fence 追補で定まる。
+Pattern型注釈は、完成したPatternに付ける、optionalかつterminalな`: TypeExpression`の接尾形式である。
+binding target、caseとcatchのpattern、nested patternを含め、canonical Patternが許される位置で使える。
+このページはsyntax-v0の解析とdirect Rowan CSTのrecoveryだけを定める。
 
-主実装は `9323ce68`。後続 commit は `d99d49e7`、`72948621`、`13450592`、`7838355e`、`a0365f98`、`42c1544c`、`d58181df`、`2c4d7540`。このページは `102cfa98` を基準に確認した。
-
-## 2. 対象範囲と非対象
-
-この機能は canonical Pattern に optional かつ terminal な `Pattern : TypeExpression` tail を一つ追加する。bounded trivia、precedence、CST/AST shape、typed recovery、既存 Binding/Case/Catch/delimited Pattern owner との composition を対象にする。
-
-Pattern constructor/ML tail、新しい TypeExpression grammar、新しい declaration syntax、type checking、Pattern HIR/lowering、annotation semantics、diagnostics 文言、formatter policy は対象外である。
-
-## 3. BNF 相当の grammar
+## 2. grammar
 
 ```text
-Pattern := PatternBp(Lowest)
-PatternBp(minimum) := PatternPrimary { ExistingAliasOrAlternationTail allowed by PTA-J } [ PatternTypeAnnotation allowed by PTA-J ]
+Pattern := Pattern@Lowest
+Pattern@P := PatternPrimary { ExistingAliasOrAlternationTail } [ PatternTypeAnnotation if P <= TypeAnnotation ]
 PatternTypeAnnotation := Gpta Colon Gpta RequiredTypeExpression(Pattern::TypeAnnotation)
 ```
 
-`Gpta` は one maximal trivia run である。physical newline がない trivia、または following indentation が entry-captured `pattern_continuation_base` より strictly greater な physical newline だけを accept する。equal-or-shallower run は whole rollback する。annotation は optional かつ terminal であり、その後に alias、alternation、second annotation を judge しない。
+`Gpta`は、[Pattern core](pattern-core.md)で定義する `G*` の最大の trivia run である。
+physical newlineを含まないrun、または外側のPatternの開始時にcaptureしたcontinuation baseより最後のnewline後のindentationが深いphysical newlineを含むrunを受理する。
+equal-or-shallower newlineでは、run全体をrollbackする。
 
-## 4. Judge・priority・owner boundary
+accepted colonの後では、type expressionが必要である。
+注釈自体はoptionalかつterminalである。
 
-shared tail judge は exact `as`、次に exact `|`、最後に `minimum <= TypeAnnotation` かつ active Colon stop が勝たない場合の exact single `:` を試す。`::` は annotation candidate ではない。precedence は `Lowest`、`TypeAnnotation`、`Alternation`、`Alias` の順で、`A | B as c: Int` の annotation は whole outer Pattern に attach する。
+## 3. 順序と所有権
 
-Record field は nested Pattern parse 前に first same-line colon を own する。従って `{a: A}` は field colon、`{a: A} : SomeType` は outer annotation になる。annotation colon を accept した後、TypeExpression mandatory slot は existing stop/closer を import する。Binding は `=`、arm は arrow/guard、Catch は comma、delimited owner は local close/separator を own する。
+型注釈の優先順位は、alternationとaliasより低い。
+したがって、`A | B as c: Int`はalternation全体に注釈を付ける。
+注釈を一つ受理した後、同じPatternではalias、alternation、注釈をもう一度判定しない。
 
-## 5. Byte-exact CST の worked examples
+activeなcaller colonは注釈の認識より先に勝ち、`::`は注釈のcolonではない。
+record fieldでは、nested Patternを始める前に最初のsame-line colonを`RecordPatternField`が所有する。
+したがって、`{a: A}`のcolonはfieldに属し、`{a: A} : SomeType`は外側のPatternに注釈を付ける。
 
-annotation 追補は complete token-tree shape を示すが、この例群の byte-range 付き CST tree はない。ここでは byte range を作らない。
+## 4. Direct Rowan CST
 
-```text
-x: Int
-```
+lossless Rowan CSTは、外側の`Pattern`の末尾に`PatternTypeAnnotation`を置く。
+このnodeはaccepted colon、post-colon trivia、requiredな`TypeExpression` entryをsource順に含む。
+accepted pre-colon triviaは、`Pattern`の直接の子に残る。
+syntheticなcolon、separator、stop tokenは作らない。
 
-設計文書 16318–16331 行は identifier Pattern の後に、`Colon`、post-colon whitespace、`TypeExpression` child を own する `PatternTypeAnnotation` を示す。
-
-```text
-A | B as c: Int
-```
-
-設計文書 16333–16358 行は、RHS が `PatternAliasTail` を own する `PatternAlternationTail` と、outer Pattern の final child である `PatternTypeAnnotation` を示す。
-
-```text
-my x: Int = 0
-```
-
-設計文書 16360–16384 行は `BindingHeader` 内の annotation を示す。exact `=` 前の whitespace は Binding owner に rollback し、annotation は colon 側の byte だけを own する。
+次のsourceでは、最初のcolonはrecord fieldに属し、2個目は外側の注釈に属する。
 
 ```text
-my y: = 1
+{a: A} : SomeType
 ```
 
-設計文書 16442–16466 行は、`=` 前の zero-width site に `PatternTypeAnnotation > TypeExpression > Missing(Pattern::TypeAnnotation, TypeExpression)` を置き、`=` 自体は Binding-owned のままにする。
+注釈nodeは、2個目のcolon、その後のspace、`TypeExpression(SomeType)`を含む。
 
-## 6. Parser 側 AST shape
+## 5. recovery topology
 
-`Pattern` は `head`、`tails`、`type_annotation`、`range` を持つ。`type_annotation` は iterative tail ではなく `Option<PatternTypeAnnotation>` である。`PatternTypeAnnotation` は `colon`、recovered boxed `type_expr`、`range` を持つ。
+colonを受理した後、required type entryには次の結果がある。
 
-colon を accept すると RHS が incomplete でも option は present になる。range は complete 時に TypeExpression まで、incomplete RHS 時に colon までであり、trivia は semantic range を延ばさない。direct CST は synthetic punctuation/separator を作らず `SyntaxKind::PatternTypeAnnotation` を使う。
+| colon後の入力 | direct CSTの結果 | 所有権と継続 |
+| --- | --- | --- |
+| valid type primary | `PatternTypeAnnotation > TypeExpression` | type expressionがcompleteになる。 |
+| EOF、active stop、close、comma、semicolon、equal-or-shallower newline | emptyな`TypeExpression`内のzero-width `Missing(Pattern::TypeAnnotation, TypeExpression)` | boundaryは所有者のために未消費のまま残る。 |
+| malformed runの後のvalid type primary | nonemptyな`Error(Type::Primary, TypeExpression)`を1個、続けて`TypeExpression` | required slotはそのprimaryでretryする。 |
+| malformed runの後のboundary | nonemptyな`Error(Type::Primary, TypeExpression)`を1個 | recoveryはboundaryを返し、同じ原因のMissingを追加しない。 |
 
-## 7. Typed recovery table
+たとえば、`my y: = 1`では、required typeのzero-width Missingが`=`の前に置かれる。
+`=`はbinding headerが所有したままである。
 
-| condition | AST/CST result と continuation |
-| --- | --- |
-| annotation candidate なし | `type_annotation = None`。node/diagnostic なし。同位置で return |
-| colon + valid TypePrimary | complete annotation と TypeExpression 一件 |
-| colon + EOF/stop/close/comma/semicolon/equal-or-shallower newline | incomplete RHS と zero-width `Missing(Pattern::TypeAnnotation, TypeExpression)` 一件。boundary は owner のまま |
-| colon + malformed run + valid TypePrimary | `Error(Type::Primary, TypeExpression)` 一件後、same-slot retry で complete TypeExpression 一件 |
-| colon + malformed run + boundary | non-empty Error 一件だけ。boundary 前で止まり cascading Missing を置かない |
+## 6. caller boundaryとmultiline recovery
 
-`TMN-C` は maximal newline-bearing trivia run を `TMN-NoNewline`、`TMN-CallerBoundary`、`TMN-Handoff`、`TMN-Boundary`、`TMN-DeeperContinuation` に分類する。committed `TMN-CallerBoundary` は exact untouched trivia start を rollback-scoped positional fence として mark し、後続 TypeExpression owner は fenced trivia もその後の boundary も consume できない。
+注釈は、caller stop、delimiter state、indentation stateを変更せずに、既存のrequired `TypeExpression` parserへ入る。
+binding targetでは、`=`をbinding ownerへ残す。
+caseとcatchのpatternでは、guardと`->`をarm ownerへ残す。
+最初のcatch patternでは、handler commaもcatch ownerへ残す。
+delimited patternでは、local commaと対応するcloseをdelimiter ownerへ残す。
 
-## 8. Boundary と state-restoration contract
+malformed typeのrecoveryでは、`TMN` classifierがError後の最大のtrivia runを判定する。
+activeなcaller newlineはindentationとretry candidateより先に勝つ。
+この`TMN-CallerBoundary`の結果は、未消費のtrivia開始位置にrollback-scoped positional fenceを置く。
+type parserと外側のtype ownerは、fence内のtriviaとその後のcaller boundaryを消費しない。
+ほかの`TMN`結果はfenceを作らない。
+ほかのmultiline結果では、Pattern base snapshot を使う。
+required type slotに残れるのは、deeper newlineだけである。
 
-Pattern parser は caller の stop、delimiter、indentation stack を置き換えず、completely missing outer TypeExpression にだけ `PatternRole::TypeAnnotation` を渡す。`TMN` は Pattern-captured continuation base を使い、nested Pattern が無関係な type baseline を借りることを防ぐ。positional-fence state は checkpoint/rollback に参加し、normal multiline type path は fence を作らない。
+## 7. 範囲外と関連ページ
 
-fixture は Binding/Case/Catch boundary、record-colon ownership、nested base、malformed same-slot retry、active newline caller boundary、AST/direct losslessness を扱う。より広い `ASOB-G` state contract は ambient/If、delimiter、indentation、type-owner、ML、fence restoration も含む。
+この形式は、注釈の意味、type checking、Pattern lowering、constructorまたはMLのPattern tail、diagnosticsの文言、formattingを定めない。
+RHSは既存の`TypeExpression` entryであり、専用のtype grammarを追加しない。
 
-## 9. Yulang2 divergences
-
-Yulang2 は `TypeAnn` を alternation/alias より tight に attach した。Yulang3 は terminal な outer `PatternTypeAnnotation` 一つにする。そのため repeated annotation を iterative tail として accept せず、left side を wrap せず named AST field を使い、generic `InvalidToken` recovery ではなく typed Missing/Error と owner-safe retry を使う。surface spelling、accepted colon 後の mandatory RHS、nested Pattern と outer binding target からの reachability は保つ。
-
-## 10. Known residual / deferred surface
-
-documented residual は annotation grammar の例外ではない。`ASOB-G` は missing nested delimiter の背後にある hidden caller boundary を記録する。Cast 追補は Cast-contained Pattern/type owner 向けに別の condition-based residual characterization を持つ。
-
-constructor/ML Pattern tail、annotation semantics/type checking、Pattern HIR/lowering、resolver/inference integration、diagnostics text、formatting は deferred である。
-
-## 11. 実装と regression fixture の cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/pattern/mod.rs`と`crates/yu-syntax/src/type_expr/mod.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/pattern.rs` では `parse_pattern_bp`、`parse_pattern_bp_with_fresh_primary_policy`、`recognize_pattern_led`、`PatternTypeAnnotation`、`parse_required_pattern_with_outer_missing_role_and_policy`、`commit_direct_pattern_with_outer_missing_role_and_policy` を参照する。
-
-`crates/yu-syntax/src/grammar/type_expr.rs` では `parse_required_type_expression_with_recovery_context`、`commit_direct_type_expression_with_recovery_context`、`classify_type_malformed_trivia`、`scan_type_item_invalid_run_with_disposition`、positional-fence handling を参照する。
-
-fixture は `type_annotation_is_terminal_and_qualifies_the_outer_pattern`、`type_annotation_reaches_nested_patterns_and_keeps_record_colons_owned`、`type_annotation_trivia_ranges_and_recovery_keep_owner_boundaries`、`annotation_malformed_recovery_uses_the_nested_pattern_base`、`enclosing_binding_case_and_catch_owners_keep_annotation_boundaries`、`malformed_trivia_classifier_distinguishes_all_tmn_c_outcomes`、`delimited_recovery_classifier_yields_to_a_pending_fence_before_trivia`、`legacy_after_trivia_marks_a_caller_boundary_fence`、`ordinary_multiline_type_constructs_do_not_create_caller_boundary_fences`。
+aliasとalternationは[Pattern core](pattern-core.md)、field colonの所有権は[record pattern](record-pattern.md)を参照する。

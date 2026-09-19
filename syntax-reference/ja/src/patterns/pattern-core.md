@@ -1,103 +1,100 @@
-# Pattern core と parenthesized pattern
+# Pattern coreとparenthesized pattern
 
-## 1. Status、正本、最終確認
+## 1. syntax-v0の対象範囲
 
-originalのAuthoritative first-slice Pattern追補は`notes/design/2026-08-20-yu-syntax-chasa-architecture.md` 6629–7242行にある。opening statusは古いが、closing signatureは査読・確定とユーザ承認を記録している。current parenthesized separatorはAuthoritative layout追補 9314–9696行でrevisionされ、ambient-boundary recoveryはAuthoritative `ASOB-G`追補 18358–19161行でrevisionされている。
+このページは、identifier、integer、symbol、alias、alternation、parenthesized patternから成る syntax-v0 の Pattern core を定める。
+list と record の primary は、それぞれのページで定める。
+末尾の型注釈は、[型注釈](type-annotation.md)で定める。
 
-core implementationは`4ec436cc`から始まり、current parenthesized behaviorは`81ef211d`、`f38c77d8`、`d3778e13`、`0da2d26e`にも依存する。laterの`9323ce68` annotation追補はshared ASTへ`PatternTypeAnnotation`を追加した。そのgrammarはseparate reference pageで扱う。このページは`f9393004`に対して確認した。
-
-## 2. Scopeとnon-scope
-
-coreはindependent fixed-precedence Pattern Pratt familyである。ordinary/sigil identifier、decimal integer、contiguous symbol pattern、parenthesized pattern、`as` alias、`|` alternationを扱い、expression `OperatorChain`、dynamic binding power、`BpVec`を使わない。
-
-このページはparenthesized containerのcurrent comma-or-layout-newline behaviorを扱う。List/Record primary、trailing Pattern type annotation、call、path、ML application、literal、resolution、lowering、exhaustiveness、binding validationはseparate grammarまたはsemantic workに残る。
-
-## 3. BNF-equivalent grammar
+## 2. grammar
 
 ```text
 Pattern := Pattern@Lowest
-Pattern@P := PatternPrimary { PatternTail(P) } [ PatternTypeAnnotation ]
-PatternTail(P) := G* PatternAliasTail if P <= Alias | G* PatternAlternationTail if P <= Alternation
+Pattern@P := PatternPrimary { PatternTail(P) }
+PatternTail(P) := G* PatternAliasTail if P <= Alias
+                | G* PatternAlternationTail if P <= Alternation
 PatternAliasTail := AsKw G+ Identifier
 PatternAlternationTail := Pipe G* Pattern@Alternation
-PatternPrimary := IdentifierPattern | IntegerPattern | SymbolPattern | ParenthesizedPattern | ListPattern | RecordPattern
+PatternPrimary := IdentifierPattern | IntegerPattern | SymbolPattern
+                | ParenthesizedPattern | ListPattern | RecordPattern
+                | RuleLiteral | StringLiteral | RuleExpression
+IdentifierPattern := Identifier | SigilIdentifier
+IntegerPattern := Integer
 SymbolPattern := Colon!Identifier
-ParenthesizedPattern := LParen OpeningTrivia [ Pattern@Lowest { ParenthesizedPatternSeparator Pattern@Lowest } [ ParenthesizedPatternSeparator ] ] RParen
-ParenthesizedPatternSeparator := ExplicitCommaBoundary | ImplicitNewlineBoundary(parenthesized_pattern_base)
+ParenthesizedPattern := LParen OpeningTrivia [ Pattern { PatternSeparator Pattern } [ PatternSeparator ] ] RParen
+PatternSeparator := ExplicitCommaBoundary | ImplicitNewlineBoundary(pattern_base)
 ```
 
-first-slice orderは`Alternation < Alias`であり、alternationは`A | (B | C)`になる。later annotation suffixはcurrent shared `Pattern` ASTを反映するためだけに示す。implicit newlineは`(`直後にcaptureしたbase以下のindentだけseparatorになり、deeper newlineはcurrent Pattern continuationへ残る。
-
-## 4. Judge、priority、owner boundary
-
-operand positionのNUD judgeはactive caller `Colon` stopより先にcontiguous `:identifier`を取る。compositeがなくcolonがactive stopならcaller-ownedのままにする。sigil nameはordinary wordより先、`as`はtail positionだけcontextual、`|`はdynamic expression operatorではなくfixed Pattern tokenである。
-
-`(`をacceptするとparenthesized ownerはlayout baseをcaptureし、own delimiter/local comma-and-close scopeをpushして、explicit commaとqualifying newline boundaryを所有する。implicit newlineにはsynthetic separatorをemitしない。own matching `)`がfirst、propagated caller right closeはnon-consuming returnになる。`ASOB-G`はstrict ambient dedentまたはactive If companionがlocal implicit-boundary decisionをvetoできるようにする。close-recovery driverはAST cursor ownershipをpre-existing direct-CST resultへconvergeする。
-
-## 5. Byte-exact CST worked examples
-
-originalとrevising addendumにはexact CST treeがあるが、このexample群のbyte-range-annotated CST treeはない。このページはrangeを作らない。
+`G*` は、連続する source trivia の最大の run である。
+`G+` は、empty でない最大の run である。
+`OpeningTrivia` は delimiter opener の直後にある `G*` である。
+各 delimited Pattern は、その opening trivia の後で次の base を snapshot する。
 
 ```text
-A | B as c
+pattern_base := if OpeningTrivia ends after a physical newline
+                   and following_line_indentation > incoming_base
+                then following_line_indentation
+                else incoming_base
 ```
 
-design 6901–6918行はouter `Pattern`、`IdentifierPattern A`、続く`PatternAlternationTail`を示す。tailは`Pipe`とrecursive RHS `Pattern`を持ち、RHSは`IdentifierPattern B`と`AsKw`およびidentifier `c`を持つ`PatternAliasTail`を所有する。left primaryをtailの下へreparentしない。
+後続の token や recovery position は、その base を再計算しない。
 
-```text
-(:foo, _bar,)
-```
+1 個の quote は Pattern primary を `RuleLiteral` へ route する。
+3 個以上の quote run は `StringLiteral` へ route する。
+Pattern に `NormalString` route はない。
+`RuleExpression` は自身の CST を保ち、Pattern primary としても許される。
 
-design 6920–6937行はouter `Pattern`の`ParenthesizedPattern`がraw parentheses/comma、two-token `SymbolPattern`（`Colon`、`Identifier foo`）、`SigilIdentifier _bar`を持つ`IdentifierPattern`を所有することを示す。
+## 3. 順序と所有権
 
-```text
-(A
-B)
-```
+core は固定の Pattern 優先順位を使う。
+`as` は alternation の RHS 内で結合するため、`A | B as c` は alias を RHS に持つ alternation となる。
+外側の型注釈は terminal であり、core tail が戻った後にだけ判定する。
 
-design 9549–9551行はbase zeroでvalid two-element `ParenthesizedPattern`へrevisionしている。physical newlineはchild `Pattern`間のliteral triviaであり、`Missing(Comma)`もsynthetic separator nodeも作らない。
+連続した `:identifier` は、active な caller colon より先に SymbolPattern として判定する。
+この複合形がなければ、active な caller colon は消費しない。
+`as` は alias tail の位置でだけ文脈的な keyword になる。
 
-## 6. Parser-side AST shape
+`(` の後は、parenthesized owner が comma と対応する `)` を所有する。
+外側の close は、消費せず caller へ返す。
 
-`crates/yu-syntax/src/grammar/pattern.rs`にあった旧パーサーの`Pattern`は、recovered `head`、ordered `tails`、optional `type_annotation`、`range`を持った。`PatternPrimary`はidentifier、integer、symbol、`Parenthesized`、`List`、`Record` variantを持った。core parenthesized variantは`open`、recovered element Pattern、literal `trailing_comma`、recovered `close`、`range`を持った。これは現行の実装経路ではなく、旧ASTの来歴を示す証拠である。
+## 4. Direct Rowan CST
 
-`PatternTail`は`Alias(PatternAliasTail)`または`Alternation(PatternAlternationTail)`である。aliasはkeywordとrecovered ordinary binding、alternationはpipeとrecovered boxed RHSを持つ。Pattern coreはidentifierをbinding、constructor、wildcardへ分類しない。
+lossless Rowan CST は、1 個の `Pattern` node を外側に置く。
+primary は `IdentifierPattern`、`IntegerPattern`、`SymbolPattern`、`ParenthesizedPattern`、`ListPattern`、`RecordPattern`、`RuleLiteral`、`StringLiteral`、`RuleExpression` のいずれかになる。
+`SymbolPattern` は colon と隣接する identifier を含む。
 
-## 7. Typed recovery table
+`PatternAliasTail` は `AsKw` と binding identifier を含む。
+`PatternAlternationTail` は `Pipe` と再帰する RHS の `Pattern` を含む。
+`ParenthesizedPattern` は `LParen`、子 Pattern、source の comma と trivia、`RParen` を含む。
+separator となる newline は子の間の source trivia のままであり、CST は synthetic な separator node を作らない。
 
-| condition | recoveryとcontinuation |
-| --- | --- |
-| absent primary | `PatternRole::Primary` Missingを1個置き、caller boundaryをconsumeしない |
-| malformed primary then NUD | maximal primary Errorを1個置き、same-slot retryする |
-| `:` without an adjacent name | colonがcaller-ownedでなければmalformed symbolと`PatternRole::SymbolName` Missingになる |
-| `A as` | `AsKw`を保持し、terminal boundaryへ`PatternRole::AliasBinding` Missingを1個置く |
-| `A |` | `Pipe`を保持し、recovered RHS Pattern primaryを1個置く |
-| leading comma in parens | `PatternRole::ParenthesizedElement` Missingを1個置き、next-element retryする |
-| adjacent same-line element | `PatternRole::ParenthesizedSeparator` Missingを1個置き、same-position retryする |
-| malformed/missing parenthesized close | closing-delimiter ErrorまたはMissingを1個置き、own/caller-close ownershipを分ける |
-| qualifying newline | valid implicit boundary。missing commaもsynthetic separatorもない |
-| ASOB-vetoed boundary | local containerが止まりambient gapを返し、outer ownerをconsumeしない |
+## 5. recovery topology
 
-direct pathはrangeごとにrecovery nodeとrecordを1個ずつ持つ。nested recoveryはPatternまたはclosing-delimiter roleを保ち、同じcauseへouter diagnosticを追加しない。
+primary がなければ、直近の primary slot に zero-width の `Missing` を 1 個置く。
+malformed primary は、最大の malformed run に対する nonempty の raw `Error` を 1 個置き、同じ slot で valid primary を retry する。
+retry される primary の leading trivia は Error の外にあり、直接の Pattern content となる。
 
-## 8. Boundaryとstate-restoration contract
+確定した symbol colon の後で隣接する名前がなければ、`SymbolPattern` に `Missing` を 1 個置く。
+この場合は scan も Error も作らない。
+`as` の後に binding がなければ `PatternAliasTail` に `Missing` を 1 個置く。
+`|` の後に RHS がなければ `PatternAlternationTail` に `Missing` を 1 個置く。
+raw Error が boundary に達した場合は、同じ原因の 2 個目の Missing を置かずに boundary を返す。
 
-parenthesized entry/exitはdelimiter、stop、layout frameをbalanceする。layout baseはopener後に1回だけcaptureする。AST/direct fixtureはnormal item、implicit boundary、malformed recovery、caller-close handoff、ambient If veto、scanner/sink stateのexact rollbackをcoverする。`ASOB-G`はnested exitでambient/If、delimiter/stop、indentation、expression/type-owner、ML、positional-fence stateをrestoreすることを要求する。
+## 6. layoutとcaller boundary
 
-## 9. Yulang2 divergences
+parenthesized base は `(` の直後に capture する。
+次行の indentation がその base 以下なら newline は item を区切る。
+より深い newline は current Pattern に残る。
+implicit newline は valid な source trivia であり、missing comma ではない。
 
-Yulang3はindependent fixed Pattern Pratt family、contiguous symbol spelling、alias/alternation ordering、layout-separated parenthesized formを保つ。Yulang2と違いimplicit newlineはsource-absent `Separator` nodeではなくliteral triviaとadjacent childで表す。typed Missing/Error recoveryはgeneric invalid tokenとsilent closeを置き換える。
+comma のない同一行の隣接 item は、zero-width の missing separator を 1 個作り、その item で retry する。
+対応する local close は caller-close 処理より先に勝つ。
+caller boundary、fence、保護された outer close は消費しない。
 
-## 10. Known residual / deferred surface
+## 7. 範囲外と関連ページ
 
-`ASOB-G`はnon-companion same-indent competitionとmissing nested delimiterの背後に隠れる一部caller boundaryをknown residual familyとして明示的に残す。later Cast addendumはそのown four-condition instanceをcharacterizeするが、どちらもgeneralな"outer owner always wins" exceptionを与えない。
+このページは Pattern の binding 意味、constructor 意味、網羅性、名前解決、型付け、lowering を定めない。
+また、Pattern entry point 以外の list、record、リテラル、型の構文も定めない。
 
-deferred grammarはPattern annotation detail、List/Record form、constructor tail、literal、ML applicationである。deferred semantic workはwildcard meaning、binding set、alias scope、type constraint、exhaustiveness、Pattern HIR、loweringである。
-
-## 11. Implementationとregression cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/pattern/mod.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/pattern.rs`のkey functionは`parse_pattern`、`parse_pattern_with_outer_missing_role`、`parse_direct_pattern`、`parse_pattern_bp`、`parse_pattern_primary`、`parse_parenthesized_pattern`、`parse_pattern_delimited_items_ast`、`commit_direct_parenthesized_pattern`、`commit_direct_pattern_delimited_items`、`drive_parenthesized_pattern_close_recovery`、`outer_pattern_close_stop_pending`である。
-
-fixtureには`identifiers_and_integer_primaries_have_the_fixed_pattern_vocabulary`、`symbol_pattern_is_two_adjacent_tokens_and_never_an_expression_tail`、`parenthesized_patterns_accept_comma_or_layout_newline_boundaries`、`parenthesized_close_recovery_converges_ast_onto_existing_direct_ownership`、`ambient_if_companion_vetoes_every_pattern_delimited_implicit_newline`、`dynamic_operator_tables_cannot_change_pattern_cst`、`excluded_forms_remain_unconsumed_after_a_first_slice_pattern`、`pattern_caller_close_propagation_is_right_close_only`がある。
+syntax-v0 の recovery は、Pattern primary、delimited slot、sequence の確定済み決定に従う。
+内部の形式は、[list pattern](list-pattern.md)、[record pattern](record-pattern.md)、[型注釈](type-annotation.md)を参照する。
