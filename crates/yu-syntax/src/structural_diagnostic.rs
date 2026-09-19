@@ -43,6 +43,12 @@ pub(crate) enum StructuralKind {
     Invalid,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StructuralProjectionError {
+    OrdinalExhausted,
+    StructuralInvariant,
+}
+
 /// Precise schema information for a mapped catalog occurrence.
 ///
 /// Only a mapped bounded catalog row supplies this. Everything absent here is
@@ -88,6 +94,7 @@ pub(crate) struct StructuralDiagnostic {
     ordinal: u32,
     path: Box<[SyntaxKind]>,
     slot: Option<CatalogSlot>,
+    direct_root_ordinal: Option<u32>,
 }
 
 impl StructuralDiagnostic {
@@ -120,23 +127,36 @@ impl StructuralDiagnostic {
     pub(crate) fn slot(&self) -> Option<&CatalogSlot> {
         self.slot.as_ref()
     }
+
+    pub(crate) fn direct_root_ordinal(&self) -> Option<u32> {
+        self.direct_root_ordinal
+    }
 }
 
 /// Convenience whole-tree collector for tests and tools.
 pub(crate) fn collect(root: &SyntaxNode) -> Vec<StructuralDiagnostic> {
+    try_collect(root).expect("structural diagnostic adapter preserves the legacy total contract")
+}
+
+pub(crate) fn try_collect(
+    root: &SyntaxNode,
+) -> Result<Vec<StructuralDiagnostic>, StructuralProjectionError> {
     let mut occurrences = Vec::new();
-    walk(root, &mut |occurrence| occurrences.push(occurrence));
-    occurrences
+    walk(root, &mut |occurrence| occurrences.push(occurrence))?;
+    Ok(occurrences)
 }
 
 /// Callback-based interpretation over one whole Rowan tree.
 ///
 /// The walk visits every syntax child in deterministic source/preorder order,
 /// including children whose later semantic analysis would fail.
-pub(crate) fn walk(root: &SyntaxNode, visit: &mut impl FnMut(StructuralDiagnostic)) {
+pub(crate) fn walk(
+    root: &SyntaxNode,
+    visit: &mut impl FnMut(StructuralDiagnostic),
+) -> Result<(), StructuralProjectionError> {
     let mut walk = Walk::new(visit);
     let mut path = vec![root.kind()];
-    walk.visit(root, &mut path);
+    walk.visit(root, &mut path, None)
 }
 
 struct Walk<'a> {
@@ -149,72 +169,106 @@ impl<'a> Walk<'a> {
         Self { visit, ordinal: 0 }
     }
 
-    fn visit(&mut self, node: &SyntaxNode, path: &mut Vec<SyntaxKind>) {
+    fn visit(
+        &mut self,
+        node: &SyntaxNode,
+        path: &mut Vec<SyntaxKind>,
+        direct_root_ordinal: Option<u32>,
+    ) -> Result<(), StructuralProjectionError> {
         let children = node.children_with_tokens().collect::<Vec<_>>();
         let mut run: Option<Range<usize>> = None;
+        let mut next_root_ordinal = 0u32;
         for (index, child) in children.iter().enumerate() {
             match child {
                 NodeOrToken::Node(child) => {
-                    self.flush(&mut run, path);
+                    self.flush(&mut run, path, direct_root_ordinal)?;
+                    let child_root_ordinal = if node.kind() == SyntaxKind::Root {
+                        let ordinal = next_root_ordinal;
+                        next_root_ordinal = ordinal
+                            .checked_add(1)
+                            .ok_or(StructuralProjectionError::OrdinalExhausted)?;
+                        Some(ordinal)
+                    } else {
+                        direct_root_ordinal
+                    };
                     match child.kind() {
                         SyntaxKind::Missing => {
                             let range = byte_range(child.text_range());
-                            debug_assert!(range.is_empty(), "Missing stays zero-width");
+                            if !range.is_empty() {
+                                return Err(StructuralProjectionError::StructuralInvariant);
+                            }
                             let slot = precise_missing(path, &children, index);
-                            self.push(StructuralKind::Missing, range, path, slot);
+                            self.push(
+                                StructuralKind::Missing,
+                                range,
+                                path,
+                                slot,
+                                direct_root_ordinal,
+                            )?;
                         }
                         SyntaxKind::Invalid => {
                             let range = byte_range(child.text_range());
-                            debug_assert!(
-                                !range.is_empty(),
-                                "structured Invalid keeps a nonempty extent"
-                            );
-                            self.push(StructuralKind::Invalid, range, path, None);
+                            if range.is_empty() {
+                                return Err(StructuralProjectionError::StructuralInvariant);
+                            }
+                            self.push(
+                                StructuralKind::Invalid,
+                                range,
+                                path,
+                                None,
+                                direct_root_ordinal,
+                            )?;
                             path.push(SyntaxKind::Invalid);
-                            self.visit(child, path);
+                            self.visit(child, path, child_root_ordinal)?;
                             path.pop();
                         }
                         SyntaxKind::Error => {
-                            unreachable!("Error is a token kind, never a node")
+                            return Err(StructuralProjectionError::StructuralInvariant);
                         }
                         kind => {
                             path.push(kind);
-                            self.visit(child, path);
+                            self.visit(child, path, child_root_ordinal)?;
                             path.pop();
                         }
                     }
                 }
                 NodeOrToken::Token(token) if token.kind() == SyntaxKind::Error => {
                     let range = byte_range(token.text_range());
-                    debug_assert!(
-                        !token.text().is_empty(),
-                        "an Error leaf keeps nonempty text"
-                    );
-                    debug_assert_eq!(
-                        range.end - range.start,
-                        token.text().len(),
-                        "an Error leaf is byte-accurate"
-                    );
+                    if token.text().is_empty() || range.end - range.start != token.text().len() {
+                        return Err(StructuralProjectionError::StructuralInvariant);
+                    }
                     let adjacent = run.as_ref().is_some_and(|run| run.end == range.start);
                     if !adjacent {
-                        self.flush(&mut run, path);
+                        self.flush(&mut run, path, direct_root_ordinal)?;
                     }
                     match &mut run {
                         Some(run) => run.end = range.end,
                         None => run = Some(range),
                     }
                 }
-                _ => self.flush(&mut run, path),
+                _ => self.flush(&mut run, path, direct_root_ordinal)?,
             }
         }
-        self.flush(&mut run, path);
+        self.flush(&mut run, path, direct_root_ordinal)
     }
 
-    fn flush(&mut self, run: &mut Option<Range<usize>>, path: &[SyntaxKind]) {
+    fn flush(
+        &mut self,
+        run: &mut Option<Range<usize>>,
+        path: &[SyntaxKind],
+        direct_root_ordinal: Option<u32>,
+    ) -> Result<(), StructuralProjectionError> {
         if let Some(range) = run.take() {
             let slot = precise_error_group(path);
-            self.push(StructuralKind::ErrorGroup, range, path, slot);
+            self.push(
+                StructuralKind::ErrorGroup,
+                range,
+                path,
+                slot,
+                direct_root_ordinal,
+            )?;
         }
+        Ok(())
     }
 
     fn push(
@@ -223,18 +277,21 @@ impl<'a> Walk<'a> {
         range: Range<usize>,
         path: &[SyntaxKind],
         slot: Option<CatalogSlot>,
-    ) {
+        direct_root_ordinal: Option<u32>,
+    ) -> Result<(), StructuralProjectionError> {
         let ordinal = self.ordinal;
         self.ordinal = ordinal
             .checked_add(1)
-            .expect("structural occurrence ordinal space exhausted");
+            .ok_or(StructuralProjectionError::OrdinalExhausted)?;
         (self.visit)(StructuralDiagnostic {
             kind,
             range,
             ordinal,
             path: path.into(),
             slot,
+            direct_root_ordinal,
         });
+        Ok(())
     }
 }
 

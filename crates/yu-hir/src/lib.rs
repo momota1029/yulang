@@ -4,6 +4,15 @@ use std::{cmp::Ordering, ops::Range};
 
 use yu_syntax::{ParsedFile, SyntaxKind, SyntaxNode, SyntaxToken};
 
+mod module;
+
+pub use module::{
+    DefId, FileId, FileKey, HirAvailabilityError, HirBinding, HirDiagnostic, HirDiagnosticId,
+    HirError, HirErrorAttachment, HirErrorId, HirErrorKind, HirErrorOrigin, HirItem, HirModule,
+    HirName, HirVisibility, ModuleId, ModuleIdentity, NameResolution, ResolvedExpr,
+    SemanticImports, lower_module,
+};
+
 /// Every top-level operator chain associated from one parsed file, in source order.
 ///
 /// This is a pre-HIR product: it deliberately has no declaration, name, type,
@@ -111,7 +120,9 @@ fn visit_node(node: &SyntaxNode, parsed: &ParsedFile, chains: &mut Vec<Associate
         if child.kind() == SyntaxKind::OperatorChain {
             chains.push(AssociatedChain {
                 range: range_of(&child),
-                expression: associate_chain(&child, parsed),
+                expression: associate_chain_owned(parsed, child)
+                    .expect("parser-associated operator chain satisfies its exact invariants")
+                    .into_hir(),
             });
         } else {
             visit_node(&child, parsed, chains);
@@ -119,7 +130,79 @@ fn visit_node(node: &SyntaxNode, parsed: &ParsedFile, chains: &mut Vec<Associate
     }
 }
 
-fn associate_chain(node: &SyntaxNode, parsed: &ParsedFile) -> HirExpr {
+/// The one crate-private association seam used by both the legacy public
+/// adapter and module lowering. It retains atom text only for the owned result
+/// being consumed, never by slicing the source or rebuilding an environment.
+fn associate_chain_owned(
+    parsed: &ParsedFile,
+    node: SyntaxNode,
+) -> Result<OwnedAssociatedExpr, AssociationError> {
+    let atom = direct_atom(&node);
+    Ok(OwnedAssociatedExpr {
+        expression: associate_chain_expression(&node, parsed)?,
+        atom,
+    })
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AssociationError {
+    ExactOperatorEnvironment,
+    StructuralInvariant,
+}
+
+#[derive(Debug)]
+struct OwnedAssociatedExpr {
+    expression: HirExpr,
+    atom: Option<OwnedAtom>,
+}
+
+impl OwnedAssociatedExpr {
+    fn into_hir(self) -> HirExpr {
+        self.expression
+    }
+
+    fn into_parts(self) -> (HirExpr, Option<OwnedAtom>) {
+        (self.expression, self.atom)
+    }
+}
+
+#[derive(Debug)]
+struct OwnedAtom {
+    kind: SyntaxKind,
+    spelling: String,
+    range: Range<usize>,
+}
+
+fn direct_atom(node: &SyntaxNode) -> Option<OwnedAtom> {
+    let mut children = node.children();
+    let child = children.next()?;
+    if children.next().is_some()
+        || !matches!(
+            child.kind(),
+            SyntaxKind::IntegerLiteral | SyntaxKind::IdentifierExpression
+        )
+    {
+        return None;
+    }
+    let mut tokens = child
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| matches!(token.kind(), SyntaxKind::Integer | SyntaxKind::Identifier));
+    let token = tokens.next()?;
+    if tokens.next().is_some() {
+        return None;
+    }
+    Some(OwnedAtom {
+        kind: child.kind(),
+        spelling: token.text().to_owned(),
+        range: range_of_token(&token),
+    })
+}
+
+fn associate_chain_expression(
+    node: &SyntaxNode,
+    parsed: &ParsedFile,
+) -> Result<HirExpr, AssociationError> {
     let children = node
         .children_with_tokens()
         .filter_map(|child| {
@@ -137,13 +220,10 @@ fn associate_chain(node: &SyntaxNode, parsed: &ParsedFile) -> HirExpr {
         cursor: 0,
         parsed,
     };
-    let expression = parser.expression(None);
-    debug_assert_eq!(
-        parser.cursor,
-        children.len(),
-        "the associator must consume every direct OperatorChain child"
-    );
-    expression
+    let expression = parser.expression(None)?;
+    (parser.cursor == children.len())
+        .then_some(expression)
+        .ok_or(AssociationError::StructuralInvariant)
 }
 
 struct ChainParser<'a> {
@@ -189,40 +269,38 @@ impl ChainItem {
         }
     }
 
-    fn node(&self, message: &'static str) -> &SyntaxNode {
+    fn node(&self) -> Result<&SyntaxNode, AssociationError> {
         match self {
-            Self::Node(node) => node,
-            Self::Error(_) => panic!("{message}"),
+            Self::Node(node) => Ok(node),
+            Self::Error(_) => Err(AssociationError::StructuralInvariant),
         }
     }
 }
 
 impl ChainParser<'_> {
-    fn expression(&mut self, minimum: Option<&[i8]>) -> HirExpr {
+    fn expression(&mut self, minimum: Option<&[i8]>) -> Result<HirExpr, AssociationError> {
         let Some(item) = self.take() else {
-            return Self::error(SyntaxKind::Missing, 0..0);
+            return Ok(Self::error(SyntaxKind::Missing, 0..0));
         };
-        let mut left = match self.classify_direct_item(&item) {
-            DirectChainItem::Recovery => self.recovered_operand(item, minimum),
+        let mut left = match self.classify_direct_item(&item)? {
+            DirectChainItem::Recovery => self.recovered_operand(item, minimum)?,
             DirectChainItem::Prefix => {
-                let node = item.node("prefix operator use must be a CST node");
-                let (_, right) = self.operator(node, OperatorFixity::Prefix);
-                let operator = self.hir_operator(node, OperatorFixity::Prefix);
-                let operand = self.expression(Some(&right));
+                let node = item.node()?;
+                let (_, right) = self.operator(node, OperatorFixity::Prefix)?;
+                let operator = self.hir_operator(node, OperatorFixity::Prefix)?;
+                let operand = self.expression(Some(&right))?;
                 apply(operator, vec![operand])
             }
             DirectChainItem::Infix | DirectChainItem::Suffix | DirectChainItem::Value => {
-                self.item_expression(&item)
+                self.item_expression(&item)?
             }
         };
 
         while let Some(next) = self.peek() {
             match next.kind() {
                 kind if is_fixed_postfix(kind) || kind == SyntaxKind::MlArgument => {
-                    let item = self
-                        .take()
-                        .expect("peeked structural tail remains available");
-                    left = self.structural_continuation(left, item.node("structural tail"));
+                    let item = self.take().ok_or(AssociationError::StructuralInvariant)?;
+                    left = self.structural_continuation(left, item.node()?)?;
                 }
                 SyntaxKind::TypeAnnotationTail => {
                     // An annotation is an outer association barrier. A recursive
@@ -231,8 +309,8 @@ impl ChainParser<'_> {
                     if minimum.is_some() {
                         break;
                     }
-                    let item = self.take().expect("peeked annotation remains available");
-                    left = self.structural_continuation(left, item.node("annotation tail"));
+                    let item = self.take().ok_or(AssociationError::StructuralInvariant)?;
+                    left = self.structural_continuation(left, item.node()?)?;
                 }
                 kind if is_terminal_outer_tail(kind) => {
                     // Like annotations, terminal tails apply after the complete
@@ -242,42 +320,41 @@ impl ChainParser<'_> {
                     if minimum.is_some() {
                         break;
                     }
-                    let item = self.take().expect("peeked terminal tail remains available");
-                    left = self.structural_continuation(left, item.node("terminal outer tail"));
+                    let item = self.take().ok_or(AssociationError::StructuralInvariant)?;
+                    left = self.structural_continuation(left, item.node()?)?;
                     while let Some(residual) = self.take() {
-                        let residual = match self.classify_direct_item(&residual) {
-                            DirectChainItem::Recovery => self.recovered_operand(residual, minimum),
+                        let residual = match self.classify_direct_item(&residual)? {
+                            DirectChainItem::Recovery => {
+                                self.recovered_operand(residual, minimum)?
+                            }
                             DirectChainItem::Prefix
                             | DirectChainItem::Infix
                             | DirectChainItem::Suffix
-                            | DirectChainItem::Value => self.item_expression(&residual),
+                            | DirectChainItem::Value => self.item_expression(&residual)?,
                         };
                         left = Self::recovery_sequence(left, residual);
                     }
                     break;
                 }
                 SyntaxKind::SuffixOperatorUse => {
-                    let (_, left_power) =
-                        self.operator(next.node("suffix operator use"), OperatorFixity::Suffix);
+                    let (_, left_power) = self.operator(next.node()?, OperatorFixity::Suffix)?;
                     if below_minimum(&left_power, minimum) {
                         break;
                     }
-                    let item = self.take().expect("peeked suffix remains available");
-                    let operator =
-                        self.hir_operator(item.node("suffix operator use"), OperatorFixity::Suffix);
+                    let item = self.take().ok_or(AssociationError::StructuralInvariant)?;
+                    let operator = self.hir_operator(item.node()?, OperatorFixity::Suffix)?;
                     left = apply(operator, vec![left]);
                 }
                 SyntaxKind::InfixOperatorUse => {
-                    let (left_power, _) =
-                        self.operator(next.node("infix operator use"), OperatorFixity::Infix);
+                    let (left_power, _) = self.operator(next.node()?, OperatorFixity::Infix)?;
                     if below_minimum(&left_power, minimum) {
                         break;
                     }
-                    let item = self.take().expect("peeked infix remains available");
-                    let node = item.node("infix operator use");
-                    let (_, right_power) = self.operator(node, OperatorFixity::Infix);
-                    let operator = self.hir_operator(node, OperatorFixity::Infix);
-                    let right = self.expression(Some(&right_power));
+                    let item = self.take().ok_or(AssociationError::StructuralInvariant)?;
+                    let node = item.node()?;
+                    let (_, right_power) = self.operator(node, OperatorFixity::Infix)?;
+                    let operator = self.hir_operator(node, OperatorFixity::Infix)?;
+                    let right = self.expression(Some(&right_power))?;
                     left = apply(operator, vec![left, right]);
                 }
                 // The parser normally prevents a second operand at a completed
@@ -285,23 +362,23 @@ impl ChainParser<'_> {
                 // item in source order without inventing a dynamic application or
                 // treating a retry operand as a second operand of the error.
                 _ => {
-                    let item = self.take().expect("peeked recovery item remains available");
-                    let item = match self.classify_direct_item(&item) {
-                        DirectChainItem::Recovery => self.recovered_operand(item, minimum),
+                    let item = self.take().ok_or(AssociationError::StructuralInvariant)?;
+                    let item = match self.classify_direct_item(&item)? {
+                        DirectChainItem::Recovery => self.recovered_operand(item, minimum)?,
                         DirectChainItem::Prefix
                         | DirectChainItem::Infix
                         | DirectChainItem::Suffix
-                        | DirectChainItem::Value => self.item_expression(&item),
+                        | DirectChainItem::Value => self.item_expression(&item)?,
                     };
                     left = Self::recovery_sequence(left, item);
                 }
             }
         }
-        left
+        Ok(left)
     }
 
-    fn classify_direct_item(&self, item: &ChainItem) -> DirectChainItem {
-        match item.kind() {
+    fn classify_direct_item(&self, item: &ChainItem) -> Result<DirectChainItem, AssociationError> {
+        Ok(match item.kind() {
             SyntaxKind::Missing | SyntaxKind::Error | SyntaxKind::Invalid => {
                 DirectChainItem::Recovery
             }
@@ -309,53 +386,55 @@ impl ChainParser<'_> {
             SyntaxKind::InfixOperatorUse => DirectChainItem::Infix,
             SyntaxKind::SuffixOperatorUse => DirectChainItem::Suffix,
             SyntaxKind::NullfixOperatorUse => {
-                self.definition(
-                    item.node("nullfix operator use must be a CST node"),
-                    OperatorUseRole::Nullfix,
-                );
+                self.definition(item.node()?, OperatorUseRole::Nullfix)?;
                 DirectChainItem::Value
             }
             _ => DirectChainItem::Value,
-        }
+        })
     }
 
-    fn recovered_operand(&mut self, item: ChainItem, minimum: Option<&[i8]>) -> HirExpr {
-        let recovery = self.item_expression(&item);
-        if self
-            .peek()
-            .is_some_and(|next| self.classify_direct_item(next).is_retry_operand())
-        {
-            Self::recovery_sequence(recovery, self.expression(minimum))
+    fn recovered_operand(
+        &mut self,
+        item: ChainItem,
+        minimum: Option<&[i8]>,
+    ) -> Result<HirExpr, AssociationError> {
+        let recovery = self.item_expression(&item)?;
+        let retry_operand = match self.peek() {
+            Some(next) => self.classify_direct_item(next)?.is_retry_operand(),
+            None => false,
+        };
+        if retry_operand {
+            Ok(Self::recovery_sequence(recovery, self.expression(minimum)?))
         } else {
-            recovery
+            Ok(recovery)
         }
     }
 
-    fn item_expression(&mut self, item: &ChainItem) -> HirExpr {
-        match item {
+    fn item_expression(&mut self, item: &ChainItem) -> Result<HirExpr, AssociationError> {
+        Ok(match item {
             ChainItem::Error(token) => Self::error(token.kind(), range_of_token(token)),
             ChainItem::Node(node) => match node.kind() {
-                SyntaxKind::Invalid => self.invalid_expression(node),
+                SyntaxKind::Invalid => self.invalid_expression(node)?,
                 SyntaxKind::Missing | SyntaxKind::Error => Self::error(node.kind(), range_of(node)),
                 SyntaxKind::PrefixOperatorUse => {
-                    self.definition(node, OperatorUseRole::Prefix);
+                    self.definition(node, OperatorUseRole::Prefix)?;
                     Self::error(node.kind(), range_of(node))
                 }
                 SyntaxKind::InfixOperatorUse => {
-                    self.definition(node, OperatorUseRole::Infix);
+                    self.definition(node, OperatorUseRole::Infix)?;
                     Self::error(node.kind(), range_of(node))
                 }
                 SyntaxKind::SuffixOperatorUse => {
-                    self.definition(node, OperatorUseRole::Suffix);
+                    self.definition(node, OperatorUseRole::Suffix)?;
                     Self::error(node.kind(), range_of(node))
                 }
                 SyntaxKind::NullfixOperatorUse => {
-                    self.definition(node, OperatorUseRole::Nullfix);
-                    self.value(node)
+                    self.definition(node, OperatorUseRole::Nullfix)?;
+                    self.value(node)?
                 }
-                _ => self.value(node),
+                _ => self.value(node)?,
             },
-        }
+        })
     }
 
     fn error(kind: SyntaxKind, range: Range<usize>) -> HirExpr {
@@ -366,32 +445,41 @@ impl ChainParser<'_> {
         }
     }
 
-    fn invalid_expression(&mut self, node: &SyntaxNode) -> HirExpr {
+    fn invalid_expression(&mut self, node: &SyntaxNode) -> Result<HirExpr, AssociationError> {
         let mut children = Vec::new();
-        self.collect_nested_items(node, &mut children);
-        HirExpr::Error {
+        self.collect_nested_items(node, &mut children)?;
+        Ok(HirExpr::Error {
             kind: SyntaxKind::Invalid,
             range: range_of(node),
             children,
-        }
+        })
     }
 
-    fn structural_continuation(&mut self, left: HirExpr, node: &SyntaxNode) -> HirExpr {
+    fn structural_continuation(
+        &mut self,
+        left: HirExpr,
+        node: &SyntaxNode,
+    ) -> Result<HirExpr, AssociationError> {
         let HirExpr::Value {
             children: tail_children,
             ..
-        } = self.value(node)
+        } = self.value(node)?
         else {
-            unreachable!("structural continuations lower as values")
+            return Err(AssociationError::StructuralInvariant);
         };
         let mut children = Vec::with_capacity(tail_children.len() + 1);
         children.push(left);
         children.extend(tail_children);
-        HirExpr::Value {
+        Ok(HirExpr::Value {
             kind: node.kind(),
-            range: span(children.first().expect("structural target"), node),
+            range: span(
+                children
+                    .first()
+                    .ok_or(AssociationError::StructuralInvariant)?,
+                node,
+            ),
             children,
-        }
+        })
     }
 
     fn recovery_sequence(left: HirExpr, item: HirExpr) -> HirExpr {
@@ -404,28 +492,32 @@ impl ChainParser<'_> {
         }
     }
 
-    fn value(&mut self, node: &SyntaxNode) -> HirExpr {
+    fn value(&mut self, node: &SyntaxNode) -> Result<HirExpr, AssociationError> {
         let mut children = Vec::new();
-        self.collect_nested_items(node, &mut children);
-        HirExpr::Value {
+        self.collect_nested_items(node, &mut children)?;
+        Ok(HirExpr::Value {
             kind: node.kind(),
             range: range_of(node),
             children,
-        }
+        })
     }
 
-    fn collect_nested_items(&mut self, node: &SyntaxNode, output: &mut Vec<HirExpr>) {
+    fn collect_nested_items(
+        &mut self,
+        node: &SyntaxNode,
+        output: &mut Vec<HirExpr>,
+    ) -> Result<(), AssociationError> {
         for child in node.children_with_tokens() {
             if let Some(child) = child.as_node() {
                 match child.kind() {
                     SyntaxKind::OperatorChain => {
-                        output.push(associate_chain(child, self.parsed));
+                        output.push(associate_chain_owned(self.parsed, child.clone())?.into_hir());
                     }
-                    SyntaxKind::Invalid => output.push(self.invalid_expression(child)),
+                    SyntaxKind::Invalid => output.push(self.invalid_expression(child)?),
                     SyntaxKind::Missing | SyntaxKind::Error => {
                         output.push(Self::error(child.kind(), range_of(child)));
                     }
-                    _ => self.collect_nested_items(child, output),
+                    _ => self.collect_nested_items(child, output)?,
                 }
             } else if let Some(token) = child.into_token()
                 && token.kind() == SyntaxKind::Error
@@ -433,6 +525,7 @@ impl ChainParser<'_> {
                 output.push(Self::error(token.kind(), range_of_token(&token)));
             }
         }
+        Ok(())
     }
 
     fn peek(&self) -> Option<&ChainItem> {
@@ -445,7 +538,11 @@ impl ChainParser<'_> {
         Some(node)
     }
 
-    fn operator(&self, node: &SyntaxNode, fixity: OperatorFixity) -> (Vec<i8>, Vec<i8>) {
+    fn operator(
+        &self,
+        node: &SyntaxNode,
+        fixity: OperatorFixity,
+    ) -> Result<(Vec<i8>, Vec<i8>), AssociationError> {
         let definition = self.definition(
             node,
             match fixity {
@@ -453,30 +550,34 @@ impl ChainParser<'_> {
                 OperatorFixity::Infix => OperatorUseRole::Infix,
                 OperatorFixity::Suffix => OperatorUseRole::Suffix,
             },
-        );
-        match fixity {
+        )?;
+        Ok(match fixity {
             OperatorFixity::Prefix => (
                 Vec::new(),
                 definition
                     .prefix_right_binding_power()
-                    .expect("CST prefix use must exist in the parser's exact operator table")
-                    .to_vec(),
+                    .map(|power| power.to_vec())
+                    .ok_or(AssociationError::ExactOperatorEnvironment)?,
             ),
             OperatorFixity::Infix => definition
                 .infix_binding_powers()
                 .map(|(left, right)| (left.to_vec(), right.to_vec()))
-                .expect("CST infix use must exist in the parser's exact operator table"),
+                .ok_or(AssociationError::ExactOperatorEnvironment)?,
             OperatorFixity::Suffix => (
                 definition
                     .suffix_left_binding_power()
-                    .expect("CST suffix use must exist in the parser's exact operator table")
-                    .to_vec(),
+                    .map(|power| power.to_vec())
+                    .ok_or(AssociationError::ExactOperatorEnvironment)?,
                 Vec::new(),
             ),
-        }
+        })
     }
 
-    fn hir_operator(&self, node: &SyntaxNode, fixity: OperatorFixity) -> HirOperator {
+    fn hir_operator(
+        &self,
+        node: &SyntaxNode,
+        fixity: OperatorFixity,
+    ) -> Result<HirOperator, AssociationError> {
         let definition = self.definition(
             node,
             match fixity {
@@ -484,41 +585,39 @@ impl ChainParser<'_> {
                 OperatorFixity::Infix => OperatorUseRole::Infix,
                 OperatorFixity::Suffix => OperatorUseRole::Suffix,
             },
-        );
-        HirOperator {
+        )?;
+        Ok(HirOperator {
             spelling: definition.spelling().to_owned(),
             fixity,
             range: range_of(node),
-        }
+        })
     }
 
     fn definition(
         &self,
         node: &SyntaxNode,
         role: OperatorUseRole,
-    ) -> yu_syntax::OperatorDefinition<'_> {
+    ) -> Result<yu_syntax::OperatorDefinition<'_>, AssociationError> {
         let spelling = node
             .descendants_with_tokens()
             .filter_map(|element| element.into_token())
             .find(|token| token.kind() == SyntaxKind::Operator)
             .map(|token| token.text().to_owned())
-            .expect("operator-use CST node contains its operator token");
+            .ok_or(AssociationError::StructuralInvariant)?;
         let definition = self
             .parsed
             .operators()
             .definition(&spelling)
-            .expect("operator-use CST node must resolve in the parser's exact operator table");
+            .ok_or(AssociationError::ExactOperatorEnvironment)?;
         let present = match role {
             OperatorUseRole::Prefix => definition.prefix_right_binding_power().is_some(),
             OperatorUseRole::Infix => definition.infix_binding_powers().is_some(),
             OperatorUseRole::Suffix => definition.suffix_left_binding_power().is_some(),
             OperatorUseRole::Nullfix => definition.is_nullfix(),
         };
-        assert!(
-            present,
-            "operator-use fixity must resolve in the parser's exact operator table"
-        );
-        definition
+        present
+            .then_some(definition)
+            .ok_or(AssociationError::ExactOperatorEnvironment)
     }
 }
 
@@ -836,7 +935,9 @@ mod tests {
             cursor: 0,
             parsed: &parsed,
         };
-        let expression = parser.expression(None);
+        let expression = parser
+            .expression(None)
+            .expect("accepted recovery syntax keeps association invariants");
         assert_eq!(parser.cursor, children.len());
         assert!(matches!(
             expression,

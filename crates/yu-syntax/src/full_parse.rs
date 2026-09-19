@@ -7,9 +7,53 @@ use crate::{
     operator_compilation::{conflicting_local_operators, effective_full_parse_operators},
     operator_table::OperatorTable,
     source_file::parse_root_candidate,
+    structural_diagnostic,
     syntax_diagnostic::SyntaxDiagnostic,
     syntax_environment::{SourceRevision, SyntaxEnvironment, SyntaxEnvironmentKey},
 };
+
+/// One recovery occurrence derived from the immutable CST.
+///
+/// This intentionally exposes only the facts needed by later compiler phases;
+/// parser recovery records and CST mutation remain syntax-internal.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructuralRecovery {
+    kind: StructuralRecoveryKind,
+    range: std::ops::Range<usize>,
+    ordinal: u32,
+    path: Box<[crate::SyntaxKind]>,
+    direct_root_ordinal: Option<u32>,
+}
+
+impl StructuralRecovery {
+    pub fn kind(&self) -> StructuralRecoveryKind {
+        self.kind
+    }
+
+    pub fn range(&self) -> &std::ops::Range<usize> {
+        &self.range
+    }
+
+    pub fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+
+    pub fn path(&self) -> &[crate::SyntaxKind] {
+        &self.path
+    }
+
+    pub fn direct_root_ordinal(&self) -> Option<u32> {
+        self.direct_root_ordinal
+    }
+}
+
+/// The CST-derived recovery class of a [`StructuralRecovery`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructuralRecoveryKind {
+    Missing,
+    RawError,
+    Invalid,
+}
 
 #[cfg(test)]
 use crate::{
@@ -57,6 +101,58 @@ impl ParsedFile {
     pub fn diagnostics(&self) -> &[SyntaxDiagnostic] {
         &self.diagnostics
     }
+
+    /// Projects recovery structure from the retained CST in interpreter order.
+    ///
+    /// Each call performs one interpreter walk. Consumers needing the facts for
+    /// a phase should retain this returned projection instead of walking the CST.
+    pub fn structural_recoveries(&self) -> Vec<StructuralRecovery> {
+        self.try_structural_recoveries()
+            .expect("structural recovery adapter preserves the legacy total contract")
+    }
+
+    /// Fallibly projects recovery structure for availability-aware compiler phases.
+    pub fn try_structural_recoveries(
+        &self,
+    ) -> Result<Vec<StructuralRecovery>, StructuralProjectionError> {
+        let root = crate::SyntaxNode::new_root(self.green.clone());
+        let occurrences = structural_diagnostic::try_collect(&root)
+            .map_err(|error| match error {
+                structural_diagnostic::StructuralProjectionError::OrdinalExhausted => {
+                    StructuralProjectionError::OrdinalExhausted
+                }
+                structural_diagnostic::StructuralProjectionError::StructuralInvariant => {
+                    StructuralProjectionError::StructuralInvariant
+                }
+            })?
+            .into_iter()
+            .map(|occurrence| StructuralRecovery {
+                kind: match occurrence.kind() {
+                    structural_diagnostic::StructuralKind::Missing => {
+                        StructuralRecoveryKind::Missing
+                    }
+                    structural_diagnostic::StructuralKind::ErrorGroup => {
+                        StructuralRecoveryKind::RawError
+                    }
+                    structural_diagnostic::StructuralKind::Invalid => {
+                        StructuralRecoveryKind::Invalid
+                    }
+                },
+                range: occurrence.range().clone(),
+                ordinal: occurrence.ordinal(),
+                path: occurrence.path().into(),
+                direct_root_ordinal: occurrence.direct_root_ordinal(),
+            })
+            .collect();
+        Ok(occurrences)
+    }
+}
+
+/// A structural recovery projection could not preserve its dense ordinal invariant.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructuralProjectionError {
+    OrdinalExhausted,
+    StructuralInvariant,
 }
 
 /// Parse a source with its discovered header and selected syntax environment.

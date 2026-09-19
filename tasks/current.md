@@ -96,14 +96,20 @@ Focused M2 verification and final delta review are clean. No type, declaration,
 name-resolution, `DefId`, diagnostic-publication, CST, or `yu-types` work was
 introduced.
 
-Immediate next action: review and approve the proposed simple module-resolution
-slice in `notes/design/2026-09-19-hir-simple-module-resolution-first-slice-draft.md`.
-It adds no syntax: the proposed focused fixture is `my x = 1` / `my y = x` and
-must first prove public-parser losslessness and recovery freedom. Do not infer a
-`HirModule`, identity, name model, or type attachment from the association
-product before this design is approved. Parser-ledger retirement remains a
-separate coherent migration after its CST-derived replacement has real frontend
-exercise.
+The approved simple module-resolution slice is implemented (2026-09-19).
+`lower_module` now produces a total immutable `HirModule` for direct-root simple
+bindings, plans stable module-local identities before body lowering, and resolves
+identifier bodies against that completed namespace. It consumes one exact-table
+association result per body and one CST-derived structural recovery projection;
+no whole-file associated-tree copy or parser-ledger dependency is retained.
+`yu-types` remains empty and no type attachment, imports, module graph, parameter
+patterns, application syntax, or core IR entered the slice.
+
+Immediate next action: perform the coherent parser-ledger/API retirement
+migration now that the CST-derived structural interpreter has real frontend
+exercise through `lower_module`. Preserve syntax diagnostics' public behavior
+while removing the temporary parser recovery ledger as a final dependency; do
+not combine that migration with type attachment or a new HIR feature.
 
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.

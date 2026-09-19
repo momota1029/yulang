@@ -1,6 +1,6 @@
 # First HIR module resolution slice
 
-Status: Draft
+Status: Authoritative
 
 Scope: a bounded standalone `ParsedFile -> HirModule` slice for ordinary
 module-local bindings. It follows association and excludes types, solver, core,
@@ -8,6 +8,8 @@ imports/module graphs, parameter patterns, application syntax, and tracked
 revisions.
 
 Drafted-by: primary agent
+Approved-by: user
+Approved-at: 2026-09-19
 Reviewed-by: spec_auditor and compiler_referee (two review/revision rounds, 2026-09-19)
 Supersedes: `2026-09-17-syntax-freeze-and-vertical-implementation-amendment.md`
 Gate 3 existing-fixture selection condition, only for this test input
