@@ -1,74 +1,62 @@
-# TypeExpression malformed caller-boundary positional fence
+# TypeExpression malformed caller-boundary fence
 
-## 1. Status, authority, and revision ledger
+## Scope
 
-The authoritative positional-fence addendum is [the parser architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md), lines 16862–17289. It preserves `TMN-C`/`TMN-S` semantics and replaces the former recursive `caller_owned_boundary` propagation mechanism. The comparison appendix at 17291–17399 records why rollback-and-return-`None` is rejected. Implementation authority: `27620be3`, `42c1544c`, `d58181df`, `3535e237`, `0aabef67`, `7210cd8a`, `de9a0f2f`, `19fc6cfd`, `648f8883`, `4f40022a`, `a090ad35`, and `2c4d7540`.
+This rule preserves a caller-owned newline selected by TMN while nested
+TypeExpression recovery unwinds. It applies only after TMN has classified an
+untouched maximal trivia run as a caller boundary. It is not source syntax,
+an additional type form, or a new recovery node.
 
-## 2. Problem statement, scope, and non-scope
+## Boundary preservation rule
 
-TMN decides whether malformed newline trivia hands off; the positional fence makes the resulting caller-ownership fact survive arbitrary nesting without threading a bool through every success and recovery return. It is rollback-owned `ParseLocal` state, not a grammar rule, public parser option, AST field, CST field, new `StopKind`, or Pattern-specific scanner.
+Once TMN returns a caller boundary, the exact start of its untouched trivia is
+fenced. While parsing remains at that position, a nested TypeExpression owner
+must not consume the trivia, classify past it, or consume a local close. The
+enclosing caller receives the whole trivia run and its following boundary.
 
-## 3. Canonical rule and decision procedure
+Ordinary multiline layout does not create a fence. A newline is protected only
+when TMN has already selected caller ownership. This keeps normal local
+sequence boundaries distinct from malformed-recovery handoff.
 
-The sole ambient value is conceptually:
+## Source order in the Rowan CST
 
-```rust
-TypeMalformedCallerBoundaryFence { trivia_start: usize }
-type_malformed_caller_boundary: Option<TypeMalformedCallerBoundaryFence>
-```
+The fence creates no source-bearing leaf, structural node, or `Missing` node.
+It preserves existing source order: the malformed `Error` token ends before
+the fenced trivia, and the caller later owns that trivia and its boundary.
 
-On a committed `TMN-CallerBoundary`, the scanner rolls back to the exact untouched trivia start, marks the fence, and returns its existing boundary disposition. A consumer first compares current cursor with `trivia_start`; only on equality does it state-neutrally probe maximal trivia and confirm both a physical newline and active `StopKind::Newline`. The guard then yields without consuming trivia/boundary. No stack is required: later marks replace inert earlier positions.
+If a fenced boundary leaves an accepted delimited construct unclosed, that
+construct retains its documented zero-width `Missing` for its own close slot.
+Nested accepted constructs do not share one close recovery: each unclosed
+instance realizes its own close slot once.
 
-The producer normalizes raw-newline and horizontal-prefix trivia through full `TMN-C` before consulting same-line predicates. Only `CallerBoundary` marks; `Handoff`, `Boundary`, and `DeeperContinuation` do not.
+## Recovery and handoff
 
-## 4. Authority, precedence, and ownership transfer
+The fence does not change the malformed `Error` range or convert a handoff
+into a retry. It prevents a nested owner from consuming the protected gap and
+then lets the caller make the next boundary decision. A single construct
+instance must not create duplicate close `Missing` nodes for the same gap;
+separate nested instances remain separate recovery owners.
 
-The exact-position fence is provenance, not a replacement delimiter/stop judge. It wins at TypeExpression trivia-consumption, owner-classifier, and close-slot decision points only while cursor equals its start. The outer grammar owns the untouched run and following boundary. Each accepted unclosed delimited construct realizes its own zero-width missing close once; this preserves per-instance close cardinality rather than suppressing a shallow owner or losing a deep owner.
+If the recovery branch is abandoned, the fence is abandoned with it. It has no
+effect after the caller consumes the named trivia.
 
-## 5. Worked traces and byte ownership
+## Examples
 
-| source and design-doc line | fence effect | required ownership |
-| --- | --- | --- |
-| `T((@ \n  A))` (16999, 17189) | descendant `TMN-CallerBoundary` marks the trivia start | inner and outer accepted parenthesized instances each emit their own missing close; newline and `A` remain caller-owned |
-| `A::@ \n  B` (16981, 17209) | full classifier precedes same-line Path predicate; no caller-boundary mark | `RetryAfterTrivia(run)` retries `B`; the space-prefixed run is not short-circuited |
-| `{@ \n  a:A}` (17222) | shallow record fence reaches close drive | one RecordField Error and exactly one NamedRecord missing close; run stays untouched |
-| `T(A\n  B)` (16995, 17232) | normal active-newline layout creates no fence | ordinary local sequence/layout handling remains unchanged |
+| Source | Result |
+| --- | --- |
+| `T((@ \n  A))` under a caller-owned newline | The inner `ParenthesizedTypeGroup` and outer `TypeCall`/`Call` are separate close owners and each retain one missing close. The newline and `A` remain caller-owned. |
+| `{@ \n  a: A}` under a caller-owned newline | The malformed field has its `Error`; the unclosed NamedRecord retains one missing close; the run remains caller-owned. |
+| `A::@ \n  B` without a caller-owned newline | No fence is created. TMN retries `B` after the deeper trivia. |
+| `T(A\n  B)` | No malformed recovery occurred, so no fence is created and ordinary layout handling applies. |
 
-These are source/recovery traces; the addendum does not provide a general byte-range CST tree for the mechanism.
+## Composition and limits
 
-## 6. Participating parser state and adoption matrix
+TMN alone decides whether a malformed newline is caller-owned. The fence
+preserves that result across nested TypeExpressions; it does not replace
+delimiter, stop, or layout rules. See [TMN](tmn-malformed-newline-owner-policy.md)
+for the classification and [recovery topology](../conventions/recovery-error-invalid-topology.md)
+for `Error` and `Missing`.
 
-| state/type | producer | query / consumer | phase | observable effect |
-| --- | --- | --- | --- | --- |
-| `TypeMalformedCallerBoundaryFence` | `mark_type_malformed_caller_boundary` | pending guard | committed caller-boundary trivia start | cursor-scoped provenance only |
-| `ParseLocal` | parse session creation | scanner/owner adapters | holds optional fence | no AST/CST field |
-| `ParseLocalCheckpoint` | `ParseLocal::checkpoint` | `ParseLocal::rollback` | speculative parse | restores the exact optional fence |
-| `StopSet` and `StopKind` | caller grammar | pending guard | active newline confirmation | prevents false positives from ordinary multiline layout |
-| `TypeMalformedTriviaClassification` | `classify_type_malformed_trivia` | scanner producer | `TMN-C` result | only caller-boundary classification marks |
-| `TypeInvalidRunDisposition` | malformed scanner | AST/direct recovery | handoff after marking | remains the existing recovery result |
-
-The production implementation is concentrated in `session.rs` and `type_expr.rs`; `declaration.rs` exercises restoration/composition rather than owning the fence mechanism.
-
-## 7. Recovery, cardinality, and no-cascade contract
-
-The fence does not erase the malformed Error or change its range. Pending fence blocks TypeExpression consumption, classifier advance, and close-token consumption, then each accepted unclosed delimiter owner emits exactly one Missing for its own close slot. Boundary trivia/token remains untouched for the caller. No duplicate Missing may arise from one instance, but distinct nested instances are intentionally not deduplicated.
-
-## 8. Lifecycle, rollback, and invariants
-
-`ParseLocal::new` starts with `None`; checkpoints copy the option and rollback restores it. Normal hot paths do one false `Option`/cursor comparison and do not rescan trivia. A fence-hit probes state-neutrally and does not clear itself; advancing past `trivia_start` makes it inert automatically. Speculative rollback removes a speculative mark.
-
-## 9. Yulang2 divergences
-
-This is implementation authority, not a surface-language change. Its observable consequence is preserving the approved TMN recovery ownership through deep nesting while avoiding a return-value propagation gap.
-
-## 10. Known residuals, exclusions, and extension rule
-
-The mechanism does not decide whether a newline is caller-owned: TMN does. It must not be used as a generic active-newline guard, because normal multiline constructs would become false positives. The appendix rejects bare `None`/cut as an alternative: it loses committed Error ownership or again requires an open-ended typed signal through recursive success paths.
-
-A future TypeExpression recovery owner must mark only committed `TMN-CallerBoundary`, consult the shared pending guard before consuming the named trivia or close, preserve per-instance close cardinality, and include normal/recovery/rollback fixtures.
-
-## 11. Implementation, fixtures, and consumer-page cross-reference
-
-Core functions: `mark_type_malformed_caller_boundary`, `type_malformed_caller_boundary_pending`, `debug_assert_type_malformed_caller_boundary_not_skipped`, `classify_type_malformed_trivia`, and `scan_type_item_invalid_run_with_disposition`. Session coverage: `checkpoint_restores_type_malformed_caller_boundary_fence`. Type fixtures: `nested_caller_boundary_stops_outer_normal_item_trivia_consumption`, `delimited_recovery_classifier_yields_to_a_pending_fence_before_trivia`, `legacy_after_trivia_marks_a_caller_boundary_fence`, `malformed_record_name_speculation_rolls_back_a_caller_boundary_fence`, `nested_caller_boundary_realizes_each_unclosed_delimiter_once`, and `ordinary_multiline_type_constructs_do_not_create_caller_boundary_fences`.
-
-Consumer summaries: [Pattern type annotation](../patterns/type-annotation.md), [TypeExpression core](../types/type-expression-core.md), [named-record type](../types/named-record-type.md), [forall type](../types/forall-type.md), [effect-row type](../types/effect-row-type.md), [bare nominal type](../statements/bare-nominal-type.md), [struct declaration](../statements/struct-declaration.md), [impl shell](../statements/impl-shell.md), and [cast declaration](../statements/cast-declaration.md).
+The governing source is the Authoritative *TypeExpression malformed caller
+boundary positional fence* in the [syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md),
+lines 16862–17289.
