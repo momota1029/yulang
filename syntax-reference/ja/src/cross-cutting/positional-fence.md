@@ -53,4 +53,4 @@ fenceはnested TypeExpressionを越えてその結果を保つ。
 delimiter、stop、layout ruleを置き換えない。
 classificationは[TMN](tmn-malformed-newline-owner-policy.md)、`Error`と`Missing`は[recovery topology](../conventions/recovery-error-invalid-topology.md)を参照する。
 
-正本は、[syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md)のAuthoritativeな*TypeExpression malformed caller boundary positional fence*（16862–17289行）である。
+正本は、`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`のAuthoritativeな*TypeExpression malformed caller boundary positional fence*（16862–17289行）である。

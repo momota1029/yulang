@@ -110,11 +110,8 @@ Tree and diagnostic ranges are zero-based, half-open UTF-8 byte ranges. A
 `Missing` range is zero-width. Source-bearing leaves determine their ranges
 from their preserved spelling; structural nodes add no source text.
 
-## Migration status
+## Diagnostic boundary
 
-Direct Rowan construction and the `Error`-token/`Invalid`-node topology are
-implemented. The CST-derived structural diagnostic interpreter is also
-implemented as a shadow interpretation. Parser-ledger retirement remains
-pending Gate 4, the atomic diagnostic migration. The final diagnostic direction
-is CST and selected-syntax-environment derived; the temporary ledger is not a
-second CST or a final source of truth.
+The CST retains structural recovery. The selected syntax environment contributes
+separate environment facts without changing that structure. Neither creates a
+second CST.

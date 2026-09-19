@@ -58,5 +58,6 @@ for the classification and [recovery topology](../conventions/recovery-error-inv
 for `Error` and `Missing`.
 
 The governing source is the Authoritative *TypeExpression malformed caller
-boundary positional fence* in the [syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md),
+boundary positional fence* in
+`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`,
 lines 16862–17289.

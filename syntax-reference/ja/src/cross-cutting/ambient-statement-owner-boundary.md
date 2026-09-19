@@ -65,4 +65,4 @@ ASOBはcaller-boundary layerである。
 [layout-aware separator authority](layout-aware-separator-authority.md)のlocal newline test、[TMN](tmn-malformed-newline-owner-policy.md)のmalformed TypeExpression newline ownership、construct固有のclose ruleを置き換えない。
 別のcaller-boundary classへ拡張するには、local syntaxに対する優先順位を定める別のauthorityが必要である。
 
-正本は、[syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md)のAuthoritativeな*ambient statement-owner boundary and layout-delimited implicit-newline collision authority*（18358–19160行）である。
+正本は、`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`のAuthoritativeな*ambient statement-owner boundary and layout-delimited implicit-newline collision authority*（18358–19160行）である。

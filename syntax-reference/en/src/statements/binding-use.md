@@ -1,8 +1,8 @@
 # Binding and `use` statement forms
 
-## Status and authority
+## Authority and scope
 
-This page records the Binding and `use` statement forms accepted by `syntax-v0` and their direct Rowan CST.
+This page specifies the Binding and `use` statement forms accepted by `syntax-v0` and their direct Rowan CST.
 The Authoritative *canonical `Statement` binding / use declaration extension* section in `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` defines Binding grammar, placement, CST, and layout.
 The Authoritative *Complete `use` declaration grammar and projection* section in the same record defines `UseTree` grammar and CST; its *Oracle state machine* and *UseQualifiers*, `UseAnchor` subsections define anchor admission.
 The Authoritative `notes/design/2026-09-08-successor-binding-current-item-recovery.md` defines Binding current-Item recovery.

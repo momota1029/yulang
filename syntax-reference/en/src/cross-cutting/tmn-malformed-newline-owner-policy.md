@@ -84,5 +84,6 @@ items use [layout-aware separator authority](layout-aware-separator-authority.md
 not TMN.
 
 The governing source is the Authoritative *TypeExpression malformed recovery
-newline owner policy* in the [syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md),
+newline owner policy* in
+`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`,
 lines 16557–16860.

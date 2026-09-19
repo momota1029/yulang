@@ -52,14 +52,4 @@ environment factはstructural recoveryから分けてfinal syntax diagnosticへ�
 CSTを変更してはならない。
 syntax environmentが変わると、recovery structureを加えずにenvironment diagnosticが変わり得る。
 
-## Migrationの状態
-
-shadow CST diagnostic interpreterは実装済みである。
-temporary parser ledgerは現在のpublic syntax diagnosticを保つ。
-Gate 4のpending atomic diagnostic migrationは、parser recovery record、reconciliation state、`ParsedFile` diagnostic storageを一つのmigrationとしてretireする。
-受理するinput、lossless source、recovery continuation、selected syntax environment、effective tableを保つ。
-
-exhaustiveなslotごとのprecisionはGate 4の前提ではない。
-totalでdeterministicなCST-derived interpretationが必要である。
-
 recovery structureは[回復の`Error`と`Invalid`のtopology](recovery-error-invalid-topology.md)を、sourceとrangeの規約は[Rowan CST表記](rowan-cst.md)を参照する。

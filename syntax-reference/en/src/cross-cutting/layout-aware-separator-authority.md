@@ -82,5 +82,6 @@ see [TMN](tmn-malformed-newline-owner-policy.md). It does not define the
 ambient statement-owner cases that can take an otherwise local gap.
 
 The governing source is the Authoritative *layout-aware comma-or-newline
-delimited sequence authority* in the [syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md),
+delimited sequence authority* in
+`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`,
 lines 9314–9693.

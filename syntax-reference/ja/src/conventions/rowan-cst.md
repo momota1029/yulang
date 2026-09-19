@@ -107,10 +107,8 @@ tree rangeとdiagnostic rangeは、0始まりで終端を含まないUTF-8 byte 
 sourceを持つleafは保ったspellingからrangeを決める。
 structural nodeはsource textを追加しない。
 
-## Migrationの状態
+## Diagnosticの境界
 
-direct Rowan constructionと`Error` token/`Invalid` node topologyは実装済みである。
-CST由来structural diagnostic interpreterもshadow interpretationとして実装済みである。
-parser ledgerのretirementは、atomic diagnostic migrationであるGate 4で実施待ちである。
-最終的なdiagnosticはCSTとselected syntax environmentから導く。
-一時的なledgerは、第二のCSTでも最終的なsource of truthでもない。
+CSTはstructural recoveryを保持する。
+selected syntax environmentは、そのstructureを変えずに別個のenvironment factを与える。
+どちらも第二のCSTを作らない。

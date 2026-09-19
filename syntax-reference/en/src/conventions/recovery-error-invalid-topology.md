@@ -58,8 +58,8 @@ owner may add an `Invalid` node by analogy.
 
 ## Structural diagnostic interpretation
 
-The implemented shadow CST interpreter reads structural recovery from the CST
-in source order. A `Missing` occurrence has its zero-width range. A maximal
+Structural diagnostic interpretation reads structural recovery from the CST in
+source order. A `Missing` occurrence has its zero-width range. A maximal
 adjacent group of raw `Error` tokens in one slot and immediate parent is one
 malformed-input occurrence. Ordinary trivia, `Missing`, a nested node, or a
 slot boundary ends the group. An `Invalid` occurrence is visited before its
@@ -75,13 +75,6 @@ create recovery nodes.
 Environment-only facts, including operator conflicts, do not add `Invalid` or
 otherwise mutate the CST.
 
-## Publication status
-
-The shadow interpreter is implemented. Public syntax diagnostics still use the
-temporary parser ledger while Gate 4, the atomic diagnostic migration, remains
-pending. Gate 4 requires total deterministic CST-derived interpretation; it
-does not require exhaustive per-slot precision before ledger retirement.
-
 The [source root, headers, and diagnostic ownership](source-root-and-diagnostics.md)
-page defines the root and publication boundary. The [Rowan CST notation](rowan-cst.md)
+page defines the root and diagnostic boundary. The [Rowan CST notation](rowan-cst.md)
 page defines reversible `text` spelling and UTF-8 byte ranges.

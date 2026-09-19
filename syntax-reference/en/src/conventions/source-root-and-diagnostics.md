@@ -58,19 +58,6 @@ Environment facts contribute separately to final syntax diagnostics. They must
 not mutate the CST. A syntax-environment change can therefore change an
 environment diagnostic without adding recovery structure.
 
-## Migration status
-
-The shadow CST diagnostic interpreter is implemented. It derives structural
-recovery occurrences from the CST while the temporary parser ledger continues
-to preserve current public syntax diagnostics. Gate 4, the pending atomic
-diagnostic migration, retires the parser recovery records, reconciliation state,
-and `ParsedFile` diagnostic storage together. It preserves accepted input,
-lossless source, recovery continuation, and the selected syntax environment and
-effective table.
-
-Exhaustive per-slot precision is not a prerequisite for Gate 4. Total,
-deterministic CST-derived interpretation is required.
-
 See [recovery `Error` and `Invalid` topology](recovery-error-invalid-topology.md)
 for recovery structure and [Rowan CST notation](rowan-cst.md) for source and
 range conventions.

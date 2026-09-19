@@ -53,7 +53,7 @@ raw recoveryの外側にあるaccepted tokenと通常のtriviaはnative token ki
 
 ## Structural diagnostic interpretation
 
-実装済みのshadow CST interpreterは、CSTからstructural recoveryをsource orderで読む。
+structural diagnostic interpretationは、CSTからstructural recoveryをsource orderで読む。
 `Missing` occurrenceにはzero-width rangeがある。
 同じslotとimmediate parentにあるraw `Error` tokenの最大隣接列は、一つのmalformed-input occurrenceである。
 通常のtrivia、`Missing`、nested node、slot boundaryが列を終える。
@@ -67,12 +67,5 @@ interpreterはparser recovery recordを読まず、parseをreplayせず、opaque
 
 environment-only factは、`Invalid`を加えず、ほかの方法でもCSTを変更しない。
 
-## Publicationの状態
-
-shadow interpreterは実装済みである。
-public syntax diagnosticは、atomic diagnostic migrationであるGate 4が実施待ちの間、一時的なparser ledgerを使う。
-Gate 4にはtotalでdeterministicなCST-derived interpretationが必要である。
-ledger retirementの前にexhaustiveなslotごとのprecisionは必要ない。
-
-[Source root、header、diagnosticの責務](source-root-and-diagnostics.md)はrootとpublication boundaryを定める。
+[Source root、header、diagnosticの責務](source-root-and-diagnostics.md)はrootとdiagnostic boundaryを定める。
 [Rowan CST表記](rowan-cst.md)は可逆な`text` spellingとUTF-8 byte rangeを定める。

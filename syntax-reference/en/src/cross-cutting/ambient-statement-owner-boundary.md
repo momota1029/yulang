@@ -80,5 +80,6 @@ or construct-specific close rules. Future extension to another caller-boundary
 class requires separate authority for its priority over local syntax.
 
 The governing source is the Authoritative *ambient statement-owner boundary
-and layout-delimited implicit-newline collision authority* in the [syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md),
+and layout-delimited implicit-newline collision authority* in
+`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`,
 lines 18358–19160.

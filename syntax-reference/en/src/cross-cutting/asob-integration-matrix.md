@@ -55,5 +55,5 @@ for malformed TypeExpression newline ownership. ASOB only decides whether its
 two ambient statement-context claims preempt a participating local gap.
 
 The governing source is the Authoritative ASOB addendum in the
-[syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md),
+`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`,
 lines 18358–19160.

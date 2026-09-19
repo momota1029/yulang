@@ -48,4 +48,4 @@ local complete-item newlineの分類には[layout-aware separator authority](lay
 malformed TypeExpression newlineの所有権には[TMN](tmn-malformed-newline-owner-policy.md)を使う。
 ASOBが決めるのは、二つのambient statement-context claimが参加するlocal gapに先行するかだけである。
 
-正本は、[syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md)のAuthoritativeなASOB addendum（18358–19160行）である。
+正本は、`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`のAuthoritativeなASOB addendum（18358–19160行）である。

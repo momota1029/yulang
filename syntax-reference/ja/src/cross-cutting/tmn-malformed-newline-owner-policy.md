@@ -69,4 +69,4 @@ owning constructは、local close、separator、active stop、recovery slotを�
 nested TypeExpressionを越えてcaller-owned newlineを保つ場合は、[positional-fence rule](positional-fence.md)に従う。
 complete itemのlayout separatorには、[layout-aware separator authority](layout-aware-separator-authority.md)を使う。TMNは使わない。
 
-正本は、[syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md)のAuthoritativeな*TypeExpression malformed recovery newline owner policy*（16557–16860行）である。
+正本は、`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`のAuthoritativeな*TypeExpression malformed recovery newline owner policy*（16557–16860行）である。

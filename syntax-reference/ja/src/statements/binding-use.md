@@ -1,8 +1,8 @@
 # Bindingと`use`のstatement form
 
-## 状態と権威
+## 権威と対象範囲
 
-このページは`syntax-v0`で受理するBindingと`use`のstatement form、およびその直接Rowan CSTを記録する。
+このページは`syntax-v0`で受理するBindingと`use`のstatement form、およびその直接Rowan CSTを定める。
 Bindingの生成規則、配置、CST、layoutは、`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`のAuthoritativeな「canonical `Statement`のbinding / use declaration拡張」節が定める。
 `UseTree`の生成規則とCSTは、同じ設計記録のAuthoritativeな「Complete `use` declaration grammar and projection」節が定める。
 同節の「Oracle state machine」と「UseQualifiers」、「UseAnchor」小節がanchorの受理を定める。

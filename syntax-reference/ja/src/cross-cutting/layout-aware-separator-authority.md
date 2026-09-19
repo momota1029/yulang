@@ -71,4 +71,4 @@ malformed TypeExpressionのnewline recoveryは定めない。
 [TMN](tmn-malformed-newline-owner-policy.md)を参照する。
 local gapを取り得るambient statement ownerのcaseも定めない。
 
-正本は、[syntax architecture design](../../../notes/design/2026-08-20-yu-syntax-chasa-architecture.md)のAuthoritativeな*layout-aware comma-or-newline delimited sequence authority*（9314–9693行）である。
+正本は、`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`のAuthoritativeな*layout-aware comma-or-newline delimited sequence authority*（9314–9693行）である。
