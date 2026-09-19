@@ -1,44 +1,85 @@
 # Named-record types
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-The Authoritative NamedRecordType addendum is lines 12867–13429 of `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`. Its current ambient-owner behavior is also covered by `ASOB-G` at 18358–19161 and its shared malformed-trivia behavior by `TMN` and the positional fence at 16557–17289.
+This page defines `NamedRecordType` in `syntax-v0`. The Authoritative named
+record sections of the 2026-08-20 syntax architecture, the record-field and
+record-sequence current-Item recovery records, and the named-record slot
+authority govern this page.
 
-Implementation commits are `da50836b`, `68b3bac4`, `b906428f`, `d99d49e7`, `72948621`, `42c1544c`, and `2c4d7540`. This page was checked against `5df7ace1`.
+It covers `{a: A, b: B}` as a type primary, its fields, separators, close, and
+recovery. It does not define record patterns or expressions, field semantics,
+type checking, lowering, or diagnostic wording.
 
-## 2. Scope and non-scope
-
-NamedRecordType adds `{a: A, b: B}` as a TypePrimary. Fields are plain identifier plus mandatory colon and canonical full TypeExpression RHS, separated by comma or qualifying layout newline.
-
-It excludes record-pattern fields, expression records, shorthand/default/spread fields, sigil/numeric/path-qualified names, semicolon separators, declaration use-site wiring, typing, HIR/lowering, diagnostics text, and formatting.
-
-## 3. BNF-equivalent grammar
-
-```text
-TypePrimary := TypeAtom | ParenthesizedTypeGroup | NamedRecordType
-NamedRecordType := LBrace OpeningTrivia [ TypeRecordField { RecordTypeSeparator TypeRecordField } [ RecordTypeSeparator ] ] RBrace
-TypeRecordField := Identifier TypeRecordFieldTrivia Colon TypeRecordFieldTrivia TypeExpression
-RecordTypeSeparator := CommaBoundary | ImplicitNewlineBoundary(named_record_base)
-TypeRecordFieldTrivia := EmptyTrivia | SameLineTrivia | TriviaWithDeeperFollowingIndent(named_record_base)
-```
-
-Opening trivia captures the layout base once. Equal-or-shallower newline returns to record separator judgment; deeper newline remains field RHS continuation.
-
-## 4. Judge, priority, and owner boundary
-
-At a required TypePrimary position, exact `{` is a NamedRecordType candidate after active stops/closes and ordinary atom/group candidates. After acceptance it cuts: malformed fields or close never become expression braces or another future primary. `F {a: A}` is a `TypeApplyArgument`; adjacent `F{a: A}` has no hidden apply authority.
-
-Within a field, only a plain identifier can start field authority. The record owns field colon, comma, close, and layout. Before an RHS would accept a whitespace TypeApply, `named_record_next_field_candidate` detects a complete following `Identifier ... Colon` head: it returns the gap for one missing record separator rather than swallowing it as an apply. Ordinary `F B` remains a valid RHS apply.
-
-## 5. Byte-exact CST worked examples
-
-The addendum provides complete CST trees but no byte-range-annotated trees; no ranges are invented here.
+## 2. Accepted syntax
 
 ```text
-{a: A, b: List(Int)}
+TypePrimary := ... | NamedRecordType
+NamedRecordType := "{" G* [ TypeRecordField { RecordTypeSeparator TypeRecordField } [ RecordTypeSeparator ] ] "}"
+TypeRecordField := Identifier TypeRecordFieldTrivia ":" TypeRecordFieldTrivia TypeExpression
+RecordTypeSeparator := comma | qualifying newline
+TypeRecordFieldTrivia := empty | same-line trivia | deeper continuation trivia
 ```
 
-Design lines 13097–13125 show `TypeExpression > NamedRecordType` with two `TypeRecordField` children, raw comma/whitespace, and a nested `TypeCallTail` in the second RHS.
+The opening trivia establishes the layout base. An equal-or-shallower newline
+returns to separator judgment; a deeper newline continues the field RHS.
+Semicolons, shorthand fields, defaults, spreads, sigil names, numeric names,
+and path-qualified names are not accepted field syntax.
+
+## 3. Admission and boundaries
+
+At a required type-primary position, `{` admits a named record and commits to
+that owner. `F {a: A}` is an apply argument; adjacent `F{a: A}` supplies no
+apply authority.
+
+Only a plain identifier starts a field. The record owns field colons, commas,
+layout, and its matching close. Before an RHS consumes a whitespace apply,
+the field-sequence judge recognizes a complete following `Identifier ... :`
+head. It recovers the missing record separator and retries that field; it does
+not turn the next field into the previous RHS apply. Caller boundaries and
+outer closes remain unconsumed.
+
+## 4. Direct Rowan CST
+
+`NamedRecordType` contains its braces, trivia, direct `TypeRecordField`
+children, and accepted commas in source order. A `TypeRecordField` contains
+its name, colon, trivia, and direct `TypeExpression` RHS in source order.
+Qualifying newline separators remain trivia.
+
+`NamedRecordTypeSeparator` contains only an existing separator `Missing` or
+raw `Error` occurrence. `NamedRecordTypeClose` consists of native trivia and
+raw errors followed by either an accepted `}` or `Missing`:
+
+```text
+NamedRecordTypeClose := NativeTrivia* ( Error NativeTrivia* )* ( "}" | Missing )
+```
+
+There is one `NamedRecordTypeClose` wrapper for each committed record. These
+wrappers add no separate diagnostic and do not wrap accepted commas or whole
+fields.
+
+## 5. Recovery CST
+
+An absent field, field name, colon, RHS, separator, or close produces one
+slot-local `Missing`; malformed source for that slot is a raw `Error` group.
+A same-line complete next field head produces a separator `Missing` and retries
+the field at the same position. A semicolon is separator recovery, not a field
+separator.
+
+Field recovery stays distinct from sequence recovery. A pending whole-field
+`Missing` precedes a close node, including at the same byte coordinate. A
+matching close is local. Once close recovery commits, its native trivia, raw
+errors, and final `}` or `Missing` remain in that one close wrapper. A
+protected caller boundary or outer close remains outside the record, and no
+spread, shorthand, default, or `Invalid` node is invented.
+
+## 6. Source/CST examples
+
+`{a: A, b: List(Int)}` has two direct `TypeRecordField` children; the second
+RHS contains `TypeCallTail`.
+
+In the following form, the newlines and indentation are source-bearing record
+children, not synthetic separators.
 
 ```text
 {
@@ -47,52 +88,14 @@ Design lines 13097–13125 show `TypeExpression > NamedRecordType` with two `Typ
 }
 ```
 
-Design lines 13127–13158 show opening, inter-field, and trailing newline/indentation as literal children of `NamedRecordType`; no empty `Separator` or synthetic comma appears.
+`F {a: A}` contains a `TypeApplyArgument` whose primary is
+`NamedRecordType`.
 
-```text
-F {a: A}
-```
+## 7. Composition
 
-Design lines 12990–12996 classify this as one `TypeApplyArgument` whose primary is `NamedRecordType`; the contrasting adjacent `F{a: A}` is returned to the caller.
-
-## 6. Parser-side AST shape
-
-`TypePrimary::Record(NamedRecordType)` stores `open`, recovered ordered `fields`, literal `trailing_comma`, recovered `close`, and `range`. `TypeRecordField` stores recovered `name`, `colon`, recovered boxed `type_expr`, and `range`.
-
-After field authority is accepted, an incomplete internal slot remains a complete field with only that slot incomplete. A wholly absent field is a sequence-level incomplete field entry. This keeps name, colon, type, and close recovery cardinality distinct.
-
-## 7. Typed recovery table
-
-| condition | recovery and continuation |
-| --- | --- |
-| `{}` / valid comma or layout sequence | valid record; no recovery |
-| leading/repeated comma | one `TypeRole::RecordField` Missing per absent field |
-| same-line complete next field head | one `TypeRole::RecordFieldSeparator` Missing, then same-position field retry |
-| semicolon between fields | non-empty separator Error; semicolon is not valid locally |
-| missing/mismatched `}` | one NamedRecord closing Missing/Error; outer-owned close is not consumed |
-| `{: A}` / `{@: A}` | one missing/error `TypeRole::RecordFieldName`, then same field continues |
-| `{a A}` / malformed colon | one `TypeRole::RecordFieldColon` Missing/Error; type retries without cascade |
-| accepted colon with missing/malformed RHS | one `TypeRole::RecordFieldType` Missing/Error; boundary remains owned |
-| `{..Type}` / shorthand/default | whole-field or colon-role recovery; no spread/shorthand/default node |
-
-Safe points include record comma, matching close, outer close/stop, qualifying newline, and field/slot retry candidates. One recovery node equals one committed record.
-
-## 8. Boundary and state-restoration contract
-
-The record frame captures opening layout, delimiter, stop, and `TypeDelimitedOwner::NamedRecord` state and restores it on normal, recovery, and rollback exits. AST/direct paths share field-authority and safe-point probes. `ASOB-G`, `TMN`, and positional-fence coverage preserve active If, ambient boundary, indentation, type-owner, and caller-boundary state.
-
-## 9. Yulang2 divergences
-
-Yulang3 retains mandatory colon, no shorthand/spread, empty/trailing-comma records, and comma-only explicit separators. It retains literal newline trivia instead of empty `Separator` nodes, requires non-empty trivia for record ML application, and replaces generic `TypeRecord`/`InvalidToken` behavior with typed field slots and same-position retry.
-
-## 10. Known residual / deferred surface
-
-The general hidden-boundary residual is documented by `ASOB-G`; no NamedRecord-specific exception broadens it. Deferred surfaces are field semantics, type checking, HIR/lowering, resolver/inference integration, diagnostics, formatting, and declaration use-site wiring.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching syntax owner is `crates/yu-syntax/src/type_expr/record.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_named_record_type`, `parse_type_record_field`, `commit_direct_named_record_type`, `commit_direct_type_record_field`, `named_record_next_field_candidate`, `classify_named_record_recovery`, `record_field_head_candidate`, `scan_record_invalid_run`, and `consume_record_colon_invalid_run`.
-
-Fixtures include `named_record_types_are_primary_fields_with_comma_or_newline_boundaries`, `named_record_field_head_yields_before_type_apply`, `named_record_missing_name_commits_the_field_owner`, `named_record_malformed_field_boundary_does_not_cascade`, `named_record_rejects_spread_shorthand_and_default_field_forms`, `named_record_recovers_malformed_colon_and_type_slots`, `named_record_comma_policy_and_close_recovery_are_typed`, and `named_record_sequence_classifies_recovery_gaps_before_consuming_them`.
+[Standalone `TypeExpression` core](type-expression-core.md) defines the RHS
+and surrounding apply behavior. The [syntax content
+model](../conventions/syntax-content-model.md), [Rowan CST
+notation](../conventions/rowan-cst.md), and [recovery `Error` and `Invalid`
+topology](../conventions/recovery-error-invalid-topology.md) define the shared
+`syntax-v0` conventions.

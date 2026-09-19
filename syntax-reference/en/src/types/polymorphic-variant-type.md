@@ -1,111 +1,95 @@
 # Polymorphic-variant types
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-The Authoritative polymorphic-variant primary addendum is lines 14527–15233 of `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`. Its current caller-boundary behaviour is also covered by `ASOB-G` at 18358–19161.
+This page defines `PolymorphicVariantType` in `syntax-v0`. The Authoritative
+polymorphic-variant sections of the 2026-08-20 syntax architecture, the
+polymorphic-variant current-Item recovery authority, and the structured
+`Invalid` topology authority govern this page. The 2026-09-10
+polymorphic-variant foreign-close slot authority governs its foreign-close
+wrapper.
 
-The implementation series is `fd2f3ad8`, `52f45c52`, `e451063f`, `3a048bde`, `d37a77cf`, `54f1b927`, and `f4332308`; the final listed implementation gate is `f4332308`. In particular, `d37a77cf` moved AST and direct-CST realization onto one streaming driver rather than maintaining separate two-level judges.
+It covers the type-only form `:{A Int, B}`, tag and payload boundaries, and
+recovery. It does not define expression or pattern variants, type semantics,
+lowering, inference, or diagnostic wording.
 
-## 2. Scope and non-scope
-
-This TypePrimary is the type-only form `:{A Int, B}`: each plain identifier tag has zero or more payload types. The outer tag list owns comma and qualifying-newline boundaries; a tag's inner payload sequence owns non-empty same-line payload boundaries.
-
-It does not add expression-side variant literals, pattern polymorphic variants, struct/enum/error payload semantics, declaration/use-site wiring, HIR/lowering, inference, resolver work, diagnostics wording, or formatting.
-
-## 3. BNF-equivalent grammar
+## 2. Accepted syntax
 
 ```text
-TypePrimary := ... | PolymorphicVariantType
-PolymorphicVariantType := Colon AdjacentLBrace PolyVariantOpeningTrivia [ PolymorphicVariantTag { PolyVariantTagBoundary PolymorphicVariantTag } [ PolyVariantTagBoundary ] ] RBrace
+PolymorphicVariantType := ":" adjacent "{" G* [ PolymorphicVariantTag { PolyVariantTagBoundary PolymorphicVariantTag } [ PolyVariantTagBoundary ] ] "}"
 PolymorphicVariantTag := Identifier { PolymorphicVariantPayload }
-PolymorphicVariantPayload := PolyVariantPayloadBoundary TypeExpressionInTypeMlScope
-PolyVariantPayloadBoundary := NonEmptyTriviaWithoutPhysicalNewline
-PolyVariantTagBoundary := ExplicitPolyVariantCommaBoundary | ImplicitNewlineBoundary(poly_variant_base)
-ExplicitPolyVariantCommaBoundary := CommaBoundary
+PolymorphicVariantPayload := nonempty same-line trivia TypeExpressionInTypeMlScope
+PolyVariantTagBoundary := comma | qualifying newline
 ```
 
-`AdjacentLBrace` means that `{` begins exactly at `Colon.end`. Any physical newline ends the inner payload sequence; only the outer list may classify a qualifying newline as a tag boundary.
+The `{` begins exactly at the colon end. A physical newline ends a tag's inner
+payload sequence. Only the outer tag list can classify a qualifying newline as
+a tag boundary.
 
-## 4. Judge, priority, and owner boundary
+## 3. Admission and boundaries
 
-The canonical primary judge first returns active stops/caller-owned closes, then probes `for`, adjacent `"'["`, and adjacent `":{"` before ordinary names, numbers, `(`, and `{`. Bare `:` never cuts: `:{A}` is the primary, while `: {A}`, `:/*c*/{A}`, and `:\n{A}` are not candidates (design lines 14612–14635).
+The canonical primary judge returns active stops and caller-owned closes before
+it probes `for`, adjacent `"'["`, and adjacent `":{"`. Bare `:` does not
+commit: `:{A}` is a variant primary, while `: {A}`, `:/*c*/{A}`, and `:\n{A}`
+are not.
 
-After the pair is accepted, the outer brace/list frame owns tags and close recovery. A tag then runs its inner payload judge in Type-ML mode, so same-line payload candidates become siblings rather than TypeApply tails. The completed primary returns to the ordinary fixed tail judge: `F :{A}` is a TypeApply argument and later path/call/apply/arrow tails remain ordinary.
+After admission, the outer brace/list owner controls tags and close recovery.
+Within a tag, same-line payload candidates are siblings in Type-ML scope, not
+TypeApply tails of one another. A completed variant returns to the ordinary
+tail judge, so `F :{A}` is an apply argument.
 
-## 5. Byte-exact CST worked examples
+## 4. Direct Rowan CST
 
-The addendum gives complete source-order CST trees but no byte-range-annotated tree for this construct; no byte ranges are invented here.
+`PolymorphicVariantType` contains colon, brace, direct
+`PolymorphicVariantTag` children, commas, trivia, and close in source order.
+Each tag contains its name and direct `PolymorphicVariantPayload` children.
+Each payload contains its boundary trivia and direct `TypeExpression`.
 
-```text
-:{A Int, B}
-```
+`PolymorphicVariantForeignClose` wraps exactly one locally consumed foreign
+close and its raw `Error` group. It is not a wrapper for an item error, a tag
+separator error, accepted punctuation, trivia, `Missing`, retry source, or
+`Invalid`. A tag-separator error stays a direct raw group in its separator
+slot; it does not use the foreign-close wrapper.
 
-Design lines 14980–14998 show `PolymorphicVariantType` owning `:`, `{`, tag `A`, its whitespace-bearing `PolymorphicVariantPayload`, comma, tag `B`, and `}`.
+Wrong-kind Type-shaped tag names use the restricted structured `Invalid`
+topology defined for this owner. A malformed non-NUD tag remains a raw `Error`
+group. No synthetic inner payload-list wrapper is added.
 
-```text
-:{A Int Bool}
-```
+## 5. Recovery CST
 
-Design lines 15000–15018 show two sibling payload nodes below tag `A`; `Bool` is not a TypeApply tail of `Int`.
+A non-adjacent or incomplete `:{` introducer has no variant authority. A
+leading or repeated comma produces a tag-slot `Missing`; a real trailing comma
+before `}` is retained without an empty tag. A non-caller-owned semicolon is a
+tag-separator raw `Error` and returns to the outer tag judge.
+
+A wrong-kind Type-shaped tag name uses the variant's structured `Invalid`
+recovery and retries the same tag slot. A malformed non-NUD tag is a raw
+`Error` group in that slot. Missing payload boundaries and malformed payloads
+recover in their own payload slots. A locally consumed foreign close has one
+`PolymorphicVariantForeignClose` wrapper per close; missing or mismatched
+braces otherwise recover in the close slot while caller-owned boundaries remain
+unconsumed.
+
+## 6. Source/CST examples
+
+`:{A Int, B}` has tags `A` and `B`; `A` has one direct payload.
+
+`:{A Int Bool}` has two sibling payloads under `A`. `Bool` is not a TypeApply
+tail of `Int`.
 
 ```text
 :{A Int
 B}
 ```
 
-Design lines 15020–15038 show the physical newline as outer-list trivia between the payload-bearing tag `A` and tag `B`, with no synthetic separator.
+The newline belongs to the outer tag-list boundary, not the inner payload
+sequence.
 
-```text
-:{
-  A Pair(
-    Int,
-    Bool
-  )
-  B
-}
-```
+## 7. Composition
 
-Design lines 15042–15083 distinguish the newlines owned by nested `TypeCallTail` from the tag-level newline after `)`.
-
-## 6. Parser-side AST shape
-
-`TypePrimary::PolymorphicVariant(PolymorphicVariantType)` is a real primary. `PolymorphicVariantType` has exactly `colon`, `open`, recovered ordered `tags`, optional `trailing_comma`, recovered `close`, and `range`.
-
-Each `PolymorphicVariantTag` has recovered `name`, recovered ordered `payloads`, and `range`. Each `PolymorphicVariantPayload` has recovered `boundary`, recovered boxed `type_expr`, and `range`. These are all source-slot fields; there is no synthetic inner-sequence wrapper.
-
-The direct CST uses `SyntaxKind::PolymorphicVariantType`, `SyntaxKind::PolymorphicVariantTag`, and `SyntaxKind::PolymorphicVariantPayload`, retaining punctuation and trivia in source order.
-
-## 7. Typed recovery table
-
-| condition | recovery and continuation |
-| --- | --- |
-| non-adjacent or incomplete `:{` introducer | no variant authority; the ordinary primary owner continues |
-| empty list or real `}` after a complete tag | valid list/close; a real trailing comma is retained without an empty tag |
-| leading/repeated comma | one zero-width `PolymorphicVariantTag` Missing for each required tag slot |
-| non-caller-owned semicolon | one `PolymorphicVariantTagSeparator` Error, then re-enter the outer tag judge |
-| wrong-kind or malformed tag name | typed tag/name Error; retry the same tag slot without creating a second tag |
-| empty payload gap followed by a primary | Missing `PolymorphicVariantPayloadBoundary`, then same-position type retry |
-| malformed accepted payload boundary | one payload Error and same-slot retry; at an outer safe point the type slot is Incomplete without a cascade |
-| missing/mismatched brace | one typed close Missing/Error; caller-owned boundaries remain unconsumed |
-
-AST advances through the same accepted/recovery ranges as direct CST. Direct CST creates one committed Missing/Error record for each source-bearing or zero-width recovery node.
-
-## 8. Boundary and state-restoration contract
-
-Acceptance establishes a brace delimiter, `TypeDelimitedOwner::PolymorphicVariant`, local stops, layout frame, and Type-ML state. Normal, recovery, and rollback exits restore delimiter, stop, layout, type-owner, and Type-ML state exactly. The shared driver supplies the same tag/payload boundary and safe-point decisions to AST and direct CST.
-
-## 9. Yulang2 divergences
-
-Yulang3 intentionally narrows Yulang2's trivia-tolerant colon/brace spelling to adjacent `":{"`, requires a non-empty same-line payload boundary, emits source-bearing payload nodes rather than Yulang2-style direct payload children, and replaces generic invalid-token recovery with typed phases. It preserves plain-Identifier tag heads, zero-or-more payloads, comma-only explicit outer separation, qualifying outer newlines, and ordinary TypeApply/tail composition.
-
-## 10. Known residual / deferred surface
-
-`ASOB-G` documents the general caller-boundary-hidden-behind-missing-delimiter residual; this primary does not create an extra exemption beyond that characterization. Bracket rows and TypeExpression use-site wiring were deferred by the original addendum and are now specified separately; semantic variant representation, HIR/lowering, inference, resolver, diagnostics, and formatting remain deferred.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owner is `crates/yu-syntax/src/type_expr/variants.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-The shared implementation is `crates/yu-syntax/src/grammar/type_expr/polymorphic_variant.rs`: `parse`, `commit_direct`, `drive`, `drive_payloads`, `inspect_payload`, `classify_tag_boundary`, and `consume_invalid_run`. `crates/yu-syntax/src/grammar/type_expr.rs` supplies `scan_polymorphic_variant_open` and the enclosing canonical primary/tail entry.
-
-Regression fixtures include `polymorphic_variant_type_is_a_two_level_primary`, `polymorphic_variant_type_preserves_primary_and_ml_payload_boundaries`, `polymorphic_variant_type_uses_phase_specific_recovery_roles`, `polymorphic_variant_outer_judge_preserves_owner_boundaries_and_reentry_order`, and `polymorphic_variant_shared_driver_regression_matrix`.
+[Standalone `TypeExpression` core](type-expression-core.md) defines payload
+types and the ordinary tails after this primary. The [syntax content
+model](../conventions/syntax-content-model.md), [Rowan CST
+notation](../conventions/rowan-cst.md), and [recovery `Error` and `Invalid`
+topology](../conventions/recovery-error-invalid-topology.md) define the shared
+`syntax-v0` conventions.

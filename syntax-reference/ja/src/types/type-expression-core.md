@@ -1,100 +1,85 @@
-# Standalone TypeExpression core
+# Standalone `TypeExpression` core
 
-## 1. 状態・正本・最終確認
+## 1. 正本と対象範囲
 
-Authoritative な standalone TypeExpression core 追補は `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の 12155–12866 行にある。後続の `TMN` newline-owner policy と positional-fence implementation authority は 16557–16861 行と 16862–17289 行で shared recovery を refine するが、TypeExpression を Pattern や `OperatorTable` に依存させない。
+このページは`syntax-v0`のcore `TypeExpression` formを定める。2026年8月20日の
+syntax architectureにあるAuthoritativeなtype-expression section、Type
+contextual-boundary correction、PathSegment/TypeCall recovery amendment、
+accepted-input recovery authorityに従う。
 
-core 実装 commit は `b24a3e90`、`3bc6e108`、`c5896444`、`5a375dfd`。recovery follow-up は `d99d49e7`、`72948621`、`42c1544c`、`2c4d7540`。このページは `5df7ace1` を基準に確認した。
+atom、path、call、ML-style application、arrow、parenthesized groupを対象とする。
+named record、`forall`、effect row、polymorphic variant、bracket rowは各ページで
+定める。type meaning、lowering、diagnostic wordingは対象外である。
 
-## 2. 対象範囲と非対象
-
-core は identifier/sigil/number atom、`::` path、adjacent call、whitespace ML-style application、fixed right-associative arrow、parenthesized/tuple-like group を所有する。これは expression `OperatorChain` variant ではなく、Pattern grammar と並ぶ standalone fixed-precedence grammar owner である。
-
-`for`、named record、polymorphic variant、effect row、bracket row、declaration use-site wiring、typing、HIR/lowering、diagnostics text、formatting は original core scope 外である。exotic primary は後続の Authoritative addendum が別途追加する。
-
-## 3. BNF 相当の grammar
+## 2. 受理構文
 
 ```text
 TypeExpression := TypePrimary { TypeTightTail | TypeApplyArgument } [ TypeArrowTail ]
 TypePrimary := TypeAtom | ParenthesizedTypeGroup
 TypeAtom := Identifier | SigilIdentifier | Number
 TypeTightTail := TypePathTail | TypeCallTail
-TypePathTail := TypeChainTrivia ColonColon TypeChainTrivia TypePathSegment
+TypePathTail := TypeChainTrivia "::" TypeChainTrivia TypePathSegment
 TypePathSegment := Identifier | SigilIdentifier
-TypeCallTail := LParen OpeningTrivia [ TypeExpression { TypeDelimitedSeparator TypeExpression } [ TypeDelimitedSeparator ] ] RParen
+TypeCallTail := "(" G* [ TypeExpression { TypeDelimitedSeparator TypeExpression } [ TypeDelimitedSeparator ] ] ")"
 TypeApplyArgument := TypeApplyBoundary TypeExpressionInTypeMlScope
-TypeArrowTail := TypeChainTrivia Arrow TypeChainTrivia TypeExpression
-ParenthesizedTypeGroup := LParen OpeningTrivia [ TypeExpression { TypeDelimitedSeparator TypeExpression } [ TypeDelimitedSeparator ] ] RParen
-TypeDelimitedSeparator := CommaBoundary | SemicolonBoundary | ImplicitNewlineBoundary(type_delimited_base)
+TypeArrowTail := TypeChainTrivia "->" TypeChainTrivia TypeExpression
+ParenthesizedTypeGroup := "(" G* [ TypeExpression { TypeDelimitedSeparator TypeExpression } [ TypeDelimitedSeparator ] ] ")"
+TypeDelimitedSeparator := comma | semicolon | qualifying newline
 ```
 
-`Number` は valid primary だが path segment ではない。qualifying newline は delimited item を区切り、deeper newline は type continuation になる。
+`Number`はprimaryだがpath segmentではない。qualifying newlineはdelimited itemを
+区切る。deeper newlineはtype-continuation triviaに残る。
 
-## 4. Judge・priority・owner boundary
+## 3. 受理と境界
 
-tail judge は active stop、close、equal-or-shallower caller boundary に先に譲る。leading trivia がないときだけ exact `->`、adjacent `(`、exact `::` を認識する。`type_ml_arg` 内の non-empty trivia は whitespace arrow/path probe より前に nested argument を終了する。その後に trivia-qualified arrow/path と candidate-backed `TypeApplyArgument` を調べる。
+tail judgeはactive stop、close、equal-or-shallower caller boundaryで先に返る。
+leading triviaがなければ`->`、adjacent `(`、`::`を認識する。Type-ML argumentでは
+nonempty triviaが先にnested argumentを終え、その後にtrivia-qualified arrow、path、
+applyを判定する。
 
-従って `List(Int)` は call、`List (Int)` は apply である。`F A::B` の path は applied argument 内、`F A ::B` の path は outer type が所有する。arrow は full RHS を accept して current loop を終え、`A -> B -> C` は right-associative になる。dynamic binding-power table は使わない。
+`List(Int)`はcall、`List (Int)`はapplyである。`F A::B`のpathはapplied argument内、
+`F A ::B`のpathはouter typeに属する。arrowは完全なRHSを所有するため`A -> B -> C`
+はright-associativeになる。same-line name-shaped path segmentはcontextual word
+boundaryより優先するが、newline-bearing contextual boundaryはcallerに残る。committed
+callはfresh nested type scopeを作り、return後にenclosing boundaryを復元する。
 
-## 5. Byte-exact CST の worked examples
+## 4. Direct Rowan CST
 
-追補には complete CST tree があるが byte-range 付き tree はない。ここでは range を作らない。
+`TypeExpression`はprimary、source-orderの`TypePathTail`、`TypeCallTail`、
+`TypeApplyArgument`、最大一つの`TypeArrowTail`を持つ。`ParenthesizedTypeGroup`と
+`TypeCallTail`はpunctuation、trivia、direct `TypeExpression` itemをsource orderで持つ。
 
-```text
-List(Int)::Result Arg -> Out -> Final
-```
+`TypePathTail`は`::`、trivia、segmentを持つ。apply boundaryとargumentは
+`TypeApplyArgument`で表す。groupにはsynthetic grouping、tuple、separator nodeを
+作らず、literal punctuationとnewline triviaをsource-bearing childとして残す。
 
-設計文書 12324–12353 行は source-order の `TypeExpression` 一個を示す。`TypeCallTail`、`TypePathTail`、`TypeApplyArgument`、そして RHS に二個目の arrow tail を持つ `TypeArrowTail` である。whitespace は apply/arrow owner に属する。
+## 5. Recovery CST
 
-```text
-(A)
-```
+required primary、path segment、delimited item/separator、close、arrow RHSのslotには
+zero-widthの`Missing`を置く。malformed primary、path segment、call item、arrow RHSは
+そのslotのraw `Error` groupとなる。valid retryは同じslotを満たす。apply trivia後に
+primaryがなければapplyもsynthetic `Missing`も作らない。
 
-設計文書 12366–12369 行はこれを one-element grouped type とし、literal trailing separator を持つ `(A,)` と `(A;)` を tuple-like と区別する。
+Path recoveryはprotected caller boundaryを消費しない。TypeCallはargument、separator、
+close recoveryを分け、argument後のadmitted residualはterminal close recoveryに属する。
+Parenthesized groupとeffect rowはlocally consumed mismatched closeにだけ
+`TypeDelimitedForeignClose`を使う。ほかのraw type recoveryはdirectである。
 
-```text
-F A -> B
-```
+## 6. Source/CST例
 
-設計文書 12488–12500 行はこれを `(F A) -> B` に固定する。対照的に `F A->B` は nested ML argument の arrow 前に trivia がないため `F (A -> B)` になる。
+`List(Int)::Result Arg -> Out -> Final`はsource orderでcall tail、path tail、apply
+argument、arrow tailを持つ。RHSが二つ目のarrowを所有する。
 
-## 6. Parser 側 AST shape
+`(A)`はgrouped typeである。`(A,)`と`(A;)`はtrailing punctuationを保持する
+tuple-like formである。
 
-`TypeExpression` は `primary`、ordered `postfix`、optional `arrow`、`range` を持つ。core postfix variant は `TypePostfixTail::{Path, Call, Apply}`。`TypeCallTail` と `ParenthesizedTypeGroup` は recovered element と close slot を持ち、group は grouping/tuple classification 用の literal `trailing_explicit_separator` も持つ。
+`F A -> B`は`(F A) -> B`である。`F A->B`ではnested ML argumentがarrowを所有し、
+`F (A -> B)`となる。
 
-current `TypePrimary` enum には後続 exotic variant もあるが、core form は `Atom` と `Parenthesized` のままである。`TypeApplyArgument` は accepted trivia `boundary` と boxed argument を own し、arrow は precedence を left-nested AST へ rewrite せず recovered RHS を持つ。
+## 7. 構成
 
-## 7. Typed recovery table
-
-| condition | recovery と continuation |
-| --- | --- |
-| missing mandatory primary | `TypeRole::Primary` Missing 一件。caller boundary は non-consuming |
-| malformed primary の後に valid primary | non-empty Primary Error 一件後 same-slot retry |
-| segment のない `::` | `TypeRole::PathSegment` Missing 一件。boundary は owner のまま |
-| malformed path segment | PathSegment Error 一件。numeric segment は accept しない |
-| missing call/group item または separator | typed item/separator Missing 一件後 same-position retry |
-| accepted call/group の missing close | closing-delimiter Missing 一件。別 form に reinterpret しない |
-| `->` の missing/malformed RHS | `TypeRole::ArrowRhs` Missing/Error 一件。outer boundary は non-consuming |
-| apply trivia 後に primary なし | apply authority も synthetic Missing もなし |
-
-全 scanner は active stop、close、delimiter、separator、qualifying newline、valid retry candidate の前で止まる。`TMN-C` と positional fence は malformed newline-bearing trivia でも no-cascade を保つ。
-
-## 8. Boundary と state-restoration contract
-
-candidate probe は sink-free かつ state-neutral。accepted call/group は delimiter、stop、layout base、`TypeDelimitedOwner` を同期し、apply は `type_ml_arg` だけを push する。normal/recovery/rollback exit は TypeExpression episode と positional-fence state を含めて復元する。AST/direct は同じ candidate、layout、cut、safe-point decision を共有する。
-
-## 9. Yulang2 divergences
-
-Yulang3 は fixed tail、ML scope behavior、right-associative arrow を保つが、empty `Separator` node の代わりに literal newline trivia を使う。generic `InvalidToken` recovery は typed Missing/Error と owner-safe boundary に置換する。numeric path segment を除外し、generic wrapper を避け、one-site outer missing-role override を提供する。
-
-## 10. Known residual / deferred surface
-
-missing nested delimiter の背後にある hidden caller-boundary case は、後続 `ASOB-G` と Cast work が characterization しており、黙って正常化しない。core が deferred にした exotic primary と declaration/pattern use-site integration は別の Authoritative addendum が所有する。
-
-## 11. 実装と regression fixture の cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/type_expr/mod.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/type_expr.rs` では `parse_type_expression`、`parse_required_type_expression_with_recovery_context`、`commit_direct_type_expression`、`commit_direct_type_expression_with_recovery_context`、`parse_type_call_tail`、`parse_parenthesized_type_group`、`parse_type_arrow_tail`、`commit_direct_type_delimited`、`classify_type_malformed_trivia`、`scan_type_item_invalid_run_with_disposition` を参照する。
-
-fixture は `type_core_forms_keep_fixed_flat_structure`、`type_arrow_is_right_associative_without_an_operator_table`、`type_call_and_group_accept_comma_and_semicolon`、`type_groups_reuse_layout_boundaries_without_synthetic_separator_nodes`、`type_apply_uses_one_argument_per_nonempty_trivia_boundary`、`path_and_arrow_missing_rhs_leave_an_outer_layout_newline_unconsumed`、`type_call_missing_item_and_close_keep_distinct_typed_slots`。
+[syntax content model](../conventions/syntax-content-model.md)、[Rowan CST
+notation](../conventions/rowan-cst.md)、[recovery `Error` and `Invalid`
+topology](../conventions/recovery-error-invalid-topology.md)は共有する`syntax-v0`の
+表記とrecovery factを定める。named record、`forall`、effect row、polymorphic
+variant、bracket rowの各ページは、ここで定めるprimary/arrow positionを拡張する。

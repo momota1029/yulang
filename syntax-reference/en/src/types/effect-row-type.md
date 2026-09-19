@@ -1,92 +1,76 @@
 # Effect-row types
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-The Authoritative EffectRowType addendum is lines 13982–14525 of `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`. Current shared delimited recovery is refined by `ASOB-G` at 18358–19161 and `TMN`/positional-fence authority at 16557–17289.
+This page defines `EffectRowType` in `syntax-v0`. The Authoritative effect-row
+sections of the 2026-08-20 syntax architecture, the Parenthesized/EffectRow
+current-Item recovery authority, and the type-delimited foreign-close topology
+authority govern this page.
 
-Implementation commits are `b0989159`, `608396fc`, `29c6a630`, `52e1853b`, and `f8b95909`. This page was checked against `063da888`.
+It covers adjacent apostrophe-bracket type primaries and their delimited items.
+It does not define row-tail meaning, open or closed row classification, effect
+inference, lowering, or diagnostic wording.
 
-## 2. Scope and non-scope
-
-EffectRowType adds adjacent apostrophe-bracket forms such as `'[]`, `'[e]`, `'['e]`, `'[a, b]`, and `'[tick; 'effect]` as parser syntax. It is a nonterminal TypePrimary whose items are full TypeExpressions, separated by comma, semicolon, or qualifying newline.
-
-Open/closed/tail classification, effect inference, annotation lowering, polymorphic variants, bracket rows, use-site wiring, HIR/lowering, diagnostics text, and formatting are out of scope.
-
-## 3. BNF-equivalent grammar
-
-```text
-EffectRowType := Apostrophe AdjacentLBracket EffectRowOpeningTrivia [ TypeExpression { EffectRowDelimitedBoundary TypeExpression } [ EffectRowDelimitedBoundary ] ] RBracket
-AdjacentLBracket := LBracket whose first byte is exactly Apostrophe.end
-EffectRowDelimitedBoundary := CommaBoundary | SemicolonBoundary | ImplicitNewlineBoundary(effect_row_base)
-```
-
-The apostrophe and `[` must be adjacent. Opening trivia captures `effect_row_base` once; equal-or-shallower newline separates items, while deeper newline continues the current type item.
-
-## 4. Judge, priority, and owner boundary
-
-After active stops/closes and canonical NUD `for`, the primary judge probes the complete adjacent compound `"'["` before normal type-name scanning. Thus `'[` is an EffectRow candidate, while `'e` remains a sigil identifier; `' [` and `'/*c*/[e]` never cut to EffectRow.
-
-After acceptance, the row pushes bracket delimiter, EffectRow owner, local stops, and layout frame together. It is not terminal: `'[e]::Result`, `Foo '[e]`, and `'[e] -> Out` return to the ordinary tail judge as path, apply, and arrow respectively.
-
-## 5. Byte-exact CST worked examples
-
-The addendum provides complete CST trees but no byte-range-annotated trees; no ranges are invented here.
+## 2. Accepted syntax
 
 ```text
-'[]
+EffectRowType := "'" adjacent "[" G* [ TypeExpression { EffectRowDelimiter TypeExpression } [ EffectRowDelimiter ] ] "]"
+EffectRowDelimiter := comma | semicolon | qualifying newline
 ```
 
-Design lines 14176–14184 show `TypeExpression > EffectRowType` with only apostrophe and bracket tokens.
+The apostrophe and `[` are adjacent. Opening trivia establishes the layout
+base. An equal-or-shallower newline separates items; a deeper newline continues
+the current item.
 
-```text
-'[e]
-```
+## 3. Admission and boundaries
 
-Design lines 14186 onward show the same row node containing one full TypeExpression item; the `'[e]` spelling differs from `'['e]` only in its item token category.
+After active stops, closes, and canonical NUD `for`, the primary judge probes
+the complete adjacent `"'["` introducer before ordinary type names. `'e`
+remains a sigil identifier; `' [` and `'/*c*/[e]` do not admit an effect row.
 
-```text
-'[tick; 'effect]
-```
+An accepted row owns its bracket delimiter, items, separators, layout, and
+matching close. It then returns to the ordinary tail judge: `'[e]::Result`,
+`Foo '[e]`, and `'[e] -> Out` are path, apply, and arrow composition.
 
-The surface list is explicitly recorded at design lines 13991–13997. Semicolon is an ordinary parser separator, not a row-tail interpretation.
+## 4. Direct Rowan CST
 
-## 6. Parser-side AST shape
+`EffectRowType` contains apostrophe, brackets, trivia, literal separators, and
+direct `TypeExpression` items in source order. It has no item-list, row-tail,
+or open/closed-row wrapper. Newline separators remain trivia.
 
-`TypePrimary::EffectRow(EffectRowType)` stores `apostrophe`, `open`, recovered ordered `items`, recovered `close`, and `range`. It records source syntax only: no parser AST field marks an open row, closed row, or tail variable.
+For a locally consumed mismatched close, `TypeDelimitedForeignClose` contains
+only that maximal raw `Error` group. It is emitted only below
+`EffectRowType` or `ParenthesizedTypeGroup`, adds no diagnostic, and contains
+no trivia, `Missing`, accepted punctuation, retry source, or `Invalid`.
 
-The direct CST adds only `SyntaxKind::EffectRowType`; apostrophe, brackets, separators, trivia, and nested TypeExpression nodes remain source-order children without a synthetic item/list/tail wrapper.
+## 5. Recovery CST
 
-## 7. Typed recovery table
+An absent item, separator, or close uses a slot-local `Missing`; malformed
+source in that slot is a raw `Error` group. A same-line next item that cannot
+continue the current apply recovers a missing separator and retries the item.
+A real trailing separator before `]` is valid and does not create an empty item.
 
-| condition | recovery and continuation |
-| --- | --- |
-| missing compound introducer | no EffectRow authority; ordinary primary recovery owns it |
-| empty / valid delimited row | valid items and close; no recovery |
-| leading/repeated separator | one typed EffectRow item Missing per absent item |
-| same-line next item not a valid apply continuation | one typed separator Missing, then same-position item retry |
-| malformed item then valid primary | one item Error, then same-slot retry |
-| trailing separator before real `]` | valid trailing boundary; no empty item |
-| separator before EOF/outer boundary | distinct missing item and close slots |
-| missing/mismatched `]` | one EffectRow closing Missing/Error; outer close stays unconsumed |
+A separator before EOF or a protected outer boundary keeps its missing item and
+close slots distinct. A matching `]` is local; protected caller and outer
+closes remain unconsumed. The locally consumed mismatched close is the sole
+case using `TypeDelimitedForeignClose`.
 
-The row reuses the shared type-delimited driver with EffectRow roles. Scanner safe points include caller boundaries, local separators, matching close, and valid retry candidates; no-cascade recovery remains typed.
+## 6. Source/CST examples
 
-## 8. Boundary and state-restoration contract
+`'[]` contains only the introducer and brackets. `'[e]` contains one direct
+`TypeExpression` item.
 
-Acceptance pushes and all exits pop `Delimiter::Bracket`, `TypeDelimitedOwner::EffectRow`, row-local stops, and the layout frame exactly once. AST/direct share candidate, boundary, close, and recovery decisions. `ASOB-G`, `TMN`, and positional-fence machinery preserve ambient/If, indentation, type-owner, episode, and caller-boundary state.
+`'[tick; 'effect]` has two items and a literal semicolon separator. The
+semicolon is syntactic punctuation, not a row-tail interpretation.
 
-## 9. Yulang2 divergences
+`Foo '[e] -> Out` applies the effect-row primary to `Foo`; the completed result
+then has an ordinary arrow tail.
 
-Yulang3 preserves apostrophe-bracket rows, full type items, and comma/semicolon/layout boundaries, but requires apostrophe-bracket adjacency and does not emit Yulang2's `TypeEffectRow > TypeRow` wrappers or empty `Separator` nodes. It keeps semicolon syntactic rather than assigning row-tail meaning, and replaces generic `InvalidToken` recovery with typed slots.
+## 7. Composition
 
-## 10. Known residual / deferred surface
-
-The general hidden-boundary residual is characterized by `ASOB-G`; no EffectRow-specific exemption broadens it. Row-tail semantics, open/closed classification, effect inference, lowering/HIR, resolver integration, diagnostics, formatting, and use-site wiring remain deferred.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` location is historical legacy-parser evidence, not a current implementation path. The matching syntax owner is `crates/yu-syntax/src/type_expr/variants.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-In `crates/yu-syntax/src/grammar/type_expr.rs`: `parse_effect_row_type`, `scan_effect_row_open`, `commit_direct_type_primary_head`, `drive_type_delimited`, `commit_direct_type_delimited`, `classify_type_delimited_recovery`, `scan_type_delimited_item_invalid_run`, and `drive_type_close_slot`.
-
-Fixtures include `effect_row_primary_is_adjacent_semantically_blind_and_composes_normally`, `effect_row_reuses_type_call_delimited_recovery_slots`, `type_delimited_close_recovery_keeps_a_mismatched_closer_local`, and `type_close_slot_leaves_caller_owned_newlines_unconsumed`.
+[Standalone `TypeExpression` core](type-expression-core.md) defines each item
+and the tail behavior after the row. The [syntax content
+model](../conventions/syntax-content-model.md), [Rowan CST
+notation](../conventions/rowan-cst.md), and [recovery `Error` and `Invalid`
+topology](../conventions/recovery-error-invalid-topology.md) define shared
+`syntax-v0` conventions.
