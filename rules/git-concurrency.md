@@ -27,6 +27,13 @@ Do not run two write-capable agents in the same working tree. Use a distinct git
 
 The Codex-only policy on the `yulang3` branch does not authorize changes to frozen `main`. Work on the branch named by the task. Routine pushes of coherent commits to the current working branch are allowed when they preserve the intended remote synchronization; never force-push, rewrite history, or retarget another branch without explicit user instruction.
 
+After final verification and record synchronization, the primary pushes a
+coherent current-branch commit by default. Immediately before pushing, resolve
+the destination remote/ref and inspect every commit in `<remote-ref>..HEAD`.
+Push only when that whole outbound range is intended and coherent; otherwise
+defer on the concrete upstream/safety blocker and report it. Do not retarget or
+force-push to work around divergence.
+
 When upstream moved, re-evaluate scope before integration. Do not force a ref merely to preserve a local plan.
 
 ## Generated and temporary files

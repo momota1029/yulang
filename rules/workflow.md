@@ -45,6 +45,13 @@ Classify the task before writing:
 
 Name the intended files, checks, record updates, and stop condition. Do not expand a bug fix into unrelated cleanup, rename, formatting, or abstraction work. One coherent change should correspond to one cause or one confirmed gate.
 
+Warnings emitted by a touched package or direct dependency are not exempt merely
+because they predate the active diff. Audit their cause before closing the work.
+When the removal is safe and ownership-local, fix it in a separate coherent
+commit with focused verification. When it needs broader authority, record the
+exact owner and blocker in `tasks/current.md`; do not leave unbounded warning
+debt behind a generic "pre-existing" label.
+
 ## Order of work
 
 Prefer this order:

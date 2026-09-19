@@ -75,7 +75,12 @@ availability, or ad hoc model-tier prose.
 
 The primary agent owns user interaction, task classification, authority
 resolution, reviewer isolation, finding adjudication, staging, commits, PRs,
-pushes, progress-record synchronization, and final reporting.
+pushes, progress-record synchronization, and final reporting. After final
+verification and required record synchronization, inspect the resolved upstream
+ref and every commit in its outbound range before pushing the current working
+branch. Push by default only when that whole range is intended and coherent;
+otherwise defer with the concrete safety blocker. Never force-push without
+explicit user instruction.
 
 Before work, choose the lightest sufficient M0–M3 mode and set reviewer,
 round, verification, and measurement budgets. The role catalog is not a
@@ -101,7 +106,7 @@ work when possible.
 - Do not reopen a sufficiently specified Authoritative gate without a concrete contradiction or scope expansion.
 - Fix the cause at its owning responsibility; do not mask a symptom downstream.
 - Do not alter snapshots, golden files, fixtures, diagnostics expectations, semantic assertions, or test names merely to match current output.
-- Do not mix unrelated cleanup, formatting drift, later gates, or broad refactors into a focused change.
+- Do not mix unrelated cleanup, formatting drift, later gates, or broad refactors into a focused change. Warnings observed in a touched package or direct dependency are an exception to scope deferral, not to commit coherence: audit and fix a safe, ownership-local pre-existing cause in a separate coherent commit, while a warning caused by the active diff closes in that diff's commit. Do not defer solely because a warning predates the active diff. If a safe fix needs broader authority, record its exact owner and blocker in `tasks/current.md`.
 - Account for new work on hot paths; invoke performance review only under the material-risk trigger and measurement budget in `rules/performance.md`.
 - Do not run an unfamiliar broad or heavy test suite before checking its current resource behavior.
 - Do not repeat broad checks after record-only or comment-only updates.
