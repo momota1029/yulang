@@ -1,103 +1,97 @@
-# Brace-delimited statement block
+# 波括弧で囲む文ブロック
 
-## 1. 状態・正本・最終確認
+## 1. 権威と対象範囲
 
-Authoritative な NUD-primary brace-delimited statement-block 追補は `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の 6067–6627 行にある。末尾 signature は Claude 査読・ユーザ承認を記録している。
+このページは、`syntax-v0`の`BracedStatementBlockExpression`を定める。
+2026年8月20日の`yu-syntax` architectureが、受理構文と直接 Rowan CSTを定める。
+Authoritativeな2026年9月8日のbraced canonical Statement-sequence recoveryの記録が、必須statement、separator、local closeのrecoveryを定める。
 
-design / implementation commit は `04ebde8e`、`2c9a77b8`、`9f0d9d88`。implementation は brace primary と indented block が outer ownership を統合せずに共有する closed statement-sequence policy を導入した。
+対象は、operand-starting brace block、その直接のcanonical statement、separator、close、およびrecovery CSTである。
+record literalまたはfield、control-flowのbrace body、`CatchBlock`、brace-local spread syntax、HIR interpretation、型、diagnostic wording、formattingは定めない。
 
-## 2. 対象範囲と非対象
-
-operand-required NUD site の `{ ... }` は `BracedStatementBlockExpression`、すなわち brace で囲まれた zero-or-more canonical Statement である。surrounding flat `OperatorChain` の primary 一つであり、comma、semicolon、returned physical newline の Statement separator と三種すべての trailing form を許す。
-
-record literal/field node、`if` や declaration の brace body、projection record、fixed brace-local spread item、rule/use/interpolation brace、`CatchBlock`、HIR の block/record interpretation、inference、diagnostics wording、formatting は対象外である。
-
-## 3. BNF 相当の grammar
+## 2. 受理構文
 
 ```text
 BracedStatementBlockExpression :=
-    LBrace OpeningTrivia
+    "{" G*
     [ Statement { BraceStatementSeparator Statement } [ BraceStatementSeparator ] ]
-    ClosingTrivia RBrace
-
-BraceStatementSeparator := G0 Comma G* | G0 Semicolon G* | Gnl
-OpeningTrivia := G*
-ClosingTrivia := G0
+    G0 "}"
+BraceStatementSeparator := G0 ("," | ";") G* | qualifying current-depth newline
 ```
 
-`Gnl` は completed current-depth Statement の後に return した trivia だけである。deeper continuation newline はその Statement 内に残る。block は empty-valid であり、optional final position の separator は empty Statement を作らない。
+blockはemptyでよい。
+comma、semicolon、qualifying current-depth newlineは、完了したstatementを区切る。
+より深いnewlineは、現在のstatementに残る。
+各separator formはtrailingにでき、empty statementを作らない。
 
-## 4. Judge・priority・owner boundary
+## 3. 受理と境界
 
-sink-free NUD judge は lone fixed `{` だけを accept し、cut 後に total block continuation を所有する。`Delimiter::Brace`、local `Comma`/`Semicolon`/`RightBrace` stop、bracketed inline mode、braced ambient-owner barrier を push し、outer condition/comma/close stop は scope exit まで suspend する。
+operand-required positionでは、単独の`{`がこのprimaryを受理し、対応するbrace scopeをcommitする。
+blockはcurrent-depthのstatement separatorとlocal closeを所有する。
+このscopeが戻るまで、outer stop、separator、closeはsuspendされる。
 
-brace owner は Statement slot 前と separator 後で matching `}` を認識する。Statement separator と close recovery はこの owner だけが持つ。`{x: 1, y: 2}` では brace-owned comma が ordinary `ColonApplicationTail` を RHS 一つで止め、parser は `RecordLiteral`/`RecordField` を作らない。
+必須statementの前とseparatorの後では、対応する`}`がlocal block boundaryになる。
+nested delimiterとlexical regionは、outer blockにseparatorまたはcloseを渡せない。
+`{x: 1, y: 2}`では、blockが所有するcommaが最初のstatementを終えるため、各statementは通常の一引数colon applicationを持てる。
 
-## 5. Byte-exact CST の worked examples
+## 4. 直接 Rowan CST
 
-追補は source-order CST tree を示すが byte-range 付き tree はない。ここでは range を作らない。
+`BracedStatementBlockExpression`は、`OperatorChain`の直接のprimary childである。
+source orderで、`LBrace`、opening trivia、直接の`Statement` child、`BlockStatementSeparator` child、closing trivia、`RBrace`を持つ。
+comma、semicolon、qualifying newlineの各separatorには、`BlockStatementSeparator` wrapper一つがある。
+commaまたはsemicolonのwrapperは、`G0`、literal punctuation、following triviaを所有する。
+newline wrapperはnative trivia leafを持ち、synthetic tokenを作らない。
+このnodeにはrecord wrapperもempty `Statement` nodeもない。
 
 ```text
-{}
+BracedStatementBlockExpression := LBrace { Statement | BlockStatementSeparator | trivia } RBrace
+BlockStatementSeparator := G0 (Comma | Semicolon) G* | qualifying current-depth newline trivia
+Statement := OperatorChain | canonical statement form
 ```
 
-設計文書 6219、6495 行は valid empty block を記録する。`LBrace`、あれば opening/closing trivia、`RBrace` だけであり、synthetic Statement/separator/Missing node はない。
+## 5. Recovery CST
 
-```text
-{x,y}
+必須statement phaseでcommaまたはsemicolonに達すると、`BracedStatementBlock(Statement)`にzero-widthの`Missing`を一つ置き、punctuationをseparator phaseに残す。
+boundaryではないnon-statement runは、同じstatement slotにmaximalかつnon-emptyなraw `Error` group一つとなり、後続の受理したstatementがそのslotを再試行する。
+separator、qualifying newline、close、nonlocal close、fence、EOFに達したerrorは、同じ原因のmissing nodeを追加しない。
+
+完了したstatementの後、separatorなしで新しいstatementを受理すると、`BracedStatementBlock(Separator)`にzero-widthの`Missing`を一つ置く。
+validなempty block、multiline application、trailing separatorは、作り出したstatement missing nodeを追加しない。
+local `}`がなければ、`ClosingDelimiter { BracedStatementBlockExpression, Brace }`にzero-widthの`Missing`を一つ置く。
+すべてのnonlocal closeは、実際のownerのために未消費のまま残る。
+
+error前のinitial leadingはblock固有のcontentに残り、interior leadingは`Error`に属し、retryまたはprotected-boundaryのleadingはpendingのまま残る。
+nested statementは、それぞれのrecovery roleを保持する。
+
+## 6. Source/CSTの例
+
+`{}`はvalidなempty blockである。
+
+```xml
+<BracedStatementBlockExpression>
+  <LBrace text="{" /><RBrace text="}" />
+</BracedStatementBlockExpression>
 ```
 
-設計文書 6220–6222、6561–6563 行は comma `BlockStatementSeparator` 一つで分かれた `Statement > OperatorChain` child 二つを記録する。
+`{x, y}`は、statement二つとcomma separator wrapper一つをblockに直接置く。
 
-```text
-{x,}
+```xml
+<BracedStatementBlockExpression>
+  <LBrace text="{" />
+  <Statement><OperatorChain><IdentifierExpression><Identifier text="x" /></IdentifierExpression></OperatorChain></Statement>
+  <BlockStatementSeparator><Comma text="," /><Whitespace text=" " /></BlockStatementSeparator>
+  <Statement><OperatorChain><IdentifierExpression><Identifier text="y" /></IdentifierExpression></OperatorChain></Statement>
+  <RBrace text="}" />
+</BracedStatementBlockExpression>
 ```
 
-設計文書 6224、6499 行は Statement 一つと valid trailing comma separator、`Missing(statement)` なしを記録する。
+`{x,}`はvalidであり、`Statement`一つ、trailing `BlockStatementSeparator`一つ、`Missing` nodeなしを持つ。
 
-```text
-{x: 1, y: 2}
-```
+`{x: 1, y: 2}`は直接のstatementを二つ持つ。
+commaはblock separatorであり、各statementは通常の`ColonApplicationTail`を持つ。
 
-設計文書 6116、6259、6536 行は outer `BracedStatementBlockExpression` を固定する。comma は block separator であり、inner Statement 二つは ordinary one-argument `ColonApplicationTail` で終わる。
+## 7. 構成
 
-## 6. Parser 側 AST shape
-
-`PrimaryExpression::BracedStatementBlock` は `BracedStatementBlockExpression` を持つ。この struct は正確に `open`、recovered ordered `statements`、recovered `close`、`range` を持つ。
-
-comma/semicolon/newline/trailing-separator spelling を AST は duplicate しない。それらの byte は source-order CST child に残り、recovered close は matching brace range または committed missing slot を保持する。
-
-## 7. Typed recovery table
-
-| condition | recovery と continuation |
-| --- | --- |
-| EOF の `{` | empty body は valid。zero-width close Missing 一件だけ |
-| EOF の `{x` | Statement を保持し close Missing 一件 |
-| EOF の `{x,` | trailing comma は valid。close Missing 一件だけ |
-| separate second Statement candidate を持つ `{x y}` | separator Missing 一件を zero-width で置き、`y` を next Statement として retry |
-| `{x,,y}` | post-comma mandatory Statement を recover。empty Statement を accept しない |
-| `{x,@ y}` | non-empty statement Error 一件後、`y` から same-slot retry |
-| `{x]}` | `]` を closing-delimiter Error 一件として consume し、この block の `}` 探索を続ける |
-| `}` 前の owner/root safe point | consume せず zero-width close Missing |
-
-Missing node はすべて zero-width、Error は non-empty maximal episode、committed recovery node 一つは diagnostic identity 一つである。
-
-## 8. Boundary と state-restoration contract
-
-全 AST/direct exit は incoming delimiter stack、stop set、`ml_arg`、inline mode、ambient-owner/If-companion visibility state を restore する。braced barrier は current-depth newline sequence authority を所有し、nested lexical region/delimiter は outer block に separator/close を渡せない。これは後の ASOB barrier が reuse する brace-owned sequence authority であり、outer node authority はこの construct に残る。
-
-## 9. Yulang2 divergences
-
-Yulang3 は ordinary brace-primary statement block、empty validity、comma/semicolon/newline separator、trailing separator を保つ。overloaded Yulang2 `BraceGroup` を primary-only `BracedStatementBlockExpression` へ置き換え、Pratt subtree ではなく flat `OperatorChain` Statement を保持し、synthetic newline separator token と historical fixed `ExprSpread` を追加しない。
-
-## 10. Known residual / deferred surface
-
-documented `ASOB-G` caller-boundary residual は hidden にせず characterize する。brace-specific spread、record/block/argument interpretation、declaration/control-flow brace body、projection/rule/use/interpolation form、HIR lowering、inference、diagnostics、formatting は deferred または固有 owner grammar の責務である。
-
-## 11. 実装と regression fixture の cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/statement.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/expression.rs` では `recognize_braced_statement_block_open`、`recognize_braced_statement_block_close`、`parse_braced_statement_block_expression`、`braced_statement_block_close_pending`、`push_braced_statement_block_scope`、`pop_braced_statement_block_scope`、`commit_braced_statement_block_expression`、`commit_braced_statement_block_close`、`emit_braced_statement_separator_missing`、`emit_braced_close_missing`、`emit_braced_close_error` を参照する。
-
-fixture は `braced_statement_block_is_a_primary_with_all_separator_forms`、`braced_statement_block_ast_keeps_statement_count_close_and_range`、`braced_statement_block_is_binding_power_invariant_and_keeps_deeper_newlines_local`、`braced_statement_block_keeps_colon_arguments_and_outer_chain_flat`、`braced_statement_block_recovers_mandatory_slots_and_close`。
+[動的演算子列](operator-chain.md)がblockのprimary positionを定める。
+[layout-aware separator authority](../cross-cutting/layout-aware-separator-authority.md)が、qualifying current-depth newline boundaryを定める。
+[colon application](colon-application.md)は個々のstatement内で動作し、block separatorをこのblockへ戻す。

@@ -1,103 +1,96 @@
 # Brace-delimited statement block
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-The Authoritative NUD-primary brace-delimited statement-block addendum is lines 6067–6627 of `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`. The closing signature records Claude review and user approval.
+This page defines `BracedStatementBlockExpression` in `syntax-v0`.
+The 2026-08-20 `yu-syntax` architecture defines its accepted grammar and direct Rowan CST.
+The Authoritative 2026-09-08 braced canonical Statement-sequence recovery record defines its required-statement, separator, and local-close recovery.
 
-The design and implementation commits are `04ebde8e`, `2c9a77b8`, and `9f0d9d88`. The implementation introduced the closed shared statement-sequence policy used by braced primary blocks and indented blocks without merging their outer ownership.
+The page covers an operand-starting brace block, its direct canonical statements, separators, close, and recovery CST.
+It does not define record literals or fields, control-flow brace bodies, `CatchBlock`, brace-local spread syntax, HIR interpretation, types, diagnostics wording, or formatting.
 
-## 2. Scope and non-scope
-
-At an operand-required NUD site, `{ ... }` is `BracedStatementBlockExpression`: zero or more canonical Statements enclosed by braces. It is one primary in a surrounding flat `OperatorChain` and permits comma, semicolon, or returned physical-newline statement separators, including all three trailing forms.
-
-It does not define a record literal/field node, brace bodies for `if` or declarations, projection records, fixed brace-local spread items, rule/use/interpolation braces, `CatchBlock`, HIR block/record interpretation, inference, diagnostics wording, or formatting.
-
-## 3. BNF-equivalent grammar
+## 2. Accepted syntax
 
 ```text
 BracedStatementBlockExpression :=
-    LBrace OpeningTrivia
+    "{" G*
     [ Statement { BraceStatementSeparator Statement } [ BraceStatementSeparator ] ]
-    ClosingTrivia RBrace
-
-BraceStatementSeparator := G0 Comma G* | G0 Semicolon G* | Gnl
-OpeningTrivia := G*
-ClosingTrivia := G0
+    G0 "}"
+BraceStatementSeparator := G0 ("," | ";") G* | qualifying current-depth newline
 ```
 
-`Gnl` is only trivia returned after a completed current-depth Statement. A deeper continuation newline remains within that Statement. The block is empty-valid; a separator in the optional final position does not create an empty Statement.
+The block may be empty.
+Comma, semicolon, and qualifying current-depth newline separate completed statements.
+A deeper newline stays within the current statement.
+Each separator form may be trailing and does not create an empty statement.
 
-## 4. Judge, priority, and owner boundary
+## 3. Admission and boundaries
 
-The sink-free NUD judge accepts only a lone fixed `{`, then cuts and owns the total block continuation. It pushes `Delimiter::Brace`, local `Comma`/`Semicolon`/`RightBrace` stops, bracketed inline mode, and a braced ambient-owner barrier; outer condition, comma, and close stops are suspended until this scope exits.
+At an operand-required position, a lone `{` admits this primary and commits its matching brace scope.
+The block owns its current-depth statement separators and its local close.
+Outer stops, separators, and closes remain suspended until this scope returns.
 
-The brace owner recognizes its matching `}` before a statement slot and after a separator. It alone owns statement separators and close recovery. In `{x: 1, y: 2}`, the brace-owned comma stops each ordinary `ColonApplicationTail` after one RHS; the parser creates neither `RecordLiteral` nor `RecordField`.
+Before a required statement and after a separator, matching `}` is a local block boundary.
+Nested delimiters and lexical regions cannot donate a separator or close to the outer block.
+Within `{x: 1, y: 2}`, the block-owned comma ends the first statement, so each statement may contain an ordinary one-argument colon application.
 
-## 5. Byte-exact CST worked examples
+## 4. Direct Rowan CST
 
-The addendum gives source-order CST trees but no byte-range-annotated tree; no ranges are invented here.
+`BracedStatementBlockExpression` is a direct primary child of `OperatorChain`.
+It contains `LBrace`, opening trivia, direct `Statement` children, `BlockStatementSeparator` children, closing trivia, and `RBrace` in source order.
+Every comma, semicolon, and qualifying newline separator has one `BlockStatementSeparator` wrapper.
+A comma or semicolon wrapper owns its `G0`, literal punctuation, and following trivia.
+A newline wrapper contains its native trivia leaf and creates no synthetic token.
+The node contains neither a record wrapper nor an empty `Statement` node.
 
 ```text
-{}
+BracedStatementBlockExpression := LBrace { Statement | BlockStatementSeparator | trivia } RBrace
+BlockStatementSeparator := G0 (Comma | Semicolon) G* | qualifying current-depth newline trivia
+Statement := OperatorChain | canonical statement form
 ```
 
-Design lines 6219 and 6495 record the valid empty block: `LBrace`, opening/closing trivia if present, and `RBrace`, with no synthetic Statement, separator, or Missing node.
+## 5. Recovery CST
 
-```text
-{x,y}
+In a required-statement phase, comma or semicolon places one zero-width `Missing` in `BracedStatementBlock(Statement)` and leaves the punctuation for its separator phase.
+A non-boundary non-statement run is one maximal non-empty raw `Error` group in that same statement slot; a later admitted statement retries it.
+An error that reaches a separator, qualifying newline, close, nonlocal close, fence, or EOF adds no same-cause missing node.
+
+A newly admitted separate statement after a completed statement without a separator places one zero-width `Missing` in `BracedStatementBlock(Separator)`.
+Valid empty blocks, multiline applications, and trailing separators add no fabricated statement missing node.
+An absent local `}` places one zero-width `Missing` in `ClosingDelimiter { BracedStatementBlockExpression, Brace }`.
+Every nonlocal close remains unconsumed for its actual owner.
+
+Initial leading before an error remains native block content, interior leading belongs to `Error`, and retry or protected-boundary leading remains pending.
+Nested statements retain their own recovery roles.
+
+## 6. Source/CST examples
+
+`{}` is an empty valid block.
+
+```xml
+<BracedStatementBlockExpression>
+  <LBrace text="{" /><RBrace text="}" />
+</BracedStatementBlockExpression>
 ```
 
-Design lines 6220–6222 and 6561–6563 record two `Statement > OperatorChain` children separated by one comma `BlockStatementSeparator`.
+`{x, y}` places both statements and one comma separator wrapper directly in the block.
 
-```text
-{x,}
+```xml
+<BracedStatementBlockExpression>
+  <LBrace text="{" />
+  <Statement><OperatorChain><IdentifierExpression><Identifier text="x" /></IdentifierExpression></OperatorChain></Statement>
+  <BlockStatementSeparator><Comma text="," /><Whitespace text=" " /></BlockStatementSeparator>
+  <Statement><OperatorChain><IdentifierExpression><Identifier text="y" /></IdentifierExpression></OperatorChain></Statement>
+  <RBrace text="}" />
+</BracedStatementBlockExpression>
 ```
 
-Design lines 6224 and 6499 record a valid trailing comma separator with one Statement and no `Missing(statement)`.
+`{x,}` is valid: it has one `Statement`, one trailing `BlockStatementSeparator`, and no `Missing` node.
 
-```text
-{x: 1, y: 2}
-```
+`{x: 1, y: 2}` has two direct statements; its comma is the block separator, while each statement contains its own ordinary `ColonApplicationTail`.
 
-Design lines 6116, 6259, and 6536 fix the outer `BracedStatementBlockExpression`: its comma is a block separator, while both inner Statements end in ordinary one-argument `ColonApplicationTail` nodes.
+## 7. Composition
 
-## 6. Parser-side AST shape
-
-`PrimaryExpression::BracedStatementBlock` contains `BracedStatementBlockExpression`. That struct has exactly `open`, recovered ordered `statements`, recovered `close`, and `range`.
-
-The AST does not duplicate comma, semicolon, newline, or trailing-separator spelling. Those bytes remain source-order CST children; the recovered close preserves either the matching brace range or its committed missing slot.
-
-## 7. Typed recovery table
-
-| condition | recovery and continuation |
-| --- | --- |
-| `{` at EOF | empty body is valid; emit only one zero-width close Missing |
-| `{x` at EOF | retain the Statement and emit one close Missing |
-| `{x,` at EOF | trailing comma is valid; emit only one close Missing |
-| `{x y}` with a separate second Statement candidate | one zero-width separator Missing, then retry `y` as the next Statement |
-| `{x,,y}` | recover the mandatory post-comma Statement; do not accept an empty Statement |
-| `{x,@ y}` | one non-empty statement Error, then same-slot retry at `y` |
-| `{x]}` | consume `]` as one closing-delimiter Error and continue seeking this block's `}` |
-| owner/root safe point before `}` | do not consume it; emit zero-width close Missing |
-
-All Missing nodes are zero-width, Errors are non-empty maximal episodes, and each committed recovery node has one diagnostic identity.
-
-## 8. Boundary and state-restoration contract
-
-Every AST/direct exit restores the incoming delimiter stack, stop set, `ml_arg`, inline mode, and ambient-owner/If-companion visibility state. The braced barrier owns current-depth newline sequence authority; nested lexical regions and delimiters cannot donate separators or closes to the outer block. This is the same brace-owned sequence authority later reused as an ASOB barrier, while the outer node remains this construct's own owner.
-
-## 9. Yulang2 divergences
-
-Yulang3 retains ordinary brace-primary statement blocks, empty validity, comma/semicolon/newline separators, and trailing separators. It deliberately replaces overloaded Yulang2 `BraceGroup` with primary-only `BracedStatementBlockExpression`, preserves flat `OperatorChain` statements rather than Pratt subtrees, emits no synthetic newline separator token, and does not add historical fixed `ExprSpread`.
-
-## 10. Known residual / deferred surface
-
-The documented `ASOB-G` caller-boundary residual remains characterized rather than hidden. Brace-specific spread, record/block/argument interpretation, declaration and control-flow brace bodies, projection/rule/use/interpolation forms, HIR lowering, inference, diagnostics, and formatting remain deferred or belong to their own owner grammar.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owner is `crates/yu-syntax/src/statement.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_braced_statement_block_open`, `recognize_braced_statement_block_close`, `parse_braced_statement_block_expression`, `braced_statement_block_close_pending`, `push_braced_statement_block_scope`, `pop_braced_statement_block_scope`, `commit_braced_statement_block_expression`, `commit_braced_statement_block_close`, `emit_braced_statement_separator_missing`, `emit_braced_close_missing`, and `emit_braced_close_error`.
-
-Fixtures include `braced_statement_block_is_a_primary_with_all_separator_forms`, `braced_statement_block_ast_keeps_statement_count_close_and_range`, `braced_statement_block_is_binding_power_invariant_and_keeps_deeper_newlines_local`, `braced_statement_block_keeps_colon_arguments_and_outer_chain_flat`, and `braced_statement_block_recovers_mandatory_slots_and_close`.
+[Dynamic operator chains](operator-chain.md) define the block's primary position.
+The [layout-aware separator authority](../cross-cutting/layout-aware-separator-authority.md) defines qualifying current-depth newline boundaries.
+[Colon application](colon-application.md) operates inside an individual statement and returns block separators to this block.

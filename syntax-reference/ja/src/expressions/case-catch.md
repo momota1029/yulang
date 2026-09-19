@@ -1,116 +1,127 @@
-# `case` / `catch` expression
+# `case` と `catch` 式
 
-## 1. 状態・正本・最終確認
+## 1. 権威と対象範囲
 
-Authoritative な NUD-primary `case` / `catch` 追補は `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の 7243–8017 行にある。この arm-sequence policy は Pattern page が繰り返し参照する Case/Catch arm newline を所有する。Statement sequence ownership とは別であり、Case-inline、Catch-inline-single、indented、Catch-braced policy を持つ。
+このページは、`syntax-v0`の`CaseExpression`と`CatchExpression`を定める。
+2026年8月20日の`yu-syntax` architectureが、受理構文と直接 Rowan CSTを定める。
+Authoritativeな2026年9月8日のCaseLike structuralとArrow/Body recoveryの記録、および2026年9月9日のseparatorとCatch-closeの記録が、recovery CSTを定める。
 
-design / implementation commit は `51ccc640`、`0efd67e4`、`6e8ca889`、`72c93d5a`。後ろ二つの fix は current contract の scrutinee trivia/arrow recovery と same-position missing arm-separator retry を保持した。
+対象は、expression primary、label、scrutinee、arm family、pattern、任意のguardとCatch handler、exact arrow、body、separator、Catch braceである。
+lambda form、exhaustiveness、guard、handler、label、exception、valueの意味、HIR、型、diagnostic wording、formattingは定めない。
 
-## 2. 対象範囲と非対象
-
-`case` と `catch` は別々の operand-starting NUD primary である。optional apostrophe-sigil label、flat OperatorChain scrutinee、family-owned block、Pattern arm、optional guard、exact arrow、inline chain 一つまたは indented statement body、Catch の optional second handler Pattern を所有する。Catch はさらに braced arm block を所有する。
-
-`\case`/`\catch` lambda、shared Pattern grammar を越える Pattern form、case-only constructor application、case brace arm block、multi-arm Catch colon-inline block、exhaustiveness/guard/handler/label/exception semantics、HIR lowering、inference、diagnostics wording、formatting は対象外である。
-
-## 3. BNF 相当の grammar
+## 2. 受理構文
 
 ```text
-CaseExpression  := CaseKw  CaseLikeHead CaseBlock
-CatchExpression := CatchKw CaseLikeHead CatchBlock
-CaseLikeHead := G* [ CaseLikeLabel G* ] Scrutinee G0*
-CaseLikeLabel := Apostrophe!Identifier
-
-CaseBlock := Colon (CaseInlineArmSequence | CaseIndentedArmSequence)
-CatchBlock := Colon (CatchInlineArmSequence | CatchIndentedArmSequence)
-            | LBrace G* CatchBracedArmSequence G* RBrace
-
-CaseArm  := Pattern [ CaseGuard ]  Arrow ArmBody [ Semicolon ]
-CatchArm := Pattern [ Comma Pattern ] [ CatchGuard ] Arrow ArmBody [ Semicolon ]
+CaseExpression  := CaseKw  CaseHead CaseBlock
+CatchExpression := CatchKw CatchHead CatchBlock
+CaseHead := G* [ CaseLabel G* ] CaseScrutinee
+CatchHead := G* [ CatchLabel G* ] CatchScrutinee
+CaseLabel := SigilIdentifier
+CatchLabel := SigilIdentifier
+SigilIdentifier := Apostrophe!Identifier
+CaseScrutinee := OperatorChain
+CatchScrutinee := OperatorChain
+CaseBlock := ":" (CaseInlineArms | CaseIndentedArms)
+CatchBlock := ":" (CatchInlineArm | CatchIndentedArms) | "{" CatchBracedArms "}"
+CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
+CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
+CaseArmSeparator := ","
+CatchArmSeparator := ","
+CaseArm  := Pattern [ CaseGuard ] "->" ArmBody [ ";" ]
+CatchArm := Pattern [ "," Pattern ] [ CatchGuard ] "->" ArmBody [ ";" ]
 CaseGuard := (IfKw | WhereKw) OperatorChain
 CatchGuard := (IfKw | WhereKw) OperatorChain
 ArmBody := OperatorChain | IndentedStatementBlock
 ```
 
-Case/Catch scrutinee は Colon で stop し、Catch はさらに LBrace で stop する。Case は comma-separated inline arm、Catch colon-inline は exactly one arm、Catch indented/braced form は multiple arm を持てる。Case braced arm block は invalid by design である。
+`case`と`catch`は、別々のoperand-starting primaryである。
+Case inline armはcommaで区切る。
+colon-inline Catchはarmを正確に一つ持つ。
+indented CaseとCatchのarm、およびbraceで囲むCatch armは複数のarmを持てる。
+Caseはbrace arm blockを受理しない。
 
-## 4. Judge・priority・owner boundary
+## 3. 受理と境界
 
-operand-required NUD site では exact maximal contextual word `case`/`catch` だけを accept/cut し、`casefold`/`catcher` は identifier のままである。Case scrutinee は Colon だけ、Catch scrutinee は Colon と LBrace を reserve する。そのため `case x { ... }` は brace を scrutinee/outer expression へ残す一方、Catch は direct `CatchBlock` を所有できる。
+対応するprimaryを受理するのは、最大の語として正確に一致するcontextual word `case`と`catch`だけであり、`casefold`と`catcher`はidentifierのままである。
+caseのscrutineeは`:`で停止する。
+catchのscrutineeは`:`または`{`で停止するため、direct braced blockを所有できるのはCatchだけである。
 
-arrow は dynamically associated operator ではなく exact fixed `->` punctuation である。Pattern、handler、guard、arrow、body、arm separator は各自の stop を持つ。Catch handler comma は CatchArm の direct child、arm-list comma は family separator である。current-depth Catch-brace newline と indented arm-indent newline は arm-sequence policy が所有し、body-statement newline は indented statement block が所有する。
+label内のapostropheとidentifierはadjacentであり、whitespaceで`SigilIdentifier`を分けられない。
+`->`は動的にassociationするoperatorではなく、exactなfixed punctuationである。
+Catch handlerのcommaは直接の`CatchArm` childであり、arm-list commaは選んだarm familyに属する。
+current-depthのCatch-brace newlineとindented arm-indent newlineはそのfamilyに属し、indented body blockがstatement newlineを所有する。
+active arm ownerは、nested colon、comma、arrow、brace、guard word、closeの表記を、それぞれのimmediate ownerへ戻す。
 
-## 5. Byte-exact CST の worked examples
+## 4. 直接 Rowan CST
 
-追補は source-order CST outline を示すが byte-range 付き tree はない。ここでは range を作らない。
+`CaseExpression`と`CatchExpression`は、`OperatorChain`の直接のprimary childである。
+`CaseExpression`は、keyword、任意の`CaseLabel`、direct `CaseScrutinee`、direct case blockをsource orderで持つ。
+`CatchExpression`は、keyword、任意の`CatchLabel`、direct `CatchScrutinee`、direct catch blockをsource orderで持つ。
+各labelは、adjacentなapostropheとidentifierを持つ`SigilIdentifier` token一つを含む。
+各scrutineeは、その`OperatorChain`を直接含む。
+`CaseArm`は、direct `Pattern`、任意の`CaseGuard`、exactな`Arrow`、body、任意のsemicolonを持つ。
+`CatchArm`は、direct `Pattern`、任意のhandler `Pattern`、任意の`CatchGuard`、exactな`Arrow`、body、任意のsemicolonを持つ。
+generic case-like wrapperはない。
+
+`CatchBlock`は、braceがある場合にそのbraceを直接持ち、そのbraceは`BracedStatementBlockExpression`を作らない。
+Case inline armのcommaは、direct `CaseArmSeparator` wrapperに入る。
+Catch-braced armのcommaは、direct `CatchArmSeparator` wrapperに入る。
+arm bodyは、直接の`OperatorChain`一つまたは直接の`IndentedStatementBlock`一つを持つ。
 
 ```text
-case 'go x: 1 if ok -> yes, _ -> no
+CaseExpression := CaseKw [ CaseLabel ] CaseScrutinee CaseBlock
+CatchExpression := CatchKw [ CatchLabel ] CatchScrutinee CatchBlock
+CaseInlineArms := CaseArm { CaseArmSeparator CaseArm } [ CaseArmSeparator ]
+CatchBracedArms := CatchArm { CatchArmSeparator CatchArm } [ CatchArmSeparator ]
+CaseArm := Pattern [ CaseGuard ] Arrow ArmBody [ Semicolon ]
+CatchArm := Pattern [ Comma Pattern ] [ CatchGuard ] Arrow ArmBody [ Semicolon ]
 ```
 
-設計文書 7657–7697 行は label、scrutinee、`CaseBlock`、guard を持つ first `CaseArm`、`CaseArmSeparator`、second arm が source order の sibling となる detailed `CaseExpression` outline を与える。
+## 5. Recovery CST
 
-```text
-catch action { err, handler -> recover; }
+block introducerがなければ、colon expectationを持つzero-widthの`Missing`を`CaseLike(Block)`に一つ置く。
+Catchが`{`を受理した後にlocal closeがなければ、代わりにbrace-close expectationを持つ`CaseLike(Block)`を使う。
+colon後で同じ深さ以下のarm不在は`CaseLike(Arm)`を使い、完全な次のitemをouter ownerに残す。
+最初のarmとCatch handlerのpattern recoveryは、Pattern ownerを通じて`CaseLike(Pattern)`と`CaseLike(Handler)`をそれぞれ一度だけ使う。
+
+arrowがない位置でbody NUDを受理すると、bodyをparseする前に`CaseLike(Arrow)`のmissing nodeを一つ置く。
+arrowとbodyが同じboundaryでどちらもなければ、その一つのArrow nodeが、順序付けたArrow-punctuationとBody-expression expectationを持つ。
+この場合、二つ目の`Missing` nodeは作らない。
+arrowを受理した後にbodyがなければ、`CaseLike(Body)`を使う。
+malformed bodyは、`CaseLike(Body)`にあるmaximalかつnon-emptyなraw `Error` group一つとなり、同じslotを再試行できる。
+
+arm commaなしで次のpatternを受理する前に、zero-widthの`CaseLike(Separator)` missing nodeを一つ置き、同じitemを正確に一度再試行する。
+separator wrapperもseparator error scanも作らない。
+Catchのarm sequenceが終了するたびに、`CatchBlock`は対応する`}`またはlocal close missing nodeを一つ置き、それ以外のprotected itemを未消費のまま残す。
+nested pattern、guard、bodyのrecoveryをarm familyが重複して記録することはない。
+
+## 6. Source/CSTの例
+
+`case 'go x: 1 if ok -> yes, _ -> no`は、label、scrutinee、直接のarm二つ、arm separatorをsource orderで置く。
+
+```xml
+<CaseExpression>
+  <CaseKw text="case" /><Whitespace text=" " />
+  <CaseLabel><SigilIdentifier text="'go" /></CaseLabel><Whitespace text=" " />
+  <CaseScrutinee><OperatorChain><IdentifierExpression><Identifier text="x" /></IdentifierExpression></OperatorChain></CaseScrutinee>
+  <CaseBlock>
+    <Colon text=":" /><Whitespace text=" " />
+    <CaseArm><Pattern><IntegerPattern><IntegerLiteral text="1" /></IntegerPattern></Pattern><Whitespace text=" " /><CaseGuard><IfKw text="if" /><Whitespace text=" " /><OperatorChain><IdentifierExpression><Identifier text="ok" /></IdentifierExpression></OperatorChain></CaseGuard><Whitespace text=" " /><Arrow text="->" /><Whitespace text=" " /><OperatorChain><IdentifierExpression><Identifier text="yes" /></IdentifierExpression></OperatorChain></CaseArm>
+    <CaseArmSeparator><Comma text="," /></CaseArmSeparator><Whitespace text=" " />
+    <CaseArm><Pattern><WildcardPattern><Underscore text="_" /></WildcardPattern></Pattern><Whitespace text=" " /><Arrow text="->" /><Whitespace text=" " /><OperatorChain><IdentifierExpression><Identifier text="no" /></IdentifierExpression></OperatorChain></CaseArm>
+  </CaseBlock>
+</CaseExpression>
 ```
 
-設計文書 7699–7702 行は brace を direct `CatchBlock` child として固定する。handler comma、second Pattern、arrow、body、semicolon は `CatchArm` の direct child であり、`BracedStatementBlockExpression`/Statement/colon tail は作らない。
+`catch action { err, handler -> recover; }`では、handler comma、second pattern、arrow、body、semicolonが、直接のbraced `CatchBlock`内にある一つの`CatchArm`に属する。
 
-```text
-case x: 1 -> a, 2 -> b
-```
+braceで囲むCatch blockが複数のarmを持つ場合、各arm-list commaは`CatchArmSeparator`である。
+これは`CatchArm`内のhandler commaとは異なる。
 
-設計文書 7959 行は `CaseInlineArmSequence` の multiple inline Case arm と optional trailing-comma coverage を固定する。
+`catch action: err, handler -> recover`は、任意のsecond handler patternを持つ、正確に一つのcolon-inline Catch armである。
 
-```text
-catch action: err, handler -> recover
-```
+## 7. 構成
 
-設計文書 7964 行は full second handler Pattern を持つ exactly-one inline Catch arm を固定する。
-
-## 6. Parser 側 AST shape
-
-`PrimaryExpression::Case` と `PrimaryExpression::Catch` は `CaseExpression` と `CatchExpression` を持つ。各 struct は正確に `keyword`、optional `label`、recovered boxed `scrutinee`、recovered `block`、`base_indent`、`range` を持つ。`CaseLikeLabel` は正確に `text` と `range` を持つ。
-
-`CaseBlock` は正確に recovered `colon`、recovered `arms`、`layout`、`range` を持つ。`CatchBlock::Colon` は正確に recovered `colon`、recovered `arms`、`layout`、`range`、`CatchBlock::Braced` は正確に `open`、recovered `arms`、recovered `close`、`range` を持つ。`ColonArmLayout` は正確に `Inline` または `Indented { base_indent, arm_indent }`、`ArmSequence` は正確に recovered ordered `arms` と optional `trailing_comma` を持つ。
-
-`CaseArm` は正確に recovered `pattern`、optional recovered `guard`、recovered `arrow`、recovered `body`、optional `terminator`、`range` を持つ。`CatchArm` は optional recovered `handler` を追加する。`CaseGuard`/`CatchGuard` は各々正確に `keyword`、recovered boxed `condition`、`range` を持つ。`ArmGuardKeyword` は正確に `If` または `Where`、`ArmBody` は inline boxed `OperatorChain` または `IndentedStatementBlock` である。
-
-## 7. Typed recovery table
-
-| condition | recovery と continuation |
-| --- | --- |
-| keyword 後に scrutinee がない | Scrutinee Missing 一件。`:`、Catch `{`、close/newline/EOF を保持 |
-| block introducer がない | Block Missing 一件。outer delimiter/newline/EOF を非消費で return |
-| colon 後の same-or-shallower newline | Arm Missing 一件。trivia と next outer construct を保持 |
-| first pattern がない | Pattern Missing 一件。handler comma/guard/arrow/close/arm boundary を保持 |
-| Catch handler comma 後に handler がない | Handler Missing 一件。guard/arrow を保持 |
-| guard expression がない | Guard Missing 一件。exact arrow を保持して arm 継続 |
-| body NUD candidate があるが arrow がない | Arrow Missing 一件後 same-position body retry |
-| arrow/body が同一 boundary でともにない | root-cause record 一件と required slot marker。comma/dedent/right brace/EOF を保持 |
-| next pattern 前の arm comma がない | Separator Missing 一件後、その Pattern を一度 retry |
-| arm comma 後の malformed byte | non-empty Error 一件後、nearest safe point で mandatory-arm retry |
-| Catch `}` がない | CatchBlock close Missing 一件。caller delimiter/lexical boundary を越えない |
-
-committed Missing/Error CST node と recovery record は one-to-one である。Pattern recovery 自体を Case/Catch が再診断しない。
-
-## 8. Boundary と state-restoration contract
-
-closed `ArmSequencePolicy` は earlier Pattern page が参照する shared authority である。Case inline は comma を所有し、Catch inline は意図的に所有しない。indented sequence は arm-indent newline だけ、Catch-braced sequence は current-brace-depth newline と comma を所有する。これは `StatementSequencePolicy` と別なので、body-block separator は arm separator にならない。
-
-全 probe は sink-free。normal/recovery/rollback exit は stop frame、delimiter/brace scope、indentation baseline、ambient ownership、lexical-region boundary を restore する。nested delimiter/opaque lexical region は inner colon/comma/arrow/brace/`if`/`where` spelling を arm safe point にしない。
-
-## 9. Yulang2 divergences
-
-Yulang3 は contextual primary placement、label、guard、Catch handler、exact arrow、colon/indented form、direct Catch brace を保つ。Pratt subtree でなく flat OperatorChain を保存し、generic case-like wrapper でなく family-specific source-order CST node を使い、typed Missing/Error recovery を持つ。Case brace は Yulang3 では Case block として意図的に accept しない。
-
-## 10. Known residual / deferred surface
-
-documented `ASOB-G` residual は representative Case/Catch arm-sequence boundary situation を含み、hidden にせず characterize する。lambda form、future Pattern form、semantic exhaustiveness/guard/handler/label/exception behavior、other colon-owner unification、HIR lowering、inference、diagnostics、formatting は deferred である。
-
-## 11. 実装と regression fixture の cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/expression/case_like.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/expression.rs` では `recognize_case_like_nud`、`parse_case_like_label`、`parse_catch_braced_block_ast`、`parse_case_arm_sequence_ast`、`parse_catch_arm_sequence_ast`、`arm_sequence_boundary`、`parse_case_arm_ast`、`parse_catch_arm_ast`、`parse_case_guard_ast`、`parse_catch_guard_ast`、`commit_case_like_expression`、`commit_arm_sequence`、`commit_one_arm`、`commit_arm_guard`、`commit_arm_body`、`emit_case_like_missing`、`commit_case_like_invalid_arrow` を参照する。
-
-fixture は `case_and_catch_are_primary_expressions_with_family_owned_arm_shapes`、`case_like_guards_and_indented_arms_keep_their_boundaries`、`case_like_arrow_is_exact_and_never_splits_a_longer_operator`、`case_like_ast_and_direct_paths_agree_on_arm_count_and_layout`、`case_like_missing_arrow_retries_the_body_from_the_same_position`、`case_like_recovery_marks_missing_mandatory_slots_once`、`case_like_invalid_arrow_run_recovers_to_the_next_comma_arm`、`case_like_same_indent_boundaries_stay_with_the_outer_owner`、`case_like_missing_arm_comma_retries_the_next_pattern`。
+[動的演算子列](operator-chain.md)が、primary placement、scrutinee、guard、inline bodyを定める。
+[pattern reference](../patterns/pattern-core.md)がarmのPattern grammarを定め、nested pattern recoveryを所有する。
+[layout-aware separator authority](../cross-cutting/layout-aware-separator-authority.md)と共有indented blockが、current-depthのarmとbody boundaryを定める。

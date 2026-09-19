@@ -1,118 +1,110 @@
-# `WithBodyTail`
+# `with:` body tail
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-The Authoritative generic-expression `WithBodyTail` addendum is lines 10662–11085 of `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`. It fills the terminal-tail slot reserved by the operator-chain and colon-application work; it is one addendum rather than a declaration-companion addendum.
+This page defines the terminal `WithBodyTail` in `syntax-v0`.
+The 2026-08-20 `yu-syntax` architecture defines its accepted grammar and direct Rowan CST.
+The Authoritative 2026-09-08 Colon/With inline and indented-Statement role-transport records define its recovery and indented-body transport.
+See the [syntax content model](../conventions/syntax-content-model.md), [Rowan CST notation](../conventions/rowan-cst.md), and [recovery `Error` and `Invalid` topology](../conventions/recovery-error-invalid-topology.md) for shared notation.
 
-The approval and implementation commits are `72922125` and `5ca66006`. Later canonical-`Statement` expansion is shared consumer infrastructure, not a second `WithBodyTail` grammar.
+The page covers a generic-expression `with:` continuation, its one inline canonical `Statement` or indented statement block, and their recovery CST.
+It does not define declaration companions, `with { ... }`, target association, companion semantics, HIR, types, diagnostics wording, or formatting.
 
-## 2. Scope and non-scope
-
-This grammar adds a terminal generic-expression continuation after an operand-complete `OperatorChain`: an inline one-`Statement` body or a non-empty strictly-indented statement block. Its body is a nested canonical statement, so ordinary nested operator tails, colon application, and another `WithBodyTail` can occur inside that body.
-
-It does not define a `struct`, `enum`, `type`, or other declaration companion; `with { ... }` is not this generic form. It also does not decide companion/module semantics, receiver attachment, cleanup meaning, target association, HIR/lowering, inference, diagnostics prose, or formatting.
-
-## 3. BNF-equivalent grammar
+## 2. Accepted syntax
 
 ```text
-WithBodyContinuation :=
-    ChainContinuingTrivia WithBodyTail
-
-WithBodyTail :=
-    WithKw WithIntroducerTrivia Colon WithBody
-
-WithIntroducerTrivia := G*
-
-WithBody :=
-    InlineWithBody
-  | IndentedStatementBlock
-
-InlineWithBody :=
-    G0* Statement [ Semicolon ]
+WithBodyTail := WithKw G* ":" WithBody
+WithBody := InlineWithBody | IndentedStatementBlock
+InlineWithBody := Statement [ ";" ]
 ```
 
-`with` is an exact maximal word; `withx` and `with?` are not split. `::` is not split into the required lone `:`. The introducer allows maximal trivia, including newlines, between the keyword and colon. `ChainContinuingTrivia` belongs to the outer chain, while post-keyword and inline post-colon trivia belong to the tail.
+`with` is an exact maximal word, so `withx` and `with?` do not admit this tail.
+The required colon is a lone colon; `::` is not split.
+Trivia between `with` and `:` may include a newline.
+A physical newline after the colon selects an indented block only at strictly deeper indentation.
+Otherwise the body is one inline canonical `Statement`.
 
-## 4. Judge, priority, and owner boundary
+## 3. Admission and boundaries
 
-At an operand-complete site, active owner stops, matching delimiters, and equal-or-shallower newlines first return to their owners. With `StopKind::With` inactive, an exact `with` probe then precedes dynamic LED recognition, fixed postfix recognition, ML-argument recognition, and colon-application recognition. Once the word is accepted, the tail owns mandatory colon/body recovery and cannot roll back to an identifier, dynamic operator, or ML argument.
+At an operand-complete position, active owner stops, matching closes, and equal-or-shallower newlines return before this tail.
+When `with` is not stopped, its exact probe takes priority over dynamic LED, fixed postfix, ML application, and colon application.
+Accepting it commits the tail: it cannot fall back to an identifier, operator, or ML argument.
 
-`WithBodyTail` is a `TerminalOuterTail`: it has no target child and finishes the current outer chain. Its nested body owns a fresh statement/chain, so `a with: b: c` and `a with: b with: c` put the inner terminal continuation in the body rather than adding a second terminal sibling to outer `a`. A later fixed tail therefore needs a new outer chain, for example through parenthesization.
+`WithBodyTail` is terminal and has no target child.
+Its body starts a fresh statement and chain context.
+Thus the nested tail in `a with: b: c` or `a with: b with: c` belongs to the body, not to the outer `a` chain.
+The optional inline semicolon is owned once by the tail; later trivia and outer boundaries remain outside it.
 
-## 5. Byte-exact CST worked examples
+## 4. Direct Rowan CST
 
-The addendum supplies source-order CST trees but no byte-range-annotated tree; no ranges are invented here.
+`WithBodyTail` is a direct terminal child of `OperatorChain` and does not wrap its target.
+It contains `WithKw`, introducer trivia, `Colon`, body trivia, and either one direct `Statement` or one direct `IndentedStatementBlock` in source order.
+There is no `InlineWithBody` CST wrapper.
 
 ```text
-a + b with: cleanup
+OperatorChain := <completed-chain children> WithBodyTail
+WithBodyTail := WithKw G* Colon (Statement [ Semicolon ] | IndentedStatementBlock)
 ```
 
-Design lines 10769–10783 give the complete tree: the outer `OperatorChain` owns `a`, `+`, and `b`; the following `WithBodyTail` owns `WithKw`, colon, post-colon trivia, and a nested `Statement` whose `OperatorChain` owns `cleanup`.
+An inline body's `Statement` owns its nested `OperatorChain` and any nested terminal tail.
+An indented body owns its statement separators through `IndentedStatementBlock`; `WithBodyTail` does not own a semicolon after that alternative.
+
+## 5. Recovery CST
+
+An accepted `with` without its colon places one zero-width `Missing` in `WithBody(Introducer)` and does not cascade a body missing node at the same boundary.
+When an inline statement starts where the colon is missing, it retries that same position as the body after the introducer missing node.
+`::` remains available to body or outer recovery after that missing node.
+
+An accepted colon with no body places one zero-width `Missing` in `WithBody(Body)`.
+At an equal-or-shallower newline, the newline and following item remain with the outer statement owner.
+A malformed non-statement inline run is one maximal non-empty raw `Error` group in `WithBody(Body)`, followed by same-slot retry at an admitted canonical statement.
+Nested recovery belongs to the nested statement or tail and is not duplicated by `WithBodyTail`.
+
+The indented alternative transports `WithBody(IndentedStatement)` to the shared block entry and child-statement recovery slots.
+All protected commas, closes, dedents, stops, and retry points remain unconsumed boundaries.
+
+## 6. Source/CST examples
+
+`a + b with: cleanup` places the body after the completed outer chain.
+
+```xml
+<OperatorChain>
+  <IdentifierExpression><Identifier text="a" /></IdentifierExpression>
+  <Whitespace text=" " />
+  <InfixOperatorUse><Operator text="+" /></InfixOperatorUse>
+  <Whitespace text=" " />
+  <IdentifierExpression><Identifier text="b" /></IdentifierExpression>
+  <Whitespace text=" " />
+  <WithBodyTail>
+    <WithKw text="with" /><Colon text=":" /><Whitespace text=" " />
+    <Statement><OperatorChain><IdentifierExpression><Identifier text="cleanup" /></IdentifierExpression></OperatorChain></Statement>
+  </WithBodyTail>
+</OperatorChain>
+```
+
+In `a with: b: c`, the nested colon is in the body's chain.
+
+```xml
+<WithBodyTail>
+  <WithKw text="with" /><Colon text=":" /><Whitespace text=" " />
+  <Statement>
+    <OperatorChain>
+      <IdentifierExpression><Identifier text="b" /></IdentifierExpression>
+      <ColonApplicationTail><Colon text=":" /><Whitespace text=" " /><OperatorChain><IdentifierExpression><Identifier text="c" /></IdentifierExpression></OperatorChain></ColonApplicationTail>
+    </OperatorChain>
+  </Statement>
+</WithBodyTail>
+```
+
+The following source contains one direct `IndentedStatementBlock` body.
 
 ```text
-value with: body
+value with:
+  body
 ```
 
-Design line 10962 records the complete inline-body recovery-table row: one `WithBodyTail`, a completed colon slot, and a completed inline `Statement`, with no diagnostic.
+## 7. Composition
 
-```text
-a with: b: c
-```
-
-Design lines 10988–10996 fix the nested ownership: `WithBodyTail` is outer-tail syntax, while the body statement's nested `OperatorChain` owns `b` and its `ColonApplicationTail`.
-
-```text
-f with: body
-```
-
-Design lines 11002–11004 fix exact `with` priority over ML application: this is a with-tail whose target segment is `f`, not `Primary(f), MlArgument(with), ColonApplicationTail(body)`.
-
-The documented indented complete form is `value with:\n  body` at design line 10963; it has one `IndentedStatementBlock`, including its opening trivia and nested statement, rather than an inline wrapper.
-
-## 6. Parser-side AST shape
-
-`TerminalOuterTail` has exactly `ColonApplication(ColonApplicationTail)` and `WithBody(WithBodyTail)` variants in this portion of the grammar. `WithBodyTail` has exactly `keyword: WordSpan<'source>`, `colon: Recovered<Range<usize>>`, `body: Recovered<WithBody<'source>>`, and `range: Range<usize>`.
-
-`WithBody` has exactly `Inline { statement: Box<Statement<'source>> }` and `Indented { block: IndentedStatementBlock<'source> }` variants. There is no target field, numeric binding-power field, inline-semicolon field, or trivia field: those remain CST/source ownership. Keeping `colon` and `body` as separate recovered slots distinguishes missing-colon retry from a present colon with a missing body.
-
-## 7. Typed recovery table
-
-| condition | recovery and continuation |
-| --- | --- |
-| `value with` at EOF | retain `WithKw`; emit one zero-width `Missing(Introducer: Colon)` and no cascaded body Missing |
-| `value with body` | emit one zero-width introducer-colon Missing, then retry the same position as the inline statement body |
-| `value with :: body` | do not split `::`; retain longer punctuation for body/outer recovery after the colon Missing |
-| `value with:` at EOF | retain colon and emit one zero-width `Missing(Body: Statement)` |
-| post-colon newline at indent `<= with_base` | emit one body Missing; leave newline and following token for the outer statement owner |
-| deeper newline then EOF | retain `IndentedStatementBlock` and its opening trivia; emit one `Missing(IndentedStatement)` |
-| `value with: ;` | emit one body Missing and retain the literal terminal semicolon |
-| malformed non-statement run before a valid body | emit one maximal non-empty `Error(Body)`, then retry the same body slot |
-| malformed inner indented statement or nested tail | delegate to the nested/shared owner without a duplicate With recovery |
-
-`Missing` is zero-width, `Error` is maximal and non-empty, and each committed recovery node has one diagnostic identity. Comma, matching close, dedent, equal-or-shallower newline, active owner stops, EOF, and valid retry points remain scanner boundaries.
-
-## 8. Boundary and state-restoration contract
-
-The tail snapshots the active indentation baseline before its introducer/layout episode. No physical post-colon newline selects exactly one canonical inline `Statement`; a newline selects an indented block only when the following indent is strictly deeper. Inline terminal semicolon is owned once by the tail, while subsequent trivia and outer boundaries remain outside it.
-
-AST and direct-CST paths restore input, line state, sink, ambient-owner scope, stop set, indentation state, `ml_arg`, and other local parser frames on normal, recovery, and rollback exits. Nested body recovery leaves outer comma, matching close, dedent, and owner boundaries available to their callers.
-
-## 9. Yulang2 divergences
-
-Yulang3 renames Yulang2 `WithBlock` to `WithBodyTail`, making the flat-chain terminal role explicit. It replaces empty/generic invalid-token recovery with typed `WithBodyRole` Missing/Error records and a same-position missing-colon body retry. It also distributes trivia to the nearest typed CST owner rather than reproducing a single Yulang2 `Lex` emission.
-
-The original Yulang3 slice deliberately excluded Yulang2 declaration-companion/brace paths and, until shared canonical `Statement` expansion, accepted only the then-current statement subset inside the body. The generic tail never infers a declaration companion owner from its target.
-
-## 10. Known residual / deferred surface
-
-The shared `ASOB-G` caller-boundary residual remains characterized rather than hidden: a caller boundary behind a missing nested delimited owner can be unavailable to that nested owner's recovery scan. This page neither broadens nor resolves that cross-cutting residual.
-
-Deferred surfaces include declaration companions and brace companion bodies, companion item classification, name resolution/visibility, receiver or method attachment, cleanup/local-module interpretation, HIR/lowering, inference, diagnostics wording, and formatting.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owner is `crates/yu-syntax/src/expression/tails.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_with_body_tail`, `parse_with_body_tail`, `parse_with_inline_statement`, `commit_with_body_tail`, `with_body_absent_boundary`, `with_body_error_retry`, `emit_with_missing`, and `emit_with_error`.
-
-Fixtures include `with_body_tail_is_terminal_and_reuses_inline_and_indented_statement_bodies`, `with_body_tail_missing_colon_is_single_typed_recovery_and_retries_body`, and `indented_and_with_inline_ambient_scopes_restore_after_ast_and_direct_episodes`.
+[Dynamic operator chains](operator-chain.md) define the terminal continuation position and sibling tails.
+[Colon application](colon-application.md) may occur inside the body statement.
+The shared indented block owns an indented body's sequence and transports `WithBody(IndentedStatement)` recovery.
