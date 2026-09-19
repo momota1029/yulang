@@ -1,185 +1,198 @@
-# canonical Binding / Use
+# Bindingと`use`のstatement form
 
-## 1. 状態・根拠・最終照合
+## 状態と権威
 
-このページは `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の
-Authoritative な追補「canonical `Statement` の binding / use declaration extension」
-（11086–11623行）を要約する。補助となる Complete `use` declaration grammar and
-projection（933–1924行）が recursive `UseTree` grammar と projection を定める。
+このページは`syntax-v0`で受理するBindingと`use`のstatement form、およびその直接Rowan CSTを記録する。
+Bindingの生成規則、配置、CST、layoutは、`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`のAuthoritativeな「canonical `Statement`のbinding / use declaration拡張」節が定める。
+`UseTree`の生成規則とCSTは、同じ設計記録のAuthoritativeな「Complete `use` declaration grammar and projection」節が定める。
+同節の「Oracle state machine」と「UseQualifiers」、「UseAnchor」小節がanchorの受理を定める。
+Bindingのcurrent-Item recoveryは、Authoritativeな`notes/design/2026-09-08-successor-binding-current-item-recovery.md`が定める。
+`UseGroupForeignClose`は、Authoritativeな`notes/design/2026-09-12-successor-use-group-foreign-close-topology.md`が定める。
 
-design approval は `fe6f06c2`、canonical parser integration は `49c08530`。
-このページは `96d98da4` に対して最終照合した。
+[構文の内容モデル](../conventions/syntax-content-model.md)は配置の一覧であり、これらの権威を置き換えない。
 
-## 2. 対象と非対象
+## 配置と受理する表層構文
 
-この追補は Binding と Use を root および nested statement owner の canonical
-`Statement` alternative にする。Binding は visibility prefix、mandatory Pattern target、
-optional definition body を持つ。Use は structured use-tree grammar を再利用し、root
-header projection を含む。
+Bindingと`use`は、`Root`と入れ子のstatement ownerで受理する。
+`Root`では、`BindingStatement`または`UseDeclaration`を直接の子に置く。
+入れ子のstatement ownerでは、`Statement`を1個置き、その直接の子に`BindingStatement`または`UseDeclaration`を1個置く。
+`BindingDeclaration`を`Root`または`Statement`の直接の子にしてはならない。
 
-後続 declaration kind、`for`、operator definition、`where` statement、lexical import
-scope、module resolution、export semantics は対象外である。
-
-## 3. BNF 相当の grammar
+root専用のoperator definitionは、このページのstatement formではない。
+`Root`直下の`OperatorHeader`と、それに続く兄弟の`OperatorChain`は、入れ子の`Statement`内に置かない。
 
 ```text
-Statement := ExpressionStatement | BindingStatement | UseStatement
-ExpressionStatement := OperatorChain
-BindingStatement := BindingDeclaration
-UseStatement := UseDeclaration
+BindingStatement :=
+    VisibilityKw Gbind Pattern
+    [ Gbind Equals BindingBody ]
 
-BindingDeclaration := VisibilityKw Gbind Pattern [ Gbind Equals BindingBody ]
 VisibilityKw := MyKw | OurKw | PubKw
-BindingBody := G0* OperatorChain | IndentedStatementBlock
-Gbind := maximal same-line trivia | trivia followed by strictly deeper indent
+
+BindingBody :=
+    G0* OperatorChain
+  | IndentedStatementBlock
+
+UseDeclaration := [ VisibilityKw I+ ] UseKw I+ UseTree
+
+UseTree :=
+    UseGroup GroupSuffix
+  | ModKw I+ ModPath UsePathSuffix
+  | RealmKw Slash SeparatorTarget
+  | BandKw ColonColon SeparatorTarget
+  | UsePath UsePathSuffix
+
+UsePathSuffix :=
+    SingleSuffix
+  | TerminalJoin UseGroup GroupSuffix
+  | TerminalJoin UseGlob GlobSuffix
+
+SeparatorTarget :=
+    UsePath UsePathSuffix
+  | UseGroup GroupSuffix
+  | UseGlob GlobSuffix
+
+SingleSuffix := (I+ UseAlias)* UseQualifiers?
+GroupSuffix := (I+ UseAlias)* UseQualifiers?
+GlobSuffix := UseQualifiers?
+
+TerminalJoin := ColonColon | Slash
+UsePath := PathSegment ((ColonColon | Slash) PathSegment)*
+ModPath := Identifier ((ColonColon | Slash) PathSegment)*
+PathSegment := Identifier | OperatorName
+OperatorName := LParen Operator RParen
+
+UseGroup := LBrace G* (UseTree G* (Comma G*)?)* RBrace
+UseAlias := AsKw I+ Identifier
+UseGlob := Star (I+ UseAlias)*
+    (I+ WithoutKw I+ UseExclusion (Comma G* UseExclusion)*)?
+UseQualifiers := I+ UseVersion (I+ UseAnchor)? | I+ UseAnchor
+UseVersion := Version
+UseAnchor := WithKw I+ UseAnchorPath
+UseAnchorPath := Identifier ((ColonColon | Slash) Identifier)*
+UseExclusion := Identifier | OperatorName | Star | UseExclusionGroup
+UseExclusionGroup :=
+    LParen G* (UseTree G* (Comma G*)?)* RParen
+  | LBrace G* (UseTree G* (Comma G*)?)* RBrace
 ```
 
-`UseDeclaration` と `UseTree` は 933–1924行の定義を使う。`::` / `/` path、
-recursive group、alias、glob、version、exclusion、anchor は source structure を保持する。
+`I`は1個以上のinline trivia tokenであり、`G`はその位置で使うmaximal triviaである。
+`G*`はphysical newlineを含めるが、`I+`は含めない。
+`UseGroup`と`UseExclusionGroup`で隣接する`UseTree`は、commaまたはphysical newlineを含む間の`G*`で区切る。
+top-levelの`without` listでは、最初のexclusionの前にinline triviaが必要であり、後続のexclusionはcommaで区切る。
+`UseGroup`はspec startまたはseparator targetの後でだけ受理する。
+`UseGlob`はseparator targetの後でだけ受理する。
+`mod`は`ModPath`の最初に`Identifier`を必要とする。
+`realm/`と`band::`は、`SeparatorTarget`の前にそのqualifying separatorを消費する。
+ほかのspellingは通常の`UsePath` segmentのままである。
+`ModPath`は、最初のsegmentが`Identifier`である点を除き、`UsePath`と同じCST nodeを作る。
+`UseAnchorPath`も`UsePath` CST nodeを作るが、anchor pathのすべてのsegmentは`Identifier`である。
 
-## 4. Judge・priority・owner boundary
+## 直接Rowan CST
 
-canonical recognition は caller-owned EOF、separator、dedent、matching close、companion stop を
-先に non-consuming で残す。その後の sink-free word probe は bare `use`、または valid
-use-tree candidate がある visibility-led Use を選ぶ。それ以外の `my`、`our`、`pub` は
-Binding を選ぶ。したがって `my use path` は Use、`my use = value` は Pattern が
-`use` の Binding、`myx` / `useful` は split されない。
+`BindingStatement`は、`BindingHeader`をちょうど1個、`BindingBody`を0個または1個持つ。
+`BindingHeader`は、`VisibilityKw`、`Gbind`、`Pattern`、受理した場合の`Gbind`と`Equals`をsource orderで持つ。
+bodyを持たないBindingには空の`BindingBody`を作らない。
+accepted `Equals`ごとに`BindingBody`を1個作る。
+`BindingBody`のstructural childは、inlineの`OperatorChain`またはindentedの`IndentedStatementBlock`のいずれか1個だけである。
 
-Binding は Pattern を読む間だけ `Equal` を加える。exact `=` 後の same-line input は
-inline `OperatorChain`、strictly deeper newline は `IndentedStatementBlock`、
-equal-or-shallower newline は outer statement owner のままである。
+`UseDeclaration`は、任意の`VisibilityKw`と直後の`I+`、`UseKw`、直後の`I+`、`UseTree`をsource orderで持つ。
+`UseTree`はちょうど1個である。
+visibilityがないとき、そのtokenまたはzero-width nodeを作らない。
 
-## 5. byte-exact CST worked examples
+spec-start groupの`UseTree`は、`UseGroup`をちょうど1個、`UseAlias`を0個以上、任意の`UseQualifiers`をsource orderで持つ。
+`mod`の`UseTree`は、`ModKw`、`I+`、identifier-firstの`UsePath`をちょうど1個、続いて選んだ`UsePathSuffix`のchildを持つ。
+`realm/`または`band::`の`UseTree`は、form markerのtoken 2個、続いて選んだ`SeparatorTarget`のchildを持つ。
+通常のpathの`UseTree`は、`UsePath`をちょうど1個、続いて選んだ`UsePathSuffix`のchildを持つ。
+`TerminalJoin`はwrapper nodeを作らず、`UseTree`の直接tokenである。
 
-追補は source ownership を固定し、synthetic wrapper を許さない。
+Single suffixは、`UseAlias`を0個以上、任意の`UseQualifiers`を持つ。
+group terminalは、直接の`UseGroup`をちょうど1個、続いて`UseAlias`を0個以上、任意の`UseQualifiers`を持つ。
+glob terminalは、直接の`UseGlob`をちょうど1個、続いて任意の`UseQualifiers`を持つ。
+
+non-emptyの`UsePath`は、`PathSegment` 1個、続いてseparator tokenと`PathSegment`の対を0個以上持つ。
+各segmentはwrapperなしの`Identifier`または`OperatorName` 1個である。
+`UseAlias`は`AsKw`、`I+`、`Identifier`をちょうど1個ずつ持つ。
+`UseQualifiers`は`UseVersion` 1個と任意の`UseAnchor`、または`UseAnchor` 1個を持つ。
+`UseAnchor`は、`WithKw`、`I+`、すべてのsegmentが`Identifier` tokenである`UsePath`をちょうど1個持つ。
+`UseExclusion`は`Identifier`、`OperatorName`、`Star`、`UseExclusionGroup`のいずれか1個を持つ。
+`UseGlob`、`UseGroup`、`UseExclusionGroup`は、上の表層構文どおりにtoken、trivia、itemを直接の子としてsource orderで持つ。
+
+すべてのdirect childはsource orderを保つ。
+triviaとliteral tokenはlossless CSTに残る。
+
+## 境界、layout、構成
+
+`Gbind`は、physical newlineを含まない最大のtrivia、または次のindentがbindingの開始indentより深いphysical newlineを含む最大のtriviaである。
+equal-or-shallower newlineはBindingへ入らず、外側のstatement ownerへ返す。
+
+exact `=`の後にphysical newlineがなければ、`BindingBody`のstructural childはinlineの`OperatorChain`である。
+physical newlineがあり、次のindentがbindingの開始indentより深ければ、structural childはnon-emptyの`IndentedStatementBlock`である。
+statement separator、dedent、matching close、outer comma、companion stopは外側のownerが所有する。
+
+`use` pathはphysical newlineをまたがない。
+`UseGroup`のbraceとcomma、`UseExclusionGroup`のdelimiterとcommaは、それぞれのgroupが所有する。
+
+[Rowan CST表記](../conventions/rowan-cst.md)、[layout-aware separator authority](../cross-cutting/layout-aware-separator-authority.md)、[recoveryの`Error` tokenと`Invalid` nodeのtopology](../conventions/recovery-error-invalid-topology.md)も参照する。
+
+## 受理するsourceとCSTの例
+
+次はgroupを持つaccepted `use` declarationである。
 
 ```text
-pub x
+use std::io::{read, write}
 ```
 
-は bodyless `BindingStatement` であり、`BindingHeader` は持つが empty
-`BindingBody` は作らない。
+対応するXMLに似たRowan表記は次である。
+
+```xml
+<UseDeclaration>
+  <UseKw text="use"/>
+  <Whitespace text=" "/>
+  <UseTree>
+    <UsePath>
+      <Identifier text="std"/>
+      <ColonColon text="::"/>
+      <Identifier text="io"/>
+    </UsePath>
+    <ColonColon text="::"/>
+    <UseGroup>
+      <LBrace text="{"/>
+      <UseTree><UsePath><Identifier text="read"/></UsePath></UseTree>
+      <Comma text=","/>
+      <Whitespace text=" "/>
+      <UseTree><UsePath><Identifier text="write"/></UsePath></UseTree>
+      <RBrace text="}"/>
+    </UseGroup>
+  </UseTree>
+</UseDeclaration>
+```
+
+## Recovery CST
+
+Binding targetの欠落はtarget slotのzero-width `Missing`であり、targetのmalformed runはmaximal non-empty `Error`である。
+validなPatternへretryするときは、同じtarget slotを使う。
+exact `=`を受理した後のbody欠落は`BindingBody`内のzero-width `Missing`である。
+inline bodyのmalformed runはmaximal non-empty `Error`であり、boundaryに達した後はbody Missingを重ねない。
+indented Binding bodyはcompleted child ownerであり、outer Bindingはそのrecoveryを重複させない。
+
+`use` pathの欠落はpath slotのzero-width `Missing`である。
+group itemの欠落はgroup内のzero-width `Missing(GroupEntry)`であり、group-entryのmalformed runはdirect `Error+`である。
+group terminal phaseでcloseが欠落するとき、`UseGroup`または`UseExclusionGroup`はopenerに対応するzero-width `Missing(Close)`を直接の終端childに置く。
+
+locally consumedのunclaimed mismatched `RParen`または`RBrace`だけは、outer-close protectionの後にtransparentな`UseGroupForeignClose`を作る。
 
 ```text
-my x =
-  my y = 1
-  y
+UseGroupForeignClose := Error+
 ```
 
-は outer binding 一つと、canonical statement 二つを持つ `IndentedStatementBlock` 一つで
-ある。opening indentation trivia は block が所有する。
+このwrapperは、1個のconsumed foreign closeごとに1個であり、non-emptyのraw `Error` token leafだけを持つ。
+native trivia、`Missing`、`Invalid`、accepted punctuation、`UseTree`は持たない。
+direct group-entry `Error+`はwrapperに入れない。
+`RBracket`、accepted local close、protected outer close、`recover_group`内のforeign closeはこのwrapperを作らない。
 
-```text
-my x = y with:
-  my y = 1
-```
+## 定めないこと
 
-は documented generic `WithBodyTail` 例であり、inline body は選択済み declaration の
-canonical `Statement` wrapper 一つを持つ。
+このページは、bindingのdestructuring、visibility、body result、recursive scope、loweringを定めない。
+`use`については、lexical import scope、module resolution、export、versionとanchorの意味、qualifierのprojectionを定めない。
 
-```text
-use realm/tools::format
-```
-
-は declaration range `0..23` を持つ。detailed Use grammar はこれを `Realm` と分類し、
-normalized path に `tools`、`format` を持つ。root output は `BindingStatement` /
-`UseDeclaration` を `Root` 直下に置き、nested output だけが `Statement` wrapper を
-ちょうど一つ加える。separator と matching close は enclosing sequence が所有する。
-
-## 6. parser 側 AST shape
-
-現在の enum には後続 variant があるが、対象 shape は次である。
-
-```rust
-pub(crate) enum Statement<'source> {
-    Expression(OperatorChain<'source>),
-    Binding(BindingDeclaration<'source>),
-    Use(UseDeclaration<'source>),
-}
-
-pub(crate) struct BindingDeclaration<'source> {
-    visibility: Visibility,
-    target: Recovered<Pattern<'source>>,
-    definition: Option<BindingDefinition<'source>>,
-    range: Range<usize>,
-}
-
-pub(crate) struct BindingDefinition<'source> {
-    equals: Range<usize>,
-    body: Recovered<BindingBody<'source>>,
-    range: Range<usize>,
-}
-
-pub(crate) enum BindingBody<'source> {
-    Inline { expression: OperatorChain<'source> },
-    Indented { block: IndentedStatementBlock<'source> },
-}
-
-pub(crate) struct UseDeclaration<'source> {
-    range: Range<usize>,
-    visibility: Visibility,
-    tree: UseTree<'source>,
-}
-```
-
-`definition: None` は valid bodyless Binding を表す。accepted body が incomplete の場合は
-`Some(BindingDefinition { .. })` に残る。`UseTree` は後続の projection と semantic
-validation のため recursive structure を保持する。
-
-## 7. typed recovery table
-
-| slot / condition | record と continuation |
-| --- | --- |
-| Binding visibility 後に target なし | zero-width `Missing(BindingRole::Target, Pattern)` 一件。boundary は non-consuming |
-| malformed Binding target 後に Pattern | maximal target error 一件と same-slot retry |
-| invalid target が `=` / boundary に到達 | target error 一件。`=` は使用可能で target Missing は重複しない |
-| exact `=` 後に body なし | `BindingBody` 内に zero-width `Missing(BindingRole::Body, Expression)` 一件 |
-| malformed inline body 後に expression | maximal body error 一件と same-slot retry |
-| malformed nested indented statement | `BindingRole::IndentedStatement` record 一件。outer body は重複しない |
-| accepted Use 後に path なし | zero-width `Missing(ImportRole::Path)` 一件。boundary は non-consuming |
-| malformed Use path/suffix 後に candidate | existing Import error と same-slot retry |
-| group item / close が欠落 | group owner が record し、outer statement boundary を取らない |
-
-すべての `Missing` は zero-width、`Error` は non-empty maximal run である。一つの
-recovery range は一つの node と一つの record を作る。
-
-## 8. boundary と state-restoration contract
-
-shared canonical entry は indented / braced block と inline With body から使われる。comma、
-semicolon、newline、dedent、matching close、If companion の ownership を保つ。normal、
-recovery、rollback exit は scanner input、line state、stop/delimiter scope、indentation、
-expression state、diagnostic sink state を exact restore する。
-
-## 9. Yulang2 divergences
-
-surface acceptance は oracle の contextual statement-head rule と detailed Use scanner grammar に従う。
-Yulang3 は typed role-specific recovery と canonical statement entry 一つを使い、nested Use syntax を
-header fact / import semantics から分離する。Use prefix absence と explicit `my` は private visibility
-へ normalize するが、CST spelling は lossless に保つ。
-
-## 10. known residual / deferred surface
-
-Binding / Use に accepted syntax residual は記録されていない。lexical import scope、module
-resolution、export semantics、semantic validation/projection policy、またこの expansion から除外された
-declaration kind は deferred である。
-
-## 11. implementation と regression fixture cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/declaration/binding.rs`、`crates/yu-syntax/src/declaration/use_decl.rs`、`crates/yu-syntax/src/statement.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/declaration.rs`:
-`recognize_statement_intro`、`recognize_binding_statement_intro`、
-`parse_binding_declaration_with_operators`、`parse_binding_body_ast`、
-`commit_binding_declaration`、`commit_binding_body`、
-`parse_use_declaration`、`parse_use_tree`、`commit_use_declaration`、
-`commit_use_tree`。`crates/yu-syntax/src/grammar/expression.rs`:
-`parse_canonical_statement`、`commit_canonical_statement`。
-
-fixture:
-`bindings_accept_every_visibility_optional_definition_and_pattern_target`、
-`binding_indented_body_reuses_the_canonical_statement_dispatch`、
-`visibility_prefixed_use_is_selected_only_with_a_valid_use_tree`、
-`direct_binding_missing_body_closes_the_statement_and_emits_one_missing_node`、
-`direct_binding_missing_target_uses_the_binding_owner_role`、
-`direct_use_missing_target_closes_the_declaration_and_emits_one_missing_node`、
-`direct_use_declaration_has_header_full_fact_parity_and_lossless_groups`。
+ほかのdeclarationやcontrol statement、将来のPattern surface、declaration companion、`derives`、method attachmentもこのページの対象外である。
