@@ -1,9 +1,16 @@
 # Rowan CST表記
 
-このページは、Yulangのlossless Rowan CSTを表す記法を定める。
-これはAuthoritativeなtarget specificationである。
-`rowan::GreenNodeBuilder`によるdirect constructionと、`Error` tokenと`Invalid` nodeのtopologyは実装済みである。
-後続のCST由来diagnostic移行は実装待ちである。
+このページは、Yulangのlossless Rowan CSTに使う表記とsource ownershipの規約を定める。
+対象は、受理する`syntax-v0`のgrammarとdirect Rowan topologyである。
+実装の経緯ではなく、参照用の規約を示す。
+
+## Authorityと対象範囲
+
+Authoritativeな*Syntax freeze and vertical-implementation completion-policy amendment*（2026年9月17日）は、受理するgrammar、recovery ownership、direct Rowan topologyを`syntax-v0`として保持する。
+Authoritativeな*Rowan CST-only successor amendment*と*Error-token and Invalid-node topology ordering addendum*は、ここで使うone-CSTとrecovery topologyの規約を定める。
+
+構文ページは受理するspellingとordered child grammarを定める。
+このページはconstruct productionとdiagnostic wordingを定めない。
 
 ## 文書上の表記
 
@@ -21,10 +28,10 @@ runtime XMLでもinterchange formatでもない。
 
 structural nodeの間にはbare character dataを置かない。
 sourceを持つleafは`text`にspellingを置く。
-そのため、indentationやleafの外側にある通常のtextはsource byteを表せない。
+そのため、indentationやleafの外側にあるtextはsource byteを表さない。
 
 `text` attributeは可逆なsource spellingを表す。
-この文書記法はXMLではないため、XML entityを使わない。
+この文書記法はXML entityを使わない。
 次のcanonical backslash escapeを使う。
 
 | Source character | `text` spelling |
@@ -34,23 +41,24 @@ sourceを持つleafは`text`にspellingを置く。
 | carriage return | `\r` |
 | line feed | `\n` |
 | horizontal tab | `\t` |
-| ほかのU+0000--U+001F control character | 4桁の大文字hexadecimal digitを使う`\u{XXXX}` |
+| ほかのU+0000--U+001F control character | four uppercase hexadecimal digitsを使う`\u{XXXX}` |
 
 それ以外のUnicode scalar valueはliteralに書く。
-attributeのdecodeは正確である。
-visual notationではなくdecode後のspellingがleafのUTF-8 byte rangeを決める。
-そのためCRLFとLFは区別され、literalな`\r`とcarriage returnも区別される。
+decodeは正確である。
+visual notationではなく、decode後のspellingがleafのUTF-8 byte rangeを決める。
+したがってCRLFとLFは区別され、literalな`\r`とcarriage returnも区別される。
 
-## Node、token、trivia
+## Source orderとlosslessness
 
-nodeはstructuralなCST elementであり、対になったtagで表す。
-token leafはsourceを持つCST elementであり、`text`を持つself-closing tagで表す。
-childはsource orderで現れる。
+nodeとtoken leafはsource orderで現れる。
+sourceを持つleafは完全なsource spellingを保つ。
+structural nodeは表現されないsource textを追加しない。
+sourceを持つleafを左から右へ読めば、sourceを正確に復元できる。
 
-malformed runの外側にある通常のtriviaは、owner productionのsourceを持つ独立したleafとして残る。
-raw malformed runに吸収されたtriviaは、代わりに`Error` leafで表す。
-schemaは各tokenとtrivia leafを一つのgrammar slotへ割り当てなければならない。
-このページは構文ごとのslotを割り当てない。
+malformed runの外側にある通常のtriviaは、そのproductionが所有するsource-bearing leafとして残る。
+raw malformed runに吸収されたtriviaは`Error` leafで表す。
+construct schemaは各tokenとtrivia leafを一つのgrammar slotへ割り当てる。
+このページはconstructごとのslotを割り当てない。
 
 ## Recovery element
 
@@ -64,10 +72,9 @@ schemaは各tokenとtrivia leafを一つのgrammar slotへ割り当てなけれ�
 </OperatorChain>
 ```
 
-`Error`は実装済みのtoken topologyである。
 `Error`は常にtoken leafであり、nodeではない。
-各leafはowner slot内で既にemitされたphysical source fragmentを表す。
-隣接するleafは一つのraw malformed runを構成できる。
+各`Error` leafは、owner slot内で既にemitされたphysical source fragmentを表す。
+隣接するleafは、一つのraw malformed runを構成できる。
 そのrunは内部のgrammarを作らない。
 
 ```xml
@@ -75,13 +82,12 @@ schemaは各tokenとtrivia leafを一つのgrammar slotへ割り当てなけれ�
 <Error text="/*bad*/" />
 ```
 
-raw recoveryは、そのItemに残るすべてのphysical fragmentを`Error`に対応付ける。
-これにはinterior triviaとYumark quote prefixを含む。
-owner productionが既にemitしたleading trivia、retryまたはboundary ownerに残るleading triviaは吸収しない。
+raw recoveryは、そのitemに残るすべてのphysical fragmentを`Error`に対応付ける。
+これにはinterior triviaとYumark quote-prefix fragmentを含む。
+owner productionが既にemitしたleading triviaと、retryまたはboundary ownerに残るleading triviaは吸収しない。
 
-`Invalid`は実装済みのnode topologyである。
-schemaで定めたstructured recoveryがnested grammar、`Missing`、nested `Error` childを保持するときだけ使う。
-通常のraw `Error` tokenを`Invalid`で囲んではならない。
+`Invalid`は、nested grammar、`Missing` child、または`Error` childを残す、schemaで定めたrecoveryのstructural nodeである。
+通常のraw `Error` tokenを包んではならない。
 
 ```xml
 <Invalid>
@@ -92,16 +98,19 @@ schemaで定めたstructured recoveryがnested grammar、`Missing`、nested `Err
 </Invalid>
 ```
 
+[回復の`Error`と`Invalid`のtopology](recovery-error-invalid-topology.md)は、`Invalid`を使える限定したstructured ownerを定める。
+
 ## Source coordinate
 
 tree rangeとdiagnostic rangeは、0始まりで終端を含まないUTF-8 byte rangeを使う。
-`Missing` nodeのrangeはzero-widthである。
-sourceを持つleafはrangeを決めるsource spellingを保存する。
-structural nodeは表現されないsource textを追加しない。
+`Missing`のrangeはzero-widthである。
+sourceを持つleafは保ったspellingからrangeを決める。
+structural nodeはsource textを追加しない。
 
-## 実装済みと実装待ちのtopology
+## Migrationの状態
 
-direct Rowan builderは、`Error` token leafと限定した`Invalid` nodeをemitする。
-parserは一時的なcompatibility machineryを通じてrecovery diagnosticを公開している。
-後続のmigrationがstructural diagnosticをCSTから導く。
-[Source root、header、diagnosticの責務](source-root-and-diagnostics.md)は、その後続のpublication boundaryを定める。
+direct Rowan constructionと`Error` token/`Invalid` node topologyは実装済みである。
+CST由来structural diagnostic interpreterもshadow interpretationとして実装済みである。
+parser ledgerのretirementは、atomic diagnostic migrationであるGate 4で実施待ちである。
+最終的なdiagnosticはCSTとselected syntax environmentから導く。
+一時的なledgerは、第二のCSTでも最終的なsource of truthでもない。

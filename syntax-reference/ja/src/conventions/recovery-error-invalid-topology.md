@@ -1,8 +1,14 @@
-# 回復の`Error` tokenと`Invalid` nodeのtopology
+# 回復の`Error`と`Invalid`のtopology
 
-このページは、lossless Rowan CSTに実装済みの回復topologyを定める。
-対象はsource shapeだけである。
-grammar slot、expected syntax、public diagnostic resultは定めない。
+このページは、lossless Rowan CSTにおける`syntax-v0`のrecovery topologyを定める。
+保持するsource structureを対象とする。
+malformed sourceを受理するgrammar、grammar slot、expected alternative、public diagnostic wordingは定めない。
+
+## Authorityと対象範囲
+
+Authoritativeな*Syntax freeze and vertical-implementation completion-policy amendment*（2026年9月17日）は、`Missing`、raw `Error`、structured `Invalid`をrecovery factとして保持する。
+Authoritativeな*Error-token and Invalid-node topology ordering addendum*は、それらのtopologyを定める。
+これらの規約はaccepted-inputとrecovery-ownership contractを保持する。
 
 ## Raw malformed source
 
@@ -15,24 +21,23 @@ structuralな`Error` nodeは作らない。
 ```
 
 隣接する`Error` leafは、source orderで一つのopaque malformed runを構成できる。
-このleaf列はrunの内部に文法を作らない。
+runの内部にgrammarを作らない。
 leafの数はdiagnosticの数ではない。
 
-raw modeは、interior trivia、Yumark quote-prefix fragment、same-line EOF leading、2つのconsumed retry-leading prefixを含め、残るphysical fragmentを`Error`としてemitする。
+raw recoveryは、interior trivia、Yumark quote-prefix fragment、same-line EOF leading、2つのconsumed retry-leading prefixを含め、残るphysical fragmentを`Error`としてemitする。
 owning productionが既にemitしたtriviaはrunの外に残る。
 retryまたはboundary ownerに残すleading triviaもrunの外に残る。
 raw recoveryの外側にあるaccepted tokenと通常のtriviaはnative token kindを保つ。
 
 ## Structured recovery
 
-`Invalid`は対になったRowan nodeである。
-nested grammar、`Missing` child、または`Error` childを残すstructured recoveryだけに使う。
+`Invalid`は、nested grammar、`Missing` child、または`Error` childを残すrecoveryのstructural Rowan nodeである。
 通常のraw `Error` tokenを包んではならない。
 
-このtopology gateで`Invalid`をemitできるstructured ownerは、次の2つだけである。
+`Invalid`をemitできるstructured ownerは、次のものに限る。
 
-- polymorphic-variant tag-name recovery
-- record-pattern wrong-kind itemまたはseparator recovery
+- Polymorphic-variant tag-name recovery。
+- Record-pattern wrong-kind itemまたはseparator recovery。
 
 次はconstruct schemaではなくtopologyの概略である。
 
@@ -46,17 +51,28 @@ nested grammar、`Missing` child、または`Error` childを残すstructured rec
 `Invalid`はnested source orderとnested recovery elementを保つ。
 ほかのownerが類推だけで`Invalid` nodeを加えてはならない。
 
-## Missingとdiagnostic publication
+## Structural diagnostic interpretation
 
-`Missing`は、含むgrammar slotに置くzero-widthのstructural nodeのままである。
-`Error` tokenと`Invalid` nodeへのmigrationは、recovery ownershipと既存のparser diagnostic machineryを変えない。
-parser recovery record、structured reservation、frozen-header reconciliation、diagnostic ID、public diagnostic constructionは、一時的なcompatibility machineryとして残る。
+実装済みのshadow CST interpreterは、CSTからstructural recoveryをsource orderで読む。
+`Missing` occurrenceにはzero-width rangeがある。
+同じslotとimmediate parentにあるraw `Error` tokenの最大隣接列は、一つのmalformed-input occurrenceである。
+通常のtrivia、`Missing`、nested node、slot boundaryが列を終える。
+`Invalid` occurrenceはchildより前にvisitする。
+validなnested syntaxを含む場合もouter rangeを保つ。
 
-CST walkからdiagnosticを導き、そのcompatibility machineryを削除する前に、完全なslotごとのschemaが必要である。
-[Source root、header、diagnosticの責務](source-root-and-diagnostics.md)は、その後続のboundaryを定める。
+cataloged occurrenceはprecise schema-derived interpretationを使える。
+それ以外のoccurrenceはCST factだけから決まるdeterministic generic interpretationを使う。
+使うfactはrecovery kind、range、occurrence pathまたはimmediate structural parent、source/preorder ordinalである。
+interpreterはparser recovery recordを読まず、parseをreplayせず、opaqueな`Error`をrelexせず、hidden recovery episodeを推論せず、recovery nodeを作らない。
 
-## 表記とrange
+environment-only factは、`Invalid`を加えず、ほかの方法でもCSTを変更しない。
 
-このページのtagは、runtime XMLではなくXMLに似たRowan表記を使う。
-各`Error` leafは、`text` attributeにsource spellingを持つ。
-[Rowan CST表記](rowan-cst.md)は、可逆なattribute escapeとUTF-8 byte rangeを定める。
+## Publicationの状態
+
+shadow interpreterは実装済みである。
+public syntax diagnosticは、atomic diagnostic migrationであるGate 4が実施待ちの間、一時的なparser ledgerを使う。
+Gate 4にはtotalでdeterministicなCST-derived interpretationが必要である。
+ledger retirementの前にexhaustiveなslotごとのprecisionは必要ない。
+
+[Source root、header、diagnosticの責務](source-root-and-diagnostics.md)はrootとpublication boundaryを定める。
+[Rowan CST表記](rowan-cst.md)は可逆な`text` spellingとUTF-8 byte rangeを定める。

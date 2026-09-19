@@ -1,8 +1,16 @@
 # Recovery `Error` and `Invalid` topology
 
-This page specifies the implemented recovery topology for the lossless Rowan
-CST. It specifies source shape only. It does not assign grammar slots, derive
-expected syntax, or define the public diagnostic result.
+This page defines the `syntax-v0` recovery topology for the lossless Rowan CST.
+It specifies retained source structure, not accepted malformed syntax, grammar
+slots, expected alternatives, or public diagnostic wording.
+
+## Authority and scope
+
+The Authoritative *Syntax freeze and vertical-implementation completion-policy
+amendment* (2026-09-17) preserves `Missing`, raw `Error`, and structured
+`Invalid` as recovery facts. The Authoritative *Error-token and Invalid-node
+topology ordering addendum* defines their topology. These conventions retain
+the accepted-input and recovery-ownership contracts.
 
 ## Raw malformed source
 
@@ -14,30 +22,29 @@ token leaf. It does not create a structural `Error` node.
 <Error text="/*bad*/" />
 ```
 
-Adjacent `Error` leaves can form one opaque malformed run in source order.
-The leaves do not expose an invented grammar within that run. Their count is
-not a diagnostic count.
+Adjacent `Error` leaves can form one opaque malformed run in source order. The
+run has no invented internal grammar, and its leaf count is not a diagnostic
+count.
 
-The raw mode emits its remaining physical fragments as `Error`, including
-interior trivia, Yumark quote-prefix fragments, same-line EOF leading, and
-the two consumed retry-leading prefixes. Trivia that an owning production
-already emitted remains outside the run. Leading trivia left for a retry or
+Raw recovery emits its remaining physical fragments as `Error`, including
+interior trivia, Yumark quote-prefix fragments, same-line EOF leading, and the
+two consumed retry-leading prefixes. Trivia already emitted by an owning
+production remains outside the run. Leading trivia left for a retry or
 boundary owner also remains outside the run. Accepted tokens and ordinary
 trivia outside raw recovery retain their native token kinds.
 
 ## Structured recovery
 
-`Invalid` is a paired Rowan node. It is reserved for structured recovery that
-retains nested grammar, a `Missing` child, or an `Error` child. It must not
-wrap an ordinary raw `Error` token.
+`Invalid` is a structural Rowan node for recovery that retains nested grammar,
+a `Missing` child, or an `Error` child. It must not wrap an ordinary raw
+`Error` token.
 
-The following are the only structured owners that may emit `Invalid` in this
-topology gate:
+Only these structured owners may emit `Invalid`:
 
 - Polymorphic-variant tag-name recovery.
 - Record-pattern wrong-kind item or separator recovery.
 
-The following is a topology schematic, not a construct schema:
+This topology schematic is not a construct schema:
 
 ```xml
 <Invalid>
@@ -46,25 +53,35 @@ The following is a topology schematic, not a construct schema:
 </Invalid>
 ```
 
-`Invalid` retains its nested source order and nested recovery elements. No
-other owner may add an `Invalid` node by analogy.
+`Invalid` retains nested source order and nested recovery elements. No other
+owner may add an `Invalid` node by analogy.
 
-## Missing and diagnostic publication
+## Structural diagnostic interpretation
 
-`Missing` remains a zero-width structural node in its containing grammar slot.
-The Error-token and Invalid-node migration changes neither recovery ownership
-nor the existing parser diagnostic machinery. Parser recovery records,
-structured reservations, frozen-header reconciliation, diagnostic IDs,
-and public diagnostic construction remain temporary compatibility machinery.
+The implemented shadow CST interpreter reads structural recovery from the CST
+in source order. A `Missing` occurrence has its zero-width range. A maximal
+adjacent group of raw `Error` tokens in one slot and immediate parent is one
+malformed-input occurrence. Ordinary trivia, `Missing`, a nested node, or a
+slot boundary ends the group. An `Invalid` occurrence is visited before its
+children and keeps its outer range even when it contains valid nested syntax.
 
-The complete per-slot schema is still required before diagnostics are derived
-from a CST walk and before that compatibility machinery is removed. The
-[source root, headers, and diagnostic ownership](source-root-and-diagnostics.md)
-page defines that later boundary.
+Cataloged occurrences can use precise schema-derived interpretation. Other
+occurrences use a deterministic generic interpretation from CST facts only:
+recovery kind, range, occurrence path or immediate structural parent, and
+source/preorder ordinal. The interpreter does not read parser recovery records,
+replay parsing, relex an opaque `Error`, infer a hidden recovery episode, or
+create recovery nodes.
 
-## Notation and ranges
+Environment-only facts, including operator conflicts, do not add `Invalid` or
+otherwise mutate the CST.
 
-The tags on this page use the XML-like Rowan notation, not runtime XML. Each
-`Error` leaf owns the source spelling in its `text` attribute. The
-[Rowan CST notation](rowan-cst.md) page defines reversible attribute escaping
-and UTF-8 byte ranges.
+## Publication status
+
+The shadow interpreter is implemented. Public syntax diagnostics still use the
+temporary parser ledger while Gate 4, the atomic diagnostic migration, remains
+pending. Gate 4 requires total deterministic CST-derived interpretation; it
+does not require exhaustive per-slot precision before ledger retirement.
+
+The [source root, headers, and diagnostic ownership](source-root-and-diagnostics.md)
+page defines the root and publication boundary. The [Rowan CST notation](rowan-cst.md)
+page defines reversible `text` spelling and UTF-8 byte ranges.
