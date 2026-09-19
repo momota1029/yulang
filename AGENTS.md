@@ -50,6 +50,15 @@ older rules describe eligible specialists, not an automatic panel.
 
 Role boundaries and the full matrix are in `rules/agent-orchestration.md`.
 
+Proactively delegate bounded work when task classification identifies a concrete
+role-shaped unit for exploration, production, or independent review; do not
+wait for the user to request delegation. Keep every assignment within the
+selected M0–M3 reviewer and round budget, and give it an explicit objective,
+scope, inputs, stop condition, and required report. Proactive use is not
+automatic fan-out: invoke only roles justified by required production or a
+named risk, parallelize only independent read-only work, and never run more
+than one write-capable agent in the same working tree.
+
 - Use built-in `explorer` for read-heavy repository mapping.
 - Use `architect` for new decisions, uncertain behavior, and cross-layer work.
 - Use `implementer` for confirmed code changes.
