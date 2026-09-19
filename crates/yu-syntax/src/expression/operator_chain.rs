@@ -7,6 +7,7 @@ use crate::ambient_claim::AmbientClaimView;
 #[cfg(test)]
 use crate::lexical::{current_item::CurrentItem, lexer::scan_nud_payload};
 
+#[cfg(test)]
 use reborrow_generic::Reborrow as _;
 
 use crate::{

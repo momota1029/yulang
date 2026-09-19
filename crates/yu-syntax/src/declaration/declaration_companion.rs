@@ -12,6 +12,7 @@ use crate::recovery_record::{
     ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
     RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
 };
+#[cfg(test)]
 use reborrow_generic::Reborrow as _;
 use std::sync::Arc;
 

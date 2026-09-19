@@ -139,6 +139,7 @@ impl<'operators> Recover<'operators> {
         Self::new(operators)
     }
 
+    #[cfg(test)]
     pub(crate) fn operators(&self) -> &'operators OperatorTable {
         self.operators
     }
