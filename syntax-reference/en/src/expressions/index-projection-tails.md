@@ -1,111 +1,152 @@
 # Index and projection tails
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-The Authoritative IndexTail/ProjectionTail fixed-tail addendum is lines 10184–10660 of `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`. It completes the body, adjacency, delimiter ownership, and recovery intentionally deferred by the Call/Field/Path/ML addendum at lines 9695–10182.
+This page defines `IndexTail`, `ProjectionTupleTail`, `ProjectionRecordTail`, and `ProjectionRecordSpreadItem` in `syntax-v0`.
+Their accepted syntax and direct Rowan CST follow the index and projection fixed-tail sections of the 2026-08-20 `yu-syntax` architecture.
+The expression-delimited current-Item recovery and raw-slot CST amendments define the shared delimited recovery topology used by these tails.
+The [layout-aware comma-or-newline-delimited sequence authority](../cross-cutting/layout-aware-separator-authority.md) defines the captured base and qualifying-newline boundary for their item lists.
+See the [syntax content model](../conventions/syntax-content-model.md), [Rowan CST notation](../conventions/rowan-cst.md), and [recovery `Error` and `Invalid` topology](../conventions/recovery-error-invalid-topology.md) for shared syntax-v0 notation and recovery elements.
 
-The design and implementation series is `5f5416ea`, `8d3d22e2`, `5f067e33`, `0ea6bf5e`, `a6926e9d`, `6b39d612`, `4315dd90`, and `f3c28bc5`.
+The page covers source-order index and projection continuations, their delimited items, and record-projection spread items.
+It does not define semantic indexing or projection, record validation, spread position or multiplicity validation, operator association, name resolution, types, execution semantics, diagnostics wording, or formatting.
 
-## 2. Scope and non-scope
-
-This page defines adjacent IndexTail, tuple ProjectionTail, and record ProjectionTail as target-free source-order fixed postfixes. Their bodies contain general OperatorChains, layout-aware comma/semicolon/newline item lists, and owner-safe close recovery; record projection alone accepts exact `..` spread items.
-
-Field, Call, Path, and ML recognition remain shared adjacent-tail infrastructure. Semantic index/projection evaluation, record validation, spread position/multiplicity rules, target association, HIR lowering, inference, diagnostics wording, and formatting are out of scope.
-
-## 3. BNF-equivalent grammar
+## 2. Accepted syntax
 
 ```text
-FixedPostfixTail += IndexTail | ProjectionTail
+FixedPostfixContinuation += IndexTail | ChainContinuingTrivia ProjectionTail
 
-IndexTail := LBracket G* [ OperatorChain { IndexSeparator OperatorChain } [ IndexSeparator ] ] RBracket
+ChainContinuingTrivia := maximal G* with no physical newline
+                        | maximal G* whose following-line indent is deeper than the active base
+
+IndexTail := "[" G*
+             [ OperatorChain { IndexSeparator OperatorChain } [ IndexSeparator ] ]
+             "]"
 ProjectionTail := ProjectionTupleTail | ProjectionRecordTail
-ProjectionTupleTail := Dot LParen G* [ OperatorChain { ProjectionTupleSeparator OperatorChain } [ ProjectionTupleSeparator ] ] RParen
-ProjectionRecordTail := Dot LBrace G* [ ProjectionRecordItem { ProjectionRecordSeparator ProjectionRecordItem } [ ProjectionRecordSeparator ] ] RBrace
+ProjectionTupleTail := ".(" G*
+                       [ OperatorChain { ProjectionTupleSeparator OperatorChain } [ ProjectionTupleSeparator ] ]
+                       ")"
+ProjectionRecordTail := ".{" G*
+                        [ ProjectionRecordItem { ProjectionRecordSeparator ProjectionRecordItem } [ ProjectionRecordSeparator ] ]
+                        "}"
 ProjectionRecordItem := OperatorChain | ProjectionRecordSpreadItem
-ProjectionRecordSpreadItem := DotDot G* OperatorChain
+ProjectionRecordSpreadItem := ".." G* OperatorChain
 
-IndexSeparator := Comma | Semicolon | ImplicitNewlineBoundary(index_base)
-ProjectionTupleSeparator := Comma | Semicolon | ImplicitNewlineBoundary(tuple_projection_base)
-ProjectionRecordSeparator := Comma | Semicolon | ImplicitNewlineBoundary(record_projection_base)
+IndexSeparator := "," | ";" | qualifying current-depth newline
+ProjectionTupleSeparator := "," | ";" | qualifying current-depth newline
+ProjectionRecordSeparator := "," | ";" | qualifying current-depth newline
 ```
 
-Index requires no trivia before `[`. Projection requires adjacent dot/opener, while dot-leading `ChainContinuingTrivia` follows FieldTail's continuation rule. Only record-projection item position gives exact `..` fixed spread authority; index and tuple contents treat it as ordinary dynamic syntax when accepted there.
+`[` is adjacent to the completed operand for an index tail.
+`ChainContinuingTrivia` is empty, same-line, or deeper-line trivia at the outer-chain level.
+A projection has an adjacent dot and opener after `ChainContinuingTrivia`.
+Thus `a.(x)` and `a.{x}` are projections, while `a. (x)` and `a. {x}` are not.
+Only a record-projection item position gives exact `..` spread authority.
+Index and tuple-projection items do not admit a spread item.
 
-## 4. Judge, priority, and owner boundary
+## 3. Admission and boundaries
 
-Active owner stops, outer matching closes, equal-or-shallower newline, and accepted dynamic spelling win before a structural tail. With no leading trivia, `[` selects IndexTail. Exact `.(` and `.{` select projection before FieldTail; `a. (x)` and `a. {x}` are not projections. A fixed tail cuts after its introducer and returns to the shared operand-complete loop only after its own close/recovery.
+At an operand-complete position, active stops, matching closes, and equal-or-shallower newlines return to their owners before a fixed tail is admitted.
+An accepted dynamic spelling keeps its dynamic role.
+With no leading trivia, `[` admits `IndexTail`.
+Exact `.(` and `.{` admit projection after `ChainContinuingTrivia` and before field recovery.
+Each accepted introducer claims its tail; the enclosing chain resumes only after that tail closes or recovers its close.
 
-Index owns Bracket plus comma/semicolon/right-bracket stops; tuple projection owns Parenthesis plus comma/semicolon/right-parenthesis; record projection owns Brace plus comma/semicolon/right-brace. Each is an `ExpressionDelimitedOwner`, so inner colon application takes one RHS and returns the container boundary; qualifying ML continuation remains local to one item while equal-or-shallower newline returns to the container.
+An index item stops at a literal separator, `]`, or a qualifying current-depth newline.
+A tuple-projection item uses the corresponding `)` boundary, and a record-projection item uses the corresponding `}` boundary.
+Each tail accepts comma, semicolon, and a qualifying current-depth newline as item boundaries.
+A deeper newline remains continuation trivia in the current item.
 
-## 5. Byte-exact CST worked examples
+Within an item, a colon application takes one right-hand-side chain and returns the container boundary to its tail.
+An ML continuation that qualifies in an item remains part of that item.
+An equal-or-shallower newline returns to the delimited owner rather than becoming an ML separator.
 
-The addendum gives source-order CST trees but no byte-range-annotated tree; no ranges are invented here.
+## 4. Direct Rowan CST
 
-```text
-a[i; j].(x, y).{left: value, ..rest}
+`IndexTail`, `ProjectionTupleTail`, and `ProjectionRecordTail` are direct source-order children of `OperatorChain`.
+They do not contain their target expression.
+There is no generic `ProjectionTail` CST wrapper.
+
+`IndexTail` directly contains `LBracket`, item `OperatorChain` nodes, literal separators, trivia, and `RBracket`.
+`ProjectionTupleTail` directly contains `Dot`, `LParen`, item `OperatorChain` nodes, literal separators, trivia, and `RParen`.
+`ProjectionRecordTail` directly contains `Dot`, `LBrace`, ordinary item `OperatorChain` nodes or `ProjectionRecordSpreadItem` nodes, literal separators, trivia, and `RBrace`.
+Qualifying newline separators remain trivia and create neither separator nodes nor synthetic tokens.
+`ChainContinuingTrivia` before a projection is direct native content of the enclosing `OperatorChain`.
+It is outside the projection tail's source range.
+
+`ProjectionRecordSpreadItem` directly contains `DotDot`, its following trivia, and one nested right-hand-side `OperatorChain`.
+The exact marker is not split from a longer operator-shaped spelling.
+
+## 5. Recovery CST
+
+`a[]`, `a.()`, and `a.{}` are empty tails and have no item `Missing`.
+A leading or repeated literal separator places one zero-width `Missing` in the absent item slot before that separator.
+An admitted same-line next item without a separator places one zero-width `Missing` in the separator slot and retries that item at the same position.
+A valid ML continuation remains in the current item and does not cause separator recovery.
+
+A malformed item is one maximal non-empty raw `Error` group in its delimited owner, then a later ordinary item or exact spread item may retry the same slot.
+An absent matching close places one zero-width `Missing` in the close slot and leaves a protected outer boundary unconsumed.
+An unprotected foreign close is a raw `Error` group in `ExpressionDelimitedForeignClose`.
+A rejected separator run is a raw `Error` group in `ExpressionDelimitedSeparator`.
+Each wrapper contains exactly one non-empty contiguous group and contains no `Missing`, accepted punctuation, retry leading, or `Invalid`.
+
+After an exact `..`, an absent record-spread right-hand side places one zero-width `Missing` in that right-hand-side slot without consuming the separator or close.
+A malformed spread right-hand side is one maximal non-empty raw `Error` group and may retry the same slot.
+Longer spellings such as `...` and `..+` do not become `DotDot` plus recovery.
+A malformed colon application inside an ordinary item recovers in that nested tail; the projection tail adds no duplicate recovery.
+
+## 6. Source/CST examples
+
+`a[i; j]` places both index items and the literal semicolon in `IndexTail`.
+
+```xml
+<OperatorChain>
+  <IdentifierExpression><Identifier text="a" /></IdentifierExpression>
+  <IndexTail>
+    <LBracket text="[" />
+    <OperatorChain><IdentifierExpression><Identifier text="i" /></IdentifierExpression></OperatorChain>
+    <Semicolon text=";" />
+    <Whitespace text=" " />
+    <OperatorChain><IdentifierExpression><Identifier text="j" /></IdentifierExpression></OperatorChain>
+    <RBracket text="]" />
+  </IndexTail>
+</OperatorChain>
 ```
 
-Design lines 10396–10430 give the complete tree: distinct IndexTail, ProjectionTupleTail, and ProjectionRecordTail siblings directly own their delimiters, general-expression items, punctuation, and close.
+`a .(x, y)` keeps the continuing space in the outer chain and uses the tuple-projection tail rather than a field tail.
 
-```text
-a[0]
+```xml
+<OperatorChain>
+  <IdentifierExpression><Identifier text="a" /></IdentifierExpression>
+  <Whitespace text=" " />
+  <ProjectionTupleTail>
+    <Dot text="." /><LParen text="(" />
+    <OperatorChain><IdentifierExpression><Identifier text="x" /></IdentifierExpression></OperatorChain>
+    <Comma text="," /><Whitespace text=" " />
+    <OperatorChain><IdentifierExpression><Identifier text="y" /></IdentifierExpression></OperatorChain>
+    <RParen text=")" />
+  </ProjectionTupleTail>
+</OperatorChain>
 ```
 
-Design line 10216 records the historical single-index fixture preserved by the tail grammar.
+`a.{..rest}` gives the spread marker and its right-hand-side chain their own item node.
 
-```text
-a.(x)
+```xml
+<OperatorChain>
+  <IdentifierExpression><Identifier text="a" /></IdentifierExpression>
+  <ProjectionRecordTail>
+    <Dot text="." /><LBrace text="{" />
+    <ProjectionRecordSpreadItem>
+      <DotDot text=".." />
+      <OperatorChain><IdentifierExpression><Identifier text="rest" /></IdentifierExpression></OperatorChain>
+    </ProjectionRecordSpreadItem>
+    <RBrace text="}" />
+  </ProjectionRecordTail>
+</OperatorChain>
 ```
 
-Design lines 10284–10285 fix adjacent dot/opener recognition as projection rather than FieldTail.
+## 7. Composition
 
-```text
-a.{..left, middle, ..right}
-```
-
-Design lines 10496–10499 fix record projection's parser-valid first/middle/last multiple spread items, each with a `ProjectionRecordSpreadItem` rather than field syntax.
-
-## 6. Parser-side AST shape
-
-`FixedPostfixTail` adds `Index(IndexTail)` and `Projection(ProjectionTail)`. `IndexTail` has exactly `open`, ordered `items`, recovered `close`, and `range`.
-
-`ProjectionTail` is exactly `Tuple(ProjectionTupleTail)` or `Record(ProjectionRecordTail)`. `ProjectionTupleTail` has exactly `dot`, `open`, ordered `items`, recovered `close`, and `range`. `ProjectionRecordTail` has exactly `dot`, `open`, ordered `items`, recovered `close`, and `range`.
-
-`ProjectionRecordItem` is exactly `Expression(OperatorChain)` or `Spread(ProjectionRecordSpreadItem)`. `ProjectionRecordSpreadItem` has exactly `marker`, recovered boxed `rhs`, and `range`. No AST type duplicates separator punctuation/trivia, and no generic Projection CST wrapper exists.
-
-## 7. Typed recovery table
-
-| condition | recovery and continuation |
-| --- | --- |
-| `a[]`, `a.()`, or `a.{}` | valid empty tail; no Missing |
-| leading/repeated comma or semicolon | one zero-width missing item before punctuation, retain punctuation, then retry |
-| same-line next NUD without a separator | one zero-width missing separator, then same-position retry; valid ML remains one item |
-| malformed item before ordinary NUD/spread | one maximal non-empty item Error, then same-slot retry |
-| missing matching close at EOF/caller boundary | one zero-width close Missing; leave boundary untouched |
-| stray mismatched close | preserve caller-owned close; otherwise consume one closing Error and continue this close slot |
-| `a.{..}` or `a.{.., next}` | retain marker and emit one spread-RHS Missing without consuming separator/close |
-| `a.{..@rest}` | one non-empty spread-RHS Error, then retry `rest` in the same RHS slot |
-| `a.{...rest}` / `a.{..+rest}` | do not split longer spelling into DotDot; leave it to ordinary malformed/dynamic authority |
-| malformed colon tail inside item | nested ColonApplicationTail recovers once; projection emits no duplicate record |
-
-All Missing nodes are zero-width, Errors are maximal non-empty ranges, and one committed recovery node has one diagnostic identity.
-
-## 8. Boundary and state-restoration contract
-
-Each accepted opener pushes its matching delimiter, item stops, indentation baseline, and typed expression-delimited owner, then pops every frame exactly on normal, recovery, and rollback exits. The owner frame distinguishes otherwise same-delimiter constructs such as ParenthesizedExpression versus tuple projection and BracedStatementBlock versus record projection. Nested punctuation, lexical regions, ambient boundaries, outer closes, and equal-or-shallower newlines are not consumed by an item recovery scanner.
-
-## 9. Yulang2 divergences
-
-Yulang3 removes Yulang2's `Index > Bracket`, `ProjectionTuple > Paren`, and `ProjectionRecord > BraceGroup` wrapper layers: its typed tail nodes own delimiters/items/closes directly. It uses raw separator bytes rather than separator wrappers, typed Missing/Error recovery, exact maximal DotDot rather than splitting longer spellings, and names tails by their chain role. Source acceptance for adjacency, general expression content, semicolons, and record-only spread remains aligned.
-
-## 10. Known residual / deferred surface
-
-The documented `ASOB-G` caller-boundary residual remains characterized rather than hidden. Semantic index/projection meaning, record shape/type validation, spread position/multiplicity validation, target association, HIR lowering, inference, diagnostics, and formatting remain deferred.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owners are `crates/yu-syntax/src/expression/tails.rs` and `crates/yu-syntax/src/expression/delimited.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-In `crates/yu-syntax/src/grammar/expression.rs`: `recognize_fixed_postfix`, `parse_fixed_postfix_tail`, `parse_index_tail`, `parse_projection_tuple_tail`, `parse_projection_record_tail`, `parse_projection_items_ast`, `commit_fixed_postfix_tail`, `commit_index_tail`, `commit_projection_tuple_tail`, `commit_projection_record_tail`, `commit_projection_items`, `index_item_error_retry`, `projection_item_error_retry`, `emit_index_missing`, `emit_projection_missing`, and `emit_projection_close_missing`.
-
-Fixtures include `index_tails_are_flat_layout_delimited_and_bp_neutral`, `index_tail_requires_adjacency_and_recovers_locally`, `index_tail_restores_owner_frames_and_precedes_terminal_colon`, `projection_tails_precede_field_dispatch_and_keep_general_expression_items`, `projection_tail_recovery_keeps_typed_slots_local`, `projection_tail_close_recovery_is_owner_safe_on_both_paths`, and `record_projection_rejects_non_exact_spread_spellings`.
+[Dynamic operator chains](operator-chain.md) define the enclosing source-order chain and its other continuations.
+[Call, field, path, and ML-application tails](call-field-path-tails.md) define the sibling fixed tails and ML continuation.
+The shared recovery topology defines how direct raw `Error` groups and the two expression-delimited raw-slot wrappers are interpreted.
