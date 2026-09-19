@@ -1,13 +1,15 @@
 # Yulang syntax and CST reference
 
-This bilingual reference specifies Yulang surface syntax and its lossless Rowan
-CST. It is a language and tree-schema reference, not a chronicle of parser
-implementation.
+This bilingual reference documents Yulang `syntax-v0` surface syntax and its
+lossless Rowan CST. It is an incremental reference migration: the syntax
+content-model pages provide the complete syntax-v0 placement inventory, while
+detailed construct pages are added or refined in phases.
 
-The reference records both implemented CST facts and approved construction
-targets. Each affected page labels an approved target that has not yet reached
-the implementation. The Authoritative design records remain the source for
-grammar and recovery decisions.
+The Authoritative *Syntax freeze and vertical-implementation completion-policy
+amendment* (2026-09-17) preserves accepted syntax and direct-CST topology as
+`syntax-v0`. Authoritative design records govern grammar, topology, and
+recovery decisions. Implementation, tests, fixtures, and commits are not
+normative sources.
 
 - `en/` is the English book.
 - `ja/` is the Japanese book.

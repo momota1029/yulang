@@ -1,10 +1,10 @@
 # Types
 
-執筆済みページ:
+`TypeExpression`の文脈は、[構文の内容モデル](../conventions/syntax-content-model.md)で確認する。次のページは、詳細化済みのcore、primary、leading formを定める。
 
-- [Standalone TypeExpression core](type-expression-core.md)
-- [Named-record type](named-record-type.md)
-- [`forall` type](forall-type.md)
-- [Effect-row type](effect-row-type.md)
-- [Polymorphic-variant type](polymorphic-variant-type.md)
-- [Bracket-row grammar](bracket-row-grammar.md)
+- [Core TypeExpression form](type-expression-core.md)
+- [Named-record type primary form](named-record-type.md)
+- [`forall` TypeExpression form](forall-type.md)
+- [Effect-row type primary form](effect-row-type.md)
+- [Polymorphic-variant type primary form](polymorphic-variant-type.md)
+- [Leading bracket-row TypeExpression form](bracket-row-grammar.md)

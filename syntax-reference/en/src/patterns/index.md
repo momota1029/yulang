@@ -1,8 +1,8 @@
 # Patterns
 
-Authored pages:
+The [syntax content model](../conventions/syntax-content-model.md) identifies pattern contexts. These pages define the documented primary, continuation, and annotation forms.
 
-- [Pattern core and parenthesized patterns](pattern-core.md)
-- [List patterns](list-pattern.md)
-- [Record patterns](record-pattern.md)
-- [Trailing `Pattern : TypeExpression` annotations](type-annotation.md)
+- [Core and parenthesized pattern forms](pattern-core.md)
+- [List-pattern primary form](list-pattern.md)
+- [Record-pattern primary form](record-pattern.md)
+- [Trailing pattern type-annotation form](type-annotation.md)

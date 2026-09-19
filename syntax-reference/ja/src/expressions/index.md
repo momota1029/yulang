@@ -1,14 +1,14 @@
 # Expressions
 
-執筆済みページ:
+Expressionの文脈と記録済みの全ファミリーは、[構文の内容モデル](../conventions/syntax-content-model.md)で確認する。次のページは、詳細化済みの形式の配置と生成規則を定める。
 
-- [Parenthesized expression list（unit / group / tuple）](parenthesized-expression.md)
-- [Dynamic operator chain](operator-chain.md)
-- [Assignment tail](assignment-tail.md)
-- [Colon application](colon-application.md)
-- [`if` / `elsif` / `else` expression](if-expression.md)
-- [Brace-delimited statement block](braced-statement-block.md)
-- [`case` / `catch` expression](case-catch.md)
-- [Call / field / path / ML-application tail](call-field-path-tails.md)
-- [Index / projection tail](index-projection-tails.md)
-- [`WithBodyTail`](with-body-tail.md)
+- [Parenthesized primary form](parenthesized-expression.md)
+- [Operator-chainによる式](operator-chain.md)
+- [Assignmentのterminal form](assignment-tail.md)
+- [Colon applicationのterminal form](colon-application.md)
+- [`if` / `elsif` / `else`のprimary form](if-expression.md)
+- [Braceで囲むstatement blockのprimary form](braced-statement-block.md)
+- [`case` / `catch`のprimary form](case-catch.md)
+- [Call、field、path、ML-applicationのcontinuation form](call-field-path-tails.md)
+- [Index、projectionのcontinuation form](index-projection-tails.md)
+- [`with` bodyのterminal form](with-body-tail.md)

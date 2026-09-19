@@ -1,17 +1,8 @@
 # Yulang syntax and CST reference
 
-This reference defines the accepted Yulang surface forms and their lossless,
-source-order Rowan CST. The CST-conventions slice specifies nodes, token
-leaves, trivia, and recovery placement without documenting parser control flow
-or internal maintenance work.
+This reference documents the accepted Yulang `syntax-v0` surface forms and
+their lossless, source-order Rowan CST. Start with the [syntax content model](conventions/syntax-content-model.md) to find what may appear in a source context, then use the linked construct page for that form's production.
 
-The [CST conventions](conventions/index.md) section defines the common tree
-notation and the ownership of source-root, header, and recovery diagnostics.
-Existing construct pages are legacy implementation material pending phased
-reconstruction. They may still describe parser behavior, ASTs, implementation
-paths, and fixtures; they are not yet reconstructed construct schemas.
-Reviewed batches will replace them with the language and CST reference.
+Accepted-valid content models are primary. The [CST conventions](conventions/index.md) section records source-order tree placement, notation, and the separate recovery reference. Recovery structure does not extend the accepted source grammar.
 
-The Authoritative design records govern this reference. When an approved CST
-target has not yet been implemented, the page identifies that status rather
-than treating the current implementation as the language specification.
+The Authoritative *Syntax freeze and vertical-implementation completion-policy amendment* (2026-09-17) freezes `syntax-v0`. Authoritative design records govern any detailed production not yet covered by a construct page. Implementation, tests, fixtures, and commits are not normative sources.

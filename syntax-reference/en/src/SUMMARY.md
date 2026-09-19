@@ -1,6 +1,7 @@
 # Summary
 
 - [Introduction](index.md)
+- [Syntax content model](conventions/syntax-content-model.md)
 - [CST conventions](conventions/index.md)
   - [Rowan CST notation](conventions/rowan-cst.md)
   - [Recovery `Error` and `Invalid` topology](conventions/recovery-error-invalid-topology.md)
@@ -8,47 +9,47 @@
 
 # Expressions
 
-- [Overview (not yet authored)](expressions/index.md)
-- [Parenthesized expression lists](expressions/parenthesized-expression.md)
-- [Dynamic operator chains](expressions/operator-chain.md)
-- [Assignment tail](expressions/assignment-tail.md)
-- [Colon application](expressions/colon-application.md)
-- [`if` / `elsif` / `else` expressions](expressions/if-expression.md)
-- [Brace-delimited statement blocks](expressions/braced-statement-block.md)
-- [`case` / `catch` expressions](expressions/case-catch.md)
-- [Call, field, path, and ML-application tails](expressions/call-field-path-tails.md)
-- [Index and projection tails](expressions/index-projection-tails.md)
-- [`WithBodyTail`](expressions/with-body-tail.md)
+- [Expression placement overview](expressions/index.md)
+- [Parenthesized primary forms](expressions/parenthesized-expression.md)
+- [Operator-chain expression form](expressions/operator-chain.md)
+- [Assignment terminal form](expressions/assignment-tail.md)
+- [Colon-application terminal form](expressions/colon-application.md)
+- [`if` / `elsif` / `else` primary form](expressions/if-expression.md)
+- [Braced statement-block primary form](expressions/braced-statement-block.md)
+- [`case` / `catch` primary forms](expressions/case-catch.md)
+- [Call, field, path, and ML continuation forms](expressions/call-field-path-tails.md)
+- [Index and projection continuation forms](expressions/index-projection-tails.md)
+- [`with` body terminal form](expressions/with-body-tail.md)
 
 # Patterns
 
-- [Overview (not yet authored)](patterns/index.md)
-- [Pattern core and parenthesized patterns](patterns/pattern-core.md)
-- [List patterns](patterns/list-pattern.md)
-- [Record patterns](patterns/record-pattern.md)
-- [Trailing `Pattern : TypeExpression` annotations](patterns/type-annotation.md)
+- [Pattern placement overview](patterns/index.md)
+- [Core and parenthesized pattern forms](patterns/pattern-core.md)
+- [List-pattern primary form](patterns/list-pattern.md)
+- [Record-pattern primary form](patterns/record-pattern.md)
+- [Trailing pattern type-annotation form](patterns/type-annotation.md)
 
 # Types
 
-- [Overview (not yet authored)](types/index.md)
-- [Standalone TypeExpression core](types/type-expression-core.md)
-- [Named-record types](types/named-record-type.md)
-- [`forall` types](types/forall-type.md)
-- [Effect-row types](types/effect-row-type.md)
-- [Polymorphic-variant types](types/polymorphic-variant-type.md)
-- [Bracket-row grammar](types/bracket-row-grammar.md)
+- [TypeExpression placement overview](types/index.md)
+- [Core TypeExpression form](types/type-expression-core.md)
+- [Named-record type primary form](types/named-record-type.md)
+- [`forall` TypeExpression form](types/forall-type.md)
+- [Effect-row type primary form](types/effect-row-type.md)
+- [Polymorphic-variant type primary form](types/polymorphic-variant-type.md)
+- [Bracket-row TypeExpression and TypeArrowTail forms](types/bracket-row-grammar.md)
 
 # Statements / Declarations
 
-- [Overview](statements/index.md)
-- [Bare nominal `type` declaration](statements/bare-nominal-type.md)
-- [Equality `type` declaration](statements/equality-type.md)
-- [Canonical Binding / Use](statements/binding-use.md)
-- [`mod` declaration](statements/mod-declaration.md)
-- [`struct` declaration](statements/struct-declaration.md)
-- [Shared `derives` clause attachment](statements/derives-attachment.md)
-- [Standalone `impl` declaration shell](statements/impl-shell.md)
-- [Standalone `cast` declaration](statements/cast-declaration.md)
+- [Statement and declaration placement overview](statements/index.md)
+- [Bare nominal `type` declaration form](statements/bare-nominal-type.md)
+- [Equality `type` declaration form](statements/equality-type.md)
+- [Binding and use statement forms](statements/binding-use.md)
+- [`mod` declaration form](statements/mod-declaration.md)
+- [`struct` declaration form](statements/struct-declaration.md)
+- [`derives` declaration-attachment form](statements/derives-attachment.md)
+- [Standalone `impl` declaration form](statements/impl-shell.md)
+- [Standalone `cast` declaration form](statements/cast-declaration.md)
 
 # Cross-cutting mechanisms
 
@@ -61,4 +62,4 @@
 
 # Index
 
-- [Overview (not yet authored)](indexes/index.md)
+- [Reference index](indexes/index.md)

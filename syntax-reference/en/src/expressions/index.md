@@ -1,14 +1,14 @@
 # Expressions
 
-Authored pages:
+The [syntax content model](../conventions/syntax-content-model.md) identifies the expression contexts and all recorded expression families. The pages below define the placement and production of the documented forms.
 
-- [Parenthesized expression lists (unit / group / tuple)](parenthesized-expression.md)
-- [Dynamic operator chains](operator-chain.md)
-- [Assignment tail](assignment-tail.md)
-- [Colon application](colon-application.md)
-- [`if` / `elsif` / `else` expressions](if-expression.md)
-- [Brace-delimited statement blocks](braced-statement-block.md)
-- [`case` / `catch` expressions](case-catch.md)
-- [Call, field, path, and ML-application tails](call-field-path-tails.md)
-- [Index and projection tails](index-projection-tails.md)
-- [`WithBodyTail`](with-body-tail.md)
+- [Parenthesized primary forms](parenthesized-expression.md)
+- [Operator-chain expression form](operator-chain.md)
+- [Assignment terminal form](assignment-tail.md)
+- [Colon-application terminal form](colon-application.md)
+- [`if` / `elsif` / `else` primary form](if-expression.md)
+- [Braced statement-block primary form](braced-statement-block.md)
+- [`case` / `catch` primary forms](case-catch.md)
+- [Call, field, path, and ML continuation forms](call-field-path-tails.md)
+- [Index and projection continuation forms](index-projection-tails.md)
+- [`with` body terminal form](with-body-tail.md)

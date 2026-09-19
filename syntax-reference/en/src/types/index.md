@@ -1,10 +1,10 @@
 # Types
 
-Authored pages:
+The [syntax content model](../conventions/syntax-content-model.md) identifies `TypeExpression` contexts. These pages define the documented core, primary, and leading forms.
 
-- [Standalone TypeExpression core](type-expression-core.md)
-- [Named-record types](named-record-type.md)
-- [`forall` types](forall-type.md)
-- [Effect-row types](effect-row-type.md)
-- [Polymorphic-variant types](polymorphic-variant-type.md)
-- [Bracket-row grammar](bracket-row-grammar.md)
+- [Core TypeExpression form](type-expression-core.md)
+- [Named-record type primary form](named-record-type.md)
+- [`forall` TypeExpression form](forall-type.md)
+- [Effect-row type primary form](effect-row-type.md)
+- [Polymorphic-variant type primary form](polymorphic-variant-type.md)
+- [Leading bracket-row TypeExpression form](bracket-row-grammar.md)
