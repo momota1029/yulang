@@ -29,7 +29,7 @@ mod type_expr;
 mod virtual_statement_block;
 
 pub use full_parse::{ParsedFile, parse_file};
-pub use operator_table::{OperatorOrigin, OperatorTable};
+pub use operator_table::{OperatorDefinition, OperatorOrigin, OperatorTable};
 pub use syntax_diagnostic::{OperatorConflictDiagnostic, SyntaxDiagnostic, SyntaxDiagnosticCause};
 pub use syntax_environment::{
     SourceRevision, SyntaxDependencyProvenance, SyntaxDependencySlot, SyntaxEnvironment,

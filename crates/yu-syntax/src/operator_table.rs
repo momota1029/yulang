@@ -27,6 +27,18 @@ impl OperatorTable {
         }
     }
 
+    /// Looks up one spelling in the immutable table retained by `ParsedFile`.
+    ///
+    /// This is intentionally a read-only view: consumers such as `yu-hir`
+    /// consult the exact table that full parsing accepted rather than compiling
+    /// a second operator environment from header facts.
+    pub fn definition(&self, spelling: &str) -> Option<OperatorDefinition<'_>> {
+        let entry = self.trie.find(spelling)?;
+        Some(OperatorDefinition {
+            entry: self.entries.get(entry)?,
+        })
+    }
+
     #[cfg(test)]
     pub(crate) fn from_declarations(
         declarations: impl IntoIterator<Item = OperatorDeclaration>,
@@ -74,6 +86,44 @@ impl OperatorTable {
     ) -> impl ExactSizeIterator<Item = (&OperatorEntry, &OperatorFixitySites)> {
         debug_assert_eq!(self.entries.len(), self.sites.len());
         self.entries.iter().zip(&self.sites)
+    }
+}
+
+/// Read-only capabilities for one operator spelling in an [`OperatorTable`].
+#[derive(Clone, Copy, Debug)]
+pub struct OperatorDefinition<'table> {
+    entry: &'table OperatorEntry,
+}
+
+impl OperatorDefinition<'_> {
+    pub fn spelling(&self) -> &str {
+        self.entry.spelling()
+    }
+
+    pub fn prefix_right_binding_power(&self) -> Option<&[i8]> {
+        self.entry
+            .fixities()
+            .prefix()
+            .map(|fixity| fixity.right_binding_power().components())
+    }
+
+    pub fn infix_binding_powers(&self) -> Option<(&[i8], &[i8])> {
+        let fixity = self.entry.fixities().infix()?;
+        Some((
+            fixity.left_binding_power().components(),
+            fixity.right_binding_power().components(),
+        ))
+    }
+
+    pub fn suffix_left_binding_power(&self) -> Option<&[i8]> {
+        self.entry
+            .fixities()
+            .suffix()
+            .map(|fixity| fixity.left_binding_power().components())
+    }
+
+    pub fn is_nullfix(&self) -> bool {
+        self.entry.fixities().is_nullfix()
     }
 }
 
@@ -323,6 +373,10 @@ impl SuffixFixity {
 pub(crate) struct BindingPower(Box<[i8]>);
 
 impl BindingPower {
+    pub(crate) fn components(&self) -> &[i8] {
+        &self.0
+    }
+
     #[cfg(test)]
     pub(crate) fn scalar(value: i8) -> Self {
         Self(Box::new([value]))
@@ -332,11 +386,6 @@ impl BindingPower {
         let mut components = vec![first];
         components.extend(rest);
         Self(components.into_boxed_slice())
-    }
-
-    #[cfg(test)]
-    pub(crate) fn components(&self) -> &[i8] {
-        &self.0
     }
 }
 

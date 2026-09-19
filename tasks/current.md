@@ -84,8 +84,24 @@ tree-shape difference.
 Immediate next action: Gate 3, the approved first `yu-hir` slice. The user
 approved `notes/design/2026-09-18-hir-operator-association-first-slice-draft.md`
 on 2026-09-18 (D1a/D2b/D3a/D4a): a whole-CST operator-chain association pass
-producing a minimal pre-HIR product, with no type. `yu-hir` and `yu-types` remain
-empty until implementation starts.
+producing a minimal pre-HIR product, with no type. `yu-types` remains empty.
+
+Gate 3 is implemented (2026-09-19). `yu-hir` now associates every encountered
+`OperatorChain` from the exact `ParsedFile` operator table into the minimal
+owned pre-HIR product. Nested chains are associated exactly once and retained
+only through their enclosing `HirExpr`; `AssociatedChains` retains top-level
+chains only, under the user-approved ownership amendment at
+`notes/design/2026-09-19-hir-associated-chains-ownership-amendment.md`.
+Focused M2 verification and final delta review are clean. No type, declaration,
+name-resolution, `DefId`, diagnostic-publication, CST, or `yu-types` work was
+introduced.
+
+Immediate next action: select and approve the next vertical frontend slice.
+The remaining type-attachment question is intentionally still open in
+`notes/design/2026-09-18-hir-type-attachment-open-questions.md`; do not infer a
+`HirModule`, declaration/name model, or type attachment from this association
+product. Parser-ledger retirement also remains a separate coherent migration
+after its CST-derived replacement has real frontend exercise.
 
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
