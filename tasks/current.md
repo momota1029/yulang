@@ -96,12 +96,14 @@ Focused M2 verification and final delta review are clean. No type, declaration,
 name-resolution, `DefId`, diagnostic-publication, CST, or `yu-types` work was
 introduced.
 
-Immediate next action: select and approve the next vertical frontend slice.
-The remaining type-attachment question is intentionally still open in
-`notes/design/2026-09-18-hir-type-attachment-open-questions.md`; do not infer a
-`HirModule`, declaration/name model, or type attachment from this association
-product. Parser-ledger retirement also remains a separate coherent migration
-after its CST-derived replacement has real frontend exercise.
+Immediate next action: review and approve the proposed simple module-resolution
+slice in `notes/design/2026-09-19-hir-simple-module-resolution-first-slice-draft.md`.
+It adds no syntax: the proposed focused fixture is `my x = 1` / `my y = x` and
+must first prove public-parser losslessness and recovery freedom. Do not infer a
+`HirModule`, identity, name model, or type attachment from the association
+product before this design is approved. Parser-ledger retirement remains a
+separate coherent migration after its CST-derived replacement has real frontend
+exercise.
 
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
