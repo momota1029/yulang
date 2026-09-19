@@ -100,6 +100,13 @@ When a genuine user decision remains, stop only the affected work and present
 the exact options and consequences. Do not guess. Continue safe independent
 work when possible.
 
+Do not stop the active task because an unrelated file, documentation edit,
+concurrent change, or out-of-scope defect appears. Isolate it from staging and
+the active diff; when an agent caused the unrelated change, restore only that
+known target safely, then continue the authorized task. Escalate only when the
+unrelated state overlaps the exact files or invariants needed for the active
+work, makes safe integration impossible, or requires a genuine user decision.
+
 ## Hard invariants
 
 - Do not implement a new durable decision before user approval is recorded.
