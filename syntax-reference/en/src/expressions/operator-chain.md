@@ -1,104 +1,93 @@
 # Dynamic operator chains
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-The Authoritative precedence-neutral dynamic-operator-chain and association-boundary addendum is lines 4371–5012 of `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`. It also reconciles parenthesized elements to flat chains at lines 4841–4887.
+This page defines `OperatorChain` in `syntax-v0`.
+Its accepted syntax and flat direct Rowan CST follow the precedence-neutral dynamic-operator-chain amendment in the 2026-08-20 `yu-syntax` architecture.
+The 2026-09-08 required-operand current-Item recovery defines operand recovery.
+See the [syntax content model](../conventions/syntax-content-model.md) and [Rowan CST notation](../conventions/rowan-cst.md) for shared syntax and recovery notation.
 
-The design and implementation commits are `fed0ac39` and `00d41e51`; `00d41e51` is the parser migration to precedence-neutral chains.
+The page covers operator roles, primaries, fixed postfixes, ML arguments, annotations, terminal outer tails, and operand-slot recovery.
+It does not define binding-power association, HIR, types, operator values, or execution semantics.
 
-## 2. Scope and non-scope
-
-The parser records source-order operator spelling and selected Prefix/Infix/Suffix/Nullfix roles in one flat `OperatorChain`, regardless of numeric binding power. Fixed structural continuations remain source-order chain items rather than target-owned application subtrees.
-
-Numeric binding-power association, precedence-shaped application trees, HIR construction, type inference, and operator semantics belong to a later dedicated associator/lowering phase. This page does not define call, index, field, path, ML, annotation, colon, assignment, or `with:` recovery details beyond their chain-boundary role.
-
-## 3. BNF-equivalent grammar
+## 2. Accepted syntax
 
 ```text
-DirectExpression := OperatorChain
-OperatorChain := OperandSlot { FixedPostfixContinuation | G* SuffixUse | G* InfixUse G* OperandSlot | MlApplicationContinuation | G* TypeAnnotationContinuation } [ G* TerminalOuterContinuation ]
-OperandSlot := { PrefixUse G* } Value
-Value := PrimaryHead | NullfixUse
+OperatorChain := OperandSlot { Continuation } [ TerminalOuterContinuation ]
+OperandSlot := { PrefixOperatorUse G* } (PrimaryHead | NullfixOperatorUse)
+Continuation := FixedPostfixContinuation
+              | G* SuffixOperatorUse
+              | G* InfixOperatorUse G* OperandSlot
+              | MlApplicationContinuation
+              | G* TypeAnnotationContinuation
 FixedPostfixContinuation := CallTail | IndexTail | FieldTail | ProjectionTail | PathTail
 MlApplicationContinuation := MlArgumentSeparator MlArgument
 MlArgument := OperatorChain under the ml_arg stop scope
-PrefixUse := accepted operator spelling with selected role Prefix
-InfixUse := accepted operator spelling with selected role Infix
-SuffixUse := accepted operator spelling with selected role Suffix
-NullfixUse := accepted operator spelling with selected role Nullfix
+TerminalOuterContinuation := ColonApplicationTail | AssignmentTail | WithBodyTail
 ```
 
-`OperandSlot` is parser control, not an application node. A terminal outer continuation ends the current chain; numeric binding power never chooses parser-side parent/child ownership.
+An operator spelling is accepted only in a role that the exact syntax environment permits at that position.
+The same spelling can have prefix, infix, suffix, or nullfix roles.
+`=` can become `AssignmentTail` only after an admitted dynamic LED operator has declined.
 
-## 4. Judge, priority, and owner boundary
+## 3. Admission and boundaries
 
-The NUD judge selects Prefix, Nullfix, or Primary from current position, available operator capability, spelling, whitespace/layout, and value-start facts. The LED judge selects suffix/infix roles without numeric binding-power filtering. Fixed punctuation tails and ML boundaries use their own structural recognition before being represented as flat chain items.
+A value position admits a primary, a nullfix use, or an accepted prefix sequence.
+An operand-complete position considers fixed punctuation tails, the ML boundary, annotation, terminal outer tail, suffix, and infix in their structural priority.
+Numeric binding power does not take part in that choice or in CST parent-child ownership.
 
-The strong invariant is that changing only numeric binding power leaves the `OperatorChain` CST, parser AST, trivia ownership, recovery shape, and syntax diagnostics unchanged. It may change only the later associator's tree. Active stops, delimiters, structural terminators, and ambient owners are returned unconsumed.
+Active stops, delimiters, structural terminators, and ambient owner boundaries return to the caller unconsumed.
+A terminal outer continuation ends the chain.
+A fixed postfix or ML application leaves the chain in its operand-complete position.
 
-## 5. Byte-exact CST worked examples
+## 4. Direct Rowan CST
 
-The addendum gives source-order CST examples but no byte-range-annotated trees; no ranges are invented here.
+`OperatorChain` places primaries, operator-use nodes, fixed-tail nodes, nested `MlArgument` chains, annotations, and terminal tails in source order.
+`PrefixOperatorUse`, `InfixOperatorUse`, `SuffixOperatorUse`, and `NullfixOperatorUse` each retain one accepted spelling.
+The CST adds no left or right operand edge and no application subtree.
 
-```text
-a
+A fixed tail does not contain its target as a child; it owns only its own delimiter or required slot as nested CST.
+The argument of `MlArgument` is a nested `OperatorChain`.
+`AssignmentTail`, colon application, and a `with:` body are terminal children.
+
+## 5. Recovery CST
+
+A unique dangling prefix or infix role retains its operator-use node and places one zero-width `Missing` in the required operand slot.
+A non-boundary, non-NUD run becomes one maximal raw `Error` group directly in the chain.
+If an operand is admitted after that group, it retries the same slot.
+A raw group that reaches a safe boundary is the recovered operand and adds no same-cause `Missing`.
+
+An unresolvable operator-shaped spelling receives no role node.
+`Missing` or raw `Error` in a nested construct remains in that construct's slot and does not move into the outer operand slot.
+`Invalid` does not wrap ordinary operator-operand recovery.
+
+## 6. Source/CST examples
+
+When `+` is available as an infix role, `-` as a prefix role, and `!` as a suffix role, `-a + b!` has this source order.
+
+```xml
+<OperatorChain>
+  <PrefixOperatorUse><Operator text="-" /></PrefixOperatorUse>
+  <IdentifierExpression><Identifier text="a" /></IdentifierExpression>
+  <InfixOperatorUse><Operator text="+" /></InfixOperatorUse>
+  <IdentifierExpression><Identifier text="b" /></IdentifierExpression>
+  <SuffixOperatorUse><Operator text="!" /></SuffixOperatorUse>
+</OperatorChain>
 ```
 
-Design lines 4545–4550 give one `OperatorChain` containing `IdentifierExpression "a"`.
+In the same environment, `a +` retains the infix use and recovers its operand slot.
 
-```text
--a * b!
+```xml
+<OperatorChain>
+  <IdentifierExpression><Identifier text="a" /></IdentifierExpression>
+  <Whitespace text=" " />
+  <InfixOperatorUse><Operator text="+" /></InfixOperatorUse>
+  <Missing />
+</OperatorChain>
 ```
 
-Design lines 4552–4564 give the fixed flat child order: Prefix use `-`, primary `a`, Infix use `*`, primary `b`, Suffix use `!`.
+## 7. Composition
 
-```text
-a + b * c
-```
-
-Design lines 4566–4567 fix the same source-order CST for either relative `+`/`*` binding power; only later association differs.
-
-```text
-a!()
-```
-
-Design lines 4593–4596 fix the flat item sequence PrimaryHead `a`, SuffixUse `!`, CallTail `()` rather than a left-nested application CST.
-
-## 6. Parser-side AST shape
-
-`OperatorChain` has exactly `items` and `range`. Its current `OperatorChainItem` enum has exactly `PrefixUse`, `Primary`, `NullfixUse`, `InfixUse`, `SuffixUse`, `FixedPostfix`, `MlArgument { argument, range }`, `TerminalOuter`, `MissingOperand { range }`, and `Error { range }`.
-
-`OperatorUse` has exactly `text`, `range`, and `role`; `OperatorRole` is exactly `Prefix`, `Infix`, `Suffix`, or `Nullfix`. No item records numeric binding power, a table index, a left/right operand edge, or an application subtree.
-
-## 7. Typed recovery table
-
-| condition | recovery and continuation |
-| --- | --- |
-| unique dangling infix at EOF/owner boundary | retain the typed infix-use node and emit one zero-width operand Missing |
-| unique dangling prefix at EOF/owner boundary | retain the typed prefix-use node and emit one zero-width operand Missing |
-| invalid run before a valid operand candidate | one non-empty Error, then retry the same operand slot |
-| invalid run reaches a safe boundary | one Error supplies the recovered error operand; no same-cause Missing cascade |
-| valid second prefix after an infix | accept it as PrefixUse, not Error |
-| unresolvable operator-shaped spelling | no invented role; existing generic recovery owns it |
-
-Each Missing/Error node has one committed recovery record. A chain always closes after an accepted/recovered operator episode, preventing duplicate outer expression/binding absences.
-
-## 8. Boundary and state-restoration contract
-
-Candidate probes are sink-free; accepted roles and structural continuations cut before direct emission. Every normal, recovery, and rollback path preserves/returns the incoming stop set, delimiter and lexical-region state, ambient owner boundary, ML scope, and operator table. The parser never mutates or rebuilds the immutable `OperatorTable` per expression.
-
-## 9. Yulang2 divergences
-
-Yulang2 used parser-time Pratt binding-power comparisons and precedence-shaped expression CST. Yulang3 intentionally uses a BP-neutral flat surface chain and defers association. It preserves syntax-side role recognition, longest spelling, fixed structural boundaries, lossless source order, and typed mandatory-slot recovery.
-
-## 10. Known residual / deferred surface
-
-The documented `ASOB-G` caller-boundary residual remains characterized rather than normalized here. A dedicated HIR-side associator, association-key invalidation split, ML application's exact acceptance table, and construct-specific tail recovery details remain deferred; no second Pratt parser is retained as a competing surface authority.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owner is `crates/yu-syntax/src/lexical/operator_scan.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-In `crates/yu-syntax/src/grammar/expression.rs`: `parse_operator_chain`, `parse_direct_operator_chain`, `recognize_nud`, `recognize_led`, `probe_nud`, `probe_led`, `commit_direct_operand_slot_from`, and `operator_chain_item_end`.
-
-Fixtures include `operator_chain_ast_preserves_source_order_without_application_edges`, `direct_chain_emits_role_nodes_and_keeps_operator_trivia_outside_them`, `direct_chain_assigns_accepted_led_trivia_once`, `direct_chain_emits_suffix_and_nullfix_use_nodes`, and `operator_chain_returns_an_ambient_if_companion_gap_without_continuing`.
+Construct pages own parenthesized elements, fixed tails, and terminal tails.
+A later association phase derives an associated result from the same flat item sequence and exact association environment, but does not rewrite the CST.
+Changing numeric binding power alone does not change the surface `OperatorChain` shape.

@@ -1,109 +1,113 @@
-# Parenthesized expression list
+# 丸括弧式
 
-## 1. 状態・正本・最終確認
+## 1. 権威と対象範囲
 
-historical な single-expression grouped 追補は `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の 3656–4098 行にあり、明示的に superseded されている。Authoritative な uniform parenthesized-list surface は 4099–4351 行、flat `OperatorChain` element への reconciliation は dynamic-chain 追補 4371–5012 行、current comma-or-newline separator rule は 9314–9693 行にある。
+このページは、`syntax-v0`における`ParenthesizedExpression`を定める。
+受理構文と直接Rowan CSTは、2026年8月20日の`yu-syntax` architectureの丸括弧式とprecedence-neutral chainの各節、および2026年9月8日の式区切りcurrent-Item recoveryと2026年9月10日のraw-slot CST追補に従う。
+[layout-aware comma-or-newline 区切り列の authority](../cross-cutting/layout-aware-separator-authority.md)は、この構文のseparator ruleを定める。
+この範囲だけで、以前の丸括弧式のseparator部分をsupersedeする。
+`syntax-v0`のfreeze、共通の表記、recovery要素は、[構文の内容モデル](../conventions/syntax-content-model.md)、[Rowan CST表記](../conventions/rowan-cst.md)、[回復の`Error`と`Invalid`のtopology](../conventions/recovery-error-invalid-topology.md)を参照する。
 
-実装 progression は `8551f356`、`0e3459e9`、`13564977`、`652740a6`、`00d41e51`、`81ef211d`。`652740a6` が parenthesized expression list、`00d41e51` が flat chain element、`81ef211d` が layout-aware separator を導入した。
+対象は、丸括弧、elementの`OperatorChain`、commaとlayoutによるseparator、close、およびこれらのslotのrecoveryである。
+unit、grouping、tupleの解釈、演算子の結合、型推論、実行時表現、ほかの丸括弧構文は定めない。
 
-## 2. 対象範囲と非対象
-
-このページは unit/grouping/tuple を一つの uniform surface form として扱う。対象は `()`、`(a)`、`(a,)`、multi-element list である。parser は element chain、literal trailing comma、delimiter、trivia、recovery を保持し、unit/grouping/identity/tuple の意味は後段の inference/lowering が決める。
-
-tuple runtime representation、expression semantics、type inference、HIR/lowering、formatter policy、call argument list、pattern/type parenthesis、別の grouped/tuple CST kind は対象外である。
-
-## 3. BNF 相当の grammar
+## 2. 受理構文
 
 ```text
 ParenthesizedExpression :=
-    LParen OpeningTrivia
+    "(" G*
     [
         OperatorChain
-        { ParenthesizedExpressionSeparator OperatorChain }
-        [ ParenthesizedExpressionSeparator ]
+        { ParenthesizedSeparator OperatorChain }
+        [ ParenthesizedSeparator ]
     ]
-    RParen
+    ")"
 
-ParenthesizedExpressionSeparator :=
-    ExplicitCommaBoundary
-  | ImplicitNewlineBoundary(parenthesized_expression_base)
+ParenthesizedSeparator := "," G* | qualifying newline
 ```
 
-Opening trivia は first item 前に base indentation を capture する。following indent が base 以下の newline は implicit separator、deeper newline は current OperatorChain に残る。semicolon は valid separator ではない。
+`()`、`(a)`、`(a,)`、複数elementの形式を受理する。
+commaはliteralなseparatorである。
+qualifying current-depth newlineは、opening triviaから得たbase indentationと同じか浅い次行indentでelement boundaryになる。
+より深いindentのnewlineは、continuation triviaとして現在の`OperatorChain`に残る。
+semicolonはこの構文のseparatorではない。
 
-## 4. Judge・priority・owner boundary
+## 3. Admissionとboundary
 
-shared NUD recognizer は `(` を sink-free で accept し、accept 後だけ cut する。parenthesized owner は delimiter、`Comma | RightParenthesis` stop、layout frame を push する。各 element は current delimiter depth で止まる `OperatorChain` であり、completed parenthesized primary 後は outer chain が ordinary suffix/infix use を続けられる。
+`(`はvalue positionで受理する。
+各elementは、現在の丸括弧のcomma、`)`、またはqualifying current-depth layout newlineで停止する`OperatorChain`である。
+より深いnewlineは、current elementのcontinuation triviaとして残る。
+completedな丸括弧式はouter `OperatorChain`へ戻り、そこでfixed postfix、suffix、infixを続けられる。
 
-literal comma は boundary cluster 内で priority を持つ。same-line next expression candidate が comma/newline なしで来た場合は missing-separator retry、qualifying newline は既に valid separator なので synthetic comma/separator node を作らない。caller-owned boundary と nested delimiter scope はこの owner の外に残る。
+同じ行の次element candidateがseparatorなしで現れると、separator slotのrecoveryを行って同じ位置からelementを再試行する。
+caller-owned boundaryとnested delimiter scopeはこの構文が消費しない。
+local ownerはcommaとmatching `)`のownershipを保ち、matching `)`をlocal closeとして先に受理する。
 
-## 5. Byte-exact CST の worked examples
+## 4. 直接 Rowan CST
 
-対応する追補は source form と source-order grammar/CST ownership を与えるが、byte-range 付き tree はない。ここでは range を作らない。
+`ParenthesizedExpression`は`OperatorChain`のdirect childである。
+そのchildはsource orderで`LParen`、0個以上の`OperatorChain` element、literal comma、trivia、`RParen`となる。
+newline separatorはtriviaであり、synthetic separator nodeにはならない。
+`(a,)`のcommaはsource-bearing leafとして残る。
 
-```text
-()
+各inner `OperatorChain`は独立したelementである。
+丸括弧nodeはelementを別のgroupingまたはtuple nodeでwrapしない。
+
+## 5. Recovery CST
+
+initial item slotまたはcomma後のitem slotが必要なelementを得られない場合、`ParenthesizedExpression`はそのslotにzero-widthの`Missing`を置く。
+immediate real `)`はempty formであり、element `Missing`を置かない。
+separatorなしのelement retryでは、separator slotに`Missing`を置く。
+missing local closeはclose slotに`Missing`を置き、protected outer boundaryは未消費のまま残す。
+
+通常のmalformed item runは`ParenthesizedExpression`直下の隣接したraw `Error` leafである。
+rejected semicolonは`ExpressionDelimitedSeparator`内のraw `Error` groupである。
+このownerが消費するforeign closeは`ExpressionDelimitedForeignClose`内のraw `Error` groupである。
+これらのwrapperは一つのnonempty groupだけを含み、`Missing`、accepted punctuation、retry leading、`Invalid`を含まない。
+
+raw groupの後にadmitted elementがあれば、同じitem slotを満たす。
+protected boundaryに達したgroupはboundaryを残し、同じ原因の`Missing`を追加しない。
+
+## 6. Source/CST例
+
+`()`はelementを持たない。
+
+```xml
+<OperatorChain>
+  <ParenthesizedExpression>
+    <LParen text="(" />
+    <RParen text=")" />
+  </ParenthesizedExpression>
+</OperatorChain>
 ```
 
-設計文書 9522 行は valid zero-element `ParenthesizedExpression` を固定する。`LParen` と `RParen` だけで、element Missing はない。
+`(a,)`は一つのelementとliteral commaを持つ。
 
-```text
-(a,)
+```xml
+<OperatorChain>
+  <ParenthesizedExpression>
+    <LParen text="(" />
+    <OperatorChain><IdentifierExpression><Identifier text="a" /></IdentifierExpression></OperatorChain>
+    <Comma text="," />
+    <RParen text=")" />
+  </ParenthesizedExpression>
+</OperatorChain>
 ```
 
-設計文書 9524 行は OperatorChain element 一つと literal terminal comma を固定する。comma は後段の one-tuple interpretation 用の source-bearing `trailing_comma` marker になる。
+`(;)`ではsemicolonがseparator recoveryのslotを示す。
 
-```text
-(
-  a
-  b
-)
+```xml
+<OperatorChain>
+  <ParenthesizedExpression>
+    <LParen text="(" />
+    <ExpressionDelimitedSeparator><Error text=";" /></ExpressionDelimitedSeparator>
+    <RParen text=")" />
+  </ParenthesizedExpression>
+</OperatorChain>
 ```
 
-設計文書 9525 行は base indent 2、element 二つ、valid trailing implicit newline を固定する。newline は raw trivia であり synthetic separator node ではない。
+## 7. Composition
 
-```text
-(a
-b)
-```
-
-設計文書 9526 行は equal-indent newline を valid two-element boundary として固定する。
-
-## 6. Parser 側 AST shape
-
-current `PrimaryExpression::Parenthesized` variant は正確に `elements: Vec<OperatorChain<'source>>`、`trailing_comma: Option<Range<usize>>`、`range: Range<usize>` を持つ。`open`、`close`、unit/group/tuple discriminator、separator collection field はない。
-
-`OperatorChain` 自身は正確に `items: Vec<OperatorChainItem<'source>>` と `range: Range<usize>` を持つ。delimiter/comma/trivia/recovery node は direct CST の単一 `SyntaxKind::ParenthesizedExpression` node が source order で保持する。
-
-## 7. Typed recovery table
-
-| condition | recovery と continuation |
-| --- | --- |
-| immediate real `)` | valid empty list。element Missing なし |
-| complete element 間/後の qualifying newline | valid implicit boundary。raw trivia のみで Missing comma なし |
-| separator なしの same-line next item candidate | typed delimited-separator Missing 一件後 same-position element retry |
-| repeated comma または comma 後に next item がない | unfilled slot への mandatory element Missing 一件 |
-| valid chain 前の malformed element prefix | non-empty Error 一件後 same-slot chain retry |
-| missing/mismatched `)` | typed parenthesized closing Missing/Error 一件。outer boundary は consume しない |
-
-initial malformed element と close が同じ boundary で欠ける場合、direct path は duplicate absence を作らない documented combined recovery を使う。
-
-## 8. Boundary と state-restoration contract
-
-normal/recovery/rollback の全 exit は parenthesis delimiter、local stop set、`LayoutDelimitedFrame` を exactly once pop する。base indentation は opening trivia 後に capture し、item content から再計算しない。AST/direct path は同じ delimiter/layout ownership を使い、nested scope は outer continuation 再開前に outer frame を restore する。
-
-## 9. Yulang2 divergences
-
-Yulang3 は one outer parenthesis/list shape と source-bearing terminal comma を保つが、Yulang2 infer-side が失った `(a,)` を修正する。one element + literal trailing comma は future one-tuple であり identity ではない。Yulang2 の empty implicit `Separator` node を出さず、shared policy はこの list から semicolon を除く。
-
-## 10. Known residual / deferred surface
-
-general missing-delimiter/caller-boundary residual は `ASOB-G` が characterization し、この construct は追加 exemption を持たない。unit/grouping/tuple classification、associated-expression lowering、type inference、runtime tuple representation、formatter policy、他の parenthesized grammar はこの parser-surface page の外で deferred である。
-
-## 11. 実装と regression fixture の cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/expression/delimited.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/expression.rs` では `parse_operator_chain`、`parse_direct_operator_chain`、`commit_parenthesized_nud`、`commit_parenthesized_element`、`commit_parenthesized_close`、`parenthesized_expression_stop_set`、`push_parenthesized_expression_scope`、`pop_parenthesized_expression_scope` を参照する。
-
-fixture は `operator_chain_ast_preserves_parenthesized_element_counts_and_trailing_commas`、`parenthesized_layout_boundaries_preserve_ast_direct_shape_and_trivia`、`parenthesized_layout_keeps_deeper_newlines_and_same_line_recovery_local`、`direct_chain_uses_one_parenthesized_node_for_every_valid_list_shape`、`parenthesized_primary_continues_to_outer_infix_and_suffix_uses`、`parenthesized_elements_are_operator_chains_and_outer_continues_flatly`。
+inner chainのoperator roleとfixed tailは[dynamic operator chain](operator-chain.md)が定める。
+丸括弧の後のouter continuationも、そのouter chainが所有する。
+direct `Error`、`ExpressionDelimitedSeparator`、`ExpressionDelimitedForeignClose`の診断上の読み方は、共通recovery topologyに従う。
