@@ -145,6 +145,19 @@ Subagent-to-primary reports are internal working communication and use concise
 technical English unless the delegated artifact itself requires another
 language.
 
+### Intermediate user-visible updates
+
+Do not narrate ordinary progress, exploratory findings, partial edits, failed
+attempts, or temporary worktree states to the user. Work silently until a
+coherent result is ready.
+
+Send an intermediate user-visible message only when it is necessary to obtain
+a genuine user decision, report a blocker that prevents meaningful progress,
+or disclose a material risk that changes the authorized scope. A status update
+explicitly requested by the user is also allowed. In every other case, report
+the completed result, verification, and remaining decisions only in the final
+response.
+
 ### Command-output visibility
 
 Do not relay raw command output, tool output, build logs, or subagent work
