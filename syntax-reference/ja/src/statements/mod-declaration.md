@@ -1,176 +1,84 @@
-# `mod` declaration
+# `mod` 宣言
 
-## 1. 状態・根拠・最終照合
+## 1. 権限と対象範囲
 
-このページは `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の
-Authoritative な「canonical `Statement` / root `Declaration` `mod` declaration
-extension」（11624–12156行）を要約する。規範節は authoritative surface grammar/layout、
-typed recovery contract、statement-intro judge、owner scope である。
+このページは、`syntax-v0`の`ModDeclaration`を定める。
+`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`のAuthoritativeなcanonical `Statement`とroot `Declaration`の`mod`拡張、特にModがこのページを統治する。
+module loading、namespace、export、test execution、derives、companion、loweringは対象外である。
 
-design approval は `2a1a7367`、implementation は `d4d58d13`。このページは
-`b080c022` に対して照合した。
-
-## 2. 対象と非対象
-
-module は optional visibility、`mod`、ordinary または contextual `test` identity、
-bodyless semicolon / braced statement block / colon inline・indented canonical statement
-body のいずれかを持つ。root と nested statement は同じ `ModDeclaration` を使う。
-
-module path/loading、namespace、export、test execution、nested header planning、`with:`、
-derives、module-specific member、brace-local spread、未実装 statement kind、HIR、resolver、
-diagnostics はこの syntax contract の外である。
-
-## 3. BNF 相当の grammar
+## 2. 受理する構文
 
 ```text
-ModDeclaration :=
-    [ VisibilityKw Gmod ] ModKw Gmod ModIdentity Gmod ModBody
+ModDeclaration := [ VisibilityKw Gmod ] ModKw Gmod ModIdentity Gmod ModBody
 VisibilityKw := MyKw | OurKw | PubKw
-ModIdentity := NamedModule | TestModule
-NamedModule := Name
-TestModule := TestMarker TestModuleIdentityTail
-TestModuleIdentityTail := EmptyTestName | Gmod Name
-EmptyTestName := ε, only before ; / { / :
+ModKw := exact maximal word "mod"
+ModIdentity := Name | TestModuleMarker [ Gmod Name ]
+Name := Identifier
+TestModuleMarker := Identifier("test")
 BodyStarter := Semicolon | LBrace | Colon
-ModBody := Semicolon | BracedStatementBlockExpression | ModColonBody
-ModColonBody := Colon G0* Statement [ Semicolon ] | Colon IndentedStatementBlock
+ModBody := Semicolon | BracedStatementBlockExpression | Colon ModColonBody
+ModColonBody := G0* Statement [ Semicolon ] | IndentedStatementBlock
+G0* := physical newlineを含まないmaximal trivia
 ```
 
-`Gmod` は same-line trivia、または `mod_base` より strictly deeper な末尾 indent を
-受ける。equal-or-shallower newline は outer owner が所有する。
+`Gmod`はempty、same-lineのmaximal trivia、またはdeclaration baseよりstrictly deeperなindentへ続くtriviaである。
+`Statement`、`BracedStatementBlockExpression`、`IndentedStatementBlock`は、名前付きの参照productionを使う。
 
-## 4. Judge・priority・owner boundary
+## 3. 受理と境界
 
-bare exact `mod`、または visibility と continuation trivia 後の exact `mod` は Binding
-より先に選ばれる。`module` と `modular` は split しない。identity/body の成否に関係なく
-intro は commit する。exact `test` は `mod` の直後だけ marker になり、`;` / `{` / `:`
-直前だけ anonymous である。EOF の `mod test` は incomplete second-name slot になる。
+exact bare `mod`またはadmitted visibility prefixの後の`mod`が、この宣言を選ぶ。
+`module`、`modular`、`my_mod`は分割しない。
+`mod`直後の`test`はmarkerであり、body starterが続く場合だけanonymousである。
+したがってEOFで終わる`mod test`にはsecond nameのMissingがある。
 
-body judge は exact `;`、lone `{`、lone `:` だけを所有する。starter のない valid
-statement candidate は same position の missing colon として recovery できる。一方 outer
-EOF、comma、close、dedent、companion stop、equal-or-shallower newline は non-consuming である。
+bodyを始めるのはexactな`;`、`{`、lone `:`だけである。
+`:`の後ではsame-line triviaがinline `Statement`を、strictly deeperなnewlineがindented blockを選ぶ。
+equal-or-shallower newline、outer separator、close、dedent、stopはouter ownerに残る。
 
-## 5. byte-exact CST worked examples
+## 4. Source-order Rowan schema
 
-Mod 追補には byte-range-annotated CST tree がない。以下は追補自身が引用する source
-string であり、range を発明せず記載済みの CST ownership だけを要約する。
+`ModDeclaration`のclosed source-order schemaは次のとおりである。
 
 ```text
-mod error;
+ModDeclaration := [ VisibilityKw Trivia ] ModKw Trivia
+                  ( Name | TestModuleMarker [ Trivia Name ] ) Trivia
+                  ( Semicolon | BracedStatementBlockExpression |
+                    Colon ( Statement [ Semicolon ] | IndentedStatementBlock ) )
+TestModuleMarker := Identifier("test")
 ```
 
-（11708–11711行）は `ModDeclaration` の `ModKw`、raw `Identifier` の `error`、
-bodyless `Semicolon` からなる。`error` は他の位置では contextual でも、この slot では
-ordinary module name である。
+header、body、anonymous name、inline bodyのwrapperは作らない。
+identity alternativeとbody alternativeはそれぞれ一つだけである。
 
-```text
-mod test;
+## 5. Recovery CST
+
+`Name`、`TestName`、`BodyIntroducer`、colon bodyのfailureは、それぞれのslotに置く。
+missing slotは`Missing`であり、malformed runはそのslotの隣接する`Error` leafである。
+name failureからsame-causeのbody-introducer failureを作らない。
+blockのrecoveryとclose handoffは、選んだblock nodeが持つ。
+
+```xml
+<ModDeclaration><ModKw text="mod" /><Whitespace text=" " /><Missing /><Semicolon text=";" /></ModDeclaration>
 ```
 
-（11704–11705、12013行）は `Identifier` の `test` を持つ `TestModuleMarker` の直後に
-bodyless `Semicolon` を置く。body-starter lookahead が anonymous test-module form を証明するため、
-name child / placeholder は作らない。
+この`Missing`はname slotであり、semicolonは選ばれたbodyである。
 
-```text
-mod test {}
+`mod @;`では、同じname slotがraw malformed sourceを`Error+`として保つ。
+
+```xml
+<ModDeclaration><ModKw text="mod" /><Whitespace text=" " /><Error text="@" /><Semicolon text=";" /></ModDeclaration>
 ```
 
-（11704–11705、12013行）は同じ `TestModuleMarker` の後に existing
-`BracedStatementBlockExpression` を置く。brace owner が open / close / inner separator を所有し、
-`ModDeclaration` は synthetic `ModBody` CST wrapper を作らない。
+## 6. SourceとCSTの例
 
-```text
-my mod test internals:
+受理する`mod test {}`は、marker一つとbraced body一つを持つ。
+
+```xml
+<ModDeclaration><ModKw text="mod" /><Whitespace text=" " /><TestModuleMarker><Identifier text="test" /></TestModuleMarker><Whitespace text=" " /><BracedStatementBlockExpression><LBrace text="{" /><RBrace text="}" /></BracedStatementBlockExpression></ModDeclaration>
 ```
 
-（11705行）は visibility、`ModKw`、contextual `TestModuleMarker`、second raw
-`Identifier` の `internals`、`Colon` を持つ。named test-module identity と colon body
-starter を示し、inline / strictly-deeper indented layout は literal colon 後に judge する。
+## 7. 構成と非対象
 
-root output では `ModDeclaration` は `Root` child、nested sequence では一つの
-`Statement` wrapper の sole selected child になる。この container 差は declaration token
-ownership を変えない。
-
-
-## 6. parser 側 AST shape
-
-```rust
-pub(crate) struct ModDeclaration<'source> {
-    visibility: Visibility,
-    test_marker: Option<WordSpan<'source>>,
-    name: Option<Recovered<WordSpan<'source>>>,
-    body: Recovered<ModBody<'source>>,
-    range: Range<usize>,
-}
-
-pub(crate) enum ModBody<'source> {
-    Bodyless { semicolon: Range<usize> },
-    Braced { block: BracedStatementBlockExpression<'source> },
-    Colon { colon: Recovered<Range<usize>>, body: Recovered<ModColonBody<'source>> },
-}
-
-pub(crate) enum ModColonBody<'source> {
-    Inline { statement: Box<Statement<'source>> },
-    Indented { block: IndentedStatementBlock<'source> },
-}
-```
-
-name のない `test_marker: Some(_)` は proven anonymous test module である。
-`Some(Incomplete)` は EOF の `mod test` と valid form を区別する。
-
-## 7. typed recovery table
-
-| condition | recovery と ownership |
-| --- | --- |
-| `mod` at boundary | `Missing(ModRole::Name, Identifier)` 一件。body-introducer は cascade しない |
-| malformed name then raw name | maximal `Error(ModRole::Name)` 一件と same-slot retry |
-| `mod test` at boundary | `Missing(ModRole::TestName, Identifier)` 一件。body は cascade しない |
-| complete identity at boundary | `Missing(ModRole::BodyIntroducer)` 一件。boundary は外側に残す |
-| malformed introducer then `;` / `{` / `:` | maximal body-introducer error 一件と same-slot starter retry |
-| literal/recovered colon with no body | `Missing(ModRole::Body, Statement)` 一件。outer boundary は使用可能 |
-| malformed colon body then statement | maximal body error 一件と same-slot retry |
-| deeper empty/malformed first block statement | block owner が `ModRole::IndentedStatement` を emit。Mod は重複しない |
-| missing brace close | existing `ClosingDelimiter` recovery。outer-owned closer は non-consuming |
-
-すべての `Missing` は zero-width、`Error` は maximal non-empty である。一つの range は
-一つの recovery node と一つの record に対応する。
-
-## 8. boundary と state-restoration contract
-
-同じ adapter は root、indented、braced、With、Binding、nested Mod body で安全に使える。
-normal / recovery / rollback exit は `mod_base`、indentation、delimiter/stop state、`inline`、
-`ml_arg`、scanner state、sink state を restore する。body separator と close は block / outer
-sequence が一度だけ所有する。
-
-## 9. Yulang2 divergences
-
-Yulang3 は `test` marker spelling と body-starter family を保つが、
-equal-or-shallower newline を outer statement owner に渡す。silent close / `InvalidToken` の代わりに
-typed role-specific recovery を使い、Y2 block node ではなく
-`BracedStatementBlockExpression` を使う。Y2 brace-local `ExprSpread` / empty separator node は戻さず、
-Mod は Y2-equivalent header-planning fact を作らない。
-
-## 10. known residual / deferred surface
-
-accepted Mod-specific residual は記録されていない。section 2 の module / test semantic surface は
-意図的に absent のままである。
-
-## 11. implementation と regression fixture cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/declaration/mod_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/declaration.rs`:
-`recognize_mod_statement_intro`, `parse_mod_declaration_with_operators`,
-`commit_mod_declaration`, `mod_statement_error_retry_ast`,
-`mod_body_starter_pending`, `mod_trivia`, `mod_word_error_retry`,
-`mod_body_introducer_error_retry`, `mod_body_error_retry`。
-`crates/yu-syntax/src/grammar/expression.rs` の indented adapter は
-`parse_indented_mod_body`、`commit_indented_mod_body`。
-
-fixture:
-`mod_declaration_keeps_named_and_test_identity_shapes_distinct`,
-`mod_ast_keeps_each_of_the_three_body_forms_distinct`,
-`mod_test_at_eof_keeps_the_mandatory_second_name_slot`,
-`mod_direct_retries_malformed_introducer_and_colon_body_under_their_own_roles`,
-`mod_colon_body_missing_keeps_outer_comma_and_close_available`,
-`mod_brace_body_reuses_the_shared_owner_safe_close_recovery`。
+`Root`では`ModDeclaration`を直接置く。
+nested canonical ownerでは、`Statement`の宣言child一つである。
+[Rowan CST表記](../conventions/rowan-cst.md)と[回復のtopology](../conventions/recovery-error-invalid-topology.md)も参照する。

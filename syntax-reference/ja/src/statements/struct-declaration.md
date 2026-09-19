@@ -1,180 +1,127 @@
-# `struct` declaration
+# `struct` 宣言
 
-## 1. 状態・根拠・最終照合
+## 1. 権限と対象範囲
 
-このページは `notes/design/2026-08-20-yu-syntax-chasa-architecture.md` の
-Authoritative な「canonical `Statement` / root `Declaration` `struct` declaration
-grammar」（17400–18359行）を要約する。規範節は `SD-G`、`SD-J`、`SD-T`、`SD-R`
-（17497–18359行）である。
+このページは、`syntax-v0`の`StructDeclaration`を定める。
+AuthoritativeなStruct declaration grammarの`SD-G`、`SD-J`、`SD-T`、`SD-R`と、named-field、field-sequence、foreign-close、derives、companion、actual-closeの後続amendmentが統治する。
+field meaning、constructor、method、loweringは対象外である。
 
-approval は `238e0250`。implementation sequence は `47ed2c99`、`62ea8a31`、
-`fd401a26`、`eeedc5a1`、`05358e72`、`4c52d048`、`cecba259`、`1900e076`。
-observable review finding は `668c9b19` と `7f47d9a7` が修正し、このページの
-verified behavior に含む。`b080c022` に対して照合した。
-
-## 2. 対象と非対象
-
-grammar は visibility、exact `struct`、mandatory raw name、bodyless `;`、named braced
-field、named indented field、tuple field のいずれかを受ける。named field は
-`Identifier : TypeExpression`、tuple field は required TypeExpression を所有する。
-
-declaration generic、derives/`with:` companion、method、constructor、literal、default、
-shorthand、field visibility、doc、layout/ABI、semantic field validation、HIR、resolver、
-inference、formatter、diagnostics は deferred である。
-
-## 3. BNF 相当の grammar
+## 2. 受理する構文
 
 ```text
-StructDeclaration :=
-    [ VisibilityKw Gstruct+ ] StructKw Gstruct+ StructName Gstruct* StructBody
-StructBody :=
-    Semicolon
-  | LBrace StructOpeningTrivia [ StructNamedField { StructBracedFieldBoundary StructNamedField } ] RBrace
-  | Colon StructIndentedOpeningTrivia StructNamedField { StructIndentedFieldBoundary StructNamedField }
-  | LParen StructOpeningTrivia [ StructTupleField { StructBracedFieldBoundary StructTupleField } ] RParen
+StructDeclaration := [ VisibilityKw Gstruct+ ] StructKw Gstruct+ StructName Gstruct* StructBody
+VisibilityKw := MyKw | OurKw | PubKw
+StructKw := exact maximal word "struct"
+StructName := Identifier
+StructBody := Semicolon | NamedBracedStructBody | NamedIndentedStructBody | TupleStructBody
+NamedBracedStructBody := LBrace StructOpeningTrivia [ StructNamedField { StructBracedFieldBoundary StructNamedField } [ StructBracedFieldBoundary ] ] RBrace
+TupleStructBody := LParen StructOpeningTrivia [ StructTupleField { StructBracedFieldBoundary StructTupleField } [ StructBracedFieldBoundary ] ] RParen
+NamedIndentedStructBody := Colon StructIndentedOpeningTrivia StructNamedField { StructIndentedFieldBoundary StructNamedField } [ TrailingIndentedComma ]
 StructNamedField := Identifier Gfield-name Colon Gfield-type RequiredTypeExpression(Struct::FieldType)
 StructTupleField := RequiredTypeExpression(Struct::FieldType)
+StructBracedFieldBoundary := CommaBoundary | ImplicitStructNewlineBoundary(struct_list_base)
+StructIndentedFieldBoundary := CommaBoundary | ImplicitIndentedFieldNewlineBoundary(block_indent)
+TrailingIndentedComma := CommaBoundary before EOF, dedent, or an active outer boundary
+Gfield-name := empty or same-line trivia
 ```
 
-`Gstruct` は same-line または strictly-deeper continuation trivia を受ける。brace / tuple
-list は `struct_list_base`、indented field は `block_indent` を使う。
+`RequiredTypeExpression`は[TypeExpressionの参照](../types/type-expression-core.md)にあるfull required type productionである。
+`Gstruct+`はnon-empty declaration-continuing trivia、`Gstruct*`はemptyまたはそのrunである。
+`Gfield-type`はempty、same-line、またはstrictly deeper continuation triviaを許す。
 
-## 4. Judge・priority・owner boundary
+## 3. 受理と境界
 
-bare / visibility-led exact `struct` は Binding より先に cut し、`structure`、`structural`、
-`my_struct` は ordinary word のままである。complete/recovered name 後に body を選ぶのは exact
-`;`、`{`、`(`、lone `:` だけである。following type word から missing body container は発明しない。
+exact bareまたはvisibility-ledの`struct`がこの宣言を選ぶ。
+bodyは`;`、`{`、`(`、lone `:`だけで始まる。
+bracedとtuple listはemptyにできるが、indented listはnon-emptyである。
+bracedとtupleのqualifying newlineは`struct_list_base`以下、indented listでは`block_indent`と等しいindentを持つ。
+deeper lineはfield typeのcontinuationであり、`::`はfield colonではない。
 
-field layout は comma と qualifying newline を所有する。deeply indented line は field type
-continuation、qualifying equal-or-shallower line は field/list または outer boundary である。
-`::` は field colon に split しない。field owner は `StructRole::FieldType` outer role の
-full mandatory TypeExpression を使う。
-
-## 5. byte-exact CST worked examples
+## 4. Source-order Rowan schema
 
 ```text
-pub struct Marker;
+StructDeclaration := [ VisibilityKw Trivia ] StructKw Trivia StructName
+  { Trivia DerivesClause }
+  ( Semicolon
+  | DeclarationCompanion
+  | NamedIndentedStructBody
+  | NamedBracedStructBodyActualClose { Trivia DerivesClause } [ DeclarationCompanion ]
+  | TupleStructBodyActualClose { Trivia DerivesClause } [ DeclarationCompanion ] )
+NamedBracedStructBodyActualClose := RBraceがactual matching closeであるNamedBracedStructBody
+TupleStructBodyActualClose := RParenがactual matching closeであるTupleStructBody
+NamedBracedStructBody := LBrace Trivia { StructField | Comma | Trivia | StructFieldForeignClose } RBrace
+TupleStructBody := LParen Trivia { StructField | Comma | Trivia | StructFieldForeignClose } RParen
+NamedIndentedStructBody := Colon Trivia { StructField | Comma | Trivia }
+StructField := NamedStructFieldContent | TupleStructFieldContent
+NamedStructFieldContent := Identifier Trivia Colon Trivia TypeExpression
+TupleStructFieldContent := TypeExpression
+StructFieldForeignClose := Error+
 ```
 
-```text
-StructDeclaration
-  PubKw "pub" 0..3
-  StructKw "struct" 4..10
-  Identifier "Marker" 11..17
-  Semicolon ";" 17..18
+header positionは、header derivesの後にbodyまたはheader companionを受け入れる。
+trailing positionが開くのはactual matching bracedまたはtuple closeの後だけであり、そこでderivesがoptionalなcompanionに先行する。
+semicolon、indented body、missingまたはmismatched closeの後には開かない。
+bracedとtupleはactualまたはrecovered closeを一つ持ち、indented bodyはcloseを持たない。
+`StructFieldForeignClose`はdelimited listのdirect childであり、`StructField`のchildではない。
+named bracedとindented bodyでは、`StructField`が`NamedStructFieldContent`を含む。
+tuple bodyでは、`StructField`が`TupleStructFieldContent`を含む。
+
+## 5. Recovery CST
+
+header nameとbody introducerのrecoveryは、same-cause cascadeを作らず固有のslotを使う。
+malformed header runはheader slotの`Error+`であり、named body starterでretryできる。
+complete nameの後がEOF、owner boundary、またはequal-or-shallower newlineなら、`Missing(Struct::BodyIntroducer)`は一つだけである。
+
+named fieldでは、leadingまたはrepeated separatorがrequired field slotごとにmissing field一つを作る。
+literal colonの前のmissing field nameは`Missing(Struct::FieldName)`であり、malformed field-name textはそのslotの`Error+`である。
+fieldの後にsame-lineのcomplete next field headが続けば、そのnext fieldの前に`Missing(Struct::FieldSeparator)`を一つだけ置く。
+accepted nameの後にsame-line type starterが来れば`Missing(Struct::FieldColon)`を置く。
+accepted colonの後のboundaryは`Missing(Struct::FieldType)`を置く。
+separator errorはfield-separator slotの`Error+`であり、valid separatorではない。
+
+tuple fieldはそれぞれrequired `TypeExpression`一つを使う。
+leadingまたはrepeated commaはmissing tuple field type一つを作り、malformed type contentはTypeExpression ownerに残る。
+same-line type primaryは一つのTypeExpressionであり、separatorを推測しない。
+
+local closeではlistが自身のclose slotをretryする。
+missing matching closeはclose-slot `Missing`一つであり、protected outer closeはunreadのまま残る。
+malformed runがboundaryへ達したslotに別のMissingを加えない。
+field、field-name、field-colon、field-type、separator、closeのslotは、このcardinalityを保つ。
+
+matching closeが優先する。
+absent closeはclose slotの`Missing`一つである。
+protected outer closeはunreadのまま残る。
+locally consumed foreign closeは`Error+`を持つ`StructFieldForeignClose`一つであり、field-separator `Error`とは異なる。
+
+```xml
+<StructDeclaration><StructKw text="struct" /><Whitespace text=" " /><Identifier text="S" /><Whitespace text=" " /><LBrace text="{" /><Whitespace text=" " /><StructField><Identifier text="x" /><Missing /><Whitespace text=" " /><TypeExpression><Identifier text="Int" /></TypeExpression></StructField><Whitespace text=" " /><RBrace text="}" /></StructDeclaration>
 ```
 
-```text
-struct Point { x: Int, y: List Int }
+この`Missing`はfield-colon slotであり、typeはstructural child一つのままである。
+
+`struct S { @ }`ではlistがraw field failureを持つ。
+locally consumed foreign closeはschemaで示した別のwrapperを使う。
+
+```xml
+<StructDeclaration><StructKw text="struct" /><Whitespace text=" " /><Identifier text="S" /><Whitespace text=" " /><LBrace text="{" /><Whitespace text=" " /><Error text="@" /><Whitespace text=" " /><RBrace text="}" /></StructDeclaration>
 ```
 
-は `StructDeclaration 0..36`、`StructField` 二つを持つ。後者の
-`List Int` TypeApply range は `34` で終わり、brace close は `35..36` である。
+`struct S { x: T ] }`では、locally consumed foreign closeを一度だけwrapperで包む。
 
-```text
-struct Point:
-  x: Int
-  y: String
+```xml
+<StructDeclaration><StructKw text="struct" /><Whitespace text=" " /><Identifier text="S" /><Whitespace text=" " /><LBrace text="{" /><Whitespace text=" " /><StructField><Identifier text="x" /><Colon text=":" /><Whitespace text=" " /><TypeExpression><Identifier text="T" /></TypeExpression></StructField><Whitespace text=" " /><StructFieldForeignClose><Error text="]" /></StructFieldForeignClose><Whitespace text=" " /><RBrace text="}" /></StructDeclaration>
 ```
 
-は `StructDeclaration 0..34`。opening / inter-field newline・indent trivia は
-implicit separator wrapper でなくこれが直接所有する。
+## 6. SourceとCSTの例
 
-```text
-struct S { x Int, y: Bool }
+受理する`struct S { x: Int }`はnamed field一つを持つ。
+
+```xml
+<StructDeclaration><StructKw text="struct" /><Whitespace text=" " /><Identifier text="S" /><Whitespace text=" " /><LBrace text="{" /><Whitespace text=" " /><StructField><Identifier text="x" /><Colon text=":" /><Whitespace text=" " /><TypeExpression><Identifier text="Int" /></TypeExpression></StructField><Whitespace text=" " /><RBrace text="}" /></StructDeclaration>
 ```
 
-は `13..13` に `Missing(Struct::FieldColon, Colon)` を置き、field type として
-`Int` を retry する。`y: Bool` は別 field のままである。
+## 7. 構成と非対象
 
-## 6. parser 側 AST shape
-
-```rust
-pub(crate) struct StructDeclaration<'source> {
-    visibility: Visibility,
-    name: Recovered<WordSpan<'source>>,
-    derives: Vec<DerivesAttachment<'source>>,
-    body: Recovered<StructBody<'source>>,
-    range: Range<usize>,
-}
-
-pub(crate) enum StructBody<'source> {
-    Bodyless { semicolon: Range<usize> },
-    NamedBraced(StructNamedBracedBody<'source>),
-    NamedIndented(StructNamedIndentedBody<'source>),
-    Tuple(StructTupleBody<'source>),
-}
-
-pub(crate) struct StructNamedField<'source> {
-    name: Recovered<WordSpan<'source>>,
-    colon: Recovered<Range<usize>>,
-    type_expr: Recovered<Box<TypeExpression<'source>>>,
-    range: Range<usize>,
-}
-
-pub(crate) struct StructTupleField<'source> {
-    type_expr: Recovered<Box<TypeExpression<'source>>>,
-    range: Range<usize>,
-}
-```
-
-`derives` は後続の shared attachment である。ここでは `StructBody` を選び、synthetic field
-でなく incomplete slot を保持する。
-
-## 7. typed recovery table
-
-| condition | recovery と continuation |
-| --- | --- |
-| keyword at boundary | `Missing(StructRole::Name, Identifier)` 一件。body は cascade しない |
-| malformed name then name | maximal `Error(StructRole::Name)` 一件と same-slot retry |
-| complete name without body starter | `Missing(StructRole::BodyIntroducer)` 一件。next word は outer-owned |
-| malformed starter then real starter | body-introducer error 一件と same-slot retry |
-| field lacks colon before reusable type | `Missing(StructRole::FieldColon, Colon)` 一件と same-position type retry |
-| accepted colon at boundary | `Missing(StructRole::FieldType, TypeExpression)` 一件 |
-| malformed Type primary reaches boundary | inner `Error(Type::Primary)` だけ。FieldType は cascade しない |
-| separator before EOF | distinct incomplete field / closing-delimiter slot |
-| outer-owned mismatched close | local close Missing。outer close は non-consuming |
-| repeated tuple comma | missing tuple field type 一件の後に separator retry |
-
-body / named-field / tuple-field / close row は no-cascade と one range = one recovery node =
-one record を保つ。
-
-## 8. boundary と state-restoration contract
-
-root、indented canonical statement、braced block、With、Binding/Mod body、nested struct は同じ
-adapter を共有する。normal / recovery / rollback exit は delimiter/stop state、
-`TypeDelimitedOwner`、list/indent baseline、`inline`、`ml_arg`、`type_ml_arg`、positional fence、
-scanner state、sink を restore する。findings fix は body-judge handoff と no-cascade ownership
-を保つ。
-
-## 9. Yulang2 divergences
-
-Yulang3 は principal struct surface を保つが、Y2 whitespace type variable と companion は defer
-する。bodyless `struct S;` を受け、bare EOF は incomplete とする。`InvalidToken` の代わりに
-typed recovery を使い、`TypeVars` / synthetic `Separator` を作らず、`()` を fieldless とし、
-Y2 type stop の代わりに approved standalone TypeExpression entry を使う。
-
-## 10. known residual / deferred surface
-
-accepted Struct-specific residual はない。section 2 の non-scope、特に declaration generic と
-companion/derives semantics は deferred のままである。
-
-## 11. implementation と regression fixture cross-reference
-
-次の`grammar/**`の位置は、現行の実装経路ではなく、回帰の来歴として残す旧パーサーの証拠である。対応する構文 ownerは`crates/yu-syntax/src/declaration/struct_decl.rs`である。公開解析は`crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`から入る。
-
-`crates/yu-syntax/src/grammar/declaration.rs`:
-`recognize_struct_statement_intro`, `parse_struct_declaration`,
-`commit_struct_declaration`, `parse_struct_body_ast`,
-`commit_struct_body_introducer`, `parse_struct_named_field_ast`,
-`commit_struct_named_field`, `parse_struct_tuple_body_ast`,
-`commit_struct_tuple_body`, `struct_outer_owned_mismatched_close_pending`。
-
-fixture:
-`struct_intro_commits_exact_keywords_before_binding_and_expression_fallback`,
-`struct_header_recovery_hands_a_body_starter_forward_without_cascading`,
-`struct_named_brace_fields_keep_their_own_layout_and_type_apply_boundary`,
-`struct_named_fields_recover_colon_skeletons_without_cascading`,
-`struct_named_indented_fields_keep_their_block_baseline_and_boundaries`,
-`struct_tuple_fields_keep_type_apply_and_tuple_close_ownership_distinct`,
-`struct_lists_leave_ambient_if_companions_for_the_statement_owner`。
+header derivesはcomplete nameの後にattachする。
+trailing derivesはactual matching bracedまたはtuple closeの後だけにattachする。
+[derives attachment](derives-attachment.md)、[Rowan CST表記](../conventions/rowan-cst.md)、[回復のtopology](../conventions/recovery-error-invalid-topology.md)を参照する。

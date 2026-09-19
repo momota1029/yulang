@@ -1,154 +1,105 @@
 # Shared `derives` clause attachment
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-This page summarizes the Authoritative shared derives addendum in
-`notes/design/2026-08-20-yu-syntax-chasa-architecture.md`, lines 20278–21010:
-`DRV-G`, `DRV-J`, `DRV-T`, and `DRV-R`.
+This page specifies `DerivesClause` and its `syntax-v0` attachment positions.
+The Authoritative `DRV-G`, `DRV-J`, `DRV-T`, and `DRV-R` govern the clause,
+its Struct and Type hosts, layout, CST, and recovery. It does not specify role
+resolution, supported targets, generated implementations, or `via` validation.
 
-The nine gates are represented by `919766cf`, `8ace7256`, `47a63de3`,
-`695523ca`, `b6c9a391`, `9a6ab93e`, `2cd4a1e7`, `e00f9a6b`, `69589b5d`, and
-`a3174886`; Gate 1 is split into neutral 1a/consumer 1b commits. `919766cf`
-documents the reusable neutral TypeExpression episode infrastructure later used
-by the impl and cast addenda. This page was checked against `d90b79b8`.
-
-## 2. Scope and non-scope
-
-A shared `DerivesClause` attaches in Struct header/trailing positions and Type
-header/trailing-equality positions. It owns exact `derives`, one or more
-TypeExpression role references, literal commas, and optional `via Identifier`.
-
-It does not create a declaration, statement intro, delimiter owner, implicit
-separator, role resolver, derive plan, generated impl, field lookup, or semantic
-diagnostic.
-
-## 3. BNF-equivalent grammar
+## 2. Accepted syntax
 
 ```text
-DerivesClause :=
-    DerivesKw DerivesRoleTrivia RequiredTypeExpression(Derives::RoleReference)
-    { DerivesRoleGap Comma DerivesRoleTrivia RequiredTypeExpression(Derives::RoleReference) }
-    [ DerivesRoleGap ViaKw DerivesViaTrivia RequiredRawIdentifier(Derives::ViaTarget) ]
+HeaderDerivesAttachment(Owner) := DerivesAttachmentTrivia(owner_base) DerivesClause { DerivesAttachmentTrivia(owner_base) DerivesClause }
+TrailingDerivesAttachment(Owner) := DerivesAttachmentTrivia(owner_base) DerivesClause { DerivesAttachmentTrivia(owner_base) DerivesClause }
+DerivesClause := DerivesKw DerivesRoleTrivia(owner_base) RequiredTypeExpression(Derives::RoleReference)
+                 { DerivesRoleGap(owner_base) Comma DerivesRoleTrivia(owner_base) RequiredTypeExpression(Derives::RoleReference) }
+                 [ DerivesRoleGap(owner_base) ViaKw DerivesViaTrivia(owner_base) RequiredRawIdentifier(Derives::ViaTarget) ]
 DerivesKw := exact contextual word "derives"
 ViaKw := exact contextual word "via" inside an accepted DerivesClause
+DerivesAttachmentTrivia(base) := empty | non-empty same-line trivia | non-empty strictly-deeper continuation trivia(base)
+DerivesRoleTrivia(base) := TypeChainTrivia(base)
+DerivesRoleGap(base) := TypeChainTrivia(base)
+DerivesViaTrivia(base) := TypeChainTrivia(base)
 ```
 
-Attachments use qualifying same-line or strictly-deeper trivia. Whitespace alone
-does not split `derives Eq Debug`: it is one TypeApply role reference.
+`RequiredTypeExpression` is the full required type production in the
+[TypeExpression reference](../types/type-expression-core.md). The comma is the
+only role separator: `derives Eq Debug` is one TypeExpression.
 
-## 4. Judge, priority, and owner boundary
+## 3. Hosts, admission, and boundaries
 
-`derives` is contextual only at owner-opened attachment points. The sink-free
-`recognize_derives_attachment_start` yields to actual body/form starters,
-separators, closes, ambient claims, and typed statement-owner newlines.
+Struct admits a header run after a complete name and a trailing run after an
+actual matching braced or tuple close. Type admits a header run after its
+complete header and a trailing run after its equality RHS. Repeated clauses
+are accepted at each opened position. Caller-owned gaps, separators, closes,
+ambient boundaries, non-qualifying newlines, incomplete Struct closes, and
+indented Struct dedents do not start an attachment.
 
-Struct may attach before its body or after a complete braced/tuple body. Type
-may attach before its nominal/equality form or after an equality RHS. The shared
-`drive_derives_clauses` handles roles, commas, `via`, repeated clauses, and
-recovery once; owner adapters only select valid positions and resume their own
-continuation.
-
-## 5. Byte-exact CST worked examples
+## 4. Source-order Rowan schema
 
 ```text
-struct Point derives Eq, Debug via key { value: Int }
+DerivesClause := DerivesKw Trivia TypeExpression
+                 { Trivia Comma Trivia TypeExpression }
+                 [ Trivia ViaKw Trivia Identifier ]
+StructDeclarationWithDerives := StructSharedHeader [ HeaderDerivesAttachment(Struct) ]
+  ( Semicolon
+  | DeclarationCompanion
+  | NamedIndentedStructBody
+  | NamedBracedStructBodyActualClose [ TrailingDerivesAttachment(Struct) ] [ DeclarationCompanion ]
+  | TupleStructBodyActualClose [ TrailingDerivesAttachment(Struct) ] [ DeclarationCompanion ] )
+NamedBracedStructBodyActualClose := NamedBracedStructBody whose RBrace is an actual matching close
+TupleStructBodyActualClose := TupleStructBody whose RParen is an actual matching close
+TypeDeclarationWithDerives := TypeDeclarationHeader [ HeaderDerivesAttachment(Type) ]
+  ( TypeAttachedImplForm
+  | NominalTypeDeclarationEnd
+  | EqualityTypeDeclaration [ TrailingDerivesAttachment(Type) ] [ DeclarationCompanion ]
+  | DeclarationCompanion )
 ```
 
-(line 20607) orders `StructKw`, `Identifier`, then
-`DerivesClause(DerivesKw, TypeExpression(Eq), Comma, TypeExpression(Debug),
-ViaKw, Identifier(key))`, followed by the named body.
+Each accepted clause is exactly one `DerivesClause` child. Its role count is
+one or more; its optional `via` tail contains exactly one target identifier.
+Attachment position adds no wrapper or synthetic separator.
 
-```text
-struct Point { value: Int } derives Eq
+## 5. Recovery CST
+
+The first role and every comma-following role are mandatory. A missing role is
+`Missing(Derives::RoleReference)` in its TypeExpression slot. Malformed role
+content remains TypeExpression-owned. After `ViaKw`, a missing target is
+`Missing(Derives::ViaTarget)`; a malformed target is `Error+` in that target
+slot and may retry at an identifier without a second missing node.
+
+```xml
+<DerivesClause>
+  <DerivesKw text="derives" />
+  <Whitespace text=" " />
+  <TypeExpression><Identifier text="Eq" /></TypeExpression>
+  <Comma text="," />
+  <Whitespace text=" " />
+  <TypeExpression><Missing /></TypeExpression>
+</DerivesClause>
 ```
 
-(line 20614) places the trailing `DerivesClause` after the completed brace
-body; its actual close is evidence for trailing attachment.
+A malformed target is raw source in the target slot, not a second `Missing`.
 
-```text
-type Id derives Eq = Int derives Debug
+```xml
+<DerivesClause><DerivesKw text="derives" /><Whitespace text=" " /><TypeExpression><Identifier text="Eq" /></TypeExpression><Whitespace text=" " /><ViaKw text="via" /><Whitespace text=" " /><Error text="@" /></DerivesClause>
 ```
 
-(line 20619) orders header `DerivesClause`, `Equals`, RHS `TypeExpression`,
-then trailing `DerivesClause`. The addendum supplies qualitative child order,
-not byte offsets, so this page does not invent ranges.
+## 6. Source and CST examples
 
-## 6. Parser-side AST shape
+The accepted source `derives Eq, Debug via key` has two roles and one target.
 
-```rust
-pub(crate) struct DerivesAttachment<'source> {
-    position: DerivesAttachmentPosition,
-    clause: DerivesClause<'source>,
-}
-
-pub(crate) struct DerivesClause<'source> {
-    keyword: Range<usize>,
-    roles: Vec<Recovered<Box<TypeExpression<'source>>>>,
-    via: Option<DerivesVia<'source>>,
-    range: Range<usize>,
-}
-
-pub(crate) struct DerivesVia<'source> {
-    keyword: Range<usize>,
-    target: Recovered<WordSpan<'source>>,
-    range: Range<usize>,
-}
+```xml
+<DerivesClause>
+  <DerivesKw text="derives" /><Whitespace text=" " />
+  <TypeExpression><Identifier text="Eq" /></TypeExpression><Comma text="," /><Whitespace text=" " />
+  <TypeExpression><Identifier text="Debug" /></TypeExpression><Whitespace text=" " />
+  <ViaKw text="via" /><Whitespace text=" " /><Identifier text="key" />
+</DerivesClause>
 ```
 
-`StructDeclaration` and `TypeDeclaration` each own source-ordered
-`Vec<DerivesAttachment<'source>>`; position remains AST identity, not a CST
-wrapper.
+## 7. Composition and non-goals
 
-## 7. Typed recovery table
-
-| condition | recovery and continuation |
-| --- | --- |
-| exact `derives` at boundary | one `Missing(DerivesRole::RoleReference)`; boundary non-consuming |
-| malformed role then TypePrimary | inner `Error(Type::Primary)` and same-slot retry |
-| malformed role reaches boundary | inner Type error only; no derives-missing cascade |
-| leading/repeated comma | one missing role per committed empty item, then retry |
-| comma before boundary / `via` / next `derives` | one missing role; contextual token stays available |
-| exact `via` at boundary | one `Missing(DerivesRole::ViaTarget)` |
-| malformed via target then identifier | one maximal via-target error and same-slot retry |
-| attachment gap owned outside | no clause and no derives recovery |
-
-One accepted keyword creates one clause node; one record creates one recovery
-node. No missing separator is inferred between TypeExpression words.
-
-## 8. Boundary and state-restoration contract
-
-Role parsing uses the reusable `TypeExpressionScopedStopFrame`,
-`TypeExpressionEpisodePolicy`, `type_expression_episode_depth`, and
-`type_stop_is_active_in_current_episode`. Scoped `Derives`, `Via`, and Struct
-header body-starter stops are visible only in the outer episode and suspend in
-nested episodes. All probe, normal, recovery, and rollback exits restore state.
-
-## 9. Yulang2 divergences
-
-Yulang2 attached derives to a wider owner set. Current Yulang3 limits syntax to
-Struct and Type, uses contextual rather than global reservation, typed recovery,
-full ordinary TypeExpression roles, direct clause CST children, and no synthetic
-attachment/separator nodes.
-
-## 10. Known residual / deferred surface
-
-No accepted derives-specific residual is recorded. Enum/Error/Act attachment,
-role support, lowering, generated implementations, and semantic validation are
-deferred.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owner is `crates/yu-syntax/src/declaration/derives.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-In `crates/yu-syntax/src/grammar/declaration.rs`:
-`recognize_derives_attachment_start`, `drive_derives_clauses`,
-`parse_derives_attachments_isolated`, `parse_derives_clause_isolated`,
-`parse_derives_via_isolated`, `commit_derives_attachments_isolated`,
-`commit_derives_clause_isolated`, and `commit_derives_via_isolated`.
-
-Fixtures include `derives_start_and_driver_follow_drv_j_and_restore_every_probe_state`,
-`derives_role_episode_policy_fences_outer_stops_across_nested_type_episodes`,
-`isolated_derives_direct_cst_adapter_is_byte_exact_lossless_and_ast_parity_checked`,
-`derives_drv_r_recovery_rows_keep_ast_and_direct_slots_in_lockstep`,
-`derives_gate_8_real_dispatch_is_atomic_across_every_owner_and_position`, and
-`derives_gate_9_final_public_boundary_matrix_closes_scope_and_parity`.
+Role references retain the ordinary full TypeExpression surface. See [struct declaration](struct-declaration.md),
+[bare nominal `type` declaration form](bare-nominal-type.md), and [equality `type` declaration form](equality-type.md).

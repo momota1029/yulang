@@ -1,147 +1,90 @@
 # Standalone `impl` declaration shell
 
-## 1. Status, authority, and last verification
+## 1. Authority and scope
 
-This page summarizes the Authoritative standalone impl-shell addendum, lines
-21011–21645 of `notes/design/2026-08-20-yu-syntax-chasa-architecture.md`:
-`IMD-G`, `IMD-J`, `IMD-T`, and `IMD-R`.
+This page specifies the standalone `ImplDeclaration` shell in `syntax-v0`.
+`IMD-G`, `IMD-J`, `IMD-T`, and `IMD-R`, plus the Impl current-Item recovery
+record, govern it. Type-attached tails, companions, member semantics,
+conformance, lowering, resolution, inference, and formatting are outside this
+page.
 
-The nine gates landed in `b39fd646`, `9a35a115`, `81f1cf43`, `5dfb48c6`,
-`83d5828a`, `77b1d590`, `4f2978bb`, `cd66d695`, and `481af012`. Adapter-local
-recovery fixes discovered by Gate 6/7 fixtures are `b83c20b8`, `3ec7cd9a`,
-`b46b2a74`, `46d82eec`, and `4f2978bb`; they do not alter the shared
-TypeExpression episode machinery. This page was checked against `d90b79b8`.
-
-## 2. Scope and non-scope
-
-A standalone impl has optional visibility, mandatory TypeExpression head,
-optional same-line description, and bodyless semicolon, braced, or colon
-inline/indented canonical-statement body. It is shared by root Declaration and
-nested Statement.
-
-Type-attached impl tails, declaration `with:` companions, Type colon/brace
-role-like bodies, Impl-specific `via`, members/associated types, conformance
-semantics, HIR, resolver, inference, and formatter are excluded.
-
-## 3. BNF-equivalent grammar
+## 2. Accepted syntax
 
 ```text
-ImplDeclaration := [ VisibilityKw Gimpl+ ] ImplKw Gimpl+ ImplHead [ ImplDescription ] Gimpl* ImplBody
-ImplHead := RequiredTypeExpression(Impl::Head)
-ImplDescription := Colon G0* RequiredTypeExpression(Impl::Description)
-ImplBody := Semicolon | BracedStatementBlockExpression | ImplColonBody
-ImplColonBody := Colon G0* Statement [ Semicolon ] | Colon IndentedStatementBlock
+ImplDeclaration := [ VisibilityKw Gimpl+ ] ImplKw Gimpl-head RequiredTypeExpression(Impl::Head) ImplAfterHead
+VisibilityKw := MyKw | OurKw | PubKw
+ImplKw := exact maximal word "impl"
+ImplAfterHead := ImplDescription ImplBody | ImplBody
+ImplDescription := DescriptionColon G0* RequiredTypeExpression(Impl::Description)
+ImplBody := BodylessSemicolon | BracedStatementBlockExpression | ImplColonBody
+ImplColonBody := BodyColon G0* RequiredCanonicalStatement(Impl::Body) [ InlineTerminalSemicolon ] | BodyColon Gimpl-indent IndentedStatementBlock(Impl::IndentedStatement)
+G0* := maximal trivia containing no physical newline
+Gimpl-indent := non-empty continuation trivia followed by indent strictly deeper than the declaration base
 ```
 
-The first colon is description only when its following trivia has no physical
-newline; otherwise it is the colon-body introducer. `:{` remains an adjacent
-polymorphic-variant starter where the episode policy permits it.
+`RequiredTypeExpression` uses the full required type production in the
+[TypeExpression reference](../types/type-expression-core.md). `RequiredCanonicalStatement`
+uses the named canonical `Statement` production.
 
-## 4. Judge, priority, and owner boundary
+## 3. Admission, phase selection, and boundaries
 
-Exact bare/visibility-led `impl` is selected after Type and before Binding,
-without depending on head/body success. Head and description use full mandatory
-TypeExpression with outer `Colon`, `LeftBrace`, and `Semicolon` stops fenced to
-the outer episode.
+Exact bare or visibility-led `impl` selects this declaration. `implFoo`,
+`implement`, and `my_impl` are not split. The first bare colon after the head
+is a description colon only when its following trivia contains no physical
+newline; after a description, a later colon is a body colon. `;`, `{`, and the
+body colon select the three body forms. Outer separators, dedents, matching
+closes, and unclaimed boundaries remain outer-owned.
 
-Body forms start only with punctuation. The parser never splits a head-ending
-word into an unstated inline body. Braced and indented bodies reuse existing
-statement-block owners; colon-inline calls canonical Statement once.
-
-## 5. Byte-exact CST worked examples
+## 4. Source-order Rowan schema
 
 ```text
-impl int: Eq;
+ImplDeclaration := [ VisibilityKw Trivia ] ImplKw Trivia TypeExpression
+                   [ ImplDescription ] ( Semicolon | BracedStatementBlockExpression |
+                     Colon ( Statement [ Semicolon ] | IndentedStatementBlock ) )
+ImplDescription := Colon Trivia TypeExpression
 ```
 
-(line 21315) has `ImplDeclaration 0..13`: `ImplKw 0..4`, head
-`TypeExpression 5..8`, `ImplDescription 8..12` with `Colon 8..9` and
-description `TypeExpression 10..12`, then `Semicolon 12..13`.
+The declaration has exactly one head, zero or one description, and exactly one
+selected body form. It has no header, body, member-list, or separator wrapper.
 
-```text
-impl point:
-  our p.eq = true
+## 5. Recovery CST
+
+An absent head is `Missing(Impl::Head)` and does not cascade to a body
+introducer. A missing description after an accepted description colon is
+`Missing(Impl::Description)` and does not create same-cause body recovery. An
+absent body starter after a complete head is `Missing(Impl::BodyIntroducer)`.
+After an accepted body colon, an absent inline body is `Missing(Impl::Body)`.
+After accepted or retried head or description content begins, malformed nested
+content remains TypeExpression-owned; braced and indented recovery stays with
+their selected child nodes.
+
+```xml
+<ImplDeclaration><ImplKw text="impl" /><Whitespace text=" " /><TypeExpression><Identifier text="T" /></TypeExpression><Missing /></ImplDeclaration>
 ```
 
-(line 21338) has no `ImplDescription`: the newline after the first colon makes
-an `IndentedStatementBlock`, whose opening trivia owns the newline and indent.
+An initial malformed head run is `Error+` directly in `ImplDeclaration`. An
+initial malformed description run is directly in `ImplDescription`. A
+`TypeExpression` occurs only for accepted or retried content.
 
-```text
-impl Eq Int {
-  our eq = id
-}
+```xml
+<ImplDeclaration><ImplKw text="impl" /><Whitespace text=" " /><Error text="@" /><Semicolon text=";" /></ImplDeclaration>
 ```
 
-(line 21349) keeps `Eq Int` as one TypeApply head and puts the existing
-`BracedStatementBlockExpression` directly under `ImplDeclaration`.
+## 6. Source and CST examples
 
-## 6. Parser-side AST shape
+The accepted source `impl int: Eq;` has one description and one bodyless body.
 
-```rust
-pub(crate) struct ImplDeclaration<'source> {
-    visibility: Visibility,
-    head: Recovered<Box<TypeExpression<'source>>>,
-    description: Option<ImplDescription<'source>>,
-    body: Recovered<ImplBody<'source>>,
-    range: Range<usize>,
-}
+```xml
+<ImplDeclaration>
+  <ImplKw text="impl" /><Whitespace text=" " /><TypeExpression><Identifier text="int" /></TypeExpression>
+  <ImplDescription><Colon text=":" /><Whitespace text=" " /><TypeExpression><Identifier text="Eq" /></TypeExpression></ImplDescription>
+  <Semicolon text=";" />
+</ImplDeclaration>
 ```
 
-The committed scaffold also represents description/body variants with
-`ImplDescription`, `ImplBody`, and `ImplColonBody`; no `ModBody` is reused.
+## 7. Composition and non-goals
 
-## 7. Typed recovery table
-
-| condition | recovery and continuation |
-| --- | --- |
-| exact `impl` at boundary | one `Missing(ImplRole::Head)`; no body-introducer cascade |
-| malformed head then TypePrimary | inner `Error(Type::Primary)` and same-slot retry |
-| complete head at boundary | one `Missing(ImplRole::BodyIntroducer)` |
-| malformed introducer then starter | one maximal body-introducer error and same-slot retry |
-| colon description at boundary | one `Missing(ImplRole::Description)`; body starter may retry |
-| malformed description reaches starter/boundary | inner Type error only; no description/body-introducer cascade |
-| literal body colon at boundary | one `Missing(ImplRole::Body, Statement)` |
-| malformed inline body then Statement | one body error and same-slot retry |
-| malformed indented first statement | existing `ImplRole::IndentedStatement` recovery only |
-| brace close failure | existing `ClosingDelimiter` recovery only |
-
-## 8. Boundary and state-restoration contract
-
-Isolated and promoted adapters prove restoration of input, line/sink, ambient/If,
-delimiter/stop, indentation, TypeExpression episode depth, type owner, ML, and
-positional-fence state across normal, recovery, and rollback. Gate 7 fixed a
-sink leak and body-starter-probe rollback in the isolated adapter.
-
-## 9. Yulang2 divergences
-
-Yulang3 preserves standalone visibility/head/description/body spelling while
-using typed no-cascade recovery, full TypeExpression episode fencing, and
-canonical statement bodies. It does not import Y2 silent close, generic invalid
-tokens, heuristic punctuation-free inline splitting, or Y2's rejected
-Impl-specific `via` branch.
-
-## 10. Known residual / deferred surface
-
-No accepted impl-specific residual is recorded. Deferred surfaces are exactly
-Type-attached `impl`, declaration `with:` companion attachment, Type colon/brace
-role-like body forms, Impl-specific `via`, member semantics, and downstream
-HIR/resolver/inference/formatter work.
-
-## 11. Implementation and regression cross-reference
-
-The following `grammar/**` locations are historical legacy-parser evidence, not current implementation paths. The matching syntax owner is `crates/yu-syntax/src/declaration/impl_decl.rs`; public parsing enters through `crates/yu-syntax/src/lib.rs::{scan_header, parse_file}`.
-
-In `crates/yu-syntax/src/grammar/declaration.rs`:
-`recognize_impl_statement_intro`, `parse_impl_declaration_isolated`,
-`parse_impl_after_head_ast`, `parse_impl_body_ast`,
-`parse_impl_colon_body_ast`, `commit_impl_declaration_isolated`,
-`commit_impl_after_head_isolated`, `commit_impl_body_isolated`, and
-`commit_impl_colon_body_isolated`.
-
-Fixtures include `impl_statement_intro_is_exact_isolated_and_rolls_back_every_probe_state`,
-`impl_type_expression_episode_policy_is_phase_exact_nested_and_state_balanced`,
-`isolated_impl_declaration_ast_selects_description_and_all_body_forms`,
-`isolated_impl_declaration_direct_cst_is_lossless_and_matches_ast_shapes`,
-`isolated_impl_body_recovery_retries_one_malformed_run_without_cascade`,
-`impl_gate_8_real_dispatch_is_atomic_across_root_and_canonical_owners`, and
-`impl_gate_9_final_public_boundary_matrix_closes_scope_and_parity`.
+Head and description retain ordinary full TypeExpression grammar. The body
+uses canonical statements and existing statement blocks; `via` is not an Impl
+keyword. See [bare nominal `type` declaration form](bare-nominal-type.md) and
+[recovery topology](../conventions/recovery-error-invalid-topology.md).
