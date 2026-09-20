@@ -4,8 +4,9 @@
 
 This page defines `BracketRow` in `syntax-v0`. The Authoritative bracket-row
 sections of the 2026-08-20 syntax architecture, the leading-row-head and
-bracket-arrow current-Item recovery authorities, and the bracket-row recovery
-authority govern this page.
+bracket-arrow current-Item recovery authorities, the bracket-row recovery
+authority, and the BracketRow close-error CST topology supersession govern
+this page.
 
 It covers a leading row before a required ordinary type head and a trailing row
 before a required arrow. It does not define an effectful-type wrapper, row-tail
@@ -46,6 +47,14 @@ source-bearing child of `TypeExpression`. In the trailing form it is the first
 child of `TypeArrowTail`, before the arrow token. No effectful-type, effect
 arrow, list, or synthetic separator node is added.
 
+An Item error remains a direct raw `Error` group below `BracketRow`. Each
+locally consumed mismatched close is instead represented by one direct
+`BracketRow` child, `TypeDelimitedForeignClose`, containing only that close's
+raw `Error` leaves.
+The wrapper excludes leading and retry trivia, `Missing`, an accepted `]`, a
+returned Item, nested types, caller or outer closes, fences, and successor
+acquisition.
+
 ## 5. Recovery CST
 
 A leading row without a head recovers the existing primary slot with
@@ -54,10 +63,15 @@ candidate recovers `BracketRowArrow` and retries the RHS at the same position.
 At EOF, an outer boundary, or a newline it emits only the missing arrow, not a
 cascading RHS missing slot.
 
-Malformed row items use the shared delimited item and separator slots. A
-missing or mismatched `]` is close recovery and does not consume an actual
-outer close. A second leading row is one delimiter-aware raw error over that
-balanced row before retrying the original head.
+Malformed row items use the shared delimited item and separator slots. Their
+raw `Error` groups remain direct `BracketRow` children. Each locally consumed
+mismatched close uses one direct `TypeDelimitedForeignClose` child. Matching
+`]`, protected caller or outer closes, and fences remain outside that wrapper. A
+direct Item group and a wrapped Close group remain generic CST-derived
+occurrences: their occurrence paths distinguish the roles, and `BracketRow`
+adds no construct-specific diagnostic schema or API mapping. A second leading
+row is one delimiter-aware raw error over that balanced row before retrying
+the original head.
 
 ## 6. Source/CST examples
 

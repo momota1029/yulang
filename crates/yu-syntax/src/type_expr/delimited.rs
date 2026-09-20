@@ -1036,7 +1036,10 @@ fn retry_bracket_row_close_normalized(
             return complete(handoff(item), line_entry);
         }
         item.emit_all_remaining_leading(&mut *i.state);
+        i.state
+            .start_node(SyntaxKind::TypeDelimitedForeignClose.into());
         emit_recovery_error_item(i.rb(), item, item_origin);
+        i.state.finish_node();
         (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
             i.rb(),
             item_origin,

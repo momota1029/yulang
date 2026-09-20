@@ -4,7 +4,10 @@
 
 このページは`syntax-v0`の`EffectRowType`を定める。2026年8月20日のAuthoritative
 effect-row section、Parenthesized/EffectRow current-Item recovery authority、
-type-delimited foreign-close topology authorityに従う。
+[type-delimited foreign-close topology authority](../../../../notes/design/2026-09-12-successor-type-delimited-foreign-close-topology.md)
+のParenthesized/EffectRow scope、[2026年9月20日のBracketRow close-error CST topology
+supersession](../../../../notes/design/2026-09-20-successor-bracket-row-close-topology-supersession.md)
+の`BracketRow` close error scopeに従う。
 
 adjacent apostrophe-bracket type primaryとdelimited itemを対象とする。row-tail meaning、
 open/closed row classification、effect inference、lowering、diagnostic wordingは対象外である。
@@ -36,8 +39,9 @@ arrowとしてcompositionする。
 作らない。newline separatorはtriviaのままである。
 
 locally consumed mismatched closeには`TypeDelimitedForeignClose`を使い、そのmaximal raw
-`Error` groupだけを含める。このnodeは`EffectRowType`または`ParenthesizedTypeGroup`の下で
-だけemitし、trivia、`Missing`、accepted punctuation、retry source、`Invalid`を含まない。
+`Error` groupだけを含める。このnodeは`EffectRowType`または`ParenthesizedTypeGroup`の下、
+および`BracketRow`のlocal close retryでemitする。wrapper自体はdiagnosticを追加せず、trivia、
+`Missing`、accepted punctuation、retry source、`Invalid`を含まない。
 
 ## 5. Recovery CST
 

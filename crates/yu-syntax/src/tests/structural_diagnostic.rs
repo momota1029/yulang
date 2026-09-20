@@ -254,6 +254,66 @@ fn an_uncataloged_occurrence_uses_the_deterministic_generic_fallback() {
 }
 
 #[test]
+fn bracket_row_item_and_close_errors_keep_generic_distinct_identities() {
+    let item_root = crate::tests::type_expr::bracket_row_recovery_root(
+        "T [A@] -> U",
+        &[(StructuralKind::ErrorGroup, 4..5)],
+    );
+    let item = crate::structural_diagnostic::collect(&item_root)
+        .into_iter()
+        .find(|occurrence| occurrence.kind() == StructuralKind::ErrorGroup)
+        .expect("BracketRow Item Error");
+    assert_eq!(item.parent(), SyntaxKind::BracketRow);
+    assert!(item.identity().slot().is_none());
+    assert_eq!(item.expectations(), None);
+    assert_eq!(item.primary_expectation(), None);
+
+    let close_root = crate::tests::type_expr::bracket_row_recovery_root(
+        "T [A))] -> U",
+        &[
+            (StructuralKind::ErrorGroup, 4..5),
+            (StructuralKind::ErrorGroup, 5..6),
+        ],
+    );
+    let close = crate::structural_diagnostic::collect(&close_root)
+        .into_iter()
+        .filter(|occurrence| occurrence.kind() == StructuralKind::ErrorGroup)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        close
+            .iter()
+            .map(|occurrence| occurrence.range().clone())
+            .collect::<Vec<_>>(),
+        vec![
+            "sentinel".len() + 4.."sentinel".len() + 5,
+            "sentinel".len() + 5.."sentinel".len() + 6,
+        ]
+    );
+    assert_eq!(
+        close
+            .iter()
+            .map(|occurrence| occurrence.ordinal())
+            .collect::<Vec<_>>(),
+        vec![0, 1]
+    );
+    for occurrence in &close {
+        assert_eq!(occurrence.parent(), SyntaxKind::TypeDelimitedForeignClose);
+        assert!(occurrence.identity().slot().is_none());
+        assert_eq!(occurrence.expectations(), None);
+        assert_eq!(occurrence.primary_expectation(), None);
+    }
+    assert_ne!(item.path(), close[0].path());
+    assert_ne!(
+        item.identity().occurrence_path(),
+        close[0].identity().occurrence_path()
+    );
+    assert_ne!(
+        close[0].identity().occurrence_path(),
+        close[1].identity().occurrence_path()
+    );
+}
+
+#[test]
 fn trivia_between_a_missing_and_its_ordered_sibling_keeps_the_slot() {
     // Trivia is not an ordered child phase. These are the trivia-interleaved
     // forms of the same mapped row, and the role still matches the slot the

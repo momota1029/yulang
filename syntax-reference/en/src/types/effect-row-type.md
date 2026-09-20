@@ -4,8 +4,11 @@
 
 This page defines `EffectRowType` in `syntax-v0`. The Authoritative effect-row
 sections of the 2026-08-20 syntax architecture, the Parenthesized/EffectRow
-current-Item recovery authority, and the type-delimited foreign-close topology
-authority govern this page.
+current-Item recovery authority, the [type-delimited foreign-close topology
+authority](../../../../notes/design/2026-09-12-successor-type-delimited-foreign-close-topology.md)
+for Parenthesized/EffectRow, and the [2026-09-20 BracketRow close-error CST
+topology supersession](../../../../notes/design/2026-09-20-successor-bracket-row-close-topology-supersession.md)
+for `BracketRow` close errors govern this page.
 
 It covers adjacent apostrophe-bracket type primaries and their delimited items.
 It does not define row-tail meaning, open or closed row classification, effect
@@ -39,9 +42,10 @@ direct `TypeExpression` items in source order. It has no item-list, row-tail,
 or open/closed-row wrapper. Newline separators remain trivia.
 
 For a locally consumed mismatched close, `TypeDelimitedForeignClose` contains
-only that maximal raw `Error` group. It is emitted only below
-`EffectRowType` or `ParenthesizedTypeGroup`, adds no diagnostic, and contains
-no trivia, `Missing`, accepted punctuation, retry source, or `Invalid`.
+only that maximal raw `Error` group. It is emitted below `EffectRowType` or
+`ParenthesizedTypeGroup`, and below `BracketRow` for that construct's local
+close retry. The wrapper adds no diagnostic and contains no trivia, `Missing`,
+accepted punctuation, retry source, or `Invalid`.
 
 ## 5. Recovery CST
 

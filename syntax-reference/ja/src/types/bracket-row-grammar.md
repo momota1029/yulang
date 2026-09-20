@@ -4,7 +4,8 @@
 
 このページは`syntax-v0`の`BracketRow`を定める。2026年8月20日のAuthoritative
 bracket-row section、leading-row-head/bracket-arrow current-Item recovery
-authority、bracket-row recovery authorityに従う。
+authority、bracket-row recovery authority、BracketRow close-error CST topology
+supersessionに従う。
 
 leading row後のrequired ordinary type headと、trailing row後のrequired arrowを対象とする。
 effectful-type wrapper、row-tail meaning、effect inference、lowering、diagnostic wordingは
@@ -42,6 +43,12 @@ orderで持つ。leading formでは`TypeExpression`のfirst source-bearing child
 formでは`TypeArrowTail`のfirst childでarrow tokenより前に置く。effectful-type、effect
 arrow、list、synthetic separator nodeは作らない。
 
+Item errorはdirect raw `Error` groupとして`BracketRow`の下に残る。locally consumed
+mismatched closeごとに、そのcloseのraw `Error` leafだけを持つdirect `BracketRow` child
+`TypeDelimitedForeignClose`一つを置く。このwrapperはleading/retry trivia、`Missing`、
+accepted `]`、returned Item、nested type、caller/outer close、fence、successor acquisitionを
+含まない。
+
 ## 5. Recovery CST
 
 leading row後にheadがなければexisting primary slotを`LeadingEffectTypeHead`でrecoverする。
@@ -49,8 +56,12 @@ trailing row後にarrowがなくRHS candidateがあれば`BracketRowArrow`をrec
 RHSをretryする。EOF/outer boundary/newlineではmissing arrowだけを置き、RHS Missingを
 cascadeしない。
 
-malformed row itemはshared delimited item/separator slotを使う。missing/mismatched `]`はclose
-recoveryでありactual outer closeを消費しない。second leading rowはbalanced row全体への
+malformed row itemはshared delimited item/separator slotを使う。raw `Error` groupはdirect
+`BracketRow` childのままである。locally consumed mismatched closeごとにdirect
+`TypeDelimitedForeignClose` child一つを置く。matching `]`、protected caller/outer close、
+fenceはこのwrapperの外に残る。direct Item groupとwrapped Close groupはgeneric CST-derived
+occurrenceのままであり、occurrence pathがroleを区別する。`BracketRow`はconstruct-specific
+diagnostic schema/API mappingを追加しない。second leading rowはbalanced row全体への
 delimiter-aware raw error一つとなり、その後でoriginal headをretryする。
 
 ## 6. Source/CST例

@@ -5,7 +5,11 @@
 このページは`syntax-v0`のcore `TypeExpression` formを定める。2026年8月20日の
 syntax architectureにあるAuthoritativeなtype-expression section、Type
 contextual-boundary correction、PathSegment/TypeCall recovery amendment、
-accepted-input recovery authorityに従う。
+accepted-input recovery authority、[type-delimited foreign-close topology
+authority](../../../../notes/design/2026-09-12-successor-type-delimited-foreign-close-topology.md)
+のParenthesized/EffectRow scope、[2026年9月20日のBracketRow close-error CST topology
+supersession](../../../../notes/design/2026-09-20-successor-bracket-row-close-topology-supersession.md)
+の`BracketRow` close error scopeに従う。
 
 atom、path、call、ML-style application、arrow、parenthesized groupを対象とする。
 named record、`forall`、effect row、polymorphic variant、bracket rowは各ページで
@@ -63,7 +67,9 @@ primaryがなければapplyもsynthetic `Missing`も作らない。
 Path recoveryはprotected caller boundaryを消費しない。TypeCallはargument、separator、
 close recoveryを分け、argument後のadmitted residualはterminal close recoveryに属する。
 Parenthesized groupとeffect rowはlocally consumed mismatched closeにだけ
-`TypeDelimitedForeignClose`を使う。ほかのraw type recoveryはdirectである。
+`TypeDelimitedForeignClose`を使う。`BracketRow`はlocal close retryにだけ同じwrapperを使い、
+Item errorはdirect `BracketRow` childのままである。TypeCallはこのwrapperを使わない。
+ほかのraw type recoveryはdirectである。
 
 ## 6. Source/CST例
 

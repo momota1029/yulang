@@ -319,6 +319,13 @@ fn assert_complete_type_recovery(
     SyntaxNode::new_root(fresh.green)
 }
 
+pub(super) fn bracket_row_recovery_root(
+    source: &str,
+    expected: &[ExpectedStructural],
+) -> SyntaxNode {
+    assert_complete_type_recovery(source, 0, expected)
+}
+
 fn assert_parenthesized_t4p_topology(green: &GreenNode, expected: &[(SyntaxKind, Range<usize>)]) {
     let group = SyntaxNode::new_root(green.clone())
         .descendants()
@@ -4712,8 +4719,8 @@ fn bracket_row_recovery_keeps_item_and_close_slots_distinct() {
     for (source, errors, missing) in [
         ("T [e,)] -> U", &[")"][..], 1),
         ("T [@,)] -> U", &["@", ")"][..], 1),
-        ("T [e))] -> U", &["))"][..], 0),
-        ("T [e))", &["))"][..], 2),
+        ("T [e))] -> U", &[")", ")"][..], 0),
+        ("T [e))", &[")", ")"][..], 2),
         ("T [)", &[")"][..], 3),
     ] {
         let (green, exit) = run_type(source);

@@ -5,7 +5,11 @@
 This page defines the core `TypeExpression` forms in `syntax-v0`. The
 Authoritative type-expression sections of the 2026-08-20 syntax architecture,
 the Type contextual-boundary correction, the PathSegment and TypeCall recovery
-amendments, and the accepted-input recovery authority govern this page.
+amendments, the accepted-input recovery authority, the [type-delimited
+foreign-close topology authority](../../../../notes/design/2026-09-12-successor-type-delimited-foreign-close-topology.md)
+for Parenthesized/EffectRow, and the [2026-09-20 BracketRow close-error CST
+topology supersession](../../../../notes/design/2026-09-20-successor-bracket-row-close-topology-supersession.md)
+for `BracketRow` close errors govern this page.
 
 It covers atoms, paths, calls, ML-style application, arrows, and parenthesized
 groups. Named records, `forall`, effect rows, polymorphic variants, and bracket
@@ -70,8 +74,10 @@ Path recovery does not consume a protected caller boundary. A TypeCall keeps
 argument, separator, and close recovery distinct; an admitted residual after
 an argument belongs to its terminal close recovery. Parenthesized groups and
 effect rows use `TypeDelimitedForeignClose` only for a locally consumed
-mismatched close, as defined by the foreign-close topology authority. Other
-raw type recovery stays direct.
+mismatched close, as defined by the foreign-close topology authority.
+`BracketRow` uses the same wrapper only for its local close retry; its Item
+errors remain direct `BracketRow` children. `TypeCall` does not use this
+wrapper. Other raw type recovery stays direct.
 
 ## 6. Source/CST examples
 

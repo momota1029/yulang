@@ -83,17 +83,42 @@ fn bracket_row_item_errors_keep_retry_trivia_outside_the_error() {
 }
 
 #[test]
-fn bracket_row_item_and_close_roles_collide_in_direct_cst_topology() {
+fn bracket_row_item_and_close_roles_have_distinct_cst_topology() {
     use SyntaxKind::*;
 
-    // The approved Item retry and close-only retry remain distinct through
-    // their direct CST topology, not a parser-side recovery side channel.
+    // The direct Item Error and close-only wrapper preserve the distinct
+    // recovery roles without a parser-side recovery side channel.
     let cases = [
-        ("T [A@] -> U", item(0, 4..5, true)),
-        ("T [A)] -> U", close(0, 4..5, Some(Delimiter::Parenthesis))),
+        (
+            "T [A@] -> U",
+            item(0, 4..5, true),
+            vec![
+                (BracketRow, Some(TypeArrowTail), 2..6),
+                (LBracket, Some(BracketRow), 2..3),
+                (TypeExpression, Some(BracketRow), 3..4),
+                (Identifier, Some(TypeExpression), 3..4),
+                (Error, Some(BracketRow), 4..5),
+                (RBracket, Some(BracketRow), 5..6),
+            ],
+            BracketRow,
+        ),
+        (
+            "T [A)] -> U",
+            close(0, 4..5, Some(Delimiter::Parenthesis)),
+            vec![
+                (BracketRow, Some(TypeArrowTail), 2..6),
+                (LBracket, Some(BracketRow), 2..3),
+                (TypeExpression, Some(BracketRow), 3..4),
+                (Identifier, Some(TypeExpression), 3..4),
+                (TypeDelimitedForeignClose, Some(BracketRow), 4..5),
+                (Error, Some(TypeDelimitedForeignClose), 4..5),
+                (RBracket, Some(BracketRow), 5..6),
+            ],
+            TypeDelimitedForeignClose,
+        ),
     ];
     let mut topologies = Vec::new();
-    for (source, expected) in cases {
+    for (source, expected, expected_topology, error_parent) in cases {
         let root = assert_complete_type_recovery(source, 0, &[expected.clone()]);
         let shift = "sentinel".len();
         assert_eq!(root.to_string(), format!("sentinel{source}"));
@@ -119,25 +144,26 @@ fn bracket_row_item_and_close_roles_collide_in_direct_cst_topology() {
                 )
             })
             .collect::<Vec<_>>();
-        assert_eq!(
-            topology,
-            vec![
-                (BracketRow, Some(TypeArrowTail), 2..6),
-                (LBracket, Some(BracketRow), 2..3),
-                (TypeExpression, Some(BracketRow), 3..4),
-                (Identifier, Some(TypeExpression), 3..4),
-                (Error, Some(BracketRow), 4..5),
-                (RBracket, Some(BracketRow), 5..6),
-            ]
-        );
+        assert_eq!(topology, expected_topology);
         assert!(
             !row.descendants()
                 .any(|node| matches!(node.kind(), Missing | Invalid))
         );
         let groups = recovery_groups(&row);
         assert_eq!(groups.len(), 1);
-        assert_eq!(groups[0].parent(), Some(row.clone()));
+        assert_eq!(groups[0].parent().unwrap().kind(), error_parent);
         assert_eq!(relative(groups[0].text_range()), 4..5);
+        if error_parent == TypeDelimitedForeignClose {
+            let wrapper = groups[0].parent().unwrap();
+            assert_eq!(wrapper.parent(), Some(row.clone()));
+            assert_eq!(
+                wrapper
+                    .children_with_tokens()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                [Error]
+            );
+        }
         let tail = row.parent().unwrap();
         assert_eq!(tail.kind(), TypeArrowTail);
         assert_eq!(tail.parent().unwrap().kind(), TypeExpression);
@@ -159,7 +185,7 @@ fn bracket_row_item_and_close_roles_collide_in_direct_cst_topology() {
         );
         topologies.push(topology);
     }
-    assert_eq!(topologies[0], topologies[1]);
+    assert_ne!(topologies[0], topologies[1]);
 }
 
 #[test]
@@ -462,8 +488,8 @@ fn bracket_row_deeper_newline_separator_missing_follows_returned_pv_close() {
 
 #[test]
 fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
-    for (source, expected, row_missing) in [
-        ("T [,] -> U", vec![item(0, 3..3, false)], 1),
+    for (source, expected, row_missing, close_groups) in [
+        ("T [,] -> U", vec![item(0, 3..3, false)], 1, &[][..]),
         (
             "T [)] -> U",
             vec![
@@ -471,11 +497,13 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 close(1, 3..4, Some(Delimiter::Parenthesis)),
             ],
             1,
+            &[0][..],
         ),
         (
             "T [A)] -> U",
             vec![close(0, 4..5, Some(Delimiter::Parenthesis))],
             0,
+            &[0][..],
         ),
         (
             "T [@ )] -> U",
@@ -484,8 +512,17 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 close(1, 5..6, Some(Delimiter::Parenthesis)),
             ],
             0,
+            &[1][..],
         ),
-        ("T [A))] -> U", vec![(StructuralKind::ErrorGroup, 4..6)], 0),
+        (
+            "T [A))] -> U",
+            vec![
+                (StructuralKind::ErrorGroup, 4..5),
+                (StructuralKind::ErrorGroup, 5..6),
+            ],
+            0,
+            &[0, 1][..],
+        ),
         (
             "T [",
             vec![
@@ -494,8 +531,14 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 arrow(2, 3..3, false),
             ],
             2,
+            &[][..],
         ),
-        ("T [A", vec![close(0, 4..4, None), arrow(1, 4..4, false)], 1),
+        (
+            "T [A",
+            vec![close(0, 4..4, None), arrow(1, 4..4, false)],
+            1,
+            &[][..],
+        ),
         (
             "T [@",
             vec![
@@ -504,6 +547,7 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 arrow(2, 4..4, false),
             ],
             1,
+            &[][..],
         ),
         (
             "T [A)",
@@ -513,6 +557,7 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 arrow(2, 5..5, false),
             ],
             1,
+            &[0][..],
         ),
     ] {
         let root = assert_complete_type_recovery(source, 0, &expected);
@@ -527,26 +572,30 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
             row_missing
         );
         let groups = recovery_groups(&row);
-        let mut expected_ranges: Vec<std::ops::Range<usize>> = Vec::new();
-        for fact in expected
+        let expected_ranges = expected
             .iter()
             .filter(|(kind, _)| *kind == StructuralKind::ErrorGroup)
-        {
-            let range = &fact.1;
-            if let Some(last) = expected_ranges
-                .last_mut()
-                .filter(|last| last.end == range.start)
-            {
-                last.end = range.end;
-            } else {
-                expected_ranges.push(range.clone());
-            }
-        }
+            .map(|(_, range)| range.clone())
+            .collect::<Vec<_>>();
         assert_eq!(
             groups
                 .iter()
-                .map(|group| {
-                    assert_eq!(group.parent(), Some(row.clone()));
+                .enumerate()
+                .map(|(index, group)| {
+                    let parent = group.parent().unwrap();
+                    if close_groups.contains(&index) {
+                        assert_eq!(parent.kind(), SyntaxKind::TypeDelimitedForeignClose);
+                        assert_eq!(parent.parent(), Some(row.clone()));
+                        assert_eq!(
+                            parent
+                                .children_with_tokens()
+                                .map(|child| child.kind())
+                                .collect::<Vec<_>>(),
+                            [SyntaxKind::Error]
+                        );
+                    } else {
+                        assert_eq!(parent, row);
+                    }
                     let range = group.text_range();
                     usize::from(range.start()) - "sentinel".len()
                         ..usize::from(range.end()) - "sentinel".len()
@@ -561,12 +610,21 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 .map(|range| &source[range.clone()])
                 .collect::<Vec<_>>()
         );
+        assert_eq!(
+            row.children()
+                .filter(|node| node.kind() == SyntaxKind::TypeDelimitedForeignClose)
+                .count(),
+            close_groups.len()
+        );
         for error in row
-            .children_with_tokens()
+            .descendants_with_tokens()
             .filter_map(|element| element.into_token())
             .filter(|token| token.kind() == SyntaxKind::Error && token.text() == ")")
         {
-            assert_eq!(error.parent(), Some(row.clone()));
+            assert_eq!(
+                error.parent().unwrap().kind(),
+                SyntaxKind::TypeDelimitedForeignClose
+            );
             assert_eq!(error.text_range().len(), 1.into());
         }
     }

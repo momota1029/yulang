@@ -109,8 +109,8 @@ fn pe_foreign_close_topology_distinguishes_item_and_close_slots() {
 }
 
 #[test]
-fn pe_foreign_close_topology_excludes_accepted_and_other_delimited_owners() {
-    for source in ["()", "(A)", "'[]", "'[A]", "T(A)", "G T[F A]->U"] {
+fn pe_foreign_close_topology_excludes_accepted_and_type_call_owners() {
+    for source in ["()", "(A)", "'[]", "'[A]", "T(A)"] {
         let root = assert_complete_type_recovery(source, 0, &[]);
         assert!(
             !root
@@ -118,18 +118,11 @@ fn pe_foreign_close_topology_excludes_accepted_and_other_delimited_owners() {
                 .any(|node| node.kind() == SyntaxKind::TypeDelimitedForeignClose)
         );
     }
-    for (source, expected, error_parent) in [
-        (
-            "T(A])",
-            (StructuralKind::ErrorGroup, 3..4),
-            SyntaxKind::TypeCallClose,
-        ),
-        (
-            "T [A)] -> U",
-            (StructuralKind::ErrorGroup, 4..5),
-            SyntaxKind::BracketRow,
-        ),
-    ] {
+    for (source, expected, error_parent) in [(
+        "T(A])",
+        (StructuralKind::ErrorGroup, 3..4),
+        SyntaxKind::TypeCallClose,
+    )] {
         let root = assert_complete_type_recovery(source, 0, &[expected]);
         assert_foreign_close_count(&root, 0);
         let errors = recovery_groups(&root);
