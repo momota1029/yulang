@@ -1,30 +1,19 @@
 //! Direct canonical `struct` declaration construction.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cursor::recovery::RecoveryDraft;
-use std::sync::Arc;
 
-use crate::{
-    recovery_record::{
-        ConstructRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StructRole, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 
 use crate::{
     cursor::SyntaxIn,
-    cursor::recovery::emit::{
-        emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     declaration::{
         declaration_companion::declaration_companion_normalized,
         derives::{derives_clause_normalized, is_word},
         fields::{
-            DeclarationFieldRoles, FieldList, FieldOuterClose, declaration_fields_normalized,
-            declaration_item_normalized, parse_indented_fields_normalized, raw_name,
-            scan_declaration_item_lexical, type_starter,
+            FieldList, FieldOuterClose, declaration_fields_normalized, declaration_item_normalized,
+            parse_indented_fields_normalized, raw_name, scan_declaration_item_lexical,
+            type_starter,
         },
     },
     expression::if_expr::active_statement_companion,
@@ -43,6 +32,12 @@ use crate::{
     statement::StatementLineHandoff,
     type_expr::TypeOuterBoundary,
 };
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HeaderPhase {
+    Name,
+    BodyIntroducer,
+}
 
 #[cfg(test)]
 use crate::cursor::LexIn;
@@ -283,21 +278,21 @@ fn required_name_normalized(
         || !gstruct_allowed(&item, baseline)
         || is_active_stop(i.rb(), &item, stops)
     {
-        header_missing(&mut i, &item, *item_origin, StructRole::Name);
+        header_missing(&mut i, &item, *item_origin);
         return Err(item);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        header_missing(&mut i, &item, *item_origin, StructRole::Name);
+        header_missing(&mut i, &item, *item_origin);
         return Err(item);
     }
     if body_starter_item(&item) {
-        header_missing(&mut i, &item, *item_origin, StructRole::Name);
+        header_missing(&mut i, &item, *item_origin);
         item.emit_all_remaining_leading(&mut *i.state);
         return Ok(Some(item));
     }
     if header_boundary(i.rb(), &item, baseline, stops) {
-        header_missing(&mut i, &item, *item_origin, StructRole::Name);
+        header_missing(&mut i, &item, *item_origin);
         return Err(item);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -309,7 +304,7 @@ fn required_name_normalized(
     let (mut next, origin, line) = header_error_run(
         i.rb(),
         item,
-        StructRole::Name,
+        HeaderPhase::Name,
         baseline,
         stops,
         *item_origin,
@@ -353,16 +348,16 @@ fn parse_body_item_normalized(
         || !gstruct_allowed(&item, baseline)
         || is_active_stop(i.rb(), &item, stops)
     {
-        header_missing(&mut i, &item, item_origin, StructRole::BodyIntroducer);
+        header_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        header_missing(&mut i, &item, item_origin, StructRole::BodyIntroducer);
+        header_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if !body_starter_item(&item) && body_boundary(i.rb(), &item, baseline, stops) {
-        header_missing(&mut i, &item, item_origin, StructRole::BodyIntroducer);
+        header_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     let gap = item.extent(item_origin).recovery_range().start;
@@ -402,7 +397,6 @@ fn parse_body_item_normalized(
             emit_token_item(&mut i, item);
             parse_indented_fields_normalized(
                 i,
-                struct_field_roles(FieldList::NamedBrace),
                 baseline,
                 stops,
                 item_origin,
@@ -412,14 +406,7 @@ fn parse_body_item_normalized(
             )
         }
         _ if body_boundary(i.rb(), &item, baseline, stops) || type_starter(&item) => {
-            emit_recovery_missing(i.rb(), LeadingTrivia::default(), gap, |range| {
-                header_draft(
-                    StructRole::BodyIntroducer,
-                    RecoveryKind::Missing,
-                    range,
-                    Arc::from([]),
-                )
-            });
+            emit_recovery_missing(i.rb(), LeadingTrivia::default(), gap);
             complete(handoff(item), line_entry)
         }
         _ => recover_body_introducer_normalized(
@@ -453,7 +440,7 @@ fn recover_body_introducer_normalized(
     (item, item_origin, line_entry) = header_error_run(
         i.rb(),
         item,
-        StructRole::BodyIntroducer,
+        HeaderPhase::BodyIntroducer,
         baseline,
         stops,
         item_origin,
@@ -482,73 +469,28 @@ fn recover_body_introducer_normalized(
     complete(handoff(item), line_entry)
 }
 
-fn header_draft(
-    slot: StructRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = GrammarRole::Declaration(DeclarationRole::Struct(slot));
-    let expected: &[ExpectedSyntax] = match slot {
-        StructRole::Name => &[ExpectedSyntax::Identifier],
-        StructRole::BodyIntroducer => &[
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Parenthesis)),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        ],
-        _ => unreachable!("Struct header slot"),
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expected
-            .iter()
-            .map(|expected| SyntaxExpectation {
-                role,
-                expected: *expected,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .collect::<Vec<_>>()
-            .into(),
-        0,
-    )
-}
-
-fn header_missing(i: &mut SyntaxIn, item: &Item, origin: usize, role: StructRole) {
+fn header_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        header_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
 fn header_error_run(
     mut i: SyntaxIn,
     mut item: Item,
-    role: StructRole,
+    phase: HeaderPhase,
     baseline: usize,
     stops: Stops,
     mut origin: usize,
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let start = item.extent(origin).recovery_range().start;
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = token_kind(&item)
-                .map(token_syntax_kind)
-                .unwrap_or(SyntaxKind::Operator);
-            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, origin);
             (item, origin, line) = run.lexical(|lex| {
                 scan_declaration_item_lexical(
                     lex,
@@ -557,8 +499,8 @@ fn header_error_run(
                     fence,
                     baseline,
                     stops,
-                    role == StructRole::Name,
-                    role != StructRole::Name,
+                    phase == HeaderPhase::Name,
+                    phase == HeaderPhase::BodyIntroducer,
                     false,
                 )
             });
@@ -579,39 +521,16 @@ fn header_error_run(
                 );
             if boundary
                 || body_starter_item(&item)
-                || (if role == StructRole::Name {
+                || (if phase == HeaderPhase::Name {
                     raw_name(&item)
                 } else {
                     type_starter(&item)
                 })
             {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: start..end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, origin, line);
             }
-        },
-        |range, unexpected| header_draft(role, RecoveryKind::Error, range, unexpected),
-    )
-}
-
-fn struct_field_roles(list: FieldList) -> DeclarationFieldRoles {
-    let role = |slot| GrammarRole::Declaration(DeclarationRole::Struct(slot));
-    DeclarationFieldRoles {
-        field: role(StructRole::Field),
-        field_name: role(StructRole::FieldName),
-        field_colon: role(StructRole::FieldColon),
-        field_type: role(StructRole::FieldType),
-        field_separator: role(StructRole::FieldSeparator),
-        close: GrammarRole::ClosingDelimiter {
-            owner: match list {
-                FieldList::NamedBrace => ConstructRole::StructNamedFields,
-                FieldList::Tuple => ConstructRole::StructTupleFields,
-            },
-            delimiter: list.delimiter(),
-        },
-    }
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -630,7 +549,6 @@ fn parse_delimited_fields_normalized(
 ) -> NormalizedExit {
     let result = declaration_fields_normalized(
         i.rb(),
-        struct_field_roles(list),
         open,
         owner_baseline,
         stops,

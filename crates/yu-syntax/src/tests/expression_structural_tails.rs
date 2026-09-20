@@ -1,9 +1,7 @@
 use crate::tests::support::*;
 use crate::{
-    ambient_claim::AmbientClaimView,
-    handoff::MlMode,
-    recovery_record::{AssignmentRole, ExpressionRole, GrammarRole, RecoveryKind, TypeRole},
-    statement::StatementLineHandoff,
+    ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff,
+    structural_diagnostic::StructuralKind,
 };
 
 fn operators() -> OperatorTable {
@@ -31,40 +29,22 @@ fn parse<'s>(
     threshold: Option<&BindingPower>,
     mode: MlMode,
     stops: Stops,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (
-    GreenNode,
-    Vec<CommittedRecoveryRecord>,
-    NormalizedExit,
-    &'s str,
-) {
-    parse_at(source, threshold, mode, stops, frozen, 0, None)
+) -> (GreenNode, NormalizedExit, &'s str) {
+    parse_at(source, threshold, mode, stops, 0, None)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn parse_at<'s>(
     source: &'s str,
     threshold: Option<&BindingPower>,
     mode: MlMode,
     stops: Stops,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     origin: usize,
     fence: Option<&FenceBoundary>,
-) -> (
-    GreenNode,
-    Vec<CommittedRecoveryRecord>,
-    NormalizedExit,
-    &'s str,
-) {
+) -> (GreenNode, NormalizedExit, &'s str) {
     let operators = operators();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut output = frozen
-        .map(|records| {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        })
-        .unwrap_or_else(GreenNodeBuilder::new);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -81,8 +61,11 @@ fn parse_at<'s>(
     )
     .unwrap();
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, records, exit, input)
+    (
+        finish_with_discarded_recoveries(output, recover),
+        exit,
+        input,
+    )
 }
 
 #[test]
@@ -154,7 +137,7 @@ fn type_annotation_required_type_schema_preserves_native_error_and_retry_leading
             vec![],
         ),
     ] {
-        let (green, records, exit, rest) = parse(source, None, MlMode::All, 0, None);
+        let (green, exit, rest) = parse(source, None, MlMode::All, 0);
         assert_eq!(green.to_string(), owned);
         assert_eq!(rest, "");
         let root = SyntaxNode::new_root(green.clone());
@@ -240,28 +223,24 @@ fn type_annotation_required_type_schema_preserves_native_error_and_retry_leading
             }
         };
         assert_handoff(exit);
-        // Record identity is only a compatibility oracle after the CST proof.
-        assert_eq!(records.len(), usize::from(!errors.is_empty()));
-        if let Some(record) = records.first() {
-            assert_eq!(record.kind, RecoveryKind::Error);
-            assert_eq!(record.site.role, GrammarRole::Type(TypeRole::Primary));
-            assert_eq!(record.site.range, 4..if errors.len() == 4 { 9 } else { 6 });
-        }
-        let (again, frozen, again_exit, again_rest) =
-            parse(source, None, MlMode::All, 0, Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(again_rest, rest);
-        assert_handoff(again_exit);
+        let expected_facts = if errors.is_empty() {
+            vec![]
+        } else {
+            vec![(
+                StructuralKind::ErrorGroup,
+                4..if errors.len() == 4 { 9 } else { 6 },
+            )]
+        };
+        assert_eq!(structural_facts(&green), expected_facts);
     }
 }
 
 #[test]
 fn assignment_one_character_fallback_preserves_dynamic_led_priority_and_prefix_rhs() {
     for source in ["x=-y", "x=+y", "x = y", "x =\n  y"] {
-        let (green, records, _, rest) = parse(source, None, MlMode::All, 0, None);
+        let (green, _, rest) = parse(source, None, MlMode::All, 0);
         assert_eq!(green.to_string(), source);
-        assert!(records.is_empty(), "{source}: {records:?}");
+        assert!(structural_facts(&green).is_empty(), "{source}");
         assert_eq!(rest, "");
         let root = SyntaxNode::new_root(green);
         assert_eq!(
@@ -271,10 +250,10 @@ fn assignment_one_character_fallback_preserves_dynamic_led_priority_and_prefix_r
             1
         );
     }
-    let (green, records, _, _) = parse("x==y", None, MlMode::All, 0, None);
-    assert!(records.is_empty());
+    let (green, _, _) = parse("x==y", None, MlMode::All, 0);
+    assert!(structural_facts(&green).is_empty());
     assert_eq!(green.to_string(), "x==y");
-    let root = SyntaxNode::new_root(green);
+    let root = SyntaxNode::new_root(green.clone());
     assert!(
         !root
             .descendants()
@@ -292,10 +271,10 @@ fn assignment_tail_keeps_rhs_and_recovery_in_the_direct_rowan_shape() {
         usize::from(node.text_range().start())..usize::from(node.text_range().end())
     }
 
-    let (green, records, _, rest) = parse("x = y", None, MlMode::All, 0, None);
-    assert!(records.is_empty());
+    let (green, _, rest) = parse("x = y", None, MlMode::All, 0);
+    assert!(structural_facts(&green).is_empty());
     assert_eq!(rest, "");
-    let root = SyntaxNode::new_root(green);
+    let root = SyntaxNode::new_root(green.clone());
     let chain = root.first_child().expect("outer OperatorChain");
     assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
     let children = chain.children_with_tokens().collect::<Vec<_>>();
@@ -334,14 +313,14 @@ fn assignment_tail_keeps_rhs_and_recovery_in_the_direct_rowan_shape() {
     assert_eq!(leading.parent(), Some(tail.clone()));
     assert_eq!(tail_children[2].as_node(), Some(&rhs));
 
-    let (green, _records, exit, rest) = parse("x = ]", None, MlMode::All, 0, None);
+    let (green, exit, rest) = parse("x = ]", None, MlMode::All, 0);
     assert_eq!(rest, "");
     let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
         panic!("protected close remains unread");
     };
     assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
     assert_eq!(item.extent(5).recovery_range(), 3..5);
-    let root = SyntaxNode::new_root(green);
+    let root = SyntaxNode::new_root(green.clone());
     let tail = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::AssignmentTail)
@@ -350,15 +329,16 @@ fn assignment_tail_keeps_rhs_and_recovery_in_the_direct_rowan_shape() {
     assert_eq!(missing.kind(), SyntaxKind::Missing);
     assert_eq!(range(&missing), 3..3);
     assert_eq!(missing.parent(), Some(tail));
+    assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 3..3)]);
 
-    let (green, _records, exit, rest) = parse("x = @ ]", None, MlMode::All, 0, None);
+    let (green, exit, rest) = parse("x = @ ]", None, MlMode::All, 0);
     assert_eq!(rest, "");
     let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
         panic!("protected close remains unread after Error");
     };
     assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
     assert_eq!(item.extent(7).recovery_range(), 5..7);
-    let root = SyntaxNode::new_root(green);
+    let root = SyntaxNode::new_root(green.clone());
     let tail = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::AssignmentTail)
@@ -381,10 +361,14 @@ fn assignment_tail_keeps_rhs_and_recovery_in_the_direct_rowan_shape() {
         4..5
     );
     assert_eq!(error.parent(), Some(tail));
+    assert_eq!(
+        structural_facts(&green),
+        [(StructuralKind::ErrorGroup, 4..5)]
+    );
 
-    let (green, _records, _, rest) = parse("x = @ y", None, MlMode::All, 0, None);
+    let (green, _, rest) = parse("x = @ y", None, MlMode::All, 0);
     assert_eq!(rest, "");
-    let root = SyntaxNode::new_root(green);
+    let root = SyntaxNode::new_root(green.clone());
     let tail = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::AssignmentTail)
@@ -418,15 +402,19 @@ fn assignment_tail_keeps_rhs_and_recovery_in_the_direct_rowan_shape() {
     let retry_owner = retry_leading.parent().expect("retry leading owner");
     assert_eq!(retry_owner.kind(), SyntaxKind::IdentifierExpression);
     assert_eq!(retry_owner.parent(), Some(rhs.clone()));
+    assert_eq!(
+        structural_facts(&green),
+        [(StructuralKind::ErrorGroup, 4..5)]
+    );
 
-    let (green, _records, exit, rest) = parse("x = @  @ ]", None, MlMode::All, 0, None);
+    let (green, exit, rest) = parse("x = @  @ ]", None, MlMode::All, 0);
     assert_eq!(rest, "");
     let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
         panic!("protected close remains unread after a fragmented Error run");
     };
     assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
     assert_eq!(item.extent(10).recovery_range(), 8..10);
-    let root = SyntaxNode::new_root(green);
+    let root = SyntaxNode::new_root(green.clone());
     let tail = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::AssignmentTail)
@@ -464,10 +452,14 @@ fn assignment_tail_keeps_rhs_and_recovery_in_the_direct_rowan_shape() {
     assert_eq!(ranges[0].start..ranges[2].end, 4..8);
     assert_eq!(&"x = @  @ ]"[4..8], "@  @");
     assert_eq!(errors[1].parent(), Some(tail));
+    assert_eq!(
+        structural_facts(&green),
+        [(StructuralKind::ErrorGroup, 4..8)]
+    );
 
-    let (green, _records, _, rest) = parse("x = y.", None, MlMode::All, 0, None);
+    let (green, _, rest) = parse("x = y.", None, MlMode::All, 0);
     assert_eq!(rest, "");
-    let root = SyntaxNode::new_root(green);
+    let root = SyntaxNode::new_root(green.clone());
     let tail = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::AssignmentTail)
@@ -482,13 +474,14 @@ fn assignment_tail_keeps_rhs_and_recovery_in_the_direct_rowan_shape() {
     assert_eq!(missing.kind(), SyntaxKind::Missing);
     assert_eq!(range(&missing), 6..6);
     assert_eq!(missing.parent(), Some(field));
+    assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 6..6)]);
 }
 
 #[test]
 fn assignment_single_rhs_returns_separator_without_outer_continuation() {
-    let (green, records, exit, rest) = parse("x = y, z", None, MlMode::All, 0, None);
+    let (green, exit, rest) = parse("x = y, z", None, MlMode::All, 0);
     assert_eq!(green.to_string(), "x = y");
-    assert!(records.is_empty());
+    assert!(structural_facts(&green).is_empty());
     assert_eq!(rest, " z");
     let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
         panic!("pending comma")
@@ -507,8 +500,8 @@ fn structural_tail_threshold_and_ml_rejection_emit_no_tail_or_recovery() {
     let bp = BindingPower::scalar(10);
     for (threshold, mode) in [(Some(&bp), MlMode::All), (None, MlMode::None)] {
         for source in ["x=y", "x as Int"] {
-            let (green, records, _, _) = parse(source, threshold, mode, 0, None);
-            assert!(records.is_empty());
+            let (green, _, _) = parse(source, threshold, mode, 0);
+            assert!(structural_facts(&green).is_empty());
             assert_eq!(green.to_string(), "x");
             let root = SyntaxNode::new_root(green);
             assert!(!root.descendants().any(|node| matches!(
@@ -522,8 +515,8 @@ fn structural_tail_threshold_and_ml_rejection_emit_no_tail_or_recovery() {
 #[test]
 fn annotation_owns_full_type_and_propagates_type_stops() {
     for source in ["x as Int", "x as int as str", "x as int y", "x as (Int)"] {
-        let (green, records, _, _) = parse(source, None, MlMode::All, 0, None);
-        assert!(records.is_empty(), "{source}: {records:?}");
+        let (green, _, _) = parse(source, None, MlMode::All, 0);
+        assert!(structural_facts(&green).is_empty(), "{source}");
         assert_eq!(green.to_string(), source);
         assert!(
             SyntaxNode::new_root(green)
@@ -535,9 +528,9 @@ fn annotation_owns_full_type_and_propagates_type_stops() {
         ("x as int + y", TokenKind::Unknown, " y"),
         ("x as int; y", TokenKind::Semicolon, " y"),
     ] {
-        let (green, records, exit, remaining) = parse(source, None, MlMode::All, 0, None);
+        let (green, exit, remaining) = parse(source, None, MlMode::All, 0);
         assert_eq!(green.to_string(), "x as int");
-        assert!(records.is_empty());
+        assert!(structural_facts(&green).is_empty());
         assert_eq!(remaining, rest);
         let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
             panic!("pending Type stop")
@@ -548,13 +541,11 @@ fn annotation_owns_full_type_and_propagates_type_stops() {
 
 #[test]
 fn annotation_required_type_missing_has_a_direct_structural_slot() {
-    use crate::recovery_record::ExpectedSyntax;
-
     for source in ["x as", "x as ]"] {
-        let (green, _records, exit, rest) = parse(source, None, MlMode::All, 0, None);
+        let (green, exit, rest) = parse(source, None, MlMode::All, 0);
         assert_eq!(green.to_string(), "x as");
         assert_eq!(rest, "");
-        let root = SyntaxNode::new_root(green);
+        let root = SyntaxNode::new_root(green.clone());
         let chain = root.first_child().expect("outer OperatorChain");
         assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
         let tail = chain.children().last().expect("TypeAnnotationTail");
@@ -582,35 +573,7 @@ fn annotation_required_type_missing_has_a_direct_structural_slot() {
         assert_eq!(missing.parent().as_ref(), Some(type_expr));
         assert_eq!(missing.children_with_tokens().count(), 0);
         assert_eq!(missing.to_string(), "");
-
-        // The enclosing annotation slot selects the initial Type expectation;
-        // a TypeExpression parent alone does not identify that slot.
-        let selected = match (
-            tail.kind(),
-            children[0].kind(),
-            type_expr.kind(),
-            missing.kind(),
-        ) {
-            (
-                SyntaxKind::TypeAnnotationTail,
-                SyntaxKind::AsKw,
-                SyntaxKind::TypeExpression,
-                SyntaxKind::Missing,
-            ) => (
-                GrammarRole::Expression(ExpressionRole::TypeAnnotation),
-                ExpectedSyntax::TypeExpression,
-                0,
-            ),
-            _ => panic!("unrecognized required annotation Type slot"),
-        };
-        assert_eq!(
-            selected,
-            (
-                GrammarRole::Expression(ExpressionRole::TypeAnnotation),
-                ExpectedSyntax::TypeExpression,
-                0,
-            )
-        );
+        assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 4..4)]);
 
         if source == "x as ]" {
             let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
@@ -626,77 +589,21 @@ fn annotation_required_type_missing_has_a_direct_structural_slot() {
 }
 
 #[test]
-fn structural_tail_initial_missing_and_type_error_roles_survive_reconciliation() {
-    for (source, role, kind, range) in [
-        (
-            "x =",
-            GrammarRole::Assignment(AssignmentRole::Rhs),
-            RecoveryKind::Missing,
-            3..3,
-        ),
-        (
-            "x = ]",
-            GrammarRole::Assignment(AssignmentRole::Rhs),
-            RecoveryKind::Missing,
-            3..3,
-        ),
-        (
-            "x = [",
-            GrammarRole::Assignment(AssignmentRole::Rhs),
-            RecoveryKind::Missing,
-            3..3,
-        ),
-        (
-            "x = ,",
-            GrammarRole::Assignment(AssignmentRole::Rhs),
-            RecoveryKind::Missing,
-            3..3,
-        ),
-        (
-            "x =\ny",
-            GrammarRole::Assignment(AssignmentRole::Rhs),
-            RecoveryKind::Missing,
-            3..3,
-        ),
-        (
-            "x = @ ]",
-            GrammarRole::Assignment(AssignmentRole::Rhs),
-            RecoveryKind::Error,
-            4..5,
-        ),
-        (
-            "x = @ y",
-            GrammarRole::Assignment(AssignmentRole::Rhs),
-            RecoveryKind::Error,
-            4..5,
-        ),
-        (
-            "x as",
-            GrammarRole::Expression(ExpressionRole::TypeAnnotation),
-            RecoveryKind::Missing,
-            4..4,
-        ),
-        (
-            "x as ]",
-            GrammarRole::Expression(ExpressionRole::TypeAnnotation),
-            RecoveryKind::Missing,
-            4..4,
-        ),
-        (
-            "x as @",
-            GrammarRole::Type(TypeRole::Primary),
-            RecoveryKind::Error,
-            4..6,
-        ),
+fn structural_tail_initial_missing_and_type_error_preserve_kind_range_and_order() {
+    for (source, expected) in [
+        ("x =", (StructuralKind::Missing, 3..3)),
+        ("x = ]", (StructuralKind::Missing, 3..3)),
+        ("x = [", (StructuralKind::Missing, 3..3)),
+        ("x = ,", (StructuralKind::Missing, 3..3)),
+        ("x =\ny", (StructuralKind::Missing, 3..3)),
+        ("x = @ ]", (StructuralKind::ErrorGroup, 4..5)),
+        ("x = @ y", (StructuralKind::ErrorGroup, 4..5)),
+        ("x as", (StructuralKind::Missing, 4..4)),
+        ("x as ]", (StructuralKind::Missing, 4..4)),
+        ("x as @", (StructuralKind::ErrorGroup, 4..6)),
     ] {
-        let (green, records, _, _) = parse(source, None, MlMode::All, 0, None);
-        assert_eq!(records.len(), 1, "{source}: {records:?}");
-        assert_eq!(records[0].site.role, role, "{source}");
-        assert_eq!(records[0].site.range, range, "{source}");
-        assert_eq!(records[0].kind, kind, "{source}");
-        let (frozen_green, frozen, _, _) = parse(source, None, MlMode::All, 0, Some(&records));
-        assert_eq!(green, frozen_green);
-        assert_eq!(records, frozen);
+        let (green, _, _) = parse(source, None, MlMode::All, 0);
+        assert_eq!(structural_facts(&green), [expected], "{source}");
     }
 }
 
@@ -710,15 +617,14 @@ fn assignment_boundaries_before_and_after_error_preserve_whole_items() {
         (" [ next", 0, TokenKind::LBracket),
         ("\nnext", STOP_LINE_BREAK, TokenKind::Identifier),
     ] {
-        for (prefix, kind, emitted) in [
-            ("x =", RecoveryKind::Missing, "x ="),
-            ("x = @", RecoveryKind::Error, "x = @"),
+        for (prefix, kind, emitted, fact_range) in [
+            ("x =", StructuralKind::Missing, "x =", 3..3),
+            ("x = @", StructuralKind::ErrorGroup, "x = @", 4..5),
         ] {
             let source = format!("{prefix}{suffix}");
-            let (green, records, exit, rest) = parse(&source, None, MlMode::All, stops, None);
+            let (green, exit, rest) = parse(&source, None, MlMode::All, stops);
             assert_eq!(green.to_string(), emitted);
-            assert_eq!(records.len(), 1);
-            assert_eq!(records[0].kind, kind);
+            assert_eq!(structural_facts(&green), [(kind, fact_range)]);
             let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
                 panic!("protected Item")
             };
@@ -745,32 +651,26 @@ fn structural_tail_utf8_crlf_fences_preserve_source_coordinates() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    for (source, kind, range, emitted) in [
+    for (source, fact, emitted) in [
         (
             "x =\r\n> > ```\nouter",
-            RecoveryKind::Missing,
-            105..105,
+            (StructuralKind::Missing, 3..3),
             "x =",
         ),
         (
             "x = 💥\r\n> > ```\nouter",
-            RecoveryKind::Error,
-            104..108,
+            (StructuralKind::ErrorGroup, 4..8),
             "x = 💥",
         ),
         (
             "x as\r\n> > ```\nouter",
-            RecoveryKind::Missing,
-            106..106,
+            (StructuralKind::Missing, 4..4),
             "x as",
         ),
     ] {
-        let (green, records, exit, _) =
-            parse_at(source, None, MlMode::All, 0, None, 100, Some(&fence));
+        let (green, exit, _) = parse_at(source, None, MlMode::All, 0, 100, Some(&fence));
         assert_eq!(green.to_string(), emitted);
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].kind, kind);
-        assert_eq!(records[0].site.range, range);
+        assert_eq!(structural_facts(&green), [fact]);
         let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
             panic!("quoted fence")
         };
@@ -780,47 +680,15 @@ fn structural_tail_utf8_crlf_fences_preserve_source_coordinates() {
 
 #[test]
 fn assignment_newline_eof_is_protected_before_and_after_error() {
-    use crate::recovery_record::{
-        DiagnosticId, ExpectationSources, ExpectedSyntax, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-
-    let role = GrammarRole::Assignment(AssignmentRole::Rhs);
-    for (source, emitted, kind, range, pending_range) in [
-        ("x =\n", "x =", RecoveryKind::Missing, 3..3, 3..4),
-        ("x = @\n", "x = @", RecoveryKind::Error, 4..5, 5..6),
-        ("x = ", "x = ", RecoveryKind::Missing, 4..4, 4..4),
+    for (source, emitted, fact, pending_range) in [
+        ("x =\n", "x =", (StructuralKind::Missing, 3..3), 3..4),
+        ("x = @\n", "x = @", (StructuralKind::ErrorGroup, 4..5), 5..6),
+        ("x = ", "x = ", (StructuralKind::Missing, 4..4), 4..4),
     ] {
-        let (green, records, exit, rest) = parse(source, None, MlMode::All, 0, None);
+        let (green, exit, rest) = parse(source, None, MlMode::All, 0);
         assert_eq!(green.to_string(), emitted);
         assert_eq!(rest, "");
-        assert_eq!(
-            records,
-            [CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone()
-                },
-                kind,
-                unexpected: if kind == RecoveryKind::Missing {
-                    Arc::from([])
-                } else {
-                    Arc::from([UnexpectedSyntax::Token {
-                        range: range.clone(),
-                        category: UnexpectedCategory::OtherCharacter,
-                    }])
-                },
-                expectations: Arc::from([SyntaxExpectation {
-                    role,
-                    expected: ExpectedSyntax::Expression,
-                    range,
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            }]
-        );
+        assert_eq!(structural_facts(&green), [fact]);
         let NormalizedExit::Complete(Err(Either::Right(end)), _) = exit else {
             panic!("pending EOF Item")
         };
@@ -835,8 +703,7 @@ fn assignment_newline_eof_is_protected_before_and_after_error() {
         let mut item = end.item;
         item.emit_eof_leading(&mut pending);
         pending.finish_node();
-        let (pending, pending_records) = (pending.finish(), recover.finish_recoveries_for_test());
+        let pending = finish_with_discarded_recoveries(pending, recover);
         assert_eq!(pending.to_string(), &source[emitted.len()..]);
-        assert!(pending_records.is_empty());
     }
 }

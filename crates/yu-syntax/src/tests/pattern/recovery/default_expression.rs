@@ -1,10 +1,7 @@
-use crate::recovery_record::{ConstructRole, Delimiter, PunctuationEvidence};
-use crate::tests::pattern::recovery::delimited::close_record;
 use crate::tests::pattern::recovery::*;
 
 #[test]
 fn record_default_expression_slot_is_derived_from_direct_rowan_order() {
-    use PatternRole::{RecordDefaultExpression as D, RecordItem as I, RecordSeparator as S};
     use SyntaxKind::{
         Colon, Comma, Equals, Error, Identifier, LBrace, Missing, OperatorChain, Pattern, RBrace,
         RecordPattern, RecordPatternField as F, Whitespace as W,
@@ -114,15 +111,12 @@ fn record_default_expression_slot_is_derived_from_direct_rowan_order() {
         ),
     ] {
         for origin in [0, 41] {
-            // Compatibility records are checked by the existing tests. This
-            // bounded projection uses only ordered CST, never those records.
             let fresh = run(
                 source,
                 Context {
                     origin,
                     ..Context::default()
                 },
-                None,
             );
             assert_eq!(fresh.remainder, "");
             let root = SyntaxNode::new_root(fresh.green);
@@ -137,7 +131,6 @@ fn record_default_expression_slot_is_derived_from_direct_rowan_order() {
             let first_field = owner.children().next().unwrap();
             assert_children(&first_field, 1, &field_children);
 
-            let mut phase = I;
             let mut observed = Vec::new();
             for child in owner.children_with_tokens() {
                 let start = usize::from(child.text_range().start()) - "sentinel".len();
@@ -165,28 +158,14 @@ fn record_default_expression_slot_is_derived_from_direct_rowan_order() {
                                 assert_children(expression, at, &[(Missing, "")]);
                                 let missing = expression.children().next().unwrap();
                                 assert_eq!(missing.children_with_tokens().count(), 0);
-                                observed.push((
-                                    D,
-                                    at..at,
-                                    RecoveryKind::Missing,
-                                    ExpectedSyntax::Expression,
-                                    0,
-                                ));
+                                observed.push((StructuralKind::Missing, at..at));
                             }
                         }
-                        phase = S;
                     }
-                    Comma => phase = I,
+                    Comma => {}
                     Error => {
                         assert!(child.as_token().is_some());
-                        observed.push((
-                            phase,
-                            start..end,
-                            RecoveryKind::Error,
-                            ExpectedSyntax::DelimitedSequenceSeparator,
-                            0,
-                        ));
-                        phase = I;
+                        observed.push((StructuralKind::ErrorGroup, start..end));
                     }
                     LBrace | RBrace | W => {}
                     kind => panic!("unexpected direct child {kind:?} in {source:?}"),
@@ -194,22 +173,10 @@ fn record_default_expression_slot_is_derived_from_direct_rowan_order() {
             }
             let mut expected = Vec::new();
             if let Some(at) = default_at {
-                expected.push((
-                    D,
-                    at..at,
-                    RecoveryKind::Missing,
-                    ExpectedSyntax::Expression,
-                    0,
-                ));
+                expected.push((StructuralKind::Missing, at..at));
             }
             if separator {
-                expected.push((
-                    S,
-                    3..4,
-                    RecoveryKind::Error,
-                    ExpectedSyntax::DelimitedSequenceSeparator,
-                    0,
-                ));
+                expected.push((StructuralKind::ErrorGroup, 3..4));
             }
             assert_eq!(observed, expected, "{source:?}");
             // No default Error/retry, duplicate sequence Missing, or recovery
@@ -242,12 +209,7 @@ fn record_default_missing_publishes_its_required_expression_wrapper_and_role() {
                     origin,
                     ..Context::default()
                 },
-                &[record(
-                    1,
-                    PatternRole::RecordDefaultExpression,
-                    origin + at..origin + at,
-                    false,
-                )],
+                &[fact(false, at..at)],
                 source,
                 PatternCompletion::Complete,
             );
@@ -277,12 +239,7 @@ fn record_default_missing_publishes_its_required_expression_wrapper_and_role() {
                 closes: PatternCallerCloses::RBRACE,
                 ..Context::default()
             },
-            &[record(
-                1,
-                PatternRole::RecordDefaultExpression,
-                origin + 4..origin + 4,
-                false,
-            )],
+            &[fact(false, 4..4)],
             "{a= }",
             PatternCompletion::Complete,
         );
@@ -291,47 +248,26 @@ fn record_default_missing_publishes_its_required_expression_wrapper_and_role() {
 
 #[test]
 fn record_default_missing_orders_nested_pattern_structured_and_sequence_records() {
-    use PatternRole::{
-        RecordDefaultExpression as D, RecordItem as I, RecordNestedPattern as N,
-        RecordSeparator as S,
-    };
     for origin in [0, 41] {
         for (source, expected, completion) in [
             (
                 "{a: =}",
-                vec![
-                    record(1, N, origin + 4..origin + 4, false),
-                    record(2, D, origin + 5..origin + 5, false),
-                ],
+                vec![fact(false, 4..4), fact(false, 5..5)],
                 PatternCompletion::Incomplete,
             ),
             (
                 "{{a=}}",
-                vec![
-                    record(1, I, origin + 1..origin + 5, true),
-                    record(2, D, origin + 4..origin + 4, false),
-                ],
+                vec![invalid_fact(1..5), fact(false, 4..4)],
                 PatternCompletion::Complete,
             ),
             (
                 "{a=@ x}",
-                vec![
-                    record(1, D, origin + 3..origin + 3, false),
-                    record(2, S, origin + 3..origin + 4, true),
-                ],
+                vec![fact(false, 3..3), fact(true, 3..4)],
                 PatternCompletion::Complete,
             ),
             (
                 "{a= ",
-                vec![
-                    record(1, D, origin + 4..origin + 4, false),
-                    close_record(
-                        2,
-                        ConstructRole::RecordPattern,
-                        Delimiter::Brace,
-                        origin + 4,
-                    ),
-                ],
+                vec![fact(false, 4..4), fact(false, 4..4)],
                 PatternCompletion::Incomplete,
             ),
         ] {
@@ -346,28 +282,13 @@ fn record_default_missing_orders_nested_pattern_structured_and_sequence_records(
                 completion,
             );
         }
-        let mut wrong_close = close_record(
-            2,
-            ConstructRole::RecordPattern,
-            Delimiter::Brace,
-            origin + 3,
-        );
-        wrong_close.kind = RecoveryKind::Error;
-        wrong_close.site.range = origin + 3..origin + 4;
-        Arc::make_mut(&mut wrong_close.expectations)[0].range = origin + 3..origin + 4;
-        wrong_close.unexpected = Arc::from([UnexpectedSyntax::Token {
-            range: origin + 3..origin + 4,
-            category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
-                Delimiter::Bracket,
-            )),
-        }]);
         checked(
             "{a=]}",
             Context {
                 origin,
                 ..Context::default()
             },
-            &[record(1, D, origin + 3..origin + 3, false), wrong_close],
+            &[fact(false, 3..3), fact(true, 3..4)],
             "{a=]}",
             PatternCompletion::Complete,
         );
@@ -390,18 +311,15 @@ fn record_default_missing_preserves_carried_closes_in_both_field_forms() {
                         closes,
                         ..Context::default()
                     };
-                    let at = origin + prefix.len();
+                    let at = prefix.len();
                     let fresh = checked(
                         &source,
                         context,
-                        &[
-                            record(1, PatternRole::RecordDefaultExpression, at..at, false),
-                            close_record(2, ConstructRole::RecordPattern, Delimiter::Brace, at),
-                        ],
+                        &[fact(false, at..at), fact(false, at..at)],
                         prefix,
                         PatternCompletion::Incomplete,
                     );
-                    assert_pending_control(&fresh, &suffix, at, context);
+                    assert_pending_control(&fresh, &suffix, origin + at, context);
                 }
             }
         }
@@ -412,20 +330,7 @@ fn record_default_missing_preserves_carried_closes_in_both_field_forms() {
                 origin,
                 ..Context::default()
             },
-            &[
-                record(
-                    1,
-                    PatternRole::RecordDefaultExpression,
-                    origin + 4..origin + 4,
-                    false,
-                ),
-                close_record(
-                    2,
-                    ConstructRole::RecordPattern,
-                    Delimiter::Brace,
-                    origin + 4,
-                ),
-            ],
+            &[fact(false, 4..4), fact(false, 4..4)],
             source,
             PatternCompletion::Incomplete,
         );
@@ -467,14 +372,11 @@ fn record_default_missing_fences_keep_whole_items_and_order_before_record_close(
                     fence: Some(&fence),
                     ..Context::default()
                 };
-                let at = origin + prefix.len() + if suffix.is_empty() { 0 } else { 2 };
+                let at = prefix.len();
                 let fresh = checked(
                     &source,
                     context,
-                    &[
-                        record(1, PatternRole::RecordDefaultExpression, at..at, false),
-                        close_record(2, ConstructRole::RecordPattern, Delimiter::Brace, at),
-                    ],
+                    &[fact(false, at..at), fact(false, at..at)],
                     prefix,
                     PatternCompletion::Incomplete,
                 );
@@ -538,12 +440,8 @@ fn record_default_exact_equals_rejection_preserves_the_original_literal_controls
 
         // The complete malformed source stays covered; no default owner is
         // entered. Literal-owned raw recovery remains an open SCC obligation.
-        let fresh = run(source, Context::default(), None);
+        let fresh = run(source, Context::default());
         assert_eq!(fresh.green.to_string(), format!("sentinel{source}"));
-        assert!(
-            !fresh.records.iter().any(|record| record.site.role
-                == GrammarRole::Pattern(PatternRole::RecordDefaultExpression))
-        );
         let root = SyntaxNode::new_root(fresh.green);
         assert!(
             root.descendants_with_tokens()

@@ -10,6 +10,7 @@ use crate::{
         rule_body_witness, scan_rule_current_item_witness, scan_rule_introducer_successor_witness,
         scan_rule_item_witness,
     },
+    structural_diagnostic::StructuralKind,
 };
 use reborrow_generic::Reborrow as _;
 
@@ -98,7 +99,7 @@ fn run_rule_body_with_fence_and_operators<'source>(
     );
     builder.finish_node();
     (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        finish_with_discarded_recoveries(builder, recover),
         exit,
         input,
     )
@@ -131,7 +132,7 @@ fn run_rule_body_normalized<'source>(
     );
     builder.finish_node();
     (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        finish_with_discarded_recoveries(builder, recover),
         exit,
         line_entry,
         input,
@@ -158,7 +159,7 @@ fn run_rule_body_with<'source>(
     );
     builder.finish_node();
     (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        finish_with_discarded_recoveries(builder, recover),
         exit,
         input,
     )
@@ -916,15 +917,8 @@ fn expression_list_fence_handoff_keeps_the_exact_item_and_leading_trivia() {
         70,
     );
     builder.finish_node();
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-    assert_eq!(records.len(), 1);
-    assert_eq!(
-        records[0].site.role,
-        crate::recovery_record::GrammarRole::ClosingDelimiter {
-            owner: crate::recovery_record::ConstructRole::ExpressionList,
-            delimiter: crate::recovery_record::Delimiter::Parenthesis,
-        }
-    );
+    let green = finish_with_discarded_recoveries(builder, recover);
+    assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 0..0)]);
     let returned = returned(exit);
     let (leading, pending) = emit_terminal_leading_text(returned);
     assert_eq!(leading, "\n  ");

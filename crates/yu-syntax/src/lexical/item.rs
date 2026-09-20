@@ -537,7 +537,7 @@ impl PendingFragments {
     pub(super) fn visit_segments(
         &self,
         text: &str,
-        mut visit: impl FnMut(&str, std::ops::Range<usize>, SyntaxKind),
+        mut visit: impl FnMut(&str, std::ops::Range<usize>),
     ) {
         assert_eq!(text.len(), self.physical.end - self.physical.start);
         let mut cursor = self.physical.start;
@@ -546,14 +546,12 @@ impl PendingFragments {
                 visit(
                     &text[cursor - self.physical.start..split.offset - self.physical.start],
                     cursor..split.offset,
-                    SyntaxKind::Unknown,
                 );
             }
             let end = split.offset + split.length;
             visit(
                 &text[split.offset - self.physical.start..end - self.physical.start],
                 split.offset..end,
-                SyntaxKind::YmQuotePrefix,
             );
             cursor = end;
         }
@@ -561,7 +559,6 @@ impl PendingFragments {
             visit(
                 &text[cursor - self.physical.start..],
                 cursor..self.physical.end,
-                SyntaxKind::Unknown,
             );
         }
     }
@@ -717,33 +714,6 @@ impl Item {
             remaining: remaining_start..leading_end,
             payload: leading_end..payload_end,
         }
-    }
-
-    /// Returns the only retry-leading suffix that may extend a recovery
-    /// record without moving any byte into its Error node.
-    ///
-    /// The query is source-free and leaves the borrowed Item unchanged. It is
-    /// deliberately stricter than ordinary grammar trivia classification:
-    /// every leading part must still be owned, same-line, and carrier-free.
-    pub(crate) fn retry_leading_diagnostic_suffix(
-        &self,
-        successor_origin: usize,
-    ) -> Option<std::ops::Range<usize>> {
-        if self.first_unemitted_leading != 0
-            || self.physical_leading.is_empty()
-            || self.fragments.is_some()
-            || self.payload_text().is_none()
-            || self.physical_leading.iter().any(|part| {
-                matches!(part.kind, TriviaKind::Newline | TriviaKind::YmQuotePrefix)
-                    || part.text.contains(['\r', '\n'])
-            })
-        {
-            return None;
-        }
-        let extent = self.extent(successor_origin);
-        let suffix = extent.remaining();
-        let payload = extent.payload();
-        (!suffix.is_empty() && suffix.end == payload.start).then_some(suffix)
     }
 
     /// Validates the only leading prefix which a PathSegment Error may emit

@@ -1,98 +1,31 @@
-use crate::recovery_record::{
-    DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind, RecoverySiteKey,
-    StatementRole, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-};
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
 use std::{ops::Range, sync::Arc};
 
-pub(super) fn virtual_record(
-    id: u32,
-    role: StatementRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        StatementRole::Starter => ExpectedSyntax::Statement,
-        StatementRole::Separator => ExpectedSyntax::StatementSeparator,
-        _ => unreachable!(),
-    };
-    let role = GrammarRole::Statement(role);
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Missing {
-            Arc::from([])
-        } else {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
 #[test]
-fn virtual_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
-    use RecoveryKind::{Error, Missing};
-    use StatementRole::{Separator, Starter};
+fn virtual_selected_slots_have_exact_structural_facts() {
+    use StructuralKind::{ErrorGroup, Missing};
     for (source, slots) in [
-        (
-            ",;}",
-            vec![(Starter, Missing, 0..0), (Starter, Missing, 1..1)],
-        ),
-        (
-            "; ,}",
-            vec![(Starter, Missing, 0..0), (Starter, Missing, 1..1)],
-        ),
+        (",;}", vec![(Missing, 0..0), (Missing, 1..1)]),
+        ("; ,}", vec![(Missing, 0..0), (Missing, 1..1)]),
         ("a,}", vec![]),
         ("a;}", vec![]),
-        ("role R; value}", vec![(Separator, Missing, 7..7)]),
-        (" @ @ α}", vec![(Starter, Error, 0..4)]),
-        (" @ 💥 α}", vec![(Starter, Error, 0..7)]),
-        ("@ role R;}", vec![(Starter, Error, 0..1)]),
-        ("@ \"α\"}", vec![(Starter, Error, 0..1)]),
-        ("a @ value}", vec![(Starter, Error, 1..3)]),
-        (
-            " , @}",
-            vec![(Starter, Missing, 0..0), (Starter, Error, 3..4)],
-        ),
+        ("role R; value}", vec![(Missing, 7..7)]),
+        (" @ @ α}", vec![(ErrorGroup, 0..4)]),
+        (" @ 💥 α}", vec![(ErrorGroup, 0..7)]),
+        ("@ role R;}", vec![(ErrorGroup, 0..1)]),
+        ("@ \"α\"}", vec![(ErrorGroup, 0..1)]),
+        ("a @ value}", vec![(ErrorGroup, 1..3)]),
+        (" , @}", vec![(Missing, 0..0), (ErrorGroup, 3..4)]),
         (" \t}", vec![]),
     ] {
         for origin in [0, 8100] {
-            let expected: Vec<_> = slots
-                .iter()
-                .enumerate()
-                .map(|(id, (role, kind, range))| {
-                    virtual_record(
-                        id as u32,
-                        *role,
-                        *kind,
-                        origin + range.start..origin + range.end,
-                    )
-                })
-                .collect();
-            let mut fresh = None;
-            for frozen in [None, Some(expected.as_slice())] {
+            let expected = slots.clone();
+            for _ in 0..1 {
                 let operators = OperatorTable::empty();
                 let mut recover = Recover::new_for_test(&operators);
                 let mut input = source;
-                let mut output = frozen
-                    .map(|records| {
-                        recover = Recover::reconcile_for_test(recover.operators(), records);
-                        GreenNodeBuilder::new()
-                    })
-                    .unwrap_or_else(GreenNodeBuilder::new);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let exit = virtual_statement_block_normalized(
                     crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -102,18 +35,13 @@ fn virtual_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
                     None.into(),
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-                assert_eq!(records, expected, "{source:?} at {origin}");
+                let green = finish_with_discarded_recoveries(output, recover);
+                assert_eq!(structural_facts(&green), expected, "{source:?} at {origin}");
                 let VirtualStatementBlockExit::Close(item, _) = exit else {
                     panic!("pending close for {source:?}")
                 };
                 assert_eq!(item.payload_view().token_kind(), Some(TokenKind::RBrace));
                 assert_eq!(input, "");
-                if let Some(fresh) = &fresh {
-                    assert_eq!(&green, fresh);
-                } else {
-                    fresh = Some(green);
-                }
             }
         }
     }
@@ -146,16 +74,11 @@ fn virtual_error_keeps_terminal_leading_and_source_suffix() {
             None.into(),
         );
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
         assert_eq!(green.to_string(), " @");
         assert_eq!(
-            records,
-            [virtual_record(
-                0,
-                StatementRole::Starter,
-                RecoveryKind::Error,
-                300..302
-            )]
+            structural_facts(&green),
+            [(StructuralKind::ErrorGroup, 0..2)]
         );
         let (VirtualStatementBlockExit::Close(mut item, _)
         | VirtualStatementBlockExit::Boundary(mut item, _)) = exit;
@@ -172,79 +95,13 @@ fn virtual_error_keeps_terminal_leading_and_source_suffix() {
 }
 
 #[test]
-fn virtual_slots_preserve_seeded_and_frozen_ids_then_allocate_above_them() {
-    for (source, role, kind, range) in [
-        (",}", StatementRole::Starter, RecoveryKind::Missing, 0..0),
-        (
-            "role R; value}",
-            StatementRole::Separator,
-            RecoveryKind::Missing,
-            7..7,
-        ),
-        (" @}", StatementRole::Starter, RecoveryKind::Error, 0..2),
-    ] {
-        let seed = virtual_record(7, StatementRole::Starter, RecoveryKind::Missing, 0..0);
-        let reused = virtual_record(19, role, kind, 100 + range.start..100 + range.end);
-        let frozen = [seed.clone(), reused.clone()];
-        let operators = OperatorTable::empty();
-        let mut recover = Recover::new_for_test(&operators);
-        let mut output = {
-            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
-            GreenNodeBuilder::new()
-        };
-        output.start_node(SyntaxKind::Root.into());
-        output.start_node(SyntaxKind::Missing.into());
-        output.finish_node();
-        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-            seed.site.clone(),
-            seed.kind,
-            seed.unexpected.clone(),
-            seed.expectations.clone(),
-            0,
-        ));
-        for origin in [100, 200] {
-            let mut input = source;
-            let exit = virtual_statement_block_normalized(
-                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
-                origin,
-                LineEntry::InLine,
-                None,
-                None.into(),
-            );
-            assert!(matches!(exit, VirtualStatementBlockExit::Close(_, _)));
-        }
-        output.finish_node();
-        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
-        assert_eq!(
-            records,
-            [
-                seed,
-                reused,
-                virtual_record(20, role, kind, 200 + range.start..200 + range.end)
-            ]
-        );
-    }
-}
-
-#[test]
 fn virtual_error_extent_includes_owned_foreign_prefix() {
     let fence = active_fence();
-    let expected = [virtual_record(
-        0,
-        StatementRole::Starter,
-        RecoveryKind::Error,
-        400..410,
-    )];
-    for frozen in [None, Some(expected.as_slice())] {
+    for _ in 0..1 {
         let operators = OperatorTable::empty();
         let mut recover = Recover::new_for_test(&operators);
         let mut input = "> > @ 💥 α}";
-        let mut output = frozen
-            .map(|records| {
-                recover = Recover::reconcile_for_test(recover.operators(), records);
-                GreenNodeBuilder::new()
-            })
-            .unwrap_or_else(GreenNodeBuilder::new);
+        let mut output = GreenNodeBuilder::new();
         output.start_node(SyntaxKind::Root.into());
         let exit = virtual_statement_block_normalized(
             crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -254,8 +111,11 @@ fn virtual_error_extent_includes_owned_foreign_prefix() {
             None.into(),
         );
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-        assert_eq!(records, expected);
+        let green = finish_with_discarded_recoveries(output, recover);
+        assert_eq!(
+            structural_facts(&green),
+            [(StructuralKind::ErrorGroup, 0..10)]
+        );
         assert_eq!(green.to_string(), "> > @ 💥 α");
         assert!(matches!(exit, VirtualStatementBlockExit::Close(_, _)));
         assert_eq!(input, "");
@@ -325,7 +185,7 @@ fn run_virtual_string<'source>(
     );
     builder.finish_node();
     (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        finish_with_discarded_recoveries(builder, recover),
         exit,
         input,
     )

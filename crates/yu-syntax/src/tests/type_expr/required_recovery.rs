@@ -1,56 +1,27 @@
-use crate::recovery_record::{
-    ActDeclarationRole, CastRole, DeclarationRole, DerivesRole, EnumDeclarationRole,
-    ErrorDeclarationRole, ImplRole, PatternRole, RoleDeclarationRole, StructRole,
-    TypeDeclarationRole, VariantDeclarationRole,
-};
 use crate::tests::type_expr::*;
 
-pub(super) fn missing(id: u32, role: GrammarRole, at: usize) -> CommittedRecoveryRecord {
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: at..at,
-        },
-        kind: RecoveryKind::Missing,
-        unexpected: Arc::from([]),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::TypeExpression,
-            range: at..at,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+pub(super) fn missing(_: u32, at: usize) -> ExpectedStructural {
+    (StructuralKind::Missing, at..at)
 }
 
 #[allow(clippy::too_many_arguments)]
 fn run_required<'source>(
     source: &'source str,
-    role: GrammarRole,
     origin: usize,
     line: LineEntry,
     fence: Option<&FenceBoundary>,
     emit_leading: bool,
-    frozen: Option<&[CommittedRecoveryRecord]>,
 ) -> (ContextualTypeRun<'source>, bool) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
     let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut output);
     // A prior committed slot and CST sibling must survive this total attempt.
     output.start_node(SyntaxKind::Missing.into());
     output.finish_node();
-    commit_record_draft(
-        &mut recover,
-        &missing(0, GrammarRole::Type(TypeRole::ArrowRhs), origin),
-    );
     let (mut primary, next_origin, next_line) = crate::type_expr::type_nud_item_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         origin,
@@ -61,24 +32,21 @@ fn run_required<'source>(
         primary.emit_all_remaining_leading(&mut output);
     }
     let (exit, found) = crate::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
-        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output), primary, role, 0,
+        crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output), primary, 0,
         crate::lexical::stops::STOP_WITH, crate::type_expr::TypeOuterBoundary::WITH,
         next_origin, next_line, fence,
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into());
-    let slots = recover.recovery_slot_count();
-    let diagnostics = recover.diagnostic_position();
     output.finish_node();
     let same_operators = std::ptr::eq(recover.operators(), &operators);
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
     (
         ContextualTypeRun {
             green,
             exit,
             successor_origin: origin + source.len() - input.len(),
             remainder: input,
-            records,
-            slots,
-            diagnostics,
+            facts,
             mark,
             same_operators,
         },
@@ -110,85 +78,45 @@ pub(super) fn assert_same_exit(left: &NormalizedExit, right: &NormalizedExit) {
 }
 
 #[test]
-fn required_missing_uses_the_explicit_role_and_remaining_extent_with_seeded_frozen_output() {
-    for role in [
-        GrammarRole::Type(TypeRole::Primary),
-        GrammarRole::Pattern(PatternRole::TypeAnnotation),
-        GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs)),
-    ] {
-        for origin in [0, 41] {
-            for (source, emit_leading, at, emitted) in [
-                ("", false, 0, ""),
-                (" ", false, 0, ""),
-                (" ", true, 1, " "),
-                (" /*é*/ )tail", false, 0, ""),
-                (" /*é*/ )tail", true, 8, " /*é*/ "),
-                ("\n)tail", false, 0, ""),
-                (" with tail", false, 0, ""),
-            ] {
-                let expected = [
-                    missing(0, GrammarRole::Type(TypeRole::ArrowRhs), origin),
-                    missing(1, role, origin + at),
-                ];
-                let (fresh, found) = run_required(
-                    source,
-                    role,
-                    origin,
-                    LineEntry::InLine,
-                    None,
-                    emit_leading,
-                    None,
-                );
-                assert!(!found);
-                assert_eq!(fresh.green.to_string(), format!("sentinel{emitted}"));
-                assert_eq!(fresh.records, expected, "{source:?}");
-                assert_eq!(fresh.slots, 2);
-                assert_eq!(fresh.diagnostics, (Some(2), 0));
-                assert_eq!(fresh.mark, ());
-                assert!(fresh.same_operators);
-                let (mut control, next, line, remainder, _, _) =
-                    scan_type_item_control(source, origin, &OperatorTable::empty());
-                if emit_leading {
-                    let mut leading_output = GreenNodeBuilder::new();
-                    leading_output.start_node(SyntaxKind::Root.into());
-                    control.emit_all_remaining_leading(&mut leading_output);
-                    leading_output.finish_node();
-                    assert_eq!(leading_output.finish().to_string(), emitted);
-                }
-                match &fresh.exit {
-                    NormalizedExit::Complete(Err(Either::Left(pending)), actual_line) => {
-                        assert_eq!(pending, &control);
-                        assert_eq!(*actual_line, line);
-                    }
-                    NormalizedExit::Complete(Err(Either::Right(end)), actual_line) => {
-                        assert_eq!(end.item, control);
-                        assert_eq!(*actual_line, line);
-                    }
-                    _ => panic!("required Missing must return its pending Item"),
-                }
-                assert_eq!(fresh.successor_origin, next);
-                assert_eq!(fresh.remainder, remainder);
-                let frozen = frozen_recovery_ids(&expected);
-                let (replay, found) = run_required(
-                    source,
-                    role,
-                    origin,
-                    LineEntry::InLine,
-                    None,
-                    emit_leading,
-                    Some(&frozen),
-                );
-                assert!(!found);
-                assert_eq!(replay.green, fresh.green);
-                assert_eq!(replay.records, frozen);
-                assert_eq!(replay.slots, 2);
-                assert_eq!(replay.diagnostics, (Some(9), 2));
-                assert_eq!(replay.mark, ());
-                assert!(replay.same_operators);
-                assert_same_exit(&fresh.exit, &replay.exit);
-                assert_eq!(replay.successor_origin, fresh.successor_origin);
-                assert_eq!(replay.remainder, fresh.remainder);
+fn required_missing_preserves_remaining_extent_with_seeded_output() {
+    for origin in [0, 41] {
+        for (source, emit_leading, _at, emitted) in [
+            ("", false, 0, ""),
+            (" ", false, 0, ""),
+            (" ", true, 1, " "),
+            (" /*é*/ )tail", false, 0, ""),
+            (" /*é*/ )tail", true, 8, " /*é*/ "),
+            ("\n)tail", false, 0, ""),
+            (" with tail", false, 0, ""),
+        ] {
+            let (fresh, found) =
+                run_required(source, origin, LineEntry::InLine, None, emit_leading);
+            assert!(!found);
+            assert_eq!(fresh.green.to_string(), format!("sentinel{emitted}"));
+            assert_eq!(fresh.mark, ());
+            assert!(fresh.same_operators);
+            let (mut control, next, line, remainder, _, _) =
+                scan_type_item_control(source, origin, &OperatorTable::empty());
+            if emit_leading {
+                let mut leading_output = GreenNodeBuilder::new();
+                leading_output.start_node(SyntaxKind::Root.into());
+                control.emit_all_remaining_leading(&mut leading_output);
+                leading_output.finish_node();
+                assert_eq!(leading_output.finish().to_string(), emitted);
             }
+            match &fresh.exit {
+                NormalizedExit::Complete(Err(Either::Left(pending)), actual_line) => {
+                    assert_eq!(pending, &control);
+                    assert_eq!(*actual_line, line);
+                }
+                NormalizedExit::Complete(Err(Either::Right(end)), actual_line) => {
+                    assert_eq!(end.item, control);
+                    assert_eq!(*actual_line, line);
+                }
+                _ => panic!("required Missing must return its pending Item"),
+            }
+            assert_eq!(fresh.successor_origin, next);
+            assert_eq!(fresh.remainder, remainder);
         }
     }
 }
@@ -204,25 +132,17 @@ fn required_missing_fence_uses_inspected_coordinate_without_absorbing_quoted_lea
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    let role = GrammarRole::Pattern(PatternRole::TypeAnnotation);
     let source = "> > \r\n> > ```\nouter";
     for origin in [0, 41] {
-        let expected = [
-            missing(0, GrammarRole::Type(TypeRole::ArrowRhs), origin),
-            missing(1, role, origin + 6),
-        ];
         let (fresh, found) = run_required(
             source,
-            role,
             origin,
             LineEntry::PhysicalStart,
             Some(&fence),
             false,
-            None,
         );
         assert!(!found);
         assert_eq!(fresh.green.to_string(), "sentinel");
-        assert_eq!(fresh.records, expected);
         assert_eq!(fresh.remainder, "> > ```\nouter");
         assert_eq!(fresh.successor_origin, origin + 6);
         let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart) =
@@ -235,40 +155,18 @@ fn required_missing_fence_uses_inspected_coordinate_without_absorbing_quoted_lea
             origin + 6
         );
         assert!(item.leading_view().has_ordinary_newline());
-        let frozen = frozen_recovery_ids(&expected);
-        let (replay, found) = run_required(
-            source,
-            role,
-            origin,
-            LineEntry::PhysicalStart,
-            Some(&fence),
-            false,
-            Some(&frozen),
-        );
-        assert!(!found);
-        assert_eq!(replay.green, fresh.green);
-        assert_eq!(replay.records, frozen);
-        assert_eq!(replay.slots, 2);
-        assert_eq!(replay.diagnostics, (Some(9), 2));
-        assert_same_exit(&fresh.exit, &replay.exit);
-        assert_eq!(replay.successor_origin, fresh.successor_origin);
-        assert_eq!(replay.remainder, fresh.remainder);
     }
 }
 
-pub(super) fn run_statement_records<'source>(
+pub(super) fn run_statement_structural_facts<'source>(
     source: &'source str,
     origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
 ) -> ContextualTypeRun<'source> {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
     let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     seed_identifier(&mut output);
     let mut exit = statement_normalized(
@@ -284,19 +182,16 @@ pub(super) fn run_statement_records<'source>(
     if let NormalizedExit::Complete(Err(Either::Right(end)), _) = &mut exit {
         emit_end(&mut output, end);
     }
-    let slots = recover.recovery_slot_count();
-    let diagnostics = recover.diagnostic_position();
     output.finish_node();
     let same_operators = std::ptr::eq(recover.operators(), &operators);
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
     ContextualTypeRun {
         green,
         exit,
-        records,
+        facts,
         successor_origin: origin + source.len() - input.len(),
         remainder: input,
-        slots,
-        diagnostics,
         mark,
         same_operators,
     }
@@ -304,59 +199,32 @@ pub(super) fn run_statement_records<'source>(
 
 #[test]
 fn required_type_real_declaration_callers_publish_their_own_missing_roles() {
-    use DeclarationRole as D;
     for origin in [0, 41] {
-        for (source, role, at) in [
-            ("type T =", D::Type(TypeDeclarationRole::Rhs), 8),
-            ("type T = ", D::Type(TypeDeclarationRole::Rhs), 9),
-            ("struct S {a:}", D::Struct(StructRole::FieldType), 12),
-            ("struct S:\n  a:", D::Struct(StructRole::FieldType), 14),
-            (
-                "enum E { A from }",
-                D::Enum(EnumDeclarationRole::Variant(
-                    VariantDeclarationRole::FromType,
-                )),
-                16,
-            ),
-            (
-                "error E { A from }",
-                D::Error(ErrorDeclarationRole::Variant(
-                    VariantDeclarationRole::FromType,
-                )),
-                17,
-            ),
-            (
-                "enum E { A {a:} }",
-                D::Enum(EnumDeclarationRole::Variant(
-                    VariantDeclarationRole::NamedFieldType,
-                )),
-                14,
-            ),
-            (
-                "error E { A {a:} }",
-                D::Error(ErrorDeclarationRole::Variant(
-                    VariantDeclarationRole::NamedFieldType,
-                )),
-                15,
-            ),
-            ("role ;", D::Role(RoleDeclarationRole::Head), 5),
-            ("impl ;", D::Impl(ImplRole::Head), 5),
-            ("impl T: ;", D::Impl(ImplRole::Description), 8),
-            ("act;", D::Act(ActDeclarationRole::Head), 3),
-            ("act A = ;", D::Act(ActDeclarationRole::Source), 7),
-            ("cast(x): ;", D::Cast(CastRole::TargetType), 9),
+        for (source, at) in [
+            ("type T =", 8),
+            ("type T = ", 9),
+            ("struct S {a:}", 12),
+            ("struct S:\n  a:", 14),
+            ("enum E { A from }", 16),
+            ("error E { A from }", 17),
+            ("enum E { A {a:} }", 14),
+            ("error E { A {a:} }", 15),
+            ("role ;", 5),
+            ("impl ;", 5),
+            ("impl T: ;", 8),
+            ("act;", 3),
+            ("act A = ;", 7),
+            ("cast(x): ;", 9),
         ] {
-            let expected = [missing(0, GrammarRole::Declaration(role), origin + at)];
-            let fresh = run_statement_records(source, origin, None);
+            let expected = [missing(0, "sentinel".len() + at)];
+            let fresh = run_statement_structural_facts(source, origin);
             assert_eq!(
                 fresh.green.to_string(),
                 format!("sentinel{source}"),
                 "{source:?}"
             );
             assert_eq!(fresh.remainder, "", "{source:?}");
-            assert_eq!(fresh.records, expected, "{source:?}");
-            assert_eq!(fresh.slots, 1);
-            assert_eq!(fresh.diagnostics, (Some(1), 0));
+            assert_eq!(fresh.facts, expected, "{source:?}");
             assert_eq!(fresh.mark, ());
             assert!(fresh.same_operators);
             let root = SyntaxNode::new_root(fresh.green.clone());
@@ -367,12 +235,9 @@ fn required_type_real_declaration_callers_publish_their_own_missing_roles() {
                 1,
                 "{source:?}"
             );
-            let frozen = frozen_recovery_ids(&expected);
-            let replay = run_statement_records(source, origin, Some(&frozen));
+            let replay = run_statement_structural_facts(source, origin);
             assert_eq!(replay.green, fresh.green);
-            assert_eq!(replay.records, frozen);
-            assert_eq!(replay.slots, 1);
-            assert_eq!(replay.diagnostics, (Some(8), 1));
+            assert_eq!(replay.facts, fresh.facts);
             assert_same_exit(&fresh.exit, &replay.exit);
             assert_eq!(replay.successor_origin, fresh.successor_origin);
             assert_eq!(replay.remainder, fresh.remainder);
@@ -514,7 +379,7 @@ fn named_field_required_type_missing_has_direct_three_owner_rowan_slots() {
             .ancestors()
             .map(|node| node.kind())
             .collect::<Vec<_>>();
-        let role = GrammarRole::Declaration(match ancestry.as_slice() {
+        match ancestry.as_slice() {
             [
                 Missing,
                 TypeExpression,
@@ -522,7 +387,7 @@ fn named_field_required_type_missing_has_direct_three_owner_rowan_slots() {
                 StructDeclaration,
                 Statement,
                 Root,
-            ] => DeclarationRole::Struct(StructRole::FieldType),
+            ] => {}
             [
                 Missing,
                 TypeExpression,
@@ -531,9 +396,7 @@ fn named_field_required_type_missing_has_direct_three_owner_rowan_slots() {
                 EnumDeclaration,
                 Statement,
                 Root,
-            ] => DeclarationRole::Enum(EnumDeclarationRole::Variant(
-                VariantDeclarationRole::NamedFieldType,
-            )),
+            ] => {}
             [
                 Missing,
                 TypeExpression,
@@ -542,34 +405,17 @@ fn named_field_required_type_missing_has_direct_three_owner_rowan_slots() {
                 ErrorDeclaration,
                 Statement,
                 Root,
-            ] => DeclarationRole::Error(ErrorDeclarationRole::Variant(
-                VariantDeclarationRole::NamedFieldType,
-            )),
+            ] => {}
             _ => panic!("unexpected named-field ancestry: {ancestry:?}"),
-        });
+        };
         let range = missing_node.text_range();
         assert!(range.is_empty());
         assert_eq!(usize::from(range.start())..usize::from(range.end()), at..at);
-        let structural_projection = type_expr
-            .children()
-            .map(|child| {
-                assert_eq!(child, missing_node);
-                assert_eq!(child.kind(), Missing);
-                assert!(child.children_with_tokens().next().is_none());
-                (
-                    role,
-                    [ExpectedSyntax::TypeExpression],
-                    0,
-                    child.text_range(),
-                )
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            structural_projection,
-            [(role, [ExpectedSyntax::TypeExpression], 0, range)]
-        );
-        let expected = [missing(0, role, usize::from(range.start()))];
-        let mut fresh = run_statement_records(source, 0, None);
+        let structural_projection = type_expr.children().collect::<Vec<_>>();
+        assert_eq!(structural_projection, [missing_node.clone()]);
+        assert!(missing_node.children_with_tokens().next().is_none());
+        let expected = [missing(0, "sentinel".len() + usize::from(range.start()))];
+        let mut fresh = run_statement_structural_facts(source, 0);
         let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) = &mut fresh.exit
         else {
             panic!("{source:?}: seeded harness must also return EOF InLine");
@@ -583,19 +429,14 @@ fn named_field_required_type_missing_has_direct_three_owner_rowan_slots() {
             .find(|node| node.kind() == Statement)
             .unwrap();
         assert_eq!(seeded_statement.green(), statement.green());
-        assert_eq!(fresh.records, expected);
-        assert_eq!(fresh.slots, 1);
-        assert_eq!(fresh.diagnostics, (Some(1), 0));
+        assert_eq!(fresh.facts, expected);
         assert_eq!(fresh.mark, ());
         assert!(fresh.same_operators);
         assert_eq!(fresh.successor_origin, source.len());
         assert_eq!(fresh.remainder, "");
-        let frozen = frozen_recovery_ids(&expected);
-        let replay = run_statement_records(source, 0, Some(&frozen));
+        let replay = run_statement_structural_facts(source, 0);
         assert_eq!(replay.green, fresh.green);
-        assert_eq!(replay.records, frozen);
-        assert_eq!(replay.slots, 1);
-        assert_eq!(replay.diagnostics, (Some(8), 1));
+        assert_eq!(replay.facts, fresh.facts);
         assert_eq!(replay.mark, ());
         assert!(replay.same_operators);
         assert_same_exit(&fresh.exit, &replay.exit);
@@ -782,21 +623,7 @@ fn named_field_required_type_initial_error_has_direct_three_owner_rowan_slots() 
             }
             let range = usize::from(group[0].text_range().start())
                 ..usize::from(group.last().unwrap().text_range().end());
-            let projection = [(
-                GrammarRole::Type(TypeRole::Primary),
-                [ExpectedSyntax::TypeExpression],
-                0usize,
-                range.clone(),
-            )];
-            assert_eq!(
-                projection,
-                [(
-                    GrammarRole::Type(TypeRole::Primary),
-                    [ExpectedSyntax::TypeExpression],
-                    0usize,
-                    f + 3..error_end
-                )]
-            );
+            assert_eq!(range, f + 3..error_end);
             assert_eq!(direct.len(), 3 + group.len() + usize::from(retry));
             if retry {
                 assert_eq!(direct[3 + group.len()].kind(), TypeExpression);
@@ -814,23 +641,11 @@ fn named_field_required_type_initial_error_has_direct_three_owner_rowan_slots() 
                 group.len()
             );
 
-            // Records are compatibility evidence only, after CST-derived selection.
-            let mut unexpected = vec![UnexpectedSyntax::Token {
-                range: f + 3..f + 4,
-                category: UnexpectedCategory::OtherCharacter,
-            }];
-            if multileaf {
-                unexpected.push(UnexpectedSyntax::Token {
-                    range: f + 4..f + 7,
-                    category: UnexpectedCategory::OperatorLike,
-                });
-            }
-            let expected = [expected_required_type_primary_error(
-                0,
-                range,
-                Arc::from(unexpected),
+            let expected = [(
+                StructuralKind::ErrorGroup,
+                "sentinel".len() + range.start.."sentinel".len() + range.end,
             )];
-            let mut fresh = run_statement_records(source, 0, None);
+            let mut fresh = run_statement_structural_facts(source, 0);
             let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) =
                 &mut fresh.exit
             else {
@@ -848,19 +663,14 @@ fn named_field_required_type_initial_error_has_direct_three_owner_rowan_slots() 
                     .green(),
                 statement.green()
             );
-            assert_eq!(fresh.records, expected);
-            assert_eq!(fresh.slots, 1);
-            assert_eq!(fresh.diagnostics, (Some(1), 0));
+            assert_eq!(fresh.facts, expected);
             assert_eq!(fresh.mark, ());
             assert!(fresh.same_operators);
             assert_eq!(fresh.successor_origin, source.len());
             assert_eq!(fresh.remainder, "");
-            let frozen = frozen_recovery_ids(&expected);
-            let replay = run_statement_records(source, 0, Some(&frozen));
+            let replay = run_statement_structural_facts(source, 0);
             assert_eq!(replay.green, fresh.green);
-            assert_eq!(replay.records, frozen);
-            assert_eq!(replay.slots, 1);
-            assert_eq!(replay.diagnostics, (Some(8), 1));
+            assert_eq!(replay.facts, fresh.facts);
             assert_eq!(replay.mark, ());
             assert!(replay.same_operators);
             assert_same_exit(&fresh.exit, &replay.exit);
@@ -1073,21 +883,7 @@ fn tuple_and_positional_required_type_initial_error_have_direct_five_owner_slots
             }
             let range = usize::from(group[0].text_range().start())
                 ..usize::from(group.last().unwrap().text_range().end());
-            let projection = [(
-                GrammarRole::Type(TypeRole::Primary),
-                [ExpectedSyntax::TypeExpression],
-                0usize,
-                range.clone(),
-            )];
-            assert_eq!(
-                projection,
-                [(
-                    GrammarRole::Type(TypeRole::Primary),
-                    [ExpectedSyntax::TypeExpression],
-                    0usize,
-                    s..error_end
-                )]
-            );
+            assert_eq!(range, s..error_end);
             assert_eq!(direct.len(), start + group.len() + usize::from(retry));
             if retry {
                 let next = &direct[start + group.len()];
@@ -1110,23 +906,11 @@ fn tuple_and_positional_required_type_initial_error_have_direct_five_owner_slots
                 group.len()
             );
 
-            // Compatibility facts retain lexical Item ranges, separate from CST fragments.
-            let mut unexpected = vec![UnexpectedSyntax::Token {
-                range: s..s + 1,
-                category: UnexpectedCategory::OtherCharacter,
-            }];
-            if multileaf {
-                unexpected.push(UnexpectedSyntax::Token {
-                    range: s + 1..s + 4,
-                    category: UnexpectedCategory::OperatorLike,
-                });
-            }
-            let expected = [expected_required_type_primary_error(
-                0,
-                range,
-                Arc::from(unexpected),
+            let expected = [(
+                StructuralKind::ErrorGroup,
+                "sentinel".len() + range.start.."sentinel".len() + range.end,
             )];
-            let mut fresh = run_statement_records(source, 0, None);
+            let mut fresh = run_statement_structural_facts(source, 0);
             let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) =
                 &mut fresh.exit
             else {
@@ -1144,19 +928,14 @@ fn tuple_and_positional_required_type_initial_error_have_direct_five_owner_slots
                     .green(),
                 statement.green()
             );
-            assert_eq!(fresh.records, expected);
-            assert_eq!(fresh.slots, 1);
-            assert_eq!(fresh.diagnostics, (Some(1), 0));
+            assert_eq!(fresh.facts, expected);
             assert_eq!(fresh.mark, ());
             assert!(fresh.same_operators);
             assert_eq!(fresh.successor_origin, source.len());
             assert_eq!(fresh.remainder, "");
-            let frozen = frozen_recovery_ids(&expected);
-            let replay = run_statement_records(source, 0, Some(&frozen));
+            let replay = run_statement_structural_facts(source, 0);
             assert_eq!(replay.green, fresh.green);
-            assert_eq!(replay.records, frozen);
-            assert_eq!(replay.slots, 1);
-            assert_eq!(replay.diagnostics, (Some(8), 1));
+            assert_eq!(replay.facts, fresh.facts);
             assert_eq!(replay.mark, ());
             assert!(replay.same_operators);
             assert_same_exit(&fresh.exit, &replay.exit);
@@ -1169,53 +948,31 @@ fn tuple_and_positional_required_type_initial_error_have_direct_five_owner_slots
 #[test]
 fn required_caller_role_never_remaps_malformed_or_nested_type_recovery() {
     for (source, expected) in [
-        (
-            "type T = @",
-            expected_required_type_primary_error(
-                0,
-                9..10,
-                Arc::from([UnexpectedSyntax::Token {
-                    range: 9..10,
-                    category: UnexpectedCategory::OtherCharacter,
-                }]),
-            ),
-        ),
-        (
-            "type T = A->",
-            expected_type_expression_missing(0, TypeRole::ArrowRhs, 12),
-        ),
-        ("type T = {a:}", field_missing(12)),
+        ("type T = @", (StructuralKind::ErrorGroup, 17..18)),
+        ("type T = A->", (StructuralKind::Missing, (20)..(20))),
+        ("type T = {a:}", field_missing(20)),
     ] {
-        let fresh = run_statement_records(source, 0, None);
+        let fresh = run_statement_structural_facts(source, 0);
         assert_eq!(fresh.green.to_string(), format!("sentinel{source}"));
-        assert_eq!(fresh.records, [expected.clone()], "{source:?}");
-        let frozen = frozen_recovery_ids(&[expected]);
-        let replay = run_statement_records(source, 0, Some(&frozen));
+        assert_eq!(fresh.facts, [expected.clone()], "{source:?}");
+        let replay = run_statement_structural_facts(source, 0);
         assert_eq!(replay.green, fresh.green);
-        assert_eq!(replay.records, frozen);
+        assert_eq!(replay.facts, fresh.facts);
     }
-    let expected = [missing(
-        0,
-        GrammarRole::Pattern(PatternRole::TypeAnnotation),
-        2,
-    )];
-    let (green, _, records) = run_pattern_with_recoveries("x:", None);
-    assert_eq!(records, expected);
-    let frozen = frozen_recovery_ids(&expected);
-    let (replayed, _, records) = run_pattern_with_recoveries("x:", Some(&frozen));
-    assert_eq!(replayed, green);
-    assert_eq!(records, frozen);
+    let expected = [missing(0, 2)];
+    let (green, _, facts) = run_pattern_with_structural_diagnostics("x:");
+    assert_eq!(facts, expected);
+    assert_eq!(green.to_string(), "x:");
 }
 
 #[test]
 fn required_derives_role_preserves_the_nominal_declaration_terminator() {
     let source = "type T derives via key;";
     for origin in [0, 41] {
-        let role = GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference));
-        let expected = [missing(0, role, origin + 14)];
-        let fresh = run_statement_records(source, origin, None);
+        let expected = [missing(0, "sentinel".len() + 14)];
+        let fresh = run_statement_structural_facts(source, origin);
         assert_eq!(fresh.green.to_string(), "sentineltype T derives via key");
-        assert_eq!(fresh.records, expected);
+        assert_eq!(fresh.facts, expected);
         let NormalizedExit::Complete(Err(Either::Left(item)), line) = &fresh.exit else {
             panic!("nominal TypeDeclaration returns its terminator")
         };
@@ -1225,21 +982,13 @@ fn required_derives_role_preserves_the_nominal_declaration_terminator() {
         assert_eq!(*line, control_line);
         assert_eq!(fresh.successor_origin, next);
         assert_eq!(fresh.remainder, remainder);
-        let frozen = frozen_recovery_ids(&expected);
-        let replay = run_statement_records(source, origin, Some(&frozen));
+        let replay = run_statement_structural_facts(source, origin);
         assert_eq!(replay.green, fresh.green);
-        assert_eq!(replay.records, frozen);
+        assert_eq!(replay.facts, fresh.facts);
         assert_same_exit(&fresh.exit, &replay.exit);
-        assert_eq!(replay.slots, 1);
-        assert_eq!(replay.diagnostics, (Some(8), 1));
     }
 }
 
-fn field_missing(at: usize) -> CommittedRecoveryRecord {
-    crate::tests::type_expr::record_field_recovery::field_record(
-        0,
-        TypeRole::RecordFieldType,
-        at..at,
-        false,
-    )
+fn field_missing(at: usize) -> ExpectedStructural {
+    crate::tests::type_expr::record_field_recovery::field_record(0, at..at, false)
 }

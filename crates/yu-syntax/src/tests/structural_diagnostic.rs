@@ -7,13 +7,14 @@
 //! generic fallback. They do not attempt catalog coverage.
 
 use crate::{
-    SyntaxKind, SyntaxNode,
-    recovery_record::{
-        ConstructRole, Delimiter, ExpectedSyntax, ExpressionRole, GrammarRole, PunctuationEvidence,
-    },
+    ExpectedSyntax, GrammarSlot, GrammarSlotRole, SyntaxKind, SyntaxNode,
     structural_diagnostic::{StructuralDiagnostic, StructuralKind},
     tests::support::{run, run_pattern, run_statement},
 };
+
+fn slot(owner: SyntaxKind, role: GrammarSlotRole) -> GrammarSlot {
+    GrammarSlot::new(owner, role)
+}
 
 fn walk(source: &str) -> Vec<StructuralDiagnostic> {
     let (green, _) = run(source);
@@ -28,38 +29,38 @@ fn precise_missing_slots_follow_the_ordered_delimited_children() {
             "(,a)",
             SyntaxKind::ParenthesizedExpression,
             1,
-            GrammarRole::Expression(ExpressionRole::Nud),
+            slot(SyntaxKind::ParenthesizedExpression, GrammarSlotRole::Item),
             ExpectedSyntax::Expression,
         ),
         (
             "(1x)",
             SyntaxKind::ParenthesizedExpression,
             2,
-            GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
+            slot(
+                SyntaxKind::ParenthesizedExpression,
+                GrammarSlotRole::Separator,
+            ),
             ExpectedSyntax::DelimitedSequenceSeparator,
         ),
         (
             "(a",
             SyntaxKind::ParenthesizedExpression,
             2,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::ExpressionGroup,
-                delimiter: Delimiter::Parenthesis,
-            },
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            slot(SyntaxKind::ParenthesizedExpression, GrammarSlotRole::Close),
+            ExpectedSyntax::ClosingParenthesis,
         ),
         (
             "f(,a)",
             SyntaxKind::CallTail,
             2,
-            GrammarRole::Expression(ExpressionRole::CallArgument),
+            slot(SyntaxKind::CallTail, GrammarSlotRole::Item),
             ExpectedSyntax::Expression,
         ),
         (
             "x[,a]",
             SyntaxKind::IndexTail,
             2,
-            GrammarRole::Expression(ExpressionRole::IndexItem),
+            slot(SyntaxKind::IndexTail, GrammarSlotRole::Item),
             ExpectedSyntax::Expression,
         ),
     ] {
@@ -71,12 +72,13 @@ fn precise_missing_slots_follow_the_ordered_delimited_children() {
             })
             .unwrap_or_else(|| panic!("{source:?}: {occurrences:?}"));
         assert_eq!(missing.parent(), parent, "{source:?}");
-        let slot = missing
-            .slot()
-            .unwrap_or_else(|| panic!("{source:?} is a mapped catalog occurrence"));
-        assert_eq!(slot.role(), role, "{source:?}");
-        assert_eq!(slot.expectations(), [expected].as_slice(), "{source:?}");
-        assert_eq!(slot.primary(), 0, "{source:?}");
+        assert_eq!(missing.identity().slot(), Some(role), "{source:?}");
+        assert_eq!(
+            missing.expectations(),
+            Some([expected].as_slice()),
+            "{source:?}"
+        );
+        assert_eq!(missing.primary_expectation(), Some(0), "{source:?}");
     }
 }
 
@@ -87,56 +89,53 @@ fn precise_raw_error_groups_follow_their_immediate_slot() {
             "(@)",
             SyntaxKind::ParenthesizedExpression,
             1..2,
-            GrammarRole::Expression(ExpressionRole::Nud),
+            slot(SyntaxKind::ParenthesizedExpression, GrammarSlotRole::Item),
             ExpectedSyntax::Expression,
         ),
         (
             "f(@)",
             SyntaxKind::CallTail,
             2..3,
-            GrammarRole::Expression(ExpressionRole::CallArgument),
+            slot(SyntaxKind::CallTail, GrammarSlotRole::Item),
             ExpectedSyntax::Expression,
         ),
         (
             "x[@]",
             SyntaxKind::IndexTail,
             2..3,
-            GrammarRole::Expression(ExpressionRole::IndexItem),
+            slot(SyntaxKind::IndexTail, GrammarSlotRole::Item),
             ExpectedSyntax::Expression,
         ),
         (
             "(a @ b)",
             SyntaxKind::ExpressionDelimitedSeparator,
             3..4,
-            GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
+            slot(
+                SyntaxKind::ParenthesizedExpression,
+                GrammarSlotRole::Separator,
+            ),
             ExpectedSyntax::DelimitedSequenceSeparator,
         ),
         (
             "f(a @ b)",
             SyntaxKind::ExpressionDelimitedSeparator,
             4..5,
-            GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
+            slot(SyntaxKind::CallTail, GrammarSlotRole::Separator),
             ExpectedSyntax::DelimitedSequenceSeparator,
         ),
         (
             "(])",
             SyntaxKind::ExpressionDelimitedForeignClose,
             1..2,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::ExpressionGroup,
-                delimiter: Delimiter::Parenthesis,
-            },
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            slot(SyntaxKind::ParenthesizedExpression, GrammarSlotRole::Close),
+            ExpectedSyntax::ClosingParenthesis,
         ),
         (
             "f(])",
             SyntaxKind::ExpressionDelimitedForeignClose,
             2..3,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::ArgumentList,
-                delimiter: Delimiter::Parenthesis,
-            },
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
+            slot(SyntaxKind::CallTail, GrammarSlotRole::Close),
+            ExpectedSyntax::ClosingParenthesis,
         ),
     ] {
         let occurrences = walk(source);
@@ -146,11 +145,12 @@ fn precise_raw_error_groups_follow_their_immediate_slot() {
             .unwrap_or_else(|| panic!("{source:?}: {occurrences:?}"));
         assert_eq!(group.parent(), parent, "{source:?}");
         assert_eq!(group.range(), &range, "{source:?}");
-        let slot = group
-            .slot()
-            .unwrap_or_else(|| panic!("{source:?} is a mapped catalog occurrence"));
-        assert_eq!(slot.role(), role, "{source:?}");
-        assert_eq!(slot.expectations(), [expected].as_slice(), "{source:?}");
+        assert_eq!(group.identity().slot(), Some(role), "{source:?}");
+        assert_eq!(
+            group.expectations(),
+            Some([expected].as_slice()),
+            "{source:?}"
+        );
     }
 }
 
@@ -165,8 +165,11 @@ fn a_maximal_raw_error_run_is_one_grouped_occurrence() {
     assert_eq!(groups[0].range(), &(1..3));
     assert_eq!(groups[0].parent(), SyntaxKind::ParenthesizedExpression);
     assert_eq!(
-        groups[0].slot().map(|slot| slot.role()),
-        Some(GrammarRole::Expression(ExpressionRole::Nud))
+        groups[0].identity().slot(),
+        Some(slot(
+            SyntaxKind::ParenthesizedExpression,
+            GrammarSlotRole::Item
+        ))
     );
 }
 
@@ -181,8 +184,8 @@ fn a_retry_continuation_keeps_one_grouped_raw_occurrence() {
     assert_eq!(groups[0].range(), &(2..3));
     assert_eq!(groups[0].parent(), SyntaxKind::CallTail);
     assert_eq!(
-        groups[0].slot().map(|slot| slot.role()),
-        Some(GrammarRole::Expression(ExpressionRole::CallArgument))
+        groups[0].identity().slot(),
+        Some(slot(SyntaxKind::CallTail, GrammarSlotRole::Item))
     );
 }
 
@@ -205,7 +208,7 @@ fn structured_invalid_is_its_own_kind_and_precedes_its_children() {
     assert_eq!(outer.range(), &range);
     assert_eq!(outer.parent(), SyntaxKind::RecordPattern);
     assert!(
-        outer.slot().is_none(),
+        outer.identity().slot().is_none(),
         "structured Invalid has no mapped precise row"
     );
 
@@ -243,7 +246,7 @@ fn an_uncataloged_occurrence_uses_the_deterministic_generic_fallback() {
     assert_eq!(missing.parent(), SyntaxKind::BindingBody);
     assert_eq!(missing.path().last(), Some(&SyntaxKind::BindingBody));
     assert!(
-        missing.slot().is_none(),
+        missing.identity().slot().is_none(),
         "an unmapped slot keeps only the generic CST facts"
     );
     // Determinism: an independent walk reports the identical sequence.
@@ -260,25 +263,28 @@ fn trivia_between_a_missing_and_its_ordered_sibling_keeps_the_slot() {
             "( ,a)",
             SyntaxKind::ParenthesizedExpression,
             1,
-            GrammarRole::Expression(ExpressionRole::Nud),
+            slot(SyntaxKind::ParenthesizedExpression, GrammarSlotRole::Item),
         ),
         (
             "(1 x)",
             SyntaxKind::ParenthesizedExpression,
             2,
-            GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
+            slot(
+                SyntaxKind::ParenthesizedExpression,
+                GrammarSlotRole::Separator,
+            ),
         ),
         (
             "f( ,a)",
             SyntaxKind::CallTail,
             2,
-            GrammarRole::Expression(ExpressionRole::CallArgument),
+            slot(SyntaxKind::CallTail, GrammarSlotRole::Item),
         ),
         (
             "x[ ,a]",
             SyntaxKind::IndexTail,
             2,
-            GrammarRole::Expression(ExpressionRole::IndexItem),
+            slot(SyntaxKind::IndexTail, GrammarSlotRole::Item),
         ),
     ] {
         let occurrences = walk(source);
@@ -289,11 +295,7 @@ fn trivia_between_a_missing_and_its_ordered_sibling_keeps_the_slot() {
             })
             .unwrap_or_else(|| panic!("{source:?}: {occurrences:?}"));
         assert_eq!(missing.parent(), parent, "{source:?}");
-        assert_eq!(
-            missing.slot().map(|slot| slot.role()),
-            Some(role),
-            "{source:?}"
-        );
+        assert_eq!(missing.identity().slot(), Some(role), "{source:?}");
     }
 }
 
@@ -308,8 +310,11 @@ fn utf8_and_crlf_ranges_stay_byte_accurate() {
             .unwrap_or_else(|| panic!("{source:?}: {occurrences:?}"));
         assert_eq!(group.range(), &(1..2), "{source:?}");
         assert_eq!(
-            group.slot().map(|slot| slot.role()),
-            Some(GrammarRole::Expression(ExpressionRole::Nud)),
+            group.identity().slot(),
+            Some(slot(
+                SyntaxKind::ParenthesizedExpression,
+                GrammarSlotRole::Item
+            )),
             "{source:?}"
         );
     }

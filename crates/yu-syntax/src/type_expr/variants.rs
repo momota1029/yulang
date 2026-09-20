@@ -1,31 +1,20 @@
 //! Effect-row and polymorphic-variant type primaries.
 
 use crate::ambient_claim::AmbientClaimContext;
-use std::sync::Arc;
 
-use crate::{
-    recovery_record::{
-        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 
 use crate::type_expr::{
     TypeApplyBoundary, TypeDelimitedOwner, TypeMlContext, TypeOuterBoundary,
     continue_type_tail_normalized, indentation_after_newline, is_type_caller_boundary,
     is_type_mismatched_close, is_type_nud, is_type_outer_close, is_type_payload_boundary,
-    is_type_polymorphic_variant_tag_name, required_type_primary_unexpected_category,
-    type_delimited_baseline, type_delimited_normalized, type_expr_from_nud_normalized,
-    type_nud_item_with_pipe_lexical_normalized,
-    type_nud_item_with_pipe_lexical_normalized_in_error_run, type_recovery_error_syntax_kind,
-    with_type_outer_close,
+    is_type_polymorphic_variant_tag_name, type_delimited_baseline, type_delimited_normalized,
+    type_expr_from_nud_normalized, type_nud_item_with_pipe_lexical_normalized,
+    type_nud_item_with_pipe_lexical_normalized_in_error_run, with_type_outer_close,
 };
 use crate::{
     cursor::SyntaxIn,
     cursor::recovery::{
-        RecoveryDraft, StructuredRecoverySpec,
         emit::{
             emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
             emit_token_item,
@@ -263,13 +252,7 @@ fn type_polymorphic_variant_tags_normalized(
             item.emit_all_remaining_leading(&mut *i.state);
             i.state
                 .start_node(SyntaxKind::PolymorphicVariantForeignClose.into());
-            emit_polymorphic_variant_token_error(
-                i.rb(),
-                item,
-                item_origin,
-                polymorphic_variant_close_role(),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
-            );
+            emit_polymorphic_variant_token_error(i.rb(), item, item_origin);
             i.state.finish_node();
             (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
                 i.rb(),
@@ -284,13 +267,7 @@ fn type_polymorphic_variant_tags_normalized(
         if token_kind(&item) == Some(TokenKind::Comma) {
             item.emit_all_remaining_leading(&mut *i.state);
             if !matches!(position, TagPosition::AfterTag) {
-                emit_polymorphic_variant_missing(
-                    i.rb(),
-                    &item,
-                    item_origin,
-                    GrammarRole::Type(TypeRole::PolymorphicVariantTag),
-                    ExpectedSyntax::Identifier,
-                );
+                emit_polymorphic_variant_missing(i.rb(), &item, item_origin);
                 position = TagPosition::Filled;
             } else {
                 position = TagPosition::Unfilled;
@@ -317,13 +294,7 @@ fn type_polymorphic_variant_tags_normalized(
                 );
             }
             item.emit_all_remaining_leading(&mut *i.state);
-            emit_polymorphic_variant_token_error(
-                i.rb(),
-                item,
-                item_origin,
-                GrammarRole::Type(TypeRole::PolymorphicVariantTagSeparator),
-                ExpectedSyntax::DelimitedSequenceSeparator,
-            );
+            emit_polymorphic_variant_token_error(i.rb(), item, item_origin);
             (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
                 i.rb(),
                 item_origin,
@@ -436,81 +407,22 @@ fn type_polymorphic_variant_boundary(
     line_entry: LineEntry,
 ) -> NormalizedExit {
     if matches!(position, TagPosition::Unfilled) {
-        emit_polymorphic_variant_missing(
-            i.rb(),
-            &item,
-            item_origin,
-            GrammarRole::Type(TypeRole::PolymorphicVariantTag),
-            ExpectedSyntax::Identifier,
-        );
+        emit_polymorphic_variant_missing(i.rb(), &item, item_origin);
     }
-    emit_polymorphic_variant_missing(
-        i.rb(),
-        &item,
-        item_origin,
-        polymorphic_variant_close_role(),
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
-    );
+    emit_polymorphic_variant_missing(i.rb(), &item, item_origin);
     complete(handoff(item), line_entry)
 }
 
-fn polymorphic_variant_close_role() -> GrammarRole {
-    GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::PolymorphicVariantType,
-        delimiter: Delimiter::Brace,
-    }
-}
-
-fn emit_polymorphic_variant_missing(
-    i: SyntaxIn,
-    item: &Item,
-    item_origin: usize,
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-) {
+fn emit_polymorphic_variant_missing(i: SyntaxIn, item: &Item, item_origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        polymorphic_variant_recovery_draft(
-            role,
-            expected,
-            RecoveryKind::Missing,
-            range,
-            Arc::from([]),
-        )
-    });
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
-fn emit_polymorphic_variant_token_error(
-    i: SyntaxIn,
-    item: Item,
-    item_origin: usize,
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-) {
-    let unexpected = UnexpectedSyntax::Token {
-        range: item.extent(item_origin).recovery_range(),
-        category: required_type_primary_unexpected_category(&item),
-    };
-    let kind = type_recovery_error_syntax_kind(&item);
-    emit_recovery_error_item(
-        i,
-        item,
-        item_origin,
-        kind,
-        unexpected,
-        |range, unexpected| {
-            polymorphic_variant_recovery_draft(
-                role,
-                expected,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    );
+fn emit_polymorphic_variant_token_error(i: SyntaxIn, item: Item, item_origin: usize) {
+    emit_recovery_error_item(i, item, item_origin);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -631,40 +543,28 @@ fn type_polymorphic_variant_tag_after_wrong_kind_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     let successor_origin = item_origin;
-    let exit = emit_structured_recovery_error_from_item(
-        i.rb(),
-        primary,
-        successor_origin,
-        StructuredRecoverySpec::new(
-            GrammarRole::Type(TypeRole::PolymorphicVariantTagName),
-            UnexpectedCategory::OtherCharacter,
-            ExpectedSyntax::Identifier,
-            ExpectationSources::COMMITTED_RECOVERY_RULE,
-            0,
-        ),
-        |mut nested, primary| {
-            let entry = suffix_marker(nested.rb());
-            let exit = type_expr_from_nud_normalized(
-                nested.rb(),
-                primary,
-                baseline,
-                type_ml.enter_non_type_apply(),
-                None,
-                true,
-                outer_closes,
-                caller_stops,
-                TypeOuterBoundary::NONE,
-                pipe_lexical,
-                successor_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-            let post_origin = advanced_origin(successor_origin, entry, nested.rb());
-            let end = structured_tag_name_end(&exit, post_origin);
-            ((exit, post_origin), end)
-        },
-    );
+    let exit = emit_structured_recovery_error_from_item(i.rb(), primary, |mut nested, primary| {
+        let entry = suffix_marker(nested.rb());
+        let exit = type_expr_from_nud_normalized(
+            nested.rb(),
+            primary,
+            baseline,
+            type_ml.enter_non_type_apply(),
+            None,
+            true,
+            outer_closes,
+            caller_stops,
+            TypeOuterBoundary::NONE,
+            pipe_lexical,
+            successor_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        let post_origin = advanced_origin(successor_origin, entry, nested.rb());
+        let end = structured_tag_name_end(&exit, post_origin);
+        ((exit, post_origin), end)
+    });
     let (exit, next_origin) = exit;
     item_origin = next_origin;
     type_polymorphic_variant_tag_payloads_after_head_normalized(
@@ -699,7 +599,6 @@ fn type_polymorphic_variant_malformed_tag_normalized(
     let (next, next_origin, next_line_entry) = recover_polymorphic_variant_run(
         i.rb(),
         item,
-        TypeRole::PolymorphicVariantTag,
         caller_stops,
         pipe_lexical,
         item_origin,
@@ -768,37 +667,12 @@ fn pending_structured_end(item: &Item, post_origin: usize) -> usize {
     }
 }
 
-fn polymorphic_variant_recovery_draft(
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
 /// A malformed prefix is consumed once, up to a retry NUD or owner boundary.
 /// The caller owns both the initial gap and the returned Item's leading.
 #[allow(clippy::too_many_arguments)]
 fn recover_polymorphic_variant_run(
     i: SyntaxIn,
     mut item: Item,
-    role: TypeRole,
     caller_stops: Stops,
     pipe_lexical: bool,
     mut item_origin: usize,
@@ -806,50 +680,23 @@ fn recover_polymorphic_variant_run(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
-    let expected = match role {
-        TypeRole::PolymorphicVariantTag => ExpectedSyntax::Identifier,
-        TypeRole::PolymorphicVariantPayload => ExpectedSyntax::TypeExpression,
-        _ => unreachable!("only tag and payload slots own malformed PV runs"),
-    };
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let run_start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind = type_recovery_error_syntax_kind(&item);
-                let run_end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) =
-                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                if is_polymorphic_variant_retry_boundary(&item, caller_stops) || is_type_nud(&item)
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: run_start..run_end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
-                }
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) =
+                type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                    ambient,
+                );
+            if is_polymorphic_variant_retry_boundary(&item, caller_stops) || is_type_nud(&item) {
+                return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            polymorphic_variant_recovery_draft(
-                GrammarRole::Type(role),
-                expected,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1034,13 +881,7 @@ fn type_polymorphic_variant_payload_normalized(
     i.state
         .start_node(SyntaxKind::PolymorphicVariantPayload.into());
     if primary.leading_view().is_grammar_empty() {
-        emit_polymorphic_variant_missing(
-            i.rb(),
-            &primary,
-            item_origin,
-            GrammarRole::Type(TypeRole::PolymorphicVariantPayloadBoundary),
-            ExpectedSyntax::TypePayloadBoundary,
-        );
+        emit_polymorphic_variant_missing(i.rb(), &primary, item_origin);
     } else {
         primary.emit_all_remaining_leading(&mut *i.state);
     }
@@ -1088,7 +929,6 @@ fn type_polymorphic_variant_malformed_payload_normalized(
     (item, item_origin, line_entry) = recover_polymorphic_variant_run(
         i.rb(),
         item,
-        TypeRole::PolymorphicVariantPayload,
         caller_stops,
         pipe_lexical,
         item_origin,

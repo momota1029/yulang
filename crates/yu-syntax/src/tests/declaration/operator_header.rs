@@ -1,7 +1,6 @@
 use crate::declaration::operator_header::{next_item, operator_header_normalized};
 use crate::tests::support::*;
 use crate::{OperatorFixity, Visibility};
-use std::sync::Arc;
 
 #[test]
 fn complete_operator_header_projects_without_reading_its_body() {
@@ -47,9 +46,9 @@ fn complete_operator_header_projects_without_reading_its_body() {
         assert_eq!(origin, end);
         assert_eq!(input, &source[end..]);
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
         assert_eq!(green.to_string(), source[..end]);
-        assert!(records.is_empty());
+        assert!(structural_facts(&green).is_empty());
         let root = SyntaxNode::new_root(green);
         assert_eq!(
             root.descendants_with_tokens()
@@ -62,49 +61,9 @@ fn complete_operator_header_projects_without_reading_its_body() {
     }
 }
 
-fn header_record(
-    id: u32,
-    role: crate::recovery_record::OperatorHeaderRole,
-    kind: crate::recovery_record::RecoveryKind,
-    range: std::ops::Range<usize>,
-) -> CommittedRecoveryRecord {
-    use crate::recovery_record::*;
-    let expected = match role {
-        OperatorHeaderRole::Name => ExpectedSyntax::OperatorName,
-        OperatorHeaderRole::DefinitionIntroducer => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Equals)
-        }
-        _ => ExpectedSyntax::BindingPower,
-    };
-    let role = GrammarRole::Declaration(DeclarationRole::OperatorHeader(role));
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
 #[test]
-fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix() {
-    use crate::recovery_record::{OperatorHeaderRole as R, RecoveryKind as K};
+fn structural_safe_points_and_equals_keep_exact_cst_facts_and_body_suffix() {
+    use crate::structural_diagnostic::StructuralKind::{ErrorGroup, Missing};
     for (source, owned, pending_text, pending_range, rest, expected) in [
         (
             "prefix (!) 128 = body",
@@ -112,7 +71,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             None,
             None,
             " body",
-            vec![header_record(0, R::RightBindingPower, K::Error, 111..114)],
+            vec![(ErrorGroup, 11..14)],
         ),
         (
             "suffix (!) 128 body + tail",
@@ -120,10 +79,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             Some("body"),
             Some(114..119),
             " + tail",
-            vec![
-                header_record(0, R::LeftBindingPower, K::Error, 111..114),
-                header_record(1, R::DefinitionIntroducer, K::Missing, 114..114),
-            ],
+            vec![(ErrorGroup, 11..14), (Missing, 14..14)],
         ),
         (
             "suffix (!) body + tail",
@@ -131,10 +87,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             Some("body"),
             Some(110..115),
             " + tail",
-            vec![
-                header_record(0, R::LeftBindingPower, K::Missing, 110..110),
-                header_record(1, R::DefinitionIntroducer, K::Missing, 110..110),
-            ],
+            vec![(Missing, 10..10), (Missing, 10..10)],
         ),
         (
             "prefix (!) (body) + tail",
@@ -142,10 +95,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             Some("("),
             Some(110..112),
             "body) + tail",
-            vec![
-                header_record(0, R::RightBindingPower, K::Missing, 110..110),
-                header_record(1, R::DefinitionIntroducer, K::Missing, 110..110),
-            ],
+            vec![(Missing, 10..10), (Missing, 10..10)],
         ),
         (
             "prefix (!) @ \"body\" + tail",
@@ -153,10 +103,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             Some("\""),
             Some(112..114),
             "body\" + tail",
-            vec![
-                header_record(0, R::RightBindingPower, K::Error, 111..112),
-                header_record(1, R::DefinitionIntroducer, K::Missing, 112..112),
-            ],
+            vec![(ErrorGroup, 11..12), (Missing, 12..12)],
         ),
         (
             "prefix 70 = body",
@@ -164,7 +111,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             None,
             None,
             " body",
-            vec![header_record(0, R::Name, K::Missing, 106..106)],
+            vec![(Missing, 6..6)],
         ),
         (
             "prefix = body",
@@ -172,10 +119,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             None,
             None,
             " body",
-            vec![
-                header_record(0, R::Name, K::Missing, 106..106),
-                header_record(1, R::RightBindingPower, K::Missing, 106..106),
-            ],
+            vec![(Missing, 6..6), (Missing, 6..6)],
         ),
         (
             "prefix (!) body + tail",
@@ -183,10 +127,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             Some("body"),
             Some(110..115),
             " + tail",
-            vec![
-                header_record(0, R::RightBindingPower, K::Missing, 110..110),
-                header_record(1, R::DefinitionIntroducer, K::Missing, 110..110),
-            ],
+            vec![(Missing, 10..10), (Missing, 10..10)],
         ),
         (
             "prefix (!)70 = body",
@@ -194,7 +135,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             None,
             None,
             " body",
-            vec![header_record(0, R::RightBindingPower, K::Error, 110..112)],
+            vec![(ErrorGroup, 10..12)],
         ),
         (
             "nullfix (?) == body + tail",
@@ -202,12 +143,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             Some("body"),
             Some(114..119),
             " + tail",
-            vec![header_record(
-                0,
-                R::DefinitionIntroducer,
-                K::Error,
-                112..114,
-            )],
+            vec![(ErrorGroup, 12..14)],
         ),
         (
             "prefix (⊕) 70 身体 + tail",
@@ -215,12 +151,7 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             Some("身体"),
             Some(115..122),
             " + tail",
-            vec![header_record(
-                0,
-                R::DefinitionIntroducer,
-                K::Missing,
-                115..115,
-            )],
+            vec![(Missing, 15..15)],
         ),
         (
             "prefix (!)\r\nbody + tail",
@@ -228,115 +159,68 @@ fn structural_safe_points_and_equals_keep_exact_frozen_records_and_body_suffix()
             Some("body"),
             Some(110..116),
             " + tail",
-            vec![
-                header_record(0, R::RightBindingPower, K::Missing, 110..110),
-                header_record(1, R::DefinitionIntroducer, K::Missing, 110..110),
-            ],
+            vec![(Missing, 10..10), (Missing, 10..10)],
         ),
     ] {
-        for replay in [false, true] {
-            let operators = OperatorTable::empty();
-            let mut recover = Recover::new_for_test(&operators);
-            let mut input = source;
-            let mut output = if replay {
-                {
-                    recover = Recover::reconcile_scoped_for_test(recover.operators(), &expected);
-                    GreenNodeBuilder::new()
-                }
-            } else {
-                GreenNodeBuilder::new()
-            };
-            output.start_node(SyntaxKind::Root.into());
-            let (pending, origin, line, fact) = crate::cursor::recovery::with_header_reconciliation(
-                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
-                |mut i| {
-                    let (item, origin, line) = i
-                        .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, None)))
-                        .unwrap();
-                    operator_header_normalized(i, item, origin, line, None)
-                },
-            );
-            assert!(fact.is_none(), "{source}");
-            assert_eq!(
-                pending
-                    .as_ref()
-                    .and_then(|item| item.payload_view().spelling()),
-                pending_text,
-                "{source}"
-            );
-            assert_eq!(
-                pending
-                    .as_ref()
-                    .map(|item| item.extent(origin).recovery_range()),
-                pending_range,
-                "{source}"
-            );
-            assert_eq!(line, LineEntry::InLine);
-            assert_eq!(input, rest, "{source}");
-            output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-            assert_eq!(green.to_string(), owned, "{source}");
-            assert_eq!(records, expected, "{source}");
-        }
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut input = source;
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+        let (item, origin, line) = i
+            .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, None)))
+            .unwrap();
+        let (pending, origin, line, fact) = operator_header_normalized(i, item, origin, line, None);
+        assert!(fact.is_none(), "{source}");
+        assert_eq!(
+            pending
+                .as_ref()
+                .and_then(|item| item.payload_view().spelling()),
+            pending_text,
+            "{source}"
+        );
+        assert_eq!(
+            pending
+                .as_ref()
+                .map(|item| item.extent(origin).recovery_range()),
+            pending_range,
+            "{source}"
+        );
+        assert_eq!(line, LineEntry::InLine);
+        assert_eq!(input, rest, "{source}");
+        output.finish_node();
+        let green = finish_with_discarded_recoveries(output, recover);
+        assert_eq!(green.to_string(), owned, "{source}");
+        assert_eq!(structural_facts(&green), expected, "{source}");
     }
 }
 
 #[test]
-fn malformed_fixity_retry_keeps_typed_record_and_frozen_identity() {
+fn malformed_fixity_retry_keeps_its_structural_fact() {
     let source = "lazy @ infix (<+>) 50 51 = body";
     let operators = OperatorTable::empty();
-    let mut frozen = Vec::new();
-    for replay in [false, true] {
-        let mut input = source;
-        let mut recover = Recover::new_for_test(&operators);
-        let mut output = if replay {
-            {
-                recover = Recover::reconcile_scoped_for_test(recover.operators(), &frozen);
-                GreenNodeBuilder::new()
-            }
-        } else {
-            GreenNodeBuilder::new()
-        };
-        output.start_node(SyntaxKind::Root.into());
-        let result = crate::cursor::recovery::with_header_reconciliation(
-            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
-            |mut i| {
-                let (item, origin, line) = i
-                    .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
-                    .unwrap();
-                operator_header_normalized(i, item, origin, line, None)
-            },
-        );
-        assert!(result.3.is_some());
-        assert_eq!(input, " body");
-        output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-        assert_eq!(green.to_string(), "lazy @ infix (<+>) 50 51 =");
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].site.range, 5..6);
-        assert_eq!(records[0].expectations.len(), 4);
-        use crate::recovery_record::{ExpectedSyntax, KeywordEvidence};
-        assert_eq!(
-            records[0]
-                .expectations
-                .iter()
-                .map(|entry| entry.expected.clone())
-                .collect::<Vec<_>>(),
-            [
-                KeywordEvidence::Prefix,
-                KeywordEvidence::Infix,
-                KeywordEvidence::Suffix,
-                KeywordEvidence::Nullfix
-            ]
-            .map(ExpectedSyntax::Keyword)
-        );
-        assert_eq!(records[0].primary_expectation, 0);
-        if replay {
-            assert_eq!(records, frozen);
-        } else {
-            frozen = records;
-        }
-    }
+    let mut input = source;
+    let mut recover = Recover::new_for_test(&operators);
+    let mut output = GreenNodeBuilder::new();
+    output.start_node(SyntaxKind::Root.into());
+    let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+    let (item, origin, line) = i
+        .token(|lex| Some(next_item(lex, 0, LineEntry::InLine, None)))
+        .unwrap();
+    let (_, _, _, fact) = operator_header_normalized(i, item, origin, line, None);
+    assert!(fact.is_some());
+    assert_eq!(input, " body");
+    output.finish_node();
+    let green = finish_with_discarded_recoveries(output, recover);
+    assert_eq!(green.to_string(), "lazy @ infix (<+>) 50 51 =");
+    assert_eq!(
+        structural_facts(&green),
+        [(
+            crate::structural_diagnostic::StructuralKind::ErrorGroup,
+            5..6
+        )]
+    );
 }
 
 #[test]
@@ -358,10 +242,21 @@ fn missing_header_slots_preserve_the_next_crlf_statement() {
     assert_eq!(pending.extent(origin).recovery_range(), 10..15);
     assert_eq!(input, " std::io");
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = finish_with_discarded_recoveries(output, recover);
     assert_eq!(green.to_string(), "prefix (!)");
-    assert_eq!(records.len(), 2);
-    assert!(records.iter().all(|record| record.site.range == (10..10)));
+    assert_eq!(
+        structural_facts(&green),
+        [
+            (
+                crate::structural_diagnostic::StructuralKind::Missing,
+                10..10
+            ),
+            (
+                crate::structural_diagnostic::StructuralKind::Missing,
+                10..10
+            ),
+        ]
+    );
 }
 
 #[test]
@@ -538,7 +433,7 @@ fn operator_header_slots_are_direct_ordered_rowan_children() {
 #[test]
 fn quoted_fence_keeps_pending_crlf_and_anchors_at_abstract_coordinate() {
     use crate::lexical::yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy};
-    use crate::recovery_record::{OperatorHeaderRole as R, RecoveryKind as K};
+    use crate::structural_diagnostic::StructuralKind::{ErrorGroup, Missing};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -549,54 +444,33 @@ fn quoted_fence_keeps_pending_crlf_and_anchors_at_abstract_coordinate() {
         close_column: 0,
     };
     for (owned, expected) in [
-        (
-            "prefix (!)",
-            vec![
-                header_record(0, R::RightBindingPower, K::Missing, 112..112),
-                header_record(1, R::DefinitionIntroducer, K::Missing, 112..112),
-            ],
-        ),
+        ("prefix (!)", vec![(Missing, 10..10), (Missing, 10..10)]),
         (
             "prefix (!) @",
-            vec![
-                header_record(0, R::RightBindingPower, K::Error, 111..112),
-                header_record(1, R::DefinitionIntroducer, K::Missing, 114..114),
-            ],
+            vec![(ErrorGroup, 11..12), (Missing, 12..12)],
         ),
     ] {
         let source = format!("{owned}\r\n> > ```\r\nouter");
-        for replay in [false, true] {
-            let operators = OperatorTable::empty();
-            let mut recover = Recover::new_for_test(&operators);
-            let mut input = source.as_str();
-            let mut output = if replay {
-                {
-                    recover = Recover::reconcile_scoped_for_test(recover.operators(), &expected);
-                    GreenNodeBuilder::new()
-                }
-            } else {
-                GreenNodeBuilder::new()
-            };
-            output.start_node(SyntaxKind::Root.into());
-            let (pending, _, line, fact) = crate::cursor::recovery::with_header_reconciliation(
-                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
-                |mut i| {
-                    let (item, origin, line) = i
-                        .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, Some(&fence))))
-                        .unwrap();
-                    operator_header_normalized(i, item, origin, line, Some(&fence))
-                },
-            );
-            assert!(fact.is_none());
-            assert_eq!(line, LineEntry::PhysicalStart);
-            assert_eq!(input, "> > ```\r\nouter");
-            let (leading, boundary) = emit_terminal_leading_text(pending.unwrap());
-            assert_eq!(leading, "\r\n");
-            assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
-            output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-            assert_eq!(green.to_string(), owned);
-            assert_eq!(records, expected);
-        }
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut input = source.as_str();
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+        let (item, origin, line) = i
+            .token(|lex| Some(next_item(lex, 100, LineEntry::InLine, Some(&fence))))
+            .unwrap();
+        let (pending, _, line, fact) =
+            operator_header_normalized(i, item, origin, line, Some(&fence));
+        assert!(fact.is_none());
+        assert_eq!(line, LineEntry::PhysicalStart);
+        assert_eq!(input, "> > ```\r\nouter");
+        let (leading, boundary) = emit_terminal_leading_text(pending.unwrap());
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
+        output.finish_node();
+        let green = finish_with_discarded_recoveries(output, recover);
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(structural_facts(&green), expected);
     }
 }

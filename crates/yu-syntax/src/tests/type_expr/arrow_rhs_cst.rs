@@ -305,12 +305,11 @@ fn actual_arrow_rhs_cst_distinguishes_bracket_required_arrow_and_nested_rhs_miss
 #[test]
 fn actual_arrow_rhs_cst_outer_boundary_preserves_leading_before_and_after_error() {
     for (source, emitted, has_error) in [("A-> with", "A->", false), ("A->@ with", "A->@", true)] {
-        let (green, exit, accepted, origin, remainder, _, _, _) =
-            run_required_type_with_outer_boundary_and_recoveries(
+        let (green, exit, accepted, origin, remainder, _) =
+            run_required_type_with_outer_boundary_and_structural_diagnostics(
                 source,
                 crate::type_expr::TypeOuterBoundary::WITH,
                 false,
-                None,
             );
         assert!(accepted);
         assert_eq!(green.to_string(), emitted);

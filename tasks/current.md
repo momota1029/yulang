@@ -111,6 +111,34 @@ exercise through `lower_module`. Preserve syntax diagnostics' public behavior
 while removing the temporary parser recovery ledger as a final dependency; do
 not combine that migration with type attachment or a new HIR feature.
 
+Gate 4 repair decision (user-approved 2026-09-20): the proven BracketRow
+Item/Close structural collision is a concrete `syntax-v0` reopen trigger and
+must be repaired at BracketRow CST ownership without Error-text inspection or
+parser-private state. Preserve accepted input, recovery continuation,
+current-Item ownership, fence handoff, and lossless source. The exact durable
+topology remains subject to a narrow reviewed supersession record before its
+implementation; this bounded correction does not authorize unrelated grammar
+changes.
+
+Gate 4 parser-ledger/API retirement is implemented and verified on 2026-09-20:
+`ParsedFile::syntax_diagnostics()` now derives the public syntax projection from
+the lossless CST plus the retained syntax environment, and the temporary
+`recovery_record` module and all parser-private recovery classification plumbing
+are removed. Parser-local construction phases remain only where they preserve
+retry/continuation control; they are not diagnostic metadata. The public
+diagnostic payload exposes schema-owned occurrence identity, path, ordinal,
+slot, and expectations. Test contracts now distinguish coarse recovery censuses
+from exact CST/public-schema assertions and retain TypeML context-restoration and
+effect-free selector witnesses.
+
+Verification: `cargo check -p yu-syntax --tests` is warning-free;
+`cargo test -p yu-syntax --lib -- --test-threads=1` passes 1368 tests with one
+intentional ignore; `cargo test -p yu-hir -- --test-threads=1` passes 26 tests.
+The only remaining Gate 4 blocker is the separately recorded BracketRow
+Item/Close collision: its narrow durable CST topology supersession and exact
+implementation still require the user-approved topology choice. The collision
+witness remains intentionally preserved and must not be weakened.
+
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
 

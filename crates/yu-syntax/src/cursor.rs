@@ -79,19 +79,12 @@ impl<'a, 'source, 'operators, 'cache> SyntaxIn<'a, 'source, 'operators, 'cache> 
 
 pub(crate) struct Recover<'operators> {
     operators: &'operators OperatorTable,
-    recoveries: Vec<recovery::RecoverySlot<'operators>>,
-    diagnostics: recovery::DiagnosticSequence<'operators>,
-    active_structured: Option<usize>,
 }
 
 /// Own the recovery state for the complete source-file construction.
-pub(crate) fn parse_root(
-    source: &str,
-    operators: &OperatorTable,
-    frozen: &[crate::recovery_record::CommittedRecoveryRecord],
-) -> crate::source_file::RootCandidate {
+pub(crate) fn parse_root(source: &str, operators: &OperatorTable) -> rowan::GreenNode {
     let mut remaining = source;
-    let mut recover = Recover::reconcile_scoped(operators, frozen);
+    let mut recover = Recover::new(operators);
     let mut builder = rowan::GreenNodeBuilder::new();
     builder.start_node(crate::SyntaxKind::Root.into());
     crate::root_statement::parse_root_statements(
@@ -101,37 +94,22 @@ pub(crate) fn parse_root(
         &mut builder,
     );
     builder.finish_node();
-    crate::source_file::RootCandidate {
-        green: builder.finish(),
-        committed_recoveries: recover.finish_recoveries(),
-    }
+    builder.finish()
 }
 
 /// Header discovery borrows its cursor but cannot replace or finalize it.
-pub(crate) fn discover_header(
-    source: &str,
-    frozen: Option<&[crate::recovery_record::CommittedRecoveryRecord]>,
-) -> crate::header::HeaderDiscovery {
+pub(crate) fn discover_header(source: &str) -> crate::header::HeaderDiscovery {
     let operators = OperatorTable::empty();
-    let mut recover = frozen.map_or_else(
-        || Recover::new(&operators),
-        |records| Recover::reconcile_scoped(&operators, records),
-    );
+    let mut recover = Recover::new(&operators);
     let mut builder = rowan::GreenNodeBuilder::new();
-    let mut header = crate::header::discover_header_with_cursor(source, &mut recover, &mut builder);
+    let header = crate::header::discover_header_with_cursor(source, &mut recover, &mut builder);
     let _ = builder.finish();
-    header.recoveries = recover.finish_recoveries();
     header
 }
 
 impl<'operators> Recover<'operators> {
     fn new(operators: &'operators OperatorTable) -> Self {
-        Self {
-            operators,
-            recoveries: Vec::new(),
-            diagnostics: recovery::DiagnosticSequence::fresh(),
-            active_structured: None,
-        }
+        Self { operators }
     }
 
     #[cfg(test)]

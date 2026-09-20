@@ -2,25 +2,13 @@
 
 use crate::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 use reborrow_generic::Reborrow as _;
-use std::sync::Arc;
 
 use crate::{
-    lexical::operator_scan::OperatorSite,
-    operator_table::BindingPower,
-    recovery_record::{
-        CaseLikeRole, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
-        RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
+    lexical::operator_scan::OperatorSite, operator_table::BindingPower, syntax_kind::SyntaxKind,
 };
 
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     expression::{
         continue_normalized_tail, expr_from_nud_normalized, is_nud_item,
@@ -167,7 +155,6 @@ fn case_like_head_normalized(
     let exit = required_expr_item_normalized(
         i.rb(),
         item,
-        GrammarRole::CaseLike(CaseLikeRole::Scrutinee),
         None,
         baseline,
         scrutinee_stops,
@@ -330,7 +317,7 @@ fn wrong_indent_block_normalized(
     let (item, item_origin, line_entry) =
         pattern_item_normalized(i.rb(), item_origin, line_entry, fence, 0);
     i.state.start_node(family.arm_node().into());
-    emit_structural_missing(i.rb(), CaseLikeRole::Arm, &item, item_origin);
+    emit_structural_missing(i.rb(), &item, item_origin);
     i.state.finish_node();
     complete(handoff(item), line_entry)
 }
@@ -406,12 +393,12 @@ fn missing_block(
             {
                 item.emit_all_remaining_leading(&mut *i.state);
             }
-            emit_structural_missing(i.rb(), CaseLikeRole::Block, &item, item_origin);
+            emit_structural_missing(i.rb(), &item, item_origin);
             handoff(item)
         }
         Err(Either::Right(mut end)) => {
             end.item.emit_all_remaining_leading(&mut *i.state);
-            emit_structural_missing(i.rb(), CaseLikeRole::Block, &end.item, item_origin);
+            emit_structural_missing(i.rb(), &end.item, item_origin);
             Err(Either::Right(end))
         }
         Ok(()) => unreachable!("a direct scrutinee always leaves a boundary item"),
@@ -420,62 +407,20 @@ fn missing_block(
     exit
 }
 
-fn emit_sequence_missing(i: SyntaxIn, separator: bool, item: &Item, item_origin: usize) {
-    let (role, expected) = if separator {
-        (CaseLikeRole::Separator, PunctuationEvidence::Comma)
-    } else {
-        (
-            CaseLikeRole::Block,
-            PunctuationEvidence::Close(crate::recovery_record::Delimiter::Brace),
-        )
-    };
-    emit_case_missing(
-        i,
-        role,
-        ExpectedSyntax::Punctuation(expected),
-        item,
-        item_origin,
-    );
+fn emit_sequence_missing(i: SyntaxIn, _separator: bool, item: &Item, item_origin: usize) {
+    emit_case_missing(i, item, item_origin);
 }
 
-fn emit_structural_missing(i: SyntaxIn, role: CaseLikeRole, item: &Item, item_origin: usize) {
-    let expected = match role {
-        CaseLikeRole::Block => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        CaseLikeRole::Arm => ExpectedSyntax::Pattern,
-        _ => unreachable!("only structural CaseLike slots publish here"),
-    };
-    emit_case_missing(i, role, expected, item, item_origin);
+fn emit_structural_missing(i: SyntaxIn, item: &Item, item_origin: usize) {
+    emit_case_missing(i, item, item_origin);
 }
 
-fn emit_case_missing(
-    i: SyntaxIn,
-    role: CaseLikeRole,
-    expected: ExpectedSyntax,
-    item: &Item,
-    item_origin: usize,
-) {
+fn emit_case_missing(i: SyntaxIn, item: &Item, item_origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    let role = GrammarRole::CaseLike(role);
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        RecoveryDraft::new(
-            RecoverySiteKey {
-                role,
-                range: range.clone(),
-            },
-            RecoveryKind::Missing,
-            Arc::from([]),
-            Arc::from([SyntaxExpectation {
-                role,
-                expected,
-                range,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            0,
-        )
-    });
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -577,7 +522,6 @@ fn arm_normalized(
     let exit = pattern_from_entry_item_normalized(
         i.rb(),
         item,
-        CaseLikeRole::Pattern,
         arm_baseline,
         first_stops,
         line_handoff,
@@ -615,7 +559,6 @@ fn arm_normalized(
         let exit = pattern_from_entry_item_normalized(
             i.rb(),
             handler,
-            CaseLikeRole::Handler,
             arm_baseline,
             handler_stops,
             line_handoff,
@@ -731,7 +674,7 @@ fn finish_absent_arm_normalized(
         NormalizedExit::Complete(Err(Either::Right(end)), _) => &mut end.item,
         _ => unreachable!("an absent arm retains its terminal Item"),
     };
-    emit_arm_missing(i.rb(), item, item_origin, CaseLikeRole::Arrow, true);
+    emit_arm_missing(i.rb(), item, item_origin);
     i.state.finish_node();
     exit
 }
@@ -797,7 +740,6 @@ fn guard_normalized(
     let exit = required_expr_item_normalized(
         i.rb(),
         item,
-        GrammarRole::CaseLike(CaseLikeRole::Guard),
         None,
         baseline,
         outer_stops | STOP_ARROW,
@@ -829,11 +771,11 @@ fn missing_arrow_then_body_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if arm_body_boundary(i.rb(), &item, arm_baseline, body_stops) {
-        emit_arm_missing(i.rb(), &mut item, item_origin, CaseLikeRole::Arrow, true);
+        emit_arm_missing(i.rb(), &mut item, item_origin);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
-    emit_arm_missing(i.rb(), &mut item, item_origin, CaseLikeRole::Arrow, false);
+    emit_arm_missing(i.rb(), &mut item, item_origin);
     arm_inline_body_item_normalized(
         i,
         item,
@@ -866,9 +808,6 @@ fn arm_body_normalized(
         indented_statement_block_normalized(
             i,
             arrow_baseline,
-            crate::recovery_record::GrammarRole::ColonApplication(
-                crate::recovery_record::ColonApplicationRole::IndentedStatement,
-            ),
             body_stops,
             item_origin,
             line_entry,
@@ -914,7 +853,7 @@ fn arm_inline_body_item_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if arm_body_boundary(i.rb(), &item, baseline, stops) {
-        emit_arm_missing(i.rb(), &mut item, item_origin, CaseLikeRole::Body, false);
+        emit_arm_missing(i.rb(), &mut item, item_origin);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -975,18 +914,9 @@ fn retry_arm_body_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i,
-        |run| loop {
-            let kind = match token_kind(&item).expect("Body Error owns lexical Items") {
-                TokenKind::Operator => SyntaxKind::Operator,
-                kind => token_syntax_kind(kind),
-            };
-            let range = run.emit_item_as(item, item_origin, kind).recovery_range();
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range,
-                category: UnexpectedCategory::OtherCharacter,
-            });
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
             (item, item_origin, line_entry) = run.lexical(|lex| {
                 scan_expression_item_lexical(
                     lex,
@@ -1003,17 +933,8 @@ fn retry_arm_body_normalized(
             {
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            arm_recovery_draft(
-                CaseLikeRole::Body,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-                false,
-            )
-        },
-    )
+        }
+    })
 }
 
 fn arm_body_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {
@@ -1036,13 +957,7 @@ fn arm_body_boundary_lex(i: LexIn, item: &Item, baseline: usize, stops: Stops) -
                 )))
 }
 
-fn emit_arm_missing(
-    i: SyntaxIn,
-    item: &mut Item,
-    origin: usize,
-    role: CaseLikeRole,
-    combined: bool,
-) {
+fn emit_arm_missing(i: SyntaxIn, item: &mut Item, origin: usize) {
     if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
         item.emit_eof_leading(&mut *i.state);
     }
@@ -1050,51 +965,7 @@ fn emit_arm_missing(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        arm_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]), combined)
-    });
-}
-
-fn arm_recovery_draft(
-    role: CaseLikeRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-    combined: bool,
-) -> RecoveryDraft {
-    let expectation = SyntaxExpectation {
-        role: GrammarRole::CaseLike(role),
-        expected: if role == CaseLikeRole::Arrow {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)
-        } else {
-            ExpectedSyntax::Expression
-        },
-        range: range.clone(),
-        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-    };
-    let expectations: Arc<[SyntaxExpectation]> = if combined {
-        Arc::from([
-            expectation,
-            SyntaxExpectation {
-                role: GrammarRole::CaseLike(CaseLikeRole::Body),
-                expected: ExpectedSyntax::Expression,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            },
-        ])
-    } else {
-        Arc::from([expectation])
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role: GrammarRole::CaseLike(role),
-            range,
-        },
-        kind,
-        unexpected,
-        expectations,
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn arm_terminal_normalized(

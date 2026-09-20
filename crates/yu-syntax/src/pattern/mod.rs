@@ -3,12 +3,7 @@
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-use crate::recovery_record::{
-    ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole, RecoveryKind, RecoverySiteKey,
-    SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-};
 use reborrow_generic::Reborrow as _;
-use std::{ops::Range, sync::Arc};
 
 use crate::syntax_kind::SyntaxKind;
 
@@ -17,12 +12,7 @@ mod delimited;
 use crate::handoff::{TailExit, ordinary_exit};
 
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
@@ -302,7 +292,6 @@ fn pattern_from_item_recording_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
-        GrammarRole::Pattern(PatternRole::Primary),
         completion,
         item_origin,
         line_entry,
@@ -321,7 +310,6 @@ fn pattern_from_item_recording_with_policy_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    primary_role: GrammarRole,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -339,7 +327,6 @@ fn pattern_from_item_recording_with_policy_normalized(
         line_handoff,
         policy,
         caller_closes,
-        primary_role,
         completion,
         item_origin,
         line_entry,
@@ -360,7 +347,6 @@ fn pattern_from_item_core_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    primary_role: GrammarRole,
     completion: &mut PatternCompletion,
     item_origin: usize,
     line_entry: LineEntry,
@@ -371,7 +357,7 @@ fn pattern_from_item_core_normalized(
         || is_mandatory_slot_fresh_primary_stop(&item, policy.fresh_primary_recovery_stops)
     {
         *completion = PatternCompletion::Incomplete;
-        emit_initial_pattern_missing(&mut i, primary_role, &item, item_origin);
+        emit_initial_pattern_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if is_pattern_nud(&item, stops) {
@@ -401,7 +387,6 @@ fn pattern_from_item_core_normalized(
             line_handoff,
             policy,
             caller_closes,
-            primary_role,
             completion,
             item_origin,
             line_entry,
@@ -415,7 +400,6 @@ fn pattern_from_item_core_normalized(
 pub(super) fn pattern_from_entry_item_normalized(
     i: SyntaxIn,
     item: Item,
-    role: crate::recovery_record::CaseLikeRole,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
@@ -424,11 +408,6 @@ pub(super) fn pattern_from_entry_item_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    debug_assert!(matches!(
-        role,
-        crate::recovery_record::CaseLikeRole::Pattern
-            | crate::recovery_record::CaseLikeRole::Handler
-    ));
     let mut completion = PatternCompletion::Incomplete;
     pattern_from_item_recording_with_policy_normalized(
         i,
@@ -439,7 +418,6 @@ pub(super) fn pattern_from_entry_item_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
-        GrammarRole::CaseLike(role),
         &mut completion,
         item_origin,
         line_entry,
@@ -476,7 +454,6 @@ pub(super) fn pattern_from_entry_item_with_completion_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
-        GrammarRole::ForStatement(crate::recovery_record::ForStatementRole::Pattern),
         &mut completion,
         item_origin,
         line_entry,
@@ -511,7 +488,6 @@ pub(super) fn required_pattern_from_entry_item_with_policy_normalized(
         line_handoff,
         policy,
         caller_closes,
-        GrammarRole::Pattern(PatternRole::Primary),
         &mut completion,
         item_origin,
         line_entry,
@@ -531,7 +507,6 @@ fn recover_pattern_primary_normalized(
     line_handoff: StatementLineHandoff,
     policy: PatternMandatorySlotPolicy,
     caller_closes: PatternCallerCloses,
-    primary_role: GrammarRole,
     completion: &mut PatternCompletion,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -545,11 +520,11 @@ fn recover_pattern_primary_normalized(
             || is_pattern_primary_boundary(item, baseline, stops)
     };
     if boundary(&item) {
-        emit_initial_pattern_missing(&mut i, primary_role, &item, item_origin);
+        emit_initial_pattern_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if is_current_pattern_tail(&item, stops) {
-        emit_initial_pattern_missing(&mut i, primary_role, &item, item_origin);
+        emit_initial_pattern_missing(&mut i, &item, item_origin);
         return pattern_tail_normalized(
             i,
             item,
@@ -566,12 +541,9 @@ fn recover_pattern_primary_normalized(
         );
     }
 
-    let run_start = item.extent(item_origin).recovery_range().start;
-    (item, item_origin, line_entry) = emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = token_syntax_kind(token_kind(&item).expect("malformed Pattern Item"));
-            let extent = run.emit_item_as(item, item_origin, kind);
+    (item, item_origin, line_entry) = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
             (item, item_origin, line_entry) = run.lexical(|lex| {
                 scan_pattern_item_lexical(
                     lex,
@@ -586,17 +558,10 @@ fn recover_pattern_primary_normalized(
                 || is_current_pattern_tail(&item, stops)
                 || is_pattern_nud(&item, stops)
             {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: run_start..extent.recovery_range().end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            initial_pattern_recovery_draft(primary_role, RecoveryKind::Error, range, unexpected)
-        },
-    );
+        }
+    });
     if boundary(&item) {
         return complete(handoff(item), line_entry);
     }
@@ -811,7 +776,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 item_origin = advanced_origin(item_origin, entry, i.rb());
                 line_entry = LineEntry::InLine;
             } else {
-                emit_pattern_missing_at(&mut i, PatternRole::SymbolName, item_origin);
+                emit_pattern_missing_at(&mut i, item_origin);
                 *completion = PatternCompletion::Incomplete;
             }
             i.state.finish_node();
@@ -1080,7 +1045,6 @@ fn pattern_tail_normalized(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
-            GrammarRole::Pattern(PatternRole::AlternationRhs),
             completion,
             rhs_origin,
             rhs_line_entry,
@@ -1143,17 +1107,14 @@ fn recover_pattern_alias_binding_normalized(
         item.payload_view().is_boundary() || is_pattern_primary_boundary(item, baseline, stops)
     };
     if boundary(&item) || is_current_pattern_tail(&item, stops) {
-        emit_pattern_missing(&mut i, PatternRole::AliasBinding, &item, item_origin);
+        emit_pattern_missing(&mut i, &item, item_origin);
         return (item, item_origin, line_entry);
     }
 
     item.emit_all_remaining_leading(&mut *i.state);
-    let run_start = item.extent(item_origin).recovery_range().start;
-    (item, item_origin, line_entry) = emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = token_syntax_kind(token_kind(&item).expect("malformed alias binding Item"));
-            let extent = run.emit_item_as(item, item_origin, kind);
+    (item, item_origin, line_entry) = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
             (item, item_origin, line_entry) = run.lexical(|lex| {
                 scan_pattern_item_lexical(
                     lex,
@@ -1168,22 +1129,10 @@ fn recover_pattern_alias_binding_normalized(
                 || token_kind(&item) == Some(TokenKind::Identifier)
                 || is_current_pattern_tail(&item, stops)
             {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: run_start..extent.recovery_range().end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            pattern_recovery_draft(
-                PatternRole::AliasBinding,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    );
+        }
+    });
     if boundary(&item) || token_kind(&item) != Some(TokenKind::Identifier) {
         return (item, item_origin, line_entry);
     }
@@ -1214,9 +1163,6 @@ pub(super) fn binding_target_from_entry_item_normalized(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         PatternCallerCloses::NONE,
-        GrammarRole::Declaration(crate::recovery_record::DeclarationRole::Binding(
-            crate::recovery_record::BindingRole::Target,
-        )),
         &mut PatternCompletion::Incomplete,
         item_origin,
         line_entry,
@@ -1225,110 +1171,24 @@ pub(super) fn binding_target_from_entry_item_normalized(
     )
 }
 
-fn emit_initial_pattern_missing(
-    i: &mut SyntaxIn,
-    role: GrammarRole,
-    item: &Item,
-    item_origin: usize,
-) {
+fn emit_initial_pattern_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        initial_pattern_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
-fn initial_pattern_recovery_draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    if let GrammarRole::Pattern(role) = role {
-        return pattern_recovery_draft(role, kind, range, unexpected);
-    }
-    debug_assert!(matches!(
-        role,
-        GrammarRole::Declaration(crate::recovery_record::DeclarationRole::Binding(
-            crate::recovery_record::BindingRole::Target
-        )) | GrammarRole::ForStatement(crate::recovery_record::ForStatementRole::Pattern)
-            | GrammarRole::CaseLike(
-                crate::recovery_record::CaseLikeRole::Pattern
-                    | crate::recovery_record::CaseLikeRole::Handler
-            )
-    ));
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Pattern,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn emit_pattern_missing(i: &mut SyntaxIn, role: PatternRole, item: &Item, item_origin: usize) {
+fn emit_pattern_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_pattern_missing_at(i, role, at);
+    emit_pattern_missing_at(i, at);
 }
 
-fn emit_pattern_missing_at(i: &mut SyntaxIn, role: PatternRole, at: usize) {
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        pattern_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn pattern_recovery_draft(
-    role: PatternRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        PatternRole::Primary
-        | PatternRole::AlternationRhs
-        | PatternRole::ParenthesizedElement
-        | PatternRole::ListItem
-        | PatternRole::ListSpreadRhs
-        | PatternRole::RecordNestedPattern
-        | PatternRole::RecordSpreadRhs => ExpectedSyntax::Pattern,
-        PatternRole::SymbolName | PatternRole::AliasBinding | PatternRole::RecordItem => {
-            ExpectedSyntax::Identifier
-        }
-        PatternRole::ParenthesizedSeparator
-        | PatternRole::ListSeparator
-        | PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
-        PatternRole::RecordDefaultExpression => ExpectedSyntax::Expression,
-        _ => unreachable!("Pattern-owned recovery role"),
-    };
-    let role = GrammarRole::Pattern(role);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+fn emit_pattern_missing_at(i: &mut SyntaxIn, at: usize) {
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1413,7 +1273,6 @@ fn pattern_type_annotation_rhs_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i,
             primary,
-            GrammarRole::Pattern(PatternRole::TypeAnnotation),
             baseline,
             caller_stops,
             outer_boundary,

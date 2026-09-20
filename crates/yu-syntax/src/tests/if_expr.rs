@@ -1,50 +1,16 @@
 use crate::tests::support::*;
 use crate::{
-    ambient_claim::AmbientClaimView,
-    handoff::MlMode,
-    recovery_record::{
-        DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, IfExpressionRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    },
-    statement::StatementLineHandoff,
+    ExpectedSyntax, ambient_claim::AmbientClaimView, handoff::MlMode,
+    statement::StatementLineHandoff, structural_diagnostic::StructuralKind,
 };
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
-fn if_record(
-    id: u32,
-    role: IfExpressionRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        IfExpressionRole::BodyIntroducer => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        _ => ExpectedSyntax::Expression,
-    };
-    let role = GrammarRole::IfExpression(role);
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Missing {
-            Arc::from([])
-        } else {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CstSlot {
+    Body,
+    BodyIntroducer,
+    Condition,
+    ElseBody,
 }
 
 fn parse_if_into<'s>(
@@ -387,7 +353,7 @@ fn if_elsif_condition_missing_error_and_retry_use_ordered_rowan_children() {
             first_recovery.kind(),
         ) {
             (Condition, IfArm, ElsifKw, OperatorChain, Missing | Error) => (
-                GrammarRole::IfExpression(IfExpressionRole::Condition),
+                CstSlot::Condition,
                 [ExpectedSyntax::Expression],
                 0usize,
                 usize::from(recovery[0].text_range().start())
@@ -398,7 +364,7 @@ fn if_elsif_condition_missing_error_and_retry_use_ordered_rowan_children() {
         assert_eq!(
             derived,
             (
-                GrammarRole::IfExpression(IfExpressionRole::Condition),
+                CstSlot::Condition,
                 [ExpectedSyntax::Expression],
                 0usize,
                 recovery_range
@@ -432,11 +398,11 @@ fn if_elsif_condition_missing_error_and_retry_use_ordered_rowan_children() {
 }
 
 #[test]
-fn if_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
-    use IfExpressionRole::{Body, BodyIntroducer, Condition, ElseBody};
-    use RecoveryKind::{Error, Missing};
+fn if_selected_slots_have_exact_structural_kind_and_range_facts() {
+    use CstSlot::{Body, BodyIntroducer, Condition, ElseBody};
+    use StructuralKind::{ErrorGroup as Error, Missing};
     for (source, slots) in [
-        ("if", vec![(Condition, Missing, 2..2)]),
+        ("if", vec![(Condition, StructuralKind::Missing, 2..2)]),
         ("if : y", vec![(Condition, Missing, 3..3)]),
         (
             "if :",
@@ -484,32 +450,27 @@ fn if_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
         ("if x:\n  a\nelse: b", vec![]),
     ] {
         for origin in [0, 8100] {
-            let expected: Vec<_> = slots
+            let expected: Vec<StructuralFact> = slots
                 .iter()
-                .enumerate()
-                .map(|(id, (role, kind, range))| {
-                    if_record(
-                        id as u32,
-                        *role,
-                        *kind,
-                        origin + range.start..origin + range.end,
+                .map(|(_, kind, range)| {
+                    (
+                        if *kind == Missing {
+                            StructuralKind::Missing
+                        } else {
+                            StructuralKind::ErrorGroup
+                        },
+                        range.clone(),
                     )
                 })
                 .collect();
-            let mut fresh = None;
-            for frozen in [None, Some(expected.as_slice())] {
+            for _ in 0..1 {
                 let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
                     "-",
                     OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
                 )])
                 .unwrap();
                 let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen
-                    .map(|records| {
-                        recover = Recover::reconcile_for_test(recover.operators(), records);
-                        GreenNodeBuilder::new()
-                    })
-                    .unwrap_or_else(GreenNodeBuilder::new);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let (mut exit, remainder) =
                     parse_if_into(source, origin, 0, None, &mut recover, &mut output);
@@ -519,15 +480,10 @@ fn if_selected_slots_have_exact_fresh_shifted_and_frozen_records() {
                     panic!("EOF for {source:?}");
                 }
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-                assert_eq!(records, expected, "{source:?} at {origin}");
+                let green = finish_with_discarded_recoveries(output, recover);
+                assert_eq!(structural_facts(&green), expected, "{source:?} at {origin}");
                 assert_eq!(green.to_string(), source);
                 assert_eq!(remainder, "");
-                if let Some(fresh) = &fresh {
-                    assert_eq!(&green, fresh);
-                } else {
-                    fresh = Some(green);
-                }
             }
         }
     }
@@ -550,16 +506,11 @@ fn if_completed_condition_missing_introducer_owns_ordinary_gap_only() {
         output.start_node(SyntaxKind::Root.into());
         let (exit, suffix) = parse_if_into(source, 400, 0, None, &mut recover, &mut output);
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
         assert_eq!(green.to_string(), emitted);
         assert_eq!(
-            records,
-            [if_record(
-                0,
-                IfExpressionRole::BodyIntroducer,
-                RecoveryKind::Missing,
-                400 + at..400 + at
-            )]
+            structural_facts(&green),
+            [(StructuralKind::Missing, at..at)]
         );
         let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
             panic!("ordinary pending Item");
@@ -576,50 +527,42 @@ fn if_completed_condition_missing_introducer_owns_ordinary_gap_only() {
 
 #[test]
 fn if_root_and_statement_callers_publish_the_same_immediate_owner() {
-    for (source, role, kind, range) in [
-        (
-            "(if x:)",
-            IfExpressionRole::Body,
-            RecoveryKind::Missing,
-            6..6,
-        ),
-        (
-            "(if x: @)",
-            IfExpressionRole::Body,
-            RecoveryKind::Error,
-            7..8,
-        ),
+    for (source, _role, kind, range) in [
+        ("(if x:)", CstSlot::Body, StructuralKind::Missing, 6..6),
+        ("(if x: @)", CstSlot::Body, StructuralKind::ErrorGroup, 7..8),
         (
             "if x",
-            IfExpressionRole::BodyIntroducer,
-            RecoveryKind::Missing,
+            CstSlot::BodyIntroducer,
+            StructuralKind::Missing,
             4..4,
         ),
-        ("if x:", IfExpressionRole::Body, RecoveryKind::Missing, 5..5),
-        (
-            "if x: @ y",
-            IfExpressionRole::Body,
-            RecoveryKind::Error,
-            6..7,
-        ),
+        ("if x:", CstSlot::Body, StructuralKind::Missing, 5..5),
+        ("if x: @ y", CstSlot::Body, StructuralKind::ErrorGroup, 6..7),
         (
             "if x: a else",
-            IfExpressionRole::ElseBody,
-            RecoveryKind::Missing,
+            CstSlot::ElseBody,
+            StructuralKind::Missing,
             12..12,
         ),
         (
             "if x: a else: @ y",
-            IfExpressionRole::ElseBody,
-            RecoveryKind::Error,
+            CstSlot::ElseBody,
+            StructuralKind::ErrorGroup,
             14..15,
         ),
     ] {
         let operators = OperatorTable::empty();
-        let expected = [if_record(0, role, kind, range)];
-        let root = crate::source_file::parse_root_candidate(source, &operators, &[]);
-        assert_eq!(root.green.to_string(), source);
-        assert_eq!(root.committed_recoveries.as_slice(), expected);
+        let expected = [(
+            if kind == StructuralKind::Missing {
+                crate::structural_diagnostic::StructuralKind::Missing
+            } else {
+                crate::structural_diagnostic::StructuralKind::ErrorGroup
+            },
+            range,
+        )];
+        let root = crate::cursor::parse_root(source, &operators);
+        assert_eq!(root.to_string(), source);
+        assert_eq!(structural_facts(&root), expected);
         let mut input = source;
         let mut recover = Recover::new_for_test(&operators);
         let mut output = GreenNodeBuilder::new();
@@ -638,9 +581,9 @@ fn if_root_and_statement_callers_publish_the_same_immediate_owner() {
             emit_end(&mut output, end);
         }
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
         assert_eq!(green.to_string(), source);
-        assert_eq!(records, expected);
+        assert_eq!(structural_facts(&green), expected);
         assert_eq!(input, "");
     }
 }
@@ -649,37 +592,34 @@ fn if_root_and_statement_callers_publish_the_same_immediate_owner() {
 fn if_nested_indented_body_recovery_preserves_the_dedented_item() {
     let prefix = "if outer:\n  if inner:";
     for (body, kind, relative_range) in [
-        ("", RecoveryKind::Missing, 21..21),
-        (" @", RecoveryKind::Error, 22..23),
+        ("", StructuralKind::Missing, 21..21),
+        (" @", StructuralKind::ErrorGroup, 22..23),
     ] {
         for newline in ["\n", "\r\n"] {
             let source = format!("{prefix}{body}{newline}next tail");
             let origin = 600;
-            let expected = [if_record(
-                0,
-                IfExpressionRole::Body,
-                kind,
-                origin + relative_range.start..origin + relative_range.end,
+            let expected = [(
+                if kind == StructuralKind::Missing {
+                    StructuralKind::Missing
+                } else {
+                    StructuralKind::ErrorGroup
+                },
+                relative_range.clone(),
             )];
-            for frozen in [None, Some(expected.as_slice())] {
+            for _ in 0..1 {
                 let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
                     "-",
                     OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
                 )])
                 .unwrap();
                 let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen
-                    .map(|records| {
-                        recover = Recover::reconcile_for_test(recover.operators(), records);
-                        GreenNodeBuilder::new()
-                    })
-                    .unwrap_or_else(GreenNodeBuilder::new);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let (exit, suffix) =
                     parse_if_into(&source, origin, 0, None, &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-                assert_eq!(records, expected);
+                let green = finish_with_discarded_recoveries(output, recover);
+                assert_eq!(structural_facts(&green), expected);
                 assert_eq!(green.to_string(), format!("{prefix}{body}"));
                 let root = SyntaxNode::new_root(green);
                 assert_eq!(
@@ -717,74 +657,6 @@ fn if_nested_indented_body_recovery_preserves_the_dedented_item() {
 }
 
 #[test]
-fn if_slots_reuse_seeded_and_frozen_ids_and_allocate_above_them() {
-    for (source, role, kind, range) in [
-        (
-            "if x",
-            IfExpressionRole::BodyIntroducer,
-            RecoveryKind::Missing,
-            4..4,
-        ),
-        ("if x:", IfExpressionRole::Body, RecoveryKind::Missing, 5..5),
-        (
-            "if x: @ y",
-            IfExpressionRole::Body,
-            RecoveryKind::Error,
-            6..7,
-        ),
-        (
-            "if x: a else",
-            IfExpressionRole::ElseBody,
-            RecoveryKind::Missing,
-            12..12,
-        ),
-        (
-            "if x: a else: @ y",
-            IfExpressionRole::ElseBody,
-            RecoveryKind::Error,
-            14..15,
-        ),
-    ] {
-        let seed = if_record(7, IfExpressionRole::Condition, RecoveryKind::Missing, 0..0);
-        let reused = if_record(19, role, kind, 100 + range.start..100 + range.end);
-        let frozen = [seed.clone(), reused.clone()];
-        let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
-            "-",
-            OperatorFixities::new().with_prefix(BindingPower::scalar(70)),
-        )])
-        .unwrap();
-        let mut recover = Recover::new_for_test(&operators);
-        let mut output = {
-            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
-            GreenNodeBuilder::new()
-        };
-        output.start_node(SyntaxKind::Root.into());
-        output.start_node(SyntaxKind::Missing.into());
-        output.finish_node();
-        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-            seed.site.clone(),
-            seed.kind,
-            seed.unexpected.clone(),
-            seed.expectations.clone(),
-            0,
-        ));
-        for origin in [100, 200] {
-            let _ = parse_if_into(source, origin, 0, None, &mut recover, &mut output);
-        }
-        output.finish_node();
-        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
-        assert_eq!(
-            records,
-            [
-                seed,
-                reused,
-                if_record(20, role, kind, 200 + range.start..200 + range.end)
-            ]
-        );
-    }
-}
-
-#[test]
 fn if_inline_boundaries_preserve_pending_payload_leading_and_successor() {
     use crate::lexical::stops::STOP_COMMA;
     for (suffix, stops, kind, leading, consumed_leading) in [
@@ -814,30 +686,21 @@ fn if_inline_boundaries_preserve_pending_payload_leading_and_successor() {
                 let (exit, remainder) =
                     parse_if_into(&source, 300, stops, None, &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = finish_with_discarded_recoveries(output, recover);
                 assert_eq!(
                     green.to_string(),
                     format!("{head}{error}{consumed_leading}")
                 );
-                let role = if head == "if x:" {
-                    IfExpressionRole::Body
-                } else {
-                    IfExpressionRole::ElseBody
-                };
-                let (recovery_kind, range) = if error.is_empty() {
-                    let at = 300 + head.len() + consumed_leading.len();
-                    (RecoveryKind::Missing, at..at)
+                let expected = if error.is_empty() {
+                    let at = head.len() + consumed_leading.len();
+                    (StructuralKind::Missing, at..at)
                 } else {
                     (
-                        RecoveryKind::Error,
-                        301 + head.len()..300 + head.len() + error.len(),
+                        StructuralKind::ErrorGroup,
+                        head.len() + 1..head.len() + error.len(),
                     )
                 };
-                assert_eq!(
-                    records,
-                    [if_record(0, role, recovery_kind, range)],
-                    "{source:?}"
-                );
+                assert_eq!(structural_facts(&green), [expected], "{source:?}");
                 let NormalizedExit::Complete(Err(Either::Left(mut item)), line) = exit else {
                     panic!("pending {source:?}");
                 };
@@ -868,13 +731,13 @@ fn if_quoted_fences_remain_wholly_pending_before_and_after_errors() {
         close_column: 0,
     };
     for (head, role) in [
-        ("if x", IfExpressionRole::BodyIntroducer),
-        ("if x:", IfExpressionRole::Body),
-        ("if x: a else", IfExpressionRole::ElseBody),
-        ("if x: a else:", IfExpressionRole::ElseBody),
+        ("if x", CstSlot::BodyIntroducer),
+        ("if x:", CstSlot::Body),
+        ("if x: a else", CstSlot::ElseBody),
+        ("if x: a else:", CstSlot::ElseBody),
     ] {
         for error in ["", " @ 💥"] {
-            if role == IfExpressionRole::BodyIntroducer && !error.is_empty() {
+            if role == CstSlot::BodyIntroducer && !error.is_empty() {
                 continue;
             }
             for newline in ["\n", "\r\n"] {
@@ -891,15 +754,15 @@ fn if_quoted_fences_remain_wholly_pending_before_and_after_errors() {
                 let (exit, remainder) =
                     parse_if_into(&source, 700, 0, Some(&fence), &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = finish_with_discarded_recoveries(output, recover);
                 assert_eq!(green.to_string(), accepted);
                 let coordinate = 700 + accepted.len() + newline.len();
-                let (kind, range) = if error.is_empty() {
-                    (RecoveryKind::Missing, coordinate..coordinate)
+                let expected = if error.is_empty() {
+                    (StructuralKind::Missing, accepted.len()..accepted.len())
                 } else {
-                    (RecoveryKind::Error, 701 + head.len()..700 + accepted.len())
+                    (StructuralKind::ErrorGroup, head.len() + 1..accepted.len())
                 };
-                assert_eq!(records, [if_record(0, role, kind, range)], "{source:?}");
+                assert_eq!(structural_facts(&green), [expected], "{source:?}");
                 let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart) =
                     exit
                 else {

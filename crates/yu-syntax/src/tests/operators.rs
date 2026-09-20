@@ -177,8 +177,9 @@ fn dynamic_operator_raw_rejection_keeps_outer_input_and_builder_unchanged() {
     assert_eq!(input, "?(a)");
     assert!(std::ptr::eq(recover.operators(), &operators));
     builder.finish_node();
-    assert!(recover.finish_recoveries_for_test().is_empty());
-    assert_eq!(builder.finish().to_string(), "");
+    let green = builder.finish();
+    assert_eq!(green.to_string(), "");
+    assert!(structural_facts(&green).is_empty());
 }
 
 #[test]
@@ -276,12 +277,6 @@ fn dynamic_operator_uses_delimited_baseline_and_matching_stop() {
         ("(a +\nb)", false),
         ("(a +\r\nb)", false),
     ] {
-        use crate::recovery_record::{
-            DiagnosticId, ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole,
-            RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-        };
-        use std::sync::Arc;
-
         let mut input = source;
         let mut recover = Recover::new_for_test(&infix);
         let mut builder = GreenNodeBuilder::new();
@@ -295,10 +290,11 @@ fn dynamic_operator_uses_delimited_baseline_and_matching_stop() {
             emit_end(&mut builder, end);
         }
         builder.finish_node();
-        let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
+        let green = builder.finish();
         assert_eq!(green.to_string(), source);
         assert!(matches!(exit, Some(Err(Either::Right(_)))));
         assert_eq!(input, "");
+        let facts = structural_facts(&green);
         let root = SyntaxNode::new_root(green);
         assert_eq!(
             root.descendants()
@@ -312,27 +308,14 @@ fn dynamic_operator_uses_delimited_baseline_and_matching_stop() {
                 .any(|node| node.kind() == SyntaxKind::Missing)
         );
         if accepted_infix {
-            assert!(records.is_empty());
+            assert!(facts.is_empty());
         } else {
-            let role = GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator);
             assert_eq!(
-                records,
-                [CommittedRecoveryRecord {
-                    id: DiagnosticId(0),
-                    site: RecoverySiteKey { role, range: 3..4 },
-                    kind: RecoveryKind::Error,
-                    unexpected: Arc::from([UnexpectedSyntax::Token {
-                        range: 3..4,
-                        category: UnexpectedCategory::OtherCharacter
-                    }]),
-                    expectations: Arc::from([SyntaxExpectation {
-                        role,
-                        expected: ExpectedSyntax::DelimitedSequenceSeparator,
-                        range: 3..4,
-                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE
-                    }]),
-                    primary_expectation: 0,
-                }]
+                facts,
+                [(
+                    crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                    3..4,
+                )]
             );
             let group = root
                 .descendants()
@@ -486,13 +469,14 @@ fn dangling_operator_recovery_is_direct_cst_only() {
     let (green, exit) = run_with("a + @ b", &operators);
     assert_eq!(green.to_string(), "a + @ b");
     assert!(matches!(exit, Some(Err(Either::Right(_)))));
-    let root = SyntaxNode::new_root(green.clone());
     assert_eq!(
-        crate::tests::recovery_output::recovery_groups(&root)
-            .into_iter()
-            .count(),
-        1
+        structural_facts(&green),
+        [(
+            crate::structural_diagnostic::StructuralKind::ErrorGroup,
+            4..5,
+        )]
     );
+    let root = SyntaxNode::new_root(green.clone());
     assert!(
         !root
             .descendants()

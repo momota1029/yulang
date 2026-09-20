@@ -1,34 +1,14 @@
 use crate::tests::type_expr::*;
 
-pub(super) fn arrow(id: u32, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
-    let role = GrammarRole::Type(TypeRole::BracketRowArrow);
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if error {
-            RecoveryKind::Error
+pub(super) fn arrow(_: u32, range: Range<usize>, error: bool) -> ExpectedStructural {
+    (
+        if error {
+            StructuralKind::ErrorGroup
         } else {
-            RecoveryKind::Missing
+            StructuralKind::Missing
         },
-        unexpected: if error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+        range,
+    )
 }
 
 #[test]
@@ -51,10 +31,7 @@ fn bracket_arrow_missing_is_distinct_from_row_close_and_arrow_rhs() {
                 arrow(1, 6..6, false),
             ],
         ),
-        (
-            "F [e] ->",
-            vec![expected_type_expression_missing(0, TypeRole::ArrowRhs, 8)],
-        ),
+        ("F [e] ->", vec![(StructuralKind::Missing, (8)..(8))]),
     ] {
         assert_complete_type_recovery(source, 0, &expected);
     }
@@ -92,10 +69,7 @@ fn bracket_arrow_errors_retry_arrow_or_rhs_without_an_extra_missing() {
     assert_complete_type_recovery(
         "F [e] @ ->",
         0,
-        &[
-            arrow(0, 6..7, true),
-            expected_type_expression_missing(1, TypeRole::ArrowRhs, 10),
-        ],
+        &[arrow(0, 6..7, true), (StructuralKind::Missing, (10)..(10))],
     );
     assert_complete_type_recovery("F [e] @ -> U", 40, &[arrow(0, 46..47, true)]);
 }
@@ -116,53 +90,48 @@ fn bracket_arrow_boundaries_preserve_pending_items_before_and_after_error() {
             ("\r\nU tail", 0),
         ] {
             let source = format!("{prefix}{suffix}");
-            let frozen = frozen_recovery_ids(std::slice::from_ref(&expected));
-            for (input, records) in [
-                (None, std::slice::from_ref(&expected)),
-                (Some(frozen.as_slice()), frozen.as_slice()),
-            ] {
-                let run = run_contextual_type_snapshot(
-                    &source,
-                    crate::type_expr::TypeMlContext::INACTIVE,
-                    stops,
-                    0,
-                    0,
-                    LineEntry::InLine,
-                    None,
-                    input,
-                );
-                assert_eq!(
-                    run.green.to_string(),
-                    format!("sentinel{prefix}"),
-                    "{source:?}"
-                );
-                assert_eq!(run.records, records, "{source:?}");
-                assert_eq!(run.slots, 1);
-                let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
-                    panic!("arrow boundary stays pending")
-                };
-                let (control, origin, control_line, remainder, _, _) =
-                    scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
-                assert_eq!(pending, control, "{source:?}");
-                assert_eq!(run.successor_origin, origin);
-                assert_eq!(run.remainder, remainder);
-                assert_eq!(line, control_line);
-                assert_eq!(run.mark, ());
-                assert!(run.same_operators);
-            }
+            let run = run_contextual_type_snapshot(
+                &source,
+                crate::type_expr::TypeMlContext::INACTIVE,
+                stops,
+                0,
+                0,
+                LineEntry::InLine,
+                None,
+            );
+            assert_eq!(
+                run.green.to_string(),
+                format!("sentinel{prefix}"),
+                "{source:?}"
+            );
+            let expected = [(
+                expected.0,
+                "sentinel".len() + expected.1.start.."sentinel".len() + expected.1.end,
+            )];
+            assert_eq!(run.facts, expected, "{source:?}");
+            let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
+                panic!("arrow boundary stays pending")
+            };
+            let (control, origin, control_line, remainder, _, _) =
+                scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
+            assert_eq!(pending, control, "{source:?}");
+            assert_eq!(run.successor_origin, origin);
+            assert_eq!(run.remainder, remainder);
+            assert_eq!(line, control_line);
+            assert_eq!(run.mark, ());
+            assert!(run.same_operators);
         }
     }
     let expected = [arrow(0, 6..7, true)];
-    let (green, exit, found, _, remainder, records, _, _) =
-        run_required_type_with_outer_boundary_and_recoveries(
+    let (green, exit, found, _, remainder, facts) =
+        run_required_type_with_outer_boundary_and_structural_diagnostics(
             "F [e] @ with tail",
             crate::type_expr::TypeOuterBoundary::WITH,
             false,
-            None,
         );
     assert!(found);
     assert_eq!(green.to_string(), "F [e] @");
-    assert_eq!(records, expected);
+    assert_eq!(facts, expected);
     assert_eq!(remainder, " tail");
     let NormalizedExit::Complete(Err(Either::Left(pending)), _) = exit else {
         panic!("outer contextual boundary stays pending")
@@ -182,43 +151,31 @@ fn bracket_arrow_fences_and_structured_errors_keep_record_order() {
         close_column: 0,
     };
     for (prefix, expected) in [
-        ("> > F [e]", arrow(0, 10..10, false)),
+        ("> > F [e]", arrow(0, 9..9, false)),
         ("> > F [e] @", arrow(0, 10..11, true)),
     ] {
         let source = format!("{prefix}\n> > ```\nouter");
-        let frozen = frozen_recovery_ids(std::slice::from_ref(&expected));
-        for (input, records) in [
-            (None, std::slice::from_ref(&expected)),
-            (Some(frozen.as_slice()), frozen.as_slice()),
-        ] {
-            let (green, exit, remainder, actual) = run_type_normalized_with_recoveries(
-                &source,
-                0,
-                LineEntry::PhysicalStart,
-                Some(&fence),
-                input,
-            );
-            assert_eq!(green.to_string(), prefix);
-            assert_eq!(actual, records);
-            assert_eq!(remainder, "> > ```\nouter");
-            let Some(NormalizedExit::Complete(
-                Err(Either::Left(pending)),
-                LineEntry::PhysicalStart,
-            )) = exit
-            else {
-                panic!("arrow preserves fence")
-            };
-            assert!(pending.payload_view().is_boundary());
-            assert!(pending.leading_view().has_ordinary_newline());
-        }
+        let (green, exit, remainder, actual) = run_type_normalized_with_structural_diagnostics(
+            &source,
+            0,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+        );
+        assert_eq!(green.to_string(), prefix);
+        assert_eq!(actual, [expected]);
+        assert_eq!(remainder, "> > ```\nouter");
+        let Some(NormalizedExit::Complete(Err(Either::Left(pending)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("arrow preserves fence")
+        };
+        assert!(pending.payload_view().is_boundary());
+        assert!(pending.leading_view().has_ordinary_newline());
     }
     assert_complete_type_recovery(
         ":{123[e] @ -> U}",
         0,
-        &[
-            expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..15),
-            arrow(1, 9..10, true),
-        ],
+        &[(StructuralKind::Invalid, 2..15), arrow(1, 9..10, true)],
     );
 }
 

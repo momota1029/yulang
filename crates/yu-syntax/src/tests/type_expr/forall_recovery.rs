@@ -1,70 +1,40 @@
 use crate::tests::type_expr::record_field_recovery::field_record;
 use crate::tests::type_expr::*;
 
-fn forall_record(
-    id: u32,
-    role: TypeRole,
-    range: Range<usize>,
-    error: bool,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        TypeRole::ForallBinder => ExpectedSyntax::ForallTypeBinder,
-        TypeRole::ForallBinderBoundary => ExpectedSyntax::TypeBinderBoundary,
-        TypeRole::ForallColon => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        TypeRole::ForallBody => ExpectedSyntax::TypeExpression,
-        _ => panic!("only forall test records"),
-    };
-    let role = GrammarRole::Type(role);
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if error {
-            RecoveryKind::Error
+fn forall_record(range: Range<usize>, error: bool) -> ExpectedStructural {
+    (
+        if error {
+            StructuralKind::ErrorGroup
         } else {
-            RecoveryKind::Missing
+            StructuralKind::Missing
         },
-        unexpected: if error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+        range,
+    )
 }
 
-fn assert_typed_nodes(root: &SyntaxNode, expected: &[CommittedRecoveryRecord]) {
-    for (syntax, recovery) in [
-        (SyntaxKind::Missing, RecoveryKind::Missing),
-        (SyntaxKind::Error, RecoveryKind::Error),
-    ] {
-        assert_eq!(
-            if syntax == SyntaxKind::Error {
-                recovery_groups(root).len()
-            } else {
-                root.descendants()
-                    .filter(|node| node.kind() == syntax)
-                    .count()
-            },
-            expected
-                .iter()
-                .filter(|record| record.kind == recovery)
-                .count(),
-            "{}",
-            root.text(),
-        );
-    }
+fn assert_typed_nodes(root: &SyntaxNode, expected: &[ExpectedStructural]) {
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        expected
+            .iter()
+            .filter(|(kind, _)| *kind == StructuralKind::Missing)
+            .count(),
+        "{}",
+        root.text(),
+    );
+    assert_eq!(
+        recovery_groups(root).len(),
+        expected
+            .iter()
+            .filter(|(kind, _)| {
+                matches!(kind, StructuralKind::ErrorGroup | StructuralKind::Invalid)
+            })
+            .count(),
+        "{}",
+        root.text(),
+    );
 }
 
 fn forall_cst(source: &str) -> SyntaxNode {
@@ -528,7 +498,7 @@ fn forall_first_binder_slot_is_ordered_directly_in_rowan() {
         "for,@:T",
         " /*é*/with tail",
         crate::lexical::stops::STOP_WITH,
-        &[forall_record(0, TypeRole::ForallBinder, 3..5, true)],
+        &[forall_record(3..5, true)],
     );
 }
 
@@ -760,25 +730,22 @@ fn forall_later_binder_boundary_is_ordered_directly_in_rowan() {
 
 #[test]
 fn forall_missing_records_cover_only_the_current_mandatory_slot() {
-    use TypeRole::{
-        ForallBinder as B, ForallBinderBoundary as G, ForallBody as T, ForallColon as C,
-    };
     for origin in [0, 41] {
-        for (source, role, at) in [
-            ("for", B, 3),
-            ("for ", B, 3),
-            ("for\n", B, 3),
-            ("for 'a", C, 6),
-            ("for 'a ", C, 6),
-            ("for 'a:", T, 7),
-            ("for 'a: ", T, 7),
-            ("for'a:T", G, 3),
-            ("for 'a'b:T", G, 6),
-            ("for: T", B, 3),
-            ("for : T", B, 4),
-            ("for 'a T", C, 7),
+        for (source, at) in [
+            ("for", 3),
+            ("for ", 3),
+            ("for\n", 3),
+            ("for 'a", 6),
+            ("for 'a ", 6),
+            ("for 'a:", 7),
+            ("for 'a: ", 7),
+            ("for'a:T", 3),
+            ("for 'a'b:T", 6),
+            ("for: T", 3),
+            ("for : T", 4),
+            ("for 'a T", 7),
         ] {
-            let expected = [forall_record(0, role, origin + at..origin + at, false)];
+            let expected = [forall_record(origin + at..origin + at, false)];
             let root = assert_complete_type_recovery(source, origin, &expected);
             assert_typed_nodes(&root, &expected);
             if source.ends_with(' ') || source.ends_with('\n') {
@@ -798,37 +765,42 @@ fn forall_missing_records_cover_only_the_current_mandatory_slot() {
 
 #[test]
 fn forall_forward_errors_have_phase_owned_roles_and_native_extents() {
-    use TypeRole::{
-        ForallBinder as B, ForallBinderBoundary as G, ForallBody as T, ForallColon as C,
-    };
     for origin in [0, 41] {
-        for (source, role, range, text) in [
-            ("for @", B, 4..5, "@"),
-            ("for @ 'a:T", B, 4..5, "@"),
-            ("for @:T", B, 4..5, "@"),
-            ("for T", B, 4..5, "T"),
-            ("for $a", B, 4..6, "$a"),
-            ("for &a", B, 4..6, "&a"),
-            ("for _a", B, 4..6, "_a"),
-            ("for, T", B, 3..6, ", T"),
-            ("for; T", B, 3..6, "; T"),
-            ("for,,;", B, 3..6, ",,;"),
-            ("for 'a, 'b:T", G, 6..7, ","),
-            ("for 'a @", C, 7..8, "@"),
-            ("for 'a @:T", C, 7..8, "@"),
-            ("for 'a @ T", C, 7..8, "@"),
-            ("for 'a @ 'b:T", C, 7..8, "@"),
-            ("for 'a @ 'b", C, 7..8, "@"),
-            ("for 'a @, 'b:T", C, 7..9, "@,"),
-            ("for 'a: @", T, 8..9, "@"),
-            ("for 'a: @ T", T, 8..9, "@"),
-            ("for 'a: @/*é*/T", T, 8..9, "@"),
-            ("for (@: T) 'a:T", B, 4..10, "(@: T)"),
-            ("for (@\n) 'a:T", B, 4..8, "(@\n)"),
+        for (source, parent, range, text) in [
+            ("for @", SyntaxKind::ForallTypeBinder, 4..5, "@"),
+            ("for @ 'a:T", SyntaxKind::ForallTypeBinder, 4..5, "@"),
+            ("for @:T", SyntaxKind::ForallTypeBinder, 4..5, "@"),
+            ("for T", SyntaxKind::ForallTypeBinder, 4..5, "T"),
+            ("for $a", SyntaxKind::ForallTypeBinder, 4..6, "$a"),
+            ("for &a", SyntaxKind::ForallTypeBinder, 4..6, "&a"),
+            ("for _a", SyntaxKind::ForallTypeBinder, 4..6, "_a"),
+            ("for, T", SyntaxKind::ForallTypeBinder, 3..6, ", T"),
+            ("for; T", SyntaxKind::ForallTypeBinder, 3..6, "; T"),
+            ("for,,;", SyntaxKind::ForallTypeBinder, 3..6, ",,;"),
+            ("for 'a, 'b:T", SyntaxKind::ForallTypeBinder, 6..7, ","),
+            ("for 'a @", SyntaxKind::ForallType, 7..8, "@"),
+            ("for 'a @:T", SyntaxKind::ForallType, 7..8, "@"),
+            ("for 'a @ T", SyntaxKind::ForallType, 7..8, "@"),
+            ("for 'a @ 'b:T", SyntaxKind::ForallType, 7..8, "@"),
+            ("for 'a @ 'b", SyntaxKind::ForallType, 7..8, "@"),
+            ("for 'a @, 'b:T", SyntaxKind::ForallType, 7..9, "@,"),
+            ("for 'a: @", SyntaxKind::ForallType, 8..9, "@"),
+            ("for 'a: @ T", SyntaxKind::ForallType, 8..9, "@"),
+            ("for 'a: @/*é*/T", SyntaxKind::ForallType, 8..9, "@"),
+            (
+                "for (@: T) 'a:T",
+                SyntaxKind::ForallTypeBinder,
+                4..10,
+                "(@: T)",
+            ),
+            (
+                "for (@\n) 'a:T",
+                SyntaxKind::ForallTypeBinder,
+                4..8,
+                "(@\n)",
+            ),
         ] {
             let expected = [forall_record(
-                0,
-                role,
                 origin + range.start..origin + range.end,
                 true,
             )];
@@ -836,14 +808,7 @@ fn forall_forward_errors_have_phase_owned_roles_and_native_extents() {
             assert_typed_nodes(&root, &expected);
             let error = recovery_groups(&root).into_iter().next().unwrap();
             assert_eq!(error.text(), text, "{source:?}");
-            assert_eq!(
-                error.parent().unwrap().kind(),
-                if matches!(role, B | G) {
-                    SyntaxKind::ForallTypeBinder
-                } else {
-                    SyntaxKind::ForallType
-                }
-            );
+            assert_eq!(error.parent().unwrap().kind(), parent);
             if text.contains('(') {
                 assert!(
                     error
@@ -862,28 +827,18 @@ fn forall_forward_errors_have_phase_owned_roles_and_native_extents() {
 
 #[test]
 fn forall_boundary_recovery_does_not_replace_the_distinct_colon_or_binder_gap() {
-    use TypeRole::{ForallBinderBoundary as G, ForallColon as C};
     for (source, expected) in [
         (
             "for 'a, T",
-            vec![
-                forall_record(0, G, 6..7, true),
-                forall_record(1, C, 8..8, false),
-            ],
+            vec![forall_record(6..7, true), forall_record(8..8, false)],
         ),
         (
             "for 'a,",
-            vec![
-                forall_record(0, G, 6..7, true),
-                forall_record(1, C, 7..7, false),
-            ],
+            vec![forall_record(6..7, true), forall_record(7..7, false)],
         ),
         (
             "for 'a,'b:T",
-            vec![
-                forall_record(0, G, 6..7, true),
-                forall_record(1, G, 7..7, false),
-            ],
+            vec![forall_record(6..7, true), forall_record(7..7, false)],
         ),
     ] {
         let root = assert_complete_type_recovery(source, 0, &expected);
@@ -909,21 +864,12 @@ fn forall_literal_colon_and_full_canonical_bodies_remain_accepted() {
         assert_typed_nodes(&root, &[]);
     }
     for (source, expected) in [
-        (
-            "for 'a :{A}",
-            vec![field_record(0, TypeRole::RecordFieldColon, 10..10, false)],
-        ),
+        ("for 'a :{A}", vec![field_record(0, 10..10, false)]),
         (
             "for 'a @ :{A}",
-            vec![
-                forall_record(0, TypeRole::ForallColon, 7..8, true),
-                field_record(1, TypeRole::RecordFieldColon, 12..12, false),
-            ],
+            vec![forall_record(7..8, true), field_record(1, 12..12, false)],
         ),
-        (
-            "for 'a @ : :{A}",
-            vec![forall_record(0, TypeRole::ForallColon, 7..8, true)],
-        ),
+        ("for 'a @ : :{A}", vec![forall_record(7..8, true)]),
     ] {
         let root = assert_complete_type_recovery(source, 0, &expected);
         assert_typed_nodes(&root, &expected);
@@ -945,71 +891,58 @@ fn assert_pending_forall(
     prefix: &str,
     suffix: &str,
     stops: Stops,
-    expected: &[CommittedRecoveryRecord],
+    expected: &[ExpectedStructural],
 ) {
     let source = format!("{prefix}{suffix}");
-    let frozen = frozen_recovery_ids(expected);
-    let mut fresh_green = None;
-    for (input, records) in [
-        (None, expected),
-        (Some(frozen.as_slice()), frozen.as_slice()),
-    ] {
-        let run = run_contextual_type_snapshot(
-            &source,
-            crate::type_expr::TypeMlContext::INACTIVE,
-            stops,
-            0,
-            0,
-            LineEntry::InLine,
-            None,
-            input,
-        );
-        assert_eq!(
-            run.green.to_string(),
-            format!("sentinel{prefix}"),
-            "{source:?}"
-        );
-        assert_eq!(run.records, records, "{source:?}");
-        assert_eq!(run.slots, records.len());
-        assert_eq!(
-            run.diagnostics,
+    let run = run_contextual_type_snapshot(
+        &source,
+        crate::type_expr::TypeMlContext::INACTIVE,
+        stops,
+        0,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(
+        run.green.to_string(),
+        format!("sentinel{prefix}"),
+        "{source:?}"
+    );
+    let expected = expected
+        .iter()
+        .map(|(kind, range)| {
             (
-                Some(records.last().map_or(0, |record| record.id.0 + 1)),
-                if input.is_some() { records.len() } else { 0 }
+                *kind,
+                "sentinel".len() + range.start.."sentinel".len() + range.end,
             )
-        );
-        if let Some(green) = &fresh_green {
-            assert_eq!(&run.green, green);
-        } else {
-            fresh_green = Some(run.green.clone());
-        }
-        assert_typed_nodes(&SyntaxNode::new_root(run.green), records);
-        let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
-            panic!("forall must return the complete pending Item: {source:?}")
-        };
-        let (control, origin, control_line, remainder, _, _) =
-            scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
-        assert_eq!(pending, control, "{source:?}");
-        assert_eq!(run.successor_origin, origin);
-        assert_eq!(run.remainder, remainder);
-        assert_eq!(line, control_line);
-        assert_eq!(run.mark, ());
-        assert!(run.same_operators);
-    }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(run.facts, expected, "{source:?}");
+    assert_typed_nodes(&SyntaxNode::new_root(run.green), &expected);
+    let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
+        panic!("forall must return the complete pending Item: {source:?}")
+    };
+    let (control, origin, control_line, remainder, _, _) =
+        scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
+    assert_eq!(pending, control, "{source:?}");
+    assert_eq!(run.successor_origin, origin);
+    assert_eq!(run.remainder, remainder);
+    assert_eq!(line, control_line);
+    assert_eq!(run.mark, ());
+    assert!(run.same_operators);
 }
 
 #[test]
 fn forall_pending_callers_and_unclaimed_closes_keep_leading_and_no_cascade() {
-    use TypeRole::{ForallBinder as B, ForallBody as T, ForallColon as C};
-    for (prefix, role, range, error) in [
-        ("for", B, 3..3, false),
-        ("for 'a", C, 6..6, false),
-        ("for 'a:", T, 7..7, false),
-        ("for @", B, 4..5, true),
-        ("for 'a @", C, 7..8, true),
-        ("for 'a: @", T, 8..9, true),
+    for (prefix, range, error) in [
+        ("for", 3..3, false),
+        ("for 'a", 6..6, false),
+        ("for 'a:", 7..7, false),
+        ("for @", 4..5, true),
+        ("for 'a @", 7..8, true),
+        ("for 'a: @", 8..9, true),
     ] {
-        let expected = [forall_record(0, role, range, error)];
+        let expected = [forall_record(range, error)];
         assert_pending_forall(
             prefix,
             " /*é*/with tail",
@@ -1024,83 +957,55 @@ fn forall_pending_callers_and_unclaimed_closes_keep_leading_and_no_cascade() {
 
 #[test]
 fn forall_nested_error_handoffs_are_not_reopened_after_the_matching_stack() {
-    use TypeRole::ForallBinder as B;
     for (suffix, stops) in [
         (":):T", STOP_COLON),
         ("with):T", crate::lexical::stops::STOP_WITH),
         ("with:A)", crate::lexical::stops::STOP_WITH),
         (", A)", crate::lexical::stops::STOP_COMMA),
     ] {
-        assert_pending_forall("for (", suffix, stops, &[forall_record(0, B, 4..5, true)]);
+        assert_pending_forall("for (", suffix, stops, &[forall_record(4..5, true)]);
     }
-    assert_pending_forall("for (@", "\n'b:T", 0, &[forall_record(0, B, 4..6, true)]);
-    assert_pending_forall("for ([", ")] 'a:T", 0, &[forall_record(0, B, 4..6, true)]);
+    assert_pending_forall("for (@", "\n'b:T", 0, &[forall_record(4..6, true)]);
+    assert_pending_forall("for ([", ")] 'a:T", 0, &[forall_record(4..6, true)]);
     // Only a local head colon overrides this caller; the body must return it.
-    assert_pending_forall(
-        "for 'a:",
-        " : T",
-        STOP_COLON,
-        &[forall_record(0, TypeRole::ForallBody, 7..7, false)],
-    );
+    assert_pending_forall("for 'a:", " : T", STOP_COLON, &[forall_record(7..7, false)]);
 }
 
 #[test]
 fn forall_contextual_head_boundary_is_suspended_only_for_the_body() {
     use crate::type_expr::TypeOuterBoundary;
-    for (prefix, suffix, role, range, error) in [
-        (
-            "for",
-            " /*é*/with tail",
-            TypeRole::ForallBinder,
-            3..3,
-            false,
-        ),
-        ("for 'a", " with tail", TypeRole::ForallColon, 6..6, false),
-        ("for (", "with):T", TypeRole::ForallBinder, 4..5, true),
+    for (prefix, suffix, range, error) in [
+        ("for", " /*é*/with tail", 3..3, false),
+        ("for 'a", " with tail", 6..6, false),
+        ("for (", "with):T", 4..5, true),
     ] {
         let source = format!("{prefix}{suffix}");
-        let expected = [forall_record(0, role, range, error)];
-        let frozen = frozen_recovery_ids(&expected);
-        for (input, records) in [
-            (None, expected.as_slice()),
-            (Some(frozen.as_slice()), frozen.as_slice()),
-        ] {
-            let (green, exit, found, origin, remainder, actual, slots, diagnostics) =
-                run_required_type_with_outer_boundary_and_recoveries(
-                    &source,
-                    TypeOuterBoundary::WITH,
-                    false,
-                    input,
-                );
-            assert_eq!(green.to_string(), prefix);
-            assert!(found);
-            assert_eq!(actual, records);
-            assert_eq!(slots, records.len());
-            assert_eq!(
-                diagnostics,
-                (
-                    Some(records[0].id.0 + 1),
-                    if input.is_some() { 1 } else { 0 }
-                )
+        let expected = [forall_record(range, error)];
+        let (green, exit, found, origin, remainder, facts) =
+            run_required_type_with_outer_boundary_and_structural_diagnostics(
+                &source,
+                TypeOuterBoundary::WITH,
+                false,
             );
-            let NormalizedExit::Complete(Err(Either::Left(pending)), line) = exit else {
-                panic!("contextual caller must stay pending")
-            };
-            let (control, control_origin, control_line, control_remainder, _, _) =
-                scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
-            assert_eq!(pending, control);
-            assert_eq!(origin, control_origin);
-            assert_eq!(line, control_line);
-            assert_eq!(remainder, control_remainder);
-        }
+        assert_eq!(green.to_string(), prefix);
+        assert!(found);
+        assert_eq!(facts, expected);
+        let NormalizedExit::Complete(Err(Either::Left(pending)), line) = exit else {
+            panic!("contextual caller must stay pending")
+        };
+        let (control, control_origin, control_line, control_remainder, _, _) =
+            scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
+        assert_eq!(pending, control);
+        assert_eq!(origin, control_origin);
+        assert_eq!(line, control_line);
+        assert_eq!(remainder, control_remainder);
     }
     for source in ["for 'a: with", "for 'a: for 'b: with"] {
-        let (green, exit, found, origin, remainder, records, slots, diagnostics) =
-            run_required_type_with_outer_boundary_and_recoveries(
+        let (green, exit, found, origin, remainder, facts) =
+            run_required_type_with_outer_boundary_and_structural_diagnostics(
                 source,
                 TypeOuterBoundary::WITH,
                 false,
-                None,
             );
         assert_eq!(green.to_string(), source);
         assert!(matches!(
@@ -1110,15 +1015,12 @@ fn forall_contextual_head_boundary_is_suspended_only_for_the_body() {
         assert!(found);
         assert_eq!(origin, source.len());
         assert_eq!(remainder, "");
-        assert!(records.is_empty());
-        assert_eq!(slots, 0);
-        assert_eq!(diagnostics, (Some(0), 0));
+        assert!(facts.is_empty());
     }
 }
 
 #[test]
 fn forall_fence_handoffs_preserve_the_abstract_coordinate_and_full_item() {
-    use TypeRole::{ForallBinder as B, ForallBody as T, ForallColon as C};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -1128,67 +1030,52 @@ fn forall_fence_handoffs_preserve_the_abstract_coordinate_and_full_item() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    for (prefix, role, range, error) in [
-        ("> > for", B, 9..9, false),
-        ("> > for 'a", C, 12..12, false),
-        ("> > for 'a:", T, 13..13, false),
-        ("> > for @", B, 8..9, true),
-        ("> > for 'a @", C, 11..12, true),
-        ("> > for 'a: @", T, 12..13, true),
+    for (prefix, range, error) in [
+        ("> > for", 7..7, false),
+        ("> > for 'a", 10..10, false),
+        ("> > for 'a:", 11..11, false),
+        ("> > for @", 8..9, true),
+        ("> > for 'a @", 11..12, true),
+        ("> > for 'a: @", 12..13, true),
     ] {
         let source = format!("{prefix}\r\n> > ```\nouter");
-        let expected = [forall_record(0, role, range, error)];
-        let frozen = frozen_recovery_ids(&expected);
-        let mut fresh = None;
-        for (input, records) in [
-            (None, expected.as_slice()),
-            (Some(frozen.as_slice()), frozen.as_slice()),
-        ] {
-            let (green, exit, remainder, actual) = run_type_normalized_with_recoveries(
-                &source,
-                0,
-                LineEntry::PhysicalStart,
-                Some(&fence),
-                input,
-            );
-            assert_eq!(green.to_string(), prefix);
-            assert_eq!(actual, records, "{prefix:?}");
-            assert_typed_nodes(&SyntaxNode::new_root(green.clone()), records);
-            assert_eq!(remainder, "> > ```\nouter");
-            let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
-                exit
-            else {
-                panic!("forall must return the abstract fence Item")
-            };
-            assert_eq!(
-                item.payload_view().pending_boundary().unwrap().coordinate(),
-                prefix.len() + 2
-            );
-            assert!(item.leading_view().has_ordinary_newline());
-            if let Some((fresh_green, fresh_item)) = &fresh {
-                assert_eq!(&green, fresh_green);
-                assert_eq!(&item, fresh_item);
-            } else {
-                fresh = Some((green, item));
-            }
-        }
+        let expected = [forall_record(range, error)];
+        let (green, exit, remainder, facts) = run_type_normalized_with_structural_diagnostics(
+            &source,
+            0,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+        );
+        assert_eq!(green.to_string(), prefix);
+        assert_eq!(facts, expected, "{prefix:?}");
+        assert_typed_nodes(&SyntaxNode::new_root(green), &expected);
+        assert_eq!(remainder, "> > ```\nouter");
+        let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("forall must return the abstract fence Item")
+        };
+        assert_eq!(
+            item.payload_view().pending_boundary().unwrap().coordinate(),
+            prefix.len() + 2
+        );
+        assert!(item.leading_view().has_ordinary_newline());
     }
 }
 
 #[test]
 fn forall_nested_in_structured_pv_errors_keeps_parent_before_child_records() {
-    use TypeRole::{ForallBinder as B, ForallBody as T, ForallColon as C};
-    for (source, end, role, range, error) in [
-        (":{for}", 5, B, 5..5, false),
-        (":{for 'a}", 8, C, 8..8, false),
-        (":{for 'a:}", 9, T, 9..9, false),
-        (":{for @}", 7, B, 6..7, true),
-        (":{for 'a @}", 10, C, 9..10, true),
-        (":{for 'a: @}", 11, T, 10..11, true),
+    for (source, end, range, error) in [
+        (":{for}", 5, 5..5, false),
+        (":{for 'a}", 8, 8..8, false),
+        (":{for 'a:}", 9, 9..9, false),
+        (":{for @}", 7, 6..7, true),
+        (":{for 'a @}", 10, 9..10, true),
+        (":{for 'a: @}", 11, 10..11, true),
     ] {
         let expected = [
-            expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..end),
-            forall_record(1, role, range, error),
+            (StructuralKind::Invalid, 2..end),
+            forall_record(range, error),
         ];
         let root = assert_complete_type_recovery(source, 0, &expected);
         assert_typed_nodes(&root, &expected);
@@ -1215,12 +1102,8 @@ fn forall_nested_in_structured_pv_errors_keeps_parent_before_child_records() {
 
 #[test]
 fn forall_returns_actual_call_closes_and_iterates_long_local_punctuation() {
-    for (source, role, at) in [
-        ("F(for)", TypeRole::ForallBinder, 5),
-        ("F(for 'a)", TypeRole::ForallColon, 8),
-        ("F(for 'a:)", TypeRole::ForallBody, 9),
-    ] {
-        let expected = [forall_record(0, role, at..at, false)];
+    for (source, at) in [("F(for)", 5), ("F(for 'a)", 8), ("F(for 'a:)", 9)] {
+        let expected = [forall_record(at..at, false)];
         let root = assert_complete_type_recovery(source, 0, &expected);
         assert_typed_nodes(&root, &expected);
         assert_eq!(
@@ -1239,19 +1122,12 @@ fn forall_returns_actual_call_closes_and_iterates_long_local_punctuation() {
         );
     }
     let source = format!("for{}", ",".repeat(1024));
-    let expected = [forall_record(0, TypeRole::ForallBinder, 3..1027, true)];
+    let expected = [forall_record(3..1027, true)];
     let root = assert_complete_type_recovery(&source, 0, &expected);
     assert_typed_nodes(&root, &expected);
     let source = format!("for 'a{}:T", ",".repeat(512));
     let expected = (0..512)
-        .map(|index| {
-            forall_record(
-                index,
-                TypeRole::ForallBinderBoundary,
-                6 + index as usize..7 + index as usize,
-                true,
-            )
-        })
+        .map(|index| forall_record(6 + index as usize..7 + index as usize, true))
         .collect::<Vec<_>>();
     let root = assert_complete_type_recovery(&source, 0, &expected);
     assert_typed_nodes(&root, &expected);

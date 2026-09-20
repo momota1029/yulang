@@ -1,20 +1,12 @@
 //! Direct canonical BindingStatement construction.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cursor::recovery::RecoveryDraft;
-use crate::recovery_record::{
-    BindingRole, DeclarationRole, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
-    RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-};
-use std::sync::Arc;
 
 use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
 
 use crate::{
     cursor::SyntaxIn,
-    cursor::recovery::emit::{
-        emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     expression::{expr_from_nud_normalized, is_nud_item},
     handoff::{Either, MlMode, NormalizedExit, complete, handoff},
     lexical::{
@@ -303,7 +295,7 @@ fn binding_target_normalized(
             .is_some_and(|indentation| indentation <= baseline)
     {
         i.state.start_node(SyntaxKind::Pattern.into());
-        emit_binding_missing(&mut i, BindingRole::Target, &item, item_origin);
+        emit_binding_missing(&mut i, &item, item_origin);
         i.state.finish_node();
         return complete(handoff(item), next_line_entry);
     }
@@ -337,11 +329,6 @@ fn binding_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
-            crate::recovery_record::GrammarRole::Declaration(
-                crate::recovery_record::DeclarationRole::Binding(
-                    crate::recovery_record::BindingRole::IndentedStatement,
-                ),
-            ),
             stops,
             item_origin,
             line_entry,
@@ -357,7 +344,7 @@ fn binding_body_normalized(
                 baseline,
                 stops,
             );
-            emit_binding_missing(&mut i, BindingRole::Body, &item, item_origin);
+            emit_binding_missing(&mut i, &item, item_origin);
             complete(handoff(item), line_entry)
         }
         None => inline_binding_body_normalized(
@@ -397,7 +384,7 @@ fn inline_binding_body_normalized(
     );
     if binding_body_boundary(i.rb(), &item, baseline, stops) {
         emit_binding_body_eof_leading(&mut i, &mut item, baseline, stops);
-        emit_binding_missing(&mut i, BindingRole::Body, &item, item_origin);
+        emit_binding_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -459,15 +446,9 @@ fn retry_inline_binding_body_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let start = item.extent(item_origin).recovery_range().start;
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = token_syntax_kind(token_kind(&item).expect("malformed Binding body token"));
-            let end = run
-                .emit_item_as(item, item_origin, kind)
-                .recovery_range()
-                .end;
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
             (item, item_origin, line_entry) = run.lexical(|lex| {
                 crate::lexical::expression_item::scan_expression_item_lexical(
                     lex,
@@ -485,17 +466,10 @@ fn retry_inline_binding_body_normalized(
                 })
                 || is_nud_item(&item)
             {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: start..end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            binding_recovery_draft(BindingRole::Body, RecoveryKind::Error, range, unexpected)
-        },
-    )
+        }
+    })
 }
 
 fn binding_body_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {
@@ -521,43 +495,12 @@ fn emit_binding_body_eof_leading(i: &mut SyntaxIn, item: &mut Item, baseline: us
     }
 }
 
-fn emit_binding_missing(i: &mut SyntaxIn, role: BindingRole, item: &Item, origin: usize) {
+fn emit_binding_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        binding_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn binding_recovery_draft(
-    role: BindingRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        BindingRole::Target => ExpectedSyntax::Pattern,
-        BindingRole::Body => ExpectedSyntax::Expression,
-        _ => unreachable!("inline Binding recovery"),
-    };
-    let role = GrammarRole::Declaration(DeclarationRole::Binding(role));
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]

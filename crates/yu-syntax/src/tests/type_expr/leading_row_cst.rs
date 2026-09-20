@@ -115,7 +115,6 @@ fn leading_head_cst_terminal_primaries_keep_continuations_inside_their_owner() {
             0,
             LineEntry::InLine,
             None,
-            None,
         );
         let owner = top_type_expression(&run.green);
         assert_eq!(
@@ -164,7 +163,6 @@ fn incomplete_variant_cst_keeps_boundary_on_direct_and_recovered_head_routes() {
                 0,
                 LineEntry::InLine,
                 None,
-                None,
             );
             assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
             let owner = top_type_expression(&run.green);
@@ -193,7 +191,6 @@ fn incomplete_variant_cst_keeps_boundary_on_direct_and_recovered_head_routes() {
             0,
             0,
             LineEntry::InLine,
-            None,
             None,
         );
         assert_eq!(run.green.to_string(), format!("sentinel{source}"));
@@ -238,7 +235,6 @@ fn incomplete_variant_cst_preserves_quoted_fence_after_each_head_route() {
                 0,
                 LineEntry::PhysicalStart,
                 Some(&fence),
-                None,
             );
             assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
             let variant = top_type_expression(&run.green).children().last().unwrap();
@@ -362,7 +358,6 @@ fn leading_head_cst_protected_items_remain_whole_at_each_recovery_depth() {
                 0,
                 LineEntry::InLine,
                 None,
-                None,
             );
             assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
             let owner = top_type_expression(&run.green);
@@ -384,17 +379,20 @@ fn leading_head_cst_protected_items_remain_whole_at_each_recovery_depth() {
             assert_eq!(run.remainder, remainder);
         }
     }
-    for prefix in ["[e]", "[e][bad"] {
+    for (prefix, expected) in [
+        ("[e]", (StructuralKind::Missing, 3..3)),
+        ("[e][bad]", (StructuralKind::ErrorGroup, 3..8)),
+    ] {
         let source = format!("{prefix} with tail");
-        let (green, exit, accepted, origin, remainder, _, _, _) =
-            run_required_type_with_outer_boundary_and_recoveries(
+        let (green, exit, accepted, origin, remainder, facts) =
+            run_required_type_with_outer_boundary_and_structural_diagnostics(
                 &source,
                 crate::type_expr::TypeOuterBoundary::WITH,
                 false,
-                None,
             );
         assert!(accepted);
         assert_eq!(green.to_string(), prefix);
+        assert_eq!(facts, [expected]);
         let NormalizedExit::Complete(Err(Either::Left(pending)), _) = exit else {
             panic!("outer WITH")
         };

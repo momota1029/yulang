@@ -1,24 +1,12 @@
 //! Rule-owned ordinary expression lists for bracket atoms, calls, and indices.
 
 use crate::ambient_claim::AmbientClaimContext;
-use std::{ops::Range, sync::Arc};
 
-use crate::{
-    lexical::operator_scan::OperatorSite,
-    recovery_record::{
-        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, ExpressionListRole,
-        GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
 
 use crate::{
     cursor::SyntaxIn,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{emit_recovery_error_item, emit_recovery_missing, token_syntax_kind},
-    },
+    cursor::recovery::emit::{emit_recovery_error_item, emit_recovery_missing},
     expression::{expr_from_nud_normalized, is_nud_item},
     handoff::{Either, MlMode, NormalizedExit},
     lexical::{
@@ -62,14 +50,9 @@ pub(super) fn expression_list(
             || (is_unread_close(&current) && token_kind_or_boundary(&current) != Some(close))
         {
             if recovery_requires_expression {
-                missing(
-                    i.rb(),
-                    &current,
-                    *origin,
-                    GrammarRole::ExpressionList(ExpressionListRole::Item),
-                );
+                missing(i.rb(), &current, *origin);
             }
-            missing(i.rb(), &current, *origin, close_role(close));
+            missing(i.rb(), &current, *origin);
             return ExpressionListExit::Returned(current, line_entry);
         }
 
@@ -85,24 +68,14 @@ pub(super) fn expression_list(
 
         if token_kind_or_boundary(&current) == Some(close) {
             if recovery_requires_expression {
-                missing(
-                    i.rb(),
-                    &current,
-                    *origin,
-                    GrammarRole::ExpressionList(ExpressionListRole::Item),
-                );
+                missing(i.rb(), &current, *origin);
             }
             return ExpressionListExit::Close(current, line_entry);
         }
 
         if is_token(&current, TokenKind::Comma) {
             if needs_expression {
-                missing(
-                    i.rb(),
-                    &current,
-                    *origin,
-                    GrammarRole::ExpressionList(ExpressionListRole::Item),
-                );
+                missing(i.rb(), &current, *origin);
             }
             emit_item_as(&mut i, current, SyntaxKind::Comma);
             (current, line_entry) = next_item(i.rb(), stops, origin, line_entry, fence);
@@ -113,7 +86,7 @@ pub(super) fn expression_list(
 
         if needs_expression {
             if !is_nud_item(&current) {
-                error(i.rb(), current, *origin, ExpressionListRole::Item);
+                error(i.rb(), current, *origin);
                 (current, line_entry) = next_item(i.rb(), stops, origin, line_entry, fence);
                 recovery_requires_expression = true;
                 continue;
@@ -152,7 +125,7 @@ pub(super) fn expression_list(
             continue;
         }
 
-        error(i.rb(), current, *origin, ExpressionListRole::Separator);
+        error(i.rb(), current, *origin);
         (current, line_entry) = next_item(i.rb(), stops, origin, line_entry, fence);
     }
 }
@@ -210,63 +183,11 @@ fn emit_leading_newline_separators(
         origin,
         needs_expression,
         recovery_requires_expression,
-        |at| {
-            draft(
-                GrammarRole::ExpressionList(ExpressionListRole::Item),
-                RecoveryKind::Missing,
-                at..at,
-                Arc::from([]),
-            )
-        },
     );
     true
 }
 
-fn close_role(close: TokenKind) -> GrammarRole {
-    GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::ExpressionList,
-        delimiter: match close {
-            TokenKind::RParen => Delimiter::Parenthesis,
-            TokenKind::RBracket => Delimiter::Bracket,
-            _ => unreachable!("Rule expression lists use parentheses or brackets"),
-        },
-    }
-}
-
-fn draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        GrammarRole::ExpressionList(ExpressionListRole::Item) => ExpectedSyntax::Expression,
-        GrammarRole::ExpressionList(ExpressionListRole::Separator) => {
-            ExpectedSyntax::DelimitedSequenceSeparator
-        }
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        _ => unreachable!(),
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn missing(i: SyntaxIn, item: &Item, origin: usize, role: GrammarRole) {
+fn missing(i: SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || {
             if item.payload_view().is_eof() {
@@ -277,34 +198,11 @@ fn missing(i: SyntaxIn, item: &Item, origin: usize, role: GrammarRole) {
         },
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
-fn error(i: SyntaxIn, item: Item, origin: usize, slot: ExpressionListRole) {
-    let payload = item.payload_view();
-    let kind = if payload.operator_use().is_some() {
-        SyntaxKind::Operator
-    } else {
-        token_syntax_kind(
-            payload
-                .token_kind()
-                .expect("a rejected list Item is lexical"),
-        )
-    };
-    let unexpected = UnexpectedSyntax::Token {
-        range: item.extent(origin).recovery_range(),
-        category: UnexpectedCategory::OtherCharacter,
-    };
-    emit_recovery_error_item(i, item, origin, kind, unexpected, |range, unexpected| {
-        draft(
-            GrammarRole::ExpressionList(slot),
-            RecoveryKind::Error,
-            range,
-            unexpected,
-        )
-    });
+fn error(i: SyntaxIn, item: Item, origin: usize) {
+    emit_recovery_error_item(i, item, origin);
 }
 
 fn is_unread_close(item: &Item) -> bool {

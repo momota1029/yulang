@@ -3,16 +3,9 @@
 //! Struct, Enum, and Error select their recovery identities at this boundary;
 //! nested Type recovery stays with the Type owner.
 
-use std::{cell::Cell, sync::Arc};
-
 use crate::{
     ambient_claim::AmbientClaimContext,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
@@ -30,10 +23,6 @@ use crate::{
         stops::Stops,
         trivia::{TriviaObservation, observe_fenced_trivia},
         yumark::FenceBoundary,
-    },
-    recovery_record::{
-        Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
-        RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
     },
     syntax_kind::SyntaxKind,
     type_expr::{
@@ -54,13 +43,6 @@ impl FieldList {
             Self::Tuple => TokenKind::RParen,
         }
     }
-
-    pub(crate) fn delimiter(self) -> Delimiter {
-        match self {
-            Self::NamedBrace => Delimiter::Brace,
-            Self::Tuple => Delimiter::Parenthesis,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -69,61 +51,17 @@ pub(crate) enum FieldOuterClose {
     Borrow,
 }
 
-/// Finite recovery identities supplied by a declaration that reuses the
-/// canonical field driver. Nested Type recovery remains Type-owned.
-#[derive(Clone, Copy)]
-pub(crate) struct DeclarationFieldRoles {
-    pub(crate) field: GrammarRole,
-    pub(crate) field_name: GrammarRole,
-    pub(crate) field_colon: GrammarRole,
-    pub(crate) field_type: GrammarRole,
-    pub(crate) field_separator: GrammarRole,
-    pub(crate) close: GrammarRole,
-}
-
 pub(crate) struct DeclarationFieldExit {
     pub(crate) exit: NormalizedExit,
     pub(crate) item_origin: usize,
 }
 
-fn declaration_field_draft(
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn declaration_field_missing(
-    i: &mut SyntaxIn,
-    item: &Item,
-    origin: usize,
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-) {
+fn declaration_field_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        declaration_field_draft(role, expected, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -143,7 +81,6 @@ enum FieldErrorExit {
 fn declaration_field_error_run(
     mut i: SyntaxIn,
     mut item: Item,
-    roles: DeclarationFieldRoles,
     slot: FieldErrorSlot,
     baseline: usize,
     stops: Stops,
@@ -153,94 +90,65 @@ fn declaration_field_error_run(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry, FieldErrorExit) {
-    let role = Cell::new(roles.field);
-    let expected = Cell::new(ExpectedSyntax::Identifier);
-    let (item, item_origin, line_entry, exit) = emit_recovery_error_run(
-        i.rb(),
-        |run| {
-            let exit = loop {
-                let kind = token_kind(&item)
-                    .map(token_syntax_kind)
-                    .unwrap_or(SyntaxKind::Operator);
-                let range = run.emit_item_as(item, item_origin, kind).recovery_range();
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    scan_declaration_item_lexical(
-                        lex,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        baseline,
-                        stops,
-                        true,
-                        false,
-                        pipe_lexical,
-                    )
-                });
-                let colon = token_kind(&item) == Some(TokenKind::Colon)
-                    && indentation_after_newline(item.leading_view()).is_none();
-                let type_retry =
-                    type_starter(&item) && indentation_after_newline(item.leading_view()).is_none();
-                let boundary = item.payload_view().is_boundary()
-                    || item.payload_view().is_eof()
-                    || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
-                    || implicit_delimited_newline(baseline, item.leading_view())
-                    || matches!(
+    let (item, item_origin, line_entry, exit) = emit_recovery_error_run(i.rb(), |run| {
+        let exit = loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_declaration_item_lexical(
+                    lex,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    baseline,
+                    stops,
+                    true,
+                    false,
+                    pipe_lexical,
+                )
+            });
+            let colon = token_kind(&item) == Some(TokenKind::Colon)
+                && indentation_after_newline(item.leading_view()).is_none();
+            let type_retry =
+                type_starter(&item) && indentation_after_newline(item.leading_view()).is_none();
+            let boundary = item.payload_view().is_boundary()
+                || item.payload_view().is_eof()
+                || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
+                || implicit_delimited_newline(baseline, item.leading_view())
+                || matches!(
+                    token_kind(&item),
+                    Some(TokenKind::Comma | TokenKind::Semicolon)
+                )
+                || delimited.is_some_and(|list| {
+                    matches!(
                         token_kind(&item),
-                        Some(TokenKind::Comma | TokenKind::Semicolon)
-                    )
-                    || delimited.is_some_and(|list| {
-                        matches!(
-                            token_kind(&item),
-                            Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
-                        ) || token_kind(&item) == Some(list.close())
-                    });
-                if boundary {
-                    if slot == FieldErrorSlot::Colon {
-                        role.set(roles.field_colon);
-                        expected.set(ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
-                    }
-                    break FieldErrorExit::Other;
-                }
-                let stop = match slot {
-                    FieldErrorSlot::Start => colon || raw_name(&item),
-                    FieldErrorSlot::Colon => colon || type_retry,
-                };
-                if stop {
-                    if slot == FieldErrorSlot::Start && colon {
-                        role.set(roles.field_name);
-                        expected.set(ExpectedSyntax::Identifier);
-                        break FieldErrorExit::Colon;
-                    }
-                    if slot == FieldErrorSlot::Colon {
-                        role.set(roles.field_colon);
-                        expected.set(ExpectedSyntax::Punctuation(PunctuationEvidence::Colon));
-                        break if colon {
-                            FieldErrorExit::Colon
-                        } else if type_retry {
-                            FieldErrorExit::Type
-                        } else {
-                            FieldErrorExit::Other
-                        };
-                    }
-                    break FieldErrorExit::Other;
-                }
+                        Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
+                    ) || token_kind(&item) == Some(list.close())
+                });
+            if boundary {
+                break FieldErrorExit::Other;
+            }
+            let stop = match slot {
+                FieldErrorSlot::Start => colon || raw_name(&item),
+                FieldErrorSlot::Colon => colon || type_retry,
             };
-            (item, item_origin, line_entry, exit)
-        },
-        |range, unexpected| {
-            declaration_field_draft(
-                role.get(),
-                expected.get(),
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    );
+            if stop {
+                if slot == FieldErrorSlot::Start && colon {
+                    break FieldErrorExit::Colon;
+                }
+                if slot == FieldErrorSlot::Colon {
+                    break if colon {
+                        FieldErrorExit::Colon
+                    } else if type_retry {
+                        FieldErrorExit::Type
+                    } else {
+                        FieldErrorExit::Other
+                    };
+                }
+                break FieldErrorExit::Other;
+            }
+        };
+        (item, item_origin, line_entry, exit)
+    });
     (item, item_origin, line_entry, exit)
 }
 
@@ -250,7 +158,6 @@ fn declaration_field_error_run(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn declaration_fields_normalized(
     mut i: SyntaxIn,
-    roles: DeclarationFieldRoles,
     open: Item,
     owner_baseline: usize,
     stops: Stops,
@@ -281,7 +188,6 @@ pub(crate) fn declaration_fields_normalized(
     }
     field_sequence_normalized(
         i,
-        roles,
         item,
         list_base,
         stops,
@@ -298,7 +204,6 @@ pub(crate) fn declaration_fields_normalized(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn parse_indented_fields_normalized(
     mut i: SyntaxIn,
-    roles: DeclarationFieldRoles,
     baseline: usize,
     stops: Stops,
     item_origin: usize,
@@ -318,7 +223,7 @@ pub(super) fn parse_indented_fields_normalized(
             true,
             false,
         );
-        emit_missing_field_item(&mut i, roles, &mut item, next_origin, false, false);
+        emit_missing_field_item(&mut i, &mut item, next_origin, false, false);
         return complete(handoff(item), next_entry);
     };
     if block_indent <= baseline {
@@ -332,7 +237,7 @@ pub(super) fn parse_indented_fields_normalized(
             true,
             false,
         );
-        emit_missing_field_item(&mut i, roles, &mut item, next_origin, false, false);
+        emit_missing_field_item(&mut i, &mut item, next_origin, false, false);
         return complete(handoff(item), next_entry);
     }
     let (mut item, item_origin, line_entry) = declaration_item_normalized(
@@ -352,7 +257,6 @@ pub(super) fn parse_indented_fields_normalized(
     }
     field_sequence_normalized(
         i,
-        roles,
         item,
         block_indent,
         stops,
@@ -370,7 +274,6 @@ pub(super) fn parse_indented_fields_normalized(
 #[allow(clippy::too_many_arguments)]
 fn field_sequence_normalized(
     mut i: SyntaxIn,
-    roles: DeclarationFieldRoles,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -392,16 +295,15 @@ fn field_sequence_normalized(
                 {
                     emit_missing_field_item(
                         &mut i,
-                        roles,
                         &mut item,
                         item_origin,
                         list == FieldList::Tuple,
                         true,
                     );
                 }
-                emit_missing_close(&mut i, roles, &item, item_origin);
+                emit_missing_close(&mut i, &item, item_origin);
             } else if need_field && !after_comma {
-                emit_missing_field_item(&mut i, roles, &mut item, item_origin, false, true);
+                emit_missing_field_item(&mut i, &mut item, item_origin, false, true);
             }
             return DeclarationFieldExit {
                 exit: complete(handoff(item), line_entry),
@@ -415,7 +317,6 @@ fn field_sequence_normalized(
                 {
                     emit_missing_field_item(
                         &mut i,
-                        roles,
                         &mut item,
                         item_origin,
                         list == FieldList::Tuple,
@@ -424,11 +325,11 @@ fn field_sequence_normalized(
                 } else {
                     item.emit_eof_leading(&mut *i.state);
                 }
-                emit_missing_close(&mut i, roles, &item, item_origin);
+                emit_missing_close(&mut i, &item, item_origin);
             } else {
                 item.emit_eof_leading(&mut *i.state);
                 if need_field && !after_comma {
-                    emit_missing_field_item(&mut i, roles, &mut item, item_origin, false, true);
+                    emit_missing_field_item(&mut i, &mut item, item_origin, false, true);
                 }
             }
             return DeclarationFieldExit {
@@ -451,14 +352,13 @@ fn field_sequence_normalized(
                 {
                     emit_missing_field_item(
                         &mut i,
-                        roles,
                         &mut item,
                         item_origin,
                         list == FieldList::Tuple,
                         false,
                     );
                 }
-                emit_missing_close(&mut i, roles, &item, item_origin);
+                emit_missing_close(&mut i, &item, item_origin);
                 return DeclarationFieldExit {
                     exit: complete(handoff(item), line_entry),
                     item_origin,
@@ -467,7 +367,7 @@ fn field_sequence_normalized(
         } else if indented_end(i.rb(), &item, baseline, stops) {
             if need_field && !after_comma {
                 let emit_leading = item.payload_view().is_eof();
-                emit_missing_field_item(&mut i, roles, &mut item, item_origin, false, emit_leading);
+                emit_missing_field_item(&mut i, &mut item, item_origin, false, emit_leading);
             }
             return DeclarationFieldExit {
                 exit: complete(handoff(item), line_entry),
@@ -477,7 +377,7 @@ fn field_sequence_normalized(
 
         if delimited.is_some_and(|list| mismatched_close(&item, list.close())) {
             if outer_close == FieldOuterClose::Borrow {
-                emit_missing_close(&mut i, roles, &item, item_origin);
+                emit_missing_close(&mut i, &item, item_origin);
                 return DeclarationFieldExit {
                     exit: complete(handoff(item), line_entry),
                     item_origin,
@@ -486,7 +386,6 @@ fn field_sequence_normalized(
             item.emit_all_remaining_leading(&mut *i.state);
             (item, item_origin, line_entry) = recover_close_normalized(
                 i.rb(),
-                roles,
                 item,
                 baseline,
                 stops,
@@ -503,7 +402,6 @@ fn field_sequence_normalized(
             if need_field {
                 emit_missing_field_item(
                     &mut i,
-                    roles,
                     &mut item,
                     item_origin,
                     delimited == Some(FieldList::Tuple),
@@ -533,7 +431,6 @@ fn field_sequence_normalized(
             item.emit_all_remaining_leading(&mut *i.state);
             (item, item_origin, line_entry) = recover_separator_normalized(
                 i.rb(),
-                roles,
                 item,
                 baseline,
                 stops,
@@ -549,7 +446,7 @@ fn field_sequence_normalized(
         }
         if !need_field {
             item.emit_all_remaining_leading(&mut *i.state);
-            emit_missing_separator(&mut i, roles, &item, item_origin);
+            emit_missing_separator(&mut i, &item, item_origin);
             need_field = true;
         }
         if need_field && !item.leading_view().is_grammar_empty() {
@@ -566,7 +463,6 @@ fn field_sequence_normalized(
             if matches!(delimited, Some(FieldList::NamedBrace) | None) {
                 let exit = recover_named_field_normalized(
                     i.rb(),
-                    roles,
                     item,
                     baseline,
                     stops,
@@ -600,7 +496,6 @@ fn field_sequence_normalized(
             let (exit, next_origin) = match delimited {
                 Some(FieldList::Tuple) => tuple_field_normalized(
                     i.rb(),
-                    roles.field_type,
                     item,
                     baseline,
                     pipe_lexical,
@@ -611,7 +506,6 @@ fn field_sequence_normalized(
                 ),
                 Some(FieldList::NamedBrace) | None => named_field_normalized(
                     i.rb(),
-                    roles,
                     item,
                     baseline,
                     stops,
@@ -643,7 +537,6 @@ fn field_sequence_normalized(
 #[allow(clippy::too_many_arguments)]
 fn named_field_normalized(
     mut i: SyntaxIn,
-    roles: DeclarationFieldRoles,
     mut item: Item,
     baseline: usize,
     stops: Stops,
@@ -670,35 +563,17 @@ fn named_field_normalized(
         );
     } else {
         item.emit_all_remaining_leading(&mut *i.state);
-        declaration_field_missing(
-            &mut i,
-            &item,
-            item_origin,
-            roles.field_name,
-            ExpectedSyntax::Identifier,
-        );
+        declaration_field_missing(&mut i, &item, item_origin);
     }
 
     if item.payload_view().is_boundary() {
-        declaration_field_missing(
-            &mut i,
-            &item,
-            item_origin,
-            roles.field_colon,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        );
+        declaration_field_missing(&mut i, &item, item_origin);
         i.state.finish_node();
         return (complete(handoff(item), line_entry), item_origin);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        declaration_field_missing(
-            &mut i,
-            &item,
-            item_origin,
-            roles.field_colon,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        );
+        declaration_field_missing(&mut i, &item, item_origin);
         i.state.finish_node();
         return (complete(handoff(item), line_entry), item_origin);
     }
@@ -709,7 +584,6 @@ fn named_field_normalized(
         emit_token_item(&mut i, item);
         return named_field_rhs_normalized(
             i,
-            roles.field_type,
             baseline,
             delimited,
             pipe_lexical,
@@ -721,29 +595,16 @@ fn named_field_normalized(
     }
 
     if indentation_after_newline(item.leading_view()).is_some() {
-        declaration_field_missing(
-            &mut i,
-            &item,
-            item_origin,
-            roles.field_colon,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        );
+        declaration_field_missing(&mut i, &item, item_origin);
         i.state.finish_node();
         return (complete(handoff(item), line_entry), item_origin);
     }
 
     if type_starter(&item) && !is_active_stop(i.rb(), &item, stops) {
         item.emit_all_remaining_leading(&mut *i.state);
-        declaration_field_missing(
-            &mut i,
-            &item,
-            item_origin,
-            roles.field_colon,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        );
+        declaration_field_missing(&mut i, &item, item_origin);
         let (exit, item_origin) = named_type_normalized(
             i.rb(),
-            roles.field_type,
             item,
             baseline,
             delimited,
@@ -759,13 +620,7 @@ fn named_field_normalized(
 
     if field_boundary(i.rb(), &item, baseline, stops, delimited) {
         item.emit_all_remaining_leading(&mut *i.state);
-        declaration_field_missing(
-            &mut i,
-            &item,
-            item_origin,
-            roles.field_colon,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        );
+        declaration_field_missing(&mut i, &item, item_origin);
         i.state.finish_node();
         return (complete(handoff(item), line_entry), item_origin);
     }
@@ -774,7 +629,6 @@ fn named_field_normalized(
     let (item, item_origin, line_entry, exit) = declaration_field_error_run(
         i.rb(),
         item,
-        roles,
         FieldErrorSlot::Colon,
         baseline,
         stops,
@@ -789,7 +643,6 @@ fn named_field_normalized(
             emit_token_item(&mut i, item);
             named_field_rhs_normalized(
                 i,
-                roles.field_type,
                 baseline,
                 delimited,
                 pipe_lexical,
@@ -802,7 +655,6 @@ fn named_field_normalized(
         FieldErrorExit::Type => {
             let (exit, item_origin) = named_type_normalized(
                 i.rb(),
-                roles.field_type,
                 item,
                 baseline,
                 delimited,
@@ -825,7 +677,6 @@ fn named_field_normalized(
 #[allow(clippy::too_many_arguments)]
 fn recover_named_field_normalized(
     mut i: SyntaxIn,
-    roles: DeclarationFieldRoles,
     item: Item,
     baseline: usize,
     stops: Stops,
@@ -840,7 +691,6 @@ fn recover_named_field_normalized(
     let (item, item_origin, line_entry, exit) = declaration_field_error_run(
         i.rb(),
         item,
-        roles,
         FieldErrorSlot::Start,
         baseline,
         stops,
@@ -854,7 +704,6 @@ fn recover_named_field_normalized(
         emit_token_item(&mut i, item);
         return named_field_rhs_normalized(
             i,
-            roles.field_type,
             baseline,
             delimited,
             pipe_lexical,
@@ -871,7 +720,6 @@ fn recover_named_field_normalized(
 #[allow(clippy::too_many_arguments)]
 fn named_field_rhs_normalized(
     mut i: SyntaxIn,
-    missing_type_role: GrammarRole,
     baseline: usize,
     delimited: Option<FieldList>,
     pipe_lexical: bool,
@@ -902,7 +750,6 @@ fn named_field_rhs_normalized(
     }
     let (exit, item_origin) = named_type_normalized(
         i.rb(),
-        missing_type_role,
         primary,
         baseline,
         delimited,
@@ -919,7 +766,6 @@ fn named_field_rhs_normalized(
 #[allow(clippy::too_many_arguments)]
 fn named_type_normalized(
     mut i: SyntaxIn,
-    missing_type_role: GrammarRole,
     primary: Item,
     baseline: usize,
     delimited: Option<FieldList>,
@@ -934,7 +780,6 @@ fn named_type_normalized(
     let exit = required_type_expr_with_boundary_normalized(
         i.rb(),
         primary,
-        missing_type_role,
         baseline,
         Some(TypeApplyBoundary::DeclarationNamedFields),
         close,
@@ -950,7 +795,6 @@ fn named_type_normalized(
 #[allow(clippy::too_many_arguments)]
 fn tuple_field_normalized(
     mut i: SyntaxIn,
-    missing_type_role: GrammarRole,
     item: Item,
     baseline: usize,
     pipe_lexical: bool,
@@ -964,7 +808,6 @@ fn tuple_field_normalized(
     let exit = required_type_expr_with_boundary_normalized(
         i.rb(),
         item,
-        missing_type_role,
         baseline,
         None,
         1,
@@ -982,7 +825,6 @@ fn tuple_field_normalized(
 #[allow(clippy::too_many_arguments)]
 fn recover_separator_normalized(
     i: SyntaxIn,
-    roles: DeclarationFieldRoles,
     item: Item,
     baseline: usize,
     stops: Stops,
@@ -995,8 +837,6 @@ fn recover_separator_normalized(
     field_sequence_error_run(
         i,
         item,
-        roles.field_separator,
-        ExpectedSyntax::DelimitedSequenceSeparator,
         baseline,
         stops,
         delimited,
@@ -1018,7 +858,6 @@ fn recover_separator_normalized(
 #[allow(clippy::too_many_arguments)]
 fn recover_close_normalized(
     mut i: SyntaxIn,
-    roles: DeclarationFieldRoles,
     item: Item,
     baseline: usize,
     stops: Stops,
@@ -1028,9 +867,6 @@ fn recover_close_normalized(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let GrammarRole::ClosingDelimiter { delimiter, .. } = roles.close else {
-        unreachable!("field list close has a closing-delimiter role")
-    };
     // Only the Struct delimited Recover route reaches this owner. Keep one
     // transparent wrapper per maximal run, outside individual StructField nodes.
     i.state
@@ -1038,8 +874,6 @@ fn recover_close_normalized(
     let exit = field_sequence_error_run(
         i.rb(),
         item,
-        roles.close,
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
         baseline,
         stops,
         delimited,
@@ -1065,8 +899,6 @@ fn recover_close_normalized(
 fn field_sequence_error_run(
     mut i: SyntaxIn,
     mut item: Item,
-    role: GrammarRole,
-    expected: ExpectedSyntax,
     baseline: usize,
     stops: Stops,
     delimited: Option<FieldList>,
@@ -1076,17 +908,9 @@ fn field_sequence_error_run(
     fence: Option<&FenceBoundary>,
     retry: impl Fn(&Item, Option<FieldList>) -> bool,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = token_kind(&item)
-                .map(token_syntax_kind)
-                .unwrap_or(SyntaxKind::Operator);
-            let range = run.emit_item_as(item, item_origin, kind).recovery_range();
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range,
-                category: UnexpectedCategory::OtherCharacter,
-            });
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
             (item, item_origin, line_entry) = run.lexical(|lex| {
                 scan_declaration_item_lexical(
                     lex,
@@ -1108,11 +932,8 @@ fn field_sequence_error_run(
             {
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            declaration_field_draft(role, expected, RecoveryKind::Error, range, unexpected)
-        },
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1195,7 +1016,6 @@ fn indented_end(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> 
 
 fn emit_missing_field_item(
     i: &mut SyntaxIn,
-    roles: DeclarationFieldRoles,
     item: &mut Item,
     item_origin: usize,
     tuple: bool,
@@ -1208,54 +1028,19 @@ fn emit_missing_field_item(
     if emit_leading && !item.payload_view().is_boundary() {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    declaration_field_missing(
-        i,
-        item,
-        item_origin,
-        if tuple { roles.field_type } else { roles.field },
-        if tuple {
-            ExpectedSyntax::TypeExpression
-        } else {
-            ExpectedSyntax::Identifier
-        },
-    );
+    declaration_field_missing(i, item, item_origin);
     if tuple {
         i.state.finish_node();
     }
     i.state.finish_node();
 }
 
-fn emit_missing_separator(
-    i: &mut SyntaxIn,
-    roles: DeclarationFieldRoles,
-    item: &Item,
-    item_origin: usize,
-) {
-    declaration_field_missing(
-        i,
-        item,
-        item_origin,
-        roles.field_separator,
-        ExpectedSyntax::DelimitedSequenceSeparator,
-    );
+fn emit_missing_separator(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
+    declaration_field_missing(i, item, item_origin);
 }
 
-fn emit_missing_close(
-    i: &mut SyntaxIn,
-    roles: DeclarationFieldRoles,
-    item: &Item,
-    item_origin: usize,
-) {
-    let GrammarRole::ClosingDelimiter { delimiter, .. } = roles.close else {
-        unreachable!("field list close has a closing-delimiter role")
-    };
-    declaration_field_missing(
-        i,
-        item,
-        item_origin,
-        roles.close,
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
-    );
+fn emit_missing_close(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
+    declaration_field_missing(i, item, item_origin);
 }
 
 #[allow(clippy::too_many_arguments)]

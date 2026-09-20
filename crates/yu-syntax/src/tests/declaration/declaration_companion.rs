@@ -1,31 +1,17 @@
-use crate::recovery_record::{
-    ConstructRole, DeclarationCompanionRole as CompanionRole, DeclarationRole, Delimiter,
-    DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
-    RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-};
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
-use std::sync::Arc;
 
 fn typed_companion<'a>(
     source: &'a str,
     origin: usize,
     stops: Stops,
     fence: Option<&FenceBoundary>,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     caller: bool,
-) -> (
-    GreenNode,
-    NormalizedExit,
-    &'a str,
-    Vec<CommittedRecoveryRecord>,
-) {
+) -> (GreenNode, NormalizedExit, &'a str, Vec<StructuralFact>) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
     let exit = if caller {
@@ -51,170 +37,66 @@ fn typed_companion<'a>(
         .expect("selected companion")
     };
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, exit, input, records)
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
+    (green, exit, input, facts)
 }
 
-fn companion_record(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Option<UnexpectedCategory>,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Introducer)) => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
-        }
-        GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Separator)) => {
-            ExpectedSyntax::StatementSeparator
-        }
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        _ => ExpectedSyntax::Statement,
-    };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: unexpected.map_or_else(
-            || Arc::from([]),
-            |category| {
-                Arc::from([UnexpectedSyntax::Token {
-                    range: range.clone(),
-                    category,
-                }])
-            },
-        ),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+fn structural_fact(kind: StructuralKind, range: std::ops::Range<usize>) -> StructuralFact {
+    (kind, range)
 }
 
 #[test]
-fn companion_publication_has_exact_shifted_and_frozen_records() {
-    for (source, role, kind, range) in [
-        (
-            "with  ",
-            CompanionRole::Introducer,
-            RecoveryKind::Missing,
-            106..106,
-        ),
-        (
-            "with item",
-            CompanionRole::Introducer,
-            RecoveryKind::Missing,
-            105..105,
-        ),
-        (
-            "with :: item",
-            CompanionRole::Introducer,
-            RecoveryKind::Error,
-            105..106,
-        ),
-        (
-            "with:  ",
-            CompanionRole::Body,
-            RecoveryKind::Missing,
-            107..107,
-        ),
-        (
-            "with: @ @ item",
-            CompanionRole::Body,
-            RecoveryKind::Error,
-            106..109,
-        ),
-        (
-            "with { @ @ item }",
-            CompanionRole::Item,
-            RecoveryKind::Error,
-            107..110,
-        ),
-        (
-            "with:\r\n  @ @ item",
-            CompanionRole::IndentedItem,
-            RecoveryKind::Error,
-            109..112,
-        ),
-        (
-            "with {,}",
-            CompanionRole::Item,
-            RecoveryKind::Missing,
-            106..106,
-        ),
+fn companion_structural_facts_have_exact_shifted_ranges() {
+    for (source, kind, range) in [
+        ("with  ", StructuralKind::Missing, 6..6),
+        ("with item", StructuralKind::Missing, 5..5),
+        ("with :: item", StructuralKind::ErrorGroup, 5..6),
+        ("with:  ", StructuralKind::Missing, 7..7),
+        ("with: @ @ item", StructuralKind::ErrorGroup, 6..9),
+        ("with { @ @ item }", StructuralKind::ErrorGroup, 7..10),
+        ("with:\r\n  @ @ item", StructuralKind::ErrorGroup, 9..12),
+        ("with {,}", StructuralKind::Missing, 6..6),
         (
             "with { struct S{} type T = Int }",
-            CompanionRole::Separator,
-            RecoveryKind::Missing,
-            117..117,
+            StructuralKind::Missing,
+            17..17,
         ),
     ] {
-        let (green, _, _, records) = typed_companion(source, 100, 0, None, None, false);
-        let role = GrammarRole::Declaration(DeclarationRole::Companion(role));
-        assert_eq!(
-            records,
-            [companion_record(
-                role,
-                kind,
-                range,
-                (kind == RecoveryKind::Error).then_some(UnexpectedCategory::OtherCharacter)
-            )],
-            "{source:?}"
-        );
-        let (again, _, _, frozen) = typed_companion(source, 100, 0, None, Some(&records), false);
+        let (green, _, _, facts) = typed_companion(source, 100, 0, None, false);
+        assert_eq!(facts, [structural_fact(kind, range)], "{source:?}");
+        let (again, _, _, repeated_facts) = typed_companion(source, 100, 0, None, false);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
     }
 }
 
 #[test]
 fn companion_errors_keep_retry_and_boundary_leading_outside_the_run() {
     for (source, text, kind, range, leading) in [
-        ("with  ]tail", "with", RecoveryKind::Missing, 104..104, "  "),
+        ("with  ]tail", "with", StructuralKind::Missing, 4..4, "  "),
         (
             "with @  ]tail",
             "with @",
-            RecoveryKind::Error,
-            105..106,
+            StructuralKind::ErrorGroup,
+            5..6,
             "  ",
         ),
         (
             "with @// 日本語\r\n: tail",
             "with @",
-            RecoveryKind::Error,
-            105..106,
+            StructuralKind::ErrorGroup,
+            5..6,
             "// 日本語\r\n",
         ),
     ] {
-        let (green, exit, _, records) = typed_companion(source, 100, 0, None, None, false);
+        let (green, exit, _, facts) = typed_companion(source, 100, 0, None, false);
         assert_eq!(green.to_string(), text);
-        assert_eq!(
-            records,
-            [companion_record(
-                GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Introducer)),
-                kind,
-                range,
-                (kind == RecoveryKind::Error).then_some(UnexpectedCategory::OtherCharacter)
-            )]
-        );
+        assert_eq!(facts, [structural_fact(kind, range)]);
         assert_eq!(emit_pending_leading_text(&mut pending(exit)), leading);
     }
-    let (green, _, _, records) = typed_companion(
-        "with: @ // 日本語\r\n  derives Role",
-        100,
-        0,
-        None,
-        None,
-        false,
-    );
+    let (green, _, _, facts) =
+        typed_companion("with: @ // 日本語\r\n  derives Role", 100, 0, None, false);
     let root = syntax_root(green);
     assert_eq!(
         crate::tests::recovery_output::recovery_groups(&root)
@@ -225,84 +107,47 @@ fn companion_errors_keep_retry_and_boundary_leading_outside_the_run() {
             .to_string(),
         "@"
     );
-    assert_eq!(records.len(), 1);
+    assert_eq!(facts, [structural_fact(StructuralKind::ErrorGroup, 6..7)]);
 }
 
 #[test]
-fn companion_close_records_distinguish_local_error_and_protected_missing() {
-    let role = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::DeclarationCompanion,
-        delimiter: Delimiter::Brace,
-    };
-    for (source, stops, kind, range, unexpected) in [
-        ("with {  ", 0, RecoveryKind::Missing, 108..108, None),
+fn companion_close_facts_distinguish_local_error_and_protected_missing() {
+    for (source, stops, kind, range) in [
+        ("with {  ", 0, StructuralKind::Missing, 8..8),
         (
             "with {  ]tail",
             stops_for(TokenKind::RBracket),
-            RecoveryKind::Missing,
-            106..106,
-            None,
+            StructuralKind::Missing,
+            6..6,
         ),
-        (
-            "with { ]}",
-            0,
-            RecoveryKind::Error,
-            107..108,
-            Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
-                Delimiter::Bracket,
-            ))),
-        ),
+        ("with { ]}", 0, StructuralKind::ErrorGroup, 7..8),
     ] {
-        let (green, _, _, records) = typed_companion(source, 100, stops, None, None, false);
-        assert_eq!(
-            records,
-            [companion_record(role, kind, range, unexpected)],
-            "{source:?}"
-        );
-        let (again, _, _, frozen) =
-            typed_companion(source, 100, stops, None, Some(&records), false);
+        let (green, _, _, facts) = typed_companion(source, 100, stops, None, false);
+        assert_eq!(facts, [structural_fact(kind, range)], "{source:?}");
+        let (again, _, _, repeated_facts) = typed_companion(source, 100, stops, None, false);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
     }
     let fence = active_fence();
-    for (source, kind, role, range) in [
-        (
-            "with\r\n>> ```",
-            RecoveryKind::Missing,
-            GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Introducer)),
-            106..106,
-        ),
-        (
-            "with: @\r\n>> ```",
-            RecoveryKind::Error,
-            GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Body)),
-            106..107,
-        ),
-        ("with {\r\n>> ```", RecoveryKind::Missing, role, 108..108),
+    for (source, kind, range) in [
+        ("with\r\n>> ```", StructuralKind::Missing, 4..4),
+        ("with: @\r\n>> ```", StructuralKind::ErrorGroup, 6..7),
+        ("with {\r\n>> ```", StructuralKind::Missing, 6..6),
     ] {
-        let (green, exit, _, records) = typed_companion(source, 100, 0, Some(&fence), None, false);
+        let (green, exit, _, facts) = typed_companion(source, 100, 0, Some(&fence), false);
         assert!(pending(exit).payload_view().is_boundary());
-        assert_eq!(
-            records,
-            [companion_record(
-                role,
-                kind,
-                range,
-                (kind == RecoveryKind::Error).then_some(UnexpectedCategory::OtherCharacter)
-            )]
-        );
-        let (again, _, _, frozen) =
-            typed_companion(source, 100, 0, Some(&fence), Some(&records), false);
+        assert_eq!(facts, [structural_fact(kind, range)]);
+        let (again, _, _, repeated_facts) = typed_companion(source, 100, 0, Some(&fence), false);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
     }
 }
 
 #[test]
-fn companion_records_reach_all_five_declaration_callers() {
-    let (green, _, _, records) = typed_companion("error E = A with:", 100, 0, None, None, true);
+fn companion_facts_reach_all_five_declaration_callers() {
+    let (green, _, _, facts) = typed_companion("error E = A with:", 100, 0, None, true);
     assert_eq!(green.to_string(), "error E = A");
-    assert!(records.is_empty());
+    assert!(facts.is_empty());
     for source in [
         "struct S{} with:",
         "type T = Int with:",
@@ -310,97 +155,34 @@ fn companion_records_reach_all_five_declaration_callers() {
         "error E with:",
         "act A() with:",
     ] {
-        let (green, _, _, records) = typed_companion(source, 100, 0, None, None, true);
-        let at = 100 + source.len();
+        let (green, _, _, facts) = typed_companion(source, 100, 0, None, true);
+        let at = source.len();
         assert_eq!(
-            records,
-            [companion_record(
-                GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Body)),
-                RecoveryKind::Missing,
-                at..at,
-                None
-            )],
+            facts,
+            [structural_fact(StructuralKind::Missing, at..at)],
             "{source:?}"
         );
-        let (again, _, _, frozen) = typed_companion(source, 100, 0, None, Some(&records), true);
+        let (again, _, _, repeated_facts) = typed_companion(source, 100, 0, None, true);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
     }
 }
 
 #[test]
-fn companion_seeded_reconciliation_keeps_nonpositional_ids_and_nested_roles() {
-    let role = GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Body));
+fn companion_nested_structural_facts_follow_cst_order() {
     let source = "with: @ derives";
-    let (_, _, _, nested) = typed_companion(source, 100, 0, None, None, false);
-    assert_eq!(nested.len(), 2);
+    let (green, _, _, facts) = typed_companion(source, 100, 0, None, false);
+    assert_eq!(green.to_string(), source);
     assert_eq!(
-        nested[0],
-        companion_record(
-            role,
-            RecoveryKind::Error,
-            106..107,
-            Some(UnexpectedCategory::OtherCharacter)
-        )
+        facts,
+        [
+            structural_fact(StructuralKind::ErrorGroup, 6..7),
+            structural_fact(StructuralKind::Missing, 15..15),
+        ]
     );
-    assert_eq!(
-        nested[1].site.role,
-        GrammarRole::Declaration(DeclarationRole::Derives(
-            crate::recovery_record::DerivesRole::RoleReference
-        ))
-    );
-    assert_eq!(nested[1].site.range, 115..115);
-    let mut frozen = None;
-    let mut first_green = None;
-    for pass in 0..2 {
-        let operators = OperatorTable::empty();
-        let mut input = source;
-        let mut recover = Recover::new_for_test(&operators);
-        let mut builder = frozen
-            .as_deref()
-            .map_or_else(GreenNodeBuilder::new, |records| {
-                recover = Recover::reconcile_for_test(recover.operators(), records);
-                GreenNodeBuilder::new()
-            });
-        builder.start_node(SyntaxKind::Root.into());
-        let seed = companion_record(role, RecoveryKind::Missing, 0..0, None);
-        builder.start_node(SyntaxKind::Missing.into());
-        builder.finish_node();
-        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-            seed.site,
-            seed.kind,
-            seed.unexpected,
-            seed.expectations,
-            seed.primary_expectation,
-        ));
-        crate::declaration::declaration_companion::declaration_companion_witness(
-            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
-            0,
-            0,
-            100,
-            LineEntry::InLine,
-            None,
-        )
-        .unwrap();
-        builder.finish_node();
-        let (green, mut records) = (builder.finish(), recover.finish_recoveries_for_test());
-        if pass == 0 {
-            let mut expected = vec![companion_record(role, RecoveryKind::Missing, 0..0, None)];
-            expected.extend(nested.clone());
-            for (index, record) in expected.iter_mut().enumerate() {
-                record.id = DiagnosticId(index as u32);
-            }
-            assert_eq!(records, expected);
-            records[0].id = DiagnosticId(7);
-            records[1].id = DiagnosticId(13);
-            records[2].id = DiagnosticId(29);
-            frozen = Some(records);
-            first_green = Some(green);
-        } else {
-            assert_eq!(Some(records), frozen);
-            assert_eq!(Some(green), first_green);
-        }
-    }
+    let (again, _, _, repeated_facts) = typed_companion(source, 100, 0, None, false);
+    assert_eq!(again, green);
+    assert_eq!(repeated_facts, facts);
 }
 
 #[test]
@@ -411,33 +193,16 @@ fn companion_separator_keeps_protected_close_leading_and_valid_trailing_slots() 
         "with {item\r\n}",
         "with:\r\n  item;\r\nouter",
     ] {
-        let (_, _, _, records) = typed_companion(source, 100, 0, None, None, false);
-        assert!(records.is_empty(), "{source:?}");
+        let (_, _, _, facts) = typed_companion(source, 100, 0, None, false);
+        assert!(facts.is_empty(), "{source:?}");
     }
     let source = "with {item,  ]tail";
-    let (green, exit, remainder, records) = typed_companion(
-        source,
-        100,
-        stops_for(TokenKind::RBracket),
-        None,
-        None,
-        false,
-    );
+    let (green, exit, remainder, facts) =
+        typed_companion(source, 100, stops_for(TokenKind::RBracket), None, false);
     assert_eq!(green.to_string(), "with {item,");
     assert_eq!(remainder, "tail");
     assert_eq!(emit_pending_leading_text(&mut pending(exit)), "  ");
-    assert_eq!(
-        records,
-        [companion_record(
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::DeclarationCompanion,
-                delimiter: Delimiter::Brace
-            },
-            RecoveryKind::Missing,
-            111..111,
-            None
-        )]
-    );
+    assert_eq!(facts, [structural_fact(StructuralKind::Missing, 11..11)]);
 }
 
 use crate::{

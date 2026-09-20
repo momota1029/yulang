@@ -1,19 +1,11 @@
 use crate::tests::type_expr::*;
 
-pub(super) fn head_error(id: u32, range: Range<usize>) -> CommittedRecoveryRecord {
-    expected_type_expression_error(
-        id,
-        TypeRole::LeadingEffectTypeHead,
-        range.clone(),
-        Arc::from([UnexpectedSyntax::Token {
-            range,
-            category: UnexpectedCategory::OtherCharacter,
-        }]),
-    )
+pub(super) fn head_error(_: u32, range: Range<usize>) -> ExpectedStructural {
+    (StructuralKind::ErrorGroup, range)
 }
 
-fn head_missing(id: u32, at: usize) -> CommittedRecoveryRecord {
-    expected_type_expression_missing(id, TypeRole::LeadingEffectTypeHead, at)
+fn head_missing(_: u32, at: usize) -> ExpectedStructural {
+    (StructuralKind::Missing, at..at)
 }
 
 #[test]
@@ -119,36 +111,32 @@ fn leading_row_boundaries_preserve_the_entire_pending_item_at_every_depth() {
             ("\r\nT tail", 0),
         ] {
             let source = format!("{prefix}{suffix}");
-            let frozen = frozen_recovery_ids(std::slice::from_ref(&expected));
-            for (input, records) in [
-                (None, std::slice::from_ref(&expected)),
-                (Some(frozen.as_slice()), frozen.as_slice()),
-            ] {
-                let run = run_contextual_type_snapshot(
-                    &source,
-                    crate::type_expr::TypeMlContext::INACTIVE,
-                    stops,
-                    0,
-                    0,
-                    LineEntry::InLine,
-                    None,
-                    input,
-                );
-                assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
-                assert_eq!(run.records, records, "{source:?}");
-                assert_eq!(run.slots, 1);
-                let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
-                    panic!("head boundary stays pending: {source:?}")
-                };
-                let (control, origin, control_line, remainder, _, _) =
-                    scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
-                assert_eq!(pending, control, "{source:?}");
-                assert_eq!(run.successor_origin, origin);
-                assert_eq!(run.remainder, remainder);
-                assert_eq!(line, control_line);
-                assert_eq!(run.mark, ());
-                assert!(run.same_operators);
-            }
+            let run = run_contextual_type_snapshot(
+                &source,
+                crate::type_expr::TypeMlContext::INACTIVE,
+                stops,
+                0,
+                0,
+                LineEntry::InLine,
+                None,
+            );
+            assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
+            let expected = [(
+                expected.0,
+                "sentinel".len() + expected.1.start.."sentinel".len() + expected.1.end,
+            )];
+            assert_eq!(run.facts, expected, "{source:?}");
+            let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
+                panic!("head boundary stays pending: {source:?}")
+            };
+            let (control, origin, control_line, remainder, _, _) =
+                scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
+            assert_eq!(pending, control, "{source:?}");
+            assert_eq!(run.successor_origin, origin);
+            assert_eq!(run.remainder, remainder);
+            assert_eq!(line, control_line);
+            assert_eq!(run.mark, ());
+            assert!(run.same_operators);
         }
     }
 }
@@ -157,16 +145,15 @@ fn leading_row_boundaries_preserve_the_entire_pending_item_at_every_depth() {
 fn leading_row_contextual_outer_boundary_survives_malformed_nesting() {
     let source = "[e][bad with tail";
     let expected = [head_error(0, 3..7)];
-    let (green, exit, found, _, remainder, records, _, _) =
-        run_required_type_with_outer_boundary_and_recoveries(
+    let (green, exit, found, _, remainder, facts) =
+        run_required_type_with_outer_boundary_and_structural_diagnostics(
             source,
             crate::type_expr::TypeOuterBoundary::WITH,
             false,
-            None,
         );
     assert!(found);
     assert_eq!(green.to_string(), "[e][bad");
-    assert_eq!(records, expected);
+    assert_eq!(facts, expected);
     assert_eq!(remainder, " tail");
     let NormalizedExit::Complete(Err(Either::Left(pending)), _) = exit else {
         panic!("outer contextual boundary stays pending")
@@ -187,55 +174,46 @@ fn leading_row_fences_preserve_unemitted_newline_and_comment_carriers() {
         close_column: 0,
     };
     for (prefix, leading, expected) in [
-        ("> > [e]", "\n", head_missing(0, 8)),
+        ("> > [e]", "\n", head_missing(0, 7)),
         ("> > [e] @", "\n", head_error(0, 8..9)),
         ("> > [e] [bad", "\r\n", head_error(0, 8..12)),
         ("> > [e] [bad", "/*\n> > still\n", head_error(0, 8..12)),
     ] {
         let source = format!("{prefix}{leading}> > ```\nouter]");
-        let frozen = frozen_recovery_ids(std::slice::from_ref(&expected));
-        for (input, records) in [
-            (None, std::slice::from_ref(&expected)),
-            (Some(frozen.as_slice()), frozen.as_slice()),
-        ] {
-            let (green, exit, remainder, actual) = run_type_normalized_with_recoveries(
-                &source,
-                0,
-                LineEntry::PhysicalStart,
-                Some(&fence),
-                input,
+        let (green, exit, remainder, actual) = run_type_normalized_with_structural_diagnostics(
+            &source,
+            0,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+        );
+        assert_eq!(green.to_string(), prefix, "{source:?}");
+        assert_eq!(actual, [expected], "{source:?}");
+        assert_eq!(remainder, "> > ```\nouter]");
+        let Some(NormalizedExit::Complete(Err(Either::Left(pending)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("head preserves fence")
+        };
+        assert_eq!(
+            pending
+                .payload_view()
+                .pending_boundary()
+                .unwrap()
+                .coordinate(),
+            prefix.len() + leading.len()
+        );
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        pending.emit_terminal_boundary(&mut output);
+        output.finish_node();
+        let tail = output.finish();
+        assert_eq!(tail.to_string(), leading, "{source:?}");
+        if leading.contains("still") {
+            assert!(
+                SyntaxNode::new_root(tail)
+                    .descendants_with_tokens()
+                    .any(|element| element.kind() == SyntaxKind::YmQuotePrefix)
             );
-            assert_eq!(green.to_string(), prefix, "{source:?}");
-            assert_eq!(actual, records, "{source:?}");
-            assert_eq!(remainder, "> > ```\nouter]");
-            let Some(NormalizedExit::Complete(
-                Err(Either::Left(pending)),
-                LineEntry::PhysicalStart,
-            )) = exit
-            else {
-                panic!("head preserves fence")
-            };
-            assert_eq!(
-                pending
-                    .payload_view()
-                    .pending_boundary()
-                    .unwrap()
-                    .coordinate(),
-                prefix.len() + leading.len()
-            );
-            let mut output = GreenNodeBuilder::new();
-            output.start_node(SyntaxKind::Root.into());
-            pending.emit_terminal_boundary(&mut output);
-            output.finish_node();
-            let tail = output.finish();
-            assert_eq!(tail.to_string(), leading, "{source:?}");
-            if leading.contains("still") {
-                assert!(
-                    SyntaxNode::new_root(tail)
-                        .descendants_with_tokens()
-                        .any(|element| element.kind() == SyntaxKind::YmQuotePrefix)
-                );
-            }
         }
     }
 }
@@ -246,14 +224,7 @@ fn leading_row_structured_tag_errors_reserve_before_nested_head_records() {
         (":{[e]}", 2..5, head_missing(1, 5)),
         (":{[e][f]T}", 2..9, head_error(1, 5..8)),
     ] {
-        assert_complete_type_recovery(
-            source,
-            0,
-            &[
-                expected_type_error(0, TypeRole::PolymorphicVariantTagName, extent),
-                head,
-            ],
-        );
+        assert_complete_type_recovery(source, 0, &[(StructuralKind::Invalid, extent), head]);
     }
 }
 

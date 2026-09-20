@@ -3,18 +3,9 @@
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-use std::sync::Arc;
-
 use reborrow_generic::Reborrow as _;
 
-use crate::{
-    recovery_record::{
-        Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
-        RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole, UnexpectedCategory,
-        UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 
 mod delimited;
 #[cfg(test)]
@@ -25,20 +16,14 @@ mod variants;
 
 use crate::{
     cursor::SyntaxIn,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            ErrorRunOutput, PathSegmentRetryLeadingSeal, emit_recovery_error_run,
-            emit_recovery_missing, emit_token_item,
-        },
+    cursor::recovery::emit::{
+        ErrorRunOutput, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
     },
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
         current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
         item::{Item, LeadingTrivia, LeadingView, TokenKind},
-        lexer::{
-            is_operator_shaped_unknown, scan_exact_pipe, scan_type_nud_payload, scan_type_payload,
-        },
+        lexer::{scan_exact_pipe, scan_type_nud_payload, scan_type_payload},
         observation::token_kind,
         position::{advanced_origin, suffix_marker},
         stops::Stops,
@@ -254,7 +239,6 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized(
     required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
         i,
         primary,
-        GrammarRole::Type(TypeRole::Primary),
         baseline,
         caller_stops,
         item_origin,
@@ -279,7 +263,6 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
     required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
         i,
         primary,
-        GrammarRole::Type(TypeRole::Primary),
         baseline,
         caller_stops,
         outer_boundary,
@@ -305,7 +288,6 @@ pub(super) fn required_variant_payload_type_normalized(
     required_variant_payload_type_normalized_with_ambient(
         i,
         primary,
-        GrammarRole::Type(TypeRole::Primary),
         baseline,
         type_ml,
         outer_boundary,
@@ -507,7 +489,6 @@ pub(super) fn type_expr_with_context_and_boundaries_for_test(
 pub(super) fn required_type_expr_with_boundary_normalized(
     i: SyntaxIn,
     primary: Item,
-    missing_role: GrammarRole,
     baseline: usize,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_closes: u8,
@@ -520,7 +501,6 @@ pub(super) fn required_type_expr_with_boundary_normalized(
     required_type_expr_inner_normalized(
         i,
         primary,
-        missing_role,
         baseline,
         apply_boundary,
         true,
@@ -542,7 +522,6 @@ pub(super) fn required_type_expr_with_boundary_normalized(
 pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
     i: SyntaxIn,
     primary: Item,
-    missing_role: GrammarRole,
     baseline: usize,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
@@ -554,7 +533,6 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
     required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
         i,
         primary,
-        missing_role,
         baseline,
         caller_stops,
         outer_boundary,
@@ -570,7 +548,6 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_normalized
 pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
     i: SyntaxIn,
     primary: Item,
-    missing_role: GrammarRole,
     baseline: usize,
     caller_stops: Stops,
     outer_boundary: TypeOuterBoundary,
@@ -583,7 +560,6 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_
     required_type_expr_inner_normalized(
         i,
         primary,
-        missing_role,
         baseline,
         None,
         false,
@@ -607,7 +583,6 @@ pub(super) fn required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_
 pub(super) fn required_variant_payload_type_normalized_with_ambient(
     i: SyntaxIn,
     primary: Item,
-    missing_role: GrammarRole,
     baseline: usize,
     type_ml: TypeMlContext,
     outer_boundary: TypeOuterBoundary,
@@ -619,7 +594,6 @@ pub(super) fn required_variant_payload_type_normalized_with_ambient(
     required_type_expr_inner_normalized(
         i,
         primary,
-        missing_role,
         baseline,
         None,
         false,
@@ -640,7 +614,6 @@ pub(super) fn required_variant_payload_type_normalized_with_ambient(
 pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized_with_ambient(
     i: SyntaxIn,
     primary: Item,
-    missing_role: GrammarRole,
     baseline: usize,
     caller_stops: Stops,
     item_origin: usize,
@@ -651,7 +624,6 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized_wit
     required_type_expr_inner_normalized(
         i,
         primary,
-        missing_role,
         baseline,
         None,
         false,
@@ -672,7 +644,6 @@ pub(super) fn required_type_expr_with_caller_stops_and_completion_normalized_wit
 fn required_type_expr_inner_normalized(
     mut i: SyntaxIn,
     mut primary: Item,
-    missing_role: GrammarRole,
     baseline: usize,
     apply_boundary: Option<TypeApplyBoundary>,
     outer_separators: bool,
@@ -701,9 +672,7 @@ fn required_type_expr_inner_normalized(
             || primary.extent(item_origin).recovery_range().start,
             |boundary| boundary.coordinate(),
         );
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_expression_missing_draft(missing_role, range)
-        });
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
         i.state.finish_node();
         return (complete(handoff(primary), line_entry), false);
     }
@@ -729,16 +698,9 @@ fn required_type_expr_inner_normalized(
         );
     }
 
-    (primary, item_origin, line_entry) = emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let category = required_type_primary_unexpected_category(&primary);
-            let kind = type_recovery_error_syntax_kind(&primary);
-            let extent = run.emit_item_as(primary, item_origin, kind);
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range: extent.recovery_range(),
-                category,
-            });
+    (primary, item_origin, line_entry) = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(primary, item_origin);
             (primary, item_origin, line_entry) =
                 type_nud_item_with_pipe_lexical_normalized_in_error_run(
                     run,
@@ -760,9 +722,8 @@ fn required_type_expr_inner_normalized(
             {
                 return (primary, item_origin, line_entry);
             }
-        },
-        |range, unexpected| type_expression_error_draft(TypeRole::Primary, range, unexpected),
-    );
+        }
+    });
     if primary.payload_view().is_boundary()
         || is_required_type_boundary(
             &primary,
@@ -794,146 +755,6 @@ fn required_type_expr_inner_normalized(
         ),
         true,
     )
-}
-
-fn type_expression_error_draft(
-    role: TypeRole,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = GrammarRole::Type(role);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        RecoveryKind::Error,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::TypeExpression,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn type_expression_missing_draft(
-    role: GrammarRole,
-    range: std::ops::Range<usize>,
-) -> RecoveryDraft {
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        RecoveryKind::Missing,
-        Arc::from([]),
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::TypeExpression,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn type_path_segment_recovery_draft(
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = GrammarRole::Type(TypeRole::PathSegment);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::TypePathSegment,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn required_type_primary_unexpected_category(item: &Item) -> UnexpectedCategory {
-    match token_kind(item).expect("a required Type-primary Error contains lexical Items") {
-        TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Forall => {
-            UnexpectedCategory::Word
-        }
-        TokenKind::Integer => UnexpectedCategory::DecimalInteger,
-        TokenKind::Operator | TokenKind::DotDot => UnexpectedCategory::OperatorLike,
-        TokenKind::LParen => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Parenthesis))
-        }
-        TokenKind::RParen => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis))
-        }
-        TokenKind::LBracket => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Bracket))
-        }
-        TokenKind::RBracket => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket))
-        }
-        TokenKind::LBrace => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Brace))
-        }
-        TokenKind::RBrace => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Brace))
-        }
-        TokenKind::Comma => UnexpectedCategory::Punctuation(PunctuationEvidence::Comma),
-        TokenKind::Semicolon => UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
-        TokenKind::Dot => UnexpectedCategory::Punctuation(PunctuationEvidence::Dot),
-        TokenKind::Arrow => UnexpectedCategory::Punctuation(PunctuationEvidence::Arrow),
-        TokenKind::Colon | TokenKind::PolymorphicVariantColon | TokenKind::PatternSymbolColon => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Colon)
-        }
-        TokenKind::Equals => UnexpectedCategory::Punctuation(PunctuationEvidence::Equals),
-        TokenKind::EffectRowApostrophe => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Apostrophe)
-        }
-        TokenKind::PathSeparator => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::ColonColon)
-        }
-        TokenKind::Pipe => UnexpectedCategory::Punctuation(PunctuationEvidence::Pipe),
-        TokenKind::Unknown if is_operator_shaped_unknown(item) => UnexpectedCategory::OperatorLike,
-        TokenKind::Unknown => UnexpectedCategory::OtherCharacter,
-    }
-}
-
-fn type_recovery_error_syntax_kind(item: &Item) -> SyntaxKind {
-    match token_kind(item).expect("a required Type-primary Error contains lexical Items") {
-        TokenKind::Identifier => SyntaxKind::Identifier,
-        TokenKind::SigilIdentifier => SyntaxKind::SigilIdentifier,
-        TokenKind::Integer => SyntaxKind::Integer,
-        TokenKind::Operator => SyntaxKind::Operator,
-        TokenKind::LParen => SyntaxKind::LParen,
-        TokenKind::RParen => SyntaxKind::RParen,
-        TokenKind::LBracket => SyntaxKind::LBracket,
-        TokenKind::RBracket => SyntaxKind::RBracket,
-        TokenKind::LBrace => SyntaxKind::LBrace,
-        TokenKind::RBrace => SyntaxKind::RBrace,
-        TokenKind::Comma => SyntaxKind::Comma,
-        TokenKind::Semicolon => SyntaxKind::Semicolon,
-        TokenKind::Dot => SyntaxKind::Dot,
-        TokenKind::DotDot => SyntaxKind::DotDot,
-        TokenKind::Arrow => SyntaxKind::Arrow,
-        TokenKind::Colon => SyntaxKind::Colon,
-        TokenKind::Equals => SyntaxKind::Equals,
-        TokenKind::Forall => SyntaxKind::ForKw,
-        TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
-        TokenKind::PolymorphicVariantColon | TokenKind::PatternSymbolColon => SyntaxKind::Colon,
-        TokenKind::PathSeparator => SyntaxKind::ColonColon,
-        TokenKind::Pipe => SyntaxKind::Pipe,
-        TokenKind::Unknown => SyntaxKind::Unknown,
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1565,12 +1386,7 @@ fn type_leading_bracket_row_normalized(
     match exit {
         NormalizedExit::Complete(Ok(()), next_line_entry) => line_entry = next_line_entry,
         NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
-            emit_recovery_missing(i.rb(), LeadingTrivia::default(), item_origin, |range| {
-                type_expression_missing_draft(
-                    GrammarRole::Type(TypeRole::LeadingEffectTypeHead),
-                    range,
-                )
-            });
+            emit_recovery_missing(i.rb(), LeadingTrivia::default(), item_origin);
             return complete(Err(Either::Right(end)), next_line_entry);
         }
         NormalizedExit::Complete(Err(Either::Left(item)), next_line_entry) => {
@@ -1668,55 +1484,40 @@ fn retry_leading_type_head_normalized(
     pipe_lexical: bool,
     ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            let mut closes = Vec::new();
-            loop {
-                match token_kind(&item) {
-                    Some(TokenKind::LBracket) => closes.push(TokenKind::RBracket),
-                    Some(TokenKind::LParen) => closes.push(TokenKind::RParen),
-                    Some(TokenKind::LBrace) => closes.push(TokenKind::RBrace),
-                    Some(close) if Some(&close) == closes.last() => {
-                        closes.pop();
-                    }
-                    _ => {}
+    emit_recovery_error_run(i, |run| {
+        let mut closes = Vec::new();
+        loop {
+            match token_kind(&item) {
+                Some(TokenKind::LBracket) => closes.push(TokenKind::RBracket),
+                Some(TokenKind::LParen) => closes.push(TokenKind::RParen),
+                Some(TokenKind::LBrace) => closes.push(TokenKind::RBrace),
+                Some(close) if Some(&close) == closes.last() => {
+                    closes.pop();
                 }
-                let kind = type_recovery_error_syntax_kind(&item);
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) =
-                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                if is_leading_type_head_boundary(
-                    &item,
-                    baseline,
-                    caller_stops,
-                    outer_boundary,
-                    closes.last().copied(),
-                ) || (closes.is_empty() && is_type_primary(&item))
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
-                }
+                _ => {}
             }
-        },
-        |range, unexpected| {
-            type_expression_error_draft(TypeRole::LeadingEffectTypeHead, range, unexpected)
-        },
-    )
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) =
+                type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                    ambient,
+                );
+            if is_leading_type_head_boundary(
+                &item,
+                baseline,
+                caller_stops,
+                outer_boundary,
+                closes.last().copied(),
+            ) || (closes.is_empty() && is_type_primary(&item))
+            {
+                return (item, item_origin, line_entry);
+            }
+        }
+    })
 }
 
 fn emit_leading_type_head_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
@@ -1724,9 +1525,7 @@ fn emit_leading_type_head_missing(i: &mut SyntaxIn, item: &Item, item_origin: us
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        type_expression_missing_draft(GrammarRole::Type(TypeRole::LeadingEffectTypeHead), range)
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1945,39 +1744,26 @@ fn retry_bracket_arrow_normalized(
     pipe_lexical: bool,
     ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i.rb(),
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind = type_recovery_error_syntax_kind(&item);
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) =
-                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                if is_bracket_arrow_boundary(&item, baseline, caller_stops, outer_boundary)
-                    || token_kind(&item) == Some(TokenKind::Arrow)
-                    || is_type_nud(&item)
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
-                }
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) =
+                type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                    ambient,
+                );
+            if is_bracket_arrow_boundary(&item, baseline, caller_stops, outer_boundary)
+                || token_kind(&item) == Some(TokenKind::Arrow)
+                || is_type_nud(&item)
+            {
+                return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| bracket_arrow_recovery_draft(RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
 fn emit_bracket_arrow_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
@@ -1985,32 +1771,7 @@ fn emit_bracket_arrow_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize)
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        bracket_arrow_recovery_draft(RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn bracket_arrow_recovery_draft(
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = GrammarRole::Type(TypeRole::BracketRowArrow);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2156,9 +1917,7 @@ fn type_path_tail_normalized(
             .pending_boundary()
             .expect("a boundary Item retains its inspected boundary")
             .coordinate();
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_path_segment_recovery_draft(RecoveryKind::Missing, range, Arc::from([]))
-        });
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
         i.state.finish_node();
         return type_tail_normalized(
             i,
@@ -2184,9 +1943,7 @@ fn type_path_tail_normalized(
             || is_type_outer_boundary(&segment, outer_boundary))
     {
         let at = segment.extent(item_origin).recovery_range().start;
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_path_segment_recovery_draft(RecoveryKind::Missing, range, Arc::from([]))
-        });
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
         i.state.finish_node();
         return type_tail_normalized(
             i,
@@ -2208,9 +1965,7 @@ fn type_path_tail_normalized(
     if !type_chain_trivia(segment.leading_view(), baseline) || is_type_path_boundary(&segment) {
         segment.emit_all_remaining_leading(&mut *i.state);
         let at = segment.extent(item_origin).recovery_range().start;
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_path_segment_recovery_draft(RecoveryKind::Missing, range, Arc::from([]))
-        });
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
         i.state.finish_node();
         return type_tail_normalized(
             i,
@@ -2341,11 +2096,9 @@ fn retry_type_path_segment_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     let mut error_extent: Option<std::ops::Range<usize>> = None;
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = type_recovery_error_syntax_kind(&item);
-            let extent = run.emit_item_as(item, item_origin, kind);
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            let extent = run.emit_item_as(item, item_origin);
             let item_extent = extent.recovery_range();
             if let Some(error_extent) = &mut error_extent {
                 assert_eq!(
@@ -2370,53 +2123,20 @@ fn retry_type_path_segment_normalized(
                 || !type_chain_trivia(item.leading_view(), baseline)
                 || is_type_path_boundary(&item)
             {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: error_extent
-                        .clone()
-                        .expect("a PathSegment Error emits a malformed Item"),
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, item_origin, line_entry);
             }
             if is_type_payload_boundary(item.leading_view())
                 && item.leading_view().has_ordinary_horizontal_gap()
             {
-                let sealed = run.seal_path_segment_retry_leading_prefix(
-                    &mut item,
-                    item_origin,
-                    UnexpectedCategory::OtherCharacter,
-                );
-                if sealed == PathSegmentRetryLeadingSeal::Ineligible {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: error_extent
-                            .clone()
-                            .expect("a PathSegment Error emits a malformed Item"),
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                }
+                let _ = run.emit_path_segment_retry_leading_prefix(&mut item, item_origin);
                 return (item, item_origin, line_entry);
             }
             if is_type_path_segment(&item) {
-                let sealed = run.seal_path_segment_retry_leading_prefix(
-                    &mut item,
-                    item_origin,
-                    UnexpectedCategory::OtherCharacter,
-                );
-                if sealed == PathSegmentRetryLeadingSeal::Ineligible {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: error_extent
-                            .clone()
-                            .expect("a PathSegment Error emits a malformed Item"),
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                }
+                let _ = run.emit_path_segment_retry_leading_prefix(&mut item, item_origin);
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            type_path_segment_recovery_draft(RecoveryKind::Error, range, unexpected)
-        },
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2546,16 +2266,12 @@ fn type_arrow_rhs_normalized(
             .pending_boundary()
             .expect("a boundary Item retains its inspected boundary")
             .coordinate();
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_expression_missing_draft(GrammarRole::Type(TypeRole::ArrowRhs), range)
-        });
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
         return complete(handoff(rhs), line_entry);
     }
     if is_type_outer_boundary(&rhs, outer_boundary) {
         let at = rhs.extent(item_origin).recovery_range().start;
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_expression_missing_draft(GrammarRole::Type(TypeRole::ArrowRhs), range)
-        });
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
         return complete(handoff(rhs), line_entry);
     }
     if !type_chain_trivia(rhs.leading_view(), baseline)
@@ -2564,9 +2280,7 @@ fn type_arrow_rhs_normalized(
     {
         rhs.emit_all_remaining_leading(&mut *i.state);
         let at = rhs.extent(item_origin).recovery_range().start;
-        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-            type_expression_missing_draft(GrammarRole::Type(TypeRole::ArrowRhs), range)
-        });
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
         return complete(handoff(rhs), line_entry);
     }
     if !is_type_nud(&rhs) {
@@ -2622,11 +2336,9 @@ fn retry_type_arrow_rhs_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
     let mut error_extent: Option<std::ops::Range<usize>> = None;
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = type_recovery_error_syntax_kind(&item);
-            let extent = run.emit_item_as(item, item_origin, kind);
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            let extent = run.emit_item_as(item, item_origin);
             let item_extent = extent.recovery_range();
             if let Some(error_extent) = &mut error_extent {
                 assert_eq!(
@@ -2653,29 +2365,10 @@ fn retry_type_arrow_rhs_normalized(
                 || is_type_caller_boundary(&item, caller_stops)
                 || is_type_outer_boundary(&item, outer_boundary)
             {
-                let is_owned_retry = !item.payload_view().is_boundary()
-                    && is_type_nud(&item)
-                    && !is_type_caller_boundary(&item, caller_stops)
-                    && !is_type_outer_boundary(&item, outer_boundary);
-                let sealed = is_owned_retry
-                    && run.seal_record_through_retry_leading(
-                        &item,
-                        item_origin,
-                        UnexpectedCategory::OtherCharacter,
-                    );
-                if !sealed {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: error_extent
-                            .clone()
-                            .expect("an Arrow-RHS Error emits a malformed Item"),
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                }
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| type_expression_error_draft(TypeRole::ArrowRhs, range, unexpected),
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]

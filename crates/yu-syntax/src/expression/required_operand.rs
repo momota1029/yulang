@@ -1,15 +1,10 @@
 //! Mandatory operands: boundary publication, lexical Error runs and NUD retry.
 
-use std::sync::Arc;
-
 use super::operator_chain::{append_nud, is_nud_item};
 use crate::{
     ambient_claim::AmbientClaimContext,
     cursor::SyntaxIn,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{ErrorRunOutput, emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
-    },
+    cursor::recovery::emit::{ErrorRunOutput, emit_recovery_error_run, emit_recovery_missing},
     handoff::{MlMode, NormalizedExit, complete, handoff},
     lexical::{
         current_item::LineEntry,
@@ -21,12 +16,7 @@ use crate::{
         yumark::FenceBoundary,
     },
     operator_table::BindingPower,
-    recovery_record::{
-        ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, RecoveryKind,
-        RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    },
     statement::StatementLineHandoff,
-    syntax_kind::SyntaxKind,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -55,7 +45,6 @@ pub(super) fn required_expr_after_accept_normalized(
     required_expr_item_normalized(
         i,
         item,
-        GrammarRole::Expression(ExpressionRole::Nud),
         threshold,
         baseline,
         stops,
@@ -73,7 +62,6 @@ pub(super) fn required_expr_after_accept_normalized(
 pub(crate) fn required_expr_item_normalized(
     mut i: SyntaxIn,
     mut item: Item,
-    initial_role: GrammarRole,
     threshold: Option<&BindingPower>,
     baseline: usize,
     stops: Stops,
@@ -86,7 +74,7 @@ pub(crate) fn required_expr_item_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if is_required_operand_boundary(i.rb(), &item, stops) {
-        emit_required_expression_missing(&mut i, &mut item, item_origin, stops, initial_role);
+        emit_required_expression_missing(&mut i, &mut item, item_origin, stops);
         return complete(handoff(item), line_entry);
     }
     if is_nud_item(&item) {
@@ -109,7 +97,6 @@ pub(crate) fn required_expr_item_normalized(
     (item, item_origin, line_entry) = emit_required_expression_error_run(
         i.rb(),
         item,
-        initial_role,
         stops,
         item_origin,
         line_entry,
@@ -168,7 +155,6 @@ pub(crate) fn emit_required_expression_missing(
     item: &mut Item,
     item_origin: usize,
     stops: Stops,
-    role: GrammarRole,
 ) {
     let at = if item.payload_view().is_boundary() {
         item.payload_view()
@@ -186,91 +172,36 @@ pub(crate) fn emit_required_expression_missing(
     } else {
         item.extent(item_origin).recovery_range().start
     };
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        required_expression_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
 fn emit_required_expression_error_run(
     i: SyntaxIn,
     mut item: Item,
-    role: GrammarRole,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
     baseline: usize,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let run_start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind = required_expression_error_syntax_kind(&item);
-                let run_end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    scan_expression_item_lexical(
-                        lex,
-                        OperatorSite::Nud,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        baseline,
-                        stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
-                    )
-                });
-                if is_required_operand_boundary_in_error_run(run, &item, stops)
-                    || is_nud_item(&item)
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: run_start..run_end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
-                }
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_expression_item_lexical(
+                    lex,
+                    OperatorSite::Nud,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    baseline,
+                    stops & !(STOP_RECORD_SPREAD | STOP_RECORD_SPREAD_AFTER_OPERATOR),
+                )
+            });
+            if is_required_operand_boundary_in_error_run(run, &item, stops) || is_nud_item(&item) {
+                return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            required_expression_recovery_draft(role, RecoveryKind::Error, range, unexpected)
-        },
-    )
-}
-
-fn required_expression_error_syntax_kind(item: &Item) -> SyntaxKind {
-    match token_kind(item).expect("a required-expression Error contains lexical Items") {
-        TokenKind::Operator => SyntaxKind::Operator,
-        kind => token_syntax_kind(kind),
-    }
-}
-
-fn required_expression_recovery_draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: match role {
-                GrammarRole::ForStatement(crate::recovery_record::ForStatementRole::Body) => {
-                    ExpectedSyntax::Statement
-                }
-                _ => ExpectedSyntax::Expression,
-            },
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+        }
+    })
 }

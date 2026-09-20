@@ -7,7 +7,7 @@ use super::{
     item::{ForeignSplit, Item, LeadingTrivia, Payload, PendingBoundary, PendingFragments},
     yumark::{FenceBoundary, FenceLineDecision, judge_fence_line},
 };
-use crate::{cursor::LexIn, syntax_kind::SyntaxKind};
+use crate::cursor::LexIn;
 
 pub(crate) struct OpaqueRegion {
     pub(crate) length: usize,
@@ -21,13 +21,13 @@ impl OpaqueRegion {
         &self,
         text: &str,
         origin: usize,
-        mut visit: impl FnMut(&str, std::ops::Range<usize>, SyntaxKind),
+        mut visit: impl FnMut(&str, std::ops::Range<usize>),
     ) {
         assert_eq!(text.len(), self.length);
         if let Some(fragments) = &self.fragments {
             fragments.visit_segments(text, visit);
         } else if !text.is_empty() {
-            visit(text, origin..origin + text.len(), SyntaxKind::Unknown);
+            visit(text, origin..origin + text.len());
         }
     }
 }

@@ -1,24 +1,15 @@
 //! Root-style statement progression and recovery; terminal exits retain their current Item.
 
-use std::{ops::Range, sync::Arc};
+#[cfg(test)]
+use std::ops::Range;
 
 use rowan::GreenNodeBuilder;
 
-use crate::{
-    recovery_record::{
-        ExpectationSources, ExpectedSyntax, GrammarRole, KeywordEvidence, LayoutRole, RecoveryKind,
-        RecoverySiteKey, RootUnexpected, RootUnexpectedHead, StatementKind, StatementRole,
-        SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 
 use crate::{
     ambient_claim::AmbientClaimView,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing},
     cursor::{Recover, SyntaxIn},
     declaration::{operator_header, use_decl},
     handoff::{Either, MlMode, NormalizedExit},
@@ -53,7 +44,6 @@ pub(crate) fn parse_root_statements(
             pending: None,
             separated: false,
             leading_header: true,
-            previous: StatementRole::Starter,
             ambient: Some(AmbientClaimView::root_statement(0)),
         },
         None,
@@ -96,7 +86,6 @@ struct RootStatementState {
     pending: Option<Item>,
     separated: bool,
     leading_header: bool,
-    previous: StatementRole,
     ambient: Option<AmbientClaimView<'static>>,
 }
 
@@ -109,7 +98,6 @@ impl RootStatementState {
             pending: None,
             separated: false,
             leading_header: false,
-            previous: StatementRole::Starter,
             ambient: None,
         }
     }
@@ -129,7 +117,6 @@ fn root_statement_sequence(
         mut pending,
         mut separated,
         mut leading_header,
-        mut previous,
         ambient,
     } = state;
     loop {
@@ -167,11 +154,10 @@ fn root_statement_sequence(
             item.emit_remaining(&mut *i.state, SyntaxKind::Semicolon);
             separated = true;
             leading_header = false;
-            previous = StatementRole::Starter;
             continue;
         }
         if !separated && !physical_start {
-            let next = root_error(i, item, origin, line, previous, fence);
+            let next = root_error(i, item, origin, line, fence);
             pending = Some(next.0);
             origin = next.1;
             line = next.2;
@@ -194,20 +180,13 @@ fn root_statement_sequence(
         item.emit_all_remaining_leading(&mut *i.state);
         let exit = if is_operator {
             drop(i);
-            let (next, next_origin, next_line, _) = if shared {
-                crate::cursor::recovery::with_header_reconciliation(
-                    crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output),
-                    |i| operator_header::operator_header_normalized(i, item, origin, line, fence),
-                )
-            } else {
-                operator_header::operator_header_normalized(
-                    crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output),
-                    item,
-                    origin,
-                    line,
-                    fence,
-                )
-            };
+            let (next, next_origin, next_line, _) = operator_header::operator_header_normalized(
+                crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output),
+                item,
+                origin,
+                line,
+                fence,
+            );
             origin = next_origin;
             line = next_line;
             let mut i: SyntaxIn =
@@ -216,34 +195,22 @@ fn root_statement_sequence(
                 Some(item) => NormalizedExit::Complete(Err(Either::Left(item)), line),
                 None => operator_body(i.rb(), origin, line, fence, ambient),
             };
-            previous = StatementRole::TrailingInput {
-                owner: StatementKind::OperatorDefinition,
-            };
             exit
         } else if shared && is_use {
             drop(i);
-            let (exit, _) = crate::cursor::recovery::with_header_reconciliation(
+            let (exit, _) = use_decl::use_declaration_header_normalized(
                 crate::cursor::SyntaxIn::new(&mut *remaining, &mut *recover, &mut *output),
-                |i| {
-                    use_decl::use_declaration_header_normalized(
-                        i,
-                        item,
-                        0,
-                        STOP_SEMICOLON,
-                        origin,
-                        line,
-                        fence,
-                    )
-                },
+                item,
+                0,
+                STOP_SEMICOLON,
+                origin,
+                line,
+                fence,
             );
-            previous = StatementRole::TrailingInput {
-                owner: StatementKind::UseDeclaration,
-            };
             exit
         } else if let Some(admission) =
             statement::classify_statement_item_normalized(i.rb(), &item, 0, origin, fence)
         {
-            previous = admission.root_trailing_role();
             statement::canonical_statement_contents_from_admission_normalized(
                 i,
                 item,
@@ -258,7 +225,7 @@ fn root_statement_sequence(
                 Some(SequenceOwner::RootStatement),
             )
         } else {
-            let next = root_error(i, item, origin, line, StatementRole::Starter, fence);
+            let next = root_error(i, item, origin, line, fence);
             pending = Some(next.0);
             origin = next.1;
             line = next.2;
@@ -296,102 +263,50 @@ fn operator_body(
         if let Some(after_newline) = item.leading_view().cut_after_first_ordinary_newline() {
             item.emit_leading_prefix_with(&mut *i.state, after_newline - 1, |_, _| {});
         }
-        let role = GrammarRole::Statement(StatementRole::OperatorDefinitionBody);
         emit_recovery_missing(
             i,
             LeadingTrivia::default(),
             item.extent(origin).recovery_range().start,
-            |range| {
-                recovery_draft(
-                    role,
-                    RecoveryKind::Missing,
-                    range,
-                    Arc::from([]),
-                    &[ExpectedSyntax::Expression],
-                )
-            },
         );
         return NormalizedExit::Complete(Err(Either::Left(item)), line);
     }
     if item.leading_view().is_grammar_empty() && crate::expression::is_nud_item(&item) {
-        let role = GrammarRole::Layout(LayoutRole::InlineTrivia);
         emit_recovery_missing(
             i.rb(),
             LeadingTrivia::default(),
             item.extent(origin).recovery_range().start,
-            |range| {
-                recovery_draft(
-                    role,
-                    RecoveryKind::Missing,
-                    range,
-                    Arc::from([]),
-                    &[ExpectedSyntax::InlineTrivia],
-                )
-            },
         );
     }
     if !item.payload_view().is_boundary() {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    let role = GrammarRole::Statement(StatementRole::OperatorDefinitionBody);
     if !body_boundary(&item) && !crate::expression::is_nud_item(&item) {
-        (item, origin, line) = emit_recovery_error_run(
-            i.rb(),
-            |run| {
-                let start = item.extent(origin).recovery_range().start;
-                loop {
-                    let kind = item
-                        .payload_view()
-                        .token_kind()
-                        .filter(|kind| *kind != TokenKind::Operator)
-                        .map(token_syntax_kind)
-                        .unwrap_or(SyntaxKind::Operator);
-                    let end = run.emit_item_as(item, origin, kind).recovery_range().end;
-                    (item, origin, line) = run.lexical(|lex| {
-                        crate::lexical::expression_item::scan_expression_item_lexical(
-                            lex,
-                            crate::lexical::operator_scan::OperatorSite::Nud,
-                            origin,
-                            line,
-                            fence,
-                            0,
-                            STOP_SEMICOLON,
-                        )
-                    });
-                    if body_boundary(&item) || crate::expression::is_nud_item(&item) {
-                        run.append_unexpected(UnexpectedSyntax::Token {
-                            range: start..end,
-                            category: UnexpectedCategory::OtherCharacter,
-                        });
-                        return (item, origin, line);
-                    }
+        (item, origin, line) = emit_recovery_error_run(i.rb(), |run| {
+            loop {
+                run.emit_item_as(item, origin);
+                (item, origin, line) = run.lexical(|lex| {
+                    crate::lexical::expression_item::scan_expression_item_lexical(
+                        lex,
+                        crate::lexical::operator_scan::OperatorSite::Nud,
+                        origin,
+                        line,
+                        fence,
+                        0,
+                        STOP_SEMICOLON,
+                    )
+                });
+                if body_boundary(&item) || crate::expression::is_nud_item(&item) {
+                    return (item, origin, line);
                 }
-            },
-            |range, unexpected| {
-                recovery_draft(
-                    role,
-                    RecoveryKind::Error,
-                    range,
-                    unexpected,
-                    &[ExpectedSyntax::Expression],
-                )
-            },
-        );
+            }
+        });
     }
     if body_boundary(&item) {
         let at = item.payload_view().pending_boundary().map_or_else(
             || item.extent(origin).recovery_range().start,
             |boundary| boundary.coordinate(),
         );
-        emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-            recovery_draft(
-                role,
-                RecoveryKind::Missing,
-                range,
-                Arc::from([]),
-                &[ExpectedSyntax::Expression],
-            )
-        });
+        emit_recovery_missing(i, LeadingTrivia::default(), at);
         return NormalizedExit::Complete(Err(Either::Left(item)), line);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -433,166 +348,84 @@ fn root_error(
     mut item: Item,
     mut origin: usize,
     mut line: LineEntry,
-    role: StatementRole,
     fence: Option<&crate::lexical::yumark::FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
     let source_tail = i.token(|lex| Some(lex.remainder())).unwrap();
     let source_origin = origin;
     item.emit_all_remaining_leading(&mut *i.state);
-    let head = unexpected_head(
-        item.payload_view()
-            .spelling()
-            .expect("a Root Error starts with a payload"),
-    );
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(origin).recovery_range().start;
-            let mut closes = Vec::new();
-            loop {
-                let spelling = item.payload_view().spelling().unwrap();
-                let opaque =
-                    matches!(spelling, "~\"" | "'" | "'[" | "'{") || spelling.starts_with('"');
-                let mut end = origin;
-                let mut boundary = None;
-                if opaque {
-                    let region = run.lexical(|lex| {
-                        crate::lexical::opaque_region::finish_opaque_opener(
-                            lex, spelling, origin, fence,
-                        )
-                    });
-                    let kind = item
-                        .payload_view()
-                        .token_kind()
-                        .filter(|kind| *kind != TokenKind::Operator)
-                        .map(token_syntax_kind)
-                        .unwrap_or(SyntaxKind::Operator);
-                    run.emit_item_as(item, origin, kind);
-                    end += region.length;
-                    let tail = &source_tail[origin - source_origin..end - source_origin];
-                    region.visit_segments(tail, origin, |text, range, kind| {
-                        run.emit_literal_segment(text, range, kind)
-                    });
-                    line = if fence.is_some() {
-                        region.line
-                    } else {
-                        LineEntry::InLine
-                    };
-                    boundary = region.boundary;
-                    origin = end;
+    emit_recovery_error_run(i, |run| {
+        let mut closes = Vec::new();
+        loop {
+            let spelling = item.payload_view().spelling().unwrap();
+            let opaque = matches!(spelling, "~\"" | "'" | "'[" | "'{") || spelling.starts_with('"');
+            let mut end = origin;
+            let mut boundary = None;
+            if opaque {
+                let region = run.lexical(|lex| {
+                    crate::lexical::opaque_region::finish_opaque_opener(
+                        lex, spelling, origin, fence,
+                    )
+                });
+                run.emit_item_as(item, origin);
+                end += region.length;
+                let tail = &source_tail[origin - source_origin..end - source_origin];
+                region.visit_segments(tail, origin, |text, range| {
+                    run.emit_literal_segment(text, range)
+                });
+                line = if fence.is_some() {
+                    region.line
                 } else {
-                    if let Some(c) = spelling.chars().next().filter(|_| spelling.len() == 1) {
-                        if let Some(close) = header::matching_close(c) {
-                            closes.push(close);
-                        } else if closes.last() == Some(&c) {
-                            closes.pop();
-                        }
-                    }
-                    let kind = item
-                        .payload_view()
-                        .token_kind()
-                        .filter(|kind| *kind != TokenKind::Operator)
-                        .map(token_syntax_kind)
-                        .unwrap_or(SyntaxKind::Operator);
-                    run.emit_item_as(item, origin, kind);
-                }
-                (item, origin, line) = if let Some(boundary) = boundary {
-                    (boundary, origin, line)
-                } else {
-                    run.lexical(|lex| {
-                        statement::scan_statement_item_lexical(
-                            lex,
-                            origin,
-                            line,
-                            fence,
-                            0,
-                            STOP_SEMICOLON,
-                        )
-                    })
+                    LineEntry::InLine
                 };
-                if item.payload_view().is_eof()
-                    || item.payload_view().is_boundary()
-                    || (closes.is_empty()
-                        && (item.payload_view().token_kind() == Some(TokenKind::Semicolon)
-                            || crate::lexical::observation::indentation_after_newline(
-                                item.leading_view(),
-                            ) == Some(0)))
-                {
-                    let range = start..end;
-                    run.append_unexpected(match role {
-                        StatementRole::Starter => {
-                            UnexpectedSyntax::Root(RootUnexpected::UnrecognizedStarter {
-                                range,
-                                head,
-                            })
-                        }
-                        StatementRole::TrailingInput { owner } => {
-                            UnexpectedSyntax::Root(RootUnexpected::TrailingInput {
-                                owner,
-                                range,
-                                head,
-                            })
-                        }
-                        _ => UnexpectedSyntax::Token {
-                            range,
-                            category: UnexpectedCategory::OtherCharacter,
-                        },
-                    });
-                    return (item, origin, line);
-                }
-            }
-        },
-        |range, unexpected| {
-            let expected = if role == StatementRole::Separator {
-                vec![ExpectedSyntax::StatementSeparator]
+                boundary = region.boundary;
+                origin = end;
             } else {
-                [
-                    KeywordEvidence::Use,
-                    KeywordEvidence::Lazy,
-                    KeywordEvidence::Prefix,
-                    KeywordEvidence::Infix,
-                    KeywordEvidence::Suffix,
-                    KeywordEvidence::Nullfix,
-                ]
-                .map(ExpectedSyntax::Keyword)
-                .to_vec()
+                if let Some(c) = spelling.chars().next().filter(|_| spelling.len() == 1) {
+                    if let Some(close) = header::matching_close(c) {
+                        closes.push(close);
+                    } else if closes.last() == Some(&c) {
+                        closes.pop();
+                    }
+                }
+                run.emit_item_as(item, origin);
+            }
+            (item, origin, line) = if let Some(boundary) = boundary {
+                (boundary, origin, line)
+            } else {
+                run.lexical(|lex| {
+                    statement::scan_statement_item_lexical(
+                        lex,
+                        origin,
+                        line,
+                        fence,
+                        0,
+                        STOP_SEMICOLON,
+                    )
+                })
             };
-            recovery_draft(
-                GrammarRole::Statement(role),
-                RecoveryKind::Error,
-                range,
-                unexpected,
-                &expected,
-            )
-        },
-    )
+            if item.payload_view().is_eof()
+                || item.payload_view().is_boundary()
+                || (closes.is_empty()
+                    && (item.payload_view().token_kind() == Some(TokenKind::Semicolon)
+                        || crate::lexical::observation::indentation_after_newline(
+                            item.leading_view(),
+                        ) == Some(0)))
+            {
+                return (item, origin, line);
+            }
+        }
+    })
 }
 
-fn recovery_draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-    expected: &[ExpectedSyntax],
-) -> RecoveryDraft {
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expected
-            .iter()
-            .map(|&expected| SyntaxExpectation {
-                role,
-                expected,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .collect(),
-        0,
-    )
+#[cfg(test)]
+type StructuralFact = (crate::structural_diagnostic::StructuralKind, Range<usize>);
+
+#[cfg(test)]
+fn structural_facts(green: &rowan::GreenNode) -> Vec<StructuralFact> {
+    crate::structural_diagnostic::collect(&crate::SyntaxNode::new_root(green.clone()))
+        .into_iter()
+        .map(|diagnostic| (diagnostic.kind(), diagnostic.range().clone()))
+        .collect()
 }
 
 #[cfg(test)]
@@ -668,9 +501,12 @@ mod cell_tests {
                         }
                         output.finish_node();
                         output.finish_node();
-                        let (green, records) =
-                            (output.finish(), recover.finish_recoveries_for_test());
-                        assert!(records.is_empty(), "{source:?}: {records:?}");
+                        let green = output.finish();
+                        assert!(
+                            structural_facts(&green).is_empty(),
+                            "{source:?}: {:?}",
+                            structural_facts(&green)
+                        );
                         assert_eq!(green.to_string(), format!("{host}{body}"));
                         let syntax = SyntaxNode::new_root(green);
                         let cell = syntax
@@ -724,26 +560,24 @@ mod cell_tests {
                     &fence,
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = output.finish();
                 assert_eq!(remaining, suffix);
                 assert_eq!(origin, body.len());
                 assert_eq!(boundary.coordinate(), origin);
                 assert_eq!(green.to_string(), body);
-                assert_eq!(records.len(), 2);
-                assert_eq!(records[0].id, crate::recovery_record::DiagnosticId(0));
-                assert_eq!(records[0].kind, RecoveryKind::Error);
                 assert_eq!(
-                    records[0].site.role,
-                    GrammarRole::Statement(StatementRole::Starter)
+                    structural_facts(&green),
+                    [
+                        (
+                            crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                            2..3
+                        ),
+                        (
+                            crate::structural_diagnostic::StructuralKind::Missing,
+                            body.len() - newline.len()..body.len() - newline.len()
+                        ),
+                    ]
                 );
-                assert_eq!(records[0].site.range, 2..3);
-                assert_eq!(records[1].id, crate::recovery_record::DiagnosticId(1));
-                assert_eq!(records[1].kind, RecoveryKind::Missing);
-                assert_eq!(
-                    records[1].site.role,
-                    GrammarRole::Statement(StatementRole::OperatorDefinitionBody)
-                );
-                assert_eq!(records[1].site.range, origin..origin);
                 let syntax = SyntaxNode::new_root(green);
                 let cell = syntax.children().next().unwrap();
                 assert_eq!(cell.kind(), SyntaxKind::YmYulangCodeCell);
@@ -765,13 +599,23 @@ mod cell_tests {
 
     #[test]
     fn cell_uses_host_operators_without_activating_local_declarations() {
-        let header = crate::header::discover_header("infix (<+>) 50 51 = value\n");
+        let header_source = "infix (<+>) 50 51 = value\n";
+        let header_operators = OperatorTable::empty();
+        let mut header_recover = Recover::new_for_test(&header_operators);
+        let mut header_output = GreenNodeBuilder::new();
+        let header = crate::header::discover_header_with_cursor(
+            header_source,
+            &mut header_recover,
+            &mut header_output,
+        );
+        let header_green = header_output.finish();
+        assert_eq!(header_green.to_string(), header_source);
+        assert!(structural_facts(&header_green).is_empty());
         let operators = crate::operator_compilation::effective_full_parse_operators(
             &OperatorTable::empty(),
             &header.operators,
         )
         .unwrap();
-        assert!(header.recoveries.is_empty());
         assert!(
             crate::operator_compilation::conflicting_local_operators(&operators, &header.operators)
                 .is_empty()
@@ -804,19 +648,20 @@ mod cell_tests {
                 &fence,
             );
             output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+            let green = output.finish();
             assert_eq!(remaining, "```");
             assert_eq!(green.to_string(), source.strip_suffix("```").unwrap());
+            let facts = structural_facts(&green);
             let syntax = SyntaxNode::new_root(green);
             if source.contains("? value") {
-                assert!(!records.is_empty());
+                assert!(!facts.is_empty());
                 assert!(
                     !syntax
                         .descendants()
                         .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
                 );
             } else {
-                assert!(records.is_empty(), "{source:?}: {records:?}");
+                assert!(facts.is_empty(), "{source:?}: {facts:?}");
                 assert_eq!(
                     syntax
                         .descendants()
@@ -940,7 +785,7 @@ mod sequence_fence_tests {
                         &fence,
                     );
                     output.finish_node();
-                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                    let green = output.finish();
                     let label = format!("{} / {terminal} / {newline:?}", row.name);
 
                     assert_eq!(remaining, suffix, "{label}");
@@ -954,6 +799,7 @@ mod sequence_fence_tests {
                     assert_eq!(boundary.coordinate(), origin, "{label}");
                     assert_eq!(green.to_string(), body, "{label}");
 
+                    let facts = structural_facts(&green);
                     let syntax = SyntaxNode::new_root(green);
                     let cell = syntax.children().next().unwrap();
                     assert_eq!(cell.kind(), SyntaxKind::YmYulangCodeCell, "{label}");
@@ -1000,14 +846,14 @@ mod sequence_fence_tests {
                         assert!(!cell.to_string().contains(&suffix), "{label}");
                     }
                     if row.name == "operator-body" {
-                        assert_eq!(records.len(), 1, "{label}");
-                        assert_eq!(records[0].kind, RecoveryKind::Error, "{label}");
                         assert_eq!(
-                            records[0].site.role,
-                            GrammarRole::Statement(StatementRole::OperatorDefinitionBody),
+                            facts,
+                            [(
+                                crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                                error_start..error_end
+                            )],
                             "{label}"
                         );
-                        assert_eq!(records[0].site.range, error_start..error_end, "{label}");
                         let value = cell
                             .children()
                             .find(|node| {
@@ -1099,9 +945,9 @@ mod sequence_fence_tests {
                         )),
                     }
                     output.finish_node();
-                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                    let green = output.finish();
                     assert_eq!(green.to_string(), "");
-                    assert!(records.is_empty());
+                    assert!(structural_facts(&green).is_empty());
                 }
             }
         }
@@ -1168,9 +1014,13 @@ mod sequence_fence_tests {
                         origin
                     );
                     output.finish_node();
-                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                    let green = output.finish();
                     assert_eq!(green.to_string(), emitted, "{source:?}");
-                    assert!(records.is_empty(), "{source:?}: {records:?}");
+                    assert!(
+                        structural_facts(&green).is_empty(),
+                        "{source:?}: {:?}",
+                        structural_facts(&green)
+                    );
                     let syntax = crate::syntax_kind::SyntaxNode::new_root(green);
                     for token in syntax
                         .descendants_with_tokens()
@@ -1221,15 +1071,15 @@ mod sequence_fence_tests {
                     "{source:?}"
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = output.finish();
                 assert_eq!(green.to_string(), emitted);
-                assert_eq!(records.len(), 1);
-                assert_eq!(records[0].kind, RecoveryKind::Missing);
                 assert_eq!(
-                    records[0].site.role,
-                    GrammarRole::Statement(StatementRole::OperatorDefinitionBody)
+                    structural_facts(&green),
+                    [(
+                        crate::structural_diagnostic::StructuralKind::Missing,
+                        emitted.len()..emitted.len()
+                    )]
                 );
-                assert_eq!(records[0].site.range, origin..origin);
             }
         }
     }
@@ -1273,15 +1123,15 @@ mod sequence_fence_tests {
                     origin
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = output.finish();
                 assert_eq!(green.to_string(), emitted);
-                assert_eq!(records.len(), 1);
-                assert_eq!(records[0].kind, RecoveryKind::Error);
                 assert_eq!(
-                    records[0].site.role,
-                    GrammarRole::Statement(StatementRole::Starter)
+                    structural_facts(&green),
+                    [(
+                        crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                        2..origin
+                    )]
                 );
-                assert_eq!(records[0].site.range, 2..origin);
             }
         }
     }
@@ -1321,9 +1171,9 @@ mod sequence_fence_tests {
                     assert_eq!(remaining, before);
                     assert_eq!(item.extent(origin).physical(), 0..origin);
                     output.finish_node();
-                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                    let green = output.finish();
                     assert_eq!(green.to_string(), "");
-                    assert!(records.is_empty());
+                    assert!(structural_facts(&green).is_empty());
                 }
             }
         }
@@ -1366,15 +1216,17 @@ mod sequence_fence_tests {
                     item.extent(origin).remaining()
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = output.finish();
                 assert_eq!(green.to_string(), "値");
-                assert!(records.is_empty());
+                assert!(structural_facts(&green).is_empty());
             }
             let source = format!("値 {newline}");
-            let root =
-                crate::source_file::parse_root_candidate(&source, &OperatorTable::empty(), &[]);
-            assert_eq!(root.green.to_string(), source);
-            assert!(root.committed_recoveries.is_empty());
+            let green = crate::cursor::parse_root(&source, &OperatorTable::empty());
+            assert_eq!(green.to_string(), source);
+            assert!(
+                crate::structural_diagnostic::collect(&crate::SyntaxNode::new_root(green))
+                    .is_empty()
+            );
         }
     }
 }
@@ -1388,47 +1240,10 @@ mod opaque_fence_tests {
             yumark::{FenceBoundary, FenceOpener, FencePrefixPolicy},
         },
         operator_table::OperatorTable,
-        recovery_record::{CommittedRecoveryRecord, Delimiter, DiagnosticId, PunctuationEvidence},
     };
 
-    fn starter_error(end: usize) -> CommittedRecoveryRecord {
-        let role = GrammarRole::Statement(StatementRole::Starter);
-        CommittedRecoveryRecord {
-            id: DiagnosticId(0),
-            site: RecoverySiteKey {
-                role,
-                range: 0..end,
-            },
-            kind: RecoveryKind::Error,
-            unexpected: Arc::from([UnexpectedSyntax::Root(
-                RootUnexpected::UnrecognizedStarter {
-                    range: 0..end,
-                    head: RootUnexpectedHead::Punctuation(PunctuationEvidence::Close(
-                        Delimiter::Bracket,
-                    )),
-                },
-            )]),
-            expectations: [
-                KeywordEvidence::Use,
-                KeywordEvidence::Lazy,
-                KeywordEvidence::Prefix,
-                KeywordEvidence::Infix,
-                KeywordEvidence::Suffix,
-                KeywordEvidence::Nullfix,
-            ]
-            .map(|keyword| SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Keyword(keyword),
-                range: 0..end,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .into(),
-            primary_expectation: 0,
-        }
-    }
-
     #[test]
-    fn root_opaque_error_preserves_ordered_prefix_segments_and_exact_record() {
+    fn root_opaque_error_preserves_ordered_prefix_segments_and_exact_structural_fact() {
         for newline in ["\n", "\r\n"] {
             let parts = [
                 format!("é{newline}"),
@@ -1467,13 +1282,18 @@ mod opaque_fence_tests {
                 item,
                 origin,
                 line,
-                StatementRole::Starter,
                 Some(&fence),
             );
             output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+            let green = output.finish();
             assert_eq!(green.to_string(), body);
-            assert_eq!(records, [starter_error(body.len())]);
+            assert_eq!(
+                structural_facts(&green),
+                [(
+                    crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                    0..body.len()
+                )]
+            );
             assert_eq!(remaining, closing);
             assert_eq!(origin, body.len());
             assert!(matches!(
@@ -1514,7 +1334,7 @@ mod opaque_fence_tests {
     }
 
     #[test]
-    fn unfenced_root_opaque_error_keeps_exact_starter_record() {
+    fn unfenced_root_opaque_error_keeps_exact_starter_structural_fact() {
         let source = "] \"é\r\n> 💥";
         let mut remaining = source;
         let operators = OperatorTable::empty();
@@ -1534,13 +1354,18 @@ mod opaque_fence_tests {
             item,
             origin,
             line,
-            StatementRole::Starter,
             None,
         );
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = output.finish();
         assert_eq!(green.to_string(), source);
-        assert_eq!(records, [starter_error(source.len())]);
+        assert_eq!(
+            structural_facts(&green),
+            [(
+                crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                0..source.len()
+            )]
+        );
         assert_eq!(remaining, "");
         assert_eq!(origin, source.len());
         assert_eq!(line, LineEntry::InLine);
@@ -1597,11 +1422,10 @@ mod opaque_fence_tests {
                         item,
                         origin,
                         line,
-                        StatementRole::Starter,
                         Some(&fence),
                     );
                     output.finish_node();
-                    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                    let green = output.finish();
                     // A newline inside the nested-fence opener itself can expose a transition first.
                     let accepted = if opener == "'{\n```text" {
                         "] '{\n"
@@ -1617,8 +1441,14 @@ mod opaque_fence_tests {
                         panic!("the root must return a judged boundary")
                     };
                     assert_eq!(pending.payload_view().pending_boundary(), Some(&expected));
-                    assert_eq!(records.len(), 1, "{source:?}");
-                    assert_eq!(records[0].site.range, 0..accepted.len());
+                    assert_eq!(
+                        structural_facts(&green),
+                        [(
+                            crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                            0..accepted.len()
+                        )],
+                        "{source:?}"
+                    );
                     assert_eq!(
                         pending.extent(origin).recovery_range().start,
                         accepted.len()
@@ -1706,17 +1536,21 @@ mod opaque_fence_tests {
                     item,
                     origin,
                     line,
-                    StatementRole::Starter,
                     Some(&fence),
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = output.finish();
                 assert_eq!(green.to_string(), body, "{source:?}");
                 assert_eq!(remaining, closing);
                 assert_eq!(origin, body.len());
                 assert_eq!(line, LineEntry::PhysicalStart);
-                assert_eq!(records.len(), 1);
-                assert_eq!(records[0].site.range, 0..body.len());
+                assert_eq!(
+                    structural_facts(&green),
+                    [(
+                        crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                        0..body.len()
+                    )]
+                );
                 let crate::lexical::yumark::FenceLineDecision::Boundary(expected) =
                     crate::lexical::yumark::judge_fence_line(remaining, origin, &fence)
                 else {
@@ -1725,45 +1559,5 @@ mod opaque_fence_tests {
                 assert_eq!(pending.payload_view().pending_boundary(), Some(&expected));
             }
         }
-    }
-}
-
-fn unexpected_head(text: &str) -> RootUnexpectedHead {
-    use crate::recovery_record::Delimiter;
-    use crate::recovery_record::PunctuationEvidence as P;
-    let c = text.chars().next().unwrap();
-    let punctuation = if text.starts_with("::") {
-        Some(P::ColonColon)
-    } else {
-        match c {
-            '(' => Some(P::Open(Delimiter::Parenthesis)),
-            ')' => Some(P::Close(Delimiter::Parenthesis)),
-            '[' => Some(P::Open(Delimiter::Bracket)),
-            ']' => Some(P::Close(Delimiter::Bracket)),
-            '{' => Some(P::Open(Delimiter::Brace)),
-            '}' => Some(P::Close(Delimiter::Brace)),
-            ',' => Some(P::Comma),
-            ';' => Some(P::Semicolon),
-            '.' => Some(P::Dot),
-            '/' => Some(P::Slash),
-            ':' => Some(P::Colon),
-            '\\' => Some(P::Backslash),
-            '\'' => Some(P::Apostrophe),
-            '=' => Some(P::Equals),
-            '*' => Some(P::Star),
-            _ => None,
-        }
-    };
-    if let Some(p) = punctuation {
-        return RootUnexpectedHead::Punctuation(p);
-    }
-    if c == '_' || unicode_ident::is_xid_start(c) {
-        RootUnexpectedHead::Word
-    } else if c.is_ascii_digit() {
-        RootUnexpectedHead::DecimalInteger
-    } else if "+-!#$%&<>?@^|~".contains(c) {
-        RootUnexpectedHead::OperatorLike
-    } else {
-        RootUnexpectedHead::OtherCharacter
     }
 }

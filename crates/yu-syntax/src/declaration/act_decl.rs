@@ -3,20 +3,11 @@
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-use crate::cursor::recovery::RecoveryDraft;
-use crate::recovery_record::{
-    ActDeclarationRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax,
-    GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-    UnexpectedCategory, UnexpectedSyntax,
-};
-use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cursor::recovery::emit::{
-        emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     declaration::{
         declaration_companion::declaration_companion_normalized,
@@ -55,6 +46,12 @@ use crate::{
 enum ActTypeSlot {
     Head,
     Source,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ActBodyRecoveryPhase {
+    Introducer,
+    Body,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -323,10 +320,6 @@ fn type_slot_from_item_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i.rb(),
             primary,
-            GrammarRole::Declaration(DeclarationRole::Act(match slot {
-                ActTypeSlot::Head => ActDeclarationRole::Head,
-                ActTypeSlot::Source => ActDeclarationRole::Source,
-            })),
             baseline,
             stops,
             outer_boundary,
@@ -666,7 +659,7 @@ fn recover_body_introducer_normalized(
     (item, item_origin, line_entry) = act_error_run(
         i.rb(),
         item,
-        ActDeclarationRole::BodyIntroducer,
+        ActBodyRecoveryPhase::Introducer,
         baseline,
         stops,
         item_origin,
@@ -707,11 +700,6 @@ fn colon_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
-            crate::recovery_record::GrammarRole::Declaration(
-                crate::recovery_record::DeclarationRole::Act(
-                    crate::recovery_record::ActDeclarationRole::IndentedStatement,
-                ),
-            ),
             stops,
             item_origin,
             line_entry,
@@ -729,7 +717,7 @@ fn colon_body_normalized(
                 false,
                 false,
             );
-            act_missing(&mut i, &item, origin, ActDeclarationRole::Body);
+            act_missing(&mut i, &item, origin);
             complete(handoff(item), line_entry)
         }
         None => {
@@ -773,7 +761,7 @@ fn inline_body_from_item_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if inline_body_boundary(i.rb(), &item, baseline, stops) {
-        act_missing(&mut i, &item, item_origin, ActDeclarationRole::Body);
+        act_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if let Some(admission) =
@@ -824,7 +812,7 @@ fn recover_inline_body_normalized(
     (item, item_origin, line_entry) = act_error_run(
         i.rb(),
         item,
-        ActDeclarationRole::Body,
+        ActBodyRecoveryPhase::Body,
         baseline,
         stops,
         item_origin,
@@ -1153,76 +1141,32 @@ fn item_word(item: &Item) -> Option<&str> {
         .flatten()
 }
 
-fn act_draft(
-    slot: ActDeclarationRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = GrammarRole::Declaration(DeclarationRole::Act(slot));
-    let expected: &[ExpectedSyntax] = match slot {
-        ActDeclarationRole::BodyIntroducer => &[
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        ],
-        ActDeclarationRole::Body => &[ExpectedSyntax::Statement],
-        _ => unreachable!("local Act recovery slot"),
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expected
-            .iter()
-            .map(|expected| SyntaxExpectation {
-                role,
-                expected: *expected,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .collect::<Vec<_>>()
-            .into(),
-        0,
-    )
-}
-
-fn act_missing(i: &mut SyntaxIn, item: &Item, origin: usize, role: ActDeclarationRole) {
+fn act_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        act_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
 fn act_error_run(
     mut i: SyntaxIn,
     mut item: Item,
-    role: ActDeclarationRole,
+    phase: ActBodyRecoveryPhase,
     baseline: usize,
     stops: Stops,
     mut origin: usize,
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let start = item.extent(origin).recovery_range().start;
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = token_kind(&item)
-                .map(token_syntax_kind)
-                .unwrap_or(SyntaxKind::Operator);
-            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, origin);
             (item, origin, line) = run.lexical(|lex| {
                 scan_act_item(lex, origin, line, fence, baseline, stops, false, false)
             });
-            let starter = role == ActDeclarationRole::BodyIntroducer && body_starter(&item);
+            let starter = phase == ActBodyRecoveryPhase::Introducer && body_starter(&item);
             let boundary = item.payload_view().is_boundary()
                 || item.payload_view().is_eof()
                 || !act_gap_allowed(&item, baseline)
@@ -1236,7 +1180,7 @@ fn act_error_run(
                         )));
             let retry = !boundary
                 && (starter
-                    || (role == ActDeclarationRole::Body
+                    || (phase == ActBodyRecoveryPhase::Body
                         && run
                             .lexical(|lex| {
                                 crate::statement::classify_statement_item_lexical(
@@ -1249,15 +1193,10 @@ fn act_error_run(
                             })
                             .is_some()));
             if boundary || retry {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: start..end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, origin, line);
             }
-        },
-        |range, unexpected| act_draft(role, RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
 fn emit_item_as(i: &mut SyntaxIn, item: Item, kind: SyntaxKind) {

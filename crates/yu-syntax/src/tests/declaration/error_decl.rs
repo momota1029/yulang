@@ -363,10 +363,9 @@ fn error_braced_variant_outer_close_has_direct_missing_cst_slot() {
 }
 
 #[test]
-fn header_recovery_records_are_exact_shifted_and_frozen() {
+fn header_structural_facts_are_exact_and_preserve_boundaries() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
-    use crate::recovery_record::*;
-    use std::sync::Arc;
+    use crate::structural_diagnostic::StructuralKind;
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -376,305 +375,88 @@ fn header_recovery_records_are_exact_shifted_and_frozen() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    for (tail, slot, kind, relative) in [
-        (
-            "\r\n> foreign",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            2..2,
-        ),
-        (
-            " @\r\n> foreign",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Error,
-            1..2,
-        ),
-        (
-            " E @\r\n> foreign",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..4,
-        ),
-        (
-            " @ \t@  名;",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Error,
-            1..5,
-        ),
-        (
-            " E @ \t@  ;",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..7,
-        ),
-        (
-            " @ \t@\r\n> foreign",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Error,
-            1..5,
-        ),
-        (
-            " E @ \t@\r\n> foreign",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..7,
-        ),
-        (
-            "\r\n> > ```\r\nouter",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            2..2,
-        ),
-        (
-            " @\r\n> > ```\r\nouter",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Error,
-            1..2,
-        ),
-        (
-            " E @\r\n> > ```\r\nouter",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..4,
-        ),
-        (
-            "  ]",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            0..0,
-        ),
-        (
-            "  ",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            2..2,
-        ),
-        (" @ ", ErrorDeclarationRole::Name, RecoveryKind::Error, 1..2),
-        (
-            " @  ]",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Error,
-            1..2,
-        ),
-        (
-            " @ 名;",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Error,
-            1..2,
-        ),
-        (
-            " ;",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            1..1,
-        ),
-        (
-            " {}",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            1..1,
-        ),
-        (
-            " = A",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            1..1,
-        ),
-        (
-            " :\n  A",
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            1..1,
-        ),
-        (
-            " E @ ",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..4,
-        ),
-        (
-            " E @  ]",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..4,
-        ),
-        (
-            " E @ ;",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..4,
-        ),
-        (
-            " E @ {}",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..4,
-        ),
-        (
-            " E @ = A",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..4,
-        ),
-        (
-            " E @ :\n  A",
-            ErrorDeclarationRole::BodyIntroducer,
-            RecoveryKind::Error,
-            3..4,
-        ),
+    for (tail, kind, relative) in [
+        ("\r\n> foreign", StructuralKind::Missing, 0..0),
+        (" @\r\n> foreign", StructuralKind::ErrorGroup, 1..2),
+        (" E @\r\n> foreign", StructuralKind::ErrorGroup, 3..4),
+        (" @ \t@  名;", StructuralKind::ErrorGroup, 1..5),
+        (" E @ \t@  ;", StructuralKind::ErrorGroup, 3..7),
+        (" @ \t@\r\n> foreign", StructuralKind::ErrorGroup, 1..5),
+        (" E @ \t@\r\n> foreign", StructuralKind::ErrorGroup, 3..7),
+        ("\r\n> > ```\r\nouter", StructuralKind::Missing, 0..0),
+        (" @\r\n> > ```\r\nouter", StructuralKind::ErrorGroup, 1..2),
+        (" E @\r\n> > ```\r\nouter", StructuralKind::ErrorGroup, 3..4),
+        ("  ]", StructuralKind::Missing, 0..0),
+        ("  ", StructuralKind::Missing, 2..2),
+        (" @ ", StructuralKind::ErrorGroup, 1..2),
+        (" @  ]", StructuralKind::ErrorGroup, 1..2),
+        (" @ 名;", StructuralKind::ErrorGroup, 1..2),
+        (" ;", StructuralKind::Missing, 1..1),
+        (" {}", StructuralKind::Missing, 1..1),
+        (" = A", StructuralKind::Missing, 1..1),
+        (" :\n  A", StructuralKind::Missing, 1..1),
+        (" E @ ", StructuralKind::ErrorGroup, 3..4),
+        (" E @  ]", StructuralKind::ErrorGroup, 3..4),
+        (" E @ ;", StructuralKind::ErrorGroup, 3..4),
+        (" E @ {}", StructuralKind::ErrorGroup, 3..4),
+        (" E @ = A", StructuralKind::ErrorGroup, 3..4),
+        (" E @ :\n  A", StructuralKind::ErrorGroup, 3..4),
     ] {
         let source = format!("error{tail}");
         for origin in [0, 1700] {
-            let range = origin + 5 + relative.start..origin + 5 + relative.end;
-            let role = GrammarRole::Declaration(DeclarationRole::Error(slot));
-            let expected: Vec<_> = if slot == ErrorDeclarationRole::Name {
-                vec![ExpectedSyntax::Identifier]
-            } else {
-                vec![
-                    ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-                    ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-                    ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-                    ExpectedSyntax::Punctuation(PunctuationEvidence::Equals),
-                ]
-            };
-            let record = CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone(),
-                },
-                kind,
-                unexpected: if kind == RecoveryKind::Missing {
-                    Arc::from([])
-                } else if source.contains("@ \t@") {
-                    Arc::from([
-                        UnexpectedSyntax::Token {
-                            range: range.start..range.start + 1,
-                            category: UnexpectedCategory::OtherCharacter,
-                        },
-                        UnexpectedSyntax::Token {
-                            range: range.start + 1..range.end,
-                            category: UnexpectedCategory::OtherCharacter,
-                        },
-                    ])
+            let (green, exit, input) = run_error_declaration(
+                &source,
+                if source.ends_with(']') {
+                    stops_for(TokenKind::RBracket)
                 } else {
-                    Arc::from([UnexpectedSyntax::Token {
-                        range: range.clone(),
-                        category: UnexpectedCategory::OtherCharacter,
-                    }])
+                    0
                 },
-                expectations: expected
+                origin,
+                LineEntry::InLine,
+                source.contains("\r\n>").then_some(&fence),
+            );
+            assert_eq!(
+                structural_facts(&green),
+                [(kind, 5 + relative.start..5 + relative.end)],
+                "{source:?}"
+            );
+            if source.contains("@ \t@") {
+                let node = declaration(&green);
+                let errors: Vec<_> = crate::tests::recovery_output::recovery_groups(&node)
                     .into_iter()
-                    .map(|expected| SyntaxExpectation {
-                        role,
-                        expected,
-                        range: range.clone(),
-                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                    })
-                    .collect(),
-                primary_expectation: 0,
-            };
-            for mode in 0..3 {
-                let mut seed = record.clone();
-                seed.id = DiagnosticId(7);
-                seed.site.range = 0..0;
-                seed.kind = RecoveryKind::Missing;
-                seed.unexpected = Arc::from([]);
-                seed.expectations = seed
-                    .expectations
-                    .iter()
-                    .cloned()
-                    .map(|mut e| {
-                        e.range = 0..0;
-                        e
-                    })
                     .collect();
-                let mut reused = record.clone();
-                if mode == 2 {
-                    reused.id = DiagnosticId(19);
-                }
-                let records = if mode == 2 {
-                    vec![seed.clone(), reused]
-                } else {
-                    vec![reused]
-                };
-                let operators = OperatorTable::empty();
-                let mut recover = Recover::new_for_test(&operators);
-                let mut output = if mode != 0 {
-                    {
-                        recover = Recover::reconcile_for_test(recover.operators(), &records);
-                        GreenNodeBuilder::new()
-                    }
-                } else {
-                    GreenNodeBuilder::new()
-                };
-                let mut input = source.as_str();
-                output.start_node(SyntaxKind::Root.into());
-                if mode == 2 {
-                    output.start_node(SyntaxKind::Missing.into());
-                    output.finish_node();
-                    recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-                        seed.site,
-                        seed.kind,
-                        seed.unexpected,
-                        seed.expectations,
-                        0,
-                    ));
-                }
-                let exit = crate::declaration::error_decl::error_declaration_witness(
-                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
-                    0,
-                    if source.ends_with(']') {
-                        stops_for(TokenKind::RBracket)
-                    } else {
-                        0
-                    },
-                    crate::statement::StatementLineHandoff::OrdinaryLayout,
-                    origin,
-                    LineEntry::InLine,
-                    source.contains("\r\n>").then_some(&fence),
+                assert_eq!(errors.len(), 1);
+                assert_eq!(errors[0].to_string(), "@ \t@");
+                assert_eq!(
+                    errors[0]
+                        .children_with_tokens()
+                        .map(|leaf| (leaf.kind(), leaf.to_string()))
+                        .collect::<Vec<_>>(),
+                    [
+                        (SyntaxKind::Error, "@".into()),
+                        (SyntaxKind::Error, " \t".into()),
+                        (SyntaxKind::Error, "@".into())
+                    ]
                 );
-                output.finish_node();
-                let (green, actual) = (output.finish(), recover.finish_recoveries_for_test());
-                assert_eq!(actual, records, "{source:?}");
-                if source.contains("@ \t@") {
-                    let node = declaration(&green);
-                    let errors: Vec<_> = crate::tests::recovery_output::recovery_groups(&node)
-                        .into_iter()
-                        .collect();
-                    assert_eq!(errors.len(), 1);
-                    assert_eq!(errors[0].to_string(), "@ \t@");
-                    assert_eq!(
-                        errors[0]
-                            .children_with_tokens()
-                            .map(|leaf| (leaf.kind(), leaf.to_string()))
-                            .collect::<Vec<_>>(),
-                        [
-                            (SyntaxKind::Error, "@".into()),
-                            (SyntaxKind::Error, " \t".into()),
-                            (SyntaxKind::Error, "@".into())
-                        ]
-                    );
-                    assert_eq!(count(&node, SyntaxKind::Missing), 0);
-                }
-                if let Some((head, tail)) = source.split_once("\r\n>") {
-                    let Some(NormalizedExit::Complete(
-                        Err(Either::Left(boundary)),
-                        LineEntry::PhysicalStart,
-                    )) = exit
-                    else {
-                        panic!("fence boundary")
-                    };
-                    assert_eq!(green.to_string(), head);
-                    assert_eq!(input, format!(">{tail}"));
-                    let (leading, boundary) = emit_terminal_leading_text(boundary);
-                    assert_eq!(leading, "\r\n");
-                    assert_eq!(boundary.coordinate(), origin + head.len() + 2);
-                } else if source.ends_with(']') {
-                    pending_token(exit, TokenKind::RBracket, "  ");
-                } else {
-                    assert_eq!(green.to_string(), source, "{source:?}");
-                }
+                assert_eq!(count(&node, SyntaxKind::Missing), 0);
+            }
+            if let Some((head, tail)) = source.split_once("\r\n>") {
+                let Some(NormalizedExit::Complete(
+                    Err(Either::Left(boundary)),
+                    LineEntry::PhysicalStart,
+                )) = exit
+                else {
+                    panic!("fence boundary")
+                };
+                assert_eq!(green.to_string(), head);
+                assert_eq!(input, format!(">{tail}"));
+                let (leading, boundary) = emit_terminal_leading_text(boundary);
+                assert_eq!(leading, "\r\n");
+                assert_eq!(boundary.coordinate(), origin + head.len() + 2);
+            } else if source.ends_with(']') {
+                pending_token(exit, TokenKind::RBracket, "  ");
+            } else {
+                assert_eq!(green.to_string(), source, "{source:?}");
             }
         }
     }
@@ -688,24 +470,8 @@ fn declaration(green: &GreenNode) -> SyntaxNode {
 }
 
 #[test]
-fn clean_header_keeps_foreign_prefix_without_body_introducer_recovery() {
+fn clean_header_keeps_foreign_prefix_without_structural_fact() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
-    use crate::recovery_record::*;
-    use std::sync::Arc;
-    let role = GrammarRole::Declaration(DeclarationRole::Error(ErrorDeclarationRole::Name));
-    let seed = CommittedRecoveryRecord {
-        id: DiagnosticId(7),
-        site: RecoverySiteKey { role, range: 0..0 },
-        kind: RecoveryKind::Missing,
-        unexpected: Arc::from([]),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Identifier,
-            range: 0..0,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    };
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -716,59 +482,20 @@ fn clean_header_keeps_foreign_prefix_without_body_introducer_recovery() {
         close_column: 0,
     };
     for origin in [0, 1700] {
-        for mode in 0..3 {
-            let source = "error 名\r\n> foreign";
-            let mut input = source;
-            let operators = OperatorTable::empty();
-            let mut recover = Recover::new_for_test(&operators);
-            let expected = if mode == 2 {
-                vec![seed.clone()]
-            } else {
-                vec![]
-            };
-            let mut output = if mode != 0 {
-                {
-                    recover = Recover::reconcile_for_test(recover.operators(), &expected);
-                    GreenNodeBuilder::new()
-                }
-            } else {
-                GreenNodeBuilder::new()
-            };
-            output.start_node(SyntaxKind::Root.into());
-            if mode == 2 {
-                output.start_node(SyntaxKind::Missing.into());
-                output.finish_node();
-                recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-                    seed.site.clone(),
-                    seed.kind,
-                    seed.unexpected.clone(),
-                    seed.expectations.clone(),
-                    0,
-                ));
-            }
-            let exit = crate::declaration::error_decl::error_declaration_witness(
-                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
-                0,
-                0,
-                crate::statement::StatementLineHandoff::OrdinaryLayout,
-                origin,
-                LineEntry::InLine,
-                Some(&fence),
-            );
-            output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-            assert_eq!(records, expected);
-            assert_eq!(green.to_string(), "error 名");
-            assert_eq!(input, "> foreign");
-            let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
-                exit
-            else {
-                panic!("foreign prefix remains pending");
-            };
-            let (leading, boundary) = emit_terminal_leading_text(item);
-            assert_eq!(leading, "\r\n");
-            assert_eq!(boundary.coordinate(), origin + "error 名\r\n".len());
-        }
+        let source = "error 名\r\n> foreign";
+        let (green, exit, input) =
+            run_error_declaration(source, 0, origin, LineEntry::InLine, Some(&fence));
+        assert!(structural_facts(&green).is_empty());
+        assert_eq!(green.to_string(), "error 名");
+        assert_eq!(input, "> foreign");
+        let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("foreign prefix remains pending");
+        };
+        let (leading, boundary) = emit_terminal_leading_text(item);
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), origin + "error 名\r\n".len());
     }
 }
 

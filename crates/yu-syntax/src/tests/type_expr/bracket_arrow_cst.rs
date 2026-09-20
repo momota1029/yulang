@@ -203,7 +203,6 @@ fn bracket_arrow_cst_protected_items_keep_complete_leading_before_and_after_erro
                 0,
                 LineEntry::InLine,
                 None,
-                None,
             );
             let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
                 panic!("protected Item")
@@ -233,12 +232,11 @@ fn bracket_arrow_cst_protected_items_keep_complete_leading_before_and_after_erro
             assert_eq!(children(&owner), expected);
         }
         let source = format!("{head} with tail");
-        let (green, exit, accepted, origin, remainder, _, _, _) =
-            run_required_type_with_outer_boundary_and_recoveries(
+        let (green, exit, accepted, origin, remainder, _) =
+            run_required_type_with_outer_boundary_and_structural_diagnostics(
                 &source,
                 crate::type_expr::TypeOuterBoundary::WITH,
                 false,
-                None,
             );
         assert!(accepted);
         assert_eq!(green.to_string(), head);

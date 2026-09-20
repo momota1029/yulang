@@ -6,6 +6,7 @@ mod ambient_claim;
 
 mod cursor;
 mod declaration;
+mod diagnostics_schema;
 mod expression;
 mod full_parse;
 mod handoff;
@@ -15,11 +16,9 @@ mod literal;
 mod operator_compilation;
 mod operator_table;
 mod pattern;
-mod recovery_record;
 mod root_statement;
 mod rule;
 mod sequence;
-mod source_file;
 mod statement;
 mod structural_diagnostic;
 mod syntax_diagnostic;
@@ -28,8 +27,12 @@ mod syntax_kind;
 mod type_expr;
 mod virtual_statement_block;
 
+pub use diagnostics_schema::{
+    ExpectedSyntax, GrammarSlot, GrammarSlotRole, SyntaxDiagnosticIdentity, SyntaxDiagnosticKind,
+};
 pub use full_parse::{
-    ParsedFile, StructuralProjectionError, StructuralRecovery, StructuralRecoveryKind, parse_file,
+    ParsedFile, StructuralProjectionError, StructuralRecovery, StructuralRecoveryKind,
+    SyntaxDiagnosticError, parse_file,
 };
 pub use operator_table::{OperatorDefinition, OperatorOrigin, OperatorTable};
 pub use syntax_diagnostic::{OperatorConflictDiagnostic, SyntaxDiagnostic, SyntaxDiagnosticCause};
@@ -46,7 +49,6 @@ pub type SourceText = str;
 #[derive(Clone, Eq)]
 pub struct HeaderInfo {
     source: Arc<SourceText>,
-    recoveries: Arc<[recovery_record::CommittedRecoveryRecord]>,
     coverage: HeaderCoverage,
     imports: Arc<[HeaderImport]>,
     operators: Arc<[HeaderOperator]>,

@@ -22,7 +22,7 @@ fn identity() -> ModuleIdentity {
 fn public_parser_preflight_and_fixture_resolution_are_recovery_free() {
     let parsed = parsed(FIXTURE);
     assert_eq!(parsed.green().to_string(), FIXTURE);
-    assert!(parsed.diagnostics().is_empty());
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
     assert!(parsed.structural_recoveries().is_empty());
 
     let module = lower_module(identity(), &parsed, SemanticImports::empty()).unwrap();

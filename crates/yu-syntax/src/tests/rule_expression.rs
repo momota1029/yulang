@@ -3,8 +3,8 @@ use crate::{
     ambient_claim::AmbientClaimView,
     handoff::MlMode,
     lexical::yumark::{FenceOpener, FencePrefixPolicy},
-    recovery_record::{GrammarRole, LiteralRole, RecoveryKind},
     statement::StatementLineHandoff,
+    structural_diagnostic::{StructuralDiagnostic, StructuralKind},
 };
 
 fn parse<'s>(
@@ -13,7 +13,7 @@ fn parse<'s>(
     fence: Option<&FenceBoundary>,
 ) -> (
     GreenNode,
-    Vec<CommittedRecoveryRecord>,
+    Vec<StructuralDiagnostic>,
     NormalizedExit,
     &'s str,
 ) {
@@ -28,7 +28,7 @@ fn parse_with<'s>(
     operators: &OperatorTable,
 ) -> (
     GreenNode,
-    Vec<CommittedRecoveryRecord>,
+    Vec<StructuralDiagnostic>,
     NormalizedExit,
     &'s str,
 ) {
@@ -63,7 +63,8 @@ fn parse_with<'s>(
         .expect("ordinary identifier or RuleExpression NUD")
     };
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = output.finish();
+    let records = structural_diagnostics(&green);
     (green, records, exit, input)
 }
 
@@ -231,12 +232,8 @@ fn contextual_rule_missing_body_close_preserves_eof_and_outer_close() {
             let (green, records, exit, rest) = parse(source, pattern, None);
             assert_eq!(green.to_string(), emitted);
             assert_eq!(records.len(), 1);
-            assert_eq!(
-                records[0].site.role,
-                GrammarRole::Literal(LiteralRole::RuleBodyCloseBrace)
-            );
-            assert_eq!(records[0].site.range, at..at);
-            assert_eq!(records[0].kind, RecoveryKind::Missing);
+            assert_eq!(records[0].kind(), StructuralKind::Missing);
+            assert_eq!(records[0].range(), &(at..at));
             if source.ends_with("rest") {
                 assert_eq!(rest, "rest");
                 let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {

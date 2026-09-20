@@ -1,14 +1,11 @@
 //! With-body introducer, Statement admission and terminal handoff.
 
 use super::inline_slot::{
-    emit_inline_leading, emit_inline_slot_missing, inline_boundary, inline_slot_draft,
-    is_inline_slot_boundary,
+    emit_inline_leading, emit_inline_slot_missing, inline_boundary, is_inline_slot_boundary,
 };
 use crate::ambient_claim::AmbientClaimContext;
 use crate::cursor::SyntaxIn;
-use crate::cursor::recovery::emit::{
-    emit_recovery_error_run, emit_token_item, emit_with_keyword, token_syntax_kind,
-};
+use crate::cursor::recovery::emit::{emit_recovery_error_run, emit_token_item, emit_with_keyword};
 use crate::handoff::{Either, NormalizedExit, complete, handoff};
 use crate::lexical::current_item::LineEntry;
 use crate::lexical::expression_item::expression_item;
@@ -20,10 +17,6 @@ use crate::lexical::position::{advanced_origin, suffix_marker};
 use crate::lexical::stops::Stops;
 use crate::lexical::trivia::lone_colon_after_fenced_trivia;
 use crate::lexical::yumark::FenceBoundary;
-use crate::recovery_record::{
-    ExpectedSyntax, GrammarRole, PunctuationEvidence as Punctuation, RecoveryKind,
-    UnexpectedCategory, UnexpectedSyntax, WithBodyRole,
-};
 use crate::statement::{
     StatementAdmission, StatementLineHandoff, canonical_statement_from_admission_normalized,
     classify_statement_item_lexical, classify_statement_item_normalized,
@@ -82,7 +75,6 @@ pub(crate) fn with_tail_normalized(
             indented_statement_block_normalized(
                 i.rb(),
                 baseline,
-                GrammarRole::WithBody(WithBodyRole::IndentedStatement),
                 stops,
                 item_origin,
                 line_entry,
@@ -110,14 +102,7 @@ pub(crate) fn with_tail_normalized(
     } else {
         let (mut item, item_origin, line_entry) =
             statement_item_normalized(i.rb(), item_origin, line_entry, fence, baseline, stops);
-        emit_inline_slot_missing(
-            i.rb(),
-            &mut item,
-            item_origin,
-            GrammarRole::WithBody(WithBodyRole::Introducer),
-            ExpectedSyntax::Punctuation(Punctuation::Colon),
-            stops,
-        );
+        emit_inline_slot_missing(i.rb(), &mut item, item_origin, stops);
         with_inline_item_normalized(
             i.rb(),
             item,
@@ -187,14 +172,7 @@ fn with_inline_item_normalized(
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
-            emit_inline_slot_missing(
-                i.rb(),
-                &mut item,
-                item_origin,
-                GrammarRole::WithBody(WithBodyRole::Body),
-                ExpectedSyntax::Statement,
-                stops,
-            );
+            emit_inline_slot_missing(i.rb(), &mut item, item_origin, stops);
         }
         return complete(handoff(item), line_entry);
     }
@@ -209,14 +187,7 @@ fn with_inline_item_normalized(
     }
     if with_inline_boundary(i.rb(), &item, baseline, stops) {
         if missing_on_boundary {
-            emit_inline_slot_missing(
-                i.rb(),
-                &mut item,
-                item_origin,
-                GrammarRole::WithBody(WithBodyRole::Body),
-                ExpectedSyntax::Statement,
-                stops,
-            );
+            emit_inline_slot_missing(i.rb(), &mut item, item_origin, stops);
         }
         return complete(handoff(item), line_entry);
     }
@@ -293,66 +264,37 @@ fn retry_with_inline_body_normalized(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind =
-                    token_syntax_kind(token_kind(&item).expect("a With Error emits a token"));
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    scan_statement_item_lexical(
-                        lex,
-                        item_origin,
-                        line_entry,
-                        fence,
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_statement_item_lexical(lex, item_origin, line_entry, fence, baseline, stops)
+            });
+            let boundary = inline_boundary(&item, baseline, stops)
+                || (!allow_braced
+                    && matches!(
+                        token_kind(&item),
+                        Some(TokenKind::LBrace | TokenKind::PathSeparator)
+                    ))
+                || run.lexical(|lex| is_active_stop_lex(lex, &item, stops));
+            let admission = if boundary {
+                None
+            } else {
+                run.lexical(|lex| {
+                    classify_statement_item_lexical(
+                        lex.remainder(),
+                        &item,
                         baseline,
-                        stops,
+                        item_origin,
+                        fence,
                     )
-                });
-                let boundary = inline_boundary(&item, baseline, stops)
-                    || (!allow_braced
-                        && matches!(
-                            token_kind(&item),
-                            Some(TokenKind::LBrace | TokenKind::PathSeparator)
-                        ))
-                    || run.lexical(|lex| is_active_stop_lex(lex, &item, stops));
-                let admission = if boundary {
-                    None
-                } else {
-                    run.lexical(|lex| {
-                        classify_statement_item_lexical(
-                            lex.remainder(),
-                            &item,
-                            baseline,
-                            item_origin,
-                            fence,
-                        )
-                    })
-                };
-                if boundary || admission.is_some() {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, admission, item_origin, line_entry);
-                }
+                })
+            };
+            if boundary || admission.is_some() {
+                return (item, admission, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            inline_slot_draft(
-                GrammarRole::WithBody(WithBodyRole::Body),
-                ExpectedSyntax::Statement,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    )
+        }
+    })
 }
 
 fn with_inline_boundary(i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {

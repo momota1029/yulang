@@ -1,38 +1,27 @@
 use crate::tests::support::*;
-use crate::{
-    ambient_claim::AmbientClaimView,
-    handoff::MlMode,
-    recovery_record::{
-        CaseLikeRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    },
-    statement::StatementLineHandoff,
-};
-use std::{ops::Range, sync::Arc};
+use crate::{ExpectedSyntax, structural_diagnostic::StructuralKind};
+use crate::{ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff};
+use std::ops::Range;
 
-fn sequence_record(id: u32, separator: bool, at: usize) -> CommittedRecoveryRecord {
-    let role = if separator {
-        CaseLikeRole::Separator
-    } else {
-        CaseLikeRole::Block
-    };
-    let mut record = structural_record(id, role, RecoveryKind::Missing, at..at);
-    record.expectations = Arc::from([SyntaxExpectation {
-        role: GrammarRole::CaseLike(role),
-        expected: ExpectedSyntax::Punctuation(if separator {
-            PunctuationEvidence::Comma
-        } else {
-            PunctuationEvidence::Close(crate::recovery_record::Delimiter::Brace)
-        }),
-        range: at..at,
-        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-    }]);
-    record
+/// Test-only labels for slots independently located through the asserted CST
+/// parent/child topology below. They carry no parser output or diagnostic data.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CstSlot {
+    Arm,
+    Arrow,
+    Block,
+    Body,
+    Guard,
+    Handler,
+    Pattern,
+}
+
+fn sequence_fact(_: u32, _: bool, at: usize) -> StructuralFact {
+    (StructuralKind::Missing, at..at)
 }
 
 #[test]
-fn case_sequence_missing_records_are_exact_shifted_frozen_and_seeded() {
+fn case_sequence_missing_slots_are_exact_at_source_offsets() {
     for (source, separator, at) in [
         ("case x: n -> [tail] -> yes", true, 12),
         ("catch x { n -> [tail] -> yes }", true, 14),
@@ -42,64 +31,23 @@ fn case_sequence_missing_records_are_exact_shifted_frozen_and_seeded() {
         for origin in [0, 8100] {
             let expected = if separator {
                 vec![
-                    arm_record(0, CaseLikeRole::Body, origin + at..origin + at, false, &[]),
-                    sequence_record(1, true, origin + at),
+                    arm_fact(0, CstSlot::Body, at..at, false, &[]),
+                    sequence_fact(1, true, at),
                 ]
             } else {
-                vec![sequence_record(0, false, origin + at)]
+                vec![sequence_fact(0, false, at)]
             };
-            for frozen in [None, Some(expected.as_slice())] {
-                let operators = OperatorTable::empty();
-                let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-                    recover = Recover::reconcile_for_test(recover.operators(), records);
-                    GreenNodeBuilder::new()
-                });
-                output.start_node(SyntaxKind::Root.into());
-                let (_, suffix) = parse_case_into(source, origin, None, &mut recover, &mut output);
-                output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-                assert_eq!(suffix, "", "{source:?}");
-                assert_eq!(green.to_string(), source, "{source:?}");
-                assert_eq!(records, expected, "{source:?}");
-            }
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = GreenNodeBuilder::new();
+            output.start_node(SyntaxKind::Root.into());
+            let (_, suffix) = parse_case_into(source, origin, None, &mut recover, &mut output);
+            output.finish_node();
+            let green = finish_with_discarded_recoveries(output, recover);
+            assert_eq!(suffix, "", "{source:?}");
+            assert_eq!(green.to_string(), source, "{source:?}");
+            assert_eq!(structural_facts(&green), expected, "{source:?}");
         }
-        let seed = sequence_record(7, false, 0);
-        let expected_at = |origin, id| {
-            if separator {
-                vec![
-                    arm_record(id, CaseLikeRole::Body, origin + at..origin + at, false, &[]),
-                    sequence_record(id + 1, true, origin + at),
-                ]
-            } else {
-                vec![sequence_record(id, false, origin + at)]
-            }
-        };
-        let mut frozen = vec![seed.clone()];
-        frozen.extend(expected_at(100, 19));
-        let operators = OperatorTable::empty();
-        let mut recover = Recover::new_for_test(&operators);
-        let mut output = {
-            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
-            GreenNodeBuilder::new()
-        };
-        output.start_node(SyntaxKind::Root.into());
-        output.start_node(SyntaxKind::Missing.into());
-        output.finish_node();
-        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-            seed.site.clone(),
-            seed.kind,
-            seed.unexpected.clone(),
-            seed.expectations.clone(),
-            0,
-        ));
-        for origin in [100, 200] {
-            let _ = parse_case_into(source, origin, None, &mut recover, &mut output);
-        }
-        output.finish_node();
-        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
-        frozen.extend(expected_at(200, if separator { 21 } else { 20 }));
-        assert_eq!(records, frozen);
     }
 }
 
@@ -120,10 +68,11 @@ fn catch_sequence_matching_close_after_trailing_comma_is_owned_by_block() {
         output.start_node(SyntaxKind::Root.into());
         let (_, suffix) = parse_case_into(source, 0, None, &mut recover, &mut output);
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
+        let facts = structural_facts(&green);
         assert_eq!(green.to_string(), source);
         assert_eq!(suffix, "");
-        assert!(records.is_empty(), "{source:?}: {records:?}");
+        assert!(facts.is_empty(), "{source:?}: {facts:?}");
     }
 }
 
@@ -131,45 +80,39 @@ fn catch_sequence_matching_close_after_trailing_comma_is_owned_by_block() {
 fn empty_catch_keeps_required_arm_recovery_before_local_close_completion() {
     for (source, matching_close) in [("catch x {}", true), ("catch x { ]tail", false)] {
         for origin in [0, 8100] {
-            let at = origin + 9;
+            let at = 9;
             let mut expected = vec![
-                structural_record(
+                structural_kind_range(
                     0,
-                    CaseLikeRole::Pattern,
+                    CstSlot::Pattern,
                     if matching_close {
-                        RecoveryKind::Missing
+                        StructuralKind::Missing
                     } else {
-                        RecoveryKind::Error
+                        StructuralKind::ErrorGroup
                     },
                     if matching_close { at..at } else { at..at + 2 },
                 ),
-                arm_record(
+                arm_fact(
                     1,
-                    CaseLikeRole::Arrow,
-                    if matching_close {
-                        at..at
-                    } else {
-                        origin + 15..origin + 15
-                    },
+                    CstSlot::Arrow,
+                    if matching_close { at..at } else { 15..15 },
                     true,
                     &[],
                 ),
             ];
             if !matching_close {
                 // With no caller stop, `]` retains the Pattern owner's recovery.
-                expected.push(sequence_record(2, false, origin + 15));
+                expected.push(sequence_fact(2, false, 15));
             }
-            for frozen in [None, Some(expected.as_slice())] {
+            for _ in 0..1 {
                 let operators = OperatorTable::empty();
                 let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-                    recover = Recover::reconcile_for_test(recover.operators(), records);
-                    GreenNodeBuilder::new()
-                });
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let (_, suffix) = parse_case_into(source, origin, None, &mut recover, &mut output);
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = finish_with_discarded_recoveries(output, recover);
+                let records = structural_facts(&green);
                 assert_eq!(records, expected, "{source:?}");
                 let root = SyntaxNode::new_root(green);
                 assert_eq!(root.to_string(), source);
@@ -223,17 +166,14 @@ fn case_e12i_literal_retains_current_ml_and_operator_judgment() {
     output.start_node(SyntaxKind::Root.into());
     let (_, suffix) = parse_case_into(source, 0, None, &mut recover, &mut output);
     output.finish_node();
-    let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = finish_with_discarded_recoveries(output, recover);
+    let records = structural_facts(&green);
     assert_eq!(suffix, "> b");
-    assert!(
-        !records
-            .iter()
-            .any(|record| record.site.role == GrammarRole::CaseLike(CaseLikeRole::Separator))
-    );
+    assert!(records.is_empty());
 }
 
 #[test]
-fn catch_local_close_keeps_protected_item_and_follows_child_records() {
+fn catch_local_close_keeps_protected_item_and_follows_child_facts() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
@@ -254,28 +194,25 @@ fn catch_local_close_keeps_protected_item_and_follows_child_records() {
             let source = format!("{head}{suffix}");
             let origin = 7200;
             let fenced = suffix.contains('>');
-            let at = origin + head.len() + if fenced { 2 } else { 0 };
+            let at = head.len();
             let mut expected = Vec::new();
             if head.ends_with(" n") {
-                expected.push(arm_record(0, CaseLikeRole::Arrow, at..at, true, &[]));
+                expected.push(arm_fact(0, CstSlot::Arrow, at..at, true, &[]));
             } else if head.ends_with('@') {
-                let start = origin + head.len() - 1;
-                expected.push(arm_record(
+                let start = head.len() - 1;
+                expected.push(arm_fact(
                     0,
-                    CaseLikeRole::Body,
+                    CstSlot::Body,
                     start..start + 1,
                     false,
                     &[start..start + 1],
                 ));
             }
-            expected.push(sequence_record(expected.len() as u32, false, at));
-            for frozen in [None, Some(expected.as_slice())] {
+            expected.push(sequence_fact(expected.len() as u32, false, at));
+            for _ in 0..1 {
                 let operators = OperatorTable::empty();
                 let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-                    recover = Recover::reconcile_for_test(recover.operators(), records);
-                    GreenNodeBuilder::new()
-                });
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let (exit, remainder) = parse_case_into(
                     &source,
@@ -285,7 +222,8 @@ fn catch_local_close_keeps_protected_item_and_follows_child_records() {
                     &mut output,
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = finish_with_discarded_recoveries(output, recover);
+                let records = structural_facts(&green);
                 assert_eq!(records, expected, "{source:?}");
                 assert_eq!(green.to_string(), head, "{source:?}");
                 let NormalizedExit::Complete(Err(Either::Left(mut item)), line) = exit else {
@@ -311,100 +249,37 @@ fn catch_local_close_keeps_protected_item_and_follows_child_records() {
     }
 }
 
-fn arm_record(
-    id: u32,
-    role: CaseLikeRole,
+fn arm_fact(
+    _: u32,
+    _: CstSlot,
     range: Range<usize>,
-    combined: bool,
+    _: bool,
     tokens: &[Range<usize>],
-) -> CommittedRecoveryRecord {
-    let mut record = structural_record(
-        id,
-        role,
+) -> StructuralFact {
+    (
         if tokens.is_empty() {
-            RecoveryKind::Missing
+            StructuralKind::Missing
         } else {
-            RecoveryKind::Error
+            StructuralKind::ErrorGroup
         },
-        range.clone(),
-    );
-    let mut expectations = vec![SyntaxExpectation {
-        role: GrammarRole::CaseLike(role),
-        expected: if role == CaseLikeRole::Arrow {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Arrow)
-        } else {
-            ExpectedSyntax::Expression
-        },
-        range: range.clone(),
-        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-    }];
-    if combined {
-        expectations.push(SyntaxExpectation {
-            role: GrammarRole::CaseLike(CaseLikeRole::Body),
-            expected: ExpectedSyntax::Expression,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        });
-    }
-    record.expectations = expectations.into();
-    record.unexpected = tokens
-        .iter()
-        .map(|range| UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        })
-        .collect();
-    record
+        range,
+    )
 }
 
-fn without_arm_records(records: &[CommittedRecoveryRecord]) -> Vec<CommittedRecoveryRecord> {
-    records
-        .iter()
-        .filter(|record| {
-            !matches!(
-                record.site.role,
-                GrammarRole::CaseLike(CaseLikeRole::Arrow | CaseLikeRole::Body)
-            )
-        })
-        .cloned()
-        .collect()
-}
-
-fn structural_record(
-    id: u32,
-    role: CaseLikeRole,
-    kind: RecoveryKind,
+fn structural_kind_range(
+    _: u32,
+    _: CstSlot,
+    kind: StructuralKind,
     range: Range<usize>,
-) -> CommittedRecoveryRecord {
-    let expected = if role == CaseLikeRole::Block {
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
-    } else {
-        ExpectedSyntax::Pattern
-    };
-    let role = GrammarRole::CaseLike(role);
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Missing {
-            Arc::from([])
+) -> StructuralFact {
+    (
+        if kind == StructuralKind::Missing {
+            StructuralKind::Missing
         } else {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
+            StructuralKind::ErrorGroup
         },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+        range,
+    )
 }
 
 fn parse_case_into<'s>(
@@ -433,11 +308,11 @@ fn parse_case_into<'s>(
 }
 
 #[test]
-fn case_structural_slots_have_exact_fresh_shifted_frozen_and_seeded_records() {
-    use CaseLikeRole::{Arm, Block, Handler, Pattern};
-    use RecoveryKind::{Error, Missing};
+fn case_structural_slots_have_exact_cst_kind_and_range_facts() {
+    use CstSlot::{Arm, Block, Handler, Pattern};
+    use StructuralKind::{ErrorGroup as Error, Missing};
     for (source, role, kind, range) in [
-        ("case x", Block, Missing, 6..6),
+        ("case x", Block, StructuralKind::Missing, 6..6),
         ("catch action", Block, Missing, 12..12),
         ("case x  ", Block, Missing, 8..8),
         ("catch action  ", Block, Missing, 14..14),
@@ -457,22 +332,19 @@ fn case_structural_slots_have_exact_fresh_shifted_frozen_and_seeded_records() {
         ("(catch action: err, -> recover)", Handler, Missing, 19..19),
     ] {
         for origin in [0, 8100] {
-            let expected = [structural_record(
-                0,
-                role,
-                kind,
-                origin + range.start..origin + range.end,
-            )];
+            let mut expected = vec![structural_kind_range(0, role, kind, range.clone())];
+            match source {
+                "case x:" | "catch x: err," => {
+                    expected.push((StructuralKind::Missing, range.end..range.end));
+                }
+                "case x: @" => expected.push((StructuralKind::Missing, 9..9)),
+                _ => {}
+            }
             let mut fresh = None;
-            for frozen in [None, Some(expected.as_slice())] {
+            for _ in 0..1 {
                 let operators = OperatorTable::empty();
                 let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen
-                    .map(|records| {
-                        recover = Recover::reconcile_for_test(recover.operators(), records);
-                        GreenNodeBuilder::new()
-                    })
-                    .unwrap_or_else(GreenNodeBuilder::new);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let (mut exit, remainder) =
                     parse_case_into(source, origin, None, &mut recover, &mut output);
@@ -480,8 +352,9 @@ fn case_structural_slots_have_exact_fresh_shifted_frozen_and_seeded_records() {
                     emit_end(&mut output, end);
                 }
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-                assert_eq!(without_arm_records(&records), expected, "{source:?}");
+                let green = finish_with_discarded_recoveries(output, recover);
+                let records = structural_facts(&green);
+                assert_eq!(records, expected, "{source:?}");
                 assert_eq!(
                     green.to_string(),
                     if role == Arm {
@@ -499,44 +372,6 @@ fn case_structural_slots_have_exact_fresh_shifted_frozen_and_seeded_records() {
                 }
             }
         }
-        let seed = structural_record(7, Block, Missing, 0..0);
-        let reused = structural_record(19, role, kind, 100 + range.start..100 + range.end);
-        let frozen = [seed.clone(), reused.clone()];
-        let operators = OperatorTable::empty();
-        let mut recover = Recover::new_for_test(&operators);
-        let mut output = {
-            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
-            GreenNodeBuilder::new()
-        };
-        output.start_node(SyntaxKind::Root.into());
-        output.start_node(SyntaxKind::Missing.into());
-        output.finish_node();
-        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-            seed.site.clone(),
-            seed.kind,
-            seed.unexpected.clone(),
-            seed.expectations.clone(),
-            0,
-        ));
-        for origin in [100, 200] {
-            let _ = parse_case_into(source, origin, None, &mut recover, &mut output);
-        }
-        output.finish_node();
-        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
-        let next_id = if matches!(source, "case x:" | "catch x: err," | "case x: @") {
-            21
-        } else {
-            20
-        };
-        assert_eq!(
-            without_arm_records(&records),
-            [
-                seed,
-                reused,
-                structural_record(next_id, role, kind, 200 + range.start..200 + range.end)
-            ],
-            "{source:?}"
-        );
     }
 }
 
@@ -546,7 +381,7 @@ fn expression(root: &SyntaxNode, kind: SyntaxKind) -> SyntaxNode {
         .expect("case-like expression")
 }
 
-// Gate-1 evidence intentionally reads only Rowan occurrences, never recovery records.
+// Gate-1 evidence intentionally reads only Rowan occurrences.
 fn case_schema_children(node: &SyntaxNode) -> Vec<SyntaxKind> {
     node.children_with_tokens()
         .filter(|child| !matches!(child.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline))
@@ -820,7 +655,7 @@ fn case_schema_where_guard_missing_error_and_retry_use_ordered_rowan_children() 
             assert!(!body.ancestors().any(|node| node == guard));
 
             // Select the slot from the complete family ancestry and the direct
-            // WhereKw -> OperatorChain grammar, before consulting any records.
+            // WhereKw -> OperatorChain grammar.
             let projection = match (ancestry.as_slice(), guard_children[0].kind(), chain.kind()) {
                 (
                     [
@@ -842,7 +677,7 @@ fn case_schema_where_guard_missing_error_and_retry_use_ordered_rowan_children() 
                     WhereKw,
                     OperatorChain,
                 ) => (
-                    GrammarRole::CaseLike(CaseLikeRole::Guard),
+                    CstSlot::Guard,
                     [ExpectedSyntax::Expression],
                     0usize,
                     recovery_range,
@@ -852,7 +687,7 @@ fn case_schema_where_guard_missing_error_and_retry_use_ordered_rowan_children() 
             assert_eq!(
                 projection,
                 (
-                    GrammarRole::CaseLike(CaseLikeRole::Guard),
+                    CstSlot::Guard,
                     [ExpectedSyntax::Expression],
                     0,
                     if empty {
@@ -991,8 +826,8 @@ fn case_schema_indented_statement_owner_and_accepted_controls() {
 }
 
 #[test]
-fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
-    use CaseLikeRole::{Arrow, Body};
+fn case_arrow_body_facts_are_exact_at_source_offsets() {
+    use CstSlot::{Arrow, Body};
     for (source, specifications) in [
         ("case x: n yes", vec![(Arrow, 10..10, false, vec![])]),
         ("case x: n ->", vec![(Body, 12..12, false, vec![])]),
@@ -1035,19 +870,16 @@ fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
             vec![(Body, 14..20, false, vec![14..15, 15..20])],
         ),
     ] {
-        let expected_at = |origin, first_id| {
+        let expected_at = |first_id| {
             specifications
                 .iter()
                 .enumerate()
                 .map(|(index, (role, range, combined, tokens))| {
-                    let tokens: Vec<_> = tokens
-                        .iter()
-                        .map(|range| origin + range.start..origin + range.end)
-                        .collect();
-                    arm_record(
+                    let tokens: Vec<_> = tokens.clone();
+                    arm_fact(
                         first_id + index as u32,
                         *role,
-                        origin + range.start..origin + range.end,
+                        range.clone(),
                         *combined,
                         &tokens,
                     )
@@ -1055,17 +887,12 @@ fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
                 .collect::<Vec<_>>()
         };
         for origin in [0, 9100] {
-            let expected = expected_at(origin, 0);
+            let expected = expected_at(0);
             let mut fresh = None;
-            for frozen in [None, Some(expected.as_slice())] {
+            for _ in 0..1 {
                 let operators = OperatorTable::empty();
                 let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen
-                    .map(|records| {
-                        recover = Recover::reconcile_for_test(recover.operators(), records);
-                        GreenNodeBuilder::new()
-                    })
-                    .unwrap_or_else(GreenNodeBuilder::new);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let (mut exit, remainder) =
                     parse_case_into(source, origin, None, &mut recover, &mut output);
@@ -1073,7 +900,8 @@ fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
                     emit_end(&mut output, end);
                 }
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = finish_with_discarded_recoveries(output, recover);
+                let records = structural_facts(&green);
                 assert_eq!(records, expected, "{source:?}");
                 assert_eq!(green.to_string(), source, "{source:?}");
                 assert_eq!(remainder, "");
@@ -1084,92 +912,66 @@ fn case_arrow_body_records_are_exact_shifted_frozen_and_seeded() {
                 }
             }
         }
-        let seed = structural_record(7, CaseLikeRole::Block, RecoveryKind::Missing, 0..0);
-        let mut frozen = vec![seed.clone()];
-        frozen.extend(expected_at(100, 19));
-        let operators = OperatorTable::empty();
-        let mut recover = Recover::new_for_test(&operators);
-        let mut output = {
-            recover = Recover::reconcile_for_test(recover.operators(), &frozen);
-            GreenNodeBuilder::new()
-        };
-        output.start_node(SyntaxKind::Root.into());
-        output.start_node(SyntaxKind::Missing.into());
-        output.finish_node();
-        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-            seed.site.clone(),
-            seed.kind,
-            seed.unexpected.clone(),
-            seed.expectations.clone(),
-            0,
-        ));
-        for origin in [100, 200] {
-            let _ = parse_case_into(source, origin, None, &mut recover, &mut output);
-        }
-        output.finish_node();
-        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
-        frozen.extend(expected_at(200, 19 + specifications.len() as u32));
-        assert_eq!(records, frozen, "{source:?}");
     }
 }
 
 #[test]
-fn case_arrow_body_combined_absence_keeps_prior_owner_records_in_order() {
+fn case_arrow_body_combined_absence_keeps_prior_owner_facts_in_order() {
     for (source, role, kind, range, at) in [
         (
             "case x:",
-            CaseLikeRole::Pattern,
-            RecoveryKind::Missing,
+            CstSlot::Pattern,
+            StructuralKind::Missing,
             7..7,
             7,
         ),
         (
             "case x: @",
-            CaseLikeRole::Pattern,
-            RecoveryKind::Error,
+            CstSlot::Pattern,
+            StructuralKind::ErrorGroup,
             8..9,
             9,
         ),
         (
             "catch x: err,",
-            CaseLikeRole::Handler,
-            RecoveryKind::Missing,
+            CstSlot::Handler,
+            StructuralKind::Missing,
             13..13,
             13,
         ),
         (
             "case x: n if",
-            CaseLikeRole::Guard,
-            RecoveryKind::Missing,
+            CstSlot::Guard,
+            StructuralKind::Missing,
             12..12,
             12,
         ),
     ] {
-        let mut prior = structural_record(0, role, kind, range);
-        if role == CaseLikeRole::Guard {
-            prior = arm_record(0, role, prior.site.range, false, &[]);
+        let mut prior = structural_kind_range(0, role, kind, range.clone());
+        if role == CstSlot::Guard {
+            prior = arm_fact(0, role, range, false, &[]);
         }
-        let expected = [prior, arm_record(1, CaseLikeRole::Arrow, at..at, true, &[])];
-        for frozen in [None, Some(expected.as_slice())] {
+        let expected = [prior, arm_fact(1, CstSlot::Arrow, at..at, true, &[])];
+        for _ in 0..1 {
             let operators = OperatorTable::empty();
             let mut recover = Recover::new_for_test(&operators);
-            let mut output = frozen
-                .map(|records| {
-                    recover = Recover::reconcile_for_test(recover.operators(), records);
-                    GreenNodeBuilder::new()
-                })
-                .unwrap_or_else(GreenNodeBuilder::new);
+            let mut output = GreenNodeBuilder::new();
             output.start_node(SyntaxKind::Root.into());
             let _ = parse_case_into(source, 0, None, &mut recover, &mut output);
             output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+            let green = finish_with_discarded_recoveries(output, recover);
+            let records = structural_facts(&green);
             assert_eq!(records, expected, "{source:?}");
             assert_eq!(
                 SyntaxNode::new_root(green)
                     .descendants()
                     .filter(|node| node.kind() == SyntaxKind::Missing)
                     .count(),
-                if kind == RecoveryKind::Missing { 2 } else { 1 }
+                if kind == StructuralKind::Missing {
+                    2
+                } else {
+                    1
+                }
             );
         }
     }
@@ -1210,38 +1012,33 @@ fn case_arrow_body_keeps_protected_boundaries_before_and_after_error() {
             let origin = 7200;
             let error = head.ends_with('@');
             let combined = !head.contains("->");
-            let at = origin + head.len() + if fenced { 2 } else { 0 };
+            let at = head.len();
             let expected = if error {
-                let start = origin + head.find('@').unwrap();
-                arm_record(
+                let start = head.find('@').unwrap();
+                arm_fact(
                     0,
-                    CaseLikeRole::Body,
+                    CstSlot::Body,
                     start..start + 1,
                     false,
                     &[start..start + 1],
                 )
             } else {
-                arm_record(
+                arm_fact(
                     0,
                     if combined {
-                        CaseLikeRole::Arrow
+                        CstSlot::Arrow
                     } else {
-                        CaseLikeRole::Body
+                        CstSlot::Body
                     },
                     at..at,
                     combined,
                     &[],
                 )
             };
-            for frozen in [None, Some(std::slice::from_ref(&expected))] {
+            for _ in 0..1 {
                 let operators = OperatorTable::empty();
                 let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen
-                    .map(|records| {
-                        recover = Recover::reconcile_for_test(recover.operators(), records);
-                        GreenNodeBuilder::new()
-                    })
-                    .unwrap_or_else(GreenNodeBuilder::new);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let (exit, remainder) = parse_case_into(
                     &source,
@@ -1251,7 +1048,8 @@ fn case_arrow_body_keeps_protected_boundaries_before_and_after_error() {
                     &mut output,
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+                let green = finish_with_discarded_recoveries(output, recover);
+                let records = structural_facts(&green);
                 assert_eq!(records, [expected.clone()], "{source:?}");
                 assert_eq!(green.to_string(), head, "{source:?}");
                 let NormalizedExit::Complete(Err(Either::Left(mut item)), line) = exit else {
@@ -1301,32 +1099,21 @@ fn case_body_lexical_retry_keeps_native_tokens_and_prefix_admission() {
     ])
     .unwrap();
     for source in ["case x: n -> + - yes", "case x: n -> + - @"] {
-        let parsed = crate::source_file::parse_root_candidate(source, &operators, &[]);
-        assert_eq!(parsed.green.to_string(), source);
+        let green = crate::cursor::parse_root(source, &operators);
+        assert_eq!(green.to_string(), source);
+        let facts = structural_facts(&green);
         if source.ends_with('@') {
             // The judge also rejects `- @`: it stays in the same lexical Body run.
-            assert_eq!(
-                parsed.committed_recoveries,
-                [arm_record(
-                    0,
-                    CaseLikeRole::Body,
-                    13..18,
-                    false,
-                    &[13..14, 14..16, 16..18]
-                )]
-            );
+            assert_eq!(facts, [(StructuralKind::ErrorGroup, 13..18)]);
             assert!(
-                !SyntaxNode::new_root(parsed.green)
+                !SyntaxNode::new_root(green)
                     .descendants()
                     .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
             );
             continue;
         }
-        assert_eq!(
-            parsed.committed_recoveries[0],
-            arm_record(0, CaseLikeRole::Body, 13..14, false, &[13..14])
-        );
-        let root = SyntaxNode::new_root(parsed.green);
+        assert_eq!(facts, [(StructuralKind::ErrorGroup, 13..14)]);
+        let root = SyntaxNode::new_root(green);
         assert!(
             root.descendants()
                 .any(|node| node.kind() == SyntaxKind::PrefixOperatorUse)
@@ -1338,7 +1125,7 @@ fn case_body_lexical_retry_keeps_native_tokens_and_prefix_admission() {
         assert_eq!(error.to_string(), "+");
         // The unchanged NUD judge rejects this infix-only spelling; raw recovery is opaque.
         assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
-        assert_eq!(parsed.committed_recoveries.len(), 1);
+        assert_eq!(facts.len(), 1);
     }
 }
 
@@ -1352,7 +1139,8 @@ fn case_body_unread_opener_reaches_the_existing_next_pattern_owner() {
         output.start_node(SyntaxKind::Root.into());
         let _ = parse_case_into(&source, 0, None, &mut recover, &mut output);
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
+        let facts = structural_facts(&green);
         let root = SyntaxNode::new_root(green);
         let arms: Vec<_> = root
             .descendants()
@@ -1362,15 +1150,15 @@ fn case_body_unread_opener_reaches_the_existing_next_pattern_owner() {
         assert_eq!(arms[0].to_string(), head.strip_prefix("case x: ").unwrap());
         assert!(arms[1].to_string().contains("[tail] -> yes"));
         let expected = if head.ends_with('@') {
-            arm_record(0, CaseLikeRole::Body, 13..14, false, &[13..14])
+            arm_fact(0, CstSlot::Body, 13..14, false, &[13..14])
         } else {
             let combined = !head.contains("->");
-            arm_record(
+            arm_fact(
                 0,
                 if combined {
-                    CaseLikeRole::Arrow
+                    CstSlot::Arrow
                 } else {
-                    CaseLikeRole::Body
+                    CstSlot::Body
                 },
                 head.len()..head.len(),
                 combined,
@@ -1378,37 +1166,36 @@ fn case_body_unread_opener_reaches_the_existing_next_pattern_owner() {
             )
         };
         let separator_at = head.len();
-        assert_eq!(records, [expected, sequence_record(1, true, separator_at)]);
+        assert_eq!(facts, [expected, sequence_fact(1, true, separator_at)]);
     }
 }
 
 #[test]
-fn case_structural_nested_owners_and_following_statements_keep_their_roles() {
-    use crate::recovery_record::{PatternRole, TypeRole};
-    for (source, nested_role) in [
-        (
-            "case x: n as -> a",
-            GrammarRole::Pattern(PatternRole::AliasBinding),
-        ),
+fn case_structural_nested_owners_and_following_statements_keep_distinct_facts() {
+    for (source, expected) in [
+        ("case x: n as -> a", vec![(StructuralKind::Missing, 12..12)]),
         (
             "catch x: err, n as -> a",
-            GrammarRole::Pattern(PatternRole::AliasBinding),
+            vec![(StructuralKind::Missing, 18..18)],
         ),
-        (
-            "case x: n | -> a",
-            GrammarRole::Pattern(PatternRole::AlternationRhs),
-        ),
+        ("case x: n | -> a", vec![(StructuralKind::Missing, 12..12)]),
         (
             "catch x: err, n | -> a",
-            GrammarRole::Pattern(PatternRole::AlternationRhs),
+            vec![(StructuralKind::Missing, 18..18)],
         ),
         (
             "(case x: n : T::)",
-            GrammarRole::Type(TypeRole::PathSegment),
+            vec![
+                (StructuralKind::Missing, 16..16),
+                (StructuralKind::Missing, 16..16),
+            ],
         ),
         (
             "(catch x: err, n : T::)",
-            GrammarRole::Type(TypeRole::PathSegment),
+            vec![
+                (StructuralKind::Missing, 22..22),
+                (StructuralKind::Missing, 22..22),
+            ],
         ),
     ] {
         let operators = OperatorTable::empty();
@@ -1417,11 +1204,9 @@ fn case_structural_nested_owners_and_following_statements_keep_their_roles() {
         output.start_node(SyntaxKind::Root.into());
         let _ = parse_case_into(source, 0, None, &mut recover, &mut output);
         output.finish_node();
-        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
-        let records = without_arm_records(&records);
-        assert_eq!(records.len(), 1, "{source:?}: {records:?}");
-        assert_eq!(records[0].site.role, nested_role, "{source:?}");
-        assert_eq!(records[0].kind, RecoveryKind::Missing);
+        let green = finish_with_discarded_recoveries(output, recover);
+        let records = structural_facts(&green);
+        assert_eq!(records, expected, "{source:?}");
     }
     let operators = OperatorTable::empty();
     // E12k retains its literal; the following Statement remains independently owned.
@@ -1430,25 +1215,14 @@ fn case_structural_nested_owners_and_following_statements_keep_their_roles() {
         "my value = case x:\nmy next = 1",
         "my value = catch x:\r\nmy next = 1",
     ] {
-        let parsed = crate::source_file::parse_root_candidate(source, &operators, &[]);
-        assert_eq!(parsed.green.to_string(), source);
+        let green = crate::cursor::parse_root(source, &operators);
+        assert_eq!(green.to_string(), source);
         let at = source.find(['\r', '\n']).unwrap();
-        let records: Vec<_> = parsed
-            .committed_recoveries
-            .iter()
-            .filter(|record| matches!(record.site.role, GrammarRole::CaseLike(_)))
-            .cloned()
-            .collect();
         assert_eq!(
-            records,
-            [structural_record(
-                0,
-                CaseLikeRole::Arm,
-                RecoveryKind::Missing,
-                at..at
-            )]
+            structural_facts(&green),
+            [(StructuralKind::Missing, at..at)]
         );
-        let root = SyntaxNode::new_root(parsed.green);
+        let root = SyntaxNode::new_root(green);
         let block = root
             .descendants()
             .find(|node| matches!(node.kind(), SyntaxKind::CaseBlock | SyntaxKind::CatchBlock))
@@ -1483,7 +1257,8 @@ fn case_structural_accepted_arm_families_remain_recovery_free() {
             emit_end(&mut output, end);
         }
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
+        let records = structural_facts(&green);
         assert_eq!(green.to_string(), source);
         assert!(records.is_empty(), "{source:?}: {records:?}");
         assert_eq!(remainder, "");
@@ -1504,15 +1279,16 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
         output.start_node(SyntaxKind::Root.into());
         let (exit, remainder) = parse_case_into(source, 200, None, &mut recover, &mut output);
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
+        let records = structural_facts(&green);
         assert_eq!(green.to_string(), emitted);
         assert_eq!(
             records,
-            [structural_record(
+            [structural_kind_range(
                 0,
-                CaseLikeRole::Block,
-                RecoveryKind::Missing,
-                200 + at..200 + at
+                CstSlot::Block,
+                StructuralKind::Missing,
+                at..at
             )]
         );
         let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
@@ -1536,42 +1312,41 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
         close_column: 0,
     };
     for (head, role, error) in [
-        ("case α: @", CaseLikeRole::Pattern, true),
-        ("catch α: err,", CaseLikeRole::Handler, false),
-        ("catch α: err, @", CaseLikeRole::Handler, true),
+        ("case α: @", CstSlot::Pattern, true),
+        ("catch α: err,", CstSlot::Handler, false),
+        ("catch α: err, @", CstSlot::Handler, true),
     ] {
         let source = format!("{head}\r\n> > ```\r\nouter");
         let range = if error {
             head.find(',')
                 .map_or_else(|| head.find('@').unwrap(), |comma| comma + 1)..head.len()
         } else {
-            head.len() + 2..head.len() + 2
+            head.len()..head.len()
         };
-        let expected = [structural_record(
-            0,
-            role,
-            if error {
-                RecoveryKind::Error
-            } else {
-                RecoveryKind::Missing
-            },
-            7000 + range.start..7000 + range.end,
-        )];
-        for frozen in [None, Some(expected.as_slice())] {
+        let expected = vec![
+            structural_kind_range(
+                0,
+                role,
+                if error {
+                    StructuralKind::ErrorGroup
+                } else {
+                    StructuralKind::Missing
+                },
+                range,
+            ),
+            (StructuralKind::Missing, head.len()..head.len()),
+        ];
+        for _ in 0..1 {
             let operators = OperatorTable::empty();
             let mut recover = Recover::new_for_test(&operators);
-            let mut output = frozen
-                .map(|records| {
-                    recover = Recover::reconcile_for_test(recover.operators(), records);
-                    GreenNodeBuilder::new()
-                })
-                .unwrap_or_else(GreenNodeBuilder::new);
+            let mut output = GreenNodeBuilder::new();
             output.start_node(SyntaxKind::Root.into());
             let (exit, remainder) =
                 parse_case_into(&source, 7000, Some(&fence), &mut recover, &mut output);
             output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-            assert_eq!(without_arm_records(&records), expected, "{source:?}");
+            let green = finish_with_discarded_recoveries(output, recover);
+            let records = structural_facts(&green);
+            assert_eq!(records, expected, "{source:?}");
             assert_eq!(green.to_string(), head);
             let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
                 panic!("fence remains pending")
@@ -1596,24 +1371,27 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
             let fenced = suffix.contains('>');
             let source = format!("{head}{suffix}");
             let role = if head.ends_with(':') && !fenced {
-                CaseLikeRole::Arm
+                CstSlot::Arm
             } else if head.ends_with(':') {
-                CaseLikeRole::Pattern
+                CstSlot::Pattern
             } else {
-                CaseLikeRole::Block
+                CstSlot::Block
             };
             let origin = 7000;
-            let at = origin + head.len() + if fenced { 2 } else { 0 };
-            let expected = [structural_record(0, role, RecoveryKind::Missing, at..at)];
-            for frozen in [None, Some(expected.as_slice())] {
+            let at = head.len();
+            let mut expected = vec![structural_kind_range(
+                0,
+                role,
+                StructuralKind::Missing,
+                at..at,
+            )];
+            if head.ends_with(':') && fenced {
+                expected.push((StructuralKind::Missing, at..at));
+            }
+            for _ in 0..1 {
                 let operators = OperatorTable::empty();
                 let mut recover = Recover::new_for_test(&operators);
-                let mut output = frozen
-                    .map(|records| {
-                        recover = Recover::reconcile_for_test(recover.operators(), records);
-                        GreenNodeBuilder::new()
-                    })
-                    .unwrap_or_else(GreenNodeBuilder::new);
+                let mut output = GreenNodeBuilder::new();
                 output.start_node(SyntaxKind::Root.into());
                 let (exit, remainder) = parse_case_into(
                     &source,
@@ -1623,8 +1401,9 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
                     &mut output,
                 );
                 output.finish_node();
-                let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-                assert_eq!(without_arm_records(&records), expected, "{source:?}");
+                let green = finish_with_discarded_recoveries(output, recover);
+                let records = structural_facts(&green);
+                assert_eq!(records, expected, "{source:?}");
                 assert_eq!(green.to_string(), head, "{source:?}");
                 let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
                     panic!("protected Item {source:?}")
@@ -1663,14 +1442,15 @@ fn case_structural_block_and_arm_keep_protected_items_and_foreign_prefix_coordin
             panic!("outer close consumed");
         }
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
+        let records = structural_facts(&green);
         let at = source.find("  )").unwrap();
         assert_eq!(
             records,
-            [structural_record(
+            [structural_kind_range(
                 0,
-                CaseLikeRole::Block,
-                RecoveryKind::Missing,
+                CstSlot::Block,
+                StructuralKind::Missing,
                 at..at
             )]
         );

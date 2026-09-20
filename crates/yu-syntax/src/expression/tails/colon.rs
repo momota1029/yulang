@@ -1,12 +1,11 @@
 //! Colon application RHS and local inline sequence ownership.
 
 use super::inline_slot::{
-    emit_inline_leading, emit_inline_slot_missing, inline_boundary, inline_slot_draft,
-    is_inline_slot_boundary,
+    emit_inline_leading, emit_inline_slot_missing, inline_boundary, is_inline_slot_boundary,
 };
 use crate::ambient_claim::AmbientClaimContext;
 use crate::cursor::SyntaxIn;
-use crate::cursor::recovery::emit::{emit_recovery_error_run, emit_token_item, token_syntax_kind};
+use crate::cursor::recovery::emit::{emit_recovery_error_run, emit_token_item};
 use crate::expression::{chain_continuation, expr_from_nud_normalized, is_nud_item};
 use crate::handoff::{Either, MlMode, NormalizedExit, complete, handoff};
 use crate::lexical::current_item::LineEntry;
@@ -21,10 +20,6 @@ use crate::lexical::operator_scan::OperatorSite;
 use crate::lexical::position::{advanced_origin, suffix_marker};
 use crate::lexical::stops::{STOP_COMMA, STOP_LINE_BREAK, Stops};
 use crate::lexical::yumark::FenceBoundary;
-use crate::recovery_record::{
-    ColonApplicationRole, ExpectedSyntax, GrammarRole, RecoveryKind, UnexpectedCategory,
-    UnexpectedSyntax,
-};
 use crate::statement::{StatementLineHandoff, indented_statement_block_normalized};
 use crate::syntax_kind::SyntaxKind;
 
@@ -66,14 +61,7 @@ pub(crate) fn colon_tail_normalized(
             stops | STOP_COMMA,
         );
         if indentation.is_some() {
-            emit_inline_slot_missing(
-                i.rb(),
-                &mut item,
-                item_origin,
-                GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
-                ExpectedSyntax::Expression,
-                stops | STOP_LINE_BREAK,
-            );
+            emit_inline_slot_missing(i.rb(), &mut item, item_origin, stops | STOP_LINE_BREAK);
             complete(handoff(item), line_entry)
         } else {
             inline_colon_argument_normalized(
@@ -82,7 +70,6 @@ pub(crate) fn colon_tail_normalized(
                 baseline,
                 stops,
                 ml_mode,
-                ColonApplicationRole::Rhs,
                 line_handoff,
                 item_origin,
                 line_entry,
@@ -95,7 +82,6 @@ pub(crate) fn colon_tail_normalized(
         indented_statement_block_normalized(
             i.rb(),
             baseline,
-            GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
             stops,
             item_origin,
             line_entry,
@@ -114,7 +100,6 @@ fn inline_colon_argument_normalized(
     baseline: usize,
     stops: Stops,
     ml_mode: MlMode,
-    role: ColonApplicationRole,
     line_handoff: StatementLineHandoff,
     mut item_origin: usize,
     mut line_entry: LineEntry,
@@ -123,25 +108,11 @@ fn inline_colon_argument_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        emit_inline_slot_missing(
-            i.rb(),
-            &mut item,
-            item_origin,
-            GrammarRole::ColonApplication(role),
-            ExpectedSyntax::Expression,
-            stops,
-        );
+        emit_inline_slot_missing(i.rb(), &mut item, item_origin, stops);
         return complete(handoff(item), line_entry);
     }
     if is_colon_owned_boundary(i.rb(), &item, baseline, stops, sequence) {
-        emit_inline_slot_missing(
-            i.rb(),
-            &mut item,
-            item_origin,
-            GrammarRole::ColonApplication(role),
-            ExpectedSyntax::Expression,
-            stops,
-        );
+        emit_inline_slot_missing(i.rb(), &mut item, item_origin, stops);
         return inline_colon_successor_normalized(
             i,
             complete(handoff(item), line_entry),
@@ -156,14 +127,7 @@ fn inline_colon_argument_normalized(
         );
     }
     if is_inline_slot_boundary(i.rb(), &item, baseline, stops) {
-        emit_inline_slot_missing(
-            i.rb(),
-            &mut item,
-            item_origin,
-            GrammarRole::ColonApplication(role),
-            ExpectedSyntax::Expression,
-            stops,
-        );
+        emit_inline_slot_missing(i.rb(), &mut item, item_origin, stops);
         return complete(handoff(item), line_entry);
     }
 
@@ -172,7 +136,6 @@ fn inline_colon_argument_normalized(
         (item, item_origin, line_entry) = retry_inline_colon_argument_normalized(
             i.rb(),
             item,
-            role,
             baseline,
             stops,
             item_origin,
@@ -292,7 +255,6 @@ fn inline_colon_successor_normalized(
                 baseline,
                 stops,
                 ml_mode,
-                ColonApplicationRole::InlineArgument,
                 line_handoff,
                 item_origin,
                 line_entry,
@@ -309,57 +271,34 @@ fn inline_colon_successor_normalized(
 fn retry_inline_colon_argument_normalized(
     i: SyntaxIn,
     mut item: Item,
-    role: ColonApplicationRole,
     baseline: usize,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind =
-                    token_syntax_kind(token_kind(&item).expect("a Colon Error emits a token"));
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    scan_expression_item_lexical(
-                        lex,
-                        OperatorSite::Nud,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        baseline,
-                        stops | STOP_COMMA,
-                    )
-                });
-                if inline_boundary(&item, baseline, stops)
-                    || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
-                    || is_nud_item(&item)
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
-                }
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_expression_item_lexical(
+                    lex,
+                    OperatorSite::Nud,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    baseline,
+                    stops | STOP_COMMA,
+                )
+            });
+            if inline_boundary(&item, baseline, stops)
+                || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
+                || is_nud_item(&item)
+            {
+                return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            inline_slot_draft(
-                GrammarRole::ColonApplication(role),
-                ExpectedSyntax::Expression,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    )
+        }
+    })
 }
 
 fn is_colon_owned_boundary(

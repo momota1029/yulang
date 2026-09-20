@@ -7,7 +7,7 @@ use crate::tests::pattern::pattern_literal_witness;
 use crate::tests::support::{
     run_act_declaration, run_cast_declaration, run_declaration_companion, run_declaration_variant,
     run_enum_declaration, run_error_declaration, run_impl_declaration, run_normalized,
-    run_role_declaration, run_type_normalized,
+    run_role_declaration, run_type_normalized, structural_facts,
 };
 use crate::{
     cursor::Recover,
@@ -220,8 +220,8 @@ fn rejected_expression_and_type_entries_are_output_effect_free() {
     output.token(SyntaxKind::Identifier.into(), "sentinel");
     output.finish_node();
     output.finish_node();
-    assert!(recover.finish_recoveries_for_test().is_empty());
     let candidate = output.finish();
+    assert!(structural_facts(&candidate).is_empty());
     let control = seeded_root();
     assert_eq!(candidate, control);
 }
@@ -321,8 +321,9 @@ fn nontrivial_option_entries_reject_without_output_effects() {
     );
     output.finish_node();
     assert_eq!(input, "@");
-    assert!(recover.finish_recoveries_for_test().is_empty());
-    assert_eq!(output.finish(), control);
+    let candidate = output.finish();
+    assert!(structural_facts(&candidate).is_empty());
+    assert_eq!(candidate, control);
 
     let mut input = "@";
     let mut recover = Recover::new_for_test(&operators);
@@ -344,6 +345,7 @@ fn nontrivial_option_entries_reject_without_output_effects() {
     );
     assert!(admission.is_none());
     output.finish_node();
-    assert!(recover.finish_recoveries_for_test().is_empty());
-    assert_eq!(output.finish(), control);
+    let candidate = output.finish();
+    assert!(structural_facts(&candidate).is_empty());
+    assert_eq!(candidate, control);
 }

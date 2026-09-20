@@ -2,25 +2,11 @@
 
 use crate::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
-use std::sync::Arc;
+
+use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
 
 use crate::{
-    lexical::operator_scan::OperatorSite,
-    recovery_record::{
-        Delimiter, ExpectationSources, ExpectedSyntax, ForStatementRole, GrammarRole,
-        KeywordEvidence, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
-
-use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     expression::{is_required_operand_boundary, required_expr_item_normalized},
     handoff::{Either, MlMode, NormalizedExit, complete, handoff},
@@ -203,7 +189,7 @@ fn pattern_slot_normalized(
         || implicit_delimited_newline(baseline, item.leading_view())
     {
         i.state.start_node(SyntaxKind::Pattern.into());
-        emit_for_missing(i.rb(), &mut item, item_origin, ForStatementRole::Pattern);
+        emit_for_missing(i.rb(), &mut item, item_origin);
         i.state.finish_node();
         return complete(handoff(item), next_line_entry);
     }
@@ -278,12 +264,7 @@ fn pattern_slot_normalized(
         },
         NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
             if completion == PatternCompletion::Complete {
-                emit_for_missing(
-                    i.rb(),
-                    &mut end.item,
-                    item_origin,
-                    ForStatementRole::InKeyword,
-                );
+                emit_for_missing(i.rb(), &mut end.item, item_origin);
             }
             complete(Err(Either::Right(end)), line_entry)
         }
@@ -309,7 +290,7 @@ fn in_slot_normalized(
     if item.payload_view().is_boundary()
         || implicit_delimited_newline(baseline, item.leading_view())
     {
-        emit_for_missing(i.rb(), &mut item, item_origin, ForStatementRole::InKeyword);
+        emit_for_missing(i.rb(), &mut item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if item_word(&item) == Some("in") {
@@ -335,7 +316,7 @@ fn in_slot_normalized(
     {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    emit_for_missing(i.rb(), &mut item, item_origin, ForStatementRole::InKeyword);
+    emit_for_missing(i.rb(), &mut item, item_origin);
     if matches!(
         token_kind(&item),
         Some(TokenKind::Colon | TokenKind::LBrace)
@@ -445,14 +426,12 @@ fn iterable_from_item_normalized(
             &mut item,
             item_origin,
             iterable_stops(outer_stops),
-            GrammarRole::ForStatement(ForStatementRole::Iterable),
         );
         complete(handoff(item), line_entry)
     } else {
         required_expr_item_normalized(
             i.rb(),
             item,
-            GrammarRole::ForStatement(ForStatementRole::Iterable),
             None,
             baseline,
             iterable_stops(outer_stops),
@@ -510,12 +489,7 @@ fn iterable_from_item_normalized(
             complete(Err(Either::Right(end)), line_entry)
         }
         NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
-            emit_for_missing(
-                i.rb(),
-                &mut end.item,
-                item_origin,
-                ForStatementRole::BodyIntroducer,
-            );
+            emit_for_missing(i.rb(), &mut end.item, item_origin);
             complete(Err(Either::Right(end)), line_entry)
         }
         NormalizedExit::Complete(Ok(()), _) => {
@@ -540,12 +514,7 @@ fn body_normalized(
     if item.payload_view().is_boundary()
         || implicit_delimited_newline(baseline, item.leading_view())
     {
-        emit_for_missing(
-            i.rb(),
-            &mut item,
-            item_origin,
-            ForStatementRole::BodyIntroducer,
-        );
+        emit_for_missing(i.rb(), &mut item, item_origin);
         return complete(handoff(item), line_entry);
     }
     match token_kind(&item) {
@@ -576,12 +545,7 @@ fn body_normalized(
             )
         }
         _ if outer_boundary(i.rb(), &item, baseline, outer_stops) => {
-            emit_for_missing(
-                i.rb(),
-                &mut item,
-                item_origin,
-                ForStatementRole::BodyIntroducer,
-            );
+            emit_for_missing(i.rb(), &mut item, item_origin);
             complete(handoff(item), line_entry)
         }
         _ => recover_body_introducer_normalized(
@@ -615,7 +579,6 @@ fn colon_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
-            GrammarRole::ForStatement(ForStatementRole::IndentedStatement),
             outer_stops,
             item_origin,
             line_entry,
@@ -631,7 +594,7 @@ fn colon_body_normalized(
                 baseline,
                 outer_stops,
             );
-            emit_for_missing(i.rb(), &mut item, item_origin, ForStatementRole::Body);
+            emit_for_missing(i.rb(), &mut item, item_origin);
             complete(handoff(item), line_entry)
         }
         None => inline_body_normalized(
@@ -677,7 +640,6 @@ fn inline_body_normalized(
     let exit = required_expr_item_normalized(
         i.rb(),
         item,
-        GrammarRole::ForStatement(ForStatementRole::Body),
         None,
         baseline,
         stops,
@@ -707,16 +669,9 @@ fn recover_body_introducer_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     item.emit_all_remaining_leading(&mut *i.state);
-    (item, item_origin, line_entry) = emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind =
-                token_syntax_kind(token_kind(&item).expect("For introducer Error owns tokens"));
-            let range = run.emit_item_as(item, item_origin, kind).recovery_range();
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range,
-                category: UnexpectedCategory::OtherCharacter,
-            });
+    (item, item_origin, line_entry) = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
             (item, item_origin, line_entry) = run.lexical(|lex| {
                 scan_expression_item_lexical(
                     lex,
@@ -736,16 +691,8 @@ fn recover_body_introducer_normalized(
             {
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            for_recovery_draft(
-                ForStatementRole::BodyIntroducer,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    );
+        }
+    });
     if !item.payload_view().is_boundary()
         && !implicit_delimited_newline(baseline, item.leading_view())
         && matches!(
@@ -819,7 +766,7 @@ fn outer_boundary_lex(i: LexIn, item: &Item, baseline: usize, outer_stops: Stops
         || matches!(token_kind(item), Some(TokenKind::LBracket))
 }
 
-fn emit_for_missing(i: SyntaxIn, item: &mut Item, origin: usize, role: ForStatementRole) {
+fn emit_for_missing(i: SyntaxIn, item: &mut Item, origin: usize) {
     if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
         item.emit_eof_leading(&mut *i.state);
     }
@@ -827,50 +774,7 @@ fn emit_for_missing(i: SyntaxIn, item: &mut Item, origin: usize, role: ForStatem
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        for_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn for_recovery_draft(
-    role: ForStatementRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        ForStatementRole::Pattern => ExpectedSyntax::Pattern,
-        ForStatementRole::InKeyword => ExpectedSyntax::Keyword(KeywordEvidence::In),
-        ForStatementRole::BodyIntroducer => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        ForStatementRole::Body => ExpectedSyntax::Statement,
-        _ => unreachable!("only For structural slots publish here"),
-    };
-    let expectation = |expected| SyntaxExpectation {
-        role: GrammarRole::ForStatement(role),
-        expected,
-        range: range.clone(),
-        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-    };
-    let expectations: Arc<[SyntaxExpectation]> = if role == ForStatementRole::BodyIntroducer {
-        Arc::from([
-            expectation(expected),
-            expectation(ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
-                Delimiter::Brace,
-            ))),
-        ])
-    } else {
-        Arc::from([expectation(expected)])
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role: GrammarRole::ForStatement(role),
-            range,
-        },
-        kind,
-        unexpected,
-        expectations,
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn label_following_boundary(

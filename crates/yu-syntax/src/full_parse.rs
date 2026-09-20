@@ -1,12 +1,11 @@
-use std::sync::Arc;
+use std::{cell::RefCell, collections::BTreeMap, sync::Arc};
 
 use rowan::GreenNode;
 
 use crate::{
-    HeaderInfo, SourceText,
+    HeaderInfo, SourceText, SyntaxDiagnosticIdentity, SyntaxDiagnosticKind,
     operator_compilation::{conflicting_local_operators, effective_full_parse_operators},
     operator_table::OperatorTable,
-    source_file::parse_root_candidate,
     structural_diagnostic,
     syntax_diagnostic::SyntaxDiagnostic,
     syntax_environment::{SourceRevision, SyntaxEnvironment, SyntaxEnvironmentKey},
@@ -55,21 +54,15 @@ pub enum StructuralRecoveryKind {
     Invalid,
 }
 
-#[cfg(test)]
-use crate::{
-    OperatorFixity, operator_table::OperatorOrigin, syntax_diagnostic::SyntaxDiagnosticCause,
-};
-
 /// Immutable full-parse product for one source revision.
 #[derive(Clone, Debug)]
 pub struct ParsedFile {
     source: Arc<SourceText>,
     revision: SourceRevision,
     header: Arc<HeaderInfo>,
-    syntax_environment: SyntaxEnvironmentKey,
+    syntax: Arc<SyntaxEnvironment>,
     operators: Arc<OperatorTable>,
     green: GreenNode,
-    diagnostics: Arc<[SyntaxDiagnostic]>,
 }
 
 impl ParsedFile {
@@ -86,7 +79,12 @@ impl ParsedFile {
     }
 
     pub fn syntax_environment(&self) -> SyntaxEnvironmentKey {
-        self.syntax_environment
+        self.syntax.key()
+    }
+
+    /// The selected environment whose exact operator inputs parsed this tree.
+    pub fn selected_syntax_environment(&self) -> &Arc<SyntaxEnvironment> {
+        &self.syntax
     }
 
     /// The one effective operator table the parser used, retained for analysis.
@@ -98,8 +96,10 @@ impl ParsedFile {
         &self.green
     }
 
-    pub fn diagnostics(&self) -> &[SyntaxDiagnostic] {
-        &self.diagnostics
+    /// Collects final diagnostics from the retained CST and selected environment.
+    /// Nothing is stored by the parser: each call walks this snapshot in preorder.
+    pub fn syntax_diagnostics(&self) -> Result<Vec<SyntaxDiagnostic>, SyntaxDiagnosticError> {
+        collect_syntax_diagnostics(self)
     }
 
     /// Projects recovery structure from the retained CST in interpreter order.
@@ -155,6 +155,93 @@ pub enum StructuralProjectionError {
     StructuralInvariant,
 }
 
+/// CST/environment analysis could not prove that every selected header fact
+/// refers to exactly one complete full-CST `OperatorHeader` occurrence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SyntaxDiagnosticError {
+    Structural(StructuralProjectionError),
+    HeaderOperatorWithoutAcceptedSite,
+    ConflictingHeaderMapping,
+}
+
+fn collect_syntax_diagnostics(
+    parsed: &ParsedFile,
+) -> Result<Vec<SyntaxDiagnostic>, SyntaxDiagnosticError> {
+    let mut conflicts = BTreeMap::new();
+    for header in parsed.header.operators() {
+        if parsed
+            .operators
+            .fixity_sites(header.name())
+            .and_then(|sites| sites.site(header.fixity()))
+            .is_none()
+        {
+            return Err(SyntaxDiagnosticError::HeaderOperatorWithoutAcceptedSite);
+        }
+    }
+    for conflict in conflicting_local_operators(&parsed.operators, parsed.header.operators()) {
+        let key = (conflict.second_range.start, conflict.second_range.end);
+        if conflicts.insert(key, (conflict, 0u32)).is_some() {
+            return Err(SyntaxDiagnosticError::ConflictingHeaderMapping);
+        }
+    }
+
+    let root = crate::SyntaxNode::new_root(parsed.green.clone());
+    let diagnostics = RefCell::new(Vec::new());
+    let conflicts = RefCell::new(conflicts);
+    structural_diagnostic::walk_with_node_entry(
+        &root,
+        &mut |node, occurrence_path, ordinal| {
+            if node.kind() == crate::SyntaxKind::OperatorHeader {
+                let range = (
+                    usize::from(node.text_range().start()),
+                    usize::from(node.text_range().end()),
+                );
+                if let Some((conflict, matches)) = conflicts.borrow_mut().get_mut(&range) {
+                    *matches = matches
+                        .checked_add(1)
+                        .ok_or(())
+                        .expect("header occurrence count exhausted");
+                    diagnostics
+                        .borrow_mut()
+                        .push(SyntaxDiagnostic::conflicting_operator_fixity(
+                            SyntaxDiagnosticIdentity::new(
+                                occurrence_path.into(),
+                                None,
+                                SyntaxDiagnosticKind::ConflictingOperatorFixity,
+                                ordinal,
+                            ),
+                            conflict.clone(),
+                        ));
+                    return true;
+                }
+            }
+            false
+        },
+        &mut |occurrence| {
+            diagnostics
+                .borrow_mut()
+                .push(SyntaxDiagnostic::structural(occurrence))
+        },
+    )
+    .map_err(|error| match error {
+        structural_diagnostic::StructuralProjectionError::OrdinalExhausted => {
+            StructuralProjectionError::OrdinalExhausted
+        }
+        structural_diagnostic::StructuralProjectionError::StructuralInvariant => {
+            StructuralProjectionError::StructuralInvariant
+        }
+    })
+    .map_err(SyntaxDiagnosticError::Structural)?;
+    if conflicts
+        .into_inner()
+        .into_values()
+        .any(|(_, matches)| matches != 1)
+    {
+        return Err(SyntaxDiagnosticError::ConflictingHeaderMapping);
+    }
+    Ok(diagnostics.into_inner())
+}
+
 /// Parse a source with its discovered header and selected syntax environment.
 pub fn parse_file(
     source: Arc<SourceText>,
@@ -170,41 +257,15 @@ pub fn parse_file(
     // authority or mutating the table while parsing.
     let operators = effective_full_parse_operators(syntax.operators(), header.operators())
         .expect("complete header operators and validated imports never have empty spellings");
-    let candidate = parse_root_candidate(source.as_ref(), &operators, &header.recoveries);
-    let green = candidate.green;
-    let recoveries = candidate.committed_recoveries;
-    let next_construction_event = recoveries
-        .iter()
-        .map(|record| record.id.0)
-        .max()
-        .map_or(0, |id| {
-            id.checked_add(1).expect("diagnostic ID space exhausted")
-        });
-    let diagnostics = recoveries
-        .into_iter()
-        .map(SyntaxDiagnostic::recovery)
-        .chain(
-            conflicting_local_operators(&operators, header.operators())
-                .into_iter()
-                .enumerate()
-                .map(|(event, conflict)| {
-                    let event = u32::try_from(event).expect("diagnostic ID space exhausted");
-                    let id = next_construction_event
-                        .checked_add(event)
-                        .expect("diagnostic ID space exhausted");
-                    SyntaxDiagnostic::conflicting_operator_fixity(id, conflict)
-                }),
-        )
-        .collect();
+    let green = crate::cursor::parse_root(source.as_ref(), &operators);
 
     ParsedFile {
         source,
         revision: SourceRevision::UNTRACKED,
         header,
-        syntax_environment: syntax.key(),
+        syntax,
         operators: Arc::new(operators),
         green,
-        diagnostics,
     }
 }
 
@@ -212,8 +273,10 @@ pub fn parse_file(
 mod tests {
     use super::*;
     use crate::{
-        SyntaxDependencyProvenance, SyntaxDependencySlot,
+        OperatorFixity, OperatorOrigin, SyntaxDependencyProvenance, SyntaxDependencySlot,
         operator_table::{BindingPower, OperatorDeclaration, OperatorFixities},
+        structural_diagnostic::StructuralKind,
+        syntax_diagnostic::SyntaxDiagnosticCause,
     };
 
     #[test]
@@ -226,9 +289,9 @@ mod tests {
         let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
         assert_eq!(parsed.green().to_string(), source.as_ref());
         assert!(
-            parsed.diagnostics().is_empty(),
+            parsed.syntax_diagnostics().unwrap().is_empty(),
             "{:?}",
-            parsed.diagnostics()
+            parsed.syntax_diagnostics()
         );
         let syntax = crate::SyntaxNode::new_root(parsed.green().clone());
         assert_eq!(
@@ -253,7 +316,6 @@ mod tests {
             Arc::from("use a as\r\nprefix (?) 71 = value\r\nmy x = 1\r\n");
         let header = Arc::new(crate::scan_header(source.clone()));
         assert_eq!(header.operators().len(), 1);
-        assert_eq!(header.recoveries.len(), 1);
         let dependency = SyntaxDependencySlot::from_index(0).unwrap();
         let provenance = SyntaxDependencyProvenance::new(
             Arc::from("dependency/operators"),
@@ -278,16 +340,18 @@ mod tests {
         let parsed = parse_file(source.clone(), header.clone(), syntax.clone());
         assert_eq!(parsed.green().to_string(), source.as_ref());
         assert_eq!(parsed.syntax_environment(), syntax.key());
-        let [recovery, construction] = parsed.diagnostics() else {
+        let diagnostics = parsed.syntax_diagnostics().unwrap();
+        let [recovery, construction] = diagnostics.as_slice() else {
             panic!(
                 "recovery followed by imported/local conflict: {:?}",
-                parsed.diagnostics()
+                diagnostics
             );
         };
-        let SyntaxDiagnosticCause::Recovery(recovery_record) = recovery.cause() else {
+        let SyntaxDiagnosticCause::Structural(recovery_record) = recovery.cause() else {
             panic!("header recovery precedes construction");
         };
-        assert_eq!(recovery_record.record(), &header.recoveries[0]);
+        assert_eq!(recovery_record.kind(), StructuralKind::Missing);
+        assert_eq!(recovery_record.range(), &(8..8));
         let SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) = construction.cause()
         else {
             panic!("imported/local conflict");
@@ -302,7 +366,7 @@ mod tests {
         assert_eq!(conflict.first_range(), &(4..20));
         assert_eq!(conflict.second_origin(), OperatorOrigin::Local);
         assert_eq!(conflict.second_range(), header.operators()[0].range());
-        assert!(recovery.id() < construction.id());
+        assert!(recovery_record.ordinal() < 1);
     }
 
     #[test]
@@ -320,13 +384,17 @@ mod tests {
             assert_eq!(header.imports()[0].path(), ["visible"], "{source}");
             let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
             assert_eq!(parsed.green().to_string(), source.as_ref());
-            assert!(parsed.diagnostics().iter().any(|diagnostic| matches!(
-                diagnostic.cause(),
-                SyntaxDiagnosticCause::Recovery(recovery)
-                    if recovery.record().site.role == crate::recovery_record::GrammarRole::Statement(
-                        crate::recovery_record::StatementRole::OperatorDefinitionBody
-                    )
-            )));
+            let diagnostics = parsed.syntax_diagnostics().unwrap();
+            assert!(
+                diagnostics.iter().any(|diagnostic| matches!(
+                    diagnostic.cause(),
+                    SyntaxDiagnosticCause::Structural(recovery)
+                        if recovery.kind() == StructuralKind::ErrorGroup
+                            && recovery.parent()
+                                == crate::SyntaxKind::BracedStatementBlockExpression
+                )),
+                "{source}: {diagnostics:?}"
+            );
             let syntax = crate::SyntaxNode::new_root(parsed.green().clone());
             assert!(
                 syntax
@@ -350,12 +418,11 @@ mod tests {
     }
 
     #[test]
-    fn public_parser_pair_reconciles_frozen_header_after_full_only_recovery() {
+    fn public_parser_pair_derives_header_and_body_recoveries_from_the_cst() {
         let source: Arc<SourceText> = Arc::from(
             "prefix (?) 70 =\r\nuse a as\r\nuse good\r\nprefix (?) 71 = value\r\nmy x = 1\r\n",
         );
         let header = Arc::new(crate::scan_header(source.clone()));
-        assert_eq!(header.recoveries.len(), 1);
         assert_eq!(header.imports().len(), 1);
         assert_eq!(header.imports()[0].path(), ["good"]);
         let parsed = parse_file(
@@ -364,31 +431,23 @@ mod tests {
             Arc::new(SyntaxEnvironment::empty()),
         );
         assert_eq!(parsed.green().to_string(), source.as_ref());
-        let [body, alias, conflict] = parsed.diagnostics() else {
-            panic!(
-                "body, frozen alias, then construction conflict: {:?}",
-                parsed.diagnostics()
-            );
+        let diagnostics = parsed.syntax_diagnostics().unwrap();
+        let [body, alias, conflict] = diagnostics.as_slice() else {
+            panic!("body, alias, then construction conflict: {:?}", diagnostics);
         };
-        let SyntaxDiagnosticCause::Recovery(body) = body.cause() else {
+        let SyntaxDiagnosticCause::Structural(body) = body.cause() else {
             panic!("body recovery")
         };
-        assert_eq!(
-            body.record().site.role,
-            crate::recovery_record::GrammarRole::Statement(
-                crate::recovery_record::StatementRole::OperatorDefinitionBody
-            )
-        );
-        let SyntaxDiagnosticCause::Recovery(alias) = alias.cause() else {
+        assert_eq!(body.kind(), StructuralKind::Missing);
+        let SyntaxDiagnosticCause::Structural(alias) = alias.cause() else {
             panic!("alias recovery")
         };
-        assert_eq!(alias.record(), &header.recoveries[0]);
-        assert!(body.record().id.0 > alias.record().id.0);
+        assert_eq!(alias.kind(), StructuralKind::Missing);
+        assert!(body.ordinal() < alias.ordinal());
         assert!(matches!(
             conflict.cause(),
             SyntaxDiagnosticCause::ConflictingOperatorFixity(_)
         ));
-        assert!(conflict.id() > body.record().id.0);
     }
 
     #[test]
@@ -401,9 +460,9 @@ mod tests {
             let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
             assert_eq!(parsed.green().to_string(), source.as_ref());
             assert!(
-                parsed.diagnostics().is_empty(),
+                parsed.syntax_diagnostics().unwrap().is_empty(),
                 "{:?}",
-                parsed.diagnostics()
+                parsed.syntax_diagnostics()
             );
         }
         let source: Arc<SourceText> = Arc::from("  use a");
@@ -411,16 +470,13 @@ mod tests {
         assert!(header.imports().is_empty());
         let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
         assert_eq!(parsed.green().to_string(), source.as_ref());
-        assert_eq!(parsed.diagnostics().len(), 1);
-        let SyntaxDiagnosticCause::Recovery(record) = parsed.diagnostics()[0].cause() else {
+        let diagnostics = parsed.syntax_diagnostics().unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        let SyntaxDiagnosticCause::Structural(record) = diagnostics[0].cause() else {
             panic!("initial layout recovery")
         };
-        assert_eq!(
-            record.record().site.role,
-            crate::recovery_record::GrammarRole::Statement(
-                crate::recovery_record::StatementRole::Starter
-            )
-        );
+        assert_eq!(record.kind(), StructuralKind::ErrorGroup);
+        assert_eq!(record.range(), &(2..7));
     }
 
     #[test]
@@ -472,7 +528,8 @@ mod tests {
         );
 
         assert_eq!(parsed.green().to_string(), source.as_ref());
-        let [diagnostic] = parsed.diagnostics() else {
+        let diagnostics = parsed.syntax_diagnostics().unwrap();
+        let [diagnostic] = diagnostics.as_slice() else {
             panic!("the duplicate fixity must be diagnosed");
         };
         assert_eq!(diagnostic.primary(), header.operators()[1].range());
@@ -488,7 +545,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_file_preserves_recovery_diagnostics_before_construction_diagnostics() {
+    fn parse_file_emits_construction_and_recovery_in_cst_preorder() {
         // Root expressions are admitted by the public-cutover amendment;
         // an unclaimed close exercises a genuine root recovery.
         let source: Arc<SourceText> =
@@ -501,19 +558,49 @@ mod tests {
         );
 
         assert_eq!(parsed.green().to_string(), source.as_ref());
-        let [recovery, conflict] = parsed.diagnostics() else {
-            panic!("the root recovery and duplicate fixity must both be diagnosed");
+        let diagnostics = parsed.syntax_diagnostics().unwrap();
+        let [conflict, recovery] = diagnostics.as_slice() else {
+            panic!("the duplicate fixity and root recovery must both be diagnosed");
         };
-        assert!(matches!(
-            recovery.cause(),
-            SyntaxDiagnosticCause::Recovery(_)
-        ));
         assert!(matches!(
             conflict.cause(),
             SyntaxDiagnosticCause::ConflictingOperatorFixity(_)
         ));
-        assert_ne!(recovery.id(), conflict.id());
-        assert!(recovery.id() < conflict.id());
+        let SyntaxDiagnosticCause::Structural(recovery) = recovery.cause() else {
+            panic!("root raw CST Error follows the enclosing conflicting header");
+        };
+        assert_eq!(recovery.kind(), StructuralKind::ErrorGroup);
+        assert_eq!(recovery.range(), &(source.len() - 2..source.len() - 1));
+    }
+
+    #[test]
+    fn conflicting_operator_header_precedes_its_nested_recovery() {
+        let source: Arc<SourceText> = Arc::from("prefix (!) 70 = left\nprefix @ (!) 71 = right\n");
+        let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+        assert_eq!(header.operators().len(), 2);
+        let parsed = parse_file(source.clone(), header, Arc::new(SyntaxEnvironment::empty()));
+
+        assert_eq!(parsed.green().to_string(), source.as_ref());
+        let diagnostics = parsed.syntax_diagnostics().unwrap();
+        let [conflict, recovery] = diagnostics.as_slice() else {
+            panic!("complete conflicting header and its child recovery: {diagnostics:?}");
+        };
+        assert!(matches!(
+            conflict.cause(),
+            SyntaxDiagnosticCause::ConflictingOperatorFixity(_)
+        ));
+        let SyntaxDiagnosticCause::Structural(recovery) = recovery.cause() else {
+            panic!("the child Error follows its enclosing header conflict");
+        };
+        assert_eq!(recovery.kind(), StructuralKind::ErrorGroup);
+        assert!(conflict.identity().ordinal() < recovery.identity().ordinal());
+        assert!(
+            recovery
+                .identity()
+                .occurrence_path()
+                .starts_with(conflict.identity().occurrence_path()),
+            "the recovery belongs to the conflicting OperatorHeader"
+        );
     }
 
     #[test]
@@ -538,8 +625,9 @@ mod tests {
         assert_eq!(site.origin(), OperatorOrigin::Local);
         assert_eq!(site.range(), header.operators()[0].range());
 
-        let [diagnostic] = parsed.diagnostics() else {
-            panic!("one rejected duplicate: {:?}", parsed.diagnostics());
+        let diagnostics = parsed.syntax_diagnostics().unwrap();
+        let [diagnostic] = diagnostics.as_slice() else {
+            panic!("one rejected duplicate: {:?}", diagnostics);
         };
         let SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) = diagnostic.cause() else {
             panic!("duplicate fixity must not masquerade as CST recovery");
@@ -584,8 +672,9 @@ mod tests {
         assert_eq!(site.origin(), OperatorOrigin::Imported(dependency));
         assert_eq!(site.range(), &(4..20));
 
-        let [diagnostic] = parsed.diagnostics() else {
-            panic!("one rejected local duplicate: {:?}", parsed.diagnostics());
+        let diagnostics = parsed.syntax_diagnostics().unwrap();
+        let [diagnostic] = diagnostics.as_slice() else {
+            panic!("one rejected local duplicate: {:?}", diagnostics);
         };
         let SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) = diagnostic.cause() else {
             panic!("imported/local duplicate must not masquerade as CST recovery");
@@ -622,9 +711,9 @@ mod tests {
             Some(header.operators()[1].range().clone())
         );
         assert!(
-            parsed.diagnostics().is_empty(),
+            parsed.syntax_diagnostics().unwrap().is_empty(),
             "{:?}",
-            parsed.diagnostics()
+            parsed.syntax_diagnostics()
         );
     }
 
@@ -641,7 +730,8 @@ mod tests {
         );
 
         let conflicts = parsed
-            .diagnostics()
+            .syntax_diagnostics()
+            .unwrap()
             .iter()
             .map(|diagnostic| match diagnostic.cause() {
                 SyntaxDiagnosticCause::ConflictingOperatorFixity(conflict) => conflict.clone(),
@@ -655,10 +745,11 @@ mod tests {
         assert_eq!(conflicts[1].second_range(), header.operators()[2].range());
         assert!(
             parsed
-                .diagnostics()
+                .syntax_diagnostics()
+                .unwrap()
                 .windows(2)
-                .all(|pair| pair[0].id() < pair[1].id()),
-            "conflict ids continue after the recovery ids in source order"
+                .all(|pair| pair[0].primary().start <= pair[1].primary().start),
+            "conflicts preserve CST/source order"
         );
     }
 
@@ -674,9 +765,9 @@ mod tests {
         );
         assert!(parsed.operators().fixity_sites("?").is_none());
         assert!(
-            parsed.diagnostics().is_empty(),
+            parsed.syntax_diagnostics().unwrap().is_empty(),
             "{:?}",
-            parsed.diagnostics()
+            parsed.syntax_diagnostics()
         );
     }
 }

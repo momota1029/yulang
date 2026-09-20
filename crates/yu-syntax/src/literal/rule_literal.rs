@@ -173,11 +173,7 @@ pub(crate) fn rule_literal_normalized(
                     }
                     RuleLiteralSequenceExit::OuterTerminator(mut end, line_entry) => {
                         end.emit_all_remaining_leading(&mut *i.state);
-                        emit_rule_missing(
-                            i.rb(),
-                            LiteralRole::RuleLiteralInterpolationCloseBrace,
-                            rule_recovery_at(&end, part_origin),
-                        );
+                        emit_rule_missing(i.rb(), rule_recovery_at(&end, part_origin));
                         i.state.finish_node();
                         debug_assert_eq!(end.payload_view().spelling(), Some("\""));
                         end.emit_payload(&mut *i.state, SyntaxKind::RuleLiteralEnd);
@@ -185,11 +181,7 @@ pub(crate) fn rule_literal_normalized(
                         return NormalizedRuleLiteralExit::Complete(line_entry);
                     }
                     RuleLiteralSequenceExit::Boundary(pending, _) => {
-                        emit_rule_missing(
-                            i.rb(),
-                            LiteralRole::RuleLiteralInterpolationCloseBrace,
-                            rule_recovery_at(&pending, part_origin),
-                        );
+                        emit_rule_missing(i.rb(), rule_recovery_at(&pending, part_origin));
                         i.state.finish_node();
                         return finish_rule_literal_boundary(i, pending, part_origin);
                     }
@@ -260,11 +252,7 @@ fn emit_rule_lazy_capture(
         {
             Ok(prefix) => prefix,
             Err(pending) => {
-                emit_rule_missing(
-                    i.rb(),
-                    LiteralRole::RuleLazyCaptureCloseBrace,
-                    rule_recovery_at(&pending, *part_origin),
-                );
+                emit_rule_missing(i.rb(), rule_recovery_at(&pending, *part_origin));
                 i.state.finish_node();
                 return Err(pending);
             }
@@ -294,7 +282,7 @@ fn emit_rule_lazy_capture(
         advance_item_origin(part_origin, &name);
         emit_literal_item(&mut i, name, SyntaxKind::RuleLiteralText);
     } else {
-        emit_rule_missing(i.rb(), LiteralRole::RuleLazyCaptureName, *part_origin);
+        emit_rule_missing(i.rb(), *part_origin);
     }
     i.state.finish_node();
     Ok(())
@@ -354,11 +342,7 @@ fn finish_rule_literal_boundary(
     origin: usize,
 ) -> NormalizedRuleLiteralExit {
     let line_entry = pending_line_entry(&pending);
-    emit_rule_missing(
-        i.rb(),
-        LiteralRole::RuleLiteralTerminator,
-        rule_recovery_at(&pending, origin),
-    );
+    emit_rule_missing(i.rb(), rule_recovery_at(&pending, origin));
     i.state.finish_node();
     NormalizedRuleLiteralExit::Boundary(pending, line_entry)
 }

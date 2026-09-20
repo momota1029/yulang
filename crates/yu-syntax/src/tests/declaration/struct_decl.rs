@@ -1,4 +1,53 @@
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
+
+#[test]
+fn struct_selector_rejection_is_effect_free_for_visibility_prefixes() {
+    use crate::{
+        declaration::struct_decl::struct_declaration_selected_normalized,
+        lexical::item::{LeadingTrivia, Payload, Token},
+    };
+
+    for visibility in ["my", "our", "pub"] {
+        for source in [" structure S;", "\r\nstruct S;"] {
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut input = source;
+            let mut output = GreenNodeBuilder::new();
+            output.start_node(SyntaxKind::Root.into());
+            output.token(SyntaxKind::Identifier.into(), "seed");
+            let item = Item::plain(
+                LeadingTrivia::default(),
+                Payload::Token(Token {
+                    kind: TokenKind::Identifier,
+                    text: visibility.into(),
+                }),
+            );
+
+            assert!(!struct_declaration_selected_normalized(
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+                &item,
+                0,
+                100,
+                None,
+            ));
+            assert_eq!(input, source, "{visibility} {source:?}");
+            assert_eq!(
+                item,
+                Item::plain(
+                    LeadingTrivia::default(),
+                    Payload::Token(Token {
+                        kind: TokenKind::Identifier,
+                        text: visibility.into(),
+                    }),
+                )
+            );
+            output.finish_node();
+            let green = finish_with_discarded_recoveries(output, recover);
+            assert_eq!(green.to_string(), "seed");
+        }
+    }
+}
 
 // Composition witnesses use kind, identity, parent and byte extent. Error
 // spelling is opaque; native spelling is checked only for non-Error tokens.
@@ -706,17 +755,9 @@ fn struct_indented_field_separator_error_has_direct_cst_slot() {
 
 #[test]
 fn struct_field_separator_and_close_errors_are_distinct_without_error_spelling() {
-    use crate::recovery_record::{
-        ConstructRole, DeclarationRole, Delimiter, GrammarRole, RecoveryKind, StructRole,
-    };
     use SyntaxKind::{Error, LBrace, Missing, RBrace, StructField};
 
-    let separator = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldSeparator));
-    let close = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::StructNamedFields,
-        delimiter: Delimiter::Brace,
-    };
-    for (left, right, error_start, error_count, initial, eof, left_errors, right_errors) in [
+    for (left, right, error_start, error_count, initial, eof, left_facts, right_facts) in [
         (
             "struct S{x:T;}",
             "struct S{x:T]}",
@@ -724,8 +765,8 @@ fn struct_field_separator_and_close_errors_are_distinct_without_error_spelling()
             1,
             false,
             false,
-            vec![(separator, 12..13)],
-            vec![(close, 12..13)],
+            vec![(StructuralKind::ErrorGroup, 12..13)],
+            vec![(StructuralKind::ErrorGroup, 12..13)],
         ),
         (
             "struct S{x:T;",
@@ -734,8 +775,14 @@ fn struct_field_separator_and_close_errors_are_distinct_without_error_spelling()
             1,
             false,
             true,
-            vec![(separator, 12..13)],
-            vec![(close, 12..13)],
+            vec![
+                (StructuralKind::ErrorGroup, 12..13),
+                (StructuralKind::Missing, 13..13),
+            ],
+            vec![
+                (StructuralKind::ErrorGroup, 12..13),
+                (StructuralKind::Missing, 13..13),
+            ],
         ),
         (
             "struct S{x:T;;}",
@@ -744,8 +791,11 @@ fn struct_field_separator_and_close_errors_are_distinct_without_error_spelling()
             2,
             false,
             false,
-            vec![(separator, 12..14)],
-            vec![(separator, 12..13), (close, 13..14)],
+            vec![(StructuralKind::ErrorGroup, 12..14)],
+            vec![
+                (StructuralKind::ErrorGroup, 12..13),
+                (StructuralKind::ErrorGroup, 13..14),
+            ],
         ),
         (
             "struct S{;x:T}",
@@ -754,14 +804,13 @@ fn struct_field_separator_and_close_errors_are_distinct_without_error_spelling()
             1,
             true,
             false,
-            vec![(separator, 9..10)],
-            vec![(close, 9..10)],
+            vec![(StructuralKind::ErrorGroup, 9..10)],
+            vec![(StructuralKind::ErrorGroup, 9..10)],
         ),
     ] {
         let mut projections = Vec::new();
-        for (source, expected_errors) in [(left, left_errors), (right, right_errors)] {
-            let (green, exit, records, remainder) =
-                typed_struct_continuation(source, 0, None, 0, None);
+        for (source, expected_facts) in [(left, left_facts), (right, right_facts)] {
+            let (green, exit, facts, remainder) = typed_struct_continuation(source, 0, 0, None);
             assert_eq!(green.to_string(), source);
             assert!(matches!(
                 exit,
@@ -774,10 +823,7 @@ fn struct_field_separator_and_close_errors_are_distinct_without_error_spelling()
                 expected.push((StructField, true, 9..12));
             }
             expected.extend((error_start..error_start + error_count).map(|at| {
-                if expected_errors
-                    .iter()
-                    .any(|(role, range)| *role == close && range.start == at)
-                {
+                if source.as_bytes()[at] == b']' {
                     (SyntaxKind::StructFieldForeignClose, true, at..at + 1)
                 } else {
                     (Error, false, at..at + 1)
@@ -805,32 +851,14 @@ fn struct_field_separator_and_close_errors_are_distinct_without_error_spelling()
                 "{source:?}"
             );
             projections.push(cst_with_opaque_error_spelling(&SyntaxNode::new_root(green)));
-
-            // Temporary records are counterexample evidence of different roles and
-            // group partitions, never input to the future CST slot interpreter.
-            let mut expected_records = expected_errors
-                .into_iter()
-                .map(|(role, range)| (RecoveryKind::Error, role, range))
-                .collect::<Vec<_>>();
-            if eof {
-                expected_records.push((RecoveryKind::Missing, close, source.len()..source.len()));
-            }
-            assert_eq!(
-                records
-                    .into_iter()
-                    .map(|record| (record.kind, record.site.role, record.site.range))
-                    .collect::<Vec<_>>(),
-                expected_records,
-                "{source:?}"
-            );
+            assert_eq!(facts, expected_facts, "{source:?}");
         }
         assert_ne!(projections[0], projections[1], "{left:?} versus {right:?}");
     }
 }
 
 #[test]
-fn struct_field_foreign_close_wraps_one_maximal_run_with_unchanged_records() {
-    use crate::recovery_record::{GrammarRole, RecoveryKind};
+fn struct_field_foreign_close_wraps_one_maximal_run_with_matching_structural_facts() {
     for (source, runs) in [
         ("struct S{]x:T}", vec!["]"]),
         ("struct S{x:T,]y:U}", vec!["]"]),
@@ -846,7 +874,7 @@ fn struct_field_foreign_close_wraps_one_maximal_run_with_unchanged_records() {
         ("struct S{ \t] /*名*/ ) \r\n x:T}", vec!["] /*名*/ )"]),
     ] {
         let origin = 100;
-        let (green, _, records) = typed_struct(source, origin, None, 0, None);
+        let (green, _, facts) = typed_struct(source, origin, 0, None);
         assert_eq!(green.to_string(), source);
         let root = SyntaxNode::new_root(green.clone());
         let wrappers = root
@@ -858,15 +886,20 @@ fn struct_field_foreign_close_wraps_one_maximal_run_with_unchanged_records() {
             runs,
             "{source:?}"
         );
-        let close_records = records
+        let wrapper_facts = wrappers
             .iter()
-            .filter(|record| {
-                record.kind == RecoveryKind::Error
-                    && matches!(record.site.role, GrammarRole::ClosingDelimiter { .. })
+            .map(|wrapper| {
+                (
+                    StructuralKind::ErrorGroup,
+                    usize::from(wrapper.text_range().start())
+                        ..usize::from(wrapper.text_range().end()),
+                )
             })
             .collect::<Vec<_>>();
-        assert_eq!(wrappers.len(), close_records.len());
-        for (wrapper, record) in wrappers.iter().zip(close_records) {
+        for wrapper_fact in &wrapper_facts {
+            assert!(facts.contains(wrapper_fact), "{source:?}: {wrapper_fact:?}");
+        }
+        for wrapper in &wrappers {
             assert_eq!(
                 wrapper.parent().unwrap().kind(),
                 SyntaxKind::StructDeclaration
@@ -876,15 +909,7 @@ fn struct_field_foreign_close_wraps_one_maximal_run_with_unchanged_records() {
                     .children_with_tokens()
                     .all(|child| child.as_token().is_some() && child.kind() == SyntaxKind::Error)
             );
-            assert_eq!(
-                record.site.range,
-                origin + usize::from(wrapper.text_range().start())
-                    ..origin + usize::from(wrapper.text_range().end())
-            );
         }
-        let (frozen, _, replayed) = typed_struct(source, origin, Some(&records), 0, None);
-        assert_eq!(frozen, green);
-        assert_eq!(replayed, records);
     }
 }
 
@@ -933,7 +958,7 @@ fn struct_field_foreign_close_is_absent_from_other_field_recovery() {
 fn struct_field_foreign_close_finishes_before_active_stop_leading() {
     let source = "struct S(T] \r\n : next";
     let (green, exit, _, remainder) =
-        typed_struct_continuation(source, 100, None, crate::lexical::stops::STOP_COLON, None);
+        typed_struct_continuation(source, 100, crate::lexical::stops::STOP_COLON, None);
     assert_eq!(green.to_string(), "struct S(T]");
     assert_eq!(remainder, " next");
     let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
@@ -954,7 +979,6 @@ fn struct_field_foreign_close_finishes_before_active_stop_leading() {
 fn struct_field_foreign_close_finishes_at_protected_fence() {
     use crate::lexical::item::{BorrowedTarget, Boundary};
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
-    use crate::recovery_record::{ConstructRole, Delimiter, GrammarRole, RecoveryKind};
 
     let fence = FenceBoundary {
         opener: FenceOpener {
@@ -968,8 +992,8 @@ fn struct_field_foreign_close_finishes_at_protected_fence() {
     let origin = 100;
     let accepted = "struct S{] /*名*/ )";
     let source = format!("{accepted}\r\n>> ```\r\nouter");
-    let (green, exit, records, remainder) =
-        typed_struct_continuation(&source, origin, None, 0, Some(&fence));
+    let (green, exit, facts, remainder) =
+        typed_struct_continuation(&source, origin, 0, Some(&fence));
     assert_eq!(green.to_string(), accepted);
     assert_eq!(remainder, ">> ```\r\nouter");
     let node = declaration(&green);
@@ -988,35 +1012,24 @@ fn struct_field_foreign_close_finishes_at_protected_fence() {
             .all(|child| child.as_token().is_some() && child.kind() == SyntaxKind::Error)
     );
     assert_eq!(wrapper.next_sibling().unwrap().kind(), SyntaxKind::Missing);
-    assert_eq!(records.len(), 2);
-    assert_eq!(records[0].kind, RecoveryKind::Error);
-    assert_eq!(records[0].site.range, origin + 9..origin + accepted.len());
     assert_eq!(
-        records[0].site.role,
-        GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::StructNamedFields,
-            delimiter: Delimiter::Brace,
-        }
+        facts,
+        [
+            (StructuralKind::ErrorGroup, 9..accepted.len()),
+            (StructuralKind::Missing, accepted.len()..accepted.len()),
+        ]
     );
-    assert_eq!(records[1].kind, RecoveryKind::Missing);
-    let (again, frozen_exit, frozen, frozen_remainder) =
-        typed_struct_continuation(&source, origin, Some(&records), 0, Some(&fence));
-    assert_eq!(again, green);
-    assert_eq!(frozen, records);
-    assert_eq!(frozen_remainder, remainder);
-    for exit in [exit, frozen_exit] {
-        let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
-        else {
-            panic!("foreign-close recovery must return the protected fence")
-        };
-        let (leading, pending) = emit_terminal_leading_text(boundary);
-        assert_eq!(leading, "\r\n");
-        assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
-        assert!(matches!(
-            pending.into_kind(),
-            Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
-        ));
-    }
+    let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) = exit
+    else {
+        panic!("foreign-close recovery must return the protected fence")
+    };
+    let (leading, pending) = emit_terminal_leading_text(boundary);
+    assert_eq!(leading, "\r\n");
+    assert_eq!(pending.coordinate(), origin + accepted.len() + 2);
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
 }
 
 fn cst_with_opaque_error_spelling(node: &SyntaxNode) -> String {
@@ -1194,7 +1207,6 @@ fn struct_field_local_close_missing_preserves_active_stop_cst() {
     let (green, exit, _, remainder) = typed_struct_continuation(
         "struct S(T \r\n : next",
         100,
-        None,
         crate::lexical::stops::STOP_COLON,
         None,
     );
@@ -1223,7 +1235,7 @@ fn struct_field_local_close_missing_preserves_protected_fence_cst() {
         close_column: 0,
     };
     let (green, exit, _, remainder) =
-        typed_struct_continuation("struct S(\r\n>> ```\r\nouter", 100, None, 0, Some(&fence));
+        typed_struct_continuation("struct S(\r\n>> ```\r\nouter", 100, 0, Some(&fence));
     assert_eq!(green.to_string(), "struct S(");
     assert_eq!(remainder, ">> ```\r\nouter");
     let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart) = exit else {
@@ -1791,33 +1803,23 @@ fn struct_named_field_colon_error_keeps_dedent_pending_without_missing() {
 fn typed_struct(
     source: &str,
     origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     stops: Stops,
     fence: Option<&FenceBoundary>,
-) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
-    let (green, exit, records, _) = typed_struct_continuation(source, origin, frozen, stops, fence);
-    (green, exit, records)
+) -> (GreenNode, NormalizedExit, Vec<StructuralFact>) {
+    let (green, exit, facts, _) = typed_struct_continuation(source, origin, stops, fence);
+    (green, exit, facts)
 }
 
 fn typed_struct_continuation<'a>(
     source: &'a str,
     origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     stops: Stops,
     fence: Option<&FenceBoundary>,
-) -> (
-    GreenNode,
-    NormalizedExit,
-    Vec<CommittedRecoveryRecord>,
-    &'a str,
-) {
+) -> (GreenNode, NormalizedExit, Vec<StructuralFact>, &'a str) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
@@ -1830,12 +1832,13 @@ fn typed_struct_continuation<'a>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     builder.finish_node();
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, exit, records, input)
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, exit, facts, input)
 }
 
 #[test]
-fn struct_header_frozen_preserves_exact_close_and_newline_continuation() {
+fn struct_header_preserves_exact_close_and_newline_continuation() {
     for header in ["struct", "struct @", "struct S", "struct 名 @"] {
         for (leading, pending, suffix) in [
             ("  ", ")", "tail"),
@@ -1844,27 +1847,13 @@ fn struct_header_frozen_preserves_exact_close_and_newline_continuation() {
             ("\r\n", "next", " tail"),
         ] {
             let source = format!("{header}{leading}{pending}{suffix}");
-            let (green, exit, mut records, remainder) =
-                typed_struct_continuation(&source, 100, None, 0, None);
+            let (green, exit, facts, remainder) = typed_struct_continuation(&source, 100, 0, None);
             assert_eq!(green.to_string(), header);
-            assert_eq!(records.len(), 1);
+            assert_eq!(facts.len(), 1);
             assert_eq!(remainder, suffix);
-            records[0].id = crate::recovery_record::DiagnosticId(71);
-            let (again, frozen_exit, frozen, frozen_remainder) =
-                typed_struct_continuation(&source, 100, Some(&records), 0, None);
-            assert_eq!(again, green);
-            assert_eq!(frozen, records);
-            assert_eq!(frozen_remainder, remainder);
             let NormalizedExit::Complete(Err(Either::Left(mut item)), entry) = exit else {
                 panic!("protected Item")
             };
-            let NormalizedExit::Complete(Err(Either::Left(frozen_item)), frozen_entry) =
-                frozen_exit
-            else {
-                panic!("frozen protected Item")
-            };
-            assert_eq!(frozen_item, item);
-            assert_eq!(frozen_entry, entry);
             assert_eq!(entry, LineEntry::InLine);
             let successor_origin = 100 + source.len() - remainder.len();
             assert_eq!(
@@ -1882,212 +1871,49 @@ fn struct_header_frozen_preserves_exact_close_and_newline_continuation() {
 }
 
 #[test]
-fn struct_header_visibility_rejection_preserves_seeded_output_and_cursor() {
-    use crate::{
-        cursor::recovery::RecoveryDraft,
-        declaration::struct_decl::struct_declaration_selected_normalized,
-        lexical::item::{LeadingTrivia, Payload, Token},
-    };
-    let (_, _, mut seed) = typed_struct("struct", 100, None, 0, None);
-    seed[0].id = crate::recovery_record::DiagnosticId(71);
-    for visibility in ["my", "our", "pub"] {
-        for source in [" structure S;", "\r\nstruct S;"] {
-            let operators = OperatorTable::empty();
-            let mut recover = Recover::new_for_test(&operators);
-            let mut input = source;
-            let mut builder = {
-                recover = Recover::reconcile_for_test(recover.operators(), &seed);
-                GreenNodeBuilder::new()
-            };
-            builder.start_node(SyntaxKind::Root.into());
-            builder.token(SyntaxKind::Identifier.into(), "seed");
-            builder.start_node(SyntaxKind::Missing.into());
-            builder.finish_node();
-            recover.commit_recovery_for_test(RecoveryDraft::new(
-                seed[0].site.clone(),
-                seed[0].kind,
-                seed[0].unexpected.clone(),
-                seed[0].expectations.clone(),
-                0,
-            ));
-            let before = recover.diagnostic_position();
-            let make_item = || {
-                Item::plain(
-                    LeadingTrivia::default(),
-                    Payload::Token(Token {
-                        kind: TokenKind::Identifier,
-                        text: visibility.into(),
-                    }),
-                )
-            };
-            let item = make_item();
-            assert!(!struct_declaration_selected_normalized(
-                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
-                &item,
-                0,
-                100,
-                None
-            ));
-            assert_eq!(item, make_item());
-            assert_eq!(input, source);
-            assert_eq!(recover.diagnostic_position(), before);
-            assert_eq!(recover.recovery_slot_count(), 1);
-            builder.finish_node();
-            let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-            assert_eq!(green.to_string(), "seed");
-            assert_eq!(
-                SyntaxNode::new_root(green).children_with_tokens().count(),
-                2
-            );
-            assert_eq!(records, seed);
-        }
-    }
-}
-
-#[test]
-fn struct_header_exact_shifted_frozen_records_and_native_runs() {
-    use crate::recovery_record::{
-        DeclarationRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StructRole, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-    for (source, slot, kind, range, text) in [
-        (
-            "struct",
-            StructRole::Name,
-            RecoveryKind::Missing,
-            6..6,
-            "struct",
-        ),
-        (
-            "struct  ",
-            StructRole::Name,
-            RecoveryKind::Missing,
-            8..8,
-            "struct  ",
-        ),
-        (
-            "struct;",
-            StructRole::Name,
-            RecoveryKind::Missing,
-            6..6,
-            "struct;",
-        ),
+fn struct_header_structural_facts_and_native_runs_are_exact() {
+    for (source, kind, range, text) in [
+        ("struct", StructuralKind::Missing, 6..6, "struct"),
+        ("struct  ", StructuralKind::Missing, 8..8, "struct  "),
+        ("struct;", StructuralKind::Missing, 6..6, "struct;"),
         (
             "struct @ S;",
-            StructRole::Name,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..8,
             "struct @ S;",
         ),
         (
             "struct @ # S;",
-            StructRole::Name,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..10,
             "struct @ # S;",
         ),
-        (
-            "struct @  ",
-            StructRole::Name,
-            RecoveryKind::Error,
-            7..8,
-            "struct @",
-        ),
-        (
-            "struct S",
-            StructRole::BodyIntroducer,
-            RecoveryKind::Missing,
-            8..8,
-            "struct S",
-        ),
-        (
-            "struct S  ",
-            StructRole::BodyIntroducer,
-            RecoveryKind::Missing,
-            10..10,
-            "struct S  ",
-        ),
-        (
-            "struct S Foo",
-            StructRole::BodyIntroducer,
-            RecoveryKind::Missing,
-            8..8,
-            "struct S ",
-        ),
+        ("struct @  ", StructuralKind::ErrorGroup, 7..8, "struct @"),
+        ("struct S", StructuralKind::Missing, 8..8, "struct S"),
+        ("struct S  ", StructuralKind::Missing, 10..10, "struct S  "),
+        ("struct S Foo", StructuralKind::Missing, 9..9, "struct S "),
         (
             "struct S @ ;",
-            StructRole::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             9..10,
             "struct S @ ;",
         ),
         (
             "struct S @  ",
-            StructRole::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             9..10,
             "struct S @",
         ),
         (
             "struct 名 @ ;",
-            StructRole::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             11..12,
             "struct 名 @ ;",
         ),
     ] {
-        let (green, _, records) = typed_struct(source, 100, None, 0, None);
+        let (green, _, facts) = typed_struct(source, 100, 0, None);
         assert_eq!(green.to_string(), text, "{source:?}");
-        let range = range.start + 100..range.end + 100;
-        let role = GrammarRole::Declaration(DeclarationRole::Struct(slot));
-        let expected = if slot == StructRole::Name {
-            vec![ExpectedSyntax::Identifier]
-        } else {
-            vec![
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Parenthesis)),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            ]
-        };
-        assert_eq!(
-            records,
-            [CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone()
-                },
-                kind,
-                unexpected: if kind == RecoveryKind::Error {
-                    Arc::from([UnexpectedSyntax::Token {
-                        range: range.clone(),
-                        category: UnexpectedCategory::OtherCharacter,
-                    }])
-                } else {
-                    Arc::from([])
-                },
-                expectations: expected
-                    .into_iter()
-                    .map(|expected| SyntaxExpectation {
-                        role,
-                        expected,
-                        range: range.clone(),
-                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE
-                    })
-                    .collect::<Vec<_>>()
-                    .into(),
-                primary_expectation: 0
-            }],
-            "{source:?}"
-        );
-        let mut seeded = records.clone();
-        seeded[0].id = DiagnosticId(71);
-        let (again, _, frozen) = typed_struct(source, 100, Some(&seeded), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, seeded);
+        assert_eq!(facts, [(kind, range)], "{source:?}");
     }
 }
 
@@ -2103,9 +1929,9 @@ fn struct_header_keeps_terminal_leading_and_accepts_deeper_retry() {
         ("struct S\r\nnext", "struct S"),
         ("struct S @\r\nnext", "struct S @"),
     ] {
-        let (green, exit, records) = typed_struct(source, 100, None, 0, None);
+        let (green, exit, facts) = typed_struct(source, 100, 0, None);
         assert_eq!(green.to_string(), text, "{source:?}");
-        assert_eq!(records.len(), 1);
+        assert_eq!(facts.len(), 1);
         let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
             panic!("pending boundary")
         };
@@ -2118,9 +1944,9 @@ fn struct_header_keeps_terminal_leading_and_accepts_deeper_retry() {
         "struct @ S()",
         "struct @ S:\n  x: F",
     ] {
-        let (green, _, records) = typed_struct(source, 0, None, 0, None);
+        let (green, _, facts) = typed_struct(source, 0, 0, None);
         assert_eq!(green.to_string(), source);
-        assert_eq!(records.len(), 1);
+        assert_eq!(facts.len(), 1);
     }
 }
 
@@ -2137,7 +1963,6 @@ fn struct_header_active_starters_and_quoted_fences_remain_whole() {
         stops::{STOP_COLON, STOP_LBRACE},
         yumark::{FenceOpener, FencePrefixPolicy},
     };
-    use crate::recovery_record::RecoveryKind;
     for (source, text, stops, leading) in [
         ("struct  :tail", "struct", STOP_COLON, "  "),
         ("struct @  :tail", "struct @", STOP_COLON, "  "),
@@ -2148,9 +1973,9 @@ fn struct_header_active_starters_and_quoted_fences_remain_whole() {
         ("struct\r\n", "struct", STOP_COLON, "\r\n"),
         ("struct S\r\n", "struct S", STOP_COLON, "\r\n"),
     ] {
-        let (green, exit, records) = typed_struct(source, 100, None, stops, None);
+        let (green, exit, facts) = typed_struct(source, 100, stops, None);
         assert_eq!(green.to_string(), text, "{source:?}");
-        assert_eq!(records.len(), 1);
+        assert_eq!(facts.len(), 1);
         let mut item = match exit {
             NormalizedExit::Complete(Err(Either::Left(item)), _) => item,
             NormalizedExit::Complete(Err(Either::Right(end)), _) => end.item,
@@ -2158,7 +1983,7 @@ fn struct_header_active_starters_and_quoted_fences_remain_whole() {
         };
         assert_eq!(emit_pending_leading_text(&mut item), leading);
         if !source.contains('@') {
-            assert_eq!(records[0].site.range, 100 + text.len()..100 + text.len());
+            assert_eq!(facts[0].1, text.len()..text.len());
         }
     }
     let fence = FenceBoundary {
@@ -2171,42 +1996,32 @@ fn struct_header_active_starters_and_quoted_fences_remain_whole() {
         close_column: 0,
     };
     for (source, text, range, kind) in [
-        (
-            "struct\r\n>> ```",
-            "struct",
-            108..108,
-            RecoveryKind::Missing,
-        ),
+        ("struct\r\n>> ```", "struct", 6..6, StructuralKind::Missing),
         (
             "struct @\r\n>> ```",
             "struct @",
-            107..108,
-            RecoveryKind::Error,
+            7..8,
+            StructuralKind::ErrorGroup,
         ),
         (
             "struct S\r\n>> ```",
             "struct S",
-            110..110,
-            RecoveryKind::Missing,
+            8..8,
+            StructuralKind::Missing,
         ),
         (
             "struct S @\r\n>> ```",
             "struct S @",
-            109..110,
-            RecoveryKind::Error,
+            9..10,
+            StructuralKind::ErrorGroup,
         ),
     ] {
-        let (green, exit, records) = typed_struct(source, 100, None, 0, Some(&fence));
+        let (green, exit, facts) = typed_struct(source, 100, 0, Some(&fence));
         assert_eq!(green.to_string(), text);
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].site.range, range);
-        assert_eq!(records[0].kind, kind);
+        assert_eq!(facts, [(kind, range)]);
         assert!(
             matches!(exit, NormalizedExit::Complete(Err(Either::Left(ref item)), _) if item.payload_view().is_boundary())
         );
-        let (again, _, frozen) = typed_struct(source, 100, Some(&records), 0, Some(&fence));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
 }
 
@@ -2429,163 +2244,35 @@ fn struct_c11_malformed_recovery_owns_trailing_eof_trivia() {
 }
 
 #[test]
-fn struct_named_field_records_are_exact_and_frozen() {
-    use crate::recovery_record::{
-        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, StructRole, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-
-    for (source, slot, kind, range, expected) in [
-        (
-            "struct S{: T}",
-            StructRole::FieldName,
-            RecoveryKind::Missing,
-            9..9,
-            ExpectedSyntax::Identifier,
-        ),
-        (
-            "struct S{x T}",
-            StructRole::FieldColon,
-            RecoveryKind::Missing,
-            11..11,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        ),
-        (
-            "struct S{@ : T}",
-            StructRole::FieldName,
-            RecoveryKind::Error,
-            9..10,
-            ExpectedSyntax::Identifier,
-        ),
-        (
-            "struct S{x @ : T}",
-            StructRole::FieldColon,
-            RecoveryKind::Error,
-            11..12,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        ),
+fn struct_named_field_structural_facts_are_exact() {
+    for (source, kind, range) in [
+        ("struct S{: T}", StructuralKind::Missing, 9..9),
+        ("struct S{x T}", StructuralKind::Missing, 11..11),
+        ("struct S{@ : T}", StructuralKind::ErrorGroup, 9..10),
+        ("struct S{x @ : T}", StructuralKind::ErrorGroup, 11..12),
     ] {
-        let (green, _, records) = typed_struct(source, 100, None, 0, None);
+        let (green, _, facts) = typed_struct(source, 100, 0, None);
         assert_eq!(green.to_string(), source, "{source:?}");
-        let range = range.start + 100..range.end + 100;
-        let role = GrammarRole::Declaration(DeclarationRole::Struct(slot));
-        assert_eq!(
-            records,
-            [CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone(),
-                },
-                kind,
-                unexpected: if kind == RecoveryKind::Error {
-                    Arc::from([UnexpectedSyntax::Token {
-                        range: range.clone(),
-                        category: UnexpectedCategory::OtherCharacter,
-                    }])
-                } else {
-                    Arc::from([])
-                },
-                expectations: Arc::from([SyntaxExpectation {
-                    role,
-                    expected,
-                    range: range.clone(),
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            }],
-            "{source:?}",
-        );
-        let mut seeded = records.clone();
-        seeded[0].id = DiagnosticId(71);
-        let (again, _, frozen) = typed_struct(source, 100, Some(&seeded), 0, None);
-        assert_eq!(again, green, "{source:?}");
-        assert_eq!(frozen, seeded, "{source:?}");
+        assert_eq!(facts, [(kind, range)], "{source:?}");
     }
 
-    let (green, _, records) = typed_struct("struct S{@ x: T}", 100, None, 0, None);
+    let (green, _, facts) = typed_struct("struct S{@ x: T}", 100, 0, None);
     assert_eq!(green.to_string(), "struct S{@ x: T}");
-    let field = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::Field));
-    let separator = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldSeparator));
     assert_eq!(
-        records,
+        facts,
         [
-            CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role: field,
-                    range: 109..110
-                },
-                kind: RecoveryKind::Error,
-                unexpected: Arc::from([UnexpectedSyntax::Token {
-                    range: 109..110,
-                    category: UnexpectedCategory::OtherCharacter,
-                }]),
-                expectations: Arc::from([SyntaxExpectation {
-                    role: field,
-                    expected: ExpectedSyntax::Identifier,
-                    range: 109..110,
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            },
-            CommittedRecoveryRecord {
-                id: DiagnosticId(1),
-                site: RecoverySiteKey {
-                    role: separator,
-                    range: 111..111
-                },
-                kind: RecoveryKind::Missing,
-                unexpected: Arc::from([]),
-                expectations: Arc::from([SyntaxExpectation {
-                    role: separator,
-                    expected: ExpectedSyntax::DelimitedSequenceSeparator,
-                    range: 111..111,
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            },
+            (StructuralKind::ErrorGroup, 9..10),
+            (StructuralKind::Missing, 11..11),
         ]
     );
 }
 
 #[test]
 fn struct_named_brace_post_comma_field_and_close_missing_have_ordered_cst_evidence() {
-    use crate::recovery_record::{
-        CommittedRecoveryRecord, ConstructRole, DeclarationRole, Delimiter, DiagnosticId,
-        ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
-        RecoverySiteKey, StructRole, SyntaxExpectation,
-    };
     use SyntaxKind::{
         Colon, Comma, Identifier, LBrace, Missing, RBrace, StructDeclaration, StructField,
         TypeExpression, Whitespace,
     };
-    use std::sync::Arc;
-
-    let field_role = GrammarRole::Declaration(DeclarationRole::Struct(StructRole::Field));
-    let close_role = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::StructNamedFields,
-        delimiter: Delimiter::Brace,
-    };
-    let missing_record = |id, role, expected, at| CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: at..at,
-        },
-        kind: RecoveryKind::Missing,
-        unexpected: Arc::from([]),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range: at..at,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    };
-
     let suffix = |declaration: &SyntaxNode| {
         declaration
             .children_with_tokens()
@@ -2611,8 +2298,7 @@ fn struct_named_brace_post_comma_field_and_close_missing_have_ordered_cst_eviden
             crate::lexical::stops::STOP_SEMICOLON,
         ),
     ] {
-        let (green, exit, records, remainder) =
-            typed_struct_continuation(source, 100, None, stops, None);
+        let (green, exit, facts, remainder) = typed_struct_continuation(source, 100, stops, None);
         assert_eq!(green.to_string(), &source[..missing_at], "{source:?}");
         if stops == 0 {
             assert!(matches!(
@@ -2767,27 +2453,18 @@ fn struct_named_brace_post_comma_field_and_close_missing_have_ordered_cst_eviden
             "{source:?}"
         );
 
-        let expected = vec![
-            missing_record(0, field_role, ExpectedSyntax::Identifier, 100 + missing_at),
-            missing_record(
-                1,
-                close_role,
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
-                100 + missing_at,
-            ),
-        ];
-        assert_eq!(records, expected, "{source:?}");
-        let mut seeded = expected;
-        seeded[0].id = DiagnosticId(71);
-        let (again, _, frozen, frozen_remainder) =
-            typed_struct_continuation(source, 100, Some(&seeded), stops, None);
-        assert_eq!(again, green, "{source:?}");
-        assert_eq!(frozen, seeded, "{source:?}");
-        assert_eq!(frozen_remainder, remainder);
+        assert_eq!(
+            facts,
+            [
+                (StructuralKind::Missing, missing_at..missing_at),
+                (StructuralKind::Missing, missing_at..missing_at),
+            ],
+            "{source:?}"
+        );
     }
 
     let accepted = "struct S{x:T,}";
-    let (green, exit, records, remainder) = typed_struct_continuation(accepted, 0, None, 0, None);
+    let (green, exit, facts, remainder) = typed_struct_continuation(accepted, 0, 0, None);
     assert_eq!(green.to_string(), accepted);
     assert!(matches!(
         exit,
@@ -2824,73 +2501,42 @@ fn struct_named_brace_post_comma_field_and_close_missing_have_ordered_cst_eviden
             .count(),
         0
     );
-    assert!(records.is_empty());
+    assert!(facts.is_empty());
 }
 
 #[test]
 fn struct_named_field_runs_keep_per_item_facts_and_active_stops_pending() {
-    use crate::{
-        lexical::stops::STOP_COLON,
-        recovery_record::{
-            DeclarationRole, GrammarRole, StructRole, UnexpectedCategory, UnexpectedSyntax,
-        },
-    };
+    use crate::lexical::stops::STOP_COLON;
 
-    let (green, _, records) = typed_struct("struct S{@ # : T}", 100, None, 0, None);
+    let (green, _, facts) = typed_struct("struct S{@ # : T}", 100, 0, None);
     assert_eq!(green.to_string(), "struct S{@ # : T}");
-    assert_eq!(records.len(), 1);
-    assert_eq!(
-        records[0].site.role,
-        GrammarRole::Declaration(DeclarationRole::Struct(StructRole::FieldName))
-    );
-    assert_eq!(records[0].site.range, 109..112);
-    assert_eq!(
-        records[0].unexpected,
-        [
-            UnexpectedSyntax::Token {
-                range: 109..110,
-                category: UnexpectedCategory::OtherCharacter,
-            },
-            UnexpectedSyntax::Token {
-                range: 110..112,
-                category: UnexpectedCategory::OtherCharacter,
-            }
-        ]
-        .into()
-    );
+    assert_eq!(facts, [(StructuralKind::ErrorGroup, 9..12)]);
 
-    for (source, stops, text, slot, pending) in [
+    for (source, stops, text, facts, pending) in [
         (
             "struct S{x : T}",
             STOP_COLON,
             "struct S{x ",
-            StructRole::FieldColon,
+            vec![
+                (StructuralKind::Missing, 11..11),
+                (StructuralKind::Missing, 11..11),
+            ],
             TokenKind::Colon,
         ),
         (
             "struct S{x @ : T}",
             STOP_COLON,
             "struct S{x @",
-            StructRole::FieldColon,
+            vec![
+                (StructuralKind::ErrorGroup, 11..12),
+                (StructuralKind::Missing, 12..12),
+            ],
             TokenKind::Colon,
         ),
     ] {
-        let (green, exit, records) = typed_struct(source, 100, None, stops, None);
+        let (green, exit, actual_facts) = typed_struct(source, 100, stops, None);
         assert_eq!(green.to_string(), text, "{source:?}");
-        assert_eq!(records.len(), 2, "{source:?}");
-        assert_eq!(
-            records[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Struct(slot)),
-            "{source:?}",
-        );
-        assert_eq!(
-            records[1].site.role,
-            GrammarRole::ClosingDelimiter {
-                owner: crate::recovery_record::ConstructRole::StructNamedFields,
-                delimiter: crate::recovery_record::Delimiter::Brace,
-            },
-            "{source:?}",
-        );
+        assert_eq!(actual_facts, facts, "{source:?}");
         let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
             panic!("active field boundary must stay pending: {source:?}")
         };
@@ -2903,62 +2549,25 @@ fn struct_named_field_runs_keep_per_item_facts_and_active_stops_pending() {
 }
 
 #[test]
-fn struct_field_lists_publish_their_own_missing_and_mismatched_close() {
-    use crate::recovery_record::{
-        ConstructRole, Delimiter, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
-    };
-
-    for (source, owner, delimiter, kind, range) in [
-        (
-            "struct S{",
-            ConstructRole::StructNamedFields,
-            Delimiter::Brace,
-            RecoveryKind::Missing,
-            109..109,
-        ),
-        (
-            "struct S(",
-            ConstructRole::StructTupleFields,
-            Delimiter::Parenthesis,
-            RecoveryKind::Missing,
-            109..109,
-        ),
+fn struct_field_lists_publish_structural_missing_and_mismatched_close() {
+    for (source, facts) in [
+        ("struct S{", vec![(StructuralKind::Missing, 9..9)]),
+        ("struct S(", vec![(StructuralKind::Missing, 9..9)]),
     ] {
-        let (green, _, records) = typed_struct(source, 100, None, 0, None);
+        let (green, _, actual_facts) = typed_struct(source, 100, 0, None);
         assert_eq!(green.to_string(), source, "{source:?}");
-        let role = GrammarRole::ClosingDelimiter { owner, delimiter };
-        assert_eq!(records.len(), 1, "{source:?}");
-        assert_eq!(
-            records[0].site,
-            crate::recovery_record::RecoverySiteKey {
-                role,
-                range: range.clone()
-            }
-        );
-        assert_eq!(records[0].kind, kind, "{source:?}");
-        assert_eq!(
-            records[0].expectations[0].expected,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        );
-        assert_eq!(
-            records[0].unexpected.len(),
-            usize::from(kind == RecoveryKind::Error)
-        );
+        assert_eq!(actual_facts, facts, "{source:?}");
     }
 
-    let (green, _, records) = typed_struct("struct S{)", 100, None, 0, None);
+    let (green, _, facts) = typed_struct("struct S{)", 100, 0, None);
     assert_eq!(green.to_string(), "struct S{)");
-    let role = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::StructNamedFields,
-        delimiter: Delimiter::Brace,
-    };
-    assert_eq!(records.len(), 2);
-    assert_eq!(records[0].site.role, role);
-    assert_eq!(records[0].kind, RecoveryKind::Error);
-    assert_eq!(records[0].site.range, 109..110);
-    assert_eq!(records[1].site.role, role);
-    assert_eq!(records[1].kind, RecoveryKind::Missing);
-    assert_eq!(records[1].site.range, 110..110);
+    assert_eq!(
+        facts,
+        [
+            (StructuralKind::ErrorGroup, 9..10),
+            (StructuralKind::Missing, 10..10),
+        ]
+    );
 }
 
 #[test]

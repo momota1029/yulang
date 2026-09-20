@@ -1,31 +1,9 @@
 use crate::tests::support::*;
-use crate::{ambient_claim::AmbientClaimView, recovery_record::*};
-use std::{ops::Range, sync::Arc};
+use crate::{ambient_claim::AmbientClaimView, structural_diagnostic::StructuralKind};
+use std::ops::Range;
 
-fn record(role: GrammarRole, kind: RecoveryKind, range: Range<usize>) -> CommittedRecoveryRecord {
-    CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Missing {
-            Arc::from([])
-        } else {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Statement,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+fn structural_fact(kind: StructuralKind, range: Range<usize>) -> StructuralFact {
+    (kind, range)
 }
 
 fn parse<'s>(
@@ -33,22 +11,11 @@ fn parse<'s>(
     stops: Stops,
     origin: usize,
     fence: Option<&FenceBoundary>,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (
-    GreenNode,
-    Vec<CommittedRecoveryRecord>,
-    NormalizedExit,
-    &'s str,
-) {
+) -> (GreenNode, Vec<StructuralFact>, NormalizedExit, &'s str) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut output = frozen
-        .map(|records| {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        })
-        .unwrap_or_else(GreenNodeBuilder::new);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -61,8 +28,9 @@ fn parse<'s>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, records, exit, input)
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
+    (green, facts, exit, input)
 }
 
 fn range(node: &SyntaxNode) -> Range<usize> {
@@ -120,30 +88,21 @@ fn colon_indented_block(root: &SyntaxNode) -> SyntaxNode {
 }
 
 #[test]
-fn indented_fresh_and_frozen_missing_and_error_records() {
-    for (prefix, role) in [
-        (
-            "f:",
-            GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
-        ),
-        (
-            "f with:",
-            GrammarRole::WithBody(WithBodyRole::IndentedStatement),
-        ),
-    ] {
+fn indented_missing_and_error_facts_are_deterministic() {
+    for prefix in ["f:", "f with:"] {
         for (body, kind, range) in [
-            ("\n  ", RecoveryKind::Missing, 3..3),
-            ("\n  @ @ x", RecoveryKind::Error, 3..6),
-            ("\n  x\n  @ @ y", RecoveryKind::Error, 7..10),
+            ("\n  ", StructuralKind::Missing, 3..3),
+            ("\n  @ @ x", StructuralKind::ErrorGroup, 3..6),
+            ("\n  x\n  @ @ y", StructuralKind::ErrorGroup, 7..10),
         ] {
             let source = format!("{prefix}{body}");
             let range = range.start + prefix.len()..range.end + prefix.len();
-            let (green, records, _, _) = parse(&source, 0, 0, None, None);
-            assert_eq!(records, [record(role, kind, range)], "{source:?}");
+            let (green, facts, _, _) = parse(&source, 0, 0, None);
+            assert_eq!(facts, [structural_fact(kind, range)], "{source:?}");
             assert_eq!(green.to_string(), source);
-            let (again, frozen, _, _) = parse(&source, 0, 0, None, Some(&records));
+            let (again, repeated_facts, _, _) = parse(&source, 0, 0, None);
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(repeated_facts, facts);
         }
     }
 }
@@ -166,88 +125,46 @@ fn indented_retry_admits_each_canonical_family_and_literal() {
         "act A;",
     ] {
         let source = format!("f:\n  @ @ {body}");
-        let (green, records, _, _) = parse(&source, 0, 0, None, None);
+        let (green, facts, _, _) = parse(&source, 0, 0, None);
         assert_eq!(green.to_string(), source);
         assert_eq!(
-            records,
-            [record(
-                GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
-                RecoveryKind::Error,
-                5..8
-            )],
+            facts,
+            [structural_fact(StructuralKind::ErrorGroup, 5..8)],
             "{source:?}"
         );
     }
 }
 
 #[test]
-fn indented_direct_callers_transport_their_own_role() {
-    use DeclarationRole as D;
-    for (head, role) in [
-        (
-            "if x:",
-            GrammarRole::IfExpression(IfExpressionRole::IndentedStatement),
-        ),
-        (
-            "if x: y else:",
-            GrammarRole::IfExpression(IfExpressionRole::IndentedStatement),
-        ),
-        (
-            "if x: y elsif z:",
-            GrammarRole::IfExpression(IfExpressionRole::IndentedStatement),
-        ),
-        (
-            "for x in xs:",
-            GrammarRole::ForStatement(ForStatementRole::IndentedStatement),
-        ),
-        (
-            "case x: y ->",
-            GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
-        ),
-        (
-            "catch x: y ->",
-            GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
-        ),
-        (
-            "my x =",
-            GrammarRole::Declaration(D::Binding(BindingRole::IndentedStatement)),
-        ),
-        (
-            "mod M:",
-            GrammarRole::Declaration(D::Mod(ModRole::IndentedStatement)),
-        ),
-        (
-            "role R:",
-            GrammarRole::Declaration(D::Role(RoleDeclarationRole::IndentedStatement)),
-        ),
-        (
-            "impl T:",
-            GrammarRole::Declaration(D::Impl(ImplRole::IndentedStatement)),
-        ),
-        (
-            "act A:",
-            GrammarRole::Declaration(D::Act(ActDeclarationRole::IndentedStatement)),
-        ),
-        (
-            "cast(x): T =",
-            GrammarRole::Declaration(D::Cast(CastRole::IndentedStatement)),
-        ),
+fn indented_direct_callers_publish_their_own_structural_error() {
+    for head in [
+        "if x:",
+        "if x: y else:",
+        "if x: y elsif z:",
+        "for x in xs:",
+        "case x: y ->",
+        "catch x: y ->",
+        "my x =",
+        "mod M:",
+        "role R:",
+        "impl T:",
+        "act A:",
+        "cast(x): T =",
     ] {
         let source = format!("{head}\n  @ x");
-        let (green, records, _, _) = parse(&source, 0, 0, None, None);
+        let (green, facts, _, _) = parse(&source, 0, 0, None);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert_eq!(
-            records,
-            [record(
-                role,
-                RecoveryKind::Error,
+            facts,
+            [structural_fact(
+                StructuralKind::ErrorGroup,
                 head.len() + 3..head.len() + 4
             )],
             "{source:?}"
         );
-        let (again, frozen, _, _) = parse(&source, 0, 0, None, Some(&records));
+        let (again, repeated_facts, _, _) = parse(&source, 0, 0, None);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
     }
 }
 
@@ -259,7 +176,7 @@ fn indented_boundaries_preserve_pending_leading_and_line_entry() {
             "f:\n  , x",
             STOP_COMMA,
             "f:",
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             2..2,
             TokenKind::Comma,
             2,
@@ -268,7 +185,7 @@ fn indented_boundaries_preserve_pending_leading_and_line_entry() {
             "f:\n  ]",
             0,
             "f:",
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             2..2,
             TokenKind::RBracket,
             2,
@@ -277,7 +194,7 @@ fn indented_boundaries_preserve_pending_leading_and_line_entry() {
             "f:\n  @ , x",
             STOP_COMMA,
             "f:\n  @",
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             5..6,
             TokenKind::Comma,
             6,
@@ -286,7 +203,7 @@ fn indented_boundaries_preserve_pending_leading_and_line_entry() {
             "f:\n  @ ]",
             0,
             "f:\n  @",
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             5..6,
             TokenKind::RBracket,
             6,
@@ -295,7 +212,7 @@ fn indented_boundaries_preserve_pending_leading_and_line_entry() {
             "f:\n  @\nout",
             0,
             "f:\n  @",
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             5..6,
             TokenKind::Identifier,
             6,
@@ -304,22 +221,15 @@ fn indented_boundaries_preserve_pending_leading_and_line_entry() {
             "f:\n  @\n  x\nout",
             0,
             "f:\n  @\n  x",
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             5..6,
             TokenKind::Identifier,
             10,
         ),
     ] {
-        let (green, records, exit, rest) = parse(source, stops, 0, None, None);
+        let (green, facts, exit, rest) = parse(source, stops, 0, None);
         assert_eq!(green.to_string(), emitted, "{source:?}");
-        assert_eq!(
-            records,
-            [record(
-                GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement),
-                kind,
-                range
-            )]
-        );
+        assert_eq!(facts, [structural_fact(kind, range)]);
         let NormalizedExit::Complete(Err(Either::Left(item)), line) = exit else {
             panic!("pending Item")
         };
@@ -335,31 +245,29 @@ fn indented_boundaries_preserve_pending_leading_and_line_entry() {
 #[test]
 fn indented_nested_admission_retains_the_nested_recovery_owner() {
     let source = "f:\n  g with:\n    @ x";
-    let (green, records, _, _) = parse(source, 0, 0, None, None);
+    let (green, facts, _, _) = parse(source, 0, 0, None);
     assert_eq!(green.to_string(), source);
-    assert_eq!(
-        records,
-        [record(
-            GrammarRole::WithBody(WithBodyRole::IndentedStatement),
-            RecoveryKind::Error,
-            17..18
-        )]
-    );
-    let (again, frozen, _, _) = parse(source, 0, 0, None, Some(&records));
+    assert_eq!(facts, [structural_fact(StructuralKind::ErrorGroup, 17..18)]);
+    let (again, repeated_facts, _, _) = parse(source, 0, 0, None);
     assert_eq!(again, green);
-    assert_eq!(frozen, records);
+    assert_eq!(repeated_facts, facts);
 }
 
 #[test]
 fn indented_if_companion_stops_before_and_after_error() {
-    let role = GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement);
     for (source, emitted, kind, range, start) in [
-        ("f:\n  else x", "f:", RecoveryKind::Missing, 2..2, 2),
-        ("f:\n  @ else x", "f:\n  @", RecoveryKind::Error, 5..6, 6),
+        ("f:\n  else x", "f:", StructuralKind::Missing, 2..2, 2),
+        (
+            "f:\n  @ else x",
+            "f:\n  @",
+            StructuralKind::ErrorGroup,
+            5..6,
+            6,
+        ),
     ] {
-        let (green, records, exit, rest) = parse(source, STOP_ELSE, 0, None, None);
+        let (green, facts, exit, rest) = parse(source, STOP_ELSE, 0, None);
         assert_eq!(green.to_string(), emitted);
-        assert_eq!(records, [record(role, kind, range)]);
+        assert_eq!(facts, [structural_fact(kind, range)]);
         let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
             panic!("If companion handoff")
         };
@@ -375,7 +283,7 @@ fn indented_if_companion_stops_before_and_after_error() {
 
 #[test]
 fn indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading() {
-    let (green, _, _, _) = parse("f:\n  ", 0, 0, None, None);
+    let (green, _, _, _) = parse("f:\n  ", 0, 0, None);
     let block = colon_indented_block(&SyntaxNode::new_root(green));
     assert_eq!(range(&block), 2..5);
     assert_eq!(
@@ -387,7 +295,7 @@ fn indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading() {
         ]
     );
 
-    let (green, _, _, _) = parse("f:\n  @ @", 0, 0, None, None);
+    let (green, _, _, _) = parse("f:\n  @ @", 0, 0, None);
     let block = colon_indented_block(&SyntaxNode::new_root(green));
     assert!(
         block
@@ -413,7 +321,7 @@ fn indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading() {
         )
     }));
 
-    let (green, _, _, _) = parse("f:\n  @ @ x", 0, 0, None, None);
+    let (green, _, _, _) = parse("f:\n  @ @ x", 0, 0, None);
     let block = colon_indented_block(&SyntaxNode::new_root(green));
     assert!(
         block
@@ -443,7 +351,7 @@ fn indented_colon_rowan_schema_covers_missing_error_retry_and_native_leading() {
         8..9
     );
 
-    let (green, _, _, _) = parse("f:\n  x", 0, 0, None, None);
+    let (green, _, _, _) = parse("f:\n  x", 0, 0, None);
     let block = colon_indented_block(&SyntaxNode::new_root(green));
     assert_eq!(
         direct_elements(&block),
@@ -481,7 +389,7 @@ fn indented_assignment_rowan_schema_covers_missing_error_retry_and_handoff() {
         ("x =\n  @ @ ]", false, true, None, true),
     ] {
         let owned_end = if protected { 9 } else { source.len() };
-        let (green, records, exit, rest) = parse(source, 0, 0, None, None);
+        let (green, facts, exit, rest) = parse(source, 0, 0, None);
         assert_eq!(green.to_string(), source[..owned_end]);
         let root = SyntaxNode::new_root(green.clone());
         assert_eq!(root.kind(), Root);
@@ -508,9 +416,7 @@ fn indented_assignment_rowan_schema_covers_missing_error_retry_and_handoff() {
             ],
         );
         let block = tail.first_child().unwrap();
-        // This exact ancestor/introducer path selects the Statement RHS slot,
-        // before consulting the temporary recovery records for compatibility.
-        let selected_role = GrammarRole::Assignment(AssignmentRole::IndentedStatement);
+        // This exact ancestor/introducer path selects the Statement RHS slot.
         let mut expected = vec![(Newline, false, 3..4), (Whitespace, false, 4..6)];
         if missing {
             expected.push((Missing, true, 6..6));
@@ -618,17 +524,17 @@ fn indented_assignment_rowan_schema_covers_missing_error_retry_and_handoff() {
             assert_eq!(emitted.recovery_range(), payload);
         };
         assert_handoff(exit, rest);
-        let expected_records = if missing {
-            vec![record(selected_role, RecoveryKind::Missing, 6..6)]
+        let expected_facts = if missing {
+            vec![structural_fact(StructuralKind::Missing, 6..6)]
         } else if error {
-            vec![record(selected_role, RecoveryKind::Error, 6..9)]
+            vec![structural_fact(StructuralKind::ErrorGroup, 6..9)]
         } else {
             vec![]
         };
-        assert_eq!(records, expected_records);
-        let (again, frozen, again_exit, again_rest) = parse(source, 0, 0, None, Some(&records));
+        assert_eq!(facts, expected_facts);
+        let (again, repeated_facts, again_exit, again_rest) = parse(source, 0, 0, None);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
         assert_handoff(again_exit, again_rest);
     }
 }
@@ -658,7 +564,7 @@ fn indented_with_rowan_schema_covers_first_statement_missing_error_retry_and_con
         ("f with:\n  x", false, false, Some(10)),
     ] {
         let end = source.len();
-        let (green, records, exit, rest) = parse(source, 0, 0, None, None);
+        let (green, facts, exit, rest) = parse(source, 0, 0, None);
         assert_eq!(green.to_string(), source);
         let root = SyntaxNode::new_root(green.clone());
         assert_eq!(root.kind(), Root);
@@ -689,8 +595,7 @@ fn indented_with_rowan_schema_covers_first_statement_missing_error_retry_and_con
         );
         let block = tail.first_child().unwrap();
         // The verified With ancestor and actual Colon select this first
-        // required Statement slot without inspecting Error spelling or records.
-        let selected_role = GrammarRole::WithBody(WithBodyRole::IndentedStatement);
+        // required Statement slot without inspecting Error spelling.
         let mut expected = vec![(Newline, false, 7..8), (Whitespace, false, 8..10)];
         if missing {
             expected.push((Missing, true, 10..10));
@@ -737,25 +642,24 @@ fn indented_with_rowan_schema_covers_first_statement_missing_error_retry_and_con
             if child.kind() == Error {
                 assert!(child.as_token().is_some());
                 if in_error {
-                    let (_, _, previous): &mut (_, _, Range<usize>) =
-                        occurrences.last_mut().unwrap();
+                    let (_, previous): &mut (_, Range<usize>) = occurrences.last_mut().unwrap();
                     assert_eq!(previous.end, span.start);
                     previous.end = span.end;
                 } else {
-                    occurrences.push((selected_role, RecoveryKind::Error, span));
+                    occurrences.push((StructuralKind::ErrorGroup, span));
                 }
                 in_error = true;
             } else {
                 in_error = false;
                 if child.kind() == Missing {
-                    occurrences.push((selected_role, RecoveryKind::Missing, span));
+                    occurrences.push((StructuralKind::Missing, span));
                 }
             }
         }
         let expected_occurrences = if missing {
-            vec![(selected_role, RecoveryKind::Missing, 10..10)]
+            vec![structural_fact(StructuralKind::Missing, 10..10)]
         } else if error {
-            vec![(selected_role, RecoveryKind::Error, 10..13)]
+            vec![structural_fact(StructuralKind::ErrorGroup, 10..13)]
         } else {
             vec![]
         };
@@ -791,15 +695,10 @@ fn indented_with_rowan_schema_covers_first_statement_missing_error_retry_and_con
             assert_eq!(emit_pending_leading_text(&mut eof.item), "");
         };
         assert_eof(exit, rest);
-        // Temporary records are compatibility evidence, not the slot selector.
-        let expected_records = expected_occurrences
-            .into_iter()
-            .map(|(role, kind, span)| record(role, kind, span))
-            .collect::<Vec<_>>();
-        assert_eq!(records, expected_records);
-        let (again, frozen, again_exit, again_rest) = parse(source, 0, 0, None, Some(&records));
+        assert_eq!(facts, expected_occurrences);
+        let (again, repeated_facts, again_exit, again_rest) = parse(source, 0, 0, None);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
         assert_eof(again_exit, again_rest);
     }
 }
@@ -829,7 +728,7 @@ fn indented_binding_rowan_schema_covers_first_statement_missing_error_retry_and_
         ("my x =\n  value", false, false, Some(9)),
     ] {
         let end = source.len();
-        let (green, records, exit, rest) = parse(source, 0, 0, None, None);
+        let (green, facts, exit, rest) = parse(source, 0, 0, None);
         assert_eq!(green.to_string(), source);
         let root = SyntaxNode::new_root(green.clone());
         assert_eq!(root.kind(), Root);
@@ -862,10 +761,7 @@ fn indented_binding_rowan_schema_covers_first_statement_missing_error_retry_and_
         assert_children(&body, &[(IndentedStatementBlock, true, 6..end)]);
         let block = body.first_child().unwrap();
         // The verified Binding ancestor, accepted Header Equals and indented
-        // Body select this first required Statement slot without Error spelling
-        // or temporary records selecting its role.
-        let selected_role =
-            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::IndentedStatement));
+        // Body select this first required Statement slot without Error spelling.
         let mut expected = vec![(Newline, false, 6..7), (Whitespace, false, 7..9)];
         if missing {
             expected.push((Missing, true, 9..9));
@@ -931,25 +827,24 @@ fn indented_binding_rowan_schema_covers_first_statement_missing_error_retry_and_
             if child.kind() == Error {
                 assert!(child.as_token().is_some());
                 if in_error {
-                    let (_, _, previous): &mut (_, _, Range<usize>) =
-                        occurrences.last_mut().unwrap();
+                    let (_, previous): &mut (_, Range<usize>) = occurrences.last_mut().unwrap();
                     assert_eq!(previous.end, span.start);
                     previous.end = span.end;
                 } else {
-                    occurrences.push((selected_role, RecoveryKind::Error, span));
+                    occurrences.push((StructuralKind::ErrorGroup, span));
                 }
                 in_error = true;
             } else {
                 in_error = false;
                 if child.kind() == Missing {
-                    occurrences.push((selected_role, RecoveryKind::Missing, span));
+                    occurrences.push((StructuralKind::Missing, span));
                 }
             }
         }
         let expected_occurrences = if missing {
-            vec![(selected_role, RecoveryKind::Missing, 9..9)]
+            vec![structural_fact(StructuralKind::Missing, 9..9)]
         } else if error {
-            vec![(selected_role, RecoveryKind::Error, 9..12)]
+            vec![structural_fact(StructuralKind::ErrorGroup, 9..12)]
         } else {
             vec![]
         };
@@ -969,16 +864,10 @@ fn indented_binding_rowan_schema_covers_first_statement_missing_error_retry_and_
             assert_eq!(emit_pending_leading_text(&mut eof.item), "");
         };
         assert_eof(exit, rest);
-        // Temporary records are compatibility evidence, not the slot selector.
-        // This slot expects Statement with primary alternative zero.
-        let expected_records = expected_occurrences
-            .into_iter()
-            .map(|(role, kind, span)| record(role, kind, span))
-            .collect::<Vec<_>>();
-        assert_eq!(records, expected_records);
-        let (again, frozen, again_exit, again_rest) = parse(source, 0, 0, None, Some(&records));
+        assert_eq!(facts, expected_occurrences);
+        let (again, repeated_facts, again_exit, again_rest) = parse(source, 0, 0, None);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
         assert_eof(again_exit, again_rest);
     }
 }
@@ -1008,7 +897,7 @@ fn indented_mod_rowan_schema_covers_first_statement_missing_error_retry_and_cont
         ("mod M:\n  value", false, false, Some(9)),
     ] {
         let end = source.len();
-        let (green, records, exit, rest) = parse(source, 0, 0, None, None);
+        let (green, facts, exit, rest) = parse(source, 0, 0, None);
         assert_eq!(green.to_string(), source);
         let root = SyntaxNode::new_root(green.clone());
         assert_eq!(root.kind(), Root);
@@ -1030,10 +919,7 @@ fn indented_mod_rowan_schema_covers_first_statement_missing_error_retry_and_cont
         );
         let block = declaration.first_child().unwrap();
         // The verified ordinary Mod ancestor, actual Colon and indented block
-        // select this first required Statement slot without Error spelling or
-        // temporary records selecting its role.
-        let selected_role =
-            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::IndentedStatement));
+        // select this first required Statement slot without Error spelling.
         let mut expected = vec![(Newline, false, 6..7), (Whitespace, false, 7..9)];
         if missing {
             expected.push((Missing, true, 9..9));
@@ -1099,25 +985,24 @@ fn indented_mod_rowan_schema_covers_first_statement_missing_error_retry_and_cont
             if child.kind() == Error {
                 assert!(child.as_token().is_some());
                 if in_error {
-                    let (_, _, previous): &mut (_, _, Range<usize>) =
-                        occurrences.last_mut().unwrap();
+                    let (_, previous): &mut (_, Range<usize>) = occurrences.last_mut().unwrap();
                     assert_eq!(previous.end, span.start);
                     previous.end = span.end;
                 } else {
-                    occurrences.push((selected_role, RecoveryKind::Error, span));
+                    occurrences.push((StructuralKind::ErrorGroup, span));
                 }
                 in_error = true;
             } else {
                 in_error = false;
                 if child.kind() == Missing {
-                    occurrences.push((selected_role, RecoveryKind::Missing, span));
+                    occurrences.push((StructuralKind::Missing, span));
                 }
             }
         }
         let expected_occurrences = if missing {
-            vec![(selected_role, RecoveryKind::Missing, 9..9)]
+            vec![structural_fact(StructuralKind::Missing, 9..9)]
         } else if error {
-            vec![(selected_role, RecoveryKind::Error, 9..12)]
+            vec![structural_fact(StructuralKind::ErrorGroup, 9..12)]
         } else {
             vec![]
         };
@@ -1137,16 +1022,10 @@ fn indented_mod_rowan_schema_covers_first_statement_missing_error_retry_and_cont
             assert_eq!(emit_pending_leading_text(&mut eof.item), "");
         };
         assert_eof(exit, rest);
-        // Temporary records are compatibility evidence, not the slot selector.
-        // This slot expects Statement with primary alternative zero.
-        let expected_records = expected_occurrences
-            .into_iter()
-            .map(|(role, kind, span)| record(role, kind, span))
-            .collect::<Vec<_>>();
-        assert_eq!(records, expected_records);
-        let (again, frozen, again_exit, again_rest) = parse(source, 0, 0, None, Some(&records));
+        assert_eq!(facts, expected_occurrences);
+        let (again, repeated_facts, again_exit, again_rest) = parse(source, 0, 0, None);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
         assert_eof(again_exit, again_rest);
     }
 }
@@ -1177,7 +1056,7 @@ fn indented_role_rowan_schema_covers_first_statement_missing_error_retry_and_con
             ("role R:\n  value", false, false, Some(10)),
         ] {
             let end = source.len();
-            let (green, records, exit, rest) = parse(source, 0, origin, None, None);
+            let (green, facts, exit, rest) = parse(source, 0, origin, None);
             assert_eq!(green.to_string(), source);
             let root = SyntaxNode::new_root(green.clone());
             assert_eq!(root.kind(), Root);
@@ -1201,10 +1080,7 @@ fn indented_role_rowan_schema_covers_first_statement_missing_error_retry_and_con
             assert_eq!(head.to_string(), "R");
             let block = declaration.last_child().unwrap();
             // Completed direct Head, actual Colon and this Role-owned block
-            // select the first Statement slot independently of recovery records.
-            let selected_role = GrammarRole::Declaration(DeclarationRole::Role(
-                RoleDeclarationRole::IndentedStatement,
-            ));
+            // select the first Statement slot.
             let mut expected = vec![(Newline, false, 7..8), (Whitespace, false, 8..10)];
             if missing {
                 expected.push((Missing, true, 10..10));
@@ -1267,25 +1143,24 @@ fn indented_role_rowan_schema_covers_first_statement_missing_error_retry_and_con
                 if child.kind() == Error {
                     assert!(child.as_token().is_some());
                     if in_error {
-                        let (_, _, previous): &mut (_, _, Range<usize>) =
-                            occurrences.last_mut().unwrap();
+                        let (_, previous): &mut (_, Range<usize>) = occurrences.last_mut().unwrap();
                         assert_eq!(previous.end, span.start);
                         previous.end = span.end;
                     } else {
-                        occurrences.push((selected_role, RecoveryKind::Error, span));
+                        occurrences.push((StructuralKind::ErrorGroup, span));
                     }
                     in_error = true;
                 } else {
                     in_error = false;
                     if child.kind() == Missing {
-                        occurrences.push((selected_role, RecoveryKind::Missing, span));
+                        occurrences.push((StructuralKind::Missing, span));
                     }
                 }
             }
             let expected_occurrences = if missing {
-                vec![(selected_role, RecoveryKind::Missing, 10..10)]
+                vec![structural_fact(StructuralKind::Missing, 10..10)]
             } else if error {
-                vec![(selected_role, RecoveryKind::Error, 10..13)]
+                vec![structural_fact(StructuralKind::ErrorGroup, 10..13)]
             } else {
                 vec![]
             };
@@ -1306,19 +1181,10 @@ fn indented_role_rowan_schema_covers_first_statement_missing_error_retry_and_con
                 assert_eq!(emit_pending_leading_text(&mut eof.item), "");
             };
             assert_eof(exit, rest);
-            // Temporary fresh/frozen records are a separate compatibility check;
-            // only their absolute coordinates shift, not Rowan's local ranges.
-            let expected_records = expected_occurrences
-                .into_iter()
-                .map(|(role, kind, span)| {
-                    record(role, kind, origin + span.start..origin + span.end)
-                })
-                .collect::<Vec<_>>();
-            assert_eq!(records, expected_records);
-            let (again, frozen, again_exit, again_rest) =
-                parse(source, 0, origin, None, Some(&records));
+            assert_eq!(facts, expected_occurrences);
+            let (again, repeated_facts, again_exit, again_rest) = parse(source, 0, origin, None);
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(repeated_facts, facts);
             assert_eof(again_exit, again_rest);
         }
     }
@@ -1350,7 +1216,7 @@ fn indented_act_rowan_schema_covers_first_statement_missing_error_retry_and_cont
             ("act A:\n  value", false, false, Some(9)),
         ] {
             let end = source.len();
-            let (green, records, exit, rest) = parse(source, 0, origin, None, None);
+            let (green, facts, exit, rest) = parse(source, 0, origin, None);
             assert_eq!(green.to_string(), source);
             let root = SyntaxNode::new_root(green.clone());
             assert_eq!(root.kind(), Root);
@@ -1374,10 +1240,7 @@ fn indented_act_rowan_schema_covers_first_statement_missing_error_retry_and_cont
             assert_eq!(head.to_string(), "A");
             let block = declaration.last_child().unwrap();
             // Completed direct Head, actual Colon and this Act-owned block
-            // select the first Statement slot independently of recovery records.
-            let selected_role = GrammarRole::Declaration(DeclarationRole::Act(
-                ActDeclarationRole::IndentedStatement,
-            ));
+            // select the first Statement slot.
             let mut expected = vec![(Newline, false, 6..7), (Whitespace, false, 7..9)];
             if missing {
                 expected.push((Missing, true, 9..9));
@@ -1440,25 +1303,24 @@ fn indented_act_rowan_schema_covers_first_statement_missing_error_retry_and_cont
                 if child.kind() == Error {
                     assert!(child.as_token().is_some());
                     if in_error {
-                        let (_, _, previous): &mut (_, _, Range<usize>) =
-                            occurrences.last_mut().unwrap();
+                        let (_, previous): &mut (_, Range<usize>) = occurrences.last_mut().unwrap();
                         assert_eq!(previous.end, span.start);
                         previous.end = span.end;
                     } else {
-                        occurrences.push((selected_role, RecoveryKind::Error, span));
+                        occurrences.push((StructuralKind::ErrorGroup, span));
                     }
                     in_error = true;
                 } else {
                     in_error = false;
                     if child.kind() == Missing {
-                        occurrences.push((selected_role, RecoveryKind::Missing, span));
+                        occurrences.push((StructuralKind::Missing, span));
                     }
                 }
             }
             let expected_occurrences = if missing {
-                vec![(selected_role, RecoveryKind::Missing, 9..9)]
+                vec![structural_fact(StructuralKind::Missing, 9..9)]
             } else if error {
-                vec![(selected_role, RecoveryKind::Error, 9..12)]
+                vec![structural_fact(StructuralKind::ErrorGroup, 9..12)]
             } else {
                 vec![]
             };
@@ -1479,19 +1341,10 @@ fn indented_act_rowan_schema_covers_first_statement_missing_error_retry_and_cont
                 assert_eq!(emit_pending_leading_text(&mut eof.item), "");
             };
             assert_eof(exit, rest);
-            // Temporary fresh/frozen records are a separate compatibility check;
-            // only their absolute coordinates shift, not Rowan's local ranges.
-            let expected_records = expected_occurrences
-                .into_iter()
-                .map(|(role, kind, span)| {
-                    record(role, kind, origin + span.start..origin + span.end)
-                })
-                .collect::<Vec<_>>();
-            assert_eq!(records, expected_records);
-            let (again, frozen, again_exit, again_rest) =
-                parse(source, 0, origin, None, Some(&records));
+            assert_eq!(facts, expected_occurrences);
+            let (again, repeated_facts, again_exit, again_rest) = parse(source, 0, origin, None);
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(repeated_facts, facts);
             assert_eof(again_exit, again_rest);
         }
     }
@@ -1523,7 +1376,7 @@ fn indented_impl_rowan_schema_covers_first_statement_missing_error_retry_and_con
             ("impl T: D:\n  value", false, false, Some(13)),
         ] {
             let end = source.len();
-            let (green, records, exit, rest) = parse(source, 0, origin, None, None);
+            let (green, facts, exit, rest) = parse(source, 0, origin, None);
             assert_eq!(green.to_string(), source);
             let root = SyntaxNode::new_root(green.clone());
             assert_eq!(root.kind(), Root);
@@ -1558,9 +1411,7 @@ fn indented_impl_rowan_schema_covers_first_statement_missing_error_retry_and_con
             assert_eq!(description.first_child().unwrap().to_string(), "D");
             let block = declaration.last_child().unwrap();
             // Completed Head and ImplDescription, then the direct second Colon and
-            // Impl-owned block select this slot independently of recovery records.
-            let selected_role =
-                GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::IndentedStatement));
+            // Impl-owned block select this slot.
             let mut expected = vec![(Newline, false, 10..11), (Whitespace, false, 11..13)];
             if missing {
                 expected.push((Missing, true, 13..13));
@@ -1623,25 +1474,24 @@ fn indented_impl_rowan_schema_covers_first_statement_missing_error_retry_and_con
                 if child.kind() == Error {
                     assert!(child.as_token().is_some());
                     if in_error {
-                        let (_, _, previous): &mut (_, _, Range<usize>) =
-                            occurrences.last_mut().unwrap();
+                        let (_, previous): &mut (_, Range<usize>) = occurrences.last_mut().unwrap();
                         assert_eq!(previous.end, span.start);
                         previous.end = span.end;
                     } else {
-                        occurrences.push((selected_role, RecoveryKind::Error, span));
+                        occurrences.push((StructuralKind::ErrorGroup, span));
                     }
                     in_error = true;
                 } else {
                     in_error = false;
                     if child.kind() == Missing {
-                        occurrences.push((selected_role, RecoveryKind::Missing, span));
+                        occurrences.push((StructuralKind::Missing, span));
                     }
                 }
             }
             let expected_occurrences = if missing {
-                vec![(selected_role, RecoveryKind::Missing, 13..13)]
+                vec![structural_fact(StructuralKind::Missing, 13..13)]
             } else if error {
-                vec![(selected_role, RecoveryKind::Error, 13..16)]
+                vec![structural_fact(StructuralKind::ErrorGroup, 13..16)]
             } else {
                 vec![]
             };
@@ -1662,19 +1512,10 @@ fn indented_impl_rowan_schema_covers_first_statement_missing_error_retry_and_con
                 assert_eq!(emit_pending_leading_text(&mut eof.item), "");
             };
             assert_eof(exit, rest);
-            // Temporary fresh/frozen records are a separate compatibility check;
-            // only their absolute coordinates shift, not Rowan's local ranges.
-            let expected_records = expected_occurrences
-                .into_iter()
-                .map(|(role, kind, span)| {
-                    record(role, kind, origin + span.start..origin + span.end)
-                })
-                .collect::<Vec<_>>();
-            assert_eq!(records, expected_records);
-            let (again, frozen, again_exit, again_rest) =
-                parse(source, 0, origin, None, Some(&records));
+            assert_eq!(facts, expected_occurrences);
+            let (again, repeated_facts, again_exit, again_rest) = parse(source, 0, origin, None);
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(repeated_facts, facts);
             assert_eof(again_exit, again_rest);
         }
     }
@@ -1706,7 +1547,7 @@ fn indented_cast_rowan_schema_covers_first_statement_missing_error_retry_and_con
             ("cast(x): A =\n  value", false, false, Some(15)),
         ] {
             let end = source.len();
-            let (green, records, exit, rest) = parse(source, 0, origin, None, None);
+            let (green, facts, exit, rest) = parse(source, 0, origin, None);
             assert_eq!(green.to_string(), source);
             let root = SyntaxNode::new_root(green.clone());
             assert_eq!(root.kind(), Root);
@@ -1751,9 +1592,7 @@ fn indented_cast_rowan_schema_covers_first_statement_missing_error_retry_and_con
             assert_children(&body, &[(IndentedStatementBlock, true, 12..end)]);
             let block = body.first_child().unwrap();
             // Completed Pattern/Target and actual Equals, followed by CastBody's
-            // indented block, select this slot independently of recovery records.
-            let selected_role =
-                GrammarRole::Declaration(DeclarationRole::Cast(CastRole::IndentedStatement));
+            // indented block, select this slot.
             let mut expected = vec![(Newline, false, 12..13), (Whitespace, false, 13..15)];
             if missing {
                 expected.push((Missing, true, 15..15));
@@ -1816,25 +1655,24 @@ fn indented_cast_rowan_schema_covers_first_statement_missing_error_retry_and_con
                 if child.kind() == Error {
                     assert!(child.as_token().is_some());
                     if in_error {
-                        let (_, _, previous): &mut (_, _, Range<usize>) =
-                            occurrences.last_mut().unwrap();
+                        let (_, previous): &mut (_, Range<usize>) = occurrences.last_mut().unwrap();
                         assert_eq!(previous.end, span.start);
                         previous.end = span.end;
                     } else {
-                        occurrences.push((selected_role, RecoveryKind::Error, span));
+                        occurrences.push((StructuralKind::ErrorGroup, span));
                     }
                     in_error = true;
                 } else {
                     in_error = false;
                     if child.kind() == Missing {
-                        occurrences.push((selected_role, RecoveryKind::Missing, span));
+                        occurrences.push((StructuralKind::Missing, span));
                     }
                 }
             }
             let expected_occurrences = if missing {
-                vec![(selected_role, RecoveryKind::Missing, 15..15)]
+                vec![structural_fact(StructuralKind::Missing, 15..15)]
             } else if error {
-                vec![(selected_role, RecoveryKind::Error, 15..18)]
+                vec![structural_fact(StructuralKind::ErrorGroup, 15..18)]
             } else {
                 vec![]
             };
@@ -1855,19 +1693,10 @@ fn indented_cast_rowan_schema_covers_first_statement_missing_error_retry_and_con
                 assert_eq!(emit_pending_leading_text(&mut eof.item), "");
             };
             assert_eof(exit, rest);
-            // Temporary fresh/frozen records are a separate compatibility check;
-            // only their absolute coordinates shift, not Rowan's local ranges.
-            let expected_records = expected_occurrences
-                .into_iter()
-                .map(|(role, kind, span)| {
-                    record(role, kind, origin + span.start..origin + span.end)
-                })
-                .collect::<Vec<_>>();
-            assert_eq!(records, expected_records);
-            let (again, frozen, again_exit, again_rest) =
-                parse(source, 0, origin, None, Some(&records));
+            assert_eq!(facts, expected_occurrences);
+            let (again, repeated_facts, again_exit, again_rest) = parse(source, 0, origin, None);
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(repeated_facts, facts);
             assert_eof(again_exit, again_rest);
         }
     }
@@ -1875,7 +1704,7 @@ fn indented_cast_rowan_schema_covers_first_statement_missing_error_retry_and_con
 
 #[test]
 fn indented_colon_rowan_schema_uses_utf8_crlf_byte_ranges() {
-    let (green, _, _, _) = parse("f:\r\n  💥", 0, 0, None, None);
+    let (green, _, _, _) = parse("f:\r\n  💥", 0, 0, None);
     let block = colon_indented_block(&SyntaxNode::new_root(green));
     assert!(
         block
@@ -1906,36 +1735,27 @@ fn indented_quoted_fence_and_utf8_crlf_use_physical_shifted_extents() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    let role = GrammarRole::ColonApplication(ColonApplicationRole::IndentedStatement);
     for (source, expected, emitted) in [
         (
             "\r\n> > ```\nouter",
-            record(role, RecoveryKind::Missing, 102..102),
+            structural_fact(StructuralKind::Missing, 0..0),
             "",
         ),
         (
             "\r\n> >   💥\r\n> > ```\nouter",
-            record(role, RecoveryKind::Error, 108..112),
+            structural_fact(StructuralKind::ErrorGroup, 8..12),
             "\r\n> >   💥",
         ),
     ] {
-        let mut frozen_records = None;
         for _ in 0..2 {
             let operators = OperatorTable::empty();
             let mut input = source;
             let mut recover = Recover::new_for_test(&operators);
-            let mut output = frozen_records
-                .as_deref()
-                .map(|records| {
-                    recover = Recover::reconcile_for_test(recover.operators(), records);
-                    GreenNodeBuilder::new()
-                })
-                .unwrap_or_else(GreenNodeBuilder::new);
+            let mut output = GreenNodeBuilder::new();
             output.start_node(SyntaxKind::Root.into());
             let exit = crate::statement::indented_statement_block_normalized(
                 crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
                 0,
-                role,
                 STOP_ELSE,
                 100,
                 LineEntry::InLine,
@@ -1943,8 +1763,8 @@ fn indented_quoted_fence_and_utf8_crlf_use_physical_shifted_extents() {
                 Some(AmbientClaimView::root_statement(0)).into(),
             );
             output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-            assert_eq!(records, [expected.clone()], "{source:?}");
+            let green = finish_with_discarded_recoveries(output, recover);
+            assert_eq!(structural_facts(&green), [expected.clone()], "{source:?}");
             assert_eq!(green.to_string(), emitted);
             assert_eq!(input, "> > ```\nouter");
             let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart) = exit
@@ -1955,7 +1775,6 @@ fn indented_quoted_fence_and_utf8_crlf_use_physical_shifted_extents() {
                 item.payload_view().pending_boundary().unwrap().coordinate(),
                 100 + source.len() - input.len()
             );
-            frozen_records = Some(records);
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::header::{discover_header, discover_header_with_frozen};
+use crate::header::discover_header;
 use crate::{HeaderImportForm, HeaderImportRouteSeparator, HeaderStop};
 
 #[test]
@@ -38,7 +38,6 @@ fn leading_header_projects_forms_routes_groups_and_stops_before_body() {
     );
     assert_eq!(header.imports[5].form(), HeaderImportForm::Realm);
     assert_eq!(header.imports[6].form(), HeaderImportForm::Band);
-    assert!(header.recoveries.is_empty());
 }
 
 #[test]
@@ -59,19 +58,12 @@ fn projection_failure_discards_only_its_whole_declaration() {
 }
 
 #[test]
-fn unfulfilled_alias_discards_direct_and_grouped_batches_with_frozen_records() {
-    use crate::recovery_record::{
-        CommittedRecoveryRecord, DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax,
-        GrammarRole, ImportRole, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-
-    for (source, error) in [
-        ("use a as\nuse b", false),
-        ("use a::{one, two as}\nuse b", false),
-        ("use a as @\nuse b", true),
-        ("use a::{one, two as @}\nuse b", true),
+fn unfulfilled_alias_discards_direct_and_grouped_batches() {
+    for source in [
+        "use a as\nuse b",
+        "use a::{one, two as}\nuse b",
+        "use a as @\nuse b",
+        "use a::{one, two as @}\nuse b",
     ] {
         let fresh = discover_header(source);
         if let Some(close) = source.find('}') {
@@ -84,49 +76,6 @@ fn unfulfilled_alias_discards_direct_and_grouped_batches_with_frozen_records() {
             assert_eq!(fresh.imports.len(), 1, "{source}");
             assert_eq!(fresh.imports[0].path(), ["b"], "{source}");
         }
-        let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Alias));
-        let range = if error {
-            let start = source.find('@').unwrap();
-            start..start + 1
-        } else {
-            let start = source.find("as").unwrap() + 2;
-            start..start
-        };
-        let unexpected = if error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        };
-        assert_eq!(
-            &*fresh.recoveries,
-            [CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone()
-                },
-                kind: if error {
-                    RecoveryKind::Error
-                } else {
-                    RecoveryKind::Missing
-                },
-                unexpected,
-                expectations: Arc::from([SyntaxExpectation {
-                    role,
-                    expected: ExpectedSyntax::Identifier,
-                    range,
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            }],
-            "{source}"
-        );
-        let frozen = discover_header_with_frozen(source, Some(&fresh.recoveries));
-        assert_eq!(fresh.imports, frozen.imports, "{source}");
-        assert_eq!(fresh.recoveries, frozen.recoveries, "{source}");
     }
 }
 
@@ -151,10 +100,6 @@ fn recovered_alias_keeps_direct_and_grouped_projection() {
             fresh.imports.len(),
             if source.contains('{') { 3 } else { 2 }
         );
-        assert_eq!(fresh.recoveries.len(), 1);
-        let frozen = discover_header_with_frozen(source, Some(&fresh.recoveries));
-        assert_eq!(fresh.imports, frozen.imports);
-        assert_eq!(fresh.recoveries, frozen.recoveries);
     }
 }
 
@@ -167,30 +112,20 @@ fn heredoc_longer_quote_run_does_not_end_the_operator_body() {
     assert_eq!(fresh.operators.len(), 1);
     assert_eq!(fresh.imports.len(), 1);
     assert_eq!(fresh.imports[0].path(), ["visible"]);
-    assert!(fresh.recoveries.is_empty());
 }
 
 #[test]
-fn header_opaque_body_keeps_nested_regions_and_frozen_identity() {
+fn header_opaque_body_keeps_nested_regions_and_source_facts() {
     let source = "use a::\r\ninfix (<+>) 50 51 = {\r\n \"} use hidden\"\r\n '~'\r\n}\r\nuse λ::value\r\nmy x = 1";
     let fresh = discover_header(source);
     assert_eq!(fresh.coverage, 0..source.find("my x").unwrap());
     assert_eq!(fresh.operators.len(), 1);
     assert_eq!(fresh.imports.len(), 1);
     assert_eq!(fresh.imports[0].path(), ["λ", "value"]);
-    assert_eq!(fresh.recoveries.len(), 1);
-    let frozen = discover_header_with_frozen(source, Some(&fresh.recoveries));
-    assert_eq!(fresh.imports, frozen.imports);
-    assert_eq!(fresh.operators, frozen.operators);
-    assert_eq!(fresh.recoveries, frozen.recoveries);
 }
 
 #[test]
 fn header_error_keeps_retry_leading_outside_and_does_not_cancel_projection() {
-    use crate::recovery_record::{
-        DeclarationRole, GrammarRole, ImportRole, RecoveryKind, UnexpectedCategory,
-        UnexpectedSyntax,
-    };
     let source = "use @ a\r\nuse b\r\n";
     let fresh = discover_header(source);
     assert_eq!(fresh.stop, HeaderStop::Eof);
@@ -203,24 +138,6 @@ fn header_error_keeps_retry_leading_outside_and_does_not_cancel_projection() {
         ["a", "b"]
     );
     assert_eq!(fresh.imports[0].range(), &(0..7));
-    let [record] = &*fresh.recoveries else {
-        panic!("one lexical error");
-    };
-    assert_eq!(record.kind, RecoveryKind::Error);
-    assert_eq!(
-        record.site.role,
-        GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path))
-    );
-    assert_eq!(record.site.range, 4..5);
-    assert_eq!(
-        &*record.unexpected,
-        [UnexpectedSyntax::Token {
-            range: 4..5,
-            category: UnexpectedCategory::OtherCharacter
-        }]
-    );
-    let frozen = discover_header_with_frozen(source, Some(&fresh.recoveries));
-    assert_eq!(fresh.recoveries, frozen.recoveries);
 }
 
 #[test]

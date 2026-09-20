@@ -1,10 +1,4 @@
-use std::sync::Arc;
-
-use crate::recovery_record::{
-    DeclarationRole, DerivesRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-    RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole, UnexpectedCategory,
-    UnexpectedSyntax,
-};
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
 use crate::{
     declaration::derives::derives_clause_normalized,
@@ -17,15 +11,6 @@ use crate::{
     statement::StatementLineHandoff,
     type_expr::TypeOuterBoundary,
 };
-
-#[derive(Clone, Copy)]
-enum RecoveryHandling<'a> {
-    Reject,
-    Discard,
-    Retain,
-    Frozen(&'a [CommittedRecoveryRecord]),
-    Seeded(Option<&'a [CommittedRecoveryRecord]>),
-}
 
 fn active_fence() -> FenceBoundary {
     FenceBoundary {
@@ -48,15 +33,7 @@ fn run_derives_normalized<'source>(
     fence: Option<&FenceBoundary>,
     line_handoff: StatementLineHandoff,
     role_boundary: TypeOuterBoundary,
-    recovery_handling: RecoveryHandling<'_>,
-) -> (
-    GreenNode,
-    Item,
-    usize,
-    LineEntry,
-    &'source str,
-    Vec<CommittedRecoveryRecord>,
-) {
+) -> (GreenNode, Item, usize, LineEntry, &'source str) {
     run_derives_with_stops(
         source,
         operators,
@@ -65,7 +42,6 @@ fn run_derives_normalized<'source>(
         fence,
         line_handoff,
         role_boundary,
-        recovery_handling,
         0,
     )
 }
@@ -79,38 +55,12 @@ fn run_derives_with_stops<'source>(
     fence: Option<&FenceBoundary>,
     line_handoff: StatementLineHandoff,
     role_boundary: TypeOuterBoundary,
-    recovery_handling: RecoveryHandling<'_>,
     stops: Stops,
-) -> (
-    GreenNode,
-    Item,
-    usize,
-    LineEntry,
-    &'source str,
-    Vec<CommittedRecoveryRecord>,
-) {
+) -> (GreenNode, Item, usize, LineEntry, &'source str) {
     let mut input = source;
     let mut recover = Recover::new_for_test(operators);
-    let mut builder = match recovery_handling {
-        RecoveryHandling::Frozen(records) | RecoveryHandling::Seeded(Some(records)) => {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        }
-        _ => GreenNodeBuilder::new(),
-    };
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    if matches!(recovery_handling, RecoveryHandling::Seeded(_)) {
-        let seed = derives_record(DerivesRole::ViaTarget, RecoveryKind::Missing, 0..0, 0);
-        builder.start_node(SyntaxKind::Missing.into());
-        builder.finish_node();
-        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-            seed.site,
-            seed.kind,
-            seed.unexpected,
-            seed.expectations,
-            seed.primary_expectation,
-        ));
-    }
     let (pending, item_origin, line_entry) = {
         let mut i = crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder);
         let entry = suffix_marker(i.rb());
@@ -146,75 +96,8 @@ fn run_derives_with_stops<'source>(
         )
     };
     builder.finish_node();
-    let (green, recoveries) = match recovery_handling {
-        RecoveryHandling::Reject => (finish_without_recoveries(builder, recover), Vec::new()),
-        RecoveryHandling::Discard => (
-            finish_with_discarded_recoveries(builder, recover),
-            Vec::new(),
-        ),
-        _ => (builder.finish(), recover.finish_recoveries_for_test()),
-    };
-    (green, pending, item_origin, line_entry, input, recoveries)
-}
-
-fn required_type_primary_error_record() -> CommittedRecoveryRecord {
-    let role = GrammarRole::Type(TypeRole::Primary);
-    let range = 6211..6213;
-    CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: RecoveryKind::Error,
-        unexpected: Arc::from([UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        }]),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::TypeExpression,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
-fn derives_record(
-    role: DerivesRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    id: u32,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        DerivesRole::RoleReference => ExpectedSyntax::TypeExpression,
-        DerivesRole::ViaTarget => ExpectedSyntax::Identifier,
-    };
-    let role = GrammarRole::Declaration(DeclarationRole::Derives(role));
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Missing {
-            Arc::from([])
-        } else {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+    let green = finish_with_discarded_recoveries(builder, recover);
+    (green, pending, item_origin, line_entry, input)
 }
 
 fn header_role_boundary() -> TypeOuterBoundary {
@@ -257,7 +140,7 @@ fn derives_normalized_streams_crlf_prefixes_comma_and_raw_via() {
     let origin = 6100;
     let accepted = "> > derives Eq,\r\n> >   Debug via key";
     let source = format!("{accepted}\r\n> > ```\r\nouter");
-    let (green, boundary, actual_origin, line_entry, remainder, _) = run_derives_normalized(
+    let (green, boundary, actual_origin, line_entry, remainder) = run_derives_normalized(
         &source,
         &operators,
         origin,
@@ -265,7 +148,6 @@ fn derives_normalized_streams_crlf_prefixes_comma_and_raw_via() {
         Some(&fence),
         StatementLineHandoff::OrdinaryLayout,
         header_role_boundary(),
-        RecoveryHandling::Reject,
     );
     assert_eq!(green.to_string(), accepted);
     assert_eq!(remainder, "> > ```\r\nouter");
@@ -285,46 +167,15 @@ fn derives_normalized_streams_crlf_prefixes_comma_and_raw_via() {
 fn derives_normalized_recovers_role_and_via_slots_before_the_fence() {
     let fence = active_fence();
     let operators = OperatorTable::empty();
-    for (accepted, missing, errors, expected_recoveries) in [
-        (
-            "> > derives",
-            1,
-            0,
-            vec![derives_record(
-                DerivesRole::RoleReference,
-                RecoveryKind::Missing,
-                6212..6212,
-                0,
-            )],
-        ),
+    for (accepted, missing, errors, expected_facts) in [
+        ("> > derives", 1, 0, vec![(StructuralKind::Missing, 11..11)]),
         (
             "> > derives Eq, via",
             2,
             0,
             vec![
-                {
-                    let role =
-                        GrammarRole::Declaration(crate::recovery_record::DeclarationRole::Derives(
-                            crate::recovery_record::DerivesRole::RoleReference,
-                        ));
-                    CommittedRecoveryRecord {
-                        id: DiagnosticId(0),
-                        site: RecoverySiteKey {
-                            role,
-                            range: 6215..6215,
-                        },
-                        kind: RecoveryKind::Missing,
-                        unexpected: Arc::from([]),
-                        expectations: Arc::from([SyntaxExpectation {
-                            role,
-                            expected: ExpectedSyntax::TypeExpression,
-                            range: 6215..6215,
-                            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                        }]),
-                        primary_expectation: 0,
-                    }
-                },
-                derives_record(DerivesRole::ViaTarget, RecoveryKind::Missing, 6220..6220, 1),
+                (StructuralKind::Missing, 15..15),
+                (StructuralKind::Missing, 19..19),
             ],
         ),
         (
@@ -332,29 +183,27 @@ fn derives_normalized_recovers_role_and_via_slots_before_the_fence() {
             0,
             2,
             vec![
-                required_type_primary_error_record(),
-                derives_record(DerivesRole::ViaTarget, RecoveryKind::Error, 6222..6224, 1),
+                (StructuralKind::ErrorGroup, 11..13),
+                (StructuralKind::ErrorGroup, 22..24),
             ],
         ),
     ] {
         let source = format!("{accepted}\n> > ```\nouter");
-        let (green, boundary, item_origin, line_entry, remainder, recoveries) =
-            run_derives_normalized(
-                &source,
-                &operators,
-                6200,
-                LineEntry::PhysicalStart,
-                Some(&fence),
-                StatementLineHandoff::OrdinaryLayout,
-                header_role_boundary(),
-                RecoveryHandling::Retain,
-            );
+        let (green, boundary, item_origin, line_entry, remainder) = run_derives_normalized(
+            &source,
+            &operators,
+            6200,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+            StatementLineHandoff::OrdinaryLayout,
+            header_role_boundary(),
+        );
         assert_eq!(green.to_string(), accepted, "{accepted:?}");
         assert_eq!(remainder, "> > ```\nouter", "{accepted:?}");
         assert_eq!(line_entry, LineEntry::PhysicalStart, "{accepted:?}");
         assert_eq!(count(&green, SyntaxKind::Missing), missing, "{accepted:?}");
         assert_eq!(count(&green, SyntaxKind::Error), errors, "{accepted:?}");
-        assert_eq!(recoveries, expected_recoveries, "{accepted:?}");
+        assert_eq!(structural_facts(&green), expected_facts, "{accepted:?}");
         let (leading, pending) = emit_terminal_leading_text(boundary);
         assert_eq!(leading, "\n", "{accepted:?}");
         assert_eq!(pending.coordinate(), item_origin, "{accepted:?}");
@@ -367,7 +216,7 @@ fn derives_normalized_hands_exact_outer_successors_and_terminals_up() {
     let operators = OperatorTable::empty();
     for (word, remainder) in [("with", " tail"), ("impl", " P"), ("=", " Body")] {
         let source = format!("> > derives Eq {word}{remainder}");
-        let (green, mut pending, item_origin, line_entry, actual_remainder, _) =
+        let (green, mut pending, item_origin, line_entry, actual_remainder) =
             run_derives_normalized(
                 &source,
                 &operators,
@@ -376,7 +225,6 @@ fn derives_normalized_hands_exact_outer_successors_and_terminals_up() {
                 Some(&fence),
                 StatementLineHandoff::OrdinaryLayout,
                 header_role_boundary(),
-                RecoveryHandling::Reject,
             );
         assert_eq!(green.to_string(), "> > derives Eq", "{word:?}");
         assert_eq!(pending.payload_view().spelling(), Some(word), "{word:?}");
@@ -399,7 +247,7 @@ fn derives_normalized_hands_exact_outer_successors_and_terminals_up() {
         ),
         ("> > derives Eq", "", LineEntry::InLine, ""),
     ] {
-        let (green, boundary, item_origin, line_entry, remainder, _) = run_derives_normalized(
+        let (green, boundary, item_origin, line_entry, remainder) = run_derives_normalized(
             source,
             &operators,
             6350,
@@ -407,7 +255,6 @@ fn derives_normalized_hands_exact_outer_successors_and_terminals_up() {
             Some(&fence),
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
-            RecoveryHandling::Reject,
         );
         assert_eq!(green.to_string(), "> > derives Eq", "{source:?}");
         assert_eq!(remainder, expected_remainder, "{source:?}");
@@ -431,7 +278,7 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
         (StatementLineHandoff::CatchBracedArm, "\n  "),
     ] {
         let source = format!("derives{gap}next");
-        let (green, mut pending, item_origin, line_entry, remainder, _) = run_derives_normalized(
+        let (green, mut pending, item_origin, line_entry, remainder) = run_derives_normalized(
             &source,
             &operators,
             6400,
@@ -439,7 +286,6 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
             None,
             handoff,
             header_role_boundary(),
-            RecoveryHandling::Retain,
         );
         assert_eq!(green.to_string(), "derives", "{handoff:?}");
         assert_eq!(count(&green, SyntaxKind::Missing), 1, "{handoff:?}");
@@ -455,7 +301,7 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
     }
 
     let source = "derives (Eq via Inner) via key";
-    let (green, pending, item_origin, line_entry, remainder, _) = run_derives_normalized(
+    let (green, pending, item_origin, line_entry, remainder) = run_derives_normalized(
         source,
         &operators,
         6500,
@@ -463,7 +309,6 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
         None,
         StatementLineHandoff::OrdinaryLayout,
         header_role_boundary(),
-        RecoveryHandling::Reject,
     );
     assert_eq!(green.to_string(), source);
     assert!(pending.payload_view().is_eof());
@@ -482,65 +327,57 @@ fn derives_normalized_keeps_line_handoffs_and_nested_boundaries_distinct() {
 }
 
 #[test]
-fn derives_slots_publish_exact_fresh_frozen_and_seeded_records() {
-    use DerivesRole::{RoleReference, ViaTarget};
-    use RecoveryKind::{Error, Missing};
+fn derives_slots_publish_exact_structural_facts() {
     let operators = OperatorTable::empty();
-    for (source, role, kind, range, accepted, leading) in [
-        ("derives", RoleReference, Missing, 7..7, "derives", ""),
-        ("derives  ", RoleReference, Missing, 9..9, "derives", "  "),
+    for (source, kind, range, accepted, leading) in [
+        ("derives", StructuralKind::Missing, 7..7, "derives", ""),
+        ("derives  ", StructuralKind::Missing, 7..7, "derives", "  "),
         (
             "derives Eq,",
-            RoleReference,
-            Missing,
+            StructuralKind::Missing,
             11..11,
             "derives Eq,",
             "",
         ),
         (
             "derives Eq via",
-            ViaTarget,
-            Missing,
+            StructuralKind::Missing,
             14..14,
             "derives Eq via",
             "",
         ),
         (
             "derives Eq via  ",
-            ViaTarget,
-            Missing,
-            16..16,
+            StructuralKind::Missing,
+            14..14,
             "derives Eq via",
             "  ",
         ),
         (
             "derives Eq via ]",
-            ViaTarget,
-            Missing,
+            StructuralKind::Missing,
             14..14,
             "derives Eq via",
             " ",
         ),
         (
             "derives Eq via @ 123 target",
-            ViaTarget,
-            Error,
+            StructuralKind::ErrorGroup,
             14..20,
             "derives Eq via @ 123 target",
             "",
         ),
         (
             "derives Eq via @",
-            ViaTarget,
-            Error,
+            StructuralKind::ErrorGroup,
             14..16,
             "derives Eq via @",
             "",
         ),
     ] {
         for origin in [0, 7100] {
-            let expected = derives_record(role, kind, origin + range.start..origin + range.end, 0);
-            let (green, mut pending, _, _, _, records) = run_derives_normalized(
+            let expected = (kind, range.clone());
+            let (green, mut pending, _, _, _) = run_derives_normalized(
                 source,
                 &operators,
                 origin,
@@ -548,62 +385,16 @@ fn derives_slots_publish_exact_fresh_frozen_and_seeded_records() {
                 None,
                 StatementLineHandoff::OrdinaryLayout,
                 header_role_boundary(),
-                RecoveryHandling::Retain,
             );
             assert_eq!(green.to_string(), accepted, "{source:?}");
-            assert_eq!(records, [expected], "{source:?}");
+            assert_eq!(structural_facts(&green), [expected], "{source:?}");
             assert_eq!(
                 emit_pending_leading_text(&mut pending),
                 leading,
                 "{source:?}"
             );
-            let (again, _, _, _, _, frozen) = run_derives_normalized(
-                source,
-                &operators,
-                origin,
-                LineEntry::InLine,
-                None,
-                StatementLineHandoff::OrdinaryLayout,
-                header_role_boundary(),
-                RecoveryHandling::Frozen(&records),
-            );
-            assert_eq!(again, green);
-            assert_eq!(frozen, records);
         }
     }
-    let source = "derives Eq via @";
-    let (green, _, _, _, _, records) = run_derives_normalized(
-        source,
-        &operators,
-        100,
-        LineEntry::InLine,
-        None,
-        StatementLineHandoff::OrdinaryLayout,
-        header_role_boundary(),
-        RecoveryHandling::Seeded(None),
-    );
-    assert_eq!(
-        records,
-        [
-            derives_record(ViaTarget, Missing, 0..0, 0),
-            derives_record(ViaTarget, Error, 114..116, 1),
-        ]
-    );
-    let mut frozen = records;
-    frozen[0].id = DiagnosticId(7);
-    frozen[1].id = DiagnosticId(13);
-    let (again, _, _, _, _, records) = run_derives_normalized(
-        source,
-        &operators,
-        100,
-        LineEntry::InLine,
-        None,
-        StatementLineHandoff::OrdinaryLayout,
-        header_role_boundary(),
-        RecoveryHandling::Seeded(Some(&frozen)),
-    );
-    assert_eq!(again, green);
-    assert_eq!(records, frozen);
 }
 
 #[test]
@@ -629,7 +420,7 @@ fn derives_initial_role_reference_missing_has_direct_ordered_slot() {
             0,
         ),
     ] {
-        let (green, mut pending, actual_origin, line, actual_remainder, _) = run_derives_with_stops(
+        let (green, mut pending, actual_origin, line, actual_remainder) = run_derives_with_stops(
             source,
             &operators,
             0,
@@ -637,7 +428,6 @@ fn derives_initial_role_reference_missing_has_direct_ordered_slot() {
             None,
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
-            RecoveryHandling::Discard,
             stops,
         );
         assert_eq!(green.to_string(), "derives", "{source:?}");
@@ -730,7 +520,7 @@ fn derives_initial_role_reference_error_has_direct_type_primary_slot() {
             stops_for(TokenKind::RBracket) & crate::lexical::stops::STOP_CLOSES,
         ),
     ] {
-        let (green, mut pending, actual_origin, line, actual_remainder, _) = run_derives_with_stops(
+        let (green, mut pending, actual_origin, line, actual_remainder) = run_derives_with_stops(
             source,
             &operators,
             0,
@@ -738,7 +528,6 @@ fn derives_initial_role_reference_error_has_direct_type_primary_slot() {
             None,
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
-            RecoveryHandling::Discard,
             stops,
         );
         assert_eq!(green.to_string(), accepted, "{source:?}");
@@ -855,7 +644,7 @@ fn derives_post_comma_role_reference_missing_has_direct_ordered_slot() {
             13,
         ),
     ] {
-        let (green, mut pending, actual_origin, line, actual_remainder, _) = run_derives_with_stops(
+        let (green, mut pending, actual_origin, line, actual_remainder) = run_derives_with_stops(
             source,
             &operators,
             0,
@@ -863,7 +652,6 @@ fn derives_post_comma_role_reference_missing_has_direct_ordered_slot() {
             None,
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
-            RecoveryHandling::Discard,
             stops,
         );
         assert_eq!(green.to_string(), "derives Eq,", "{source:?}");
@@ -973,7 +761,7 @@ fn derives_post_comma_role_reference_error_has_direct_type_primary_slot() {
             stops_for(TokenKind::RBracket) & crate::lexical::stops::STOP_CLOSES,
         ),
     ] {
-        let (green, mut pending, actual_origin, line, actual_remainder, _) = run_derives_with_stops(
+        let (green, mut pending, actual_origin, line, actual_remainder) = run_derives_with_stops(
             source,
             &operators,
             0,
@@ -981,7 +769,6 @@ fn derives_post_comma_role_reference_error_has_direct_type_primary_slot() {
             None,
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
-            RecoveryHandling::Discard,
             stops,
         );
         assert_eq!(green.to_string(), accepted, "{source:?}");
@@ -1264,7 +1051,7 @@ fn derives_role_episode_repetition_has_one_compositional_rowan_schema() {
         } else {
             0
         };
-        let (green, mut pending, origin, line, remainder, _) = run_derives_with_stops(
+        let (green, mut pending, origin, line, remainder) = run_derives_with_stops(
             row.source,
             &operators,
             0,
@@ -1272,7 +1059,6 @@ fn derives_role_episode_repetition_has_one_compositional_rowan_schema() {
             None,
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
-            RecoveryHandling::Discard,
             stops,
         );
         assert_eq!(green.to_string(), &row.source[..row.committed]);
@@ -1449,7 +1235,7 @@ fn derives_via_target_raw_slot_has_direct_missing_and_error_retry() {
             retry: Some(17..23),
         },
     ] {
-        let (green, pending, origin, line, remainder, _) = run_derives_normalized(
+        let (green, pending, origin, line, remainder) = run_derives_normalized(
             row.source,
             &operators,
             0,
@@ -1457,7 +1243,6 @@ fn derives_via_target_raw_slot_has_direct_missing_and_error_retry() {
             None,
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
-            RecoveryHandling::Discard,
         );
         assert_eq!(green.to_string(), row.tree, "{:?}", row.source);
         let mut pending = pending;
@@ -1572,46 +1357,35 @@ fn derives_via_error_preserves_protected_identifier_before_retry() {
     ] {
         for origin in [0, 7200] {
             let source = format!("derives Eq via @ 123{gap}{word} tail");
-            let expected = [derives_record(
-                DerivesRole::ViaTarget,
-                RecoveryKind::Error,
-                origin + 14..origin + 20,
-                0,
-            )];
-            for handling in [
-                RecoveryHandling::Retain,
-                RecoveryHandling::Frozen(&expected),
-            ] {
-                let (green, mut pending, successor, entry, rest, records) = run_derives_normalized(
-                    &source,
-                    &operators,
-                    origin,
-                    LineEntry::InLine,
-                    None,
-                    handoff,
-                    header_role_boundary(),
-                    handling,
-                );
-                assert_eq!(green.to_string(), "derives Eq via @ 123", "{source:?}");
-                assert_eq!(records, expected, "{source:?}");
-                assert_eq!(pending.payload_view().spelling(), Some(word));
-                assert_eq!(
-                    pending.extent(successor).recovery_range(),
-                    origin + 20..origin + 20 + gap.len() + word.len()
-                );
-                assert_eq!(emit_pending_leading_text(&mut pending), gap);
-                assert_eq!(successor, origin + source.len() - " tail".len());
-                assert_eq!(entry, LineEntry::InLine);
-                assert_eq!(rest, " tail");
-                assert_eq!(count(&green, SyntaxKind::Missing), 0);
-                assert_eq!(count(&green, SyntaxKind::Error), 1);
-                let error =
-                    crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(green))
-                        .into_iter()
-                        .next()
-                        .unwrap();
-                assert_eq!(error.to_string(), " @ 123");
-            }
+            let expected = [(StructuralKind::ErrorGroup, 14..20)];
+            let (green, mut pending, successor, entry, rest) = run_derives_normalized(
+                &source,
+                &operators,
+                origin,
+                LineEntry::InLine,
+                None,
+                handoff,
+                header_role_boundary(),
+            );
+            assert_eq!(green.to_string(), "derives Eq via @ 123", "{source:?}");
+            assert_eq!(structural_facts(&green), expected, "{source:?}");
+            assert_eq!(pending.payload_view().spelling(), Some(word));
+            assert_eq!(
+                pending.extent(successor).recovery_range(),
+                origin + 20..origin + 20 + gap.len() + word.len()
+            );
+            assert_eq!(emit_pending_leading_text(&mut pending), gap);
+            assert_eq!(successor, origin + source.len() - " tail".len());
+            assert_eq!(entry, LineEntry::InLine);
+            assert_eq!(rest, " tail");
+            assert_eq!(count(&green, SyntaxKind::Missing), 0);
+            assert_eq!(count(&green, SyntaxKind::Error), 1);
+            let error =
+                crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(green))
+                    .into_iter()
+                    .next()
+                    .unwrap();
+            assert_eq!(error.to_string(), " @ 123");
         }
     }
 }
@@ -1623,37 +1397,26 @@ fn derives_via_error_keeps_shifted_utf8_crlf_fence_and_foreign_prefix() {
     for terminal in ["> > ```\r\nouter", "> ]\r\nouter"] {
         let accepted = "> > derives 役 via @";
         let source = format!("{accepted}\r\n{terminal}");
-        let start = 7300 + "> > derives 役 via".len();
-        let end = 7300 + accepted.len();
-        let expected = [derives_record(
-            DerivesRole::ViaTarget,
-            RecoveryKind::Error,
-            start..end,
-            0,
-        )];
-        for handling in [
-            RecoveryHandling::Retain,
-            RecoveryHandling::Frozen(&expected),
-        ] {
-            let (green, pending, successor, entry, rest, records) = run_derives_normalized(
-                &source,
-                &operators,
-                7300,
-                LineEntry::PhysicalStart,
-                Some(&fence),
-                StatementLineHandoff::OrdinaryLayout,
-                header_role_boundary(),
-                handling,
-            );
-            assert_eq!(green.to_string(), accepted);
-            assert_eq!(records, expected);
-            assert_eq!(rest, terminal);
-            assert_eq!(entry, LineEntry::PhysicalStart);
-            assert_eq!(successor, end + 2);
-            let (leading, boundary) = emit_terminal_leading_text(pending);
-            assert_eq!(leading, "\r\n");
-            assert_eq!(boundary.coordinate(), successor);
-        }
+        let start = "> > derives 役 via".len();
+        let end = accepted.len();
+        let expected = [(StructuralKind::ErrorGroup, start..end)];
+        let (green, pending, successor, entry, rest) = run_derives_normalized(
+            &source,
+            &operators,
+            7300,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+            StatementLineHandoff::OrdinaryLayout,
+            header_role_boundary(),
+        );
+        assert_eq!(green.to_string(), accepted);
+        assert_eq!(structural_facts(&green), expected);
+        assert_eq!(rest, terminal);
+        assert_eq!(entry, LineEntry::PhysicalStart);
+        assert_eq!(successor, 7300 + end + 2);
+        let (leading, boundary) = emit_terminal_leading_text(pending);
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), successor);
     }
 }
 
@@ -1663,78 +1426,47 @@ fn derives_via_error_preserves_active_companions() {
     let operators = OperatorTable::empty();
     for (word, stop) in [("else", STOP_ELSE), ("elsif", STOP_ELSIF)] {
         let source = format!("derives Eq via @{word}: tail");
-        let expected = [derives_record(
-            DerivesRole::ViaTarget,
-            RecoveryKind::Error,
-            8114..8116,
-            0,
-        )];
-        for handling in [
-            RecoveryHandling::Retain,
-            RecoveryHandling::Frozen(&expected),
-        ] {
-            let (green, pending, successor, entry, rest, records) = run_derives_with_stops(
-                &source,
-                &operators,
-                8100,
-                LineEntry::InLine,
-                None,
-                StatementLineHandoff::OrdinaryLayout,
-                header_role_boundary(),
-                handling,
-                stop,
-            );
-            assert_eq!(green.to_string(), "derives Eq via @");
-            assert_eq!(records, expected);
-            assert_eq!(pending.payload_view().spelling(), Some(word));
-            assert_eq!(
-                pending.extent(successor).recovery_range(),
-                8116..8116 + word.len()
-            );
-            assert_eq!(entry, LineEntry::InLine);
-            assert_eq!(rest, ": tail");
-        }
-    }
-}
-
-#[test]
-fn derives_role_override_does_not_replace_entered_type_path_owner() {
-    let operators = OperatorTable::empty();
-    let role = GrammarRole::Type(TypeRole::PathSegment);
-    let expected = [CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: 8212..8212,
-        },
-        kind: RecoveryKind::Missing,
-        unexpected: Arc::from([]),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::TypePathSegment,
-            range: 8212..8212,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }];
-    for handling in [
-        RecoveryHandling::Retain,
-        RecoveryHandling::Frozen(&expected),
-    ] {
-        let (green, pending, successor, _, rest, records) = run_derives_normalized(
-            "derives Eq::",
+        let expected = [(StructuralKind::ErrorGroup, 14..16)];
+        let (green, pending, successor, entry, rest) = run_derives_with_stops(
+            &source,
             &operators,
-            8200,
+            8100,
             LineEntry::InLine,
             None,
             StatementLineHandoff::OrdinaryLayout,
             header_role_boundary(),
-            handling,
+            stop,
         );
-        assert_eq!(green.to_string(), "derives Eq::");
-        assert_eq!(records, expected);
-        assert!(pending.payload_view().is_eof());
-        assert_eq!(successor, 8212);
-        assert_eq!(rest, "");
+        assert_eq!(green.to_string(), "derives Eq via @");
+        assert_eq!(structural_facts(&green), expected);
+        assert_eq!(pending.payload_view().spelling(), Some(word));
+        assert_eq!(
+            pending.extent(successor).recovery_range(),
+            8116..8116 + word.len()
+        );
+        assert_eq!(entry, LineEntry::InLine);
+        assert_eq!(rest, ": tail");
     }
+}
+
+#[test]
+fn derives_path_segment_missing_has_exact_structural_fact() {
+    let operators = OperatorTable::empty();
+    let (green, pending, successor, _, rest) = run_derives_normalized(
+        "derives Eq::",
+        &operators,
+        8200,
+        LineEntry::InLine,
+        None,
+        StatementLineHandoff::OrdinaryLayout,
+        header_role_boundary(),
+    );
+    assert_eq!(green.to_string(), "derives Eq::");
+    assert_eq!(
+        structural_facts(&green),
+        [(StructuralKind::Missing, 12..12)]
+    );
+    assert!(pending.payload_view().is_eof());
+    assert_eq!(successor, 8212);
+    assert_eq!(rest, "");
 }

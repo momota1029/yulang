@@ -1,116 +1,77 @@
-use crate::recovery_record::{ConstructRole, Delimiter, PunctuationEvidence};
 use crate::tests::pattern::recovery::*;
 
-pub(super) fn close_record(
-    id: u32,
-    owner: ConstructRole,
-    delimiter: Delimiter,
-    at: usize,
-) -> CommittedRecoveryRecord {
-    let role = GrammarRole::ClosingDelimiter { owner, delimiter };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: at..at,
-        },
-        kind: RecoveryKind::Missing,
-        unexpected: Arc::from([]),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
-            range: at..at,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
 #[test]
-fn delimited_missing_slots_publish_exact_roles_and_direct_owners() {
-    use PatternRole::*;
+fn delimited_missing_slots_preserve_direct_cst_owners() {
     for origin in [0, 41] {
-        for (source, role, at, parent, completion) in [
+        for (source, at, parent, completion) in [
             (
                 "(,a)",
-                ParenthesizedElement,
                 1,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "(a b)",
-                ParenthesizedSeparator,
                 3,
                 SyntaxKind::ParenthesizedPattern,
                 PatternCompletion::Complete,
             ),
             (
                 "[,a]",
-                ListItem,
                 1,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "[..]",
-                ListSpreadRhs,
                 3,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "[..,a]",
-                ListSpreadRhs,
                 3,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "[a b]",
-                ListSeparator,
                 3,
                 SyntaxKind::ListPattern,
                 PatternCompletion::Complete,
             ),
             (
                 "{,a}",
-                RecordItem,
                 1,
                 SyntaxKind::RecordPattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "{a:}",
-                RecordNestedPattern,
                 3,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "{a: =1}",
-                RecordNestedPattern,
                 4,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "{..}",
-                RecordSpreadRhs,
                 3,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "{..,a}",
-                RecordSpreadRhs,
                 3,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
             ),
             (
                 "{a b}",
-                RecordSeparator,
                 3,
                 SyntaxKind::RecordPattern,
                 PatternCompletion::Complete,
@@ -122,7 +83,7 @@ fn delimited_missing_slots_publish_exact_roles_and_direct_owners() {
                     origin,
                     ..Context::default()
                 },
-                &[record(1, role, origin + at..origin + at, false)],
+                &[fact(false, at..at)],
                 source,
                 completion,
             );
@@ -143,19 +104,18 @@ fn delimited_missing_slots_publish_exact_roles_and_direct_owners() {
 }
 
 #[test]
-fn delimited_child_error_roles_do_not_override_nested_owners() {
-    use PatternRole::*;
+fn delimited_child_errors_do_not_override_nested_owners() {
     for origin in [0, 41] {
-        for (source, role, range, error) in [
-            ("(@ x)", ParenthesizedElement, 1..2, true),
-            ("[@ x]", ListItem, 1..2, true),
-            ("[..@ x]", ListSpreadRhs, 3..4, true),
-            ("{a:@ x}", RecordNestedPattern, 3..4, true),
-            ("{..@ x}", RecordSpreadRhs, 3..4, true),
-            ("{a:(@ x)}", ParenthesizedElement, 4..5, true),
-            ("[A |]", AlternationRhs, 4..4, false),
-            ("[(A as)]", AliasBinding, 6..6, false),
-            ("{a: :}", SymbolName, 5..5, false),
+        for (source, range, error) in [
+            ("(@ x)", 1..2, true),
+            ("[@ x]", 1..2, true),
+            ("[..@ x]", 3..4, true),
+            ("{a:@ x}", 3..4, true),
+            ("{..@ x}", 3..4, true),
+            ("{a:(@ x)}", 4..5, true),
+            ("[A |]", 4..4, false),
+            ("[(A as)]", 6..6, false),
+            ("{a: :}", 5..5, false),
         ] {
             let fresh = checked(
                 source,
@@ -163,12 +123,7 @@ fn delimited_child_error_roles_do_not_override_nested_owners() {
                     origin,
                     ..Context::default()
                 },
-                &[record(
-                    1,
-                    role,
-                    origin + range.start..origin + range.end,
-                    error,
-                )],
+                &[fact(error, range)],
                 source,
                 if error {
                     PatternCompletion::Complete
@@ -192,44 +147,20 @@ fn delimited_child_error_roles_do_not_override_nested_owners() {
 }
 
 #[test]
-fn delimited_missing_close_order_follows_nested_slot_records() {
-    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
-    use Delimiter::{Brace, Bracket, Parenthesis};
+fn delimited_missing_close_order_follows_nested_cst_order() {
     for origin in [0, 41] {
         for (source, records) in [
             (
                 "[(,",
-                vec![
-                    record(
-                        1,
-                        PatternRole::ParenthesizedElement,
-                        origin + 2..origin + 2,
-                        false,
-                    ),
-                    close_record(2, P, Parenthesis, origin + 3),
-                    close_record(3, L, Bracket, origin + 3),
-                ],
+                vec![fact(false, 2..2), fact(false, 3..3), fact(false, 3..3)],
             ),
             (
                 "({a:",
-                vec![
-                    record(
-                        1,
-                        PatternRole::RecordNestedPattern,
-                        origin + 4..origin + 4,
-                        false,
-                    ),
-                    close_record(2, R, Brace, origin + 4),
-                    close_record(3, P, Parenthesis, origin + 4),
-                ],
+                vec![fact(false, 4..4), fact(false, 4..4), fact(false, 4..4)],
             ),
             (
                 "{a:[..,",
-                vec![
-                    record(1, PatternRole::ListSpreadRhs, origin + 6..origin + 6, false),
-                    close_record(2, L, Bracket, origin + 7),
-                    close_record(3, R, Brace, origin + 7),
-                ],
+                vec![fact(false, 6..6), fact(false, 7..7), fact(false, 7..7)],
             ),
         ] {
             let fresh = checked(
@@ -254,8 +185,6 @@ fn delimited_missing_close_order_follows_nested_slot_records() {
 
 #[test]
 fn delimited_terminal_close_is_derived_from_direct_rowan_order() {
-    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
-    use Delimiter::{Brace, Bracket, Parenthesis};
     use SyntaxKind::{
         Colon, Identifier, LBrace, LBracket, LParen, ListPattern, Missing, ParenthesizedPattern,
         Pattern, RBrace, RBracket, RParen, RecordPattern, RecordPatternField,
@@ -283,37 +212,10 @@ fn delimited_terminal_close_is_derived_from_direct_rowan_order() {
     }
 
     for origin in [0, 41] {
-        for (open, close, owner_kind, child_kind, role, delimiter, open_kind, close_kind) in [
-            (
-                "(",
-                ")",
-                ParenthesizedPattern,
-                Pattern,
-                P,
-                Parenthesis,
-                LParen,
-                RParen,
-            ),
-            (
-                "[",
-                "]",
-                ListPattern,
-                Pattern,
-                L,
-                Bracket,
-                LBracket,
-                RBracket,
-            ),
-            (
-                "{",
-                "}",
-                RecordPattern,
-                RecordPatternField,
-                R,
-                Brace,
-                LBrace,
-                RBrace,
-            ),
+        for (open, close, owner_kind, child_kind, open_kind, close_kind) in [
+            ("(", ")", ParenthesizedPattern, Pattern, LParen, RParen),
+            ("[", "]", ListPattern, Pattern, LBracket, RBracket),
+            ("{", "}", RecordPattern, RecordPatternField, LBrace, RBrace),
         ] {
             for item in ["", "a"] {
                 for has_close in [false, true] {
@@ -321,7 +223,7 @@ fn delimited_terminal_close_is_derived_from_direct_rowan_order() {
                     let records = if has_close {
                         vec![]
                     } else {
-                        vec![close_record(1, role, delimiter, origin + source.len())]
+                        vec![fact(false, source.len()..source.len())]
                     };
                     let fresh = checked(
                         &source,
@@ -380,7 +282,7 @@ fn delimited_terminal_close_is_derived_from_direct_rowan_order() {
         }
 
         let source = "({a:";
-        let at = origin + source.len();
+        let at = source.len();
         let fresh = checked(
             source,
             Context {
@@ -388,9 +290,9 @@ fn delimited_terminal_close_is_derived_from_direct_rowan_order() {
                 ..Context::default()
             },
             &[
-                record(1, PatternRole::RecordNestedPattern, at..at, false),
-                close_record(2, R, Brace, at),
-                close_record(3, P, Parenthesis, at),
+                fact(false, at..at),
+                fact(false, at..at),
+                fact(false, at..at),
             ],
             source,
             PatternCompletion::Incomplete,
@@ -433,47 +335,17 @@ fn delimited_terminal_close_is_derived_from_direct_rowan_order() {
 
 #[test]
 fn delimited_missing_closes_keep_caller_items_and_real_outer_close_ownership() {
-    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
-    use Delimiter::{Brace, Bracket, Parenthesis};
     for origin in [0, 41] {
-        for (prefix, owner, delimiter, raw_close, caller, child) in [
-            (
-                "(",
-                P,
-                Parenthesis,
-                "]",
-                PatternCallerCloses::RBRACKET,
-                None,
-            ),
-            ("(a", P, Parenthesis, "}", PatternCallerCloses::RBRACE, None),
-            (
-                "(@",
-                P,
-                Parenthesis,
-                "]",
-                PatternCallerCloses::RBRACKET,
-                Some((PatternRole::ParenthesizedElement, 1..2, true)),
-            ),
-            ("[", L, Bracket, ")", PatternCallerCloses::RPAREN, None),
-            ("[a", L, Bracket, "}", PatternCallerCloses::RBRACE, None),
-            (
-                "[..",
-                L,
-                Bracket,
-                ")",
-                PatternCallerCloses::RPAREN,
-                Some((PatternRole::ListSpreadRhs, 3..3, false)),
-            ),
-            ("{", R, Brace, ")", PatternCallerCloses::RPAREN, None),
-            ("{a", R, Brace, "]", PatternCallerCloses::RBRACKET, None),
-            (
-                "{a:",
-                R,
-                Brace,
-                ")",
-                PatternCallerCloses::RPAREN,
-                Some((PatternRole::RecordNestedPattern, 3..3, false)),
-            ),
+        for (prefix, raw_close, caller, child) in [
+            ("(", "]", PatternCallerCloses::RBRACKET, None),
+            ("(a", "}", PatternCallerCloses::RBRACE, None),
+            ("(@", "]", PatternCallerCloses::RBRACKET, Some((1..2, true))),
+            ("[", ")", PatternCallerCloses::RPAREN, None),
+            ("[a", "}", PatternCallerCloses::RBRACE, None),
+            ("[..", ")", PatternCallerCloses::RPAREN, Some((3..3, false))),
+            ("{", ")", PatternCallerCloses::RPAREN, None),
+            ("{a", "]", PatternCallerCloses::RBRACKET, None),
+            ("{a:", ")", PatternCallerCloses::RPAREN, Some((3..3, false))),
         ] {
             for gap in [" ", " /*é*/ ", "\r\n "] {
                 let suffix = format!("{gap}{raw_close}tail");
@@ -484,20 +356,10 @@ fn delimited_missing_closes_keep_caller_items_and_real_outer_close_ownership() {
                     ..Context::default()
                 };
                 let mut expected = Vec::new();
-                if let Some((role, range, error)) = &child {
-                    expected.push(record(
-                        1,
-                        *role,
-                        origin + range.start..origin + range.end,
-                        *error,
-                    ));
+                if let Some((range, error)) = &child {
+                    expected.push(fact(*error, range.clone()));
                 }
-                expected.push(close_record(
-                    1 + expected.len() as u32,
-                    owner,
-                    delimiter,
-                    origin + prefix.len(),
-                ));
+                expected.push(fact(false, prefix.len()..prefix.len()));
                 let fresh = checked(
                     &source,
                     context,
@@ -516,7 +378,7 @@ fn delimited_missing_closes_keep_caller_items_and_real_outer_close_ownership() {
                 origin,
                 ..Context::default()
             },
-            &[close_record(1, L, Bracket, origin + 4)],
+            &[fact(false, 4..4)],
             source,
             PatternCompletion::Incomplete,
         );
@@ -540,32 +402,25 @@ fn delimited_missing_closes_keep_caller_items_and_real_outer_close_ownership() {
 
 #[test]
 fn delimited_eof_missing_anchors_follow_only_owned_leading() {
-    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
-    use Delimiter::{Brace, Bracket, Parenthesis};
     for origin in [0, 41] {
-        for (prefix, owner, delimiter, child) in [
-            ("(", P, Parenthesis, None),
-            ("(a", P, Parenthesis, None),
-            ("[", L, Bracket, None),
-            ("[a", L, Bracket, None),
-            ("[..", L, Bracket, Some(PatternRole::ListSpreadRhs)),
-            ("{", R, Brace, None),
-            ("{a", R, Brace, None),
-            ("{a:", R, Brace, Some(PatternRole::RecordNestedPattern)),
+        for (prefix, child) in [
+            ("(", false),
+            ("(a", false),
+            ("[", false),
+            ("[a", false),
+            ("[..", true),
+            ("{", false),
+            ("{a", false),
+            ("{a:", true),
         ] {
             let suffix = " /*é*/ \r\n";
             let source = format!("{prefix}{suffix}");
-            let at = origin + source.len();
+            let at = source.len();
             let mut expected = Vec::new();
-            if let Some(role) = child {
-                expected.push(record(1, role, at..at, false));
+            if child {
+                expected.push(fact(false, at..at));
             }
-            expected.push(close_record(
-                1 + expected.len() as u32,
-                owner,
-                delimiter,
-                at,
-            ));
+            expected.push(fact(false, at..at));
             let fresh = checked(
                 &source,
                 Context {
@@ -599,19 +454,16 @@ fn delimited_eof_missing_anchors_follow_only_owned_leading() {
             item.emit_all_remaining_leading(&mut owner_output);
             owner_output.finish_node();
             assert_eq!(owner_output.finish().to_string(), suffix);
-            assert!(recover.finish_recoveries_for_test().is_empty());
             let control = crate::handoff::complete(crate::handoff::handoff(item), next_line_entry);
             assert_same_exit(&fresh.exit, &control);
             assert_eq!(fresh.remainder, input);
-            assert_eq!(fresh.successor, at);
+            assert_eq!(fresh.successor, origin + at);
         }
     }
 }
 
 #[test]
 fn delimited_quoted_fence_missing_keeps_whole_pending_items_and_inner_first_order() {
-    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
-    use Delimiter::{Brace, Bracket, Parenthesis};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -622,13 +474,13 @@ fn delimited_quoted_fence_missing_keeps_whole_pending_items_and_inner_first_orde
         close_column: 0,
     };
     for origin in [0, 8_000] {
-        for (prefix, owner, delimiter, child) in [
-            ("(", P, Parenthesis, None),
-            ("(a", P, Parenthesis, None),
-            ("[", L, Bracket, None),
-            ("[..", L, Bracket, Some(PatternRole::ListSpreadRhs)),
-            ("{", R, Brace, None),
-            ("{a:", R, Brace, Some(PatternRole::RecordNestedPattern)),
+        for (prefix, child) in [
+            ("(", false),
+            ("(a", false),
+            ("[", false),
+            ("[..", true),
+            ("{", false),
+            ("{a:", true),
         ] {
             let suffix = "\r\n> > ```\r\nouter";
             let source = format!("{prefix}{suffix}");
@@ -637,17 +489,12 @@ fn delimited_quoted_fence_missing_keeps_whole_pending_items_and_inner_first_orde
                 fence: Some(&fence),
                 ..Context::default()
             };
-            let at = origin + prefix.len() + 2;
+            let at = prefix.len();
             let mut expected = Vec::new();
-            if let Some(role) = child {
-                expected.push(record(1, role, at..at, false));
+            if child {
+                expected.push(fact(false, at..at));
             }
-            expected.push(close_record(
-                1 + expected.len() as u32,
-                owner,
-                delimiter,
-                at,
-            ));
+            expected.push(fact(false, at..at));
             let fresh = checked(
                 &source,
                 context,

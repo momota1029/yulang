@@ -1,20 +1,5 @@
-use crate::recovery_record::{ConstructRole, Delimiter, PunctuationEvidence};
-use crate::tests::pattern::recovery::delimited::close_record;
 use crate::tests::pattern::recovery::*;
-
-fn foreign_close_record(id: u32, origin: usize, range: Range<usize>) -> CommittedRecoveryRecord {
-    let mut close = close_record(id, ConstructRole::RecordPattern, Delimiter::Brace, origin);
-    close.kind = RecoveryKind::Error;
-    close.site.range = origin + range.start..origin + range.end;
-    Arc::make_mut(&mut close.expectations)[0].range = close.site.range.clone();
-    close.unexpected = Arc::from([UnexpectedSyntax::Token {
-        range: close.site.range.clone(),
-        category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
-            Delimiter::Parenthesis,
-        )),
-    }]);
-    close
-}
+use std::ops::Range;
 
 fn assert_foreign_close_slots(green: GreenNode, source: &str, ranges: &[Range<usize>]) {
     let root = SyntaxNode::new_root(green);
@@ -50,7 +35,7 @@ fn assert_foreign_close_slots(green: GreenNode, source: &str, ranges: &[Range<us
 }
 
 #[test]
-fn record_foreign_close_slot_separates_raw_item_and_each_consumed_close() {
+fn foreign_close_slots_separate_raw_item_and_each_consumed_close() {
     for origin in [0, 41] {
         for (source, closes, raw, literal) in [
             ("{@1}", vec![], Some(1..2), Some(2)),
@@ -65,32 +50,16 @@ fn record_foreign_close_slot_separates_raw_item_and_each_consumed_close() {
         ] {
             let mut expected = closes
                 .iter()
-                .enumerate()
-                .map(|(index, range)| foreign_close_record(1 + index as u32, origin, range.clone()))
+                .map(|range| fact(true, range.clone()))
                 .collect::<Vec<_>>();
             if let Some(range) = raw.clone() {
-                expected.push(record(
-                    1 + expected.len() as u32,
-                    PatternRole::RecordItem,
-                    origin + range.start..origin + range.end,
-                    true,
-                ));
+                expected.push(fact(true, range));
             }
             if let Some(start) = literal {
-                expected.push(record(
-                    1 + expected.len() as u32,
-                    PatternRole::RecordItem,
-                    origin + start..origin + start + 1,
-                    true,
-                ));
+                expected.push(invalid_fact(start..start + 1));
             }
             if source == "{),a}" {
-                expected.push(record(
-                    2,
-                    PatternRole::RecordItem,
-                    origin + 2..origin + 2,
-                    false,
-                ));
+                expected.push(fact(false, 2..2));
             }
             let fresh = checked(
                 source,
@@ -125,7 +94,7 @@ fn record_foreign_close_slot_separates_raw_item_and_each_consumed_close() {
 }
 
 #[test]
-fn record_foreign_close_slot_excludes_missing_and_protected_boundaries() {
+fn foreign_close_slots_exclude_missing_and_protected_boundaries() {
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -143,7 +112,7 @@ fn record_foreign_close_slot_excludes_missing_and_protected_boundaries() {
                 "\r\n> > ```\r\nouter",
                 Some(&fence),
                 PatternCallerCloses::NONE,
-                4,
+                2,
                 "{)",
             ),
         ] {
@@ -157,15 +126,7 @@ fn record_foreign_close_slot_excludes_missing_and_protected_boundaries() {
             let fresh = checked(
                 &source,
                 context,
-                &[
-                    foreign_close_record(1, origin, 1..2),
-                    close_record(
-                        2,
-                        ConstructRole::RecordPattern,
-                        Delimiter::Brace,
-                        origin + at,
-                    ),
-                ],
+                &[fact(true, 1..2), fact(false, at..at)],
                 emitted,
                 PatternCompletion::Incomplete,
             );
@@ -181,7 +142,6 @@ fn record_foreign_close_slot_excludes_missing_and_protected_boundaries() {
                     origin,
                     ..Context::default()
                 },
-                None,
             );
             assert_eq!(fresh.green.to_string(), format!("sentinel{source}"));
             assert_foreign_close_slots(fresh.green, source, &[]);
@@ -193,7 +153,7 @@ fn record_foreign_close_slot_excludes_missing_and_protected_boundaries() {
                 origin,
                 ..Context::default()
             },
-            &[foreign_close_record(1, origin, 5..6)],
+            &[fact(true, 5..6)],
             source,
             PatternCompletion::Complete,
         );
@@ -237,8 +197,6 @@ fn assert_separator_slot(green: GreenNode, text: &str, start: usize) {
 
 #[test]
 fn record_separator_slot_distinguishes_colliding_item_topology() {
-    use ConstructRole::RecordPattern;
-    use Delimiter::{Brace, Parenthesis};
     for origin in [0, 41] {
         for (source, separator) in [
             ("{a)1}", true),
@@ -247,50 +205,12 @@ fn record_separator_slot_distinguishes_colliding_item_topology() {
             ("{a@ @1}", false),
         ] {
             let start = source.find('1').unwrap();
-            let first = if separator {
-                let mut close = close_record(1, RecordPattern, Brace, origin + 2);
-                close.kind = RecoveryKind::Error;
-                close.site.range = origin + 2..origin + 3;
-                Arc::make_mut(&mut close.expectations)[0].range = close.site.range.clone();
-                close.unexpected = Arc::from([UnexpectedSyntax::Token {
-                    range: close.site.range.clone(),
-                    category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
-                        Parenthesis,
-                    )),
-                }]);
-                close
-            } else {
-                record(
-                    1,
-                    PatternRole::RecordSeparator,
-                    origin + 2..origin + start,
-                    true,
-                )
-            };
+            let first = fact(true, 2..if separator { 3 } else { start });
             let mut expected = vec![first];
             if source == "{a))1}" {
-                let mut second = expected[0].clone();
-                second.id = DiagnosticId(2);
-                second.site.range = origin + 3..origin + 4;
-                Arc::make_mut(&mut second.expectations)[0].range = second.site.range.clone();
-                second.unexpected = Arc::from([UnexpectedSyntax::Token {
-                    range: second.site.range.clone(),
-                    category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
-                        Parenthesis,
-                    )),
-                }]);
-                expected.push(second);
+                expected.push(fact(true, 3..4));
             }
-            expected.push(record(
-                1 + expected.len() as u32,
-                if separator {
-                    PatternRole::RecordSeparator
-                } else {
-                    PatternRole::RecordItem
-                },
-                origin + start..origin + start + 1,
-                true,
-            ));
+            expected.push(invalid_fact(start..start + 1));
             let fresh = checked(
                 source,
                 Context {
@@ -373,12 +293,7 @@ fn record_separator_slot_excludes_leading_and_accepted_layout() {
                 origin,
                 ..Context::default()
             },
-            &[record(
-                1,
-                PatternRole::RecordSeparator,
-                origin + start..origin + start + "\"é\"".len(),
-                true,
-            )],
+            &[invalid_fact(start..start + "\"é\"".len())],
             source,
             PatternCompletion::Complete,
         );
@@ -414,12 +329,7 @@ fn record_wrong_kind_literal_keeps_its_inner_brace_and_following_field() {
                 origin,
                 ..Context::default()
             },
-            &[record(
-                1,
-                PatternRole::RecordItem,
-                origin + 1..origin + 8,
-                true,
-            )],
+            &[invalid_fact(1..8)],
             source,
             PatternCompletion::Complete,
         );
@@ -468,12 +378,7 @@ fn record_item_wrong_kind_utf8_literal_is_direct_and_retries_after_comma() {
                     origin,
                     ..Context::default()
                 },
-                &[record(
-                    1,
-                    PatternRole::RecordItem,
-                    origin + start..origin + start + head.len(),
-                    true,
-                )],
+                &[invalid_fact(start..start + head.len())],
                 source,
                 PatternCompletion::Complete,
             );
@@ -550,21 +455,18 @@ fn delimited_literal_items_follow_the_authorized_comma_or_layout_grammar() {
 
 #[test]
 fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
-    use PatternRole::{
-        ListSeparator as L, ParenthesizedSeparator as P, RecordItem as I, RecordSeparator as R,
-    };
     for origin in [0, 41] {
-        for (source, role, range) in [
-            ("{@,a}", I, 1..2),
-            ("{@ @ a}", I, 1..4),
-            ("{@}", I, 1..2),
-            ("{a; b}", R, 2..3),
-            ("{a @ ; . b}", R, 3..8),
-            ("{a;}", R, 2..3),
-            ("(a; b)", P, 2..3),
-            ("[a; b]", L, 2..3),
-            ("[a @ ; b]", L, 3..6),
-            ("[a; ,b]", L, 2..3),
+        for (source, range, owner) in [
+            ("{@,a}", 1..2, SyntaxKind::RecordPattern),
+            ("{@ @ a}", 1..4, SyntaxKind::RecordPattern),
+            ("{@}", 1..2, SyntaxKind::RecordPattern),
+            ("{a; b}", 2..3, SyntaxKind::RecordPattern),
+            ("{a @ ; . b}", 3..8, SyntaxKind::RecordPattern),
+            ("{a;}", 2..3, SyntaxKind::RecordPattern),
+            ("(a; b)", 2..3, SyntaxKind::ParenthesizedPattern),
+            ("[a; b]", 2..3, SyntaxKind::ListPattern),
+            ("[a @ ; b]", 3..6, SyntaxKind::ListPattern),
+            ("[a; ,b]", 2..3, SyntaxKind::ListPattern),
         ] {
             let fresh = checked(
                 source,
@@ -572,12 +474,7 @@ fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
                     origin,
                     ..Context::default()
                 },
-                &[record(
-                    1,
-                    role,
-                    origin + range.start..origin + range.end,
-                    true,
-                )],
+                &[fact(true, range.clone())],
                 source,
                 PatternCompletion::Complete,
             );
@@ -589,14 +486,7 @@ fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
                     .any(|node| node.kind() == SyntaxKind::RecordPatternSeparator)
             );
             assert_eq!(error.to_string(), source[range.clone()]);
-            assert_eq!(
-                error.parent().unwrap().kind(),
-                match role {
-                    L => SyntaxKind::ListPattern,
-                    P => SyntaxKind::ParenthesizedPattern,
-                    _ => SyntaxKind::RecordPattern,
-                }
-            );
+            assert_eq!(error.parent().unwrap().kind(), owner);
             for token in error
                 .children_with_tokens()
                 .filter_map(|element| element.into_token())
@@ -610,10 +500,7 @@ fn sequence_error_runs_retry_without_duplicate_item_or_separator_missing() {
                 origin,
                 ..Context::default()
             },
-            &[
-                record(1, I, origin + 1..origin + 2, true),
-                record(2, I, origin + 3..origin + 3, false),
-            ],
+            &[fact(true, 1..2), fact(false, 3..3)],
             "{@,,a}",
             PatternCompletion::Incomplete,
         );
@@ -640,14 +527,13 @@ fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
         ("a,b", vec![(Comma, ",")], None),
         ("a\nb", vec![(Newline, "\n")], None),
     ] {
-        for (open, close, owner_kind, open_kind, close_kind, role) in [
+        for (open, close, owner_kind, open_kind, close_kind) in [
             (
                 "(",
                 ")",
                 SyntaxKind::ParenthesizedPattern,
                 SyntaxKind::LParen,
                 SyntaxKind::RParen,
-                PatternRole::ParenthesizedSeparator,
             ),
             (
                 "[",
@@ -655,18 +541,13 @@ fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
                 SyntaxKind::ListPattern,
                 SyntaxKind::LBracket,
                 SyntaxKind::RBracket,
-                PatternRole::ListSeparator,
             ),
         ] {
             let source = format!("{open}{interior}{close}");
             for origin in [0, 41] {
-                // Records test compatibility only; the occurrence below is
-                // selected from direct CST order, kinds and source ranges.
                 let expected = recovery
                     .iter()
-                    .map(|(range, error)| {
-                        record(1, role, origin + range.start..origin + range.end, *error)
-                    })
+                    .map(|(range, error)| fact(*error, range.clone()))
                     .collect::<Vec<_>>();
                 let fresh = checked(
                     &source,
@@ -716,11 +597,6 @@ fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
                 // An accepted direct Pattern establishes the post-item phase.
                 // A maximal Error group takes that phase, then permits retry;
                 // native comma/layout also permits the following Pattern.
-                let separator_role = match owner.kind() {
-                    SyntaxKind::ParenthesizedPattern => PatternRole::ParenthesizedSeparator,
-                    SyntaxKind::ListPattern => PatternRole::ListSeparator,
-                    _ => unreachable!(),
-                };
                 let mut after_item = false;
                 let mut observed = Vec::new();
                 let mut index = 0;
@@ -732,7 +608,7 @@ fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
                         Comma | Newline => after_item = false,
                         Missing => {
                             assert!(after_item, "{source:?}");
-                            observed.push((separator_role, start..start, false));
+                            observed.push((start..start, false));
                             after_item = false;
                         }
                         Error => {
@@ -747,7 +623,7 @@ fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
                                 end = usize::from(direct[index].text_range().end())
                                     - "sentinel".len();
                             }
-                            observed.push((separator_role, start..end, true));
+                            observed.push((start..end, true));
                             after_item = false;
                         }
                         kind if kind == open_kind || kind == close_kind || kind == W => {}
@@ -757,10 +633,7 @@ fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
                 }
                 assert_eq!(
                     observed,
-                    recovery
-                        .iter()
-                        .map(|(range, error)| (role, range.clone(), *error))
-                        .collect::<Vec<_>>(),
+                    recovery.iter().cloned().collect::<Vec<_>>(),
                     "{source:?}"
                 );
             }
@@ -769,14 +642,13 @@ fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
 }
 
 #[test]
-fn record_raw_sequence_roles_follow_direct_ordered_children() {
-    use PatternRole::{RecordItem as I, RecordSeparator as S};
+fn record_raw_sequence_recovery_follows_direct_ordered_children() {
     use SyntaxKind::{
         Comma, Error, LBrace, Missing, RBrace, RecordPatternField as F, Whitespace as W,
     };
 
     // Exact leaves also expose initial/retry leading outside the raw group and
-    // internal leading as Error leaves. Record compatibility is checked separately.
+    // internal leading as Error leaves.
     for (source, children, recovery) in [
         (
             "{a,b}",
@@ -798,7 +670,7 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
                 (F, "a"),
                 (RBrace, "}"),
             ],
-            Some((I, 1..1, false)),
+            Some((1..1, false)),
         ),
         (
             "{@ @ a}",
@@ -811,12 +683,12 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
                 (F, "a"),
                 (RBrace, "}"),
             ],
-            Some((I, 1..4, true)),
+            Some((1..4, true)),
         ),
         (
             "{@}",
             vec![(LBrace, "{"), (Error, "@"), (RBrace, "}")],
-            Some((I, 1..2, true)),
+            Some((1..2, true)),
         ),
         (
             "{a,@ b}",
@@ -829,7 +701,7 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
                 (F, "b"),
                 (RBrace, "}"),
             ],
-            Some((I, 3..4, true)),
+            Some((3..4, true)),
         ),
         (
             "{a b}",
@@ -841,7 +713,7 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
                 (F, "b"),
                 (RBrace, "}"),
             ],
-            Some((S, 3..3, false)),
+            Some((3..3, false)),
         ),
         (
             "{a; b}",
@@ -853,12 +725,12 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
                 (F, "b"),
                 (RBrace, "}"),
             ],
-            Some((S, 2..3, true)),
+            Some((2..3, true)),
         ),
         (
             "{a;}",
             vec![(LBrace, "{"), (F, "a"), (Error, ";"), (RBrace, "}")],
-            Some((S, 2..3, true)),
+            Some((2..3, true)),
         ),
         (
             "{a @ ; . b}",
@@ -875,7 +747,7 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
                 (F, "b"),
                 (RBrace, "}"),
             ],
-            Some((S, 3..8, true)),
+            Some((3..8, true)),
         ),
         (
             "{ @ @ a}",
@@ -889,15 +761,13 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
                 (F, "a"),
                 (RBrace, "}"),
             ],
-            Some((I, 2..5, true)),
+            Some((2..5, true)),
         ),
     ] {
         for origin in [0, 41] {
             let expected = recovery
                 .iter()
-                .map(|(role, range, error)| {
-                    record(1, *role, origin + range.start..origin + range.end, *error)
-                })
+                .map(|(range, error)| fact(*error, range.clone()))
                 .collect::<Vec<_>>();
             let fresh = checked(
                 source,
@@ -957,26 +827,17 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
             }
             assert_eq!(offset, source.len());
 
-            // This bounded schema starts in Item. Comma resets Item, accepted
-            // field/spread enters Separator, and trivia preserves the phase.
-            // A maximal direct Error group takes its entry phase, then permits
-            // Item retry. In particular, an earlier field cannot classify the
-            // post-comma group in `{a,@ b}`. Neither spelling nor records select it.
-            let mut phase = I;
             let mut observed = Vec::new();
             let mut index = 0;
             while index < direct.len() {
                 let child = &direct[index];
                 let start = usize::from(child.text_range().start()) - "sentinel".len();
                 match child.kind() {
-                    Comma => phase = I,
-                    F | SyntaxKind::RecordPatternSpreadItem => phase = S,
+                    Comma | F | SyntaxKind::RecordPatternSpreadItem => {}
                     Missing => {
-                        observed.push((phase, start..start, false));
-                        phase = I;
+                        observed.push((start..start, false));
                     }
                     Error => {
-                        let role = phase;
                         let mut end = usize::from(child.text_range().end()) - "sentinel".len();
                         while index + 1 < direct.len() && direct[index + 1].kind() == Error {
                             index += 1;
@@ -986,8 +847,7 @@ fn record_raw_sequence_roles_follow_direct_ordered_children() {
                             );
                             end = usize::from(direct[index].text_range().end()) - "sentinel".len();
                         }
-                        observed.push((role, start..end, true));
-                        phase = I;
+                        observed.push((start..end, true));
                     }
                     LBrace | RBrace | W => {}
                     kind => panic!("unexpected direct child {kind:?} in {source:?}"),
@@ -1024,11 +884,8 @@ fn record_wrong_kind_primaries_are_structured_in_both_sequence_phases() {
             "\"r\"",
             "\"\"\"}\"\"\"",
         ] {
-            for (prefix, role) in [
-                ("{", PatternRole::RecordItem),
-                ("{a ", PatternRole::RecordSeparator),
-            ] {
-                let prefix = if head == ":tag" && role == PatternRole::RecordSeparator {
+            for (prefix, separator) in [("{", false), ("{a ", true)] {
+                let prefix = if head == ":tag" && separator {
                     "{a\n"
                 } else {
                     prefix
@@ -1041,12 +898,7 @@ fn record_wrong_kind_primaries_are_structured_in_both_sequence_phases() {
                         origin,
                         ..Context::default()
                     },
-                    &[record(
-                        1,
-                        role,
-                        origin + start..origin + start + head.len(),
-                        true,
-                    )],
+                    &[invalid_fact(start..start + head.len())],
                     &source,
                     PatternCompletion::Complete,
                 );
@@ -1057,7 +909,7 @@ fn record_wrong_kind_primaries_are_structured_in_both_sequence_phases() {
                     .unwrap();
                 assert_eq!(error.to_string(), head);
                 assert_eq!(error.children().next().unwrap().kind(), SyntaxKind::Pattern);
-                let slot = if role == PatternRole::RecordSeparator {
+                let slot = if separator {
                     let slot = error.parent().unwrap();
                     assert_eq!(slot.kind(), SyntaxKind::RecordPatternSeparator);
                     assert_eq!(slot.children_with_tokens().count(), 1);
@@ -1077,58 +929,32 @@ fn record_wrong_kind_primaries_are_structured_in_both_sequence_phases() {
 }
 
 #[test]
-fn record_structured_errors_reserve_outer_records_before_nested_recovery() {
-    use ConstructRole::ParenthesizedPattern as P;
-    use Delimiter::Parenthesis;
-    use PatternRole::{ParenthesizedElement as E, RecordItem as I};
+fn record_structured_errors_preserve_outer_before_nested_recovery() {
     for origin in [0, 41] {
         for (source, expected, completion) in [
             (
                 "{a (@ a}",
-                vec![
-                    record(
-                        1,
-                        PatternRole::RecordSeparator,
-                        origin + 3..origin + 7,
-                        true,
-                    ),
-                    record(2, E, origin + 4..origin + 5, true),
-                    close_record(3, P, Parenthesis, origin + 7),
-                ],
+                vec![invalid_fact(3..7), fact(true, 4..5), fact(false, 7..7)],
                 PatternCompletion::Incomplete,
             ),
             (
                 "{(A}",
-                vec![
-                    record(1, I, origin + 1..origin + 3, true),
-                    close_record(2, P, Parenthesis, origin + 3),
-                ],
+                vec![invalid_fact(1..3), fact(false, 3..3)],
                 PatternCompletion::Incomplete,
             ),
             (
                 "{{1}}",
-                vec![
-                    record(1, I, origin + 1..origin + 4, true),
-                    record(2, I, origin + 2..origin + 3, true),
-                ],
+                vec![invalid_fact(1..4), invalid_fact(2..3)],
                 PatternCompletion::Complete,
             ),
             (
                 "{@ (A}",
-                vec![
-                    record(1, I, origin + 1..origin + 2, true),
-                    record(2, I, origin + 3..origin + 5, true),
-                    close_record(3, P, Parenthesis, origin + 5),
-                ],
+                vec![fact(true, 1..2), invalid_fact(3..5), fact(false, 5..5)],
                 PatternCompletion::Incomplete,
             ),
             (
                 "{(@ a}",
-                vec![
-                    record(1, I, origin + 1..origin + 5, true),
-                    record(2, E, origin + 2..origin + 3, true),
-                    close_record(3, P, Parenthesis, origin + 5),
-                ],
+                vec![invalid_fact(1..5), fact(true, 2..3), fact(false, 5..5)],
                 PatternCompletion::Incomplete,
             ),
         ] {
@@ -1179,33 +1005,22 @@ fn record_structured_errors_reserve_outer_records_before_nested_recovery() {
 
 #[test]
 fn sequence_unclaimed_closes_publish_native_evidence_in_both_phases() {
-    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
-    use Delimiter::{Brace, Bracket, Parenthesis};
     for origin in [0, 41] {
-        for (source, owner, expected, actual, range, kind) in [
-            ("(])", P, Parenthesis, Bracket, 1..2, SyntaxKind::RBracket),
-            ("(a ])", P, Parenthesis, Bracket, 2..4, SyntaxKind::RBracket),
-            ("[)]", L, Bracket, Parenthesis, 1..2, SyntaxKind::RParen),
-            ("[a }]", L, Bracket, Brace, 2..4, SyntaxKind::RBrace),
-            ("{]}", R, Brace, Bracket, 1..2, SyntaxKind::RBracket),
-            ("{a )}", R, Brace, Parenthesis, 2..4, SyntaxKind::RParen),
+        for (source, record_owner, range, kind) in [
+            ("(])", false, 1..2, SyntaxKind::RBracket),
+            ("(a ])", false, 2..4, SyntaxKind::RBracket),
+            ("[)]", false, 1..2, SyntaxKind::RParen),
+            ("[a }]", false, 2..4, SyntaxKind::RBrace),
+            ("{]}", true, 1..2, SyntaxKind::RBracket),
+            ("{a )}", true, 2..4, SyntaxKind::RParen),
         ] {
-            let range = origin + range.start..origin + range.end;
-            let mut expected = close_record(1, owner, expected, range.start);
-            expected.kind = RecoveryKind::Error;
-            expected.site.range = range.clone();
-            Arc::make_mut(&mut expected.expectations)[0].range = range.clone();
-            expected.unexpected = Arc::from([UnexpectedSyntax::Token {
-                range,
-                category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(actual)),
-            }]);
             let fresh = checked(
                 source,
                 Context {
                     origin,
                     ..Context::default()
                 },
-                &[expected],
+                &[fact(true, range)],
                 source,
                 PatternCompletion::Complete,
             );
@@ -1226,7 +1041,7 @@ fn sequence_unclaimed_closes_publish_native_evidence_in_both_phases() {
                     _ => unreachable!(),
                 }
             );
-            let next = if owner == R {
+            let next = if record_owner {
                 let slot = error.parent().unwrap();
                 assert_eq!(slot.kind(), SyntaxKind::RecordPatternForeignClose);
                 slot.next_sibling_or_token()
@@ -1240,32 +1055,22 @@ fn sequence_unclaimed_closes_publish_native_evidence_in_both_phases() {
 
 #[test]
 fn sequence_error_handoff_preserves_whole_caller_items_and_eof_extent() {
-    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
-    use Delimiter::{Brace, Bracket, Parenthesis};
     for origin in [0, 41] {
         for gap in [" ", " /*é*/ ", "\r\n "] {
-            for (prefix, owner, delimiter, role, start) in [
-                ("{@", R, Brace, PatternRole::RecordItem, 1),
-                (
-                    "(a;",
-                    P,
-                    Parenthesis,
-                    PatternRole::ParenthesizedSeparator,
-                    2,
-                ),
-                ("[a;", L, Bracket, PatternRole::ListSeparator, 2),
-            ] {
+            for (prefix, paren_owner, start) in
+                [("{@", false, 1), ("(a;", true, 2), ("[a;", false, 2)]
+            {
                 let suffix = format!("{gap})tail");
                 // Parenthesized's same-kind local close wins even if carried,
                 // so use a bracket witness for that owner instead.
-                let suffix = if delimiter == Parenthesis {
+                let suffix = if paren_owner {
                     format!("{gap}]tail")
                 } else {
                     suffix
                 };
                 let context = Context {
                     origin,
-                    closes: if delimiter == Parenthesis {
+                    closes: if paren_owner {
                         PatternCallerCloses::RBRACKET
                     } else {
                         PatternCallerCloses::RPAREN
@@ -1277,18 +1082,15 @@ fn sequence_error_handoff_preserves_whole_caller_items_and_eof_extent() {
                     &source,
                     context,
                     &[
-                        record(1, role, origin + start..origin + prefix.len(), true),
-                        close_record(2, owner, delimiter, origin + prefix.len()),
+                        fact(true, start..prefix.len()),
+                        fact(false, prefix.len()..prefix.len()),
                     ],
                     prefix,
                     PatternCompletion::Incomplete,
                 );
                 assert_pending_control(&fresh, &suffix, origin + prefix.len(), context);
             }
-            for (prefix, role, start) in [
-                ("{(A", PatternRole::RecordItem, 1),
-                ("{a (A", PatternRole::RecordSeparator, 3),
-            ] {
+            for (prefix, separator, start) in [("{(A", false, 1), ("{a (A", true, 3)] {
                 let suffix = format!("{gap}]tail");
                 let source = format!("{prefix}{suffix}");
                 let context = Context {
@@ -1300,15 +1102,15 @@ fn sequence_error_handoff_preserves_whole_caller_items_and_eof_extent() {
                     &source,
                     context,
                     &[
-                        record(1, role, origin + start..origin + prefix.len(), true),
-                        close_record(2, P, Parenthesis, origin + prefix.len()),
-                        close_record(3, R, Brace, origin + prefix.len()),
+                        invalid_fact(start..prefix.len()),
+                        fact(false, prefix.len()..prefix.len()),
+                        fact(false, prefix.len()..prefix.len()),
                     ],
                     prefix,
                     PatternCompletion::Incomplete,
                 );
                 assert_pending_control(&fresh, &suffix, origin + prefix.len(), context);
-                if role == PatternRole::RecordSeparator {
+                if separator {
                     assert_separator_slot(fresh.green, "(A", start);
                 }
             }
@@ -1319,10 +1121,7 @@ fn sequence_error_handoff_preserves_whole_caller_items_and_eof_extent() {
                 origin,
                 ..Context::default()
             },
-            &[
-                record(1, PatternRole::RecordItem, origin + 1..origin + 2, true),
-                close_record(2, R, Brace, origin + 4),
-            ],
+            &[fact(true, 1..2), fact(false, 4..4)],
             "{@  ",
             PatternCompletion::Incomplete,
         );
@@ -1332,11 +1131,7 @@ fn sequence_error_handoff_preserves_whole_caller_items_and_eof_extent() {
                 origin,
                 ..Context::default()
             },
-            &[
-                record(1, PatternRole::RecordItem, origin + 1..origin + 5, true),
-                close_record(2, P, Parenthesis, origin + 5),
-                close_record(3, R, Brace, origin + 5),
-            ],
+            &[invalid_fact(1..5), fact(false, 5..5), fact(false, 5..5)],
             "{(A  ",
             PatternCompletion::Incomplete,
         );
@@ -1345,8 +1140,6 @@ fn sequence_error_handoff_preserves_whole_caller_items_and_eof_extent() {
 
 #[test]
 fn sequence_error_fences_preserve_pending_items_and_structured_emitted_bounds() {
-    use ConstructRole::{ListPattern as L, ParenthesizedPattern as P, RecordPattern as R};
-    use Delimiter::{Brace, Bracket, Parenthesis};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -1362,25 +1155,24 @@ fn sequence_error_fences_preserve_pending_items_and_structured_emitted_bounds() 
             fence: Some(&fence),
             ..Context::default()
         };
-        for (prefix, owner, delimiter, role, start, nested) in [
-            ("{@", R, Brace, PatternRole::RecordItem, 1, false),
-            ("[a;", L, Bracket, PatternRole::ListSeparator, 2, false),
-            ("{(A", R, Brace, PatternRole::RecordItem, 1, true),
-            ("{a (A", R, Brace, PatternRole::RecordSeparator, 3, true),
+        for (prefix, separator, start, nested) in [
+            ("{@", false, 1, false),
+            ("[a;", false, 2, false),
+            ("{(A", false, 1, true),
+            ("{a (A", true, 3, true),
         ] {
             let suffix = "\r\n> > ```\r\nouter";
             let source = format!("{prefix}{suffix}");
-            let boundary = origin + prefix.len() + 2;
-            let mut expected = vec![record(1, role, origin + start..origin + prefix.len(), true)];
+            let boundary = prefix.len();
+            let mut expected = vec![if nested {
+                invalid_fact(start..prefix.len())
+            } else {
+                fact(true, start..prefix.len())
+            }];
             if nested {
-                expected.push(close_record(2, P, Parenthesis, boundary));
+                expected.push(fact(false, boundary..boundary));
             }
-            expected.push(close_record(
-                1 + expected.len() as u32,
-                owner,
-                delimiter,
-                boundary,
-            ));
+            expected.push(fact(false, boundary..boundary));
             let fresh = checked(
                 &source,
                 context,
@@ -1389,20 +1181,20 @@ fn sequence_error_fences_preserve_pending_items_and_structured_emitted_bounds() 
                 PatternCompletion::Incomplete,
             );
             assert_pending_control(&fresh, suffix, origin + prefix.len(), context);
-            if role == PatternRole::RecordSeparator {
+            if separator {
                 assert_separator_slot(fresh.green, "(A", start);
             }
         }
         for (source, end) in [("{@ \r\n> > @ a}", 10), ("{\"\"\"}\r\n> > x\"\"\", a}", 15)] {
+            let expected = if source.starts_with("{@") {
+                fact(true, 1..end)
+            } else {
+                invalid_fact(1..end)
+            };
             let fresh = checked(
                 source,
                 context,
-                &[record(
-                    1,
-                    PatternRole::RecordItem,
-                    origin + 1..origin + end,
-                    true,
-                )],
+                &[expected],
                 source,
                 PatternCompletion::Complete,
             );

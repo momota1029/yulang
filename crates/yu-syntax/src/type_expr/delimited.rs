@@ -1,16 +1,8 @@
 //! Type delimiter recovery shared by groups, calls, effect rows, and bracket rows.
 
 use crate::ambient_claim::AmbientClaimContext;
-use std::sync::Arc;
 
-use crate::{
-    recovery_record::{
-        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 
 use crate::type_expr::{
     TypeMlContext, TypeOuterBoundary, is_type_caller_boundary, is_type_deeper_newline,
@@ -20,12 +12,8 @@ use crate::type_expr::{
 };
 use crate::{
     cursor::SyntaxIn,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            CallArgumentRetryLeadingSeal, emit_recovery_error_item, emit_recovery_error_run,
-            emit_recovery_missing, emit_token_item,
-        },
+    cursor::recovery::emit::{
+        emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
     },
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
@@ -148,23 +136,9 @@ pub(super) fn type_delimited_normalized(
                 return complete(handoff(item), line_entry);
             }
             item.emit_all_remaining_leading(&mut *i.state);
-            let unexpected = UnexpectedSyntax::Token {
-                range: item.extent(item_origin).recovery_range(),
-                category: crate::type_expr::required_type_primary_unexpected_category(&item),
-            };
-            let kind = crate::type_expr::type_recovery_error_syntax_kind(&item);
             i.state
                 .start_node(SyntaxKind::TypeDelimitedForeignClose.into());
-            emit_recovery_error_item(
-                i.rb(),
-                item,
-                item_origin,
-                kind,
-                unexpected,
-                |range, unexpected| {
-                    type_delimited_close_draft(owner, RecoveryKind::Error, range, unexpected)
-                },
-            );
+            emit_recovery_error_item(i.rb(), item, item_origin);
             i.state.finish_node();
             (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
                 i.rb(),
@@ -676,55 +650,36 @@ fn retry_type_noncall_item_normalized(
     pipe_lexical: bool,
     ambient: AmbientClaimContext<'_>,
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
-    let role = match owner {
-        TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
-        TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
-        TypeDelimitedOwner::BracketRow => TypeRole::BracketRowItem,
-        TypeDelimitedOwner::Call => unreachable!("Call has its own retry procedure"),
-    };
     item.emit_all_remaining_leading(&mut *i.state);
-    (item, item_origin, line_entry) = emit_recovery_error_run(
-        i.rb(),
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind = crate::type_expr::type_recovery_error_syntax_kind(&item);
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) =
-                    crate::type_expr::type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                if item.payload_view().is_boundary()
-                    || item.payload_view().is_eof()
-                    || is_type_caller_boundary(&item, caller_stops)
-                    || is_type_separator(&item)
-                    || is_type_mismatched_close(&item, close)
-                    || token_kind(&item) == Some(close)
-                    || if owner == TypeDelimitedOwner::BracketRow {
-                        is_type_implicit_boundary(baseline, item.leading_view())
-                    } else {
-                        item.leading_view().contains_line_break()
-                    }
-                    || is_type_nud(&item)
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
+    (item, item_origin, line_entry) = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) =
+                crate::type_expr::type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                    ambient,
+                );
+            if item.payload_view().is_boundary()
+                || item.payload_view().is_eof()
+                || is_type_caller_boundary(&item, caller_stops)
+                || is_type_separator(&item)
+                || is_type_mismatched_close(&item, close)
+                || token_kind(&item) == Some(close)
+                || if owner == TypeDelimitedOwner::BracketRow {
+                    is_type_implicit_boundary(baseline, item.leading_view())
+                } else {
+                    item.leading_view().contains_line_break()
                 }
+                || is_type_nud(&item)
+            {
+                return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| crate::type_expr::type_expression_error_draft(role, range, unexpected),
-    );
+        }
+    });
     resume_type_delimited_error_normalized(
         i,
         item,
@@ -830,10 +785,9 @@ fn retry_type_call_argument_normalized(
 ) -> Result<(Item, usize, LineEntry), NormalizedExit> {
     debug_assert!(!item.payload_view().is_boundary());
     let mut error_extent: Option<std::ops::Range<usize>> = None;
-    (item, item_origin, line_entry) = emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let extent = run.emit_item_as(item, item_origin, SyntaxKind::Unknown);
+    (item, item_origin, line_entry) = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            let extent = run.emit_item_as(item, item_origin);
             let item_extent = extent.recovery_range();
             if let Some(error_extent) = &mut error_extent {
                 assert_eq!(
@@ -866,27 +820,13 @@ fn retry_type_call_argument_normalized(
                 || item.payload_view().is_eof()
                 || is_type_mismatched_close(&item, close);
             if boundary || is_type_nud(&item) {
-                let sealed = !boundary
-                    && run.seal_call_argument_retry_leading_prefix(
-                        &mut item,
-                        item_origin,
-                        UnexpectedCategory::OtherCharacter,
-                    ) == CallArgumentRetryLeadingSeal::Sealed;
-                if !sealed {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: error_extent
-                            .clone()
-                            .expect("a CallArgument Error emits a malformed Item"),
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
+                if !boundary {
+                    let _ = run.emit_call_argument_retry_leading_prefix(&mut item, item_origin);
                 }
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            crate::type_expr::type_expression_error_draft(TypeRole::CallArgument, range, unexpected)
-        },
-    );
+        }
+    });
 
     if item.payload_view().is_boundary() {
         emit_delimited_close_missing(&mut i, TypeDelimitedOwner::Call, &item, item_origin);
@@ -989,19 +929,7 @@ fn retry_type_call_close_contents_normalized(
     debug_assert!(!item.payload_view().is_boundary());
     loop {
         item.emit_all_remaining_leading(&mut *i.state);
-        let range = item.extent(item_origin).recovery_range();
-        let unexpected = UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        };
-        emit_recovery_error_item(
-            i.rb(),
-            item,
-            item_origin,
-            SyntaxKind::Unknown,
-            unexpected,
-            |range, unexpected| type_call_close_recovery_draft(range, unexpected),
-        );
+        emit_recovery_error_item(i.rb(), item, item_origin);
         (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
             i.rb(),
             item_origin,
@@ -1108,26 +1036,7 @@ fn retry_bracket_row_close_normalized(
             return complete(handoff(item), line_entry);
         }
         item.emit_all_remaining_leading(&mut *i.state);
-        let unexpected = UnexpectedSyntax::Token {
-            range: item.extent(item_origin).recovery_range(),
-            category: crate::type_expr::required_type_primary_unexpected_category(&item),
-        };
-        let kind = crate::type_expr::type_recovery_error_syntax_kind(&item);
-        emit_recovery_error_item(
-            i.rb(),
-            item,
-            item_origin,
-            kind,
-            unexpected,
-            |range, unexpected| {
-                type_delimited_close_draft(
-                    TypeDelimitedOwner::BracketRow,
-                    RecoveryKind::Error,
-                    range,
-                    unexpected,
-                )
-            },
-        );
+        emit_recovery_error_item(i.rb(), item, item_origin);
         (item, item_origin, line_entry) = type_nud_item_with_pipe_lexical_normalized(
             i.rb(),
             item_origin,
@@ -1283,53 +1192,22 @@ fn missing_delimited_item(
 
 fn emit_delimited_item_missing(
     i: &mut SyntaxIn,
-    owner: TypeDelimitedOwner,
+    _owner: TypeDelimitedOwner,
     item: &Item,
     item_origin: usize,
 ) {
-    let role = match owner {
-        TypeDelimitedOwner::Call => TypeRole::CallArgument,
-        TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedItem,
-        TypeDelimitedOwner::EffectRow => TypeRole::EffectRowItem,
-        TypeDelimitedOwner::BracketRow => TypeRole::BracketRowItem,
-    };
     let at = delimited_missing_anchor(item, item_origin);
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        crate::type_expr::type_expression_missing_draft(GrammarRole::Type(role), range)
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn emit_inherited_separator_missing(
     i: &mut SyntaxIn,
-    owner: TypeDelimitedOwner,
+    _owner: TypeDelimitedOwner,
     item: &Item,
     item_origin: usize,
 ) {
-    let role = match owner {
-        TypeDelimitedOwner::Call => TypeRole::CallArgumentSeparator,
-        TypeDelimitedOwner::ParenthesizedGroup => TypeRole::ParenthesizedSeparator,
-        TypeDelimitedOwner::EffectRow => TypeRole::EffectRowSeparator,
-        TypeDelimitedOwner::BracketRow => TypeRole::BracketRowSeparator,
-    };
     let at = delimited_missing_anchor(item, item_origin);
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        let role = GrammarRole::Type(role);
-        RecoveryDraft::new(
-            RecoverySiteKey {
-                role,
-                range: range.clone(),
-            },
-            RecoveryKind::Missing,
-            Arc::from([]),
-            Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::DelimitedSequenceSeparator,
-                range,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            0,
-        )
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn delimited_missing_anchor(item: &Item, item_origin: usize) -> usize {
@@ -1393,69 +1271,7 @@ fn emit_delimited_close_missing_contents(
     } else {
         delimited_missing_anchor(item, item_origin)
     };
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        type_delimited_close_draft(owner, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn type_delimited_close_draft(
-    owner: TypeDelimitedOwner,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let (owner, delimiter) = match owner {
-        TypeDelimitedOwner::Call => (ConstructRole::TypeCall, Delimiter::Parenthesis),
-        TypeDelimitedOwner::ParenthesizedGroup => (
-            ConstructRole::ParenthesizedTypeGroup,
-            Delimiter::Parenthesis,
-        ),
-        TypeDelimitedOwner::EffectRow => (ConstructRole::EffectRowType, Delimiter::Bracket),
-        TypeDelimitedOwner::BracketRow => (ConstructRole::BracketRow, Delimiter::Bracket),
-    };
-    let role = GrammarRole::ClosingDelimiter { owner, delimiter };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn type_call_close_recovery_draft(
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::TypeCall,
-        delimiter: Delimiter::Parenthesis,
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        RecoveryKind::Error,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                Delimiter::Parenthesis,
-            )),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn emit_parenthesized_mismatched_close_missing(

@@ -897,9 +897,7 @@ fn type_schema_header_error_then_equals_composes_required_rhs_recovery() {
 
 #[test]
 fn type_definition_introducer_has_direct_post_name_cst_evidence() {
-    use crate::recovery_record::{
-        DeclarationRole, ExpectedSyntax, GrammarRole, PunctuationEvidence, TypeDeclarationRole,
-    };
+    use crate::structural_diagnostic::StructuralKind;
     use SyntaxKind::{Equals, Error, Identifier, Missing, TypeExpression, TypeKw, Whitespace};
 
     for (source, tail, missing) in [
@@ -963,36 +961,15 @@ fn type_definition_introducer_has_direct_post_name_cst_evidence() {
             expected,
             "{source:?}"
         );
-        // Classify only the bounded direct slot after the completed name;
-        // parser recovery records do not participate in this evidence.
-        let projected = children
-            .iter()
-            .enumerate()
-            .filter(|(_, element)| matches!(element.kind(), Missing | Error))
-            .map(|(index, element)| {
-                assert_eq!(index, 4);
-                assert_eq!(children[2].kind(), Identifier);
-                assert_eq!(children[2].to_string(), "T");
-                assert_eq!(declaration.kind(), SyntaxKind::TypeDeclaration);
-                (
-                    GrammarRole::Declaration(DeclarationRole::Type(
-                        TypeDeclarationRole::DefinitionIntroducer,
-                    )),
-                    ExpectedSyntax::Punctuation(PunctuationEvidence::Equals),
-                    0,
-                    usize::from(element.text_range().start())
-                        ..usize::from(element.text_range().end()),
-                )
-            })
-            .collect::<Vec<_>>();
+        let projected = structural_facts(&green);
         assert_eq!(
             projected,
             [(
-                GrammarRole::Declaration(DeclarationRole::Type(
-                    TypeDeclarationRole::DefinitionIntroducer,
-                )),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Equals),
-                0,
+                if missing == 1 {
+                    StructuralKind::Missing
+                } else {
+                    StructuralKind::ErrorGroup
+                },
                 if missing == 1 { 7..7 } else { 7..8 },
             )]
         );
@@ -1003,10 +980,9 @@ fn type_definition_introducer_has_direct_post_name_cst_evidence() {
 }
 
 #[test]
-fn type_header_records_are_exact_shifted_frozen_and_seeded() {
+fn type_header_structural_facts_preserve_cst_order_and_continuation() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
-    use crate::recovery_record::*;
-    use std::sync::Arc;
+    use crate::structural_diagnostic::StructuralKind;
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -1016,258 +992,87 @@ fn type_header_records_are_exact_shifted_frozen_and_seeded() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    for (source, slot, kind, span) in [
-        (
-            "type  ]",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Missing,
-            4..4,
-        ),
-        (
-            "type @  ]",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Error,
-            5..6,
-        ),
-        (
-            "type T @  ]",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Error,
-            7..8,
-        ),
-        (
-            "type",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Missing,
-            4..4,
-        ),
-        (
-            "type  ",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Missing,
-            6..6,
-        ),
-        (
-            "type  ,",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Missing,
-            4..4,
-        ),
-        (
-            "type = A",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Missing,
-            5..5,
-        ),
-        (
-            "type @ ",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Error,
-            5..6,
-        ),
-        (
-            "type @ = A",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Error,
-            5..6,
-        ),
-        (
-            "type @ 名 = A",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Error,
-            5..6,
-        ),
-        (
-            "type @  ,",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Error,
-            5..6,
-        ),
-        (
-            "type T (A)",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Missing,
-            7..7,
-        ),
-        (
-            "type T @ ",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Error,
-            7..8,
-        ),
-        (
-            "type T @ = A",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Error,
-            7..8,
-        ),
-        (
-            "type 名 @ A",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Error,
-            9..10,
-        ),
-        (
-            "type T == A",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Error,
-            7..9,
-        ),
-        (
-            "type T => A",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Error,
-            7..9,
-        ),
-        (
-            "type T @  ,",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Error,
-            7..8,
-        ),
-        (
-            "type\r\n> > ```\r\nouter",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Missing,
-            6..6,
-        ),
-        (
-            "type @\r\n> foreign",
-            TypeDeclarationRole::Name,
-            RecoveryKind::Error,
-            5..6,
-        ),
+    for (source, kind, span) in [
+        ("type  ]", StructuralKind::Missing, 4..4),
+        ("type @  ]", StructuralKind::ErrorGroup, 5..6),
+        ("type T @  ]", StructuralKind::ErrorGroup, 7..8),
+        ("type", StructuralKind::Missing, 4..4),
+        ("type  ", StructuralKind::Missing, 6..6),
+        ("type  ,", StructuralKind::Missing, 4..4),
+        ("type = A", StructuralKind::Missing, 5..5),
+        ("type @ ", StructuralKind::ErrorGroup, 5..6),
+        ("type @ = A", StructuralKind::ErrorGroup, 5..6),
+        ("type @ 名 = A", StructuralKind::ErrorGroup, 5..6),
+        ("type @  ,", StructuralKind::ErrorGroup, 5..6),
+        ("type T (A)", StructuralKind::Missing, 7..7),
+        ("type T @ ", StructuralKind::ErrorGroup, 7..8),
+        ("type T @ = A", StructuralKind::ErrorGroup, 7..8),
+        ("type 名 @ A", StructuralKind::ErrorGroup, 9..10),
+        ("type T == A", StructuralKind::ErrorGroup, 7..9),
+        ("type T => A", StructuralKind::ErrorGroup, 7..9),
+        ("type T @  ,", StructuralKind::ErrorGroup, 7..8),
+        ("type\r\n> > ```\r\nouter", StructuralKind::Missing, 4..4),
+        ("type @\r\n> foreign", StructuralKind::ErrorGroup, 5..6),
         (
             "type T @\r\n> > ```\r\nouter",
-            TypeDeclarationRole::DefinitionIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..8,
         ),
     ] {
         for origin in [0, 8100] {
-            let range = origin + span.start..origin + span.end;
-            let role = GrammarRole::Declaration(DeclarationRole::Type(slot));
-            let expected = CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone(),
-                },
-                kind,
-                unexpected: if kind == RecoveryKind::Missing {
-                    Arc::from([])
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
+            let mut output = GreenNodeBuilder::new();
+            let mut input = source;
+            output.start_node(SyntaxKind::Root.into());
+            let exit = statement_normalized(
+                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
+                0,
+                if source.ends_with(']') {
+                    stops_for(TokenKind::RBracket)
                 } else {
-                    Arc::from([UnexpectedSyntax::Token {
-                        range: range.clone(),
-                        category: UnexpectedCategory::OtherCharacter,
-                    }])
+                    0
                 },
-                expectations: Arc::from([SyntaxExpectation {
-                    role,
-                    expected: if slot == TypeDeclarationRole::Name {
-                        ExpectedSyntax::Identifier
+                origin,
+                LineEntry::InLine,
+                source.contains("\r\n>").then_some(&fence),
+                Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
+                Some(crate::sequence::SequenceOwner::RootStatement),
+            );
+            output.finish_node();
+            let green = finish_with_discarded_recoveries(output, recover);
+            assert_eq!(
+                structural_facts(&green),
+                [(kind, span.clone())],
+                "{source:?}"
+            );
+            if let Some((head, tail)) = source.split_once("\r\n>") {
+                let NormalizedExit::Complete(Err(Either::Left(boundary)), LineEntry::PhysicalStart) =
+                    exit
+                else {
+                    panic!("protected fence {source:?}")
+                };
+                assert_eq!(green.to_string(), head);
+                assert_eq!(input, format!(">{tail}"));
+                let (leading, boundary) = emit_terminal_leading_text(boundary);
+                assert_eq!(leading, "\r\n");
+                assert_eq!(boundary.coordinate(), origin + head.len() + 2);
+            } else if source.ends_with(',') || source.ends_with(']') {
+                let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
+                    panic!("pending comma")
+                };
+                assert_eq!(
+                    token_kind(&item),
+                    Some(if source.ends_with(']') {
+                        TokenKind::RBracket
                     } else {
-                        ExpectedSyntax::Punctuation(PunctuationEvidence::Equals)
-                    },
-                    range: range.clone(),
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            };
-            for mode in 0..3 {
-                let mut seed = expected.clone();
-                seed.id = DiagnosticId(7);
-                seed.site.range = 0..0;
-                seed.kind = RecoveryKind::Missing;
-                seed.unexpected = Arc::from([]);
-                seed.expectations = seed
-                    .expectations
-                    .iter()
-                    .cloned()
-                    .map(|mut e| {
-                        e.range = 0..0;
-                        e
+                        TokenKind::Comma
                     })
-                    .collect();
-                let mut reused = expected.clone();
-                if mode == 2 {
-                    reused.id = DiagnosticId(19);
-                }
-                let records = if mode == 2 {
-                    vec![seed.clone(), reused]
-                } else {
-                    vec![expected.clone()]
-                };
-                let operators = OperatorTable::empty();
-                let mut recover = Recover::new_for_test(&operators);
-                let mut output = if mode == 0 {
-                    GreenNodeBuilder::new()
-                } else {
-                    {
-                        recover = Recover::reconcile_for_test(recover.operators(), &records);
-                        GreenNodeBuilder::new()
-                    }
-                };
-                let mut input = source;
-                output.start_node(SyntaxKind::Root.into());
-                if mode == 2 {
-                    output.start_node(SyntaxKind::Missing.into());
-                    output.finish_node();
-                    recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-                        seed.site,
-                        seed.kind,
-                        seed.unexpected,
-                        seed.expectations,
-                        0,
-                    ));
-                }
-                let exit = statement_normalized(
-                    crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
-                    0,
-                    if source.ends_with(']') {
-                        stops_for(TokenKind::RBracket)
-                    } else {
-                        0
-                    },
-                    origin,
-                    LineEntry::InLine,
-                    source.contains("\r\n>").then_some(&fence),
-                    Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
-                    Some(crate::sequence::SequenceOwner::RootStatement),
                 );
-                output.finish_node();
-                let (green, actual) = (output.finish(), recover.finish_recoveries_for_test());
-                assert_eq!(actual, records, "{source:?}, origin {origin}, mode {mode}");
-                if let Some((head, tail)) = source.split_once("\r\n>") {
-                    let NormalizedExit::Complete(
-                        Err(Either::Left(boundary)),
-                        LineEntry::PhysicalStart,
-                    ) = exit
-                    else {
-                        panic!("protected fence {source:?}")
-                    };
-                    assert_eq!(green.to_string(), head);
-                    assert_eq!(input, format!(">{tail}"));
-                    let (leading, boundary) = emit_terminal_leading_text(boundary);
-                    assert_eq!(leading, "\r\n");
-                    assert_eq!(boundary.coordinate(), origin + head.len() + 2);
-                } else if source.ends_with(',') || source.ends_with(']') {
-                    let NormalizedExit::Complete(Err(Either::Left(mut item)), _) = exit else {
-                        panic!("pending comma")
-                    };
-                    assert_eq!(
-                        token_kind(&item),
-                        Some(if source.ends_with(']') {
-                            TokenKind::RBracket
-                        } else {
-                            TokenKind::Comma
-                        })
-                    );
-                    assert_eq!(emit_pending_leading_text(&mut item), "  ");
-                    assert!(input.is_empty());
-                } else {
-                    assert_eq!(green.to_string(), source);
-                }
+                assert_eq!(emit_pending_leading_text(&mut item), "  ");
+                assert!(input.is_empty());
+            } else {
+                assert_eq!(green.to_string(), source);
             }
         }
     }
@@ -1281,16 +1086,17 @@ fn type_declaration_node(green: &GreenNode) -> SyntaxNode {
 }
 
 #[test]
-fn type_header_preserves_nominal_raw_names_and_nested_rhs_roles() {
-    use crate::recovery_record::*;
-    for source in [
-        "type T",
-        "type T A",
-        "type T 'a",
-        "type for = A",
-        "type with = A",
-        "type T = A",
-        "type T =",
+fn type_header_preserves_nominal_raw_names_and_nested_rhs_structural_facts() {
+    use crate::structural_diagnostic::StructuralKind;
+
+    for (source, expected) in [
+        ("type T", &[][..]),
+        ("type T A", &[]),
+        ("type T 'a", &[]),
+        ("type for = A", &[]),
+        ("type with = A", &[]),
+        ("type T = A", &[]),
+        ("type T =", &[(StructuralKind::Missing, 8..8)]),
     ] {
         let operators = OperatorTable::empty();
         let mut recover = Recover::new_for_test(&operators);
@@ -1308,34 +1114,17 @@ fn type_header_preserves_nominal_raw_names_and_nested_rhs_roles() {
             Some(crate::sequence::SequenceOwner::RootStatement),
         );
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
         assert_eq!(green.to_string(), source);
-        if source == "type T =" {
-            assert_eq!(records.len(), 1);
-            assert_eq!(
-                records[0].site.role,
-                GrammarRole::Declaration(DeclarationRole::Type(TypeDeclarationRole::Rhs))
-            );
-            assert_eq!(records[0].kind, RecoveryKind::Missing);
-            assert_eq!(records[0].site.range, 8..8);
-        } else {
-            assert!(records.is_empty(), "{source:?}: {records:?}");
-        }
+        assert_eq!(structural_facts(&green), expected, "{source:?}");
     }
 }
 
 #[test]
 fn type_header_error_run_keeps_internal_trivia_and_native_tokens() {
-    use crate::recovery_record::*;
-    use std::sync::Arc;
-    for (source, slot, start) in [
-        ("type @ @ = A", TypeDeclarationRole::Name, 5),
-        (
-            "type T @ @ = A",
-            TypeDeclarationRole::DefinitionIntroducer,
-            7,
-        ),
-    ] {
+    use crate::structural_diagnostic::StructuralKind;
+
+    for (source, start) in [("type @ @ = A", 5), ("type T @ @ = A", 7)] {
         let operators = OperatorTable::empty();
         let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
@@ -1352,42 +1141,13 @@ fn type_header_error_run_keeps_internal_trivia_and_native_tokens() {
             Some(crate::sequence::SequenceOwner::RootStatement),
         );
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-        let role = GrammarRole::Declaration(DeclarationRole::Type(slot));
+        let green = finish_with_discarded_recoveries(output, recover);
         let range = start..start + 3;
-        assert_eq!(
-            records,
-            [CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone()
-                },
-                kind: RecoveryKind::Error,
-                unexpected: Arc::from([
-                    UnexpectedSyntax::Token {
-                        range: start..start + 1,
-                        category: UnexpectedCategory::OtherCharacter
-                    },
-                    UnexpectedSyntax::Token {
-                        range: start + 1..start + 3,
-                        category: UnexpectedCategory::OtherCharacter
-                    }
-                ]),
-                expectations: Arc::from([SyntaxExpectation {
-                    role,
-                    expected: if slot == TypeDeclarationRole::Name {
-                        ExpectedSyntax::Identifier
-                    } else {
-                        ExpectedSyntax::Punctuation(PunctuationEvidence::Equals)
-                    },
-                    range,
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE
-                }]),
-                primary_expectation: 0,
-            }]
-        );
         assert_eq!(green.to_string(), source);
+        assert_eq!(
+            structural_facts(&green),
+            [(StructuralKind::ErrorGroup, range)]
+        );
         let declaration = type_declaration_node(&green);
         let error = crate::tests::recovery_output::recovery_groups(&declaration)
             .into_iter()
@@ -1504,7 +1264,7 @@ fn run_type_declaration_with_handoff(
     }
     builder.finish_node();
     (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
+        finish_with_discarded_recoveries(builder, recover),
         Some(exit),
     )
 }

@@ -1,37 +1,17 @@
 use crate::tests::support::*;
 use crate::{
-    ambient_claim::AmbientClaimView,
-    handoff::MlMode,
-    recovery_record::{
-        CaseLikeRole, DiagnosticId, ExpectationSources, ExpectedSyntax, ExpressionRole,
-        ForStatementRole, GrammarRole, IfExpressionRole, RecoveryKind, RecoverySiteKey,
-        SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    },
-    statement::StatementLineHandoff,
+    ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff,
+    structural_diagnostic::StructuralKind,
 };
-use std::sync::Arc;
 
-fn direct_required_expr_with_recoveries<'source, 'frozen>(
+fn direct_required_expr_with_facts<'source>(
     source: &'source str,
-    role: GrammarRole,
     stops: Stops,
-    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
-) -> (
-    GreenNode,
-    NormalizedExit,
-    &'source str,
-    Vec<CommittedRecoveryRecord>,
-) {
+) -> (GreenNode, NormalizedExit, &'source str, Vec<StructuralFact>) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut output = match frozen {
-        Some(frozen) => {
-            recover = Recover::reconcile_for_test(recover.operators(), frozen);
-            GreenNodeBuilder::new()
-        }
-        None => GreenNodeBuilder::new(),
-    };
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     output.start_node(SyntaxKind::OperatorChain.into());
     let (item, origin, line) = crate::lexical::expression_item::expression_item(
@@ -46,7 +26,6 @@ fn direct_required_expr_with_recoveries<'source, 'frozen>(
     let exit = crate::expression::required_expr_item_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         item,
-        role,
         None,
         0,
         stops,
@@ -60,57 +39,15 @@ fn direct_required_expr_with_recoveries<'source, 'frozen>(
     );
     output.finish_node();
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, exit, input, records)
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
+    (green, exit, input, facts)
 }
 
-fn assert_expression_record(
-    record: &CommittedRecoveryRecord,
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-) {
-    assert_eq!(
-        record.site,
-        RecoverySiteKey {
-            role,
-            range: range.clone()
-        }
-    );
-    assert_eq!(record.kind, kind);
-    assert_eq!(
-        record.expectations,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: match role {
-                GrammarRole::ForStatement(ForStatementRole::Body) => ExpectedSyntax::Statement,
-                _ => ExpectedSyntax::Expression,
-            },
-            range: range.clone(),
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-    );
-    assert_eq!(record.primary_expectation, 0);
-    assert_eq!(
-        record.unexpected,
-        match kind {
-            RecoveryKind::Missing => Arc::from([]),
-            RecoveryKind::Error => Arc::from([UnexpectedSyntax::Token {
-                range,
-                category: UnexpectedCategory::OtherCharacter,
-            }]),
-        },
-    );
-}
-
-fn expression_with_recoveries(
+fn expression_with_facts(
     source: &str,
     operators: &OperatorTable,
-) -> (
-    GreenNode,
-    Option<NormalizedExit>,
-    Vec<CommittedRecoveryRecord>,
-) {
+) -> (GreenNode, Option<NormalizedExit>, Vec<StructuralFact>) {
     let mut input = source;
     let mut recover = Recover::new_for_test(operators);
     let mut output = GreenNodeBuilder::new();
@@ -132,30 +69,16 @@ fn expression_with_recoveries(
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, exit, records)
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
+    (green, exit, facts)
 }
 
-fn statement_with_recoveries(
-    source: &str,
-) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
-    statement_with_frozen_recoveries(source, None)
-}
-
-fn statement_with_frozen_recoveries(
-    source: &str,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (GreenNode, NormalizedExit, Vec<CommittedRecoveryRecord>) {
+fn statement_with_facts(source: &str) -> (GreenNode, NormalizedExit, Vec<StructuralFact>) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut output = match frozen {
-        Some(frozen) => {
-            recover = Recover::reconcile_for_test(recover.operators(), frozen);
-            GreenNodeBuilder::new()
-        }
-        None => GreenNodeBuilder::new(),
-    };
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let mut exit = crate::statement::statement_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -171,8 +94,9 @@ fn statement_with_frozen_recoveries(
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, exit, records)
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
+    (green, exit, facts)
 }
 
 #[test]
@@ -201,7 +125,6 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
     );
     assert!(rejected.is_none());
     assert_eq!(input, "? ]");
-    assert_eq!(recover.recovery_slot_count(), 0);
 
     let mut input = " ]";
     output.start_node(SyntaxKind::OperatorChain.into());
@@ -217,7 +140,6 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
     let exit = crate::expression::required_expr_item_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
         item,
-        GrammarRole::Expression(ExpressionRole::Nud),
         None,
         0,
         0,
@@ -231,25 +153,9 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
     );
     output.finish_node();
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = finish_with_discarded_recoveries(output, recover);
     assert_eq!(green.to_string(), "");
-    let role = GrammarRole::Expression(ExpressionRole::Nud);
-    assert_eq!(
-        records,
-        [CommittedRecoveryRecord {
-            id: DiagnosticId(0),
-            site: RecoverySiteKey { role, range: 0..0 },
-            kind: RecoveryKind::Missing,
-            unexpected: Arc::from([]),
-            expectations: Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Expression,
-                range: 0..0,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            primary_expectation: 0,
-        }]
-    );
+    assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 0..0)]);
     let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
         panic!("the same bracket must remain pending")
     };
@@ -260,7 +166,6 @@ fn required_operand_unclaimed_close_publishes_missing_and_keeps_its_whole_item()
 
 #[test]
 fn required_operand_boundaries_keep_items_except_ordinary_eof_leading() {
-    let role = GrammarRole::Expression(ExpressionRole::Nud);
     for (source, stops, expected_green, range) in [
         ("", 0, "", 0..0),
         (" ", 0, " ", 1..1),
@@ -269,11 +174,9 @@ fn required_operand_boundaries_keep_items_except_ordinary_eof_leading() {
         ("[", 0, "", 0..0),
         ("\r\n", crate::lexical::stops::STOP_LINE_BREAK, "", 0..0),
     ] {
-        let (green, exit, remainder, records) =
-            direct_required_expr_with_recoveries(source, role, stops, None);
+        let (green, exit, remainder, facts) = direct_required_expr_with_facts(source, stops);
         assert_eq!(green.to_string(), expected_green, "{source:?}");
-        assert_eq!(records.len(), 1, "{source:?}");
-        assert_expression_record(&records[0], role, RecoveryKind::Missing, range);
+        assert_eq!(facts, [(StructuralKind::Missing, range)], "{source:?}");
         assert!(
             matches!(exit, NormalizedExit::Complete(Err(_), _)),
             "{source:?}"
@@ -283,18 +186,15 @@ fn required_operand_boundaries_keep_items_except_ordinary_eof_leading() {
 }
 
 #[test]
-fn required_operand_error_run_is_typed_retries_and_reconciles() {
-    let role = GrammarRole::Expression(ExpressionRole::Nud);
-    let (green, exit, remainder, fresh) =
-        direct_required_expr_with_recoveries("@ x", role, 0, None);
+fn required_operand_error_run_retries_from_its_structural_error_group() {
+    let (green, exit, remainder, facts) = direct_required_expr_with_facts("@ x", 0);
     assert_eq!(green.to_string(), "@ x");
     assert!(matches!(
         exit,
         NormalizedExit::Complete(Err(Either::Right(_)), _)
     ));
     assert_eq!(remainder, "");
-    assert_eq!(fresh.len(), 1);
-    assert_expression_record(&fresh[0], role, RecoveryKind::Error, 0..1);
+    assert_eq!(facts, [(StructuralKind::ErrorGroup, 0..1)]);
     let root = SyntaxNode::new_root(green.clone());
     let chain = root.first_child().unwrap();
     assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
@@ -315,20 +215,9 @@ fn required_operand_error_run_is_typed_retries_and_reconciles() {
     assert_eq!(retry.len(), 2);
     assert_eq!(children.len(), 2);
 
-    let (frozen_green, frozen_exit, frozen_remainder, frozen) =
-        direct_required_expr_with_recoveries("@ x", role, 0, Some(&fresh));
-    assert_eq!(frozen_green, green);
-    assert_eq!(frozen, fresh);
-    assert_eq!(frozen_remainder, "");
-    assert!(matches!(
-        frozen_exit,
-        NormalizedExit::Complete(Err(Either::Right(_)), _)
-    ));
-
-    let (_, boundary_exit, boundary_remainder, boundary_records) =
-        direct_required_expr_with_recoveries("@ ,", role, crate::lexical::stops::STOP_COMMA, None);
-    assert_eq!(boundary_records.len(), 1);
-    assert_expression_record(&boundary_records[0], role, RecoveryKind::Error, 0..1);
+    let (_, boundary_exit, boundary_remainder, boundary_facts) =
+        direct_required_expr_with_facts("@ ,", crate::lexical::stops::STOP_COMMA);
+    assert_eq!(boundary_facts, [(StructuralKind::ErrorGroup, 0..1)]);
     assert!(matches!(
         boundary_exit,
         NormalizedExit::Complete(Err(Either::Left(_)), _)
@@ -340,64 +229,54 @@ fn required_operand_error_run_is_typed_retries_and_reconciles() {
         OperatorFixities::new().with_infix(BindingPower::scalar(50), BindingPower::scalar(50)),
     )])
     .unwrap();
-    let (_, _, infix_records) = expression_with_recoveries("a + @ b", &operators);
-    assert_eq!(infix_records.len(), 1);
-    assert_expression_record(&infix_records[0], role, RecoveryKind::Error, 4..5);
+    let (_, _, infix_facts) = expression_with_facts("a + @ b", &operators);
+    assert_eq!(infix_facts, [(StructuralKind::ErrorGroup, 4..5)]);
 }
 
 #[test]
-fn required_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
-    let role = GrammarRole::ForStatement(ForStatementRole::Body);
-    for (source, kind, range) in [
-        (" ]", RecoveryKind::Missing, 0..0),
-        (" @", RecoveryKind::Error, 1..2),
+fn required_for_inline_body_missing_and_error_are_structural_facts() {
+    for (source, kind, range, emitted) in [
+        (" ]", StructuralKind::Missing, 0..0, ""),
+        (" @", StructuralKind::ErrorGroup, 1..2, " @"),
     ] {
-        let (green, _, remainder, records) =
-            direct_required_expr_with_recoveries(source, role, 0, None);
-        assert_eq!(records.len(), 1);
-        assert_expression_record(&records[0], role, kind, range);
-        assert_eq!(
-            records[0].expectations[0].expected,
-            ExpectedSyntax::Statement
-        );
-        let (reconciled_green, _, reconciled_remainder, reconciled) =
-            direct_required_expr_with_recoveries(source, role, 0, Some(&records));
-        assert_eq!(reconciled_green, green);
-        assert_eq!(reconciled_remainder, remainder);
-        assert_eq!(reconciled, records);
+        let (green, exit, remainder, facts) = direct_required_expr_with_facts(source, 0);
+        assert_eq!(facts, [(kind, range)]);
+        assert_eq!(green.to_string(), emitted);
+        assert_eq!(remainder, "");
+        if kind == StructuralKind::Missing {
+            let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine) = exit else {
+                panic!("the protected close must remain pending")
+            };
+            assert_eq!(token_kind(&item), Some(TokenKind::RBracket));
+            assert_eq!(item.extent(source.len()).recovery_range(), 0..2);
+        }
     }
 }
 
 #[test]
-fn actual_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
-    let role = GrammarRole::ForStatement(ForStatementRole::Body);
+fn actual_for_inline_body_missing_and_error_preserve_cst_and_handoff() {
     for (source, kind, range, emitted) in [
         (
             "for x in xs: ]",
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             13..13,
             "for x in xs: ",
         ),
         (
             "for x in xs: @",
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             13..14,
             "for x in xs: @",
         ),
     ] {
-        let (green, exit, records) = statement_with_frozen_recoveries(source, None);
+        let (green, exit, facts) = statement_with_facts(source);
         assert_eq!(green.to_string(), emitted);
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].id, DiagnosticId(0));
-        assert_expression_record(&records[0], role, kind, range.clone());
-        assert_eq!(
-            records[0].expectations[0].expected,
-            ExpectedSyntax::Statement
-        );
+        assert_eq!(facts, [(kind, range.clone())]);
         let root = SyntaxNode::new_root(green.clone());
         let expected_body = match kind {
-            RecoveryKind::Missing => "        Missing@13..13\n",
-            RecoveryKind::Error => "        Error@13..14 \"@\"\n",
+            StructuralKind::Missing => "        Missing@13..13\n",
+            StructuralKind::ErrorGroup => "        Error@13..14 \"@\"\n",
+            StructuralKind::Invalid => unreachable!("inline-body witness has no Invalid CST node"),
         };
         assert_eq!(
             format!("{root:#?}"),
@@ -428,8 +307,9 @@ fn actual_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
             )
         );
         let recovery_kind = match kind {
-            RecoveryKind::Missing => SyntaxKind::Missing,
-            RecoveryKind::Error => SyntaxKind::Error,
+            StructuralKind::Missing => SyntaxKind::Missing,
+            StructuralKind::ErrorGroup => SyntaxKind::Error,
+            StructuralKind::Invalid => unreachable!("inline-body witness has no Invalid CST node"),
         };
         let recovery_elements: Vec<_> = root
             .descendants_with_tokens()
@@ -437,7 +317,10 @@ fn actual_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
             .collect();
         assert_eq!(recovery_elements.len(), 1);
         let recovery = &recovery_elements[0];
-        assert_eq!(recovery.as_token().is_some(), kind == RecoveryKind::Error);
+        assert_eq!(
+            recovery.as_token().is_some(),
+            kind == StructuralKind::ErrorGroup
+        );
         assert_eq!(recovery.kind(), recovery_kind);
         assert_eq!(usize::from(recovery.text_range().start()), range.start);
         assert_eq!(usize::from(recovery.text_range().end()), range.end);
@@ -445,112 +328,74 @@ fn actual_for_inline_body_missing_and_error_expect_statement_and_reconcile() {
         assert_eq!(chain.kind(), SyntaxKind::OperatorChain);
         assert_eq!(chain.parent().unwrap().kind(), SyntaxKind::ForStatement);
         match kind {
-            RecoveryKind::Missing => {
+            StructuralKind::Missing => {
                 let NormalizedExit::Complete(Err(Either::Left(item)), _) = &exit else {
                     panic!("the body close must remain pending")
                 };
                 assert_eq!(token_kind(item), Some(TokenKind::RBracket));
                 assert_eq!(recovery.to_string(), "");
             }
-            RecoveryKind::Error => {
+            StructuralKind::ErrorGroup => {
                 assert!(matches!(
                     exit,
                     NormalizedExit::Complete(Err(Either::Right(_)), _)
                 ));
                 assert_eq!(recovery.to_string(), "@");
             }
+            StructuralKind::Invalid => unreachable!("inline-body witness has no Invalid CST node"),
         }
-        let (reconciled_green, reconciled_exit, reconciled) =
-            statement_with_frozen_recoveries(source, Some(&records));
-        assert_eq!(reconciled_green, green);
-        for candidate in [&exit, &reconciled_exit] {
-            let item = match candidate {
-                NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine)
-                    if kind == RecoveryKind::Missing =>
-                {
-                    item
-                }
-                NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine)
-                    if kind == RecoveryKind::Error =>
-                {
-                    assert!(end.item.payload_view().is_eof());
-                    &end.item
-                }
-                _ => panic!("fresh and frozen inline bodies must preserve the InLine handoff"),
-            };
-            let extent = item.extent(source.len());
-            match kind {
-                RecoveryKind::Missing => {
-                    assert_eq!(extent.physical(), 12..14);
-                    assert_eq!(extent.leading(), 12..13);
-                    assert_eq!(extent.remaining(), 13..13);
-                    assert_eq!(extent.payload(), 13..14);
-                    assert_eq!(extent.recovery_range(), 13..14);
-                }
-                RecoveryKind::Error => {
-                    assert_eq!(extent.physical(), 14..14);
-                    assert_eq!(extent.leading(), 14..14);
-                    assert_eq!(extent.remaining(), 14..14);
-                    assert_eq!(extent.payload(), 14..14);
-                    assert_eq!(extent.recovery_range(), 14..14);
-                }
+        let item = match &exit {
+            NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::InLine)
+                if kind == StructuralKind::Missing =>
+            {
+                item
             }
-        }
-        match (exit, reconciled_exit) {
-            (
-                NormalizedExit::Complete(Err(Either::Left(item)), line),
-                NormalizedExit::Complete(Err(Either::Left(reconciled_item)), reconciled_line),
-            ) => {
-                assert_eq!(token_kind(&reconciled_item), token_kind(&item));
-                assert_eq!(reconciled_line, line);
+            NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine)
+                if kind == StructuralKind::ErrorGroup =>
+            {
+                assert!(end.item.payload_view().is_eof());
+                &end.item
             }
-            (
-                NormalizedExit::Complete(Err(Either::Right(_)), line),
-                NormalizedExit::Complete(Err(Either::Right(_)), reconciled_line),
-            ) => assert_eq!(reconciled_line, line),
-            _ => panic!("reconciliation must preserve the body handoff"),
+            _ => panic!("inline bodies must preserve the InLine handoff"),
+        };
+        let extent = item.extent(source.len());
+        match kind {
+            StructuralKind::Missing => {
+                assert_eq!(extent.physical(), 12..14);
+                assert_eq!(extent.leading(), 12..13);
+                assert_eq!(extent.remaining(), 13..13);
+                assert_eq!(extent.payload(), 13..14);
+                assert_eq!(extent.recovery_range(), 13..14);
+            }
+            StructuralKind::ErrorGroup => {
+                assert_eq!(extent.physical(), 14..14);
+                assert_eq!(extent.leading(), 14..14);
+                assert_eq!(extent.remaining(), 14..14);
+                assert_eq!(extent.payload(), 14..14);
+                assert_eq!(extent.recovery_range(), 14..14);
+            }
+            StructuralKind::Invalid => unreachable!("inline-body witness has no Invalid CST node"),
         }
-        assert_eq!(reconciled, records);
     }
 }
 
 #[test]
-fn required_operand_callers_publish_their_own_roles() {
+fn required_operand_callers_publish_structural_facts() {
     let operators = OperatorTable::empty();
-    let (_, _, if_records) = expression_with_recoveries("if : x", &operators);
-    assert!(if_records.iter().any(|record| {
-        record.site.role == GrammarRole::IfExpression(IfExpressionRole::Condition)
-            && record.kind == RecoveryKind::Missing
-    }));
+    for (source, expected) in [
+        ("if : x", (StructuralKind::Missing, 3..3)),
+        ("case : _ -> x", (StructuralKind::Missing, 4..4)),
+        ("case x: _ if -> y", (StructuralKind::Missing, 13..13)),
+    ] {
+        let (_, _, facts) = expression_with_facts(source, &operators);
+        assert_eq!(facts, [expected], "{source:?}");
+    }
 
-    let (_, _, case_records) = expression_with_recoveries("case : _ -> x", &operators);
-    assert!(case_records.iter().any(|record| {
-        record.site.role == GrammarRole::CaseLike(CaseLikeRole::Scrutinee)
-            && record.kind == RecoveryKind::Missing
-    }));
-    let (_, _, guard_records) = expression_with_recoveries("case x: _ if -> y", &operators);
-    assert!(guard_records.iter().any(|record| {
-        record.site.role == GrammarRole::CaseLike(CaseLikeRole::Guard)
-            && record.kind == RecoveryKind::Missing
-    }));
+    let (_, _, iterable_facts) = statement_with_facts("for x in ]");
+    assert_eq!(iterable_facts, [(StructuralKind::Missing, 9..9)]);
 
-    let (_, _, for_iterable_records) = statement_with_recoveries("for x in ]");
-    assert_eq!(for_iterable_records.len(), 1);
-    assert_expression_record(
-        &for_iterable_records[0],
-        GrammarRole::ForStatement(ForStatementRole::Iterable),
-        RecoveryKind::Missing,
-        9..9,
-    );
-
-    let (_, _, for_body_records) = statement_with_recoveries("for x in xs: @");
-    assert_eq!(for_body_records.len(), 1);
-    assert_expression_record(
-        &for_body_records[0],
-        GrammarRole::ForStatement(ForStatementRole::Body),
-        RecoveryKind::Error,
-        13..14,
-    );
+    let (_, _, body_facts) = statement_with_facts("for x in xs: @");
+    assert_eq!(body_facts, [(StructuralKind::ErrorGroup, 13..14)]);
 }
 
 fn direct_child(node: &SyntaxNode, kind: SyntaxKind) -> SyntaxNode {
@@ -567,7 +412,7 @@ fn direct_missing_in_required_chain(slot: &SyntaxNode) -> SyntaxNode {
 }
 
 #[test]
-fn required_operand_cst_slots_select_initial_callers_without_recovery_records() {
+fn required_operand_cst_slots_select_initial_callers() {
     for (source, slot) in [
         ("if : x", SyntaxKind::Condition),
         ("case : _ -> x", SyntaxKind::CaseScrutinee),
@@ -632,7 +477,7 @@ fn required_operand_cst_keeps_nested_nud_and_terminal_recovery_distinct() {
         ("? @ x", SyntaxKind::PrefixOperatorUse),
         ("a + @ x", SyntaxKind::InfixOperatorUse),
     ] {
-        let (green, _, _) = expression_with_recoveries(source, &operators);
+        let (green, _, _) = expression_with_facts(source, &operators);
         let root = SyntaxNode::new_root(green);
         let chain = direct_child(&root, SyntaxKind::OperatorChain);
         let children = chain.children_with_tokens().collect::<Vec<_>>();
@@ -655,12 +500,7 @@ fn required_operand_cst_keeps_nested_nud_and_terminal_recovery_distinct() {
     }
 
     for source in ["]", "@ x", "@\r\n界"] {
-        let (green, _, _, _) = direct_required_expr_with_recoveries(
-            source,
-            GrammarRole::Expression(ExpressionRole::Nud),
-            0,
-            None,
-        );
+        let (green, _, _, _) = direct_required_expr_with_facts(source, 0);
         let root = SyntaxNode::new_root(green);
         let chain = direct_child(&root, SyntaxKind::OperatorChain);
         if source == "]" {
@@ -712,7 +552,7 @@ fn required_operand_cst_orders_caller_and_nested_nud_recovery_in_one_chain() {
             SyntaxKind::Error,
         ),
     ] {
-        let (green, _, _) = expression_with_recoveries(source, &operators);
+        let (green, _, _) = expression_with_facts(source, &operators);
         let root = SyntaxNode::new_root(green);
         let condition = root
             .descendants()
@@ -744,12 +584,7 @@ fn required_operand_cst_orders_caller_and_nested_nud_recovery_in_one_chain() {
         );
     }
 
-    let (green, _, _, _) = direct_required_expr_with_recoveries(
-        "@",
-        GrammarRole::Expression(ExpressionRole::Nud),
-        0,
-        None,
-    );
+    let (green, _, _, _) = direct_required_expr_with_facts("@", 0);
     let root = SyntaxNode::new_root(green);
     let chain = direct_child(&root, SyntaxKind::OperatorChain);
     assert!(
@@ -772,7 +607,8 @@ fn required_operand_cst_selects_post_infix_missing_from_ordered_children() {
         OperatorFixities::new().with_infix(BindingPower::scalar(50), BindingPower::scalar(50)),
     )])
     .unwrap();
-    let (green, exit, _records) = expression_with_recoveries(source, &operators);
+    let (green, exit, facts) = expression_with_facts(source, &operators);
+    assert_eq!(facts, [(StructuralKind::Missing, 3..3)]);
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.kind(), SyntaxKind::Root);
     assert!(root.parent().is_none());
@@ -848,36 +684,6 @@ fn required_operand_cst_selects_post_infix_missing_from_ordered_children() {
             .any(|element| element.kind() == SyntaxKind::PrefixOperatorUse)
     );
 
-    // Select the operand slot from ancestry and ordered nodes, without records
-    // or operator spelling as classification input.
-    let selected = match (root.kind(), chain.kind(), children.as_slice()) {
-        (SyntaxKind::Root, SyntaxKind::OperatorChain, [lhs, operator, absent])
-            if chain.parent() == Some(root.clone())
-                && lhs.parent() == Some(chain.clone())
-                && operator.parent() == Some(chain.clone())
-                && absent.parent() == Some(chain.clone())
-                && lhs.kind() == SyntaxKind::IdentifierExpression
-                && operator.kind() == SyntaxKind::InfixOperatorUse
-                && absent.kind() == SyntaxKind::Missing =>
-        {
-            (
-                GrammarRole::Expression(ExpressionRole::Nud),
-                [ExpectedSyntax::Expression],
-                0usize,
-                usize::from(absent.text_range().start())..usize::from(absent.text_range().end()),
-            )
-        }
-        _ => panic!("expected Root > OperatorChain with an accepted infix operand slot"),
-    };
-    assert_eq!(
-        selected,
-        (
-            GrammarRole::Expression(ExpressionRole::Nud),
-            [ExpectedSyntax::Expression],
-            0usize,
-            3..3,
-        )
-    );
     let Some(NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine)) = exit else {
         panic!("the missing infix operand must preserve ordinary EOF and InLine handoff")
     };

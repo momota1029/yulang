@@ -1,20 +1,11 @@
 //! Direct canonical `mod` declaration construction.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cursor::recovery::RecoveryDraft;
-use crate::recovery_record::{
-    DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, ModRole,
-    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-    UnexpectedSyntax,
-};
-use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cursor::recovery::emit::{
-        emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
@@ -38,6 +29,12 @@ use crate::{
         indented_statement_block_normalized,
     },
 };
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HeaderPhase {
+    Name,
+    BodyIntroducer,
+}
 
 pub(crate) fn mod_declaration_selected_lexical(
     source: &str,
@@ -185,7 +182,7 @@ fn parse_identity_normalized(
         item_origin,
         line_entry,
         fence,
-        ModRole::Name,
+        true,
     )? {
         Ok(is_test) => is_test,
         Err(item) => return Ok(Some(item)),
@@ -220,7 +217,7 @@ fn parse_identity_normalized(
         item_origin,
         line_entry,
         fence,
-        ModRole::TestName,
+        false,
     )? {
         Ok(_) => Ok(None),
         Err(item) => Ok(Some(item)),
@@ -238,33 +235,33 @@ fn required_name_normalized(
     item_origin: &mut usize,
     line_entry: &mut LineEntry,
     fence: Option<&FenceBoundary>,
-    role: ModRole,
+    is_initial_name: bool,
 ) -> Result<Result<bool, Item>, Item> {
     if item.payload_view().is_boundary() {
-        mod_missing(&mut i, &item, *item_origin, role, false);
+        mod_missing(&mut i, &item, *item_origin);
         return Err(item);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        mod_missing(&mut i, &item, *item_origin, role, false);
+        mod_missing(&mut i, &item, *item_origin);
         return Err(item);
     }
     if name_boundary(i.rb(), &item, baseline, stops) {
-        mod_missing(&mut i, &item, *item_origin, role, false);
+        mod_missing(&mut i, &item, *item_origin);
         return Err(item);
     }
     if !gmod_allowed(&item, baseline) {
-        mod_missing(&mut i, &item, *item_origin, role, false);
+        mod_missing(&mut i, &item, *item_origin);
         return Err(item);
     }
     if is_body_starter_item(&item) {
         item.emit_all_remaining_leading(&mut *i.state);
-        mod_missing(&mut i, &item, *item_origin, role, false);
+        mod_missing(&mut i, &item, *item_origin);
         return Ok(Err(item));
     }
     item.emit_all_remaining_leading(&mut *i.state);
     if item_word(&item).is_some() {
-        let is_test = role == ModRole::Name && item_word(&item) == Some("test");
+        let is_test = is_initial_name && item_word(&item) == Some("test");
         emit_name(&mut i, item, is_test);
         return Ok(Ok(is_test));
     }
@@ -272,7 +269,8 @@ fn required_name_normalized(
     (item, *item_origin, *line_entry) = mod_error_run(
         i.rb(),
         item,
-        role,
+        HeaderPhase::Name,
+        false,
         baseline,
         stops,
         *item_origin,
@@ -285,7 +283,7 @@ fn required_name_normalized(
     if is_body_starter_item(&item) {
         return Ok(Err(item));
     }
-    let is_test = role == ModRole::Name && item_word(&item) == Some("test");
+    let is_test = is_initial_name && item_word(&item) == Some("test");
     emit_name(&mut i, item, is_test);
     Ok(Ok(is_test))
 }
@@ -315,16 +313,16 @@ fn parse_body_item_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        mod_missing(&mut i, &item, item_origin, ModRole::BodyIntroducer, false);
+        mod_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if item.payload_view().is_eof() {
         item.emit_eof_leading(&mut *i.state);
-        mod_missing(&mut i, &item, item_origin, ModRole::BodyIntroducer, false);
+        mod_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if body_boundary(i.rb(), &item, baseline, stops) || !gmod_allowed(&item, baseline) {
-        mod_missing(&mut i, &item, item_origin, ModRole::BodyIntroducer, false);
+        mod_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     item.emit_all_remaining_leading(&mut *i.state);
@@ -368,7 +366,7 @@ fn parse_body_item_normalized(
             )
         }
         _ if admission.is_some() => {
-            mod_missing(&mut i, &item, item_origin, ModRole::BodyIntroducer, true);
+            mod_missing(&mut i, &item, item_origin);
             parse_inline_statement_normalized(
                 i,
                 item,
@@ -414,7 +412,8 @@ fn recover_body_introducer_normalized(
     (item, item_origin, line_entry) = mod_error_run(
         i.rb(),
         item,
-        ModRole::BodyIntroducer,
+        HeaderPhase::BodyIntroducer,
+        false,
         baseline,
         stops,
         item_origin,
@@ -474,11 +473,6 @@ fn parse_colon_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
-            crate::recovery_record::GrammarRole::Declaration(
-                crate::recovery_record::DeclarationRole::Mod(
-                    crate::recovery_record::ModRole::IndentedStatement,
-                ),
-            ),
             stops,
             item_origin,
             line_entry,
@@ -495,7 +489,7 @@ fn parse_colon_body_normalized(
                 stops,
                 false,
             );
-            mod_missing(&mut i, &item, origin, ModRole::Body, false);
+            mod_missing(&mut i, &item, origin);
             complete(handoff(item), next_entry)
         }
         None => {
@@ -538,16 +532,16 @@ fn parse_inline_body_item_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() || item.payload_view().is_eof() {
-        mod_missing(&mut i, &item, item_origin, ModRole::Body, false);
+        mod_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if inline_terminal_semicolon(&item) {
-        mod_missing(&mut i, &item, item_origin, ModRole::Body, false);
+        mod_missing(&mut i, &item, item_origin);
         emit_token_item(&mut i, item);
         return after_completed_normalized(i, baseline, stops, item_origin, line_entry, fence);
     }
     if mod_boundary(i.rb(), &item, baseline, stops) {
-        mod_missing(&mut i, &item, item_origin, ModRole::Body, false);
+        mod_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if let Some(admission) =
@@ -599,7 +593,8 @@ fn recover_inline_body_normalized(
     (item, item_origin, line_entry) = mod_error_run(
         i.rb(),
         item,
-        ModRole::Body,
+        HeaderPhase::BodyIntroducer,
+        true,
         baseline,
         stops,
         item_origin,
@@ -758,84 +753,30 @@ fn scan_mod_item(
     )
 }
 
-fn mod_draft(
-    slot: ModRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-    colon_only: bool,
-) -> RecoveryDraft {
-    let role = GrammarRole::Declaration(DeclarationRole::Mod(slot));
-    let expected: &[ExpectedSyntax] = match slot {
-        ModRole::Name | ModRole::TestName => &[ExpectedSyntax::Identifier],
-        ModRole::Body => &[ExpectedSyntax::Statement],
-        ModRole::BodyIntroducer if colon_only => {
-            &[ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)]
-        }
-        ModRole::BodyIntroducer => &[
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        ],
-        _ => unreachable!("local Mod recovery slot"),
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expected
-            .iter()
-            .map(|expected| SyntaxExpectation {
-                role,
-                expected: *expected,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .collect::<Vec<_>>()
-            .into(),
-        0,
-    )
-}
-
-fn mod_missing(i: &mut SyntaxIn, item: &Item, origin: usize, role: ModRole, colon_only: bool) {
+fn mod_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        mod_draft(
-            role,
-            RecoveryKind::Missing,
-            range,
-            Arc::from([]),
-            colon_only,
-        )
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
 fn mod_error_run(
     mut i: SyntaxIn,
     mut item: Item,
-    role: ModRole,
+    phase: HeaderPhase,
+    inline_body: bool,
     baseline: usize,
     stops: Stops,
     mut origin: usize,
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let name = matches!(role, ModRole::Name | ModRole::TestName);
-    let start = item.extent(origin).recovery_range().start;
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = token_kind(&item)
-                .map(token_syntax_kind)
-                .unwrap_or(SyntaxKind::Operator);
-            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+    let name = phase == HeaderPhase::Name;
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, origin);
             (item, origin, line) =
                 run.lexical(|lex| scan_mod_item(lex, origin, line, fence, baseline, stops, name));
             let boundary = item.payload_view().is_boundary()
@@ -850,9 +791,8 @@ fn mod_error_run(
                 && if name {
                     is_body_starter_item(&item) || item_word(&item).is_some()
                 } else {
-                    (role == ModRole::BodyIntroducer && is_body_starter_item(&item))
-                        || (role == ModRole::Body
-                            && token_kind(&item) == Some(TokenKind::Semicolon))
+                    (!inline_body && is_body_starter_item(&item))
+                        || (inline_body && token_kind(&item) == Some(TokenKind::Semicolon))
                         || run
                             .lexical(|lex| {
                                 crate::statement::classify_statement_item_lexical(
@@ -866,15 +806,10 @@ fn mod_error_run(
                             .is_some()
                 };
             if boundary || retry {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: start..end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, origin, line);
             }
-        },
-        |range, unexpected| mod_draft(role, RecoveryKind::Error, range, unexpected, false),
-    )
+        }
+    })
 }
 
 fn name_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {

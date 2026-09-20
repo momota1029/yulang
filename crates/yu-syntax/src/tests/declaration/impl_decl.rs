@@ -381,9 +381,7 @@ fn impl_schema_shell(source: &str, suffix: &[(SyntaxKind, std::ops::Range<u32>)]
 
 #[test]
 fn impl_required_types_schema_distinguishes_head_and_description() {
-    use crate::recovery_record::{
-        DeclarationRole, ExpectedSyntax, GrammarRole, ImplRole, TypeRole,
-    };
+    use crate::structural_diagnostic::StructuralKind;
     use SyntaxKind::*;
     let assert_elements =
         |parent: &SyntaxNode, expected: &[(SyntaxKind, bool, std::ops::Range<u32>, &str)]| {
@@ -479,7 +477,7 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
             None,
         ),
     ] {
-        let (green, exit, records, remainder) = typed_impl(source, None, 0, None);
+        let (green, exit, remainder) = typed_impl(source, 0, None);
         assert_eq!(green.to_string(), source);
         assert_eq!(remainder, "");
         let (canonical, _, canonical_remainder) =
@@ -530,10 +528,10 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
         // Head is the phase after ImplKw and before ImplDescription/body.
         // Description Type is only inside ImplDescription after its Colon.
         // Nested Type recovery schemas are outside this owner-slot matrix.
-        let mut slots = vec![(implementation.clone(), head)];
+        let mut slots = vec![(implementation.clone(), head.clone())];
         if let Some(node) = description_node {
             assert_eq!(node.first_child_or_token().unwrap().kind(), Colon);
-            slots.push((node, description));
+            slots.push((node, description.clone()));
         }
         let mut missing_count = 0;
         let mut error_count = 0;
@@ -555,7 +553,7 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                     .iter()
                     .position(|child| child.kind() == Error)
                     .unwrap();
-                let (owner, start) = match children[..group_start].as_ref() {
+                let (is_head, start) = match children[..group_start].as_ref() {
                     [keyword, trivia]
                         if parent == implementation
                             && keyword.kind() == ImplKw
@@ -563,7 +561,7 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                             && trivia.kind() == Whitespace
                             && trivia.as_token().is_some() =>
                     {
-                        (ImplRole::Head, 5u32)
+                        (true, 5u32)
                     }
                     [colon, trivia]
                         if parent.kind() == ImplDescription
@@ -585,7 +583,7 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                         );
                         assert_eq!(shell[2].text_range().end(), colon.text_range().start());
                         assert_eq!(colon.text_range().end(), trivia.text_range().start());
-                        (ImplRole::Description, 8u32)
+                        (false, 8u32)
                     }
                     _ => panic!("initial Type Error requires the complete ordered Impl shell"),
                 };
@@ -602,28 +600,7 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                     group.first().unwrap().text_range().start(),
                     group.last().unwrap().text_range().end(),
                 );
-                let projected = (
-                    GrammarRole::Type(TypeRole::Primary),
-                    vec![ExpectedSyntax::TypeExpression],
-                    0usize,
-                    combined_range,
-                );
-                let end = match (owner, group.len()) {
-                    (ImplRole::Head, 1) => 6u32,
-                    (ImplRole::Head, 3) => 9,
-                    (ImplRole::Description, 1) => 9,
-                    (ImplRole::Description, 3) => 12,
-                    _ => panic!("unexpected initial Type Error group"),
-                };
-                assert_eq!(
-                    projected,
-                    (
-                        GrammarRole::Type(TypeRole::Primary),
-                        vec![ExpectedSyntax::TypeExpression],
-                        0usize,
-                        rowan::TextRange::new(start.into(), end.into()),
-                    )
-                );
+                assert_eq!(combined_range.start(), start.into());
                 assert!(!root.descendants().any(|node| node.kind() == Missing));
                 let suffix = &children[group_start + group.len()..];
                 if let Some(retry) = suffix.first() {
@@ -639,7 +616,7 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                     assert_eq!(semicolon.kind(), Semicolon);
                     assert!(semicolon.as_token().is_some());
                     assert_eq!(semicolon.text_range().start(), retry.text_range().end());
-                    if owner == ImplRole::Head {
+                    if is_head {
                         assert_eq!(suffix.len(), 2);
                         assert_eq!(suffix[1], semicolon);
                     } else {
@@ -696,7 +673,7 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                     assert_elements(&ty, &[(Missing, true, at..at, "")]);
                     let missing = ty.first_child().unwrap();
                     assert_eq!(missing.children_with_tokens().count(), 0);
-                    let projected = match children.as_slice() {
+                    match children.as_slice() {
                         [keyword, trivia, type_expression, semicolon]
                             if parent.kind() == ImplDeclaration
                                 && keyword.kind() == ImplKw
@@ -704,12 +681,7 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                                 && type_expression.as_node() == Some(&ty)
                                 && semicolon.kind() == Semicolon =>
                         {
-                            (
-                                GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Head)),
-                                vec![ExpectedSyntax::TypeExpression],
-                                0,
-                                missing.text_range(),
-                            )
+                            ()
                         }
                         [colon, type_expression]
                             if parent.kind() == ImplDescription
@@ -727,31 +699,10 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
                                     (ImplDescription, true, 6..7, ":"),
                                 ],
                             );
-                            (
-                                GrammarRole::Declaration(DeclarationRole::Impl(
-                                    ImplRole::Description,
-                                )),
-                                vec![ExpectedSyntax::TypeExpression],
-                                0,
-                                missing.text_range(),
-                            )
+                            ()
                         }
                         _ => panic!("fresh required Type Missing requires the ordered Impl shell"),
                     };
-                    let expected = match parent.kind() {
-                        ImplDeclaration => (ImplRole::Head, 5),
-                        ImplDescription => (ImplRole::Description, 7),
-                        _ => unreachable!(),
-                    };
-                    assert_eq!(
-                        projected,
-                        (
-                            GrammarRole::Declaration(DeclarationRole::Impl(expected.0)),
-                            vec![ExpectedSyntax::TypeExpression],
-                            0,
-                            rowan::TextRange::empty(expected.1.into()),
-                        )
-                    );
                     missing_count += 1;
                 }
             }
@@ -773,19 +724,22 @@ fn impl_required_types_schema_distinguishes_head_and_description() {
         assert!(item.payload_view().is_eof());
         assert_eq!(emit_pending_leading_text(&mut item), "");
 
-        // Frozen records are compatibility evidence, not a slot classifier.
-        assert_eq!(
-            records.len(),
-            usize::from(missing_at.is_some() || error_count != 0)
-        );
-        let (again, again_exit, frozen, again_remainder) =
-            typed_impl(source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(again_remainder, remainder);
-        let mut item = pending_item(again_exit, LineEntry::InLine);
-        assert!(item.payload_view().is_eof());
-        assert_eq!(emit_pending_leading_text(&mut item), "");
+        let errors = head
+            .iter()
+            .chain(description.iter())
+            .filter(|child| child.0 == Error)
+            .collect::<Vec<_>>();
+        let expected_facts = if let Some(at) = missing_at {
+            vec![(StructuralKind::Missing, at as usize..at as usize)]
+        } else if let (Some(first), Some(last)) = (errors.first(), errors.last()) {
+            vec![(
+                StructuralKind::ErrorGroup,
+                first.2.start as usize..last.2.end as usize,
+            )]
+        } else {
+            vec![]
+        };
+        assert_eq!(structural_facts(&green), expected_facts, "{source:?}");
     }
 }
 
@@ -966,41 +920,22 @@ fn impl_schema_inline_binding_missing_remains_child_owned() {
 
 #[test]
 fn impl_first_colon_absence_is_description_without_body_cascade() {
-    use crate::recovery_record::{
-        DeclarationRole, ExpectedSyntax, GrammarRole, ImplRole, RecoveryKind,
-    };
-    for (source, slot, expected) in [
-        (
-            "impl T:",
-            ImplRole::Description,
-            ExpectedSyntax::TypeExpression,
-        ),
-        ("impl T: D:", ImplRole::Body, ExpectedSyntax::Statement),
+    use crate::structural_diagnostic::StructuralKind;
+    for (source, expected) in [
+        ("impl T:", (StructuralKind::Missing, 7..7)),
+        ("impl T: D:", (StructuralKind::Missing, 10..10)),
     ] {
-        let (green, _, records, rest) = typed_impl(source, None, 0, None);
+        let (green, _, rest) = typed_impl(source, 0, None);
         assert_eq!(green.to_string(), source);
         assert_eq!(rest, "");
-        assert_eq!(records.len(), 1);
-        assert_eq!(
-            records[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Impl(slot))
-        );
-        assert_eq!(records[0].kind, RecoveryKind::Missing);
-        assert_eq!(
-            records[0].site.range,
-            100 + source.len()..100 + source.len()
-        );
-        assert_eq!(records[0].expectations[0].expected, expected);
-        let (again, _, frozen, rest) = typed_impl(source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(rest, "");
+        assert_eq!(structural_facts(&green), [expected], "{source:?}");
     }
 }
 
 #[test]
-fn impl_body_protected_fence_and_contextual_stop_reconcile_exact_handoff() {
+fn impl_body_protected_fence_and_contextual_stop_keep_exact_handoff() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+    use crate::structural_diagnostic::StructuralKind;
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -1010,47 +945,47 @@ fn impl_body_protected_fence_and_contextual_stop_reconcile_exact_handoff() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    for (source, owned) in [
-        ("impl T\r\n> > ```\r\nouter", "impl T"),
-        ("impl T: D:\r\n> > ```\r\nouter", "impl T: D:"),
-        ("impl T @\r\n> > ```\r\nouter", "impl T @"),
-        ("impl T: D: @\r\n> > ```\r\nouter", "impl T: D: @"),
+    for (source, owned, expected) in [
+        (
+            "impl T\r\n> > ```\r\nouter",
+            "impl T",
+            (StructuralKind::Missing, 6..6),
+        ),
+        (
+            "impl T: D:\r\n> > ```\r\nouter",
+            "impl T: D:",
+            (StructuralKind::Missing, 10..10),
+        ),
+        (
+            "impl T @\r\n> > ```\r\nouter",
+            "impl T @",
+            (StructuralKind::ErrorGroup, 7..8),
+        ),
+        (
+            "impl T: D: @\r\n> > ```\r\nouter",
+            "impl T: D: @",
+            (StructuralKind::ErrorGroup, 11..12),
+        ),
     ] {
-        let (green, exit, records, remainder) = typed_impl(source, None, 0, Some(&fence));
+        let (green, exit, remainder) = typed_impl(source, 0, Some(&fence));
         assert_eq!(green.to_string(), owned);
-        assert_eq!(records.len(), 1);
+        assert_eq!(structural_facts(&green), [expected], "{source:?}");
         let item = pending_item(exit, LineEntry::PhysicalStart);
         let (leading, boundary) = emit_terminal_leading_text(item);
         assert_eq!(leading, "\r\n");
         assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
-        if records[0].kind == crate::recovery_record::RecoveryKind::Missing {
-            assert_eq!(
-                records[0].site.range,
-                boundary.coordinate()..boundary.coordinate()
-            );
-        }
         assert_eq!(remainder, "> > ```\r\nouter");
-        let (again, exit, frozen, remainder) = typed_impl(source, Some(&records), 0, Some(&fence));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(remainder, "> > ```\r\nouter");
-        let (leading, boundary) =
-            emit_terminal_leading_text(pending_item(exit, LineEntry::PhysicalStart));
-        assert_eq!(leading, "\r\n");
-        assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
     }
-    for owned in ["impl T", "impl T: D:", "impl T @", "impl T: D: @"] {
+    for (owned, expected) in [
+        ("impl T", (StructuralKind::Missing, 6..6)),
+        ("impl T: D:", (StructuralKind::Missing, 10..10)),
+        ("impl T @", (StructuralKind::ErrorGroup, 7..8)),
+        ("impl T: D: @", (StructuralKind::ErrorGroup, 11..12)),
+    ] {
         let source = format!("{owned}  else suffix");
-        let (green, exit, records, remainder) = typed_impl(&source, None, STOP_ELSE, None);
+        let (green, exit, remainder) = typed_impl(&source, STOP_ELSE, None);
         assert_eq!(green.to_string(), owned);
-        assert_eq!(records.len(), 1);
-        assert_eq!(remainder, " suffix");
-        let mut item = pending_item(exit, LineEntry::InLine);
-        assert_eq!(emit_pending_leading_text(&mut item), "  ");
-        assert_eq!(item.payload_view().spelling(), Some("else"));
-        let (again, exit, frozen, remainder) = typed_impl(&source, Some(&records), STOP_ELSE, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(structural_facts(&green), [expected], "{source:?}");
         assert_eq!(remainder, " suffix");
         let mut item = pending_item(exit, LineEntry::InLine);
         assert_eq!(emit_pending_leading_text(&mut item), "  ");
@@ -1059,57 +994,48 @@ fn impl_body_protected_fence_and_contextual_stop_reconcile_exact_handoff() {
 }
 
 #[test]
-fn impl_body_recovery_retains_head_and_statement_child_owners() {
-    use crate::recovery_record::{BindingRole, DeclarationRole, GrammarRole, ImplRole};
-    for (source, role) in [
-        (
-            "impl @ ;",
-            GrammarRole::Type(crate::recovery_record::TypeRole::Primary),
-        ),
-        (
-            "impl )",
-            GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Head)),
-        ),
+fn impl_body_recovery_retains_head_and_statement_child_structure() {
+    use crate::structural_diagnostic::StructuralKind;
+    for (source, expected) in [
+        ("impl @ ;", (StructuralKind::ErrorGroup, 5..6)),
+        ("impl )", (StructuralKind::Missing, 5..5)),
     ] {
-        let (_, _, records, _) = typed_impl(source, None, 0, None);
-        assert_eq!(records.len(), 1, "{source}");
-        assert_eq!(records[0].site.role, role);
+        let (green, _, _) = typed_impl(source, 0, None);
+        assert_eq!(structural_facts(&green), [expected], "{source}");
     }
-    for source in [
-        "impl T: D: my x =",
-        "impl T {my x =}",
-        "impl T: D:\n  my x =",
+    for (source, range) in [
+        ("impl T: D: my x =", 17..17),
+        ("impl T {my x =}", 14..14),
+        ("impl T: D:\n  my x =", 19..19),
     ] {
-        let (green, _, records, _) = typed_impl(source, None, 0, None);
-        assert_eq!(records.len(), 1, "{source}");
+        let (green, _, _) = typed_impl(source, 0, None);
+        let root = SyntaxNode::new_root(green.clone());
+        let missing = root
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::Missing)
+            .expect("nested binding body Missing");
         assert_eq!(
-            records[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body))
+            missing.parent().map(|parent| parent.kind()),
+            Some(SyntaxKind::BindingBody),
+            "{source}"
         );
-        let (again, _, frozen, _) = typed_impl(source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(
+            structural_facts(&green),
+            [(StructuralKind::Missing, range)],
+            "{source}"
+        );
     }
 }
 
 fn typed_impl<'s>(
     source: &'s str,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     stops: Stops,
     fence: Option<&FenceBoundary>,
-) -> (
-    GreenNode,
-    Option<NormalizedExit>,
-    Vec<CommittedRecoveryRecord>,
-    &'s str,
-) {
+) -> (GreenNode, Option<NormalizedExit>, &'s str) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = impl_declaration_witness(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
@@ -1121,33 +1047,26 @@ fn typed_impl<'s>(
         fence,
     );
     builder.finish_node();
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, exit, records, input)
+    (
+        finish_with_discarded_recoveries(builder, recover),
+        exit,
+        input,
+    )
 }
 
 #[test]
 fn impl_body_introducer_eof_retains_equal_indent_newline() {
-    use crate::recovery_record::{DeclarationRole, GrammarRole, ImplRole, RecoveryKind};
+    use crate::structural_diagnostic::StructuralKind;
     for owned in ["impl T", "impl T: D"] {
         let source = format!("{owned}\r\n");
-        let (green, exit, records, remainder) = typed_impl(&source, None, 0, None);
+        let (green, exit, remainder) = typed_impl(&source, 0, None);
         assert_eq!(green.to_string(), owned);
         assert_eq!(remainder, "");
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].kind, RecoveryKind::Missing);
         assert_eq!(
-            records[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::BodyIntroducer))
+            structural_facts(&green),
+            [(StructuralKind::Missing, owned.len()..owned.len())],
+            "{source:?}"
         );
-        let anchor = 100 + owned.len();
-        assert_eq!(records[0].site.range, anchor..anchor);
-        let mut item = pending_item(exit, LineEntry::InLine);
-        assert!(item.payload_view().is_eof());
-        assert_eq!(emit_pending_leading_text(&mut item), "\r\n");
-        let (again, exit, frozen, remainder) = typed_impl(&source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(remainder, "");
         let mut item = pending_item(exit, LineEntry::InLine);
         assert!(item.payload_view().is_eof());
         assert_eq!(emit_pending_leading_text(&mut item), "\r\n");
@@ -1155,189 +1074,109 @@ fn impl_body_introducer_eof_retains_equal_indent_newline() {
 }
 
 #[test]
-fn impl_body_records_are_exact_and_frozen_with_leading_ownership() {
-    use crate::recovery_record::{
-        DeclarationRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        ImplRole as Role, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-    for (source, slot, kind, range, owned, leading) in [
-        (
-            "impl T   ",
-            Role::BodyIntroducer,
-            RecoveryKind::Missing,
-            9..9,
-            "impl T   ",
-            "",
-        ),
-        (
-            "impl T  )",
-            Role::BodyIntroducer,
-            RecoveryKind::Missing,
-            6..6,
-            "impl T",
-            "  ",
-        ),
+fn impl_body_structural_facts_keep_exact_ranges_and_leading_ownership() {
+    use crate::structural_diagnostic::StructuralKind;
+    for (source, kind, range, owned, leading) in [
+        ("impl T   ", StructuralKind::Missing, 9..9, "impl T   ", ""),
+        ("impl T  )", StructuralKind::Missing, 6..6, "impl T", "  "),
         (
             "impl T @  ~   ;",
-            Role::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..11,
             "impl T @  ~   ;",
             "",
         ),
         (
             "impl T @ {}",
-            Role::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..8,
             "impl T @ {}",
             "",
         ),
         (
             "impl T @ : x",
-            Role::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..8,
             "impl T @ : x",
             "",
         ),
         (
             "impl T @   ",
-            Role::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..8,
             "impl T @",
             "   ",
         ),
         (
             "impl T @  )",
-            Role::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..8,
             "impl T @",
             "  ",
         ),
         (
             "impl T: D:   ",
-            Role::Body,
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             10..10,
             "impl T: D:",
             "   ",
         ),
         (
             "impl T: D:  ;",
-            Role::Body,
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             10..10,
             "impl T: D:",
             "  ",
         ),
         (
             "impl T: D:\r\nnext",
-            Role::Body,
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             10..10,
             "impl T: D:",
             "\r\n",
         ),
         (
             "impl T: D:  ]",
-            Role::Body,
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             10..10,
             "impl T: D:",
             "  ",
         ),
         (
             "impl T: D: @  ~   x",
-            Role::Body,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             11..15,
             "impl T: D: @  ~   x",
             "",
         ),
         (
             "impl T: D: @  ;",
-            Role::Body,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             11..12,
             "impl T: D: @",
             "  ",
         ),
         (
             "impl T: D: @   ",
-            Role::Body,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             11..12,
             "impl T: D: @",
             "   ",
         ),
         (
             "impl 型: D: @   ]",
-            Role::Body,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             13..14,
             "impl 型: D: @",
             "   ",
         ),
     ] {
-        let (green, exit, records, remainder) = typed_impl(source, None, 0, None);
+        let (green, exit, remainder) = typed_impl(source, 0, None);
         assert_eq!(green.to_string(), owned, "{source:?}");
+        assert_eq!(remainder, "", "{source:?}");
         let mut item = pending_item(exit, LineEntry::InLine);
         assert_eq!(emit_pending_leading_text(&mut item), leading, "{source:?}");
-        let role = GrammarRole::Declaration(DeclarationRole::Impl(slot));
-        let range = 100 + range.start..100 + range.end;
-        let expected = if slot == Role::Body {
-            vec![ExpectedSyntax::Statement]
-        } else {
-            vec![
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            ]
-        };
-        assert_eq!(
-            records,
-            [CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone()
-                },
-                kind,
-                unexpected: if kind == RecoveryKind::Error {
-                    Arc::from([UnexpectedSyntax::Token {
-                        range: range.clone(),
-                        category: UnexpectedCategory::OtherCharacter,
-                    }])
-                } else {
-                    Arc::from([])
-                },
-                expectations: expected
-                    .into_iter()
-                    .map(|expected| SyntaxExpectation {
-                        role,
-                        expected,
-                        range: range.clone(),
-                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE
-                    })
-                    .collect::<Vec<_>>()
-                    .into(),
-                primary_expectation: 0
-            }],
-            "{source:?}"
-        );
-        let mut seed = records;
-        seed[0].id = DiagnosticId(73);
-        let (again, exit, frozen, again_remainder) = typed_impl(source, Some(&seed), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, seed);
-        assert_eq!(again_remainder, remainder);
-        let mut item = pending_item(exit, LineEntry::InLine);
-        assert_eq!(emit_pending_leading_text(&mut item), leading);
+        assert_eq!(structural_facts(&green), [(kind, range)], "{source:?}");
     }
 }
 

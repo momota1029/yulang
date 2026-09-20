@@ -1,5 +1,6 @@
 //! Shared test runners, builders and source fixtures.
 pub(super) use rowan::GreenNode;
+use std::ops::Range;
 
 pub(super) use rowan::GreenNodeBuilder;
 
@@ -7,8 +8,28 @@ pub(super) use crate::{
     SyntaxKind, SyntaxNode,
     lexical::operator_scan::OperatorSite,
     operator_table::{BindingPower, OperatorDeclaration, OperatorFixities, OperatorTable},
-    recovery_record::CommittedRecoveryRecord,
 };
+
+/// Raw CST recovery facts for parser-local harnesses. This deliberately exposes
+/// only the durable structural occurrence, never the retired parser ledger.
+pub(super) fn structural_diagnostics(
+    green: &GreenNode,
+) -> Vec<crate::structural_diagnostic::StructuralDiagnostic> {
+    let root = SyntaxNode::new_root(green.clone());
+    crate::structural_diagnostic::collect(&root)
+}
+
+/// Comparison facts derived directly from the structural CST walk. Test
+/// fixtures deliberately retain neither parser-record identity nor replay
+/// state.
+pub(super) type StructuralFact = (crate::structural_diagnostic::StructuralKind, Range<usize>);
+
+pub(super) fn structural_facts(green: &GreenNode) -> Vec<StructuralFact> {
+    structural_diagnostics(green)
+        .into_iter()
+        .map(|diagnostic| (diagnostic.kind(), diagnostic.range().clone()))
+        .collect()
+}
 
 pub(super) use crate::{
     cursor::recovery::emit::emit_end,
@@ -69,20 +90,21 @@ pub(super) fn physical_leading(
 
 pub(super) fn finish_with_discarded_recoveries(
     builder: GreenNodeBuilder<'_>,
-    recover: Recover,
+    _recover: Recover,
 ) -> GreenNode {
-    (builder.finish(), recover.finish_recoveries_for_test()).0
+    builder.finish()
 }
 
 pub(super) fn finish_without_recoveries(
     builder: GreenNodeBuilder<'_>,
-    recover: Recover,
+    _recover: Recover,
 ) -> GreenNode {
+    let green = builder.finish();
     assert!(
-        recover.finish_recoveries_for_test().is_empty(),
-        "typed recovery output must be retained by its harness"
+        structural_diagnostics(&green).is_empty(),
+        "a recovery-free harness emitted structural recovery facts"
     );
-    builder.finish()
+    green
 }
 
 pub(super) fn run(source: &str) -> (GreenNode, Option<TailExit>) {
@@ -530,24 +552,17 @@ pub(super) fn emit_terminal_leading_text(
 }
 
 pub(super) fn run_type(source: &str) -> (GreenNode, Option<TailExit>) {
-    let (green, exit, _) = run_type_with_recoveries(source, None);
+    let (green, exit, _) = run_type_with_structural_diagnostics(source);
     (green, exit)
 }
 
-pub(super) fn run_type_with_recoveries<'frozen>(
+pub(super) fn run_type_with_structural_diagnostics(
     source: &str,
-    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
-) -> (GreenNode, Option<TailExit>, Vec<CommittedRecoveryRecord>) {
+) -> (GreenNode, Option<TailExit>, Vec<StructuralFact>) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = match frozen {
-        Some(frozen) => {
-            recover = Recover::reconcile_for_test(recover.operators(), frozen);
-            GreenNodeBuilder::new()
-        }
-        None => GreenNodeBuilder::new(),
-    };
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let mut exit = type_expr(crate::cursor::SyntaxIn::new(
         &mut input,
@@ -558,8 +573,9 @@ pub(super) fn run_type_with_recoveries<'frozen>(
         emit_end(&mut builder, end);
     }
     builder.finish_node();
-    let (green, recoveries) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, exit, recoveries)
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, exit, facts)
 }
 
 pub(super) fn run_type_normalized<'source>(
@@ -569,32 +585,25 @@ pub(super) fn run_type_normalized<'source>(
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, Option<NormalizedExit>, &'source str) {
     let (green, exit, remainder, _) =
-        run_type_normalized_with_recoveries(source, item_origin, line_entry, fence, None);
+        run_type_normalized_with_structural_diagnostics(source, item_origin, line_entry, fence);
     (green, exit, remainder)
 }
 
-pub(super) fn run_type_normalized_with_recoveries<'source, 'frozen>(
+pub(super) fn run_type_normalized_with_structural_diagnostics<'source>(
     source: &'source str,
     item_origin: usize,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
-    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
 ) -> (
     GreenNode,
     Option<NormalizedExit>,
     &'source str,
-    Vec<CommittedRecoveryRecord>,
+    Vec<StructuralFact>,
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = match frozen {
-        Some(frozen) => {
-            recover = Recover::reconcile_for_test(recover.operators(), frozen);
-            GreenNodeBuilder::new()
-        }
-        None => GreenNodeBuilder::new(),
-    };
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = type_expr_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
@@ -604,8 +613,9 @@ pub(super) fn run_type_normalized_with_recoveries<'source, 'frozen>(
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    let (green, recoveries) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, exit, input, recoveries)
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, exit, input, facts)
 }
 
 pub(super) fn run_pattern(source: &str) -> (GreenNode, TailExit) {

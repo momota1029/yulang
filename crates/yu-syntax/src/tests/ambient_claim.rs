@@ -9,12 +9,7 @@ fn statement_with_ambient<'source, 'frame>(
     source: &'source str,
     ambient: impl Into<AmbientClaimContext<'frame>>,
     fence: Option<&FenceBoundary>,
-) -> (
-    GreenNode,
-    Vec<CommittedRecoveryRecord>,
-    TailExit,
-    &'source str,
-) {
+) -> (GreenNode, TailExit, &'source str) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
@@ -35,8 +30,7 @@ fn statement_with_ambient<'source, 'frame>(
         emit_end(&mut output, end);
     }
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, records, exit, input)
+    (output.finish(), exit, input)
 }
 
 // The sentinel proves that the actual target owner ran the hook. A missing or
@@ -257,6 +251,6 @@ fn unavailable_fence_terminated_nested_interpolation_preserves_the_outer_result(
     let unavailable = statement_with_ambient(source, None, Some(&fence));
     assert_eq!(available, unavailable);
     assert!(
-        matches!(unavailable.2, Err(Either::Left(ref item)) if item.payload_view().is_boundary())
+        matches!(unavailable.1, Err(Either::Left(ref item)) if item.payload_view().is_boundary())
     );
 }

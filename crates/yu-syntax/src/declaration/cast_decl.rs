@@ -3,21 +3,10 @@
 use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
-use crate::recovery_record::{
-    CastRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
-    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-    UnexpectedSyntax,
-};
 use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
-use std::sync::Arc;
 
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     expression::{expr_from_nud_normalized, if_expr::active_statement_companion, is_nud_item},
     handoff::{Either, MlMode, NormalizedExit, complete, handoff},
@@ -970,7 +959,6 @@ fn cast_target_type_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i.rb(),
             item,
-            GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetType)),
             baseline,
             stops,
             TypeOuterBoundary::EQUALS,
@@ -1102,11 +1090,6 @@ fn cast_definition_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
-            crate::recovery_record::GrammarRole::Declaration(
-                crate::recovery_record::DeclarationRole::Cast(
-                    crate::recovery_record::CastRole::IndentedStatement,
-                ),
-            ),
             stops,
             item_origin,
             line_entry,
@@ -1342,43 +1325,12 @@ enum CastBodyIntroducerErrorExit {
     Boundary,
 }
 
-fn cast_pattern_introducer_role() -> GrammarRole {
-    GrammarRole::Declaration(DeclarationRole::Cast(CastRole::PatternIntroducer))
-}
-
-fn cast_pattern_introducer_draft(
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = cast_pattern_introducer_role();
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
-                Delimiter::Parenthesis,
-            )),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
 fn cast_pattern_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        cast_pattern_introducer_draft(RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn cast_pattern_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
@@ -1386,51 +1338,7 @@ fn cast_pattern_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Pattern));
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        RecoveryDraft::new(
-            RecoverySiteKey {
-                role,
-                range: range.clone(),
-            },
-            RecoveryKind::Missing,
-            Arc::from([]),
-            Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Pattern,
-                range,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            0,
-        )
-    });
-}
-
-fn cast_target_introducer_role() -> GrammarRole {
-    GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetIntroducer))
-}
-
-fn cast_target_introducer_draft(
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = cast_target_introducer_role();
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn cast_target_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
@@ -1438,36 +1346,7 @@ fn cast_target_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) 
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        cast_target_introducer_draft(RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn cast_body_introducer_role() -> GrammarRole {
-    GrammarRole::Declaration(DeclarationRole::Cast(CastRole::BodyIntroducer))
-}
-
-fn cast_body_introducer_draft(
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = cast_body_introducer_role();
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn cast_body_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
@@ -1475,36 +1354,7 @@ fn cast_body_introducer_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        cast_body_introducer_draft(RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn cast_body_role() -> GrammarRole {
-    GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Body))
-}
-
-fn cast_body_draft(
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = cast_body_role();
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Expression,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn cast_body_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
@@ -1512,19 +1362,7 @@ fn cast_body_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(
-        i.rb(),
-        crate::lexical::item::LeadingTrivia::default(),
-        at,
-        |range| cast_body_draft(RecoveryKind::Missing, range, Arc::from([])),
-    );
-}
-
-fn cast_pattern_close_role() -> GrammarRole {
-    GrammarRole::ClosingDelimiter {
-        owner: crate::recovery_record::ConstructRole::CastPattern,
-        delimiter: Delimiter::Parenthesis,
-    }
+    emit_recovery_missing(i.rb(), crate::lexical::item::LeadingTrivia::default(), at);
 }
 
 fn cast_pattern_close_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
@@ -1532,26 +1370,7 @@ fn cast_pattern_close_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    let role = cast_pattern_close_role();
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        RecoveryDraft::new(
-            RecoverySiteKey {
-                role,
-                range: range.clone(),
-            },
-            RecoveryKind::Missing,
-            Arc::from([]),
-            Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                    Delimiter::Parenthesis,
-                )),
-                range,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            0,
-        )
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1564,63 +1383,32 @@ fn cast_pattern_close_error_run(
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry, CastTransition) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(origin).recovery_range().start;
-            loop {
-                let kind = cast_error_syntax_kind(&item);
-                let end = run.emit_item_as(item, origin, kind).recovery_range().end;
-                (item, origin, line) = run.lexical(|lex| {
-                    scan_cast_item_lexical(
-                        lex,
-                        origin,
-                        line,
-                        fence,
-                        baseline,
-                        stops,
-                        CastVocabulary::PatternClose,
-                    )
-                });
-                let transition = cast_transition_lex(run, &item, baseline, stops);
-                if transition != CastTransition::Other {
-                    let error_end = if transition == CastTransition::OuterBoundary
-                        && cast_error_owns_eof_leading(&item)
-                        && !item.extent(origin).remaining().is_empty()
-                    {
-                        run.emit_same_line_eof_leading(&mut item, origin).end
-                    } else {
-                        end
-                    };
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..error_end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, origin, line, transition);
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, origin);
+            (item, origin, line) = run.lexical(|lex| {
+                scan_cast_item_lexical(
+                    lex,
+                    origin,
+                    line,
+                    fence,
+                    baseline,
+                    stops,
+                    CastVocabulary::PatternClose,
+                )
+            });
+            let transition = cast_transition_lex(run, &item, baseline, stops);
+            if transition != CastTransition::Other {
+                if transition == CastTransition::OuterBoundary
+                    && cast_error_owns_eof_leading(&item)
+                    && !item.extent(origin).remaining().is_empty()
+                {
+                    run.emit_same_line_eof_leading(&mut item, origin);
                 }
+                return (item, origin, line, transition);
             }
-        },
-        |range, unexpected| {
-            let role = cast_pattern_close_role();
-            RecoveryDraft::new(
-                RecoverySiteKey {
-                    role,
-                    range: range.clone(),
-                },
-                RecoveryKind::Error,
-                unexpected,
-                Arc::from([SyntaxExpectation {
-                    role,
-                    expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                        Delimiter::Parenthesis,
-                    )),
-                    range,
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                0,
-            )
-        },
-    )
+        }
+    })
 }
 
 fn cast_transition_lex(
@@ -1667,50 +1455,38 @@ fn cast_body_introducer_error_run(
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry, CastBodyIntroducerErrorExit) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(origin).recovery_range().start;
-            loop {
-                let kind = cast_error_syntax_kind(&item);
-                let end = run.emit_item_as(item, origin, kind).recovery_range().end;
-                (item, origin, line) = run.lexical(|lex| {
-                    scan_cast_item_lexical(
-                        lex,
-                        origin,
-                        line,
-                        fence,
-                        baseline,
-                        stops,
-                        CastVocabulary::Form,
-                    )
-                });
-                let exit = if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
-                    Some(CastBodyIntroducerErrorExit::Form)
-                } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
-                    Some(CastBodyIntroducerErrorExit::Boundary)
-                } else {
-                    None
-                };
-                if let Some(exit) = exit {
-                    let error_end = if exit == CastBodyIntroducerErrorExit::Boundary
-                        && cast_error_owns_eof_leading(&item)
-                        && !item.extent(origin).remaining().is_empty()
-                    {
-                        run.emit_same_line_eof_leading(&mut item, origin).end
-                    } else {
-                        end
-                    };
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..error_end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, origin, line, exit);
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, origin);
+            (item, origin, line) = run.lexical(|lex| {
+                scan_cast_item_lexical(
+                    lex,
+                    origin,
+                    line,
+                    fence,
+                    baseline,
+                    stops,
+                    CastVocabulary::Form,
+                )
+            });
+            let exit = if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
+                Some(CastBodyIntroducerErrorExit::Form)
+            } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
+                Some(CastBodyIntroducerErrorExit::Boundary)
+            } else {
+                None
+            };
+            if let Some(exit) = exit {
+                if exit == CastBodyIntroducerErrorExit::Boundary
+                    && cast_error_owns_eof_leading(&item)
+                    && !item.extent(origin).remaining().is_empty()
+                {
+                    run.emit_same_line_eof_leading(&mut item, origin);
                 }
+                return (item, origin, line, exit);
             }
-        },
-        |range, unexpected| cast_body_introducer_draft(RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1723,12 +1499,9 @@ fn cast_body_error_run(
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let start = item.extent(origin).recovery_range().start;
-    emit_recovery_error_run(
-        i,
-        |run| loop {
-            let kind = cast_error_syntax_kind(&item);
-            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, origin);
             (item, origin, line) = run.lexical(|lex| {
                 crate::lexical::expression_item::scan_expression_item_lexical(
                     lex,
@@ -1744,23 +1517,16 @@ fn cast_body_error_run(
                 || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
                 || is_nud_item(&item)
             {
-                let error_end = if cast_inline_body_static_boundary(&item, baseline, stops)
+                if cast_inline_body_static_boundary(&item, baseline, stops)
                     && cast_error_owns_eof_leading(&item)
                     && !item.extent(origin).remaining().is_empty()
                 {
-                    run.emit_same_line_eof_leading(&mut item, origin).end
-                } else {
-                    end
-                };
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: start..error_end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
+                    run.emit_same_line_eof_leading(&mut item, origin);
+                }
                 return (item, origin, line);
             }
-        },
-        |range, unexpected| cast_body_draft(RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1773,56 +1539,44 @@ fn cast_target_introducer_error_run(
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry, CastTargetIntroducerErrorExit) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(origin).recovery_range().start;
-            loop {
-                let kind = cast_error_syntax_kind(&item);
-                let end = run.emit_item_as(item, origin, kind).recovery_range().end;
-                (item, origin, line) = run.lexical(|lex| {
-                    scan_cast_item_lexical(
-                        lex,
-                        origin,
-                        line,
-                        fence,
-                        baseline,
-                        stops,
-                        CastVocabulary::Type,
-                    )
-                });
-                let exit = if cast_token_kind(&item) == Some(TokenKind::Colon)
-                    && cast_gap_allowed(&item, baseline)
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, origin);
+            (item, origin, line) = run.lexical(|lex| {
+                scan_cast_item_lexical(
+                    lex,
+                    origin,
+                    line,
+                    fence,
+                    baseline,
+                    stops,
+                    CastVocabulary::Type,
+                )
+            });
+            let exit = if cast_token_kind(&item) == Some(TokenKind::Colon)
+                && cast_gap_allowed(&item, baseline)
+            {
+                Some(CastTargetIntroducerErrorExit::Target)
+            } else if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
+                Some(CastTargetIntroducerErrorExit::Form)
+            } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
+                Some(CastTargetIntroducerErrorExit::Boundary)
+            } else if is_type_nud(&item) {
+                Some(CastTargetIntroducerErrorExit::Type)
+            } else {
+                None
+            };
+            if let Some(exit) = exit {
+                if exit == CastTargetIntroducerErrorExit::Boundary
+                    && cast_error_owns_eof_leading(&item)
+                    && !item.extent(origin).remaining().is_empty()
                 {
-                    Some(CastTargetIntroducerErrorExit::Target)
-                } else if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
-                    Some(CastTargetIntroducerErrorExit::Form)
-                } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
-                    Some(CastTargetIntroducerErrorExit::Boundary)
-                } else if is_type_nud(&item) {
-                    Some(CastTargetIntroducerErrorExit::Type)
-                } else {
-                    None
-                };
-                if let Some(exit) = exit {
-                    let error_end = if exit == CastTargetIntroducerErrorExit::Boundary
-                        && cast_error_owns_eof_leading(&item)
-                        && !item.extent(origin).remaining().is_empty()
-                    {
-                        run.emit_same_line_eof_leading(&mut item, origin).end
-                    } else {
-                        end
-                    };
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..error_end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, origin, line, exit);
+                    run.emit_same_line_eof_leading(&mut item, origin);
                 }
+                return (item, origin, line, exit);
             }
-        },
-        |range, unexpected| cast_target_introducer_draft(RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1835,58 +1589,45 @@ fn cast_pattern_introducer_error_run(
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry, CastPatternIntroducerErrorExit) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(origin).recovery_range().start;
-            loop {
-                let kind = cast_error_syntax_kind(&item);
-                let end = run.emit_item_as(item, origin, kind).recovery_range().end;
-                (item, origin, line) = run.lexical(|lex| {
-                    scan_cast_item_lexical(
-                        lex,
-                        origin,
-                        line,
-                        fence,
-                        baseline,
-                        stops,
-                        CastVocabulary::Pattern,
-                    )
-                });
-                let exit = if cast_token_kind(&item) == Some(TokenKind::Colon)
-                    && cast_gap_allowed(&item, baseline)
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, origin);
+            (item, origin, line) = run.lexical(|lex| {
+                scan_cast_item_lexical(
+                    lex,
+                    origin,
+                    line,
+                    fence,
+                    baseline,
+                    stops,
+                    CastVocabulary::Pattern,
+                )
+            });
+            let exit = if cast_token_kind(&item) == Some(TokenKind::Colon)
+                && cast_gap_allowed(&item, baseline)
+            {
+                Some(CastPatternIntroducerErrorExit::Target)
+            } else if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
+                Some(CastPatternIntroducerErrorExit::Form)
+            } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
+                Some(CastPatternIntroducerErrorExit::Boundary)
+            } else if cast_token_kind(&item) == Some(TokenKind::LParen) || is_pattern_nud(&item, 0)
+            {
+                Some(CastPatternIntroducerErrorExit::Pattern)
+            } else {
+                None
+            };
+            if let Some(exit) = exit {
+                if exit == CastPatternIntroducerErrorExit::Boundary
+                    && cast_error_owns_eof_leading(&item)
+                    && !item.extent(origin).remaining().is_empty()
                 {
-                    Some(CastPatternIntroducerErrorExit::Target)
-                } else if is_form_starter(&item) && cast_gap_allowed(&item, baseline) {
-                    Some(CastPatternIntroducerErrorExit::Form)
-                } else if cast_prefix_boundary_lex(run, &item, baseline, stops) {
-                    Some(CastPatternIntroducerErrorExit::Boundary)
-                } else if cast_token_kind(&item) == Some(TokenKind::LParen)
-                    || is_pattern_nud(&item, 0)
-                {
-                    Some(CastPatternIntroducerErrorExit::Pattern)
-                } else {
-                    None
-                };
-                if let Some(exit) = exit {
-                    let error_end = if exit == CastPatternIntroducerErrorExit::Boundary
-                        && cast_error_owns_eof_leading(&item)
-                        && !item.extent(origin).remaining().is_empty()
-                    {
-                        run.emit_same_line_eof_leading(&mut item, origin).end
-                    } else {
-                        end
-                    };
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..error_end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, origin, line, exit);
+                    run.emit_same_line_eof_leading(&mut item, origin);
                 }
+                return (item, origin, line, exit);
             }
-        },
-        |range, unexpected| cast_pattern_introducer_draft(RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
 fn cast_prefix_boundary_lex(
@@ -1905,12 +1646,6 @@ fn cast_prefix_boundary_lex(
             cast_token_kind(item),
             Some(TokenKind::RParen | TokenKind::RBracket | TokenKind::RBrace)
         )
-}
-
-fn cast_error_syntax_kind(item: &Item) -> SyntaxKind {
-    token_kind(item)
-        .map(token_syntax_kind)
-        .unwrap_or(SyntaxKind::Operator)
 }
 
 fn cast_gap_allowed(item: &Item, baseline: usize) -> bool {

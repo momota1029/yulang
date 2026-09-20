@@ -2,9 +2,8 @@
 
 use super::delimited_tail::projection_tail_normalized;
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cursor::recovery::RecoveryDraft;
 use crate::cursor::recovery::emit::{
-    emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
+    emit_recovery_error_run, emit_recovery_missing, emit_token_item,
 };
 use crate::cursor::{LexIn, SyntaxIn};
 use crate::expression::{is_led_operator, scan_tail_after_accept_normalized, tail_normalized};
@@ -20,13 +19,8 @@ use crate::lexical::operator_scan::OperatorSite;
 use crate::lexical::stops::Stops;
 use crate::lexical::yumark::FenceBoundary;
 use crate::operator_table::BindingPower;
-use crate::recovery_record::{
-    ExpectationSources, ExpectedSyntax, ExpressionRole, GrammarRole, RecoveryKind, RecoverySiteKey,
-    SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-};
 use crate::statement::StatementLineHandoff;
 use crate::syntax_kind::SyntaxKind;
-use std::sync::Arc;
 
 pub(crate) fn dot_tail_normalized(
     mut i: SyntaxIn,
@@ -153,19 +147,13 @@ fn field_tail_normalized(
         );
     }
     if boundary || !name.leading_view().is_grammar_empty() {
-        emit_fixed_tail_missing(
-            i.rb(),
-            &mut name,
-            item_origin,
-            ExpressionRole::FieldName,
-            false,
-        );
+        emit_fixed_tail_missing(i.rb(), &mut name, item_origin, false);
     } else {
         name.emit_all_remaining_leading(&mut *i.state);
         (name, item_origin, line_entry) = retry_fixed_tail_item_normalized(
             i.rb(),
             name,
-            ExpressionRole::FieldName,
+            false,
             baseline,
             stops,
             item_origin,
@@ -238,19 +226,13 @@ pub(crate) fn path_tail_normalized(
     }
     if boundary {
         let eof_leading = !is_line_stop(&segment, stops);
-        emit_fixed_tail_missing(
-            i.rb(),
-            &mut segment,
-            item_origin,
-            ExpressionRole::PathSegment,
-            eof_leading,
-        );
+        emit_fixed_tail_missing(i.rb(), &mut segment, item_origin, eof_leading);
     } else {
         segment.emit_all_remaining_leading(&mut *i.state);
         (segment, item_origin, line_entry) = retry_fixed_tail_item_normalized(
             i.rb(),
             segment,
-            ExpressionRole::PathSegment,
+            true,
             baseline,
             stops,
             item_origin,
@@ -329,67 +311,47 @@ fn scan_path_item_lexical(
 fn retry_fixed_tail_item_normalized(
     i: SyntaxIn,
     mut item: Item,
-    role: ExpressionRole,
+    scan_path: bool,
     baseline: usize,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind =
-                    token_syntax_kind(token_kind(&item).expect("a fixed-tail Error emits a token"));
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    if role == ExpressionRole::PathSegment {
-                        scan_path_item_lexical(lex, item_origin, line_entry, fence, baseline, stops)
-                    } else {
-                        scan_expression_item_lexical(
-                            lex,
-                            OperatorSite::Led,
-                            item_origin,
-                            line_entry,
-                            fence,
-                            baseline,
-                            stops,
-                        )
-                    }
-                });
-                if is_fixed_tail_boundary(&item)
-                    || is_line_stop(&item, stops)
-                    || !item.leading_view().is_grammar_empty()
-                    || matches!(
-                        token_kind(&item),
-                        Some(TokenKind::Identifier | TokenKind::SigilIdentifier)
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                if scan_path {
+                    scan_path_item_lexical(lex, item_origin, line_entry, fence, baseline, stops)
+                } else {
+                    scan_expression_item_lexical(
+                        lex,
+                        OperatorSite::Led,
+                        item_origin,
+                        line_entry,
+                        fence,
+                        baseline,
+                        stops,
                     )
-                    || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
                 }
+            });
+            if is_fixed_tail_boundary(&item)
+                || is_line_stop(&item, stops)
+                || !item.leading_view().is_grammar_empty()
+                || matches!(
+                    token_kind(&item),
+                    Some(TokenKind::Identifier | TokenKind::SigilIdentifier)
+                )
+                || run.lexical(|lex| is_active_stop_lex(lex, &item, stops))
+            {
+                return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| fixed_tail_draft(role, RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
-fn emit_fixed_tail_missing(
-    i: SyntaxIn,
-    item: &mut Item,
-    origin: usize,
-    role: ExpressionRole,
-    eof_leading: bool,
-) {
+fn emit_fixed_tail_missing(i: SyntaxIn, item: &mut Item, origin: usize, eof_leading: bool) {
     let at = if item.payload_view().is_boundary() {
         item.payload_view()
             .pending_boundary()
@@ -401,33 +363,7 @@ fn emit_fixed_tail_missing(
         }
         item.extent(origin).recovery_range().start
     };
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        fixed_tail_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn fixed_tail_draft(
-    role: ExpressionRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = GrammarRole::Expression(role);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Identifier,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn is_fixed_tail_boundary(item: &Item) -> bool {

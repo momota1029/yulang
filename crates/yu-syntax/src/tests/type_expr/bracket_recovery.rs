@@ -1,70 +1,23 @@
 use crate::tests::type_expr::bracket_arrow_recovery::arrow;
 use crate::tests::type_expr::*;
 
-fn row_record(
-    id: u32,
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-    range: Range<usize>,
-    category: Option<UnexpectedCategory>,
-) -> CommittedRecoveryRecord {
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if category.is_some() {
-            RecoveryKind::Error
+fn structural_fact(range: Range<usize>, error: bool) -> ExpectedStructural {
+    (
+        if error {
+            StructuralKind::ErrorGroup
         } else {
-            RecoveryKind::Missing
+            StructuralKind::Missing
         },
-        unexpected: category.map_or_else(
-            || Arc::from([]),
-            |category| {
-                Arc::from([UnexpectedSyntax::Token {
-                    range: range.clone(),
-                    category,
-                }])
-            },
-        ),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
-pub(super) fn close(
-    id: u32,
-    range: Range<usize>,
-    actual: Option<Delimiter>,
-) -> CommittedRecoveryRecord {
-    row_record(
-        id,
-        GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::BracketRow,
-            delimiter: Delimiter::Bracket,
-        },
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
         range,
-        actual.map(|delimiter| {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(delimiter))
-        }),
     )
 }
 
-fn item(id: u32, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
-    row_record(
-        id,
-        GrammarRole::Type(TypeRole::BracketRowItem),
-        ExpectedSyntax::TypeExpression,
-        range,
-        error.then_some(UnexpectedCategory::OtherCharacter),
-    )
+pub(super) fn close(_: u32, range: Range<usize>, actual: Option<Delimiter>) -> ExpectedStructural {
+    structural_fact(range, actual.is_some())
+}
+
+fn item(_: u32, range: Range<usize>, error: bool) -> ExpectedStructural {
+    structural_fact(range, error)
 }
 
 #[test]
@@ -133,22 +86,12 @@ fn bracket_row_item_errors_keep_retry_trivia_outside_the_error() {
 fn bracket_row_item_and_close_roles_collide_in_direct_cst_topology() {
     use SyntaxKind::*;
 
-    // The approved Item retry and close-only retry select different roles.
-    // These are compatibility inputs, not roles inferred from Error spelling.
+    // The approved Item retry and close-only retry remain distinct through
+    // their direct CST topology, not a parser-side recovery side channel.
     let cases = [
         ("T [A@] -> U", item(0, 4..5, true)),
         ("T [A)] -> U", close(0, 4..5, Some(Delimiter::Parenthesis))),
     ];
-    assert_ne!(cases[0].1.site.role, cases[1].1.site.role);
-    assert_eq!(
-        cases[0].1.expectations[0].expected,
-        ExpectedSyntax::TypeExpression
-    );
-    assert_eq!(
-        cases[1].1.expectations[0].expected,
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket))
-    );
-
     let mut topologies = Vec::new();
     for (source, expected) in cases {
         let root = assert_complete_type_recovery(source, 0, &[expected.clone()]);
@@ -214,9 +157,6 @@ fn bracket_row_item_and_close_roles_collide_in_direct_cst_topology() {
                 (TypeExpression, " U".into(), 9..11),
             ]
         );
-        assert_eq!(expected.expectations.len(), 1);
-        assert_eq!(expected.expectations[0].role, expected.site.role);
-        assert_eq!(expected.primary_expectation, 0);
         topologies.push(topology);
     }
     assert_eq!(topologies[0], topologies[1]);
@@ -234,7 +174,6 @@ fn bracket_row_no_gap_separator_missing_is_selected_by_direct_item_order() {
         0,
         0,
         LineEntry::InLine,
-        None,
         None,
     );
     let root = SyntaxNode::new_root(run.green.clone());
@@ -333,33 +272,23 @@ fn bracket_row_no_gap_separator_missing_is_selected_by_direct_item_order() {
     );
 
     // Select this occurrence from the direct completed-item / Missing / item
-    // order, before consulting compatibility records. This covers only the
-    // authoritative no-gap witness, not the deeper-newline alternative.
-    let role = match (
+    // order. This covers only the authoritative no-gap witness, not the
+    // deeper-newline alternative.
+    match (
         row.kind(),
         children[1].kind(),
         children[2].kind(),
         children[3].kind(),
     ) {
-        (BracketRow, TypeExpression, Missing, TypeExpression) => {
-            GrammarRole::Type(TypeRole::BracketRowSeparator)
-        }
+        (BracketRow, TypeExpression, Missing, TypeExpression) => {}
         identity => panic!("unexpected missing boundary identity: {identity:?}"),
-    };
+    }
     let range = relative(missing.text_range());
     assert_eq!(range, 4..4);
-    let expected = row_record(
-        0,
-        role,
-        ExpectedSyntax::DelimitedSequenceSeparator,
-        range,
-        None,
-    );
-    assert_eq!(expected.expectations.len(), 1);
-    assert_eq!(expected.primary_expectation, 0);
-    assert_eq!(run.records, vec![expected.clone()]);
-    let replayed = assert_complete_type_recovery(source, 0, &[expected]);
-    assert_eq!(replayed.green(), root.green());
+    let expected = (StructuralKind::Missing, range);
+    assert_eq!(run.facts, vec![(StructuralKind::Missing, 12..12)]);
+    let reparsed = assert_complete_type_recovery(source, 0, &[expected]);
+    assert_eq!(reparsed.green(), root.green());
 }
 
 #[test]
@@ -374,7 +303,6 @@ fn bracket_row_deeper_newline_separator_missing_follows_returned_pv_close() {
         0,
         0,
         LineEntry::InLine,
-        None,
         None,
     );
     let root = SyntaxNode::new_root(run.green.clone());
@@ -489,65 +417,65 @@ fn bracket_row_deeper_newline_separator_missing_follows_returned_pv_close() {
     );
 
     // Select preorder occurrences from the terminal PV slot and the row's
-    // completed-item / native leading / Missing / item order before records.
+    // completed-item / native leading / Missing / item order.
     let expected = missing
         .iter()
-        .enumerate()
-        .map(|(id, node)| {
-            let (role, syntax) = match node.parent().unwrap().kind() {
-                PolymorphicVariantType if pv.last_child().as_ref() == Some(node) => (
-                    GrammarRole::ClosingDelimiter {
-                        owner: ConstructRole::PolymorphicVariantType,
-                        delimiter: Delimiter::Brace,
-                    },
-                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
-                ),
+        .map(|node| {
+            let kind = match node.parent().unwrap().kind() {
+                PolymorphicVariantType if pv.last_child().as_ref() == Some(node) => {
+                    StructuralKind::Missing
+                }
                 BracketRow
                     if children[4].as_node() == Some(node)
                         && children[1].kind() == TypeExpression
                         && children[5].kind() == TypeExpression =>
                 {
-                    (
-                        GrammarRole::Type(TypeRole::BracketRowSeparator),
-                        ExpectedSyntax::DelimitedSequenceSeparator,
-                    )
+                    StructuralKind::Missing
                 }
                 owner => panic!("unexpected missing owner: {owner:?}"),
             };
-            row_record(id as u32, role, syntax, relative(node.text_range()), None)
+            (kind, relative(node.text_range()))
         })
         .collect::<Vec<_>>();
     assert_eq!(
         expected
             .iter()
-            .map(|record| record.site.range.clone())
+            .map(|(_, range)| range.clone())
             .collect::<Vec<_>>(),
         vec![6..6, 9..9]
     );
-    assert!(
+    assert_eq!(
+        run.facts,
         expected
             .iter()
-            .all(|record| record.expectations.len() == 1 && record.primary_expectation == 0)
+            .map(|(kind, range)| {
+                (
+                    *kind,
+                    "sentinel".len() + range.start.."sentinel".len() + range.end,
+                )
+            })
+            .collect::<Vec<_>>()
     );
-    assert_eq!(run.records, expected);
-    let replayed = assert_complete_type_recovery(source, 0, &expected);
-    assert_eq!(replayed.green(), root.green());
+    let reparsed = assert_complete_type_recovery(source, 0, &expected);
+    assert_eq!(reparsed.green(), root.green());
 }
 
 #[test]
 fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
-    for (source, expected) in [
-        ("T [,] -> U", vec![item(0, 3..3, false)]),
+    for (source, expected, row_missing) in [
+        ("T [,] -> U", vec![item(0, 3..3, false)], 1),
         (
             "T [)] -> U",
             vec![
                 item(0, 3..3, false),
                 close(1, 3..4, Some(Delimiter::Parenthesis)),
             ],
+            1,
         ),
         (
             "T [A)] -> U",
             vec![close(0, 4..5, Some(Delimiter::Parenthesis))],
+            0,
         ),
         (
             "T [@ )] -> U",
@@ -555,14 +483,9 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 item(0, 3..4, true),
                 close(1, 5..6, Some(Delimiter::Parenthesis)),
             ],
+            0,
         ),
-        (
-            "T [A))] -> U",
-            vec![
-                close(0, 4..5, Some(Delimiter::Parenthesis)),
-                close(1, 5..6, Some(Delimiter::Parenthesis)),
-            ],
-        ),
+        ("T [A))] -> U", vec![(StructuralKind::ErrorGroup, 4..6)], 0),
         (
             "T [",
             vec![
@@ -570,8 +493,9 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 close(1, 3..3, None),
                 arrow(2, 3..3, false),
             ],
+            2,
         ),
-        ("T [A", vec![close(0, 4..4, None), arrow(1, 4..4, false)]),
+        ("T [A", vec![close(0, 4..4, None), arrow(1, 4..4, false)], 1),
         (
             "T [@",
             vec![
@@ -579,6 +503,7 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 close(1, 4..4, None),
                 arrow(2, 4..4, false),
             ],
+            1,
         ),
         (
             "T [A)",
@@ -587,6 +512,7 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
                 close(1, 5..5, None),
                 arrow(2, 5..5, false),
             ],
+            1,
         ),
     ] {
         let root = assert_complete_type_recovery(source, 0, &expected);
@@ -598,25 +524,22 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
             row.children()
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .count(),
-            expected
-                .iter()
-                .filter(|record| record.kind == RecoveryKind::Missing
-                    && record.site.role != GrammarRole::Type(TypeRole::BracketRowArrow))
-                .count()
+            row_missing
         );
         let groups = recovery_groups(&row);
         let mut expected_ranges: Vec<std::ops::Range<usize>> = Vec::new();
-        for record in expected
+        for fact in expected
             .iter()
-            .filter(|record| record.kind == RecoveryKind::Error)
+            .filter(|(kind, _)| *kind == StructuralKind::ErrorGroup)
         {
+            let range = &fact.1;
             if let Some(last) = expected_ranges
                 .last_mut()
-                .filter(|last| last.end == record.site.range.start)
+                .filter(|last| last.end == range.start)
             {
-                last.end = record.site.range.end;
+                last.end = range.end;
             } else {
-                expected_ranges.push(record.site.range.clone());
+                expected_ranges.push(range.clone());
             }
         }
         assert_eq!(
@@ -647,17 +570,7 @@ fn bracket_row_missing_and_local_close_slots_publish_in_source_order() {
             assert_eq!(error.text_range().len(), 1.into());
         }
     }
-    assert_complete_type_recovery(
-        "T [A{}] -> U",
-        0,
-        &[row_record(
-            0,
-            GrammarRole::Type(TypeRole::BracketRowSeparator),
-            ExpectedSyntax::DelimitedSequenceSeparator,
-            4..4,
-            None,
-        )],
-    );
+    assert_complete_type_recovery("T [A{}] -> U", 0, &[(StructuralKind::Missing, 4..4)]);
     let root =
         assert_complete_type_recovery("F(T [A)", 0, &[close(0, 6..6, None), arrow(1, 6..6, false)]);
     let native = root
@@ -679,34 +592,33 @@ fn bracket_row_close_retry_does_not_reenter_the_item_list() {
             close(1, origin + 5..origin + 5, None),
             arrow(2, origin + 5..origin + 5, false),
         ];
-        let frozen = frozen_recovery_ids(&expected);
-        for (input, records) in [
-            (None, expected.as_slice()),
-            (Some(frozen.as_slice()), frozen.as_slice()),
-        ] {
-            let run = run_contextual_type_snapshot(
-                "T [A) B] -> U",
-                crate::type_expr::TypeMlContext::INACTIVE,
-                0,
-                0,
-                origin,
-                LineEntry::InLine,
-                None,
-                input,
-            );
-            assert_eq!(run.green.to_string(), "sentinelT [A)");
-            assert_eq!(run.records, records);
-            assert_eq!(run.remainder, "] -> U");
-            let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
-                panic!("close slot keeps following Type pending")
-            };
-            let (control, control_origin, control_line, remainder, _, _) =
-                scan_type_item_control(" B] -> U", origin + 5, &OperatorTable::empty());
-            assert_eq!(pending, control);
-            assert_eq!(run.successor_origin, control_origin);
-            assert_eq!(line, control_line);
-            assert_eq!(run.remainder, remainder);
-        }
+        let run = run_contextual_type_snapshot(
+            "T [A) B] -> U",
+            crate::type_expr::TypeMlContext::INACTIVE,
+            0,
+            0,
+            origin,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(run.green.to_string(), "sentinelT [A)");
+        let expected = expected.map(|(kind, range)| {
+            (
+                kind,
+                "sentinel".len() + range.start - origin.."sentinel".len() + range.end - origin,
+            )
+        });
+        assert_eq!(run.facts, expected);
+        assert_eq!(run.remainder, "] -> U");
+        let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
+            panic!("close slot keeps following Type pending")
+        };
+        let (control, control_origin, control_line, remainder, _, _) =
+            scan_type_item_control(" B] -> U", origin + 5, &OperatorTable::empty());
+        assert_eq!(pending, control);
+        assert_eq!(run.successor_origin, control_origin);
+        assert_eq!(line, control_line);
+        assert_eq!(run.remainder, remainder);
     }
 }
 
@@ -742,43 +654,43 @@ fn bracket_row_boundaries_preserve_the_complete_current_item_in_every_phase() {
         ] {
             for gap in [" ", " /*é*/ ", "\n ", "\r\n "] {
                 let source = format!("{prefix}{gap}{payload} tail");
-                let frozen = frozen_recovery_ids(&expected);
-                for (input, records) in [
-                    (None, expected.as_slice()),
-                    (Some(frozen.as_slice()), frozen.as_slice()),
-                ] {
-                    let run = run_contextual_type_snapshot(
-                        &source,
-                        crate::type_expr::TypeMlContext::INACTIVE,
-                        stops,
-                        outer,
-                        0,
-                        LineEntry::InLine,
-                        None,
-                        input,
-                    );
-                    assert_eq!(
-                        run.green.to_string(),
-                        format!("sentinel{prefix}"),
-                        "{source:?}"
-                    );
-                    assert_eq!(run.records, records, "{source:?}");
-                    assert_eq!(run.slots, records.len());
-                    let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit
-                    else {
-                        panic!("pending row boundary: {source:?}")
-                    };
-                    let (control, origin, control_line, remainder, _, _) = scan_type_item_control(
-                        &source[prefix.len()..],
-                        prefix.len(),
-                        &OperatorTable::empty(),
-                    );
-                    assert_eq!(pending, control, "{source:?}");
-                    assert_eq!(run.successor_origin, origin);
-                    assert_eq!(run.remainder, remainder);
-                    assert_eq!(line, control_line);
-                    assert!(run.same_operators);
-                }
+                let run = run_contextual_type_snapshot(
+                    &source,
+                    crate::type_expr::TypeMlContext::INACTIVE,
+                    stops,
+                    outer,
+                    0,
+                    LineEntry::InLine,
+                    None,
+                );
+                assert_eq!(
+                    run.green.to_string(),
+                    format!("sentinel{prefix}"),
+                    "{source:?}"
+                );
+                let raw_expected = expected
+                    .iter()
+                    .map(|(kind, range)| {
+                        (
+                            *kind,
+                            "sentinel".len() + range.start.."sentinel".len() + range.end,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(run.facts, raw_expected, "{source:?}");
+                let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
+                    panic!("pending row boundary: {source:?}")
+                };
+                let (control, origin, control_line, remainder, _, _) = scan_type_item_control(
+                    &source[prefix.len()..],
+                    prefix.len(),
+                    &OperatorTable::empty(),
+                );
+                assert_eq!(pending, control, "{source:?}");
+                assert_eq!(run.successor_origin, origin);
+                assert_eq!(run.remainder, remainder);
+                assert_eq!(line, control_line);
+                assert!(run.same_operators);
             }
         }
     }
@@ -797,37 +709,29 @@ fn bracket_row_fence_and_structured_pv_keep_native_boundaries() {
     };
     let expected = [
         item(0, 7..8, true),
-        close(1, 9..9, None),
-        arrow(2, 9..9, false),
+        close(1, 8..8, None),
+        arrow(2, 8..8, false),
     ];
-    let frozen = frozen_recovery_ids(&expected);
-    for (input, records) in [
-        (None, expected.as_slice()),
-        (Some(frozen.as_slice()), frozen.as_slice()),
-    ] {
-        let (green, exit, remainder, actual) = run_type_normalized_with_recoveries(
-            "> > T [@\n> > ```\nouter",
-            0,
-            LineEntry::PhysicalStart,
-            Some(&fence),
-            input,
-        );
-        assert_eq!(green.to_string(), "> > T [@");
-        assert_eq!(actual, records);
-        assert_eq!(remainder, "> > ```\nouter");
-        let Some(NormalizedExit::Complete(Err(Either::Left(pending)), LineEntry::PhysicalStart)) =
-            exit
-        else {
-            panic!("row preserves fence")
-        };
-        assert!(pending.payload_view().is_boundary());
-        assert!(pending.leading_view().has_ordinary_newline());
-    }
+    let (green, exit, remainder, actual) = run_type_normalized_with_structural_diagnostics(
+        "> > T [@\n> > ```\nouter",
+        0,
+        LineEntry::PhysicalStart,
+        Some(&fence),
+    );
+    assert_eq!(green.to_string(), "> > T [@");
+    assert_eq!(actual, expected);
+    assert_eq!(remainder, "> > ```\nouter");
+    let Some(NormalizedExit::Complete(Err(Either::Left(pending)), LineEntry::PhysicalStart)) = exit
+    else {
+        panic!("row preserves fence")
+    };
+    assert!(pending.payload_view().is_boundary());
+    assert!(pending.leading_view().has_ordinary_newline());
     let root = assert_complete_type_recovery(
         ":{[e] (@ A)}",
         0,
         &[
-            expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..11),
+            (StructuralKind::Invalid, 2..11),
             pe_recovery::item(1, false, 7..8, true),
         ],
     );
@@ -838,10 +742,7 @@ fn bracket_row_fence_and_structured_pv_keep_native_boundaries() {
     let root = assert_complete_type_recovery(
         ":{[@] T}",
         0,
-        &[
-            expected_type_error(0, TypeRole::PolymorphicVariantTagName, 2..7),
-            item(1, 3..4, true),
-        ],
+        &[(StructuralKind::Invalid, 2..7), item(1, 3..4, true)],
     );
     let error = recovery_groups(&root).into_iter().next().unwrap();
     let crate::tests::recovery_output::RecoveryGroup::Structured(invalid) = error else {

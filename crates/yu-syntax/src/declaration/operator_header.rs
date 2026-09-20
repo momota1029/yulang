@@ -1,25 +1,27 @@
 //! Shared direct construction and fact projection for a dynamic operator header.
 
-use std::{ops::Range, sync::Arc};
-
 use reborrow_generic::Reborrow as _;
 
 use crate::{
     BindingPower, BindingPowers, HeaderOperator, OperatorFixity, Visibility,
-    lexical::operator_scan::OperatorSite,
-    recovery_record::{
-        DeclarationRole, ExpectationSources, ExpectedSyntax, GrammarRole, KeywordEvidence,
-        OperatorHeaderRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
+    lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind,
 };
 
+/// Construction order for the required cells of an operator header.
+///
+/// This remains owner-local: structural recovery is emitted directly and no
+/// parser recovery record carries the phase after construction.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum HeaderSlot {
+    Fixity,
+    Name,
+    LeftBindingPower,
+    RightBindingPower,
+    DefinitionIntroducer,
+}
+
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing},
     cursor::{LexIn, SyntaxIn},
     lexical::{
         current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
@@ -87,74 +89,30 @@ fn boundary(item: &Item) -> bool {
         )
 }
 
-fn accepts(item: &Item, role: OperatorHeaderRole) -> bool {
+fn accepts(item: &Item, slot: HeaderSlot) -> bool {
     let Some(text) = item.payload_view().spelling() else {
         return false;
     };
-    match role {
-        OperatorHeaderRole::Fixity => fixity(text).is_some(),
-        OperatorHeaderRole::Name => name(text).is_some(),
-        OperatorHeaderRole::LeftBindingPower | OperatorHeaderRole::RightBindingPower => {
+    match slot {
+        HeaderSlot::Fixity => fixity(text).is_some(),
+        HeaderSlot::Name => name(text).is_some(),
+        HeaderSlot::LeftBindingPower | HeaderSlot::RightBindingPower => {
             valid_power(text) && !item.leading_view().is_grammar_empty()
         }
-        OperatorHeaderRole::DefinitionIntroducer => text == "=",
+        HeaderSlot::DefinitionIntroducer => text == "=",
     }
 }
 
-fn safe_point(item: &Item, role: OperatorHeaderRole) -> bool {
+fn safe_point(item: &Item, slot: HeaderSlot) -> bool {
     let text = item.payload_view().spelling().unwrap_or("");
-    match role {
-        OperatorHeaderRole::Name => valid_power(text) || text == "=",
-        OperatorHeaderRole::LeftBindingPower | OperatorHeaderRole::RightBindingPower => {
+    match slot {
+        HeaderSlot::Name => valid_power(text) || text == "=",
+        HeaderSlot::LeftBindingPower | HeaderSlot::RightBindingPower => {
             text == "=" || (!power_shaped(text) && crate::expression::is_nud_item(item))
         }
-        OperatorHeaderRole::DefinitionIntroducer => crate::expression::is_nud_item(item),
-        OperatorHeaderRole::Fixity => false,
+        HeaderSlot::DefinitionIntroducer => crate::expression::is_nud_item(item),
+        HeaderSlot::Fixity => false,
     }
-}
-
-fn draft(
-    role: OperatorHeaderRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected: Vec<_> = match role {
-        OperatorHeaderRole::Fixity => [
-            KeywordEvidence::Prefix,
-            KeywordEvidence::Infix,
-            KeywordEvidence::Suffix,
-            KeywordEvidence::Nullfix,
-        ]
-        .into_iter()
-        .map(ExpectedSyntax::Keyword)
-        .collect(),
-        OperatorHeaderRole::Name => vec![ExpectedSyntax::OperatorName],
-        OperatorHeaderRole::DefinitionIntroducer => {
-            vec![ExpectedSyntax::Punctuation(PunctuationEvidence::Equals)]
-        }
-        _ => vec![ExpectedSyntax::BindingPower],
-    };
-    let role = GrammarRole::Declaration(DeclarationRole::OperatorHeader(role));
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expected
-            .into_iter()
-            .map(|expected| SyntaxExpectation {
-                role,
-                expected,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .collect::<Vec<_>>()
-            .into(),
-        0,
-    )
 }
 
 /// Acquire an Item once, retaining the coordinate immediately after its payload.
@@ -264,48 +222,31 @@ fn required(
     mut origin: usize,
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
-    role: OperatorHeaderRole,
+    slot: HeaderSlot,
 ) -> (Item, usize, LineEntry, bool) {
-    if boundary(&item) || (!accepts(&item, role) && safe_point(&item, role)) {
+    if boundary(&item) || (!accepts(&item, slot) && safe_point(&item, slot)) {
         let at = item.payload_view().pending_boundary().map_or_else(
             || item.extent(origin).recovery_range().start,
             |boundary| boundary.coordinate(),
         );
-        emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-            draft(role, RecoveryKind::Missing, range, Arc::from([]))
-        });
+        emit_recovery_missing(i, LeadingTrivia::default(), at);
         return (item, origin, line, false);
     }
-    if accepts(&item, role) {
+    if accepts(&item, slot) {
         return (item, origin, line, true);
     }
     item.emit_all_remaining_leading(&mut *i.state);
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(origin).recovery_range().start;
-            loop {
-                let kind = item
-                    .payload_view()
-                    .token_kind()
-                    .map(token_syntax_kind)
-                    .unwrap_or(SyntaxKind::Operator);
-                let extent = run.emit_item_as(item, origin, kind);
-                (item, origin, line) = run.lexical(|lex| {
-                    next_slot_item(lex, origin, line, fence, role == OperatorHeaderRole::Name)
-                });
-                if boundary(&item) || accepts(&item, role) || safe_point(&item, role) {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..extent.recovery_range().end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    let admitted = !boundary(&item) && accepts(&item, role);
-                    return (item, origin, line, admitted);
-                }
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, origin);
+            (item, origin, line) = run
+                .lexical(|lex| next_slot_item(lex, origin, line, fence, slot == HeaderSlot::Name));
+            if boundary(&item) || accepts(&item, slot) || safe_point(&item, slot) {
+                let admitted = !boundary(&item) && accepts(&item, slot);
+                return (item, origin, line, admitted);
             }
-        },
-        |range, unexpected| draft(role, RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
 /// The intro has already been selected by the caller. A fact is published only
@@ -344,14 +285,8 @@ pub(crate) fn operator_header_normalized(
             .token(|lex| Some(next_item(lex, origin, line, fence)))
             .unwrap();
     }
-    let (next, next_origin, next_line, admitted) = required(
-        i.rb(),
-        item,
-        origin,
-        line,
-        fence,
-        OperatorHeaderRole::Fixity,
-    );
+    let (next, next_origin, next_line, admitted) =
+        required(i.rb(), item, origin, line, fence, HeaderSlot::Fixity);
     (item, origin, line) = (next, next_origin, next_line);
     if !admitted {
         i.state.finish_node();
@@ -365,8 +300,8 @@ pub(crate) fn operator_header_normalized(
     let mut operator_name = None;
     let mut left = None;
     let mut right = None;
-    use OperatorHeaderRole::{DefinitionIntroducer, LeftBindingPower, Name, RightBindingPower};
-    let roles: &[OperatorHeaderRole] = match fixity {
+    use HeaderSlot::{DefinitionIntroducer, LeftBindingPower, Name, RightBindingPower};
+    let slots: &[HeaderSlot] = match fixity {
         OperatorFixity::Prefix => &[Name, RightBindingPower, DefinitionIntroducer],
         OperatorFixity::Suffix => &[Name, LeftBindingPower, DefinitionIntroducer],
         OperatorFixity::Infix => &[
@@ -379,12 +314,12 @@ pub(crate) fn operator_header_normalized(
     };
     let mut equals_end = None;
     let mut pending = Some(item);
-    for &role in roles {
+    for &slot in slots {
         item = pending
             .take()
             .expect("each header slot retains one current Item");
         let (next, next_origin, next_line, admitted) =
-            required(i.rb(), item, origin, line, fence, role);
+            required(i.rb(), item, origin, line, fence, slot);
         (item, origin, line) = (next, next_origin, next_line);
         if !admitted {
             pending = Some(item);
@@ -392,8 +327,8 @@ pub(crate) fn operator_header_normalized(
         }
         item.emit_all_remaining_leading(&mut *i.state);
         let text = item.payload_view().spelling().unwrap();
-        match role {
-            OperatorHeaderRole::Name => {
+        match slot {
+            HeaderSlot::Name => {
                 operator_name = Some(name(text).unwrap().to_owned());
                 i.state.start_node(SyntaxKind::OperatorName.into());
                 i.state.token(SyntaxKind::LParen.into(), "(");
@@ -402,9 +337,9 @@ pub(crate) fn operator_header_normalized(
                 i.state.token(SyntaxKind::RParen.into(), ")");
                 i.state.finish_node();
             }
-            OperatorHeaderRole::LeftBindingPower | OperatorHeaderRole::RightBindingPower => {
+            HeaderSlot::LeftBindingPower | HeaderSlot::RightBindingPower => {
                 let value = power(text);
-                if role == OperatorHeaderRole::LeftBindingPower {
+                if slot == HeaderSlot::LeftBindingPower {
                     left = value;
                 } else {
                     right = value;
@@ -418,12 +353,12 @@ pub(crate) fn operator_header_normalized(
                 }
                 i.state.finish_node();
             }
-            OperatorHeaderRole::DefinitionIntroducer => {
+            HeaderSlot::DefinitionIntroducer => {
                 equals_end = Some(origin);
                 item.emit_remaining(&mut *i.state, SyntaxKind::Equals);
                 break;
             }
-            OperatorHeaderRole::Fixity => unreachable!(),
+            HeaderSlot::Fixity => unreachable!(),
         }
         (item, origin, line) = i
             .token(|lex| Some(next_slot_item(lex, origin, line, fence, false)))

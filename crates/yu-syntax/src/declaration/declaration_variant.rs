@@ -4,29 +4,13 @@ use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
 use reborrow_generic::Reborrow as _;
-use std::{cell::Cell, ops::Range, sync::Arc};
+
+use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    recovery_record::{
-        ConstructRole, DeclarationRole, Delimiter, EnumDeclarationRole, ErrorDeclarationRole,
-        ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
-        RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-        VariantDeclarationRole,
-    },
-    syntax_kind::SyntaxKind,
-};
-
-use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
-    declaration::fields::{
-        DeclarationFieldRoles, FieldList, FieldOuterClose, declaration_fields_normalized,
-    },
+    declaration::fields::{FieldList, FieldOuterClose, declaration_fields_normalized},
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
         current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
@@ -51,15 +35,6 @@ use crate::{
 pub(crate) enum VariantOwner {
     Enum,
     Error,
-}
-
-impl VariantOwner {
-    fn role(self, slot: VariantDeclarationRole) -> GrammarRole {
-        GrammarRole::Declaration(match self {
-            Self::Enum => DeclarationRole::Enum(EnumDeclarationRole::Variant(slot)),
-            Self::Error => DeclarationRole::Error(ErrorDeclarationRole::Variant(slot)),
-        })
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -252,12 +227,7 @@ fn drive_variant_sequence(
         }
 
         if slot == Slot::AfterVariant {
-            missing(
-                i.rb(),
-                &item,
-                item_origin,
-                owner.role(VariantDeclarationRole::Separator),
-            );
+            missing(i.rb(), &item, item_origin);
         }
 
         let parsed = parse_variant(
@@ -293,26 +263,13 @@ fn finish_incomplete_sequence(
         emit_missing_variant(i, owner, item, origin);
     }
     if form.matching_close().is_some() {
-        missing(
-            i.rb(),
-            item,
-            origin,
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::EnumBracedVariantBody,
-                delimiter: Delimiter::Brace,
-            },
-        );
+        missing(i.rb(), item, origin);
     }
 }
 
-fn emit_missing_variant(i: &mut SyntaxIn, owner: VariantOwner, item: &Item, origin: usize) {
+fn emit_missing_variant(i: &mut SyntaxIn, _owner: VariantOwner, item: &Item, origin: usize) {
     i.state.start_node(SyntaxKind::EnumVariant.into());
-    missing(
-        i.rb(),
-        item,
-        origin,
-        owner.role(VariantDeclarationRole::Item),
-    );
+    missing(i.rb(), item, origin);
     i.state.finish_node();
 }
 
@@ -367,7 +324,7 @@ struct ParsedVariant {
 #[allow(clippy::too_many_arguments)]
 fn parse_variant(
     mut i: SyntaxIn,
-    owner: VariantOwner,
+    _owner: VariantOwner,
     mut item: Item,
     form: VariantSequenceForm,
     yield_with: bool,
@@ -383,51 +340,22 @@ fn parse_variant(
     if is_raw_variant_name(&item) {
         emit_token_item(&mut i, item);
     } else {
-        let role = Cell::new(VariantDeclarationRole::Item);
-        let (next, origin, line, retry) = emit_recovery_error_run(
-            i.rb(),
-            |run| {
-                let start = item.extent(item_origin).recovery_range().start;
-                loop {
-                    let kind =
-                        token_syntax_kind(token_kind(&item).expect("variant Error is lexical"));
-                    let extent = run.emit_item_as(item, item_origin, kind);
-                    (item, item_origin, line_entry) = run
-                        .lexical(|lex| variant_item_lexical(lex, item_origin, line_entry, fence));
-                    let protected = item.payload_view().is_boundary()
-                        || item.payload_view().is_eof()
-                        || run.lexical(|lex| {
-                            is_variant_boundary(
-                                lex,
-                                form,
-                                yield_with,
-                                &item,
-                                sequence_baseline,
-                                stops,
-                            )
-                        });
-                    let retry = !protected && is_raw_variant_name(&item);
-                    if protected || retry {
-                        if retry {
-                            role.set(VariantDeclarationRole::Name);
-                        }
-                        run.append_unexpected(UnexpectedSyntax::Token {
-                            range: start..extent.recovery_range().end,
-                            category: UnexpectedCategory::OtherCharacter,
-                        });
-                        return (item, item_origin, line_entry, retry);
-                    }
+        let (next, origin, line, retry) = emit_recovery_error_run(i.rb(), |run| {
+            loop {
+                run.emit_item_as(item, item_origin);
+                (item, item_origin, line_entry) =
+                    run.lexical(|lex| variant_item_lexical(lex, item_origin, line_entry, fence));
+                let protected = item.payload_view().is_boundary()
+                    || item.payload_view().is_eof()
+                    || run.lexical(|lex| {
+                        is_variant_boundary(lex, form, yield_with, &item, sequence_baseline, stops)
+                    });
+                let retry = !protected && is_raw_variant_name(&item);
+                if protected || retry {
+                    return (item, item_origin, line_entry, retry);
                 }
-            },
-            |range, unexpected| {
-                draft(
-                    owner.role(role.get()),
-                    RecoveryKind::Error,
-                    range,
-                    unexpected,
-                )
-            },
-        );
+            }
+        });
         item = next;
         item_origin = origin;
         line_entry = line;
@@ -473,7 +401,6 @@ fn parse_variant(
         let parsed = parse_payload_type(
             i.rb(),
             item,
-            owner.role(VariantDeclarationRole::FromType),
             sequence_baseline,
             TypeMlContext::INACTIVE,
             form.allows_pipe(),
@@ -503,27 +430,6 @@ fn parse_variant(
         };
         let fields = declaration_fields_normalized(
             i.rb(),
-            DeclarationFieldRoles {
-                field: owner.role(VariantDeclarationRole::NamedField),
-                field_name: owner.role(VariantDeclarationRole::NamedFieldName),
-                field_colon: owner.role(VariantDeclarationRole::NamedFieldColon),
-                field_type: owner.role(if list == FieldList::Tuple {
-                    VariantDeclarationRole::TupleFieldType
-                } else {
-                    VariantDeclarationRole::NamedFieldType
-                }),
-                field_separator: owner.role(VariantDeclarationRole::NamedFieldSeparator),
-                close: GrammarRole::ClosingDelimiter {
-                    owner: match list {
-                        FieldList::NamedBrace => ConstructRole::VariantNamedPayload,
-                        FieldList::Tuple => ConstructRole::VariantTuplePayload,
-                    },
-                    delimiter: match list {
-                        FieldList::NamedBrace => Delimiter::Brace,
-                        FieldList::Tuple => Delimiter::Parenthesis,
-                    },
-                },
-            },
             item,
             sequence_baseline,
             stops,
@@ -572,7 +478,6 @@ fn parse_variant(
         let parsed = parse_payload_type(
             i.rb(),
             item,
-            owner.role(VariantDeclarationRole::PositionalPayload),
             sequence_baseline,
             TypeMlContext::INACTIVE.enter_non_type_apply(),
             form.allows_pipe(),
@@ -629,7 +534,6 @@ fn positional_payload_candidate(form: VariantSequenceForm, item: &Item, baseline
 fn parse_payload_type(
     mut i: SyntaxIn,
     primary: Item,
-    missing_role: GrammarRole,
     baseline: usize,
     type_ml: TypeMlContext,
     pipe_boundary: bool,
@@ -644,7 +548,6 @@ fn parse_payload_type(
     let (exit, _) = required_variant_payload_type_normalized_with_ambient(
         i.rb(),
         primary,
-        missing_role,
         baseline,
         type_ml,
         TypeOuterBoundary::variant_payload(stops, pipe_boundary, with_boundary),
@@ -770,7 +673,7 @@ fn variant_item_lexical(
     )
 }
 
-fn missing(i: SyntaxIn, item: &Item, origin: usize, role: GrammarRole) {
+fn missing(i: SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || {
             if item.payload_view().is_eof() {
@@ -781,44 +684,7 @@ fn missing(i: SyntaxIn, item: &Item, origin: usize, role: GrammarRole) {
         },
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        GrammarRole::Declaration(
-            DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::Separator))
-            | DeclarationRole::Error(ErrorDeclarationRole::Variant(
-                VariantDeclarationRole::Separator,
-            )),
-        ) => ExpectedSyntax::DelimitedSequenceSeparator,
-        _ => ExpectedSyntax::Identifier,
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 #[cfg(test)]

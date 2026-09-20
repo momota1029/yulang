@@ -4,82 +4,21 @@ use crate::{
     ambient_claim::AmbientClaimView,
     literal::{rule_literal_normalized, scan_expression_rule_literal_opener_witness},
     parse_file,
-    recovery_record::{
-        Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, LiteralExpected,
-        LiteralRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
     rule::{rule_body_witness, scan_rule_current_item_witness, scan_rule_item_witness},
     scan_header,
+    structural_diagnostic::StructuralKind,
 };
 use std::{ops::Range, sync::Arc};
 
-fn record(
-    id: u32,
-    role: LiteralRole,
-    range: Range<usize>,
-    category: Option<UnexpectedCategory>,
-) -> CommittedRecoveryRecord {
-    use LiteralRole::*;
-    let expected = match role {
-        RuleBodyCloseBrace | RuleLiteralInterpolationCloseBrace | RuleLazyCaptureCloseBrace => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace))
-        }
-        RuleParenClose => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis))
-        }
-        RuleCaptureRightItem | RuleUnexpectedItem => {
-            ExpectedSyntax::Literal(LiteralExpected::RuleItem)
-        }
-        RuleFieldName | RulePathName | RuleLazyCaptureName => ExpectedSyntax::Identifier,
-        RuleLiteralTerminator => ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
-        _ => unreachable!(),
-    };
-    let role = GrammarRole::Literal(role);
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if category.is_some() {
-            RecoveryKind::Error
-        } else {
-            RecoveryKind::Missing
-        },
-        unexpected: category.map_or_else(
-            || Arc::from([]),
-            |category| {
-                Arc::from([UnexpectedSyntax::Token {
-                    range: range.clone(),
-                    category,
-                }])
-            },
-        ),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+fn structural_fact(kind: StructuralKind, range: Range<usize>) -> StructuralFact {
+    (kind, range)
 }
 
-fn parse(
-    source: &str,
-    origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
+fn parse(source: &str, origin: usize) -> (GreenNode, Vec<StructuralFact>) {
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let mut output = frozen
-        .map(|records| {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        })
-        .unwrap_or_else(GreenNodeBuilder::new);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     if source.starts_with('{') {
         let opener = scan_rule_item_witness(chasa_recover::In::new(
@@ -124,87 +63,40 @@ fn parse(
         );
     }
     output.finish_node();
-    (output.finish(), recover.finish_recoveries_for_test())
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
+    (green, facts)
 }
 
 #[test]
-fn all_ten_rule_roles_have_exact_shifted_and_frozen_records() {
-    use LiteralRole::*;
+fn rule_structural_facts_have_exact_shifted_ranges() {
+    use StructuralKind::{ErrorGroup, Missing};
     for (source, slots) in [
-        ("{", vec![(RuleBodyCloseBrace, 1..1, None)]),
-        ("{(}", vec![(RuleParenClose, 2..2, None)]),
-        ("{a=}", vec![(RuleCaptureRightItem, 3..3, None)]),
-        ("{a.}", vec![(RuleFieldName, 3..3, None)]),
-        ("{a::}", vec![(RulePathName, 4..4, None)]),
-        (
-            "{a. 12 b}",
-            vec![(
-                RuleFieldName,
-                3..6,
-                Some(UnexpectedCategory::DecimalInteger),
-            )],
-        ),
-        (
-            "{a::💥 b}",
-            vec![(RulePathName, 4..8, Some(UnexpectedCategory::OperatorLike))],
-        ),
-        (
-            "{;💥}",
-            vec![
-                (
-                    RuleUnexpectedItem,
-                    1..2,
-                    Some(UnexpectedCategory::Punctuation(
-                        PunctuationEvidence::Semicolon,
-                    )),
-                ),
-                (
-                    RuleUnexpectedItem,
-                    2..6,
-                    Some(UnexpectedCategory::OperatorLike),
-                ),
-            ],
-        ),
-        ("~\"α", vec![(RuleLiteralTerminator, 4..4, None)]),
-        (
-            "~\"{a",
-            vec![
-                (RuleLiteralInterpolationCloseBrace, 4..4, None),
-                (RuleLiteralTerminator, 4..4, None),
-            ],
-        ),
-        ("~\":\"", vec![(RuleLazyCaptureName, 3..3, None)]),
-        (
-            "~\":{α",
-            vec![
-                (RuleLazyCaptureCloseBrace, 6..6, None),
-                (RuleLiteralTerminator, 6..6, None),
-            ],
-        ),
-        (
-            "~\"{a  \"",
-            vec![(RuleLiteralInterpolationCloseBrace, 6..6, None)],
-        ),
+        ("{", vec![(Missing, 1..1)]),
+        ("{(}", vec![(Missing, 2..2)]),
+        ("{a=}", vec![(Missing, 3..3)]),
+        ("{a.}", vec![(Missing, 3..3)]),
+        ("{a::}", vec![(Missing, 4..4)]),
+        ("{a. 12 b}", vec![(ErrorGroup, 3..6)]),
+        ("{a::💥 b}", vec![(ErrorGroup, 4..8)]),
+        ("{;💥}", vec![(ErrorGroup, 1..6)]),
+        ("~\"α", vec![(Missing, 4..4)]),
+        ("~\"{a", vec![(Missing, 4..4), (Missing, 4..4)]),
+        ("~\":\"", vec![(Missing, 3..3)]),
+        ("~\":{α", vec![(Missing, 6..6), (Missing, 6..6)]),
+        ("~\"{a  \"", vec![(Missing, 6..6)]),
     ] {
         for origin in [0, 137] {
             let expected: Vec<_> = slots
                 .iter()
-                .enumerate()
-                .map(|(id, (role, range, category))| {
-                    record(
-                        id as u32,
-                        *role,
-                        origin + range.start..origin + range.end,
-                        *category,
-                    )
-                })
+                .map(|(kind, range)| structural_fact(*kind, range.clone()))
                 .collect();
-            let (green, records) = parse(source, origin, None);
+            let (green, records) = parse(source, origin);
             assert_eq!(green.to_string(), source, "{source:?}");
             assert_eq!(records, expected, "{source:?}");
-            let (again, frozen) = parse(source, origin, Some(&records));
+            let (again, facts) = parse(source, origin);
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(facts, records);
         }
     }
 }
@@ -215,19 +107,15 @@ fn rule_sequence_adjacent_errors_end_at_native_item_retry() {
 
     fn body<'a>(
         source: &'a str,
-        frozen: Option<&[CommittedRecoveryRecord]>,
     ) -> (
         GreenNode,
-        Vec<CommittedRecoveryRecord>,
+        Vec<StructuralFact>,
         crate::rule::RuleWitnessExit,
         LineEntry,
         &'a str,
     ) {
         let operators = OperatorTable::empty();
-        let mut recover = match frozen {
-            Some(records) => Recover::reconcile_for_test(&operators, records),
-            None => Recover::new_for_test(&operators),
-        };
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut lexical = crate::cursor::LexRecover::new_for_test(&operators);
         let opener = scan_rule_item_witness(chasa_recover::In::new(&mut input, &mut lexical, ()))
@@ -250,17 +138,13 @@ fn rule_sequence_adjacent_errors_end_at_native_item_retry() {
             None,
         );
         output.finish_node();
-        (
-            output.finish(),
-            recover.finish_recoveries_for_test(),
-            exit,
-            line_entry,
-            input,
-        )
+        let green = finish_with_discarded_recoveries(output, recover);
+        let facts = structural_facts(&green);
+        (green, facts, exit, line_entry, input)
     }
 
     for (source, parenthesized) in [("{;💥 a}", false), ("{(;💥 a)}", true)] {
-        let (green, records, exit, line_entry, remainder) = body(source, None);
+        let (green, records, exit, line_entry, remainder) = body(source);
         let root = SyntaxNode::new_root(green.clone());
         let end = source.len();
         let start = if parenthesized { 2 } else { 1 };
@@ -344,43 +228,11 @@ fn rule_sequence_adjacent_errors_end_at_native_item_retry() {
                 .all(|element| !matches!(element.kind(), Missing | Invalid))
         );
 
-        // Project in natural preorder from direct ordered children only. The
-        // admitted RuleItem ends the group before its native leading space.
-        let mut projected = Vec::new();
-        for owner in root
-            .descendants()
-            .filter(|node| node.kind() == RuleSequence)
-        {
-            let mut children = owner.children_with_tokens().peekable();
-            while let Some(child) = children.next() {
-                if child.kind() != Error {
-                    continue;
-                }
-                let mut group = child.text_range();
-                assert!(child.as_token().is_some());
-                while children.peek().is_some_and(|next| next.kind() == Error) {
-                    let next = children.next().unwrap();
-                    assert!(next.as_token().is_some());
-                    group = group.cover(next.text_range());
-                }
-                assert_eq!(children.peek().unwrap().kind(), RuleItem);
-                projected.push((
-                    GrammarRole::Literal(LiteralRole::RuleUnexpectedItem),
-                    RecoveryKind::Error,
-                    usize::from(group.start())..usize::from(group.end()),
-                    [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-                    0usize,
-                ));
-            }
-        }
         assert_eq!(
-            projected,
-            [(
-                GrammarRole::Literal(LiteralRole::RuleUnexpectedItem),
-                RecoveryKind::Error,
-                start..start + 5,
-                [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-                0
+            records,
+            [structural_fact(
+                StructuralKind::ErrorGroup,
+                start..start + 5
             )]
         );
         assert_eq!(root.to_string(), source);
@@ -389,33 +241,11 @@ fn rule_sequence_adjacent_errors_end_at_native_item_retry() {
         assert_eq!(remainder, "");
         assert_eq!(remainder.as_ptr(), source.as_ptr().wrapping_add(end));
 
-        // Compatibility remains per lexical Item; these two temporary records
-        // do not determine the single future CST-derived occurrence above.
-        assert_eq!(
-            records,
-            [
-                record(
-                    0,
-                    LiteralRole::RuleUnexpectedItem,
-                    start..start + 1,
-                    Some(UnexpectedCategory::Punctuation(
-                        PunctuationEvidence::Semicolon
-                    ))
-                ),
-                record(
-                    1,
-                    LiteralRole::RuleUnexpectedItem,
-                    start + 1..start + 5,
-                    Some(UnexpectedCategory::OperatorLike)
-                ),
-            ]
-        );
-        let (again, frozen, frozen_exit, frozen_line_entry, frozen_remainder) =
-            body(source, Some(&records));
+        let (again, facts, again_exit, again_line_entry, again_remainder) = body(source);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(facts, records);
         assert_eq!(
-            (frozen_exit, frozen_line_entry, frozen_remainder),
+            (again_exit, again_line_entry, again_remainder),
             (exit, line_entry, remainder)
         );
     }
@@ -423,40 +253,39 @@ fn rule_sequence_adjacent_errors_end_at_native_item_retry() {
 
 #[test]
 fn required_slots_stop_before_body_and_paren_newline_name_admission() {
-    for (source, role, at) in [
-        ("{a.\nnext}", LiteralRole::RuleFieldName, 3),
-        ("{a::\nnext}", LiteralRole::RulePathName, 4),
-        ("{a=\nnext}", LiteralRole::RuleCaptureRightItem, 3),
-        ("{(a.\r\nnext)}", LiteralRole::RuleFieldName, 4),
-        ("{(a::\r\nnext)}", LiteralRole::RulePathName, 5),
-        ("{(a=\r\nnext)}", LiteralRole::RuleCaptureRightItem, 4),
+    for (source, at) in [
+        ("{a.\nnext}", 3),
+        ("{a::\nnext}", 4),
+        ("{a=\nnext}", 3),
+        ("{(a.\r\nnext)}", 4),
+        ("{(a::\r\nnext)}", 5),
+        ("{(a=\r\nnext)}", 4),
     ] {
-        let (green, records) = parse(source, 0, None);
+        let (green, records) = parse(source, 0);
         assert_eq!(green.to_string(), source);
-        assert_eq!(records, [record(0, role, at..at, None)], "{source:?}");
+        assert_eq!(
+            records,
+            [structural_fact(StructuralKind::Missing, at..at)],
+            "{source:?}"
+        );
     }
 }
 
 #[test]
 fn parenthesized_required_slots_leave_crlf_to_inner_alternation() {
-    use LiteralRole::*;
     use SyntaxKind::*;
 
     fn body<'a>(
         source: &'a str,
-        frozen: Option<&[CommittedRecoveryRecord]>,
     ) -> (
         GreenNode,
-        Vec<CommittedRecoveryRecord>,
+        Vec<StructuralFact>,
         crate::rule::RuleWitnessExit,
         LineEntry,
         &'a str,
     ) {
         let operators = OperatorTable::empty();
-        let mut recover = match frozen {
-            Some(records) => Recover::reconcile_for_test(&operators, records),
-            None => Recover::new_for_test(&operators),
-        };
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut lexical = crate::cursor::LexRecover::new_for_test(&operators);
         let opener = scan_rule_item_witness(chasa_recover::In::new(&mut input, &mut lexical, ()))
@@ -479,42 +308,17 @@ fn parenthesized_required_slots_leave_crlf_to_inner_alternation() {
             None,
         );
         output.finish_node();
-        (
-            output.finish(),
-            recover.finish_recoveries_for_test(),
-            exit,
-            line_entry,
-            input,
-        )
+        let green = finish_with_discarded_recoveries(output, recover);
+        let facts = structural_facts(&green);
+        (green, facts, exit, line_entry, input)
     }
 
-    for (source, owner_kind, introducer, at, role, expected) in [
-        (
-            "{(a.\r\nnext)}",
-            RuleField,
-            Dot,
-            4,
-            RuleFieldName,
-            ExpectedSyntax::Identifier,
-        ),
-        (
-            "{(a::\r\nnext)}",
-            RulePath,
-            ColonColon,
-            5,
-            RulePathName,
-            ExpectedSyntax::Identifier,
-        ),
-        (
-            "{(a=\r\nnext)}",
-            RuleCapture,
-            Equals,
-            4,
-            RuleCaptureRightItem,
-            ExpectedSyntax::Literal(LiteralExpected::RuleItem),
-        ),
+    for (source, owner_kind, introducer, at) in [
+        ("{(a.\r\nnext)}", RuleField, Dot, 4),
+        ("{(a::\r\nnext)}", RulePath, ColonColon, 5),
+        ("{(a=\r\nnext)}", RuleCapture, Equals, 4),
     ] {
-        let (green, records, exit, line_entry, remainder) = body(source, None);
+        let (green, records, exit, line_entry, remainder) = body(source);
         let root = SyntaxNode::new_root(green.clone());
         let end = source.len();
         let nodes = root.descendants().collect::<Vec<_>>();
@@ -589,36 +393,24 @@ fn parenthesized_required_slots_leave_crlf_to_inner_alternation() {
                 .all(|element| !matches!(element.kind(), Error | Invalid))
         );
 
-        // Derive the slot from its direct owner and native introducer before
-        // consulting compatibility records; CRLF belongs to the alternation.
+        // CRLF belongs to the alternation rather than the required child.
         let owner = missing.parent().expect("required-slot owner");
         let native = owner.first_child_or_token().expect("native introducer");
-        let (derived_role, derived_expected) = match (owner.kind(), native.kind()) {
-            (RuleField, Dot) => (RuleFieldName, ExpectedSyntax::Identifier),
-            (RulePath, ColonColon) => (RulePathName, ExpectedSyntax::Identifier),
-            (RuleCapture, Equals) => (
-                RuleCaptureRightItem,
-                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
-            ),
+        match (owner.kind(), native.kind()) {
+            (RuleField, Dot) | (RulePath, ColonColon) | (RuleCapture, Equals) => {}
             other => panic!("unexpected required slot: {other:?}"),
-        };
-        let derived = (derived_role, range(missing), [derived_expected], 0usize);
-        assert_eq!(derived, (role, at..at, [expected], 0));
+        }
         assert_eq!(exit, crate::rule::RuleWitnessExit::Complete);
         assert_eq!(line_entry, LineEntry::InLine);
         assert_eq!(remainder, "");
         assert_eq!(remainder.as_ptr(), source.as_ptr().wrapping_add(end));
         assert_eq!(format!("{root}{remainder}"), source);
-        assert_eq!(records, [record(0, derived.0, derived.1.clone(), None)]);
-        assert_eq!(records[0].expectations.len(), derived.2.len());
-        assert_eq!(records[0].expectations[0].expected, derived.2[0]);
-        assert_eq!(records[0].primary_expectation, derived.3);
-        let (again, frozen, frozen_exit, frozen_line_entry, frozen_remainder) =
-            body(source, Some(&records));
+        assert_eq!(records, [structural_fact(StructuralKind::Missing, at..at)]);
+        let (again, facts, again_exit, again_line_entry, again_remainder) = body(source);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(facts, records);
         assert_eq!(
-            (frozen_exit, frozen_line_entry, frozen_remainder),
+            (again_exit, again_line_entry, again_remainder),
             (exit, line_entry, remainder)
         );
     }
@@ -626,23 +418,18 @@ fn parenthesized_required_slots_leave_crlf_to_inner_alternation() {
 
 #[test]
 fn eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate() {
-    use LiteralRole::*;
     fn pending_body<'source>(
         source: &'source str,
         origin: usize,
-        frozen: Option<&[CommittedRecoveryRecord]>,
     ) -> (
         GreenNode,
-        Vec<CommittedRecoveryRecord>,
+        Vec<StructuralFact>,
         crate::rule::RuleWitnessExit,
         LineEntry,
         &'source str,
     ) {
         let operators = OperatorTable::empty();
-        let mut recover = match frozen {
-            Some(records) => Recover::reconcile_for_test(&operators, records),
-            None => Recover::new_for_test(&operators),
-        };
+        let mut recover = Recover::new_for_test(&operators);
         let mut input = source;
         let mut lexical = crate::cursor::LexRecover::new_for_test(&operators);
         let opener = scan_rule_item_witness(chasa_recover::In::new(&mut input, &mut lexical, ()))
@@ -665,49 +452,24 @@ fn eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate() {
             None,
         );
         output.finish_node();
-        (
-            output.finish(),
-            recover.finish_recoveries_for_test(),
-            exit,
-            line_entry,
-            input,
-        )
+        let green = finish_with_discarded_recoveries(output, recover);
+        let facts = structural_facts(&green);
+        (green, facts, exit, line_entry, input)
     }
-    for (source, emitted, roles) in [
-        (
-            "{a=  ",
-            "{a=",
-            vec![RuleCaptureRightItem, RuleBodyCloseBrace],
-        ),
-        (
-            "{a:: /*gap*/",
-            "{a::",
-            vec![RulePathName, RuleBodyCloseBrace],
-        ),
-        (
-            "{(a=  ",
-            "{(a=",
-            vec![RuleCaptureRightItem, RuleParenClose, RuleBodyCloseBrace],
-        ),
-        (
-            "{(a:: /*α*/",
-            "{(a::",
-            vec![RulePathName, RuleParenClose, RuleBodyCloseBrace],
-        ),
+    for (source, emitted, missing_count) in [
+        ("{a=  ", "{a=", 2),
+        ("{a:: /*gap*/", "{a::", 2),
+        ("{(a=  ", "{(a=", 3),
+        ("{(a:: /*α*/", "{(a::", 3),
     ] {
         for origin in [0, 137] {
-            let at = origin + source.len();
-            let expected: Vec<_> = roles
-                .iter()
-                .enumerate()
-                .map(|(id, role)| record(id as u32, *role, at..at, None))
-                .collect();
+            let at = emitted.len();
+            let expected = vec![structural_fact(StructuralKind::Missing, at..at); missing_count];
             let (green, records, pending) = if source == "{(a:: /*α*/" {
-                let (green, records, exit, line_entry, remainder) =
-                    pending_body(source, origin, None);
+                let (green, records, exit, line_entry, remainder) = pending_body(source, origin);
                 (green, records, Some((exit, line_entry, remainder)))
             } else {
-                let (green, records) = parse(source, origin, None);
+                let (green, records) = parse(source, origin);
                 (green, records, None)
             };
             assert_eq!(green.to_string(), emitted, "{source:?}");
@@ -849,63 +611,6 @@ fn eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate() {
                         vec![0, 2]
                     ]
                 );
-                // Occurrence ancestry and ordered native introducers select the
-                // slots before the compatibility ledger or its shifted ranges.
-                let derived = missing
-                    .iter()
-                    .map(|node| {
-                        let owner = node.parent().expect("direct Missing owner");
-                        let introducer = owner.first_child_or_token().expect("native introducer");
-                        let (role, expected) = match (owner.kind(), introducer.kind()) {
-                            (SyntaxKind::RulePath, SyntaxKind::ColonColon) => {
-                                assert_eq!(owner, nodes[8]);
-                                (RulePathName, ExpectedSyntax::Identifier)
-                            }
-                            (SyntaxKind::RuleItem, SyntaxKind::LParen) => {
-                                assert_eq!(owner, nodes[4]);
-                                (
-                                    RuleParenClose,
-                                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                                        Delimiter::Parenthesis,
-                                    )),
-                                )
-                            }
-                            (SyntaxKind::RuleBody, SyntaxKind::LBrace) => {
-                                assert_eq!(owner, nodes[1]);
-                                (
-                                    RuleBodyCloseBrace,
-                                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                                        Delimiter::Brace,
-                                    )),
-                                )
-                            }
-                            other => panic!("unexpected Missing slot: {other:?}"),
-                        };
-                        (role, range(node), [expected], 0usize)
-                    })
-                    .collect::<Vec<_>>();
-                assert_eq!(
-                    derived,
-                    [
-                        (RulePathName, 5..5, [ExpectedSyntax::Identifier], 0),
-                        (
-                            RuleParenClose,
-                            5..5,
-                            [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                                Delimiter::Parenthesis
-                            ))],
-                            0
-                        ),
-                        (
-                            RuleBodyCloseBrace,
-                            5..5,
-                            [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                                Delimiter::Brace
-                            ))],
-                            0
-                        ),
-                    ]
-                );
                 let crate::rule::RuleWitnessExit::Returned(item) = exit else {
                     panic!("EOF Item remains returned")
                 };
@@ -933,29 +638,15 @@ fn eof_leading_stays_pending_while_nested_missing_uses_successor_coordinate() {
                 assert_eq!(extent.payload(), origin + 12..origin + 12);
                 assert_eq!(&source[5..12], " /*α*/");
                 assert_eq!(format!("{root}{}{remainder}", &source[5..12]), source);
-                for (record, (role, rowan_range, expectations, primary)) in
-                    records.iter().zip(derived)
-                {
-                    assert_eq!(record.site.role, GrammarRole::Literal(role));
-                    assert_eq!(record.site.range, origin + 12..origin + 12);
-                    assert_ne!(
-                        record.site.range,
-                        origin + rowan_range.start..origin + rowan_range.end
-                    );
-                    assert_eq!(record.expectations.len(), 1);
-                    assert_eq!(record.expectations[0].expected, expectations[0]);
-                    assert_eq!(record.primary_expectation, primary);
-                }
             }
             assert_eq!(records, expected, "{source:?}");
-            let (again, frozen) = parse(source, origin, Some(&records));
+            let (again, facts) = parse(source, origin);
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(facts, records);
             if let Some(pending) = pending {
-                let (again, frozen, exit, line_entry, remainder) =
-                    pending_body(source, origin, Some(&records));
+                let (again, facts, exit, line_entry, remainder) = pending_body(source, origin);
                 assert_eq!(again, green);
-                assert_eq!(frozen, records);
+                assert_eq!(facts, records);
                 assert_eq!((exit, line_entry, remainder), pending);
             }
         }
@@ -967,7 +658,7 @@ fn interpolation_retains_its_own_stops_and_one_item_errors() {
     // This frame owns a direct sequence: its rejected Items form one raw
     // Error group, terminated by the admitted retry Item and its native trivia.
     let source = "~\"{| if ] a}\"";
-    let (green, records) = parse(source, 0, None);
+    let (green, records) = parse(source, 0);
     let root = SyntaxNode::new_root(green);
     let nodes = root.descendants().collect::<Vec<_>>();
     assert_eq!(nodes.len(), 5);
@@ -1084,101 +775,25 @@ fn interpolation_retains_its_own_stops_and_one_item_errors() {
     );
     assert_eq!(group.text(), "| if ]");
 
-    // Derive the slot from immediate ancestry before consulting the retained
-    // per-Item compatibility records; those records must not be coalesced.
     let owner = group.parent().expect("direct Error-group owner");
     let frame = owner.parent().expect("direct interpolation frame");
-    let (role, alternatives, primary) = match (owner.kind(), frame.kind()) {
+    match (owner.kind(), frame.kind()) {
         (SyntaxKind::RuleSequence, SyntaxKind::RuleLiteralInterpolation) => {
             assert_eq!(owner, nodes[3]);
             assert_eq!(frame, nodes[2]);
-            (
-                GrammarRole::Literal(LiteralRole::RuleUnexpectedItem),
-                [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-                0usize,
-            )
         }
         other => panic!("unexpected repeated-Item context: {other:?}"),
-    };
-    let derived = (
-        role,
-        alternatives,
-        primary,
-        usize::from(group.text_range().start())..usize::from(group.text_range().end()),
-    );
-    assert_eq!(
-        derived,
-        (
-            GrammarRole::Literal(LiteralRole::RuleUnexpectedItem),
-            [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-            0,
-            3..9,
-        )
-    );
-    assert_eq!(
-        records,
-        [
-            record(
-                0,
-                LiteralRole::RuleUnexpectedItem,
-                3..4,
-                Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Pipe))
-            ),
-            record(
-                1,
-                LiteralRole::RuleUnexpectedItem,
-                4..7,
-                Some(UnexpectedCategory::Word)
-            ),
-            record(
-                2,
-                LiteralRole::RuleUnexpectedItem,
-                7..9,
-                Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
-                    Delimiter::Bracket
-                )))
-            ),
-        ]
-    );
-    for record in &records {
-        assert_eq!(record.site.role, derived.0);
-        assert_eq!(record.expectations.len(), derived.1.len());
-        assert_eq!(record.expectations[0].expected, derived.1[0]);
-        assert_eq!(record.primary_expectation, derived.2);
     }
+    assert_eq!(records, [structural_fact(StructuralKind::ErrorGroup, 3..9)]);
 
     let source = "~\"{| if ]}\"";
-    let (green, records) = parse(source, 0, None);
+    let (green, records) = parse(source, 0);
     assert_eq!(green.to_string(), source);
-    assert_eq!(
-        records,
-        [
-            record(
-                0,
-                LiteralRole::RuleUnexpectedItem,
-                3..4,
-                Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Pipe))
-            ),
-            record(
-                1,
-                LiteralRole::RuleUnexpectedItem,
-                4..7,
-                Some(UnexpectedCategory::Word)
-            ),
-            record(
-                2,
-                LiteralRole::RuleUnexpectedItem,
-                7..9,
-                Some(UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
-                    Delimiter::Bracket
-                )))
-            ),
-        ]
-    );
+    assert_eq!(records, [structural_fact(StructuralKind::ErrorGroup, 3..9)]);
 }
 
 #[test]
-fn accepted_alternatives_lazy_quantifiers_and_raw_capture_have_no_records() {
+fn accepted_alternatives_lazy_quantifiers_and_raw_capture_have_no_structural_facts() {
     for source in [
         "{a|\nb*?||c+?}",
         "{(a,,b,)}",
@@ -1186,20 +801,20 @@ fn accepted_alternatives_lazy_quantifiers_and_raw_capture_have_no_records() {
         "~\"text:name :{} :{raw α}\"",
         "~\"{a=\"nested\"}\"",
     ] {
-        let (green, records) = parse(source, 0, None);
+        let (green, records) = parse(source, 0);
         assert_eq!(green.to_string(), source);
         assert!(records.is_empty(), "{source:?}: {records:?}");
     }
 }
 
 #[test]
-fn actual_expression_and_pattern_routes_publish_rule_records() {
+fn actual_expression_and_pattern_routes_publish_rule_structural_facts() {
     use crate::{handoff::MlMode, pattern::pattern_normalized, statement::StatementLineHandoff};
-    for (source, pattern, role, at) in [
-        ("~\":\"", false, LiteralRole::RuleLazyCaptureName, 3),
-        ("\":\"", true, LiteralRole::RuleLazyCaptureName, 2),
-        ("~\"{a.}\"", false, LiteralRole::RuleFieldName, 5),
-        ("\"{a::}\"", true, LiteralRole::RulePathName, 5),
+    for (source, pattern, at) in [
+        ("~\":\"", false, 3),
+        ("\":\"", true, 2),
+        ("~\"{a.}\"", false, 5),
+        ("\"{a::}\"", true, 5),
     ] {
         let operators = OperatorTable::empty();
         let mut recover = Recover::new_for_test(&operators);
@@ -1234,10 +849,11 @@ fn actual_expression_and_pattern_routes_publish_rule_records() {
             );
         }
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
+        let records = structural_facts(&green);
         assert_eq!(green.to_string(), source);
         assert_eq!(input, "");
-        assert_eq!(records, [record(0, role, at..at, None)]);
+        assert_eq!(records, [structural_fact(StructuralKind::Missing, at..at)]);
     }
 }
 
@@ -1258,7 +874,7 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
     // equal insertion coordinate is deliberately insufficient without the
     // parent path.
     let source = "{(a";
-    let (green, records) = parse(source, 0, None);
+    let (green, records) = parse(source, 0);
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.kind(), SyntaxKind::Root);
     assert_eq!(root.to_string(), source);
@@ -1333,7 +949,6 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
     assert_eq!(missing.len(), 2);
     assert_eq!(missing[0].parent(), Some(item.clone()));
     assert_eq!(missing[1].parent(), Some(body.clone()));
-    let mut derived = Vec::new();
     for node in &missing {
         assert_eq!(range(node), 3..3);
         assert_eq!(node.children_with_tokens().count(), 0);
@@ -1344,44 +959,24 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
             .first_child_or_token()
             .and_then(|child| child.into_token())
             .expect("direct close-owner opener");
-        let (role, delimiter) = match (owner.kind(), opener.kind()) {
-            (SyntaxKind::RuleItem, SyntaxKind::LParen) => {
-                (LiteralRole::RuleParenClose, Delimiter::Parenthesis)
-            }
-            (SyntaxKind::RuleBody, SyntaxKind::LBrace) => {
-                (LiteralRole::RuleBodyCloseBrace, Delimiter::Brace)
-            }
+        match (owner.kind(), opener.kind()) {
+            (SyntaxKind::RuleItem, SyntaxKind::LParen)
+            | (SyntaxKind::RuleBody, SyntaxKind::LBrace) => {}
             other => panic!("unexpected close-slot owner/opener: {other:?}"),
-        };
-        derived.push((role, delimiter, range(node)));
+        }
     }
     assert_eq!(
-        derived,
+        records,
         [
-            (LiteralRole::RuleParenClose, Delimiter::Parenthesis, 3..3),
-            (LiteralRole::RuleBodyCloseBrace, Delimiter::Brace, 3..3),
+            structural_fact(StructuralKind::Missing, 3..3),
+            structural_fact(StructuralKind::Missing, 3..3),
         ]
     );
-    let expected_records = derived
-        .into_iter()
-        .enumerate()
-        .map(|(id, (role, delimiter, range))| {
-            let expected = record(id as u32, role, range, None);
-            assert_eq!(expected.expectations.len(), 1);
-            assert_eq!(
-                expected.expectations[0].expected,
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-            );
-            assert_eq!(expected.primary_expectation, 0);
-            expected
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(records, expected_records);
 
     // A bare absent capture RHS is terminal before the native body close.
     {
         let source = "{a=}";
-        let (green, records) = parse(source, 0, None);
+        let (green, records) = parse(source, 0);
         let root = SyntaxNode::new_root(green);
         assert_eq!(root.kind(), SyntaxKind::Root);
         assert_eq!(root.parent(), None);
@@ -1481,34 +1076,11 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
             .first_child_or_token()
             .and_then(|child| child.into_token())
             .expect("required RHS introducer");
-        let (role, alternatives, primary) = match (owner.kind(), introducer.kind()) {
-            (SyntaxKind::RuleCapture, SyntaxKind::Equals) => (
-                LiteralRole::RuleCaptureRightItem,
-                [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-                0,
-            ),
+        match (owner.kind(), introducer.kind()) {
+            (SyntaxKind::RuleCapture, SyntaxKind::Equals) => {}
             other => panic!("unexpected required RHS owner/introducer: {other:?}"),
-        };
-        let derived = (
-            GrammarRole::Literal(role),
-            range(&missing),
-            alternatives,
-            primary,
-        );
-        assert_eq!(
-            derived,
-            (
-                GrammarRole::Literal(LiteralRole::RuleCaptureRightItem),
-                3..3,
-                [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-                0,
-            )
-        );
-        let expected = record(0, role, derived.1, None);
-        assert_eq!(expected.expectations.len(), derived.2.len());
-        assert_eq!(expected.expectations[0].expected, derived.2[0]);
-        assert_eq!(expected.primary_expectation, derived.3);
-        assert_eq!(records, [expected]);
+        }
+        assert_eq!(records, [structural_fact(StructuralKind::Missing, 3..3)]);
     }
 
     // A capture is terminal in its outer item.  The Error is direct capture
@@ -1527,7 +1099,7 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
             7..8,
         ),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let (green, _) = parse(source, 0);
         let root = SyntaxNode::new_root(green);
         assert_eq!(root.to_string(), source);
         let body = root.children().next().expect("RuleBody");
@@ -1659,25 +1231,17 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
 
     // A protected body close leaves the required name Missing in its direct
     // postfix owner, while the body consumes the native close unchanged.
-    for (source, tail, introducer_kind, introducer_text, close_start, role) in [
-        (
-            "{a.}",
-            SyntaxKind::RuleField,
-            SyntaxKind::Dot,
-            ".",
-            3,
-            LiteralRole::RuleFieldName,
-        ),
+    for (source, tail, introducer_kind, introducer_text, close_start) in [
+        ("{a.}", SyntaxKind::RuleField, SyntaxKind::Dot, ".", 3),
         (
             "{a::}",
             SyntaxKind::RulePath,
             SyntaxKind::ColonColon,
             "::",
             4,
-            LiteralRole::RulePathName,
         ),
     ] {
-        let (green, records) = parse(source, 0, None);
+        let (green, records) = parse(source, 0);
         let root = SyntaxNode::new_root(green);
         assert_eq!(root.kind(), SyntaxKind::Root);
         assert_eq!(root.parent(), None);
@@ -1767,31 +1331,18 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
             .first_child_or_token()
             .and_then(|child| child.into_token())
             .expect("required-name introducer");
-        let derived_role = match (missing_owner.kind(), introducer.kind()) {
-            (SyntaxKind::RuleField, SyntaxKind::Dot) => LiteralRole::RuleFieldName,
-            (SyntaxKind::RulePath, SyntaxKind::ColonColon) => LiteralRole::RulePathName,
+        match (missing_owner.kind(), introducer.kind()) {
+            (SyntaxKind::RuleField, SyntaxKind::Dot)
+            | (SyntaxKind::RulePath, SyntaxKind::ColonColon) => {}
             other => panic!("unexpected required-name owner/introducer: {other:?}"),
-        };
-        let derived = (
-            GrammarRole::Literal(derived_role),
-            range(&missing),
-            [ExpectedSyntax::Identifier],
-            0,
-        );
+        }
         assert_eq!(
-            derived,
-            (
-                GrammarRole::Literal(role),
-                close_start..close_start,
-                [ExpectedSyntax::Identifier],
-                0,
-            )
+            records,
+            [structural_fact(
+                StructuralKind::Missing,
+                close_start..close_start
+            )]
         );
-        let expected = record(0, derived_role, derived.1, None);
-        assert_eq!(expected.expectations.len(), derived.2.len());
-        assert_eq!(expected.expectations[0].expected, derived.2[0]);
-        assert_eq!(expected.primary_expectation, derived.3);
-        assert_eq!(records, [expected]);
     }
 
     // Name failure consumes exactly one lexical item.  The subsequent item is
@@ -1814,7 +1365,7 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
             4..8,
         ),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let (green, _) = parse(source, 0);
         let root = SyntaxNode::new_root(green);
         assert_eq!(root.kind(), SyntaxKind::Root);
         assert_eq!(root.to_string(), source);
@@ -1926,7 +1477,7 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
     }
 
     // A non-capture postfix remains a sibling of the failed name owner.
-    let (green, _) = parse("{a.12?}", 0, None);
+    let (green, _) = parse("{a.12?}", 0);
     let root = SyntaxNode::new_root(green);
     let item = root
         .descendants()
@@ -1949,7 +1500,7 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
     // Consecutive raw leaves are one same-parent RuleSequence occurrence, not
     // a synthetic wrapper or one occurrence per token.
     let source = "{;💥}";
-    let (green, _) = parse(source, 0, None);
+    let (green, records) = parse(source, 0);
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.kind(), SyntaxKind::Root);
     assert_eq!(root.parent(), None);
@@ -2042,39 +1593,12 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
     assert!(tokens[0].prev_sibling_or_token().is_none());
     assert!(tokens[1].next_sibling_or_token().is_none());
 
-    // Select the repeated-Item expectation from the verified Body frame and
-    // direct sequence slot, independently of Error spelling or parser records.
-    let derived = groups
-        .iter()
-        .map(|group| {
-            let owner = group.parent().expect("direct Error-group owner");
-            let parent = owner.parent().expect("direct alternation");
-            let frame = parent.parent().expect("direct Rule frame");
-            let expected = match (frame.kind(), parent.kind(), owner.kind()) {
-                (SyntaxKind::RuleBody, SyntaxKind::RuleAlternation, SyntaxKind::RuleSequence) => {
-                    assert_eq!(frame, body);
-                    assert_eq!(parent, alternation);
-                    assert_eq!(owner, sequence);
-                    ExpectedSyntax::Literal(LiteralExpected::RuleItem)
-                }
-                other => panic!("unexpected repeated-Item context: {other:?}"),
-            };
-            (
-                expected,
-                0usize,
-                usize::from(group.text_range().start())..usize::from(group.text_range().end()),
-            )
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        derived,
-        [(ExpectedSyntax::Literal(LiteralExpected::RuleItem), 0, 1..6)]
-    );
+    assert_eq!(records, [structural_fact(StructuralKind::ErrorGroup, 1..6)]);
 
     // The field-name vacancy ends at LF; the next name starts a second
     // sequence, with no retry inside the completed RuleField.
     let source = "{a.\nnext}";
-    let (green, records) = parse(source, 0, None);
+    let (green, records) = parse(source, 0);
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.kind(), SyntaxKind::Root);
     assert_eq!(root.parent(), None);
@@ -2212,35 +1736,16 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
         .first_child_or_token()
         .and_then(|element| element.into_token())
         .expect("required-name introducer");
-    let derived_role = match (owner.kind(), introducer.kind()) {
-        (SyntaxKind::RuleField, SyntaxKind::Dot) => LiteralRole::RuleFieldName,
+    match (owner.kind(), introducer.kind()) {
+        (SyntaxKind::RuleField, SyntaxKind::Dot) => {}
         other => panic!("unexpected required-name owner/introducer: {other:?}"),
-    };
-    let derived = (
-        GrammarRole::Literal(derived_role),
-        range(&missing),
-        [ExpectedSyntax::Identifier],
-        0,
-    );
-    assert_eq!(
-        derived,
-        (
-            GrammarRole::Literal(LiteralRole::RuleFieldName),
-            3..3,
-            [ExpectedSyntax::Identifier],
-            0
-        )
-    );
-    let expected = record(0, derived_role, derived.1, None);
-    assert_eq!(expected.expectations.len(), derived.2.len());
-    assert_eq!(expected.expectations[0].expected, derived.2[0]);
-    assert_eq!(expected.primary_expectation, derived.3);
-    assert_eq!(records, [expected]);
+    }
+    assert_eq!(records, [structural_fact(StructuralKind::Missing, 3..3)]);
 
     // The path-name vacancy ends at LF; the next name starts a second
     // sequence, with no retry inside the completed RulePath.
     let source = "{a::\nnext}";
-    let (green, records) = parse(source, 0, None);
+    let (green, records) = parse(source, 0);
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.kind(), SyntaxKind::Root);
     assert_eq!(root.parent(), None);
@@ -2378,35 +1883,16 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
         .first_child_or_token()
         .and_then(|element| element.into_token())
         .expect("required-name introducer");
-    let derived_role = match (owner.kind(), introducer.kind()) {
-        (SyntaxKind::RulePath, SyntaxKind::ColonColon) => LiteralRole::RulePathName,
+    match (owner.kind(), introducer.kind()) {
+        (SyntaxKind::RulePath, SyntaxKind::ColonColon) => {}
         other => panic!("unexpected required-name owner/introducer: {other:?}"),
-    };
-    let derived = (
-        GrammarRole::Literal(derived_role),
-        range(&missing),
-        [ExpectedSyntax::Identifier],
-        0,
-    );
-    assert_eq!(
-        derived,
-        (
-            GrammarRole::Literal(LiteralRole::RulePathName),
-            4..4,
-            [ExpectedSyntax::Identifier],
-            0
-        )
-    );
-    let expected = record(0, derived_role, derived.1, None);
-    assert_eq!(expected.expectations.len(), derived.2.len());
-    assert_eq!(expected.expectations[0].expected, derived.2[0]);
-    assert_eq!(expected.primary_expectation, derived.3);
-    assert_eq!(records, [expected]);
+    }
+    assert_eq!(records, [structural_fact(StructuralKind::Missing, 4..4)]);
 
     // CRLF ends the capture RHS vacancy; the next name belongs to a second
     // sequence after the terminal Capture, not to its RHS.
     let source = "{a=\r\nnext}";
-    let (green, records) = parse(source, 0, None);
+    let (green, records) = parse(source, 0);
     let root = SyntaxNode::new_root(green);
     assert_eq!(root.kind(), SyntaxKind::Root);
     assert_eq!(root.parent(), None);
@@ -2548,34 +2034,11 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
         .first_child_or_token()
         .and_then(|element| element.into_token())
         .expect("required RHS introducer");
-    let (role, alternatives, primary) = match (owner.kind(), introducer.kind()) {
-        (SyntaxKind::RuleCapture, SyntaxKind::Equals) => (
-            LiteralRole::RuleCaptureRightItem,
-            [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-            0,
-        ),
+    match (owner.kind(), introducer.kind()) {
+        (SyntaxKind::RuleCapture, SyntaxKind::Equals) => {}
         other => panic!("unexpected required RHS owner/introducer: {other:?}"),
-    };
-    let derived = (
-        GrammarRole::Literal(role),
-        range(&missing),
-        alternatives,
-        primary,
-    );
-    assert_eq!(
-        derived,
-        (
-            GrammarRole::Literal(LiteralRole::RuleCaptureRightItem),
-            3..3,
-            [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-            0,
-        )
-    );
-    let expected = record(0, role, derived.1, None);
-    assert_eq!(expected.expectations.len(), derived.2.len());
-    assert_eq!(expected.expectations[0].expected, derived.2[0]);
-    assert_eq!(expected.primary_expectation, derived.3);
-    assert_eq!(records, [expected]);
+    }
+    assert_eq!(records, [structural_fact(StructuralKind::Missing, 3..3)]);
 
     // A physical line boundary belongs to RuleAlternation, after the failed
     // slot; it is not swallowed by name/RHS recovery.
@@ -2583,7 +2046,7 @@ fn dedicated_rule_slots_are_directly_readable_from_the_rowan_tree() {
         ("{a.\nnext}", SyntaxKind::RuleField),
         ("{a=\r\nnext}", SyntaxKind::RuleCapture),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let (green, _) = parse(source, 0);
         let root = SyntaxNode::new_root(green);
         let alternation = root
             .descendants()
@@ -2629,8 +2092,9 @@ fn public_root_preserves_rule_eof_leading_outside_the_terminal_slots() {
             header,
             Arc::new(SyntaxEnvironment::empty()),
         );
-        assert_eq!(parsed.green().to_string(), source.as_ref());
-        let root = SyntaxNode::new_root(parsed.green().clone());
+        let green = parsed.green().clone();
+        assert_eq!(green.to_string(), source.as_ref());
+        let root = SyntaxNode::new_root(green.clone());
         if source.as_ref() == "~\"{a=  " {
             let nodes = root.descendants().collect::<Vec<_>>();
             assert_eq!(nodes.len(), 10);
@@ -2737,66 +2201,12 @@ fn public_root_preserves_rule_eof_leading_outside_the_terminal_slots() {
                 .filter(|node| node.kind() == SyntaxKind::Missing)
                 .collect::<Vec<_>>();
             assert_eq!(missing, nodes[7..10]);
-            // Derive each singleton expectation from the complete ordered CST
-            // before consulting compatibility records or their EOF coordinates.
-            let derived = missing
-                .iter()
-                .map(|node| {
-                    let owner = node.parent().expect("direct Missing owner");
-                    let (role, expected) = match owner.kind() {
-                        SyntaxKind::RuleCapture => {
-                            assert_eq!(owner, nodes[6]);
-                            (
-                                LiteralRole::RuleCaptureRightItem,
-                                ExpectedSyntax::Literal(LiteralExpected::RuleItem),
-                            )
-                        }
-                        SyntaxKind::RuleLiteralInterpolation => {
-                            assert_eq!(owner, nodes[3]);
-                            (
-                                LiteralRole::RuleLiteralInterpolationCloseBrace,
-                                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                                    Delimiter::Brace,
-                                )),
-                            )
-                        }
-                        SyntaxKind::RuleLiteral => {
-                            assert_eq!(owner, nodes[2]);
-                            (
-                                LiteralRole::RuleLiteralTerminator,
-                                ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
-                            )
-                        }
-                        other => panic!("unexpected Missing owner: {other:?}"),
-                    };
-                    (role, range(node), [expected], 0usize)
-                })
-                .collect::<Vec<_>>();
             assert_eq!(
-                derived,
+                structural_facts(&green),
                 [
-                    (
-                        LiteralRole::RuleCaptureRightItem,
-                        5..5,
-                        [ExpectedSyntax::Literal(LiteralExpected::RuleItem)],
-                        0
-                    ),
-                    (
-                        LiteralRole::RuleLiteralInterpolationCloseBrace,
-                        5..5,
-                        [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                            Delimiter::Brace
-                        ))],
-                        0
-                    ),
-                    (
-                        LiteralRole::RuleLiteralTerminator,
-                        5..5,
-                        [ExpectedSyntax::Literal(
-                            LiteralExpected::RuleLiteralTerminator
-                        )],
-                        0
-                    ),
+                    structural_fact(StructuralKind::Missing, 5..5),
+                    structural_fact(StructuralKind::Missing, 5..5),
+                    structural_fact(StructuralKind::Missing, 5..5),
                 ]
             );
         }
@@ -2848,22 +2258,10 @@ fn fenced_literal_slots_keep_the_pending_fence_and_exact_coordinates() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
         close_column: 0,
     };
-    for (body, roles) in [
-        ("~\"α\r\n", vec![LiteralRole::RuleLiteralTerminator]),
-        (
-            "~\"{a\r\n",
-            vec![
-                LiteralRole::RuleLiteralInterpolationCloseBrace,
-                LiteralRole::RuleLiteralTerminator,
-            ],
-        ),
-        (
-            "~\":{α\r\n",
-            vec![
-                LiteralRole::RuleLazyCaptureCloseBrace,
-                LiteralRole::RuleLiteralTerminator,
-            ],
-        ),
+    for (body, emitted, missing_count) in [
+        ("~\"α\r\n", "~\"α\r\n", 1),
+        ("~\"{a\r\n", "~\"{a", 2),
+        ("~\":{α\r\n", "~\":{α\r\n", 2),
     ] {
         let source = format!("{body}> ```\nouter");
         let operators = OperatorTable::empty();
@@ -2886,13 +2284,11 @@ fn fenced_literal_slots_keep_the_pending_fence_and_exact_coordinates() {
             Some(AmbientClaimView::root_statement(0)).into(),
         );
         output.finish_node();
-        let (_, records) = (output.finish(), recover.finish_recoveries_for_test());
-        let at = 200 + body.len();
-        let expected: Vec<_> = roles
-            .into_iter()
-            .enumerate()
-            .map(|(id, role)| record(id as u32, role, at..at, None))
-            .collect();
+        let green = finish_with_discarded_recoveries(output, recover);
+        let records = structural_facts(&green);
+        assert_eq!(green.to_string(), emitted, "{source:?}");
+        let at = emitted.len();
+        let expected = vec![structural_fact(StructuralKind::Missing, at..at); missing_count];
         assert_eq!(records, expected, "{source:?}");
         assert_eq!(input, "> ```\nouter");
     }
@@ -2947,18 +2343,9 @@ fn one_item_error_range_includes_crlf_and_foreign_prefix() {
         Some(AmbientClaimView::root_statement(0)).into(),
     );
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = finish_with_discarded_recoveries(output, recover);
+    let records = structural_facts(&green);
     assert_eq!(green.to_string(), source);
     assert_eq!(input, "");
-    assert_eq!(
-        records,
-        [record(
-            0,
-            LiteralRole::RuleUnexpectedItem,
-            103..108,
-            Some(UnexpectedCategory::Punctuation(
-                PunctuationEvidence::Semicolon
-            ))
-        )]
-    );
+    assert_eq!(records, [structural_fact(StructuralKind::ErrorGroup, 3..8)]);
 }

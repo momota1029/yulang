@@ -126,12 +126,7 @@ fn run_required_pattern_with_context<'source>(
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
-        exit,
-        completion,
-        input,
-    )
+    (builder.finish(), exit, completion, input)
 }
 
 fn policy(fresh: PatternStops, recovered_tail: PatternStops) -> PatternMandatorySlotPolicy {
@@ -204,11 +199,7 @@ fn run_l7_pattern_with_context<'source>(
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
-        exit,
-        input,
-    )
+    (builder.finish(), exit, input)
 }
 
 fn pattern_node(green: GreenNode) -> SyntaxNode {

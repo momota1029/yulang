@@ -1,69 +1,19 @@
 use crate::tests::support::*;
 use crate::{
-    ambient_claim::AmbientClaimView,
-    handoff::MlMode,
-    recovery_record::{
-        ColonApplicationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax, WithBodyRole,
-    },
-    sequence::SequenceOwner,
-    statement::StatementLineHandoff,
+    ambient_claim::AmbientClaimView, handoff::MlMode, sequence::SequenceOwner,
+    statement::StatementLineHandoff, structural_diagnostic::StructuralKind,
 };
-use std::{ops::Range, sync::Arc};
-
-fn record(
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-    kind: RecoveryKind,
-    range: Range<usize>,
-) -> CommittedRecoveryRecord {
-    CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Missing {
-            Arc::from([])
-        } else {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
 
 fn parse<'s>(
     source: &'s str,
     stops: Stops,
     origin: usize,
     fence: Option<&FenceBoundary>,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (
-    GreenNode,
-    Vec<CommittedRecoveryRecord>,
-    NormalizedExit,
-    &'s str,
-) {
+) -> (GreenNode, NormalizedExit, &'s str) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut output = frozen
-        .map(|records| {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        })
-        .unwrap_or_else(GreenNodeBuilder::new);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -80,8 +30,11 @@ fn parse<'s>(
     )
     .unwrap();
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, records, exit, input)
+    (
+        finish_with_discarded_recoveries(output, recover),
+        exit,
+        input,
+    )
 }
 
 fn parse_with_sequence(
@@ -108,88 +61,44 @@ fn parse_with_sequence(
     )
     .unwrap();
     output.finish_node();
-    let green = output.finish();
-    let _ = recover.finish_recoveries_for_test();
-    (green, exit)
+    (finish_with_discarded_recoveries(output, recover), exit)
+}
+
+fn structural_fact(kind: StructuralKind, range: std::ops::Range<usize>) -> StructuralFact {
+    (kind, range)
 }
 
 #[test]
-fn inline_slots_have_exact_fresh_and_frozen_records() {
-    use RecoveryKind::{Error, Missing};
-    let rhs = GrammarRole::ColonApplication(ColonApplicationRole::Rhs);
-    let arg = GrammarRole::ColonApplication(ColonApplicationRole::InlineArgument);
-    let intro = GrammarRole::WithBody(WithBodyRole::Introducer);
-    let body = GrammarRole::WithBody(WithBodyRole::Body);
-    for (source, role, expected, kind, range) in [
-        ("f:", rhs, ExpectedSyntax::Expression, Missing, 2..2),
-        ("f:   ", rhs, ExpectedSyntax::Expression, Missing, 5..5),
-        ("f: , x", rhs, ExpectedSyntax::Expression, Missing, 2..2),
-        ("f: x,", arg, ExpectedSyntax::Expression, Missing, 5..5),
-        ("f: @ @ x", rhs, ExpectedSyntax::Expression, Error, 3..6),
-        ("f: => x", rhs, ExpectedSyntax::Expression, Error, 3..5),
-        ("f: @ ]", rhs, ExpectedSyntax::Expression, Error, 3..4),
-        (
-            "f with",
-            intro,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            Missing,
-            6..6,
-        ),
-        (
-            "f with x",
-            intro,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            Missing,
-            6..6,
-        ),
-        (
-            "f with :: x",
-            intro,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            Missing,
-            6..6,
-        ),
-        ("f with: ", body, ExpectedSyntax::Statement, Missing, 8..8),
-        (
-            "f with:\nnext",
-            body,
-            ExpectedSyntax::Statement,
-            Missing,
-            7..7,
-        ),
-        ("f with: ;", body, ExpectedSyntax::Statement, Missing, 7..7),
-        (
-            "f with ;",
-            intro,
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            Missing,
-            6..6,
-        ),
-        (
-            "f with: @ @ x",
-            body,
-            ExpectedSyntax::Statement,
-            Error,
-            8..11,
-        ),
+fn inline_slots_have_exact_structural_facts() {
+    for (source, kind, range) in [
+        ("f:", StructuralKind::Missing, 2..2),
+        ("f:   ", StructuralKind::Missing, 5..5),
+        ("f: , x", StructuralKind::Missing, 2..2),
+        ("f: x,", StructuralKind::Missing, 5..5),
+        ("f: @ @ x", StructuralKind::ErrorGroup, 3..6),
+        ("f: => x", StructuralKind::ErrorGroup, 3..5),
+        ("f: @ ]", StructuralKind::ErrorGroup, 3..4),
+        ("f with", StructuralKind::Missing, 6..6),
+        ("f with x", StructuralKind::Missing, 6..6),
+        ("f with :: x", StructuralKind::Missing, 6..6),
+        ("f with: ", StructuralKind::Missing, 8..8),
+        ("f with:\nnext", StructuralKind::Missing, 7..7),
+        ("f with: ;", StructuralKind::Missing, 7..7),
+        ("f with ;", StructuralKind::Missing, 6..6),
+        ("f with: @ @ x", StructuralKind::ErrorGroup, 8..11),
     ] {
-        let (green, records, _, _) = parse(source, 0, 0, None, None);
-        assert_eq!(records, [record(role, expected, kind, range)], "{source:?}");
-        if kind == RecoveryKind::Error {
+        let (green, _, _) = parse(source, 0, 0, None);
+        let facts = structural_facts(&green);
+        assert_eq!(facts, [structural_fact(kind, range.clone())], "{source:?}");
+        if kind == StructuralKind::ErrorGroup {
             let error = crate::tests::recovery_output::recovery_groups(&SyntaxNode::new_root(
                 green.clone(),
             ))
             .into_iter()
             .next()
-            .expect("typed Error product");
-            assert_eq!(
-                error.text().to_string(),
-                source[records[0].site.range.clone()]
-            );
+            .expect("CST Error group");
+            assert_eq!(error.text().to_string(), source[range]);
         }
-        let (again, frozen, _, _) = parse(source, 0, 0, None, Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
 }
 
@@ -212,22 +121,14 @@ fn with_retry_admits_canonical_statements_and_literals() {
     ] {
         for prefix in ["f with: ", "f with: @ @ "] {
             let source = format!("{prefix}{body}");
-            let (green, records, _, _) = parse(&source, 0, 0, None, None);
+            let (green, _, _) = parse(&source, 0, 0, None);
             assert_eq!(green.to_string(), source);
             let expected = if prefix.contains('@') {
-                vec![record(
-                    GrammarRole::WithBody(WithBodyRole::Body),
-                    ExpectedSyntax::Statement,
-                    RecoveryKind::Error,
-                    8..11,
-                )]
+                vec![structural_fact(StructuralKind::ErrorGroup, 8..11)]
             } else {
                 vec![]
             };
-            assert_eq!(records, expected, "{source:?}");
-            let (again, frozen, _, _) = parse(&source, 0, 0, None, Some(&records));
-            assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(structural_facts(&green), expected, "{source:?}");
         }
     }
 }
@@ -235,15 +136,14 @@ fn with_retry_admits_canonical_statements_and_literals() {
 #[test]
 fn inline_boundaries_preserve_the_whole_pending_item() {
     use crate::lexical::stops::STOP_COMMA;
-    for (source, stops, emitted, pending, start, role, kind, range) in [
+    for (source, stops, emitted, pending, start, kind, range) in [
         (
             "f: , x",
             STOP_COMMA,
             "f:",
             TokenKind::Comma,
             2,
-            GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             2..2,
         ),
         (
@@ -252,8 +152,7 @@ fn inline_boundaries_preserve_the_whole_pending_item() {
             "f: @",
             TokenKind::RBracket,
             4,
-            GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             3..4,
         ),
         (
@@ -262,8 +161,7 @@ fn inline_boundaries_preserve_the_whole_pending_item() {
             "f: @",
             TokenKind::Comma,
             4,
-            GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             3..4,
         ),
         (
@@ -272,8 +170,7 @@ fn inline_boundaries_preserve_the_whole_pending_item() {
             "f:",
             TokenKind::Arrow,
             2,
-            GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             2..2,
         ),
         (
@@ -282,8 +179,7 @@ fn inline_boundaries_preserve_the_whole_pending_item() {
             "f with: @",
             TokenKind::RBracket,
             9,
-            GrammarRole::WithBody(WithBodyRole::Body),
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             8..9,
         ),
         (
@@ -292,20 +188,16 @@ fn inline_boundaries_preserve_the_whole_pending_item() {
             "f with",
             TokenKind::PathSeparator,
             6,
-            GrammarRole::WithBody(WithBodyRole::Introducer),
-            RecoveryKind::Missing,
+            StructuralKind::Missing,
             6..6,
         ),
     ] {
-        let (green, records, exit, remainder) = parse(source, stops, 0, None, None);
-        let expected = match role {
-            GrammarRole::ColonApplication(_) => ExpectedSyntax::Expression,
-            GrammarRole::WithBody(WithBodyRole::Introducer) => {
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
-            }
-            _ => ExpectedSyntax::Statement,
-        };
-        assert_eq!(records, [record(role, expected, kind, range)], "{source:?}");
+        let (green, exit, remainder) = parse(source, stops, 0, None);
+        assert_eq!(
+            structural_facts(&green),
+            [structural_fact(kind, range)],
+            "{source:?}"
+        );
         assert_eq!(green.to_string(), emitted);
         let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
             panic!("pending boundary")
@@ -317,9 +209,6 @@ fn inline_boundaries_preserve_the_whole_pending_item() {
                 .start,
             start
         );
-        let (again, frozen, _, _) = parse(source, stops, 0, None, Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
 }
 
@@ -335,115 +224,74 @@ fn inline_utf8_crlf_and_quoted_fences_keep_physical_coordinates() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    for (source, role, expected, kind, range, emitted) in [
-        (
-            "f:\r\n> > ```\nouter",
-            GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
-            ExpectedSyntax::Expression,
-            RecoveryKind::Missing,
-            104..104,
-            "f:",
-        ),
+    for (source, kind, range, emitted) in [
+        ("f:\r\n> > ```\nouter", StructuralKind::Missing, 2..2, "f:"),
         (
             "f: 💥\r\n> > ```\nouter",
-            GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
-            ExpectedSyntax::Expression,
-            RecoveryKind::Error,
-            103..107,
+            StructuralKind::ErrorGroup,
+            3..7,
             "f: 💥",
         ),
         (
             "f with:\r\n> > ```\nouter",
-            GrammarRole::WithBody(WithBodyRole::Body),
-            ExpectedSyntax::Statement,
-            RecoveryKind::Missing,
-            109..109,
+            StructuralKind::Missing,
+            7..7,
             "f with:",
         ),
         (
             "f with: 💥\r\n> > ```\nouter",
-            GrammarRole::WithBody(WithBodyRole::Body),
-            ExpectedSyntax::Statement,
-            RecoveryKind::Error,
-            108..112,
+            StructuralKind::ErrorGroup,
+            8..12,
             "f with: 💥",
         ),
     ] {
-        let (green, records, exit, remainder) = parse(source, 0, 100, Some(&fence), None);
-        assert_eq!(records, [record(role, expected, kind, range)]);
+        let (green, exit, remainder) = parse(source, 0, 100, Some(&fence));
+        assert_eq!(structural_facts(&green), [structural_fact(kind, range)]);
         assert_eq!(green.to_string(), emitted);
         assert_eq!(remainder, "> > ```\nouter");
         assert!(matches!(
             exit,
             NormalizedExit::Complete(Err(Either::Left(_)), LineEntry::PhysicalStart)
         ));
-        let (again, frozen, _, _) = parse(source, 0, 100, Some(&fence), Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
     let source = "f with @\r\n> > ```\nouter";
-    let (green, records, exit, remainder) = parse(source, 0, 100, Some(&fence), None);
-    let intro = record(
-        GrammarRole::WithBody(WithBodyRole::Introducer),
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        RecoveryKind::Missing,
-        106..106,
+    let (green, exit, remainder) = parse(source, 0, 100, Some(&fence));
+    assert_eq!(
+        structural_facts(&green),
+        [
+            structural_fact(StructuralKind::Missing, 6..6),
+            structural_fact(StructuralKind::ErrorGroup, 7..8),
+        ]
     );
-    let mut body = record(
-        GrammarRole::WithBody(WithBodyRole::Body),
-        ExpectedSyntax::Statement,
-        RecoveryKind::Error,
-        107..108,
-    );
-    body.id = DiagnosticId(1);
-    assert_eq!(records, [intro, body]);
     assert_eq!(green.to_string(), "f with @");
     assert_eq!(remainder, "> > ```\nouter");
     assert!(matches!(
         exit,
         NormalizedExit::Complete(Err(Either::Left(_)), LineEntry::PhysicalStart)
     ));
-    let (again, frozen, _, _) = parse(source, 0, 100, Some(&fence), Some(&records));
-    assert_eq!(again, green);
-    assert_eq!(frozen, records);
 }
 
 #[test]
-fn inline_nested_slots_keep_distinct_roles_and_frozen_ids() {
+fn inline_nested_slots_keep_distinct_structural_facts() {
     let source = "f with x:";
-    let (green, records, _, _) = parse(source, 0, 0, None, None);
-    let first = record(
-        GrammarRole::WithBody(WithBodyRole::Introducer),
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        RecoveryKind::Missing,
-        6..6,
+    let (green, _, _) = parse(source, 0, 0, None);
+    assert_eq!(
+        structural_facts(&green),
+        [
+            structural_fact(StructuralKind::Missing, 6..6),
+            structural_fact(StructuralKind::Missing, 9..9),
+        ]
     );
-    let mut second = record(
-        GrammarRole::ColonApplication(ColonApplicationRole::Rhs),
-        ExpectedSyntax::Expression,
-        RecoveryKind::Missing,
-        9..9,
-    );
-    second.id = DiagnosticId(1);
-    assert_eq!(records, [first, second]);
-    let (again, frozen, _, _) = parse(source, 0, 0, None, Some(&records));
-    assert_eq!(again, green);
-    assert_eq!(frozen, records);
 }
 
 #[test]
 fn with_false_prefixed_declaration_candidate_keeps_canonical_fallback() {
     let source = "f with: @ my use";
-    let (green, records, _, _) = parse(source, 0, 0, None, None);
+    let (green, _, _) = parse(source, 0, 0, None);
     assert_eq!(green.to_string(), source);
     assert_eq!(
-        records,
-        [record(
-            GrammarRole::WithBody(WithBodyRole::Body),
-            ExpectedSyntax::Statement,
-            RecoveryKind::Error,
-            8..9
-        )]
+        structural_facts(&green),
+        [structural_fact(StructuralKind::ErrorGroup, 8..9)]
     );
     let root = SyntaxNode::new_root(green);
     assert!(
@@ -476,9 +324,9 @@ fn colon_disabled_ml_entry_keeps_seed_and_pending_colon_effect_free() {
     )
     .unwrap();
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = finish_with_discarded_recoveries(output, recover);
     assert_eq!(green.to_string(), "seedf");
-    assert!(records.is_empty());
+    assert!(structural_facts(&green).is_empty());
     assert_eq!(input, " @");
     let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
         panic!("unread colon")
@@ -488,72 +336,10 @@ fn colon_disabled_ml_entry_keeps_seed_and_pending_colon_effect_free() {
 }
 
 #[test]
-fn inline_recovery_allocates_after_seeded_and_frozen_records() {
-    use crate::cursor::recovery::RecoveryDraft;
-    let role = GrammarRole::WithBody(WithBodyRole::Body);
-    let mut seed = record(role, ExpectedSyntax::Statement, RecoveryKind::Missing, 0..0);
-    seed.id = DiagnosticId(7);
-    let mut reused = record(role, ExpectedSyntax::Statement, RecoveryKind::Error, 18..19);
-    reused.id = DiagnosticId(19);
-    let frozen = [seed.clone(), reused.clone()];
-    for reconcile in [false, true] {
-        let operators = OperatorTable::empty();
-        let mut recover = Recover::new_for_test(&operators);
-        let mut output = if reconcile {
-            {
-                recover = Recover::reconcile_for_test(recover.operators(), &frozen);
-                GreenNodeBuilder::new()
-            }
-        } else {
-            GreenNodeBuilder::new()
-        };
-        output.start_node(SyntaxKind::Root.into());
-        output.token(SyntaxKind::Identifier.into(), "seed");
-        output.start_node(SyntaxKind::Missing.into());
-        output.finish_node();
-        recover.commit_recovery_for_test(RecoveryDraft::new(
-            seed.site.clone(),
-            seed.kind,
-            seed.unexpected.clone(),
-            seed.expectations.clone(),
-            0,
-        ));
-        for origin in [10, 20] {
-            let mut input = "f with: @";
-            expr_normalized(
-                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
-                None,
-                0,
-                0,
-                MlMode::All,
-                StatementLineHandoff::OrdinaryLayout,
-                origin,
-                LineEntry::InLine,
-                None,
-                Some(AmbientClaimView::root_statement(0)).into(),
-                None,
-            )
-            .unwrap();
-            assert_eq!(input, "");
-        }
-        output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-        assert_eq!(green.to_string(), "seedf with: @f with: @");
-        let mut expected_seed = seed.clone();
-        expected_seed.id = DiagnosticId(if reconcile { 7 } else { 0 });
-        let mut expected_reused = reused.clone();
-        expected_reused.id = DiagnosticId(if reconcile { 19 } else { 1 });
-        let mut last = record(role, ExpectedSyntax::Statement, RecoveryKind::Error, 28..29);
-        last.id = DiagnosticId(if reconcile { 20 } else { 2 });
-        assert_eq!(records, [expected_seed, expected_reused, last]);
-    }
-}
-
-#[test]
 fn line_deferred_with_preserves_the_whole_keyword_without_records() {
-    let (green, records, exit, remainder) = parse("f\nwith x", 0, 0, None, None);
+    let (green, exit, remainder) = parse("f\nwith x", 0, 0, None);
     assert_eq!(green.to_string(), "f");
-    assert!(records.is_empty());
+    assert!(structural_facts(&green).is_empty());
     assert_eq!(remainder, " x");
     let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
         panic!("pending keyword")
@@ -575,7 +361,7 @@ fn colon_and_with_cst_slots_are_selected_by_ordered_direct_grammar() {
         ("f: x\n, y", 2, 1, 1, false),
         ("f: x\n", 1, 0, 1, false),
     ] {
-        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let (green, _, _) = parse(source, 0, 0, None);
         let root = SyntaxNode::new_root(green);
         let tail = root
             .descendants()
@@ -660,7 +446,7 @@ fn colon_and_with_cst_slots_are_selected_by_ordered_direct_grammar() {
         ("f with: \"x\"", Some(SyntaxKind::StringLiteral)),
         ("f with: pub x = y", Some(SyntaxKind::BindingStatement)),
     ] {
-        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let (green, _, _) = parse(source, 0, 0, None);
         let root = SyntaxNode::new_root(green);
         let tail = root
             .descendants()
@@ -724,7 +510,7 @@ fn colon_local_comma_slots_are_ordered_directly() {
             Some(SyntaxKind::OperatorChain),
         ),
     ] {
-        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let (green, _, _) = parse(source, 0, 0, None);
         let root = SyntaxNode::new_root(green);
         let tail = root
             .descendants()
@@ -771,7 +557,7 @@ fn colon_local_comma_slots_are_ordered_directly() {
 #[test]
 fn colon_and_with_cst_recovery_orders_are_direct_and_terminal() {
     for (source, error_range, terminal) in [("f: @\nx", 3..4, false), ("f: x\n@", 5..6, true)] {
-        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let (green, _, _) = parse(source, 0, 0, None);
         let root = SyntaxNode::new_root(green);
         let tail = root
             .descendants()
@@ -831,7 +617,7 @@ fn colon_and_with_cst_recovery_orders_are_direct_and_terminal() {
         ("f with: @ \"x\"", Some(SyntaxKind::StringLiteral)),
         ("f with: @ pub x = y", Some(SyntaxKind::BindingStatement)),
     ] {
-        let (green, _, _, _) = parse(source, 0, 0, None, None);
+        let (green, _, _) = parse(source, 0, 0, None);
         let root = SyntaxNode::new_root(green);
         let tail = root
             .descendants()

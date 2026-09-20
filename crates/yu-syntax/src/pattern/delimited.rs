@@ -1,24 +1,13 @@
 //! Direct owners for Pattern's three comma-or-layout delimited primaries.
 
 use crate::ambient_claim::AmbientClaimContext;
-
-use crate::{
-    lexical::operator_scan::OperatorSite,
-    recovery_record::{
-        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
-use std::sync::Arc;
+use crate::{lexical::operator_scan::OperatorSite, syntax_kind::SyntaxKind};
 
 use crate::{
     cursor::recovery::{
-        RecoveryDraft, StructuredRecoverySpec,
         emit::{
             emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
-            emit_token_item, token_syntax_kind,
+            emit_token_item,
         },
         emit_structured_recovery_error_from_item,
     },
@@ -39,8 +28,7 @@ use crate::{
         PatternPrecedence, PatternScan, PatternStops, SyntaxIn, emit_pattern_missing,
         is_pattern_nud, pattern_from_item_recording_with_policy_normalized,
         pattern_item_normalized, pattern_nud_item_normalized, pattern_primary_stop_token,
-        pattern_recovery_draft, pattern_tail_normalized, scan_pattern_item_lexical,
-        scan_pattern_tail_normalized,
+        pattern_tail_normalized, scan_pattern_item_lexical, scan_pattern_tail_normalized,
     },
     statement::StatementLineHandoff,
 };
@@ -66,22 +54,6 @@ impl Owner {
             Self::Parenthesized => TokenKind::RParen,
             Self::List => TokenKind::RBracket,
             Self::Record => TokenKind::RBrace,
-        }
-    }
-
-    fn separator_role(self) -> PatternRole {
-        match self {
-            Self::Parenthesized => PatternRole::ParenthesizedSeparator,
-            Self::List => PatternRole::ListSeparator,
-            Self::Record => PatternRole::RecordSeparator,
-        }
-    }
-
-    fn closing_owner(self) -> (ConstructRole, Delimiter) {
-        match self {
-            Self::Parenthesized => (ConstructRole::ParenthesizedPattern, Delimiter::Parenthesis),
-            Self::List => (ConstructRole::ListPattern, Delimiter::Bracket),
-            Self::Record => (ConstructRole::RecordPattern, Delimiter::Brace),
         }
     }
 
@@ -233,7 +205,7 @@ fn pattern_delimited(
     loop {
         if item.payload_view().is_boundary() {
             *completion = PatternCompletion::Incomplete;
-            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
+            return missing_close(i, item, caller_closes, item_origin, line_entry);
         }
 
         if token_kind(&item) == Some(owner.close()) {
@@ -258,14 +230,14 @@ fn pattern_delimited(
         }
         if is_carried_caller_close(caller_closes, &item) {
             *completion = PatternCompletion::Incomplete;
-            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
+            return missing_close(i, item, caller_closes, item_origin, line_entry);
         }
         if token_kind(&item) == Some(TokenKind::Comma)
             && (!expect_item || matches!(owner, Owner::Record))
         {
             if expect_item {
                 item.emit_all_remaining_leading(&mut *i.state);
-                emit_pattern_missing(&mut i, PatternRole::RecordItem, &item, item_origin);
+                emit_pattern_missing(&mut i, &item, item_origin);
                 contents_completion = PatternCompletion::Incomplete;
             }
             emit_token_item(&mut i, item);
@@ -276,7 +248,7 @@ fn pattern_delimited(
         }
         if token_kind(&item).is_none() {
             *completion = PatternCompletion::Incomplete;
-            return missing_close(i, item, owner, caller_closes, item_origin, line_entry);
+            return missing_close(i, item, caller_closes, item_origin, line_entry);
         }
         if is_other_close(owner, &item) {
             own_recovery_consumed_error = true;
@@ -289,15 +261,15 @@ fn pattern_delimited(
             let separated_by_layout = implicit_delimited_newline(baseline, item.leading_view());
             item.emit_all_remaining_leading(&mut *i.state);
             if !separated_by_layout {
-                emit_pattern_missing(&mut i, owner.separator_role(), &item, item_origin);
+                emit_pattern_missing(&mut i, &item, item_origin);
             }
             expect_item = true;
             continue;
         }
-        let error_role = if !expect_item {
-            Some(owner.separator_role())
+        let error_slot = if !expect_item {
+            Some(matches!(owner, Owner::Record))
         } else if matches!(owner, Owner::Record) && !is_item_start(owner, &item) {
-            Some(PatternRole::RecordItem)
+            Some(false)
         } else {
             None
         };
@@ -305,13 +277,13 @@ fn pattern_delimited(
         item.emit_all_remaining_leading(&mut *i.state);
         let mut item_completion = PatternCompletion::Incomplete;
         let entry = suffix_marker(i.rb());
-        let exit = if let Some(role) = error_role {
+        let exit = if let Some(record_separator) = error_slot {
             own_recovery_consumed_error = true;
             if matches!(owner, Owner::Record) && is_pattern_nud(&item, local_stops) {
                 recover_record_pattern(
                     i.rb(),
                     item,
-                    role,
+                    record_separator,
                     item_baseline,
                     local_stops,
                     line_handoff,
@@ -327,7 +299,6 @@ fn pattern_delimited(
                     i.rb(),
                     item,
                     owner,
-                    role,
                     local_stops,
                     item_origin,
                     line_entry,
@@ -347,7 +318,6 @@ fn pattern_delimited(
                     line_handoff,
                     PatternMandatorySlotPolicy::default(),
                     descendant_caller_closes,
-                    GrammarRole::Pattern(PatternRole::ParenthesizedElement),
                     &mut item_completion,
                     item_origin,
                     line_entry,
@@ -400,14 +370,7 @@ fn pattern_delimited(
             }
             NormalizedExit::Complete(Err(Either::Right(end)), next_line_entry) => {
                 *completion = PatternCompletion::Incomplete;
-                return missing_close(
-                    i,
-                    end.item,
-                    owner,
-                    caller_closes,
-                    item_origin,
-                    next_line_entry,
-                );
+                return missing_close(i, end.item, caller_closes, item_origin, next_line_entry);
             }
             deferred @ NormalizedExit::Deferred(_, _) => {
                 i.state.finish_node();
@@ -416,7 +379,7 @@ fn pattern_delimited(
         }
         // An Error already supplied this slot's recovery. Retry an item, or
         // let its comma close the slot; neither route adds a same-slot Missing.
-        expect_item = error_role.is_some()
+        expect_item = error_slot.is_some()
             && !item.payload_view().is_boundary()
             && token_kind(&item) != Some(TokenKind::Comma);
     }
@@ -427,18 +390,14 @@ fn recover_sequence_run(
     i: SyntaxIn,
     mut item: Item,
     owner: Owner,
-    role: PatternRole,
     stops: PatternStops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let start = item.extent(item_origin).recovery_range().start;
-    emit_recovery_error_run(
-        i,
-        |run| loop {
-            let kind = token_syntax_kind(token_kind(&item).expect("malformed sequence Item"));
-            let extent = run.emit_item_as(item, item_origin, kind);
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
             (item, item_origin, line_entry) = run.lexical(|lex| {
                 scan_pattern_item_lexical(
                     lex,
@@ -462,22 +421,17 @@ fn recover_sequence_run(
                 || is_item_start(owner, &item)
                 || (matches!(owner, Owner::Record) && is_pattern_nud(&item, stops))
             {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: start..extent.recovery_range().end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| pattern_recovery_draft(role, RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
 fn recover_record_pattern(
     mut i: SyntaxIn,
     item: Item,
-    role: PatternRole,
+    record_separator: bool,
     baseline: usize,
     stops: PatternStops,
     line_handoff: StatementLineHandoff,
@@ -488,92 +442,56 @@ fn recover_record_pattern(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
-    let expected = match role {
-        PatternRole::RecordItem => ExpectedSyntax::Identifier,
-        PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
-        _ => unreachable!("only Record sequence slots own a wrong-kind Pattern"),
-    };
-    if role == PatternRole::RecordSeparator {
+    if record_separator {
         i.state
             .start_node(SyntaxKind::RecordPatternSeparator.into());
     }
-    let exit = emit_structured_recovery_error_from_item(
-        i.rb(),
-        item,
-        item_origin,
-        StructuredRecoverySpec::new(
-            GrammarRole::Pattern(role),
-            UnexpectedCategory::OtherCharacter,
-            expected,
-            ExpectationSources::COMMITTED_RECOVERY_RULE,
-            0,
-        ),
-        |mut nested, item| {
-            let entry = suffix_marker(nested.rb());
-            let exit = pattern_from_item_recording_with_policy_normalized(
-                nested.rb(),
-                item,
-                PatternPrecedence::Lowest,
-                baseline,
-                stops,
-                line_handoff,
-                PatternMandatorySlotPolicy::default(),
-                caller_closes,
-                GrammarRole::Pattern(PatternRole::Primary),
-                completion,
-                item_origin,
-                line_entry,
-                fence,
-                ambient,
-            );
-            let post_origin = advanced_origin(item_origin, entry, nested.rb());
-            let pending = match &exit {
-                NormalizedExit::Complete(Ok(()), _) => None,
-                NormalizedExit::Complete(Err(Either::Left(item)), _)
-                | NormalizedExit::Deferred(item, _) => Some(item),
-                NormalizedExit::Complete(Err(Either::Right(end)), _) => Some(&end.item),
-            };
-            let end = pending.map_or(post_origin, |item| {
-                let range = item.extent(post_origin).recovery_range();
-                if range.start < range.end {
-                    range.start
-                } else {
-                    post_origin
-                }
-            });
-            (exit, end)
-        },
-    );
-    if role == PatternRole::RecordSeparator {
+    let exit = emit_structured_recovery_error_from_item(i.rb(), item, |mut nested, item| {
+        let entry = suffix_marker(nested.rb());
+        let exit = pattern_from_item_recording_with_policy_normalized(
+            nested.rb(),
+            item,
+            PatternPrecedence::Lowest,
+            baseline,
+            stops,
+            line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        let post_origin = advanced_origin(item_origin, entry, nested.rb());
+        let pending = match &exit {
+            NormalizedExit::Complete(Ok(()), _) => None,
+            NormalizedExit::Complete(Err(Either::Left(item)), _)
+            | NormalizedExit::Deferred(item, _) => Some(item),
+            NormalizedExit::Complete(Err(Either::Right(end)), _) => Some(&end.item),
+        };
+        let end = pending.map_or(post_origin, |item| {
+            let range = item.extent(post_origin).recovery_range();
+            if range.start < range.end {
+                range.start
+            } else {
+                post_origin
+            }
+        });
+        (exit, end)
+    });
+    if record_separator {
         i.state.finish_node();
     }
     exit
 }
 
 fn emit_wrong_close(mut i: SyntaxIn, item: Item, owner: Owner, item_origin: usize) {
-    let actual = match token_kind(&item) {
-        Some(TokenKind::RParen) => Delimiter::Parenthesis,
-        Some(TokenKind::RBracket) => Delimiter::Bracket,
-        Some(TokenKind::RBrace) => Delimiter::Brace,
-        _ => unreachable!("wrong-close recovery requires a close"),
-    };
-    let kind = token_syntax_kind(token_kind(&item).unwrap());
-    let range = item.extent(item_origin).recovery_range();
     if matches!(owner, Owner::Record) {
         i.state
             .start_node(SyntaxKind::RecordPatternForeignClose.into());
     }
-    emit_recovery_error_item(
-        i.rb(),
-        item,
-        item_origin,
-        kind,
-        UnexpectedSyntax::Token {
-            range,
-            category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(actual)),
-        },
-        |range, unexpected| close_recovery_draft(owner, RecoveryKind::Error, range, unexpected),
-    );
+    emit_recovery_error_item(i.rb(), item, item_origin);
     if matches!(owner, Owner::Record) {
         i.state.finish_node();
     }
@@ -671,7 +589,6 @@ fn list_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
-            GrammarRole::Pattern(PatternRole::ListItem),
             completion,
             item_origin,
             line_entry,
@@ -696,7 +613,6 @@ fn list_item(
         line_handoff,
         PatternMandatorySlotPolicy::default(),
         caller_closes,
-        GrammarRole::Pattern(PatternRole::ListSpreadRhs),
         completion,
         item_origin,
         line_entry,
@@ -740,7 +656,6 @@ fn record_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
-            GrammarRole::Pattern(PatternRole::RecordSpreadRhs),
             completion,
             item_origin,
             line_entry,
@@ -781,7 +696,6 @@ fn record_item(
             line_handoff,
             PatternMandatorySlotPolicy::default(),
             caller_closes,
-            GrammarRole::Pattern(PatternRole::RecordNestedPattern),
             completion,
             nested_origin,
             nested_line_entry,
@@ -915,12 +829,7 @@ fn record_default_after_equals(
         rhs.emit_all_remaining_leading(&mut *i.state);
     }
     i.state.start_node(SyntaxKind::OperatorChain.into());
-    emit_pattern_missing(
-        &mut i,
-        PatternRole::RecordDefaultExpression,
-        &rhs,
-        item_origin,
-    );
+    emit_pattern_missing(&mut i, &rhs, item_origin);
     i.state.finish_node();
     complete(handoff(rhs), line_entry)
 }
@@ -928,7 +837,6 @@ fn record_default_after_equals(
 fn missing_close(
     mut i: SyntaxIn,
     mut item: Item,
-    owner: Owner,
     caller_closes: PatternCallerCloses,
     item_origin: usize,
     line_entry: LineEntry,
@@ -940,36 +848,9 @@ fn missing_close(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        close_recovery_draft(owner, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
     i.state.finish_node();
     complete(handoff(item), line_entry)
-}
-
-fn close_recovery_draft(
-    owner: Owner,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let (owner, delimiter) = owner.closing_owner();
-    let role = GrammarRole::ClosingDelimiter { owner, delimiter };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter)),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
 }
 
 fn is_carried_caller_close(caller_closes: PatternCallerCloses, item: &Item) -> bool {

@@ -137,11 +137,7 @@ fn run_string<'source>(
         injected_empty_interpolation_body,
     );
     builder.finish_node();
-    (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
-        exit,
-        input,
-    )
+    (builder.finish(), exit, input)
 }
 
 fn run_rule_literal<'source>(
@@ -167,11 +163,7 @@ fn run_rule_literal<'source>(
         boundary,
     );
     builder.finish_node();
-    (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
-        exit,
-        input,
-    )
+    (builder.finish(), exit, input)
 }
 
 fn run_rule_literal_normalized<'source>(
@@ -199,11 +191,7 @@ fn run_rule_literal_normalized<'source>(
         Some(crate::ambient_claim::AmbientClaimView::root_statement(0)).into(),
     );
     builder.finish_node();
-    (
-        (builder.finish(), recover.finish_recoveries_for_test()).0,
-        exit,
-        input,
-    )
+    (builder.finish(), exit, input)
 }
 
 fn injected_empty_interpolation_body(mut i: SyntaxIn) -> Item {

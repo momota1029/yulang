@@ -1,4 +1,5 @@
 use crate::*;
+use crate::{SyntaxDiagnosticCause, tests::support::structural_facts};
 
 #[test]
 fn header_debug_contains_only_header_facts() {
@@ -131,8 +132,92 @@ fn parses_simple_use_forms_losslessly() {
         );
 
         assert_eq!(parsed.green().to_string(), source.as_ref());
-        assert!(parsed.diagnostics().is_empty());
+        assert!(structural_facts(parsed.green()).is_empty());
     }
+}
+
+#[test]
+fn public_syntax_diagnostics_expose_mapped_schema_and_generic_cst_fallbacks() {
+    let source: Arc<SourceText> = Arc::from("f(,a)");
+    let header = Arc::new(scan_header(Arc::clone(&source)));
+    let parsed = parse_file(source, header, Arc::new(SyntaxEnvironment::empty()));
+
+    let diagnostics = parsed
+        .syntax_diagnostics()
+        .expect("the public CST/environment diagnostic walk is total");
+    let mapped = diagnostics
+        .iter()
+        .find_map(|diagnostic| match diagnostic.cause() {
+            SyntaxDiagnosticCause::Structural(occurrence)
+                if occurrence.range() == &(2..2) && occurrence.parent() == SyntaxKind::CallTail =>
+            {
+                Some((diagnostic, occurrence))
+            }
+            _ => None,
+        })
+        .expect("mapped CallTail item diagnostic");
+    assert_eq!(mapped.0.primary(), &(2..2));
+    assert_eq!(
+        mapped.0.identity().slot(),
+        Some(GrammarSlot::new(
+            SyntaxKind::CallTail,
+            GrammarSlotRole::Item
+        ))
+    );
+    assert_eq!(
+        mapped.1.expectations(),
+        Some([ExpectedSyntax::Expression].as_slice())
+    );
+    assert_eq!(mapped.1.primary_expectation(), Some(0));
+
+    let fallback_source: Arc<SourceText> = Arc::from("my x =");
+    let fallback_header = Arc::new(scan_header(Arc::clone(&fallback_source)));
+    let fallback_parsed = parse_file(
+        fallback_source,
+        fallback_header,
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let fallback_diagnostics = fallback_parsed
+        .syntax_diagnostics()
+        .expect("the public CST/environment diagnostic walk is total");
+    let fallback = fallback_diagnostics
+        .iter()
+        .find_map(|diagnostic| match diagnostic.cause() {
+            SyntaxDiagnosticCause::Structural(occurrence)
+                if occurrence.range() == &(6..6)
+                    && occurrence.parent() == SyntaxKind::BindingBody =>
+            {
+                Some((diagnostic, occurrence))
+            }
+            _ => None,
+        })
+        .expect("generic BindingBody fallback diagnostic");
+    assert_eq!(fallback.0.primary(), &(6..6));
+    assert_eq!(
+        fallback.1.kind(),
+        crate::structural_diagnostic::StructuralKind::Missing
+    );
+    assert_eq!(
+        fallback.1.path(),
+        &[
+            SyntaxKind::Root,
+            SyntaxKind::BindingStatement,
+            SyntaxKind::BindingBody
+        ]
+    );
+    assert_eq!(fallback.1.expectations(), None);
+    assert_eq!(fallback.1.primary_expectation(), None);
+    assert_eq!(fallback.0.identity().slot(), None);
+    let root = SyntaxNode::new_root(fallback_parsed.green().clone());
+    let body = node_of_kind(&root, SyntaxKind::BindingBody);
+    let missing_index = body
+        .children_with_tokens()
+        .position(|child| child.kind() == SyntaxKind::Missing)
+        .expect("BindingBody direct Missing phase");
+    assert_eq!(
+        fallback.0.identity().occurrence_path().last(),
+        Some(&(missing_index as u32))
+    );
 }
 
 #[test]
@@ -235,7 +320,7 @@ fn parses_leading_plain_use_fixture_losslessly() {
     );
 
     assert_eq!(parsed.green().to_string(), source.as_ref());
-    assert!(parsed.diagnostics().is_empty());
+    assert!(structural_facts(parsed.green()).is_empty());
     assert_eq!(parsed.revision(), SourceRevision::UNTRACKED);
     assert_eq!(parsed.syntax_environment(), SyntaxEnvironmentKey::EMPTY);
 
@@ -277,7 +362,7 @@ fn parses_infix_operator_header_fixture_losslessly() {
     );
 
     assert_eq!(parsed.green().to_string(), source.as_ref());
-    assert!(parsed.diagnostics().is_empty());
+    assert!(structural_facts(parsed.green()).is_empty());
 
     let root = SyntaxNode::new_root(parsed.green().clone());
     let operator_header = node_of_kind(&root, SyntaxKind::OperatorHeader);
@@ -357,7 +442,7 @@ fn gate10_public_production_companion_performance_harness() {
     let parsed = retained.expect("the eight-repeat kernel retains its final ParsedFile");
     let root = SyntaxNode::new_root(parsed.green().clone());
     assert_eq!(root.to_string(), source.as_ref());
-    assert!(parsed.diagnostics().is_empty());
+    assert!(structural_facts(parsed.green()).is_empty());
     assert_eq!(
         root.descendants_with_tokens()
             .filter(|node| matches!(

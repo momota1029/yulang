@@ -1,37 +1,23 @@
 use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
 
 fn typed_mod<'s>(
     source: &'s str,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     stops: Stops,
-) -> (
-    GreenNode,
-    NormalizedExit,
-    Vec<CommittedRecoveryRecord>,
-    &'s str,
-) {
-    typed_mod_fenced(source, frozen, stops, None)
+) -> (GreenNode, NormalizedExit, Vec<StructuralFact>, &'s str) {
+    typed_mod_fenced(source, stops, None)
 }
 
 fn typed_mod_fenced<'s>(
     source: &'s str,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     stops: Stops,
     fence: Option<&FenceBoundary>,
-) -> (
-    GreenNode,
-    NormalizedExit,
-    Vec<CommittedRecoveryRecord>,
-    &'s str,
-) {
+) -> (GreenNode, NormalizedExit, Vec<StructuralFact>, &'s str) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
@@ -44,45 +30,57 @@ fn typed_mod_fenced<'s>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     builder.finish_node();
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, exit, records, input)
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, exit, facts, input)
+}
+
+fn structural_fact(kind: StructuralKind, range: std::ops::Range<usize>) -> StructuralFact {
+    (kind, range)
 }
 
 #[test]
-fn mod_typed_protected_items_keep_leading_and_fence_coordinates() {
-    for (source, owned, leading) in [
-        ("mod  else", "mod", "  "),
-        ("mod A  else", "mod A", "  "),
-        ("mod A:  else", "mod A:", "  "),
-        ("mod A:\r\nnext", "mod A:", "\r\n"),
-        ("mod A: @  else", "mod A: @", "  "),
+fn mod_structural_facts_keep_protected_items_leading_and_fence_coordinates() {
+    for (source, owned, leading, fact) in [
+        (
+            "mod  else",
+            "mod",
+            "  ",
+            structural_fact(StructuralKind::Missing, 3..3),
+        ),
+        (
+            "mod A  else",
+            "mod A",
+            "  ",
+            structural_fact(StructuralKind::Missing, 5..5),
+        ),
+        (
+            "mod A:  else",
+            "mod A:",
+            "  ",
+            structural_fact(StructuralKind::Missing, 6..6),
+        ),
+        (
+            "mod A:\r\nnext",
+            "mod A:",
+            "\r\n",
+            structural_fact(StructuralKind::Missing, 6..6),
+        ),
+        (
+            "mod A: @  else",
+            "mod A: @",
+            "  ",
+            structural_fact(StructuralKind::ErrorGroup, 7..8),
+        ),
     ] {
-        let (green, exit, records, remainder) = typed_mod(source, None, STOP_ELSE);
+        let (green, exit, facts, remainder) = typed_mod(source, STOP_ELSE);
         assert_eq!(green.to_string(), owned);
+        assert_eq!(facts, [fact], "{source:?}");
         let NormalizedExit::Complete(Err(Either::Left(mut item)), line) = exit else {
             panic!("protected Item")
         };
         assert_eq!(emit_pending_leading_text(&mut item), leading);
         assert_eq!(remainder, "");
-        assert_eq!(token_kind(&item), Some(TokenKind::Identifier));
-        assert_eq!(
-            item.payload_view().spelling(),
-            Some(if source.ends_with("next") {
-                "next"
-            } else {
-                "else"
-            })
-        );
-        assert_eq!(line, LineEntry::InLine);
-        assert_eq!(records.len(), 1);
-        let (again, exit, frozen, remainder) = typed_mod(source, Some(&records), STOP_ELSE);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(remainder, "");
-        let NormalizedExit::Complete(Err(Either::Left(mut item)), line) = exit else {
-            panic!("frozen protected Item")
-        };
-        assert_eq!(emit_pending_leading_text(&mut item), leading);
         assert_eq!(token_kind(&item), Some(TokenKind::Identifier));
         assert_eq!(
             item.payload_view().spelling(),
@@ -103,16 +101,31 @@ fn mod_typed_protected_items_keep_leading_and_fence_coordinates() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    for (source, owned, range) in [
-        ("mod\r\n>> ```", "mod", 105..105),
-        ("mod A\r\n>> ```", "mod A", 107..107),
-        ("mod A:\r\n>> ```", "mod A:", 108..108),
-        ("mod A: @\r\n>> ```", "mod A: @", 107..108),
+    for (source, owned, fact) in [
+        (
+            "mod\r\n>> ```",
+            "mod",
+            structural_fact(StructuralKind::Missing, 3..3),
+        ),
+        (
+            "mod A\r\n>> ```",
+            "mod A",
+            structural_fact(StructuralKind::Missing, 5..5),
+        ),
+        (
+            "mod A:\r\n>> ```",
+            "mod A:",
+            structural_fact(StructuralKind::Missing, 6..6),
+        ),
+        (
+            "mod A: @\r\n>> ```",
+            "mod A: @",
+            structural_fact(StructuralKind::ErrorGroup, 7..8),
+        ),
     ] {
-        let (green, exit, records, remainder) = typed_mod_fenced(source, None, 0, Some(&fence));
+        let (green, exit, facts, remainder) = typed_mod_fenced(source, 0, Some(&fence));
         assert_eq!(green.to_string(), owned);
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].site.range, range);
+        assert_eq!(facts, [fact], "{source:?}");
         let NormalizedExit::Complete(Err(Either::Left(item)), line) = exit else {
             panic!("protected fence")
         };
@@ -127,200 +140,57 @@ fn mod_typed_protected_items_keep_leading_and_fence_coordinates() {
         ));
         assert_eq!(line, LineEntry::PhysicalStart);
         assert_eq!(remainder, ">> ```");
-        let (again, exit, frozen, remainder) =
-            typed_mod_fenced(source, Some(&records), 0, Some(&fence));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        let NormalizedExit::Complete(Err(Either::Left(item)), frozen_line) = exit else {
-            panic!("frozen protected fence")
-        };
-        let (frozen_leading, frozen_boundary) = emit_terminal_leading_text(item);
-        assert_eq!(frozen_leading, leading);
-        assert_eq!(frozen_boundary, boundary);
-        assert_eq!(frozen_line, line);
-        assert_eq!(remainder, ">> ```");
     }
 }
 
 #[test]
-fn mod_typed_slots_preserve_shifted_frozen_records_and_leading() {
-    use crate::recovery_record::{
-        DeclarationRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        ModRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-    for (source, slot, kind, range, text, colon_only) in [
-        (
-            "mod  ",
-            ModRole::Name,
-            RecoveryKind::Missing,
-            5..5,
-            "mod  ",
-            false,
-        ),
-        (
-            "mod test  ",
-            ModRole::TestName,
-            RecoveryKind::Missing,
-            10..10,
-            "mod test  ",
-            false,
-        ),
-        (
-            "mod ;",
-            ModRole::Name,
-            RecoveryKind::Missing,
-            4..4,
-            "mod ;",
-            false,
-        ),
+fn mod_structural_facts_preserve_exact_ranges_and_leading() {
+    for (source, kind, range, text) in [
+        ("mod  ", StructuralKind::Missing, 5..5, "mod  "),
+        ("mod test  ", StructuralKind::Missing, 10..10, "mod test  "),
+        ("mod ;", StructuralKind::Missing, 4..4, "mod ;"),
         (
             "mod @ # 名;",
-            ModRole::Name,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             4..7,
             "mod @ # 名;",
-            false,
         ),
         (
             "mod test @ test;",
-            ModRole::TestName,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             9..10,
             "mod test @ test;",
-            false,
         ),
-        (
-            "mod @  ",
-            ModRole::Name,
-            RecoveryKind::Error,
-            4..5,
-            "mod @",
-            false,
-        ),
-        (
-            "mod 名  ",
-            ModRole::BodyIntroducer,
-            RecoveryKind::Missing,
-            9..9,
-            "mod 名  ",
-            false,
-        ),
-        (
-            "mod A x",
-            ModRole::BodyIntroducer,
-            RecoveryKind::Missing,
-            6..6,
-            "mod A x",
-            true,
-        ),
+        ("mod @  ", StructuralKind::ErrorGroup, 4..5, "mod @"),
+        ("mod 名  ", StructuralKind::Missing, 9..9, "mod 名  "),
+        ("mod A x", StructuralKind::Missing, 6..6, "mod A x"),
         (
             "mod A @ # : x",
-            ModRole::BodyIntroducer,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             6..9,
             "mod A @ # : x",
-            false,
         ),
-        (
-            "mod A @  ",
-            ModRole::BodyIntroducer,
-            RecoveryKind::Error,
-            6..7,
-            "mod A @",
-            false,
-        ),
-        (
-            "mod A:  ",
-            ModRole::Body,
-            RecoveryKind::Missing,
-            6..6,
-            "mod A:",
-            false,
-        ),
-        (
-            "mod A:\r\nnext",
-            ModRole::Body,
-            RecoveryKind::Missing,
-            6..6,
-            "mod A:",
-            false,
-        ),
+        ("mod A @  ", StructuralKind::ErrorGroup, 6..7, "mod A @"),
+        ("mod A:  ", StructuralKind::Missing, 6..6, "mod A:"),
+        ("mod A:\r\nnext", StructuralKind::Missing, 6..6, "mod A:"),
         (
             "mod A: @ # x;",
-            ModRole::Body,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..10,
             "mod A: @ # x;",
-            false,
         ),
-        (
-            "mod A: @  ",
-            ModRole::Body,
-            RecoveryKind::Error,
-            7..8,
-            "mod A: @",
-            false,
-        ),
+        ("mod A: @  ", StructuralKind::ErrorGroup, 7..8, "mod A: @"),
     ] {
-        let (green, _, records, _) = typed_mod(source, None, 0);
+        let (green, _, facts, _) = typed_mod(source, 0);
         assert_eq!(green.to_string(), text, "{source:?}");
-        let role = GrammarRole::Declaration(DeclarationRole::Mod(slot));
-        let range = 100 + range.start..100 + range.end;
-        let expected = match slot {
-            ModRole::Name | ModRole::TestName => vec![ExpectedSyntax::Identifier],
-            ModRole::Body => vec![ExpectedSyntax::Statement],
-            _ if colon_only => vec![ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)],
-            _ => vec![
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            ],
-        };
-        assert_eq!(
-            records,
-            [CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone()
-                },
-                kind,
-                unexpected: if kind == RecoveryKind::Error {
-                    Arc::from([UnexpectedSyntax::Token {
-                        range: range.clone(),
-                        category: UnexpectedCategory::OtherCharacter,
-                    }])
-                } else {
-                    Arc::from([])
-                },
-                expectations: expected
-                    .into_iter()
-                    .map(|expected| SyntaxExpectation {
-                        role,
-                        expected,
-                        range: range.clone(),
-                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE
-                    })
-                    .collect::<Vec<_>>()
-                    .into(),
-                primary_expectation: 0
-            }],
-            "{source:?}"
-        );
-        let mut seeded = records.clone();
-        seeded[0].id = DiagnosticId(71);
-        let (again, _, frozen, _) = typed_mod(source, Some(&seeded), 0);
-        assert_eq!(again, green);
-        assert_eq!(frozen, seeded);
+        assert_eq!(facts, [structural_fact(kind, range)], "{source:?}");
     }
 }
 
 #[test]
 fn mod_test_name_test_is_an_identifier_on_admission_and_retry() {
     for source in ["mod test test;", "mod test @ test;"] {
-        let (green, _, _, _) = typed_mod(source, None, 0);
+        let (green, _, _, _) = typed_mod(source, 0);
         let declaration = mod_declaration(&green);
         assert_eq!(descendants(&declaration, SyntaxKind::TestModuleMarker), 1);
         assert_eq!(
@@ -336,14 +206,25 @@ fn mod_test_name_test_is_an_identifier_on_admission_and_retry() {
 }
 
 #[test]
-fn mod_typed_recovery_keeps_nested_binding_body_owner() {
-    use crate::recovery_record::{BindingRole, DeclarationRole, GrammarRole};
-    for source in ["mod A: my x =", "mod A {my x =}", "mod A:\n  my x ="] {
-        let (_, _, records, _) = typed_mod(source, None, 0);
-        assert_eq!(records.len(), 1, "{source:?}");
+fn mod_structural_recovery_keeps_nested_binding_body_owner() {
+    for (source, range) in [
+        ("mod A: my x =", 13..13),
+        ("mod A {my x =}", 13..13),
+        ("mod A:\n  my x =", 15..15),
+    ] {
+        let (green, _, facts, _) = typed_mod(source, 0);
+        assert_eq!(facts, [structural_fact(StructuralKind::Missing, range)]);
+        let binding = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == SyntaxKind::BindingBody)
+            .expect("BindingBody");
         assert_eq!(
-            records[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body))
+            binding
+                .children()
+                .filter(|node| node.kind() == SyntaxKind::Missing)
+                .count(),
+            1,
+            "{source:?}"
         );
     }
 }
@@ -390,7 +271,6 @@ fn assert_mod_shell(source: &str, expected: &[(SyntaxKind, std::ops::Range<u32>)
 
 #[test]
 fn mod_schema_name_retry_keeps_leading_outside_test_marker() {
-    use crate::recovery_record::{DeclarationRole, GrammarRole, ModRole, RecoveryKind};
     use SyntaxKind::*;
 
     let source = "mod @ test;";
@@ -424,17 +304,17 @@ fn mod_schema_name_retry_keeps_leading_outside_test_marker() {
         "mod @ /*gap*/ test;",
         "mod @ Name;",
     ] {
-        let (green, _, records, remainder) = typed_mod(source, None, 0);
+        let (green, _, facts, remainder) = typed_mod(source, 0);
         assert_eq!(green.to_string(), source);
         assert_eq!(remainder, "");
-        let header = crate::header::discover_header(source);
-        let public = crate::source_file::parse_root_candidate(
-            source,
-            &OperatorTable::empty(),
-            &header.recoveries,
+        assert_eq!(
+            facts,
+            [structural_fact(StructuralKind::ErrorGroup, 4..5)],
+            "{source:?}"
         );
-        assert_eq!(public.green.to_string(), source);
-        let public_declaration = mod_declaration(&public.green);
+        let public = crate::cursor::parse_root(source, &OperatorTable::empty());
+        assert_eq!(public.to_string(), source);
+        let public_declaration = mod_declaration(&public);
         for marker in public_declaration
             .children()
             .filter(|node| node.kind() == TestModuleMarker)
@@ -447,12 +327,6 @@ fn mod_schema_name_retry_keeps_leading_outside_test_marker() {
         assert_eq!(root.children_with_tokens().count(), 1);
         let declaration = mod_declaration(&green);
         assert_eq!(descendants(&declaration, Missing), 0);
-        assert_eq!(records.len(), 1);
-        assert_eq!(
-            records[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Mod(ModRole::Name))
-        );
-        assert_eq!(records[0].kind, RecoveryKind::Error);
         for marker in declaration
             .children()
             .filter(|node| node.kind() == TestModuleMarker)
@@ -460,10 +334,6 @@ fn mod_schema_name_retry_keeps_leading_outside_test_marker() {
             assert_eq!(marker.text().to_string(), "test");
             assert_eq!(marker.children_with_tokens().count(), 1);
         }
-        let (again, _, frozen, remainder) = typed_mod(source, Some(&records), 0);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(remainder, "");
     }
 }
 

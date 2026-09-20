@@ -4,23 +4,12 @@ use crate::ambient_claim::AmbientClaimContext;
 #[cfg(test)]
 use crate::ambient_claim::AmbientClaimView;
 use crate::cursor::LexIn;
-use crate::recovery_record::{
-    DeclarationRole, ErrorDeclarationRole, ExpectationSources, ExpectedSyntax, GrammarRole,
-    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-    UnexpectedSyntax,
-};
-use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
     cursor::SyntaxIn,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     declaration::{
         declaration_companion::declaration_companion_normalized,
         declaration_variant::{VariantSequenceForm, declaration_variant_sequence_normalized},
@@ -50,6 +39,12 @@ use crate::{
 };
 
 type NameResult = Result<Option<Item>, Item>;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HeaderPhase {
+    Name,
+    BodyIntroducer,
+}
 
 #[allow(clippy::too_many_arguments)]
 #[cfg(test)]
@@ -354,7 +349,7 @@ fn required_name_normalized(
         baseline,
         stops,
         fence,
-        ErrorDeclarationRole::Name,
+        HeaderPhase::Name,
     );
     if header_boundary(i.rb(), &item, baseline, stops)
         || !declaration_gap_allowed(&item, baseline)
@@ -621,7 +616,7 @@ fn recover_body_introducer_normalized(
         baseline,
         stops,
         fence,
-        ErrorDeclarationRole::BodyIntroducer,
+        HeaderPhase::BodyIntroducer,
     );
     if implicit_bodyless_boundary(i.rb(), &item, baseline, stops) {
         if item.payload_view().is_eof() && !item.payload_view().is_boundary() {
@@ -1018,54 +1013,7 @@ fn emit_header_missing(i: SyntaxIn, item: &mut Item, origin: usize) {
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        header_draft(
-            ErrorDeclarationRole::Name,
-            RecoveryKind::Missing,
-            range,
-            Arc::from([]),
-        )
-    });
-}
-
-fn header_draft(
-    role: ErrorDeclarationRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected: &[ExpectedSyntax] = match role {
-        ErrorDeclarationRole::Name => &[ExpectedSyntax::Identifier],
-        ErrorDeclarationRole::BodyIntroducer => &[
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
-                crate::recovery_record::Delimiter::Brace,
-            )),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Equals),
-        ],
-        _ => unreachable!("header recovery has two roles"),
-    };
-    let role = GrammarRole::Declaration(DeclarationRole::Error(role));
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expected
-            .iter()
-            .map(|expected| SyntaxExpectation {
-                role,
-                expected: *expected,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .collect::<Vec<_>>()
-            .into(),
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1077,21 +1025,12 @@ fn retry_header(
     baseline: usize,
     stops: Stops,
     fence: Option<&FenceBoundary>,
-    role: ErrorDeclarationRole,
+    phase: HeaderPhase,
 ) -> (Item, usize, LineEntry) {
-    let name = role == ErrorDeclarationRole::Name;
-    emit_recovery_error_run(
-        i,
-        |run| loop {
-            let kind = match token_kind(&item).expect("header Error owns lexical Items") {
-                TokenKind::Operator => SyntaxKind::Operator,
-                kind => token_syntax_kind(kind),
-            };
-            let range = run.emit_item_as(item, origin, kind).recovery_range();
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range,
-                category: UnexpectedCategory::OtherCharacter,
-            });
+    let name = phase == HeaderPhase::Name;
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, origin);
             (item, origin, line) = run.lexical(|lex| {
                 error_item_lexical(lex, origin, line, fence, baseline, stops, name, true)
             });
@@ -1113,7 +1052,6 @@ fn retry_header(
             {
                 return (item, origin, line);
             }
-        },
-        |range, unexpected| header_draft(role, RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }

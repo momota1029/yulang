@@ -1,20 +1,13 @@
 use crate::tests::pattern::*;
 use crate::tests::recovery_output::recovery_groups;
+use crate::tests::support::{StructuralFact, structural_facts};
 use crate::{
     ambient_claim::AmbientClaimView,
-    cursor::recovery::{RecoveryDraft, emit::emit_recovery_missing},
-    lexical::{
-        item::LeadingTrivia,
-        lexer::{scan_identifier, scan_pattern_payload},
-    },
+    lexical::lexer::{scan_identifier, scan_pattern_payload},
     pattern::PATTERN_STOP_IN,
-    recovery_record::{
-        DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, PatternRole, RecoveryKind,
-        RecoverySiteKey, SyntaxExpectation, TypeRole, UnexpectedCategory, UnexpectedSyntax,
-    },
+    structural_diagnostic::StructuralKind,
 };
 use chasa_recover::Recoverable as _;
-use std::{ops::Range, sync::Arc};
 
 mod default_expression;
 mod delimited;
@@ -51,105 +44,43 @@ struct PatternRun<'source> {
     completion: PatternCompletion,
     remainder: &'source str,
     successor: usize,
-    records: Vec<CommittedRecoveryRecord>,
-    slots: usize,
-    diagnostics: (Option<u32>, usize),
+    facts: Vec<StructuralFact>,
 }
 
-fn record(id: u32, role: PatternRole, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
-    let expected = match role {
-        PatternRole::Primary
-        | PatternRole::AlternationRhs
-        | PatternRole::ParenthesizedElement
-        | PatternRole::ListItem
-        | PatternRole::ListSpreadRhs
-        | PatternRole::RecordNestedPattern
-        | PatternRole::RecordSpreadRhs => ExpectedSyntax::Pattern,
-        PatternRole::SymbolName | PatternRole::AliasBinding | PatternRole::RecordItem => {
-            ExpectedSyntax::Identifier
-        }
-        PatternRole::ParenthesizedSeparator
-        | PatternRole::ListSeparator
-        | PatternRole::RecordSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
-        PatternRole::TypeAnnotation => ExpectedSyntax::TypeExpression,
-        PatternRole::RecordDefaultExpression => ExpectedSyntax::Expression,
-        _ => panic!("explicit primary/tail-slot test role"),
-    };
-    let role = GrammarRole::Pattern(role);
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if error {
-            RecoveryKind::Error
+const SENTINEL: &str = "sentinel";
+
+fn fact(error: bool, range: std::ops::Range<usize>) -> StructuralFact {
+    (
+        if error {
+            StructuralKind::ErrorGroup
         } else {
-            RecoveryKind::Missing
+            StructuralKind::Missing
         },
-        unexpected: if error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+        SENTINEL.len() + range.start..SENTINEL.len() + range.end,
+    )
 }
 
-fn seed_record(origin: usize) -> CommittedRecoveryRecord {
-    let mut seed = record(0, PatternRole::TypeAnnotation, origin..origin, false);
-    seed.site.role = GrammarRole::Type(TypeRole::ArrowRhs);
-    Arc::make_mut(&mut seed.expectations)[0].role = seed.site.role;
-    seed
+fn invalid_fact(range: std::ops::Range<usize>) -> StructuralFact {
+    (
+        StructuralKind::Invalid,
+        SENTINEL.len() + range.start..SENTINEL.len() + range.end,
+    )
 }
 
-fn publish_seed(output: &mut GreenNodeBuilder, recover: &mut Recover, origin: usize) {
-    let mut input = "";
-    let seed = seed_record(origin);
-    emit_recovery_missing(
-        crate::cursor::SyntaxIn::new(&mut input, recover, output),
-        LeadingTrivia::default(),
-        origin,
-        |range| {
-            RecoveryDraft::new(
-                RecoverySiteKey {
-                    role: seed.site.role,
-                    range,
-                },
-                seed.kind,
-                seed.unexpected,
-                seed.expectations,
-                seed.primary_expectation,
-            )
-        },
-    );
+fn publish_seed(output: &mut GreenNodeBuilder) {
+    output.start_node(SyntaxKind::Missing.into());
+    output.finish_node();
 }
 
-fn run<'source>(
-    source: &'source str,
-    context: Context<'_>,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> PatternRun<'source> {
+fn run<'source>(source: &'source str, context: Context<'_>) -> PatternRun<'source> {
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
     let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
     let mut input = source;
-    let mut output = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
-    output.token(SyntaxKind::Identifier.into(), "sentinel");
-    publish_seed(&mut output, &mut recover, context.origin);
+    output.token(SyntaxKind::Identifier.into(), SENTINEL);
+    publish_seed(&mut output);
     let CurrentItem {
         mut item,
         next_line_entry,
@@ -190,19 +121,16 @@ fn run<'source>(
         mark
     );
     assert!(std::ptr::eq(recover.operators(), &operators));
-    let slots = recover.recovery_slot_count();
-    let diagnostics = recover.diagnostic_position();
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
     PatternRun {
         green,
         exit,
         completion,
         remainder: input,
         successor: context.origin + source.len() - input.len(),
-        records,
-        slots,
-        diagnostics,
+        facts,
     }
 }
 
@@ -229,29 +157,27 @@ fn assert_same_exit(left: &NormalizedExit, right: &NormalizedExit) {
 fn checked<'source>(
     source: &'source str,
     context: Context<'_>,
-    expected: &[CommittedRecoveryRecord],
+    expected: &[StructuralFact],
     emitted: &str,
     completion: PatternCompletion,
 ) -> PatternRun<'source> {
-    let mut all = vec![seed_record(context.origin)];
+    let mut all = vec![(StructuralKind::Missing, SENTINEL.len()..SENTINEL.len())];
     all.extend_from_slice(expected);
-    let fresh = run(source, context, None);
+    let fresh = run(source, context);
     assert_eq!(
         fresh.green.to_string(),
         format!("sentinel{emitted}"),
         "{source:?}"
     );
-    assert_eq!(fresh.records, all, "{source:?}");
+    assert_eq!(fresh.facts, all, "{source:?}");
     assert_eq!(fresh.completion, completion, "{source:?}");
-    assert_eq!(fresh.slots, all.len());
-    assert_eq!(fresh.diagnostics, (Some(all.len() as u32), 0));
     let root = SyntaxNode::new_root(fresh.green.clone());
     assert_eq!(
         root.descendants()
             .filter(|node| node.kind() == SyntaxKind::Missing)
             .count(),
         all.iter()
-            .filter(|record| record.kind == RecoveryKind::Missing)
+            .filter(|(kind, _)| *kind == StructuralKind::Missing)
             .count(),
         "{source:?}\n{root:#?}"
     );
@@ -260,13 +186,14 @@ fn checked<'source>(
             .descendants()
             .any(|node| node.kind() == SyntaxKind::Error)
     );
-    for record in all
+    for (_, fact_range) in all
         .iter()
-        .filter(|record| record.kind == RecoveryKind::Error)
+        .filter(|(kind, _)| *kind == StructuralKind::ErrorGroup)
     {
-        let start = "sentinel".len() + record.site.range.start - context.origin;
-        let end = "sentinel".len() + record.site.range.end - context.origin;
-        let range = rowan::TextRange::new((start as u32).into(), (end as u32).into());
+        let range = rowan::TextRange::new(
+            (fact_range.start as u32).into(),
+            (fact_range.end as u32).into(),
+        );
         if root
             .descendants()
             .any(|node| node.kind() == SyntaxKind::Invalid && node.text_range() == range)
@@ -285,8 +212,7 @@ fn checked<'source>(
         assert_eq!(tokens.last().unwrap().text_range().end(), range.end());
         assert_eq!(
             tokens.iter().map(|token| token.text()).collect::<String>(),
-            source
-                [record.site.range.start - context.origin..record.site.range.end - context.origin]
+            source[fact_range.start - SENTINEL.len()..fact_range.end - SENTINEL.len()]
         );
         for pair in tokens.windows(2) {
             assert_eq!(pair[0].parent(), pair[1].parent());
@@ -297,35 +223,22 @@ fn checked<'source>(
             );
         }
     }
-    for (index, record) in all.iter_mut().enumerate() {
-        record.id = DiagnosticId(7 + index as u32);
-    }
-    let replay = run(source, context, Some(&all));
-    assert_eq!(replay.green, fresh.green);
-    assert_eq!(replay.records, all);
-    assert_same_exit(&replay.exit, &fresh.exit);
-    assert_eq!(replay.completion, fresh.completion);
-    assert_eq!(replay.remainder, fresh.remainder);
-    assert_eq!(replay.successor, fresh.successor);
-    assert_eq!(replay.slots, all.len());
-    assert_eq!(replay.diagnostics, (Some(7 + all.len() as u32), all.len()));
     fresh
 }
 
 #[test]
-fn primary_missing_records_name_the_immediate_slot_without_remapping_children() {
-    use PatternRole::{AliasBinding as A, AlternationRhs as R, Primary as P, SymbolName as S};
+fn primary_missing_preserves_the_immediate_cst_slot_without_remapping_children() {
     for origin in [0, 41] {
-        for (source, role, at, emitted, complete) in [
-            ("", P, 0, "", false),
-            (" ", P, 0, "", false),
-            ("A as", A, 4, "A as", false),
-            (":", S, 1, ":", false),
-            (": x", S, 1, ":", false),
-            ("A |", R, 3, "A |", false),
-            ("A | | B", R, 4, "A | | B", true),
-            ("A | :", S, 5, "A | :", false),
-            ("A as | B", A, 4, "A as | B", true),
+        for (source, at, emitted, complete) in [
+            ("", 0, "", false),
+            (" ", 0, "", false),
+            ("A as", 4, "A as", false),
+            (":", 1, ":", false),
+            (": x", 1, ":", false),
+            ("A |", 3, "A |", false),
+            ("A | | B", 4, "A | | B", true),
+            ("A | :", 5, "A | :", false),
+            ("A as | B", 4, "A as | B", true),
         ] {
             checked(
                 source,
@@ -333,7 +246,7 @@ fn primary_missing_records_name_the_immediate_slot_without_remapping_children() 
                     origin,
                     ..Context::default()
                 },
-                &[record(1, role, origin + at..origin + at, false)],
+                &[fact(false, at..at)],
                 emitted,
                 if complete {
                     PatternCompletion::Complete
@@ -349,15 +262,7 @@ fn primary_missing_records_name_the_immediate_slot_without_remapping_children() 
                 origin,
                 ..Context::default()
             },
-            &[
-                record(1, R, origin + 4..origin + 5, true),
-                record(
-                    2,
-                    PatternRole::TypeAnnotation,
-                    origin + 7..origin + 7,
-                    false,
-                ),
-            ],
+            &[fact(true, 4..5), fact(false, 7..7)],
             source,
             PatternCompletion::Complete,
         );
@@ -367,50 +272,14 @@ fn primary_missing_records_name_the_immediate_slot_without_remapping_children() 
 #[test]
 fn primary_error_runs_exclude_retry_leading_and_keep_native_payloads() {
     for origin in [0, 41] {
-        for (source, role, start, malformed, owner) in [
-            ("@ x", PatternRole::Primary, 0, "@", SyntaxKind::Pattern),
-            (
-                "@ ? /*é*/ x",
-                PatternRole::Primary,
-                0,
-                "@ ?",
-                SyntaxKind::Pattern,
-            ),
-            (
-                " /*é*/ @ x",
-                PatternRole::Primary,
-                0,
-                " /*é*/ @",
-                SyntaxKind::Pattern,
-            ),
-            (
-                "A as @ x",
-                PatternRole::AliasBinding,
-                5,
-                "@",
-                SyntaxKind::PatternAliasTail,
-            ),
-            (
-                "A as $x 1 @ x",
-                PatternRole::AliasBinding,
-                5,
-                "$x 1 @",
-                SyntaxKind::PatternAliasTail,
-            ),
-            (
-                "A | @ ? x",
-                PatternRole::AlternationRhs,
-                4,
-                "@ ?",
-                SyntaxKind::Pattern,
-            ),
-            (
-                "A as @\r\n  x",
-                PatternRole::AliasBinding,
-                5,
-                "@",
-                SyntaxKind::PatternAliasTail,
-            ),
+        for (source, start, malformed, owner) in [
+            ("@ x", 0, "@", SyntaxKind::Pattern),
+            ("@ ? /*é*/ x", 0, "@ ?", SyntaxKind::Pattern),
+            (" /*é*/ @ x", 0, " /*é*/ @", SyntaxKind::Pattern),
+            ("A as @ x", 5, "@", SyntaxKind::PatternAliasTail),
+            ("A as $x 1 @ x", 5, "$x 1 @", SyntaxKind::PatternAliasTail),
+            ("A | @ ? x", 4, "@ ?", SyntaxKind::Pattern),
+            ("A as @\r\n  x", 5, "@", SyntaxKind::PatternAliasTail),
         ] {
             let fresh = checked(
                 source,
@@ -418,12 +287,7 @@ fn primary_error_runs_exclude_retry_leading_and_keep_native_payloads() {
                     origin,
                     ..Context::default()
                 },
-                &[record(
-                    1,
-                    role,
-                    origin + start..origin + start + malformed.len(),
-                    true,
-                )],
+                &[fact(true, start..start + malformed.len())],
                 source,
                 PatternCompletion::Complete,
             );
@@ -486,13 +350,13 @@ fn assert_pending_control(run: &PatternRun<'_>, suffix: &str, origin: usize, con
 #[test]
 fn primary_and_alias_recovery_preserve_complete_caller_items_and_remaining_start() {
     for origin in [0, 41] {
-        for (prefix, role, range, error) in [
-            ("", PatternRole::Primary, 0..0, false),
-            ("@", PatternRole::Primary, 0..1, true),
-            ("A as", PatternRole::AliasBinding, 4..4, false),
-            ("A as @", PatternRole::AliasBinding, 5..6, true),
-            ("A |", PatternRole::AlternationRhs, 3..3, false),
-            ("A | @", PatternRole::AlternationRhs, 4..5, true),
+        for (prefix, range, error) in [
+            ("", 0..0, false),
+            ("@", 0..1, true),
+            ("A as", 4..4, false),
+            ("A as @", 5..6, true),
+            ("A |", 3..3, false),
+            ("A | @", 4..5, true),
         ] {
             for suffix in [" /*é*/ )tail", "\r\n]tail", " }tail"] {
                 let source = format!("{prefix}{suffix}");
@@ -506,12 +370,7 @@ fn primary_and_alias_recovery_preserve_complete_caller_items_and_remaining_start
                 let fresh = checked(
                     &source,
                     context,
-                    &[record(
-                        1,
-                        role,
-                        origin + range.start..origin + range.end,
-                        error,
-                    )],
+                    &[fact(error, range.clone())],
                     prefix,
                     PatternCompletion::Incomplete,
                 );
@@ -533,12 +392,7 @@ fn primary_and_alias_recovery_preserve_complete_caller_items_and_remaining_start
             let fresh = checked(
                 source,
                 context,
-                &[record(
-                    1,
-                    PatternRole::Primary,
-                    origin + at..origin + at,
-                    false,
-                )],
+                &[fact(false, at..at)],
                 &source[..at],
                 PatternCompletion::Incomplete,
             );
@@ -565,7 +419,7 @@ fn alias_error_retry_checks_layout_and_in_before_accepting_a_name() {
         let fresh = checked(
             &source,
             context,
-            &[record(1, PatternRole::AliasBinding, 5..6, true)],
+            &[fact(true, 5..6)],
             "A as @",
             PatternCompletion::Incomplete,
         );
@@ -584,7 +438,7 @@ fn alias_error_retry_checks_layout_and_in_before_accepting_a_name() {
     checked(
         "A as @ as",
         Context::default(),
-        &[record(1, PatternRole::AliasBinding, 5..6, true)],
+        &[fact(true, 5..6)],
         "A as @ as",
         PatternCompletion::Complete,
     );
@@ -602,13 +456,13 @@ fn primary_tail_slots_preserve_quoted_fence_coordinates_before_and_after_error()
         close_column: 0,
     };
     for origin in [0, 8_000] {
-        for (prefix, role, error_range) in [
-            ("", PatternRole::Primary, None),
-            ("@", PatternRole::Primary, Some(0..1)),
-            ("A as", PatternRole::AliasBinding, None),
-            ("A as @", PatternRole::AliasBinding, Some(5..6)),
-            ("A |", PatternRole::AlternationRhs, None),
-            ("A | @", PatternRole::AlternationRhs, Some(4..5)),
+        for (prefix, error_range) in [
+            ("", None),
+            ("@", Some(0..1)),
+            ("A as", None),
+            ("A as @", Some(5..6)),
+            ("A |", None),
+            ("A | @", Some(4..5)),
         ] {
             let suffix = "\r\n> > ```\r\nouter";
             let source = format!("{prefix}{suffix}");
@@ -618,16 +472,11 @@ fn primary_tail_slots_preserve_quoted_fence_coordinates_before_and_after_error()
                 ..Context::default()
             };
             let error = error_range.is_some();
-            let range = error_range.unwrap_or(prefix.len() + 2..prefix.len() + 2);
+            let range = error_range.unwrap_or(prefix.len()..prefix.len());
             let fresh = checked(
                 &source,
                 context,
-                &[record(
-                    1,
-                    role,
-                    origin + range.start..origin + range.end,
-                    error,
-                )],
+                &[fact(error, range)],
                 prefix,
                 PatternCompletion::Incomplete,
             );
@@ -646,58 +495,32 @@ fn primary_tail_slots_preserve_quoted_fence_coordinates_before_and_after_error()
 }
 
 #[test]
-fn symbol_name_probe_rejection_preserves_seeded_frozen_output_and_cursor() {
+fn symbol_name_probe_rejection_preserves_seeded_output_and_cursor() {
     for source in ["", " x", "$x", "1", "@", "\r\n> > ```"] {
-        for frozen_mode in [false, true] {
-            let mut frozen = [seed_record(41)];
-            frozen[0].id = DiagnosticId(7);
-            let operators = OperatorTable::empty();
-            let mut recover = Recover::new_for_test(&operators);
-            let mut input = source;
-            let mut output = if frozen_mode {
-                {
-                    recover = Recover::reconcile_for_test(recover.operators(), &frozen);
-                    GreenNodeBuilder::new()
-                }
-            } else {
-                GreenNodeBuilder::new()
-            };
-            output.start_node(SyntaxKind::Root.into());
-            output.token(SyntaxKind::Identifier.into(), "sentinel");
-            publish_seed(&mut output, &mut recover, 41);
-            let before = (
-                recover.recovery_slot_count(),
-                recover.diagnostic_position(),
-                crate::cursor::LexRecover::new_for_test(recover.operators()).mark(),
-            );
-            let mut probe: SyntaxIn =
-                crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
-            let name = probe.token(scan_identifier);
-            assert!(name.is_none(), "{source:?}");
-            assert_eq!(input.as_ptr(), source.as_ptr());
-            assert_eq!(input, source);
-            assert_eq!(
-                (
-                    recover.recovery_slot_count(),
-                    recover.diagnostic_position(),
-                    crate::cursor::LexRecover::new_for_test(recover.operators()).mark()
-                ),
-                before
-            );
-            assert!(std::ptr::eq(recover.operators(), &operators));
-            output.finish_node();
-            let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-            assert_eq!(green.to_string(), "sentinel");
-            assert_eq!(
-                records,
-                if frozen_mode {
-                    frozen.to_vec()
-                } else {
-                    vec![seed_record(41)]
-                }
-            );
-            assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1);
-        }
+        let operators = OperatorTable::empty();
+        let mut recover = Recover::new_for_test(&operators);
+        let mut input = source;
+        let mut output = GreenNodeBuilder::new();
+        output.start_node(SyntaxKind::Root.into());
+        output.token(SyntaxKind::Identifier.into(), SENTINEL);
+        publish_seed(&mut output);
+        let mark = crate::cursor::LexRecover::new_for_test(recover.operators()).mark();
+        let mut probe: SyntaxIn =
+            crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output);
+        let name = probe.token(scan_identifier);
+        assert!(name.is_none(), "{source:?}");
+        assert_eq!(input.as_ptr(), source.as_ptr());
+        assert_eq!(input, source);
+        assert_eq!(
+            crate::cursor::LexRecover::new_for_test(recover.operators()).mark(),
+            mark
+        );
+        assert!(std::ptr::eq(recover.operators(), &operators));
+        output.finish_node();
+        let green = finish_with_discarded_recoveries(output, recover);
+        assert_eq!(green.to_string(), SENTINEL);
+        assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 8..8)]);
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 1);
     }
 }
 
@@ -706,6 +529,7 @@ fn symbol_name_missing_has_a_direct_colon_successor_slot() {
     for source in [":", ": x"] {
         let (green, exit) = run_pattern(source);
         assert_eq!(green.to_string(), ":");
+        assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 1..1)]);
         let pattern = pattern_node(green);
         let pattern_children = pattern.children_with_tokens().collect::<Vec<_>>();
         assert_eq!(pattern_children.len(), 1);
@@ -728,35 +552,6 @@ fn symbol_name_missing_has_a_direct_colon_successor_slot() {
         assert_eq!(missing.children_with_tokens().count(), 0);
         assert_eq!(missing.to_string(), "");
 
-        // The committed colon and direct child order select SymbolName
-        // without consulting parser recovery records.
-        let selected = match (
-            pattern.kind(),
-            symbol.kind(),
-            children[0].kind(),
-            children[1].kind(),
-        ) {
-            (
-                SyntaxKind::Pattern,
-                SyntaxKind::SymbolPattern,
-                SyntaxKind::Colon,
-                SyntaxKind::Missing,
-            ) => (
-                GrammarRole::Pattern(PatternRole::SymbolName),
-                ExpectedSyntax::Identifier,
-                0,
-            ),
-            _ => panic!("unrecognized SymbolName slot"),
-        };
-        assert_eq!(
-            selected,
-            (
-                GrammarRole::Pattern(PatternRole::SymbolName),
-                ExpectedSyntax::Identifier,
-                0,
-            )
-        );
-
         if source == ": x" {
             let Err(Either::Left(mut item)) = exit else {
                 panic!("Identifier x remains pending")
@@ -772,13 +567,14 @@ fn symbol_name_missing_has_a_direct_colon_successor_slot() {
 
 #[test]
 fn alias_binding_recovery_has_a_direct_ordered_tail_slot() {
-    for (source, expected) in [
+    for (source, expected, fact) in [
         (
             "A as",
             vec![
                 (SyntaxKind::AsKw, 2..4, "as", true),
                 (SyntaxKind::Missing, 4..4, "", false),
             ],
+            (StructuralKind::Missing, 4..4),
         ),
         (
             "A as @ x",
@@ -789,6 +585,7 @@ fn alias_binding_recovery_has_a_direct_ordered_tail_slot() {
                 (SyntaxKind::Whitespace, 6..7, " ", true),
                 (SyntaxKind::Identifier, 7..8, "x", true),
             ],
+            (StructuralKind::ErrorGroup, 5..6),
         ),
         (
             "A as @",
@@ -797,10 +594,12 @@ fn alias_binding_recovery_has_a_direct_ordered_tail_slot() {
                 (SyntaxKind::Whitespace, 4..5, " ", true),
                 (SyntaxKind::Error, 5..6, "@", true),
             ],
+            (StructuralKind::ErrorGroup, 5..6),
         ),
     ] {
         let (green, _) = run_pattern(source);
         assert_eq!(green.to_string(), source);
+        assert_eq!(structural_facts(&green), [fact]);
         let pattern = pattern_node(green);
         let pattern_children = pattern.children_with_tokens().collect::<Vec<_>>();
         assert_eq!(pattern_children.len(), 3, "{source}");
@@ -826,39 +625,6 @@ fn alias_binding_recovery_has_a_direct_ordered_tail_slot() {
                 assert_eq!(missing.children_with_tokens().count(), 0);
             }
         }
-
-        // Ordered direct CST children select the binding slot; parser
-        // recovery records are not classification input.
-        let recovery = children
-            .iter()
-            .find(|child| matches!(child.kind(), SyntaxKind::Missing | SyntaxKind::Error))
-            .expect("binding recovery");
-        let selected = match (
-            pattern.kind(),
-            tail.kind(),
-            children[0].kind(),
-            recovery.kind(),
-        ) {
-            (
-                SyntaxKind::Pattern,
-                SyntaxKind::PatternAliasTail,
-                SyntaxKind::AsKw,
-                SyntaxKind::Missing | SyntaxKind::Error,
-            ) => (
-                GrammarRole::Pattern(PatternRole::AliasBinding),
-                ExpectedSyntax::Identifier,
-                0,
-            ),
-            _ => panic!("unrecognized AliasBinding slot"),
-        };
-        assert_eq!(
-            selected,
-            (
-                GrammarRole::Pattern(PatternRole::AliasBinding),
-                ExpectedSyntax::Identifier,
-                0,
-            )
-        );
     }
 }
 

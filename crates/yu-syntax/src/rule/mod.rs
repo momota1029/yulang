@@ -8,27 +8,17 @@ mod expression_list;
 use reborrow_generic::Reborrow as _;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-use crate::{
-    recovery_record::{
-        Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, LiteralExpected, LiteralRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{emit_recovery_error_run, emit_recovery_missing, token_syntax_kind},
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing},
     cursor::{LexIn, SyntaxIn},
     lexical::{
         current_item::{AcceptedPayload, CurrentItem, CurrentPayload, LineEntry, current_item},
         item::{Item, LeadingTrivia, Token, TokenKind},
         lexer::{
-            is_operator_shaped_unknown, scan_exact_equals, scan_integer,
-            scan_operator_shaped_unknown, scan_punctuation, scan_unknown,
+            scan_exact_equals, scan_integer, scan_operator_shaped_unknown, scan_punctuation,
+            scan_unknown,
         },
         position::{advanced_origin, suffix_marker},
         yumark::FenceBoundary,
@@ -42,63 +32,6 @@ use crate::{
 use crate::rule::expression_list::{
     ExpressionListExit, expression_list, first_item as first_list_item,
 };
-use std::{ops::Range, sync::Arc};
-
-/// Maps one already-owned malformed Rule item to its exact diagnostic category.
-///
-/// Caller-owned closes and boundaries are filtered before this Rule-local
-/// mapping. No source text is rescanned: `Unknown` uses only its owned spelling.
-pub(super) fn rule_item_unexpected_category(item: &Item) -> UnexpectedCategory {
-    let payload = item.payload_view();
-    if payload.operator_use().is_some() {
-        return UnexpectedCategory::OperatorLike;
-    }
-    match payload
-        .token_kind()
-        .expect("Rule unexpected evidence requires a lexical Item")
-    {
-        TokenKind::Identifier | TokenKind::SigilIdentifier | TokenKind::Forall => {
-            UnexpectedCategory::Word
-        }
-        TokenKind::Integer => UnexpectedCategory::DecimalInteger,
-        TokenKind::Operator | TokenKind::DotDot => UnexpectedCategory::OperatorLike,
-        TokenKind::LParen => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Parenthesis))
-        }
-        TokenKind::RParen => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis))
-        }
-        TokenKind::LBracket => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Bracket))
-        }
-        TokenKind::RBracket => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket))
-        }
-        TokenKind::LBrace => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Open(Delimiter::Brace))
-        }
-        TokenKind::RBrace => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Brace))
-        }
-        TokenKind::Comma => UnexpectedCategory::Punctuation(PunctuationEvidence::Comma),
-        TokenKind::Semicolon => UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
-        TokenKind::Dot => UnexpectedCategory::Punctuation(PunctuationEvidence::Dot),
-        TokenKind::Arrow => UnexpectedCategory::Punctuation(PunctuationEvidence::Arrow),
-        TokenKind::Colon | TokenKind::PolymorphicVariantColon | TokenKind::PatternSymbolColon => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Colon)
-        }
-        TokenKind::Equals => UnexpectedCategory::Punctuation(PunctuationEvidence::Equals),
-        TokenKind::EffectRowApostrophe => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Apostrophe)
-        }
-        TokenKind::PathSeparator => {
-            UnexpectedCategory::Punctuation(PunctuationEvidence::ColonColon)
-        }
-        TokenKind::Pipe => UnexpectedCategory::Punctuation(PunctuationEvidence::Pipe),
-        TokenKind::Unknown if is_operator_shaped_unknown(item) => UnexpectedCategory::OperatorLike,
-        TokenKind::Unknown => UnexpectedCategory::OtherCharacter,
-    }
-}
 
 #[derive(Clone, Copy)]
 enum RuleFrame {
@@ -253,11 +186,7 @@ fn rule_body_normalized(
             NormalizedRuleBodyExit::Complete(line_entry)
         }
         SequenceExit::Stop(pending, line_entry) => {
-            emit_rule_missing(
-                i.rb(),
-                LiteralRole::RuleBodyCloseBrace,
-                rule_recovery_at(&pending, origin),
-            );
+            emit_rule_missing(i.rb(), rule_recovery_at(&pending, origin));
             NormalizedRuleBodyExit::Returned(pending, line_entry)
         }
         SequenceExit::Deferred(item, line_entry) => {
@@ -442,7 +371,7 @@ fn rule_sequence(
             continue;
         }
 
-        emit_unexpected(i.rb(), current, *origin, LiteralRole::RuleUnexpectedItem);
+        emit_unexpected(i.rb(), current, *origin);
         (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
     }
 }
@@ -477,11 +406,7 @@ fn rule_item(
                 next_rule_item(i.rb(), origin, line_entry, fence)
             }
             SequenceExit::Stop(pending, line_entry) => {
-                emit_rule_missing(
-                    i.rb(),
-                    LiteralRole::RuleParenClose,
-                    rule_recovery_at(&pending, *origin),
-                );
+                emit_rule_missing(i.rb(), rule_recovery_at(&pending, *origin));
                 i.state.finish_node();
                 return ItemExit::Continue(pending, line_entry);
             }
@@ -651,11 +576,7 @@ fn required_rule_item(
 ) -> ItemExit {
     loop {
         if is_rule_newline_stop(&current, frame) {
-            emit_rule_missing(
-                i.rb(),
-                LiteralRole::RuleCaptureRightItem,
-                rule_recovery_at(&current, *origin),
-            );
+            emit_rule_missing(i.rb(), rule_recovery_at(&current, *origin));
             return ItemExit::Continue(current, line_entry);
         }
         if carries_outer_literal_quote(frame)
@@ -665,17 +586,13 @@ fn required_rule_item(
             return rule_item(i, current, line_entry, frame, origin, fence, ambient);
         }
         if is_rule_stop(&current, frame) {
-            emit_rule_missing(
-                i.rb(),
-                LiteralRole::RuleCaptureRightItem,
-                rule_recovery_at(&current, *origin),
-            );
+            emit_rule_missing(i.rb(), rule_recovery_at(&current, *origin));
             return ItemExit::Continue(current, line_entry);
         }
         if is_rule_atom_start(&current) {
             return rule_item(i, current, line_entry, frame, origin, fence, ambient);
         }
-        emit_unexpected(i.rb(), current, *origin, LiteralRole::RuleUnexpectedItem);
+        emit_unexpected(i.rb(), current, *origin);
         (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
     }
 }
@@ -697,13 +614,8 @@ fn rule_named_postfix(
     emit_item_as(&mut i, introducer, missing);
 
     let (current, line_entry) = next_rule_item(i.rb(), origin, line_entry, fence);
-    let role = if node == SyntaxKind::RuleField {
-        LiteralRole::RuleFieldName
-    } else {
-        LiteralRole::RulePathName
-    };
     if is_rule_newline_stop(&current, frame) || is_rule_stop(&current, frame) {
-        emit_rule_missing(i.rb(), role, rule_recovery_at(&current, *origin));
+        emit_rule_missing(i.rb(), rule_recovery_at(&current, *origin));
         i.state.finish_node();
         return (current, line_entry);
     }
@@ -714,7 +626,7 @@ fn rule_named_postfix(
         return next;
     }
 
-    emit_unexpected(i.rb(), current, *origin, role);
+    emit_unexpected(i.rb(), current, *origin);
     let next = next_rule_item(i.rb(), origin, line_entry, fence);
     i.state.finish_node();
     next
@@ -861,21 +773,10 @@ fn emit_separator(i: &mut SyntaxIn, item: Item) {
     emit_item_as(i, item, kind);
 }
 
-fn emit_unexpected(i: SyntaxIn, item: Item, origin: usize, role: LiteralRole) {
-    let category = rule_item_unexpected_category(&item);
-    let kind = token_syntax_kind(
-        item.payload_view()
-            .token_kind()
-            .expect("Rule Error owns a token"),
-    );
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let range = run.emit_item_as(item, origin, kind).recovery_range();
-            run.append_unexpected(UnexpectedSyntax::Token { range, category });
-        },
-        |range, unexpected| rule_draft(role, RecoveryKind::Error, range, unexpected),
-    );
+fn emit_unexpected(i: SyntaxIn, item: Item, origin: usize) {
+    emit_recovery_error_run(i, |run| {
+        run.emit_item_as(item, origin);
+    });
 }
 
 pub(super) fn rule_recovery_at(item: &Item, origin: usize) -> usize {
@@ -888,54 +789,8 @@ pub(super) fn rule_recovery_at(item: &Item, origin: usize) -> usize {
     )
 }
 
-pub(super) fn emit_rule_missing(i: SyntaxIn, role: LiteralRole, at: usize) {
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        rule_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn rule_draft(
-    role: LiteralRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        LiteralRole::RuleBodyCloseBrace
-        | LiteralRole::RuleLiteralInterpolationCloseBrace
-        | LiteralRole::RuleLazyCaptureCloseBrace => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace))
-        }
-        LiteralRole::RuleParenClose => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis))
-        }
-        LiteralRole::RuleCaptureRightItem | LiteralRole::RuleUnexpectedItem => {
-            ExpectedSyntax::Literal(LiteralExpected::RuleItem)
-        }
-        LiteralRole::RuleFieldName
-        | LiteralRole::RulePathName
-        | LiteralRole::RuleLazyCaptureName => ExpectedSyntax::Identifier,
-        LiteralRole::RuleLiteralTerminator => {
-            ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator)
-        }
-        _ => unreachable!("String recovery belongs to its own owner"),
-    };
-    let role = GrammarRole::Literal(role);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+pub(super) fn emit_rule_missing(i: SyntaxIn, at: usize) {
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn emit_item_as(i: &mut SyntaxIn, item: Item, kind: SyntaxKind) {

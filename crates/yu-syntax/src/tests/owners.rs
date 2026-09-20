@@ -248,10 +248,15 @@ fn parenthesized_primary_owns_its_sequence_and_outer_ml_tail() {
     );
     // Parenthesized expressions accept comma but not semicolon.  The sequence
     // and outer ML ownership stay unchanged while the local separator recovers.
+    let separator = group
+        .children()
+        .find(|node| node.kind() == SyntaxKind::ExpressionDelimitedSeparator)
+        .expect("parenthesized separator recovery slot");
+    assert_eq!(separator.to_string(), ";");
     assert_eq!(
-        crate::tests::recovery_output::recovery_groups(&group)
+        crate::tests::recovery_output::recovery_groups(&separator)
             .into_iter()
-            .filter(|run| run.parent().as_ref() == Some(&group))
+            .filter(|run| run.parent().as_ref() == Some(&separator))
             .count(),
         1
     );
@@ -504,9 +509,13 @@ fn delimited_owner_consumes_wrong_closes_before_settling_its_own_close() {
             .descendants()
             .find(|node| node.kind() == owner)
             .expect("delimited owner");
-        let error = crate::tests::recovery_output::recovery_groups(&owner)
+        let foreign_close = owner
+            .children()
+            .find(|node| node.kind() == SyntaxKind::ExpressionDelimitedForeignClose)
+            .expect("owner-local foreign-close slot");
+        let error = crate::tests::recovery_output::recovery_groups(&foreign_close)
             .into_iter()
-            .find(|group| group.parent().as_ref() == Some(&owner))
+            .find(|group| group.parent().as_ref() == Some(&foreign_close))
             .expect("owner-local wrong-close error");
         assert_eq!(
             error.first_token().map(|token| token.kind()),

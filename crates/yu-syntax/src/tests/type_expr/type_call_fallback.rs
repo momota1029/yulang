@@ -75,7 +75,7 @@ fn assert_call_occurrences(
 fn type_call_repetition_composes_explicit_separators_and_same_slot_retry() {
     use SyntaxKind::*;
     let source = "T(A;@ B,,C;)";
-    let (green, _, _) = run_type_with_recoveries(source, None);
+    let (green, _, _) = run_type_with_structural_diagnostics(source);
     assert_eq!(green.to_string(), source);
     // The opener and each explicit separator start fresh opportunities. The
     // adjacent Error leaves and B share the opportunity after the semicolon;
@@ -100,7 +100,7 @@ fn type_call_repetition_composes_explicit_separators_and_same_slot_retry() {
     );
 
     let source = "T(@;B,)";
-    let (green, _, _) = run_type_with_recoveries(source, None);
+    let (green, _, _) = run_type_with_structural_diagnostics(source);
     assert_eq!(green.to_string(), source);
     // A separator may end an Error opportunity without a successful retry.
     assert_call_occurrences(
@@ -178,7 +178,7 @@ fn type_call_repetition_distinguishes_close_epsilon_from_fresh_eof() {
             vec![(Missing, 4..4)],
         ),
     ] {
-        let (green, _, _) = run_type_with_recoveries(source, None);
+        let (green, _, _) = run_type_with_structural_diagnostics(source);
         assert_eq!(green.to_string(), source);
         assert_call_occurrences(&SyntaxNode::new_root(green), &direct, &terminal);
     }
@@ -188,7 +188,7 @@ fn type_call_repetition_distinguishes_close_epsilon_from_fresh_eof() {
 fn type_call_repetition_composes_inherited_separator_and_final_fresh_slot() {
     use SyntaxKind::*;
     let source = "G T(F A;";
-    let (green, _, _) = run_type_with_recoveries(source, None);
+    let (green, _, _) = run_type_with_structural_diagnostics(source);
     assert_eq!(green.to_string(), source);
     // Missing between delegated Types is the inherited-ML separator. The
     // direct Missing after Semicolon is an argument, before the nested close.
@@ -246,7 +246,7 @@ fn type_call_repetition_distinguishes_layout_retry_from_terminal_residual() {
             vec![(Error, 5..6), (Error, 6..7), (RParen, 7..8)],
         ),
     ] {
-        let (green, _, _) = run_type_with_recoveries(source, None);
+        let (green, _, _) = run_type_with_structural_diagnostics(source);
         assert_eq!(green.to_string(), source);
         assert_call_occurrences(&SyntaxNode::new_root(green), &direct, &terminal);
     }
@@ -256,12 +256,11 @@ fn type_call_repetition_distinguishes_layout_retry_from_terminal_residual() {
 fn type_call_repetition_pipe_payload_keeps_post_item_argument_error() {
     use SyntaxKind::*;
     let source = "T(A|B)";
-    let (green, _, found, _, remainder, _, _, _) =
-        run_required_type_with_outer_boundary_and_recoveries(
+    let (green, _, found, _, remainder, _) =
+        run_required_type_with_outer_boundary_and_structural_diagnostics(
             source,
             crate::type_expr::TypeOuterBoundary::NONE,
             true,
-            None,
         );
     assert!(found);
     assert_eq!(remainder, "");
@@ -347,7 +346,7 @@ fn type_call_separator_matrix_keeps_direct_phase_ownership() {
         ("T(A,B)", SyntaxKind::Comma),
         ("T(A;B)", SyntaxKind::Semicolon),
     ] {
-        let (green, _, records) = run_type_with_recoveries(source, None);
+        let (green, _, records) = run_type_with_structural_diagnostics(source);
         assert_eq!(green.to_string(), source);
         assert!(records.is_empty());
         let call = type_call(&SyntaxNode::new_root(green));
@@ -407,15 +406,10 @@ fn type_call_separator_matrix_keeps_direct_phase_ownership() {
             ],
         ),
     ] {
-        let (green, _, records) = run_type_with_recoveries(source, None);
+        let (green, _, records) = run_type_with_structural_diagnostics(source);
         assert_eq!(green.to_string(), source);
         assert_eq!(records.len(), 1, "{source}");
-        assert_eq!(
-            records[0].site.role,
-            GrammarRole::Type(TypeRole::CallArgumentSeparator),
-            "{source}",
-        );
-        assert_eq!(records[0].kind, RecoveryKind::Missing, "{source}");
+        assert_eq!(records[0].0, StructuralKind::Missing, "{source}");
         let root = SyntaxNode::new_root(green.clone());
         let call = type_call(&root);
         assert_eq!(
@@ -426,15 +420,10 @@ fn type_call_separator_matrix_keeps_direct_phase_ownership() {
             "{source}",
         );
         assert_no_invented_wrapper(&call);
-
-        let frozen = frozen_recovery_ids(&records);
-        let (frozen_green, _, frozen_records) = run_type_with_recoveries(source, Some(&frozen));
-        assert_eq!(frozen_green, green, "{source}");
-        assert_eq!(frozen_records, frozen, "{source}");
     }
 
-    let expected = vec![expected_type_call_argument_error(0, 2..3)];
-    let (green, _, records) = run_type_with_recoveries("T(@, A)", None);
+    let expected = vec![(StructuralKind::ErrorGroup, 2..3)];
+    let (green, _, records) = run_type_with_structural_diagnostics("T(@, A)");
     assert_eq!(green.to_string(), "T(@, A)");
     assert_eq!(records, expected);
     let call = type_call(&SyntaxNode::new_root(green.clone()));
@@ -443,17 +432,9 @@ fn type_call_separator_matrix_keeps_direct_phase_ownership() {
             .any(|child| child.kind() == SyntaxKind::Error)
     );
     assert_no_invented_wrapper(&call);
-    let frozen = frozen_recovery_ids(&expected);
-    let (frozen_green, _, frozen_records) = run_type_with_recoveries("T(@, A)", Some(&frozen));
-    assert_eq!(frozen_green, green);
-    assert_eq!(frozen_records, frozen);
 
-    let expected = vec![
-        expected_type_call_close_error(0, 3..4),
-        expected_type_call_close_error(1, 4..5),
-        expected_type_call_close_error(2, 5..6),
-    ];
-    let (green, _, records) = run_type_with_recoveries("T(A@,B)", None);
+    let expected = vec![(StructuralKind::ErrorGroup, 3..6)];
+    let (green, _, records) = run_type_with_structural_diagnostics("T(A@,B)");
     assert_eq!(green.to_string(), "T(A@,B)");
     assert_eq!(records, expected);
     let call = type_call(&SyntaxNode::new_root(green.clone()));
@@ -477,17 +458,9 @@ fn type_call_separator_matrix_keeps_direct_phase_ownership() {
         ]
     );
     assert_no_invented_wrapper(&call);
-    let frozen = frozen_recovery_ids(&expected);
-    let (frozen_green, _, frozen_records) = run_type_with_recoveries("T(A@,B)", Some(&frozen));
-    assert_eq!(frozen_green, green);
-    assert_eq!(frozen_records, frozen);
 
-    let expected = vec![expected_type_expression_missing(
-        0,
-        TypeRole::CallArgument,
-        4,
-    )];
-    let (green, _, records) = run_type_with_recoveries("T(A,,B)", None);
+    let expected = vec![(StructuralKind::Missing, (4)..(4))];
+    let (green, _, records) = run_type_with_structural_diagnostics("T(A,,B)");
     assert_eq!(green.to_string(), "T(A,,B)");
     assert_eq!(records, expected);
     let call = type_call(&SyntaxNode::new_root(green.clone()));
@@ -506,10 +479,6 @@ fn type_call_separator_matrix_keeps_direct_phase_ownership() {
         ]
     );
     assert_no_invented_wrapper(&call);
-    let frozen = frozen_recovery_ids(&expected);
-    let (frozen_green, _, frozen_records) = run_type_with_recoveries("T(A,,B)", Some(&frozen));
-    assert_eq!(frozen_green, green);
-    assert_eq!(frozen_records, frozen);
 }
 
 #[test]
@@ -522,7 +491,7 @@ fn type_call_post_argument_residual_enters_irreversible_close() {
         ("T(A@with)", vec!["@", "with"]),
     ] {
         let (green, _, remainder, records) =
-            run_type_normalized_with_recoveries(source, 0, LineEntry::InLine, None, None);
+            run_type_normalized_with_structural_diagnostics(source, 0, LineEntry::InLine, None);
         assert_eq!(green.to_string(), source);
         assert_eq!(remainder, "");
         let root = SyntaxNode::new_root(green);
@@ -533,11 +502,11 @@ fn type_call_post_argument_residual_enters_irreversible_close() {
             .collect::<Vec<_>>();
         expected.push((SyntaxKind::RParen, ")".into()));
         assert_eq!(children(&close), expected, "{source}");
-        assert!(records.iter().all(|record| record.site.role
-            == GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::TypeCall,
-                delimiter: Delimiter::Parenthesis
-            }));
+        assert!(
+            records
+                .iter()
+                .all(|(kind, _)| *kind == StructuralKind::ErrorGroup)
+        );
     }
 }
 
@@ -577,7 +546,7 @@ fn type_call_close_distinguishes_argument_and_close_errors_and_missing_slots() {
             vec![(SyntaxKind::Missing, "")],
         ),
     ] {
-        let (green, _, _) = run_type_with_recoveries(source, None);
+        let (green, _, _) = run_type_with_structural_diagnostics(source);
         assert_eq!(green.to_string(), source);
         let close = close_node(&SyntaxNode::new_root(green));
         assert_eq!(
@@ -639,7 +608,7 @@ fn type_call_argument_phase_keeps_direct_children_in_order() {
             ],
         ),
     ] {
-        let (green, _, _) = run_type_with_recoveries(source, None);
+        let (green, _, _) = run_type_with_structural_diagnostics(source);
         assert_eq!(green.to_string(), source, "{source}");
         let root = SyntaxNode::new_root(green);
         let call = root
@@ -705,7 +674,7 @@ fn type_call_close_accepted_nested_and_missing_path_controls() {
         "T(A@\n",
         "T(A@\r\n",
     ] {
-        let (green, _, _) = run_type_with_recoveries(source, None);
+        let (green, _, _) = run_type_with_structural_diagnostics(source);
         assert_eq!(green.to_string(), source);
         let root = SyntaxNode::new_root(green);
         close_node(&root);
@@ -726,7 +695,7 @@ fn type_call_close_accepted_nested_and_missing_path_controls() {
 fn type_call_close_native_trivia_separates_close_errors() {
     for trivia in [" ", "/*é*/", "\n", "\r\n"] {
         let source = format!("T(A@{trivia}B)");
-        let (green, _, _) = run_type_with_recoveries(&source, None);
+        let (green, _, _) = run_type_with_structural_diagnostics(&source);
         assert_eq!(green.to_string(), source);
         let close = close_node(&SyntaxNode::new_root(green));
         let parts = children(&close);
@@ -845,7 +814,7 @@ fn type_call_close_residual_preserves_quoted_fence_and_outer_close() {
         );
     }
     let source = "{x:T(A@}";
-    let (green, _, _) = run_type_with_recoveries(source, None);
+    let (green, _, _) = run_type_with_structural_diagnostics(source);
     assert_eq!(green.to_string(), source);
     let root = SyntaxNode::new_root(green);
     assert_eq!(

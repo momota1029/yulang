@@ -1,4 +1,4 @@
-use crate::recovery_record::{CastRole, RecoveryKind};
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
 
 fn declaration(green: &GreenNode) -> SyntaxNode {
@@ -32,41 +32,36 @@ fn pending_item(exit: Option<NormalizedExit>) -> Item {
     }
 }
 
-fn typed_cast<'s, 'frozen>(
+fn typed_cast<'s>(
     source: &'s str,
     origin: usize,
-    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
     stops: Stops,
     fence: Option<&FenceBoundary>,
 ) -> (
     GreenNode,
     Option<NormalizedExit>,
-    Vec<CommittedRecoveryRecord>,
+    Vec<StructuralFact>,
     &'s str,
 ) {
-    typed_cast_at(source, origin, frozen, stops, LineEntry::InLine, fence)
+    typed_cast_at(source, origin, stops, LineEntry::InLine, fence)
 }
 
-fn typed_cast_at<'s, 'frozen>(
+fn typed_cast_at<'s>(
     source: &'s str,
     origin: usize,
-    frozen: Option<&'frozen [CommittedRecoveryRecord]>,
     stops: Stops,
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (
     GreenNode,
     Option<NormalizedExit>,
-    Vec<CommittedRecoveryRecord>,
+    Vec<StructuralFact>,
     &'s str,
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = cast_declaration_witness(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
@@ -78,290 +73,52 @@ fn typed_cast_at<'s, 'frozen>(
         fence,
     );
     builder.finish_node();
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, exit, records, input)
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, exit, facts, input)
 }
 
-fn pattern_introducer_record(
-    id: u32,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-) -> CommittedRecoveryRecord {
-    use crate::recovery_record::{
-        DeclarationRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-
-    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::PatternIntroducer));
-    let unexpected = if kind == RecoveryKind::Error {
-        Arc::from([UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        }])
-    } else {
-        Arc::from([])
-    };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Open(
-                Delimiter::Parenthesis,
-            )),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
-fn cast_pattern_record(id: u32, at: usize) -> CommittedRecoveryRecord {
-    use crate::recovery_record::{
-        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        RecoverySiteKey, SyntaxExpectation,
-    };
-    use std::sync::Arc;
-
-    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Pattern));
-    let range = at..at;
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: RecoveryKind::Missing,
-        unexpected: Arc::from([]),
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Pattern,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
-fn cast_pattern_close_record(
-    id: u32,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-) -> CommittedRecoveryRecord {
-    use crate::recovery_record::{
-        ConstructRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-    let role = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::CastPattern,
-        delimiter: Delimiter::Parenthesis,
-    };
-    let unexpected = (kind == RecoveryKind::Error)
-        .then(|| UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        })
-        .into_iter()
-        .collect::<Vec<_>>()
-        .into();
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                Delimiter::Parenthesis,
-            )),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
-fn cast_target_introducer_record(
-    id: u32,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-) -> CommittedRecoveryRecord {
-    use crate::recovery_record::{
-        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetIntroducer));
-    let unexpected = (kind == RecoveryKind::Error)
-        .then(|| UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        })
-        .into_iter()
-        .collect::<Vec<_>>()
-        .into();
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
-fn cast_body_introducer_record(
-    id: u32,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-) -> CommittedRecoveryRecord {
-    use crate::recovery_record::{
-        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::BodyIntroducer));
-    let unexpected = (kind == RecoveryKind::Error)
-        .then(|| UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        })
-        .into_iter()
-        .collect::<Vec<_>>()
-        .into();
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
-fn cast_body_record(
-    id: u32,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-) -> CommittedRecoveryRecord {
-    use crate::recovery_record::{
-        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    };
-    use std::sync::Arc;
-    let role = GrammarRole::Declaration(DeclarationRole::Cast(CastRole::Body));
-    let unexpected = (kind == RecoveryKind::Error)
-        .then(|| UnexpectedSyntax::Token {
-            range: range.clone(),
-            category: UnexpectedCategory::OtherCharacter,
-        })
-        .into_iter()
-        .collect::<Vec<_>>()
-        .into();
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Expression,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+fn structural_fact(kind: StructuralKind, range: std::ops::Range<usize>) -> StructuralFact {
+    (kind, range)
 }
 
 #[test]
-fn cast_body_records_are_exact_and_reconcile() {
+fn cast_body_structural_facts_are_exact() {
     for origin in [100, 12_000] {
         for (source, stops, kind, relative_range) in [
-            ("cast(x): A =", 0, RecoveryKind::Missing, 12..12),
-            ("cast(x): A =   ", 0, RecoveryKind::Missing, 15..15),
-            ("cast(x): A = ;", 0, RecoveryKind::Missing, 12..12),
-            ("cast(x): A = ,", 0, RecoveryKind::Missing, 12..12),
-            ("cast(x): A = )", 0, RecoveryKind::Missing, 12..12),
-            ("cast(x): A = ]", 0, RecoveryKind::Missing, 12..12),
-            ("cast(x): A = }", 0, RecoveryKind::Missing, 12..12),
-            ("cast(x): A =\r\nnext", 0, RecoveryKind::Missing, 12..12),
+            ("cast(x): A =", 0, StructuralKind::Missing, 12..12),
+            ("cast(x): A =   ", 0, StructuralKind::Missing, 15..15),
+            ("cast(x): A = ;", 0, StructuralKind::Missing, 12..12),
+            ("cast(x): A = ,", 0, StructuralKind::Missing, 12..12),
+            ("cast(x): A = )", 0, StructuralKind::Missing, 12..12),
+            ("cast(x): A = ]", 0, StructuralKind::Missing, 12..12),
+            ("cast(x): A = }", 0, StructuralKind::Missing, 12..12),
+            ("cast(x): A =\r\nnext", 0, StructuralKind::Missing, 12..12),
             (
                 "cast(x): A = else",
                 STOP_ELSE,
-                RecoveryKind::Missing,
+                StructuralKind::Missing,
                 12..12,
             ),
-            ("cast(x): A = @ value", 0, RecoveryKind::Error, 13..14),
-            ("cast(x): A = @ )", 0, RecoveryKind::Error, 13..14),
-            ("cast(x): A = @ 💥 value", 0, RecoveryKind::Error, 13..19),
-            ("cast(x): A = @   ", 0, RecoveryKind::Error, 13..17),
-            ("cast(x): A = @\r\n", 0, RecoveryKind::Error, 13..14),
-        ] {
-            let expected = cast_body_record(
+            (
+                "cast(x): A = @ value",
                 0,
-                kind,
-                origin + relative_range.start..origin + relative_range.end,
-            );
-            let (green, _, records, remainder) = typed_cast(source, origin, None, stops, None);
-            assert_eq!(records.first(), Some(&expected), "{source:?} at {origin}");
-            assert_eq!(
-                records
-                    .iter()
-                    .filter(|record| {
-                        record.site.role
-                            == crate::recovery_record::GrammarRole::Declaration(
-                                crate::recovery_record::DeclarationRole::Cast(CastRole::Body),
-                            )
-                    })
-                    .collect::<Vec<_>>(),
-                [&expected],
-                "{source:?} at {origin}"
-            );
-            let (again, _, frozen, frozen_remainder) =
-                typed_cast(source, origin, Some(&records), stops, None);
-            assert_eq!(again, green, "{source:?} at {origin}");
-            assert_eq!(frozen, records, "{source:?} at {origin}");
-            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
-            let mut seeded = records.clone();
-            seeded[0].id = crate::recovery_record::DiagnosticId(71);
-            let (seeded_green, _, seeded_records, seeded_remainder) =
-                typed_cast(source, origin, Some(&seeded), stops, None);
-            assert_eq!(seeded_green, green, "{source:?} at {origin}");
-            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
-            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+                StructuralKind::ErrorGroup,
+                13..14,
+            ),
+            ("cast(x): A = @ )", 0, StructuralKind::ErrorGroup, 13..14),
+            (
+                "cast(x): A = @ 💥 value",
+                0,
+                StructuralKind::ErrorGroup,
+                13..19,
+            ),
+            ("cast(x): A = @   ", 0, StructuralKind::ErrorGroup, 13..17),
+            ("cast(x): A = @\r\n", 0, StructuralKind::ErrorGroup, 13..14),
+        ] {
+            let expected = structural_fact(kind, relative_range);
+            let (_, _, facts, _) = typed_cast(source, origin, stops, None);
+            assert_eq!(facts.first(), Some(&expected), "{source:?} at {origin}");
         }
     }
 }
@@ -696,118 +453,71 @@ fn cast_body_introducer_direct_rowan_excludes_later_body_recovery() {
 }
 
 #[test]
-fn cast_body_introducer_records_are_exact_and_reconcile() {
+fn cast_body_introducer_structural_facts_are_exact() {
     for origin in [100, 12_000] {
         for (source, stops, kind, relative_range) in [
-            ("cast(x): A", 0, RecoveryKind::Missing, 10..10),
-            ("cast(x): A )", 0, RecoveryKind::Missing, 10..10),
-            ("cast(x): A ]", 0, RecoveryKind::Missing, 10..10),
-            ("cast(x): A }", 0, RecoveryKind::Missing, 10..10),
-            ("cast(x): A ,", 0, RecoveryKind::Missing, 10..10),
-            ("cast(x): A\r\nvalue", 0, RecoveryKind::Missing, 10..10),
-            ("cast(x): A else", STOP_ELSE, RecoveryKind::Missing, 10..10),
-            ("cast(x): A @ ;", 0, RecoveryKind::Error, 11..12),
-            ("cast(x): A @ = value", 0, RecoveryKind::Error, 11..12),
-            ("cast(x): A @ # = value", 0, RecoveryKind::Error, 11..14),
-            ("cast(x): A @ )", 0, RecoveryKind::Error, 11..12),
-            ("cast(x): A @   ", 0, RecoveryKind::Error, 11..15),
-            ("cast(x): A @\r\n", 0, RecoveryKind::Error, 11..12),
-            ("cast(x): A @ あ ;", 0, RecoveryKind::Error, 11..16),
-        ] {
-            let expected = cast_body_introducer_record(
+            ("cast(x): A", 0, StructuralKind::Missing, 10..10),
+            ("cast(x): A )", 0, StructuralKind::Missing, 10..10),
+            ("cast(x): A ]", 0, StructuralKind::Missing, 10..10),
+            ("cast(x): A }", 0, StructuralKind::Missing, 10..10),
+            ("cast(x): A ,", 0, StructuralKind::Missing, 10..10),
+            ("cast(x): A\r\nvalue", 0, StructuralKind::Missing, 10..10),
+            (
+                "cast(x): A else",
+                STOP_ELSE,
+                StructuralKind::Missing,
+                10..10,
+            ),
+            ("cast(x): A @ ;", 0, StructuralKind::ErrorGroup, 11..12),
+            (
+                "cast(x): A @ = value",
                 0,
-                kind,
-                origin + relative_range.start..origin + relative_range.end,
-            );
-            let (green, _, records, remainder) = typed_cast(source, origin, None, stops, None);
-            assert_eq!(records.first(), Some(&expected), "{source:?} at {origin}");
-            assert_eq!(
-                records
-                    .iter()
-                    .filter(|record| {
-                        record.site.role
-                            == crate::recovery_record::GrammarRole::Declaration(
-                                crate::recovery_record::DeclarationRole::Cast(
-                                    CastRole::BodyIntroducer,
-                                ),
-                            )
-                    })
-                    .collect::<Vec<_>>(),
-                [&expected],
-                "{source:?} at {origin}"
-            );
-            let (again, _, frozen, frozen_remainder) =
-                typed_cast(source, origin, Some(&records), stops, None);
-            assert_eq!(again, green, "{source:?} at {origin}");
-            assert_eq!(frozen, records, "{source:?} at {origin}");
-            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
-            let mut seeded = records.clone();
-            seeded[0].id = crate::recovery_record::DiagnosticId(71);
-            let (seeded_green, _, seeded_records, seeded_remainder) =
-                typed_cast(source, origin, Some(&seeded), stops, None);
-            assert_eq!(seeded_green, green, "{source:?} at {origin}");
-            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
-            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+                StructuralKind::ErrorGroup,
+                11..12,
+            ),
+            (
+                "cast(x): A @ # = value",
+                0,
+                StructuralKind::ErrorGroup,
+                11..14,
+            ),
+            ("cast(x): A @ )", 0, StructuralKind::ErrorGroup, 11..12),
+            ("cast(x): A @   ", 0, StructuralKind::ErrorGroup, 11..15),
+            ("cast(x): A @\r\n", 0, StructuralKind::ErrorGroup, 11..12),
+            ("cast(x): A @ あ ;", 0, StructuralKind::ErrorGroup, 11..16),
+        ] {
+            let expected = structural_fact(kind, relative_range);
+            let (_, _, facts, _) = typed_cast(source, origin, stops, None);
+            assert_eq!(facts.first(), Some(&expected), "{source:?} at {origin}");
         }
     }
 }
 
 #[test]
-fn cast_target_introducer_records_are_exact_and_reconcile() {
+fn cast_target_introducer_structural_facts_are_exact() {
     for origin in [100, 12_000] {
         for (source, stops, kind, relative_range) in [
-            ("cast(x)", 0, RecoveryKind::Missing, 7..7),
-            ("cast(x);", 0, RecoveryKind::Missing, 7..7),
-            ("cast(x)= value", 0, RecoveryKind::Missing, 7..7),
-            ("cast(x) T;", 0, RecoveryKind::Missing, 8..8),
-            ("cast(x) )", 0, RecoveryKind::Missing, 7..7),
-            ("cast(x) ]", 0, RecoveryKind::Missing, 7..7),
-            ("cast(x) }", 0, RecoveryKind::Missing, 7..7),
-            ("cast(x)\r\nT;", 0, RecoveryKind::Missing, 7..7),
-            ("cast(x) else", STOP_ELSE, RecoveryKind::Missing, 7..7),
-            ("cast(x) @ : T;", 0, RecoveryKind::Error, 8..9),
-            ("cast(x) @ T;", 0, RecoveryKind::Error, 8..9),
-            ("cast(x) @ ;", 0, RecoveryKind::Error, 8..9),
-            ("cast(x) @ = value", 0, RecoveryKind::Error, 8..9),
-            ("cast(x) @ )", 0, RecoveryKind::Error, 8..9),
-            ("cast(x) @   ", 0, RecoveryKind::Error, 8..12),
-            ("cast(x) @\r\n", 0, RecoveryKind::Error, 8..9),
-            ("cast(x) @ あ T;", 0, RecoveryKind::Error, 8..9),
+            ("cast(x)", 0, StructuralKind::Missing, 7..7),
+            ("cast(x);", 0, StructuralKind::Missing, 7..7),
+            ("cast(x)= value", 0, StructuralKind::Missing, 7..7),
+            ("cast(x) T;", 0, StructuralKind::Missing, 8..8),
+            ("cast(x) )", 0, StructuralKind::Missing, 7..7),
+            ("cast(x) ]", 0, StructuralKind::Missing, 7..7),
+            ("cast(x) }", 0, StructuralKind::Missing, 7..7),
+            ("cast(x)\r\nT;", 0, StructuralKind::Missing, 7..7),
+            ("cast(x) else", STOP_ELSE, StructuralKind::Missing, 7..7),
+            ("cast(x) @ : T;", 0, StructuralKind::ErrorGroup, 8..9),
+            ("cast(x) @ T;", 0, StructuralKind::ErrorGroup, 8..9),
+            ("cast(x) @ ;", 0, StructuralKind::ErrorGroup, 8..9),
+            ("cast(x) @ = value", 0, StructuralKind::ErrorGroup, 8..9),
+            ("cast(x) @ )", 0, StructuralKind::ErrorGroup, 8..9),
+            ("cast(x) @   ", 0, StructuralKind::ErrorGroup, 8..12),
+            ("cast(x) @\r\n", 0, StructuralKind::ErrorGroup, 8..9),
+            ("cast(x) @ あ T;", 0, StructuralKind::ErrorGroup, 8..9),
         ] {
-            let expected = cast_target_introducer_record(
-                0,
-                kind,
-                origin + relative_range.start..origin + relative_range.end,
-            );
-            let (green, _, records, remainder) = typed_cast(source, origin, None, stops, None);
-            assert_eq!(records.first(), Some(&expected), "{source:?} at {origin}");
-            assert_eq!(
-                records
-                    .iter()
-                    .filter(|record| {
-                        record.site.role
-                            == crate::recovery_record::GrammarRole::Declaration(
-                                crate::recovery_record::DeclarationRole::Cast(
-                                    CastRole::TargetIntroducer,
-                                ),
-                            )
-                    })
-                    .collect::<Vec<_>>(),
-                [&expected],
-                "{source:?} at {origin}"
-            );
-            let (again, _, frozen, frozen_remainder) =
-                typed_cast(source, origin, Some(&records), stops, None);
-            assert_eq!(again, green, "{source:?} at {origin}");
-            assert_eq!(frozen, records, "{source:?} at {origin}");
-            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
-            let mut seeded = records.clone();
-            seeded[0].id = crate::recovery_record::DiagnosticId(71);
-            let (seeded_green, _, seeded_records, seeded_remainder) =
-                typed_cast(source, origin, Some(&seeded), stops, None);
-            assert_eq!(seeded_green, green, "{source:?} at {origin}");
-            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
-            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+            let expected = structural_fact(kind, relative_range);
+            let (_, _, facts, _) = typed_cast(source, origin, stops, None);
+            assert_eq!(facts.first(), Some(&expected), "{source:?} at {origin}");
         }
     }
 }
@@ -960,16 +670,12 @@ fn cast_target_introducer_direct_rowan_active_rparen_stays_pending() {
 
     for (source, pending_leading) in [("cast(x)) tail", ""), ("cast(x) ) tail", " ")] {
         let stops = stops_for(TokenKind::RParen);
-        let (green, exit, records, remainder) = typed_cast(source, 0, None, stops, None);
+        let (green, exit, facts, remainder) = typed_cast(source, 0, stops, None);
         assert_eq!(green.to_string(), "cast(x)", "{source:?}");
         assert_eq!(remainder, " tail", "{source:?}");
         assert_eq!(
-            records,
-            [cast_target_introducer_record(
-                0,
-                RecoveryKind::Missing,
-                7..7
-            )],
+            facts,
+            [structural_fact(StructuralKind::Missing, 7..7)],
             "{source:?}"
         );
 
@@ -1013,29 +719,11 @@ fn cast_target_introducer_direct_rowan_active_rparen_stays_pending() {
         let mut pending = pending_item(exit);
         assert_eq!(pending.payload_view().token_kind(), Some(TokenKind::RParen));
         assert_eq!(emit_pending_leading_text(&mut pending), pending_leading);
-
-        let (frozen_green, _, frozen_records, frozen_remainder) =
-            typed_cast(source, 0, Some(&records), stops, None);
-        assert_eq!(frozen_green, green, "{source:?}");
-        assert_eq!(frozen_records, records, "{source:?}");
-        assert_eq!(frozen_remainder, remainder, "{source:?}");
-
-        let mut seeded = records.clone();
-        seeded[0].id = crate::recovery_record::DiagnosticId(71);
-        let (seeded_green, _, seeded_records, seeded_remainder) =
-            typed_cast(source, 0, Some(&seeded), stops, None);
-        assert_eq!(seeded_green, green, "{source:?}");
-        assert_eq!(seeded_records, seeded, "{source:?}");
-        assert_eq!(seeded_remainder, remainder, "{source:?}");
     }
 }
 
 #[test]
 fn cast_target_type_fresh_missing_has_direct_ordered_rowan_slot() {
-    use crate::recovery_record::{
-        DeclarationRole, DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole,
-        RecoverySiteKey, SyntaxExpectation,
-    };
     use SyntaxKind::*;
 
     let source = "cast(x): ;";
@@ -1111,56 +799,10 @@ fn cast_target_type_fresh_missing_has_direct_ordered_rowan_slot() {
     let missing = elements[14].as_node().unwrap();
     assert!(missing.children_with_tokens().next().is_none());
 
-    // Select the slot and facts from the proven completed Pattern, actual
-    // target Colon, native leading, and empty TypeExpression before records.
-    let pattern = elements[4].as_node().unwrap();
-    let target = missing.parent().unwrap().parent().unwrap();
-    let target_children = target
-        .children_with_tokens()
-        .map(|child| child.kind())
-        .collect::<Vec<_>>();
-    let selected = match (
-        pattern.kind(),
-        pattern.last_token().unwrap().kind(),
-        target.kind(),
-        target_children.as_slice(),
-        missing.parent().unwrap().text_range().is_empty(),
-    ) {
-        (CastPattern, RParen, CastTarget, [Colon, Whitespace, TypeExpression], true) => (
-            GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetType)),
-            [ExpectedSyntax::TypeExpression],
-            0,
-            missing.text_range(),
-        ),
-        _ => panic!("fresh target Missing must be selected by its ordered Rowan slot"),
-    };
     assert_eq!(
-        selected,
-        (
-            GrammarRole::Declaration(DeclarationRole::Cast(CastRole::TargetType)),
-            [ExpectedSyntax::TypeExpression],
-            0,
-            missing.text_range(),
-        )
+        structural_facts(&green),
+        [structural_fact(StructuralKind::Missing, 9..9)]
     );
-    let (role, [expected_syntax], primary_expectation, _) = selected;
-    let range = usize::from(missing.text_range().start())..usize::from(missing.text_range().end());
-    let expected_record = CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: RecoveryKind::Missing,
-        unexpected: std::sync::Arc::from([]),
-        expectations: std::sync::Arc::from([SyntaxExpectation {
-            role,
-            expected: expected_syntax,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation,
-    };
     let check_exit = |exit, remainder: &str| {
         assert_eq!(remainder, "");
         let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) = exit else {
@@ -1171,7 +813,7 @@ fn cast_target_type_fresh_missing_has_direct_ordered_rowan_slot() {
         assert_eq!(emit_pending_leading_text(&mut item), "");
     };
     check_exit(exit, remainder);
-    let (fresh_green, fresh_exit, records, fresh_remainder) = typed_cast(source, 0, None, 0, None);
+    let (fresh_green, fresh_exit, facts, fresh_remainder) = typed_cast(source, 0, 0, None);
     let typed_root = SyntaxNode::new_root(fresh_green.clone());
     assert_eq!(typed_root.kind(), Root);
     let typed_children = typed_root.children_with_tokens().collect::<Vec<_>>();
@@ -1182,18 +824,12 @@ fn cast_target_type_fresh_missing_has_direct_ordered_rowan_slot() {
         declaration(&fresh_green).green(),
         declaration(&green).green()
     );
-    assert_eq!(records, [expected_record]);
+    assert_eq!(facts, [structural_fact(StructuralKind::Missing, 9..9)]);
     check_exit(fresh_exit.unwrap(), fresh_remainder);
-    let (frozen_green, frozen_exit, frozen_records, frozen_remainder) =
-        typed_cast(source, 0, Some(&records), 0, None);
-    assert_eq!(frozen_green, fresh_green);
-    assert_eq!(frozen_records, records);
-    check_exit(frozen_exit.unwrap(), frozen_remainder);
 }
 
 #[test]
 fn cast_target_type_initial_error_has_direct_ordered_rowan_slots() {
-    use crate::recovery_record::{ExpectedSyntax, GrammarRole, TypeRole};
     use SyntaxKind::*;
 
     // Only the initial required-Type run after a completed Pattern and actual
@@ -1285,7 +921,7 @@ fn cast_target_type_initial_error_has_direct_ordered_rowan_slots() {
             }
         }
 
-        // Select before reading records: the completed Pattern and native
+        // The completed Pattern and native
         // Colon locate the required-Type slot; its adjacent direct Error
         // leaves end at either the target frontier or the retry TypeExpression.
         let cast = elements[2].as_node().unwrap();
@@ -1342,15 +978,19 @@ fn cast_target_type_initial_error_has_direct_ordered_rowan_slots() {
                 .collect::<Vec<_>>(),
             group
         );
-        let selected = (
-            GrammarRole::Type(TypeRole::Primary),
-            [ExpectedSyntax::TypeExpression],
-            0usize,
-            range,
+        let fact_range = usize::from(range.start())..usize::from(range.end());
+        assert_eq!(
+            fact_range,
+            9..error_ranges.last().unwrap().end,
+            "{source:?}"
         );
         assert_eq!(
-            selected.3,
-            rowan::TextRange::new(9.into(), (error_ranges.last().unwrap().end as u32).into())
+            structural_facts(&green),
+            [structural_fact(
+                StructuralKind::ErrorGroup,
+                fact_range.clone()
+            )],
+            "{source:?}"
         );
         let check_exit = |exit, remainder: &str| {
             assert_eq!(remainder, "");
@@ -1362,8 +1002,7 @@ fn cast_target_type_initial_error_has_direct_ordered_rowan_slots() {
             assert_eq!(emit_pending_leading_text(&mut item), "");
         };
         check_exit(exit, remainder);
-        let (fresh_green, fresh_exit, records, fresh_remainder) =
-            typed_cast(source, 0, None, 0, None);
+        let (fresh_green, fresh_exit, facts, fresh_remainder) = typed_cast(source, 0, 0, None);
         let typed_root = SyntaxNode::new_root(fresh_green.clone());
         assert_eq!(typed_root.kind(), Root);
         let typed_children = typed_root.children_with_tokens().collect::<Vec<_>>();
@@ -1371,31 +1010,12 @@ fn cast_target_type_initial_error_has_direct_ordered_rowan_slots() {
         assert_eq!(typed_children[0].kind(), CastDeclaration);
         assert!(typed_children[0].as_node().is_some());
         assert_eq!(declaration(&fresh_green).green(), cast.green());
-        assert_eq!(records.len(), 1);
-        let record = &records[0];
-        assert_eq!(record.kind, RecoveryKind::Error);
         assert_eq!(
-            (
-                record.site.role,
-                record
-                    .expectations
-                    .iter()
-                    .map(|expectation| expectation.expected)
-                    .collect::<Vec<_>>(),
-                record.primary_expectation,
-                rowan::TextRange::new(
-                    (record.site.range.start as u32).into(),
-                    (record.site.range.end as u32).into()
-                ),
-            ),
-            (selected.0, selected.1.to_vec(), selected.2, selected.3)
+            facts,
+            [structural_fact(StructuralKind::ErrorGroup, fact_range)],
+            "{source:?}"
         );
         check_exit(fresh_exit.unwrap(), fresh_remainder);
-        let (frozen_green, frozen_exit, frozen_records, frozen_remainder) =
-            typed_cast(source, 0, Some(&records), 0, None);
-        assert_eq!(frozen_green, fresh_green);
-        assert_eq!(frozen_records, records);
-        check_exit(frozen_exit.unwrap(), frozen_remainder);
     }
 }
 
@@ -1460,53 +1080,23 @@ fn cast_target_introducer_direct_target_children_distinguish_type_recovery() {
 }
 
 #[test]
-fn cast_pattern_close_records_are_exact_and_reconcile() {
+fn cast_pattern_close_structural_facts_are_exact() {
     for origin in [100, 12_000] {
         for (source, kind, relative_range) in [
-            ("cast(x", RecoveryKind::Missing, 6..6),
-            ("cast(x;", RecoveryKind::Missing, 6..6),
-            ("cast(x= value", RecoveryKind::Missing, 6..6),
-            ("cast(x @ ): T;", RecoveryKind::Error, 7..8),
-            ("cast(x @ = value", RecoveryKind::Error, 7..8),
-            ("cast(x @ =", RecoveryKind::Error, 7..8),
-            ("cast(x @ == = value", RecoveryKind::Error, 7..11),
-            ("cast(x @ =>> = value", RecoveryKind::Error, 7..12),
-            ("cast(x @   ", RecoveryKind::Error, 7..11),
-            ("cast(x @\r\n", RecoveryKind::Error, 7..8),
+            ("cast(x", StructuralKind::Missing, 6..6),
+            ("cast(x;", StructuralKind::Missing, 6..6),
+            ("cast(x= value", StructuralKind::Missing, 6..6),
+            ("cast(x @ ): T;", StructuralKind::ErrorGroup, 7..8),
+            ("cast(x @ = value", StructuralKind::ErrorGroup, 7..8),
+            ("cast(x @ =", StructuralKind::ErrorGroup, 7..8),
+            ("cast(x @ == = value", StructuralKind::ErrorGroup, 7..11),
+            ("cast(x @ =>> = value", StructuralKind::ErrorGroup, 7..12),
+            ("cast(x @   ", StructuralKind::ErrorGroup, 7..11),
+            ("cast(x @\r\n", StructuralKind::ErrorGroup, 7..8),
         ] {
-            let expected = cast_pattern_close_record(
-                0,
-                kind,
-                origin + relative_range.start..origin + relative_range.end,
-            );
-            let (green, _, records, remainder) = typed_cast(source, origin, None, 0, None);
-            assert_eq!(records.first(), Some(&expected), "{source:?} at {origin}");
-            assert_eq!(
-                records
-                    .iter()
-                    .filter(|record| {
-                        record.site.role
-                            == crate::recovery_record::GrammarRole::ClosingDelimiter {
-                                owner: crate::recovery_record::ConstructRole::CastPattern,
-                                delimiter: crate::recovery_record::Delimiter::Parenthesis,
-                            }
-                    })
-                    .collect::<Vec<_>>(),
-                [&expected],
-                "{source:?} at {origin}"
-            );
-            let (again, _, frozen, frozen_remainder) =
-                typed_cast(source, origin, Some(&records), 0, None);
-            assert_eq!(again, green, "{source:?} at {origin}");
-            assert_eq!(frozen, records, "{source:?} at {origin}");
-            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
-            let mut seeded = records.clone();
-            seeded[0].id = crate::recovery_record::DiagnosticId(71);
-            let (seeded_green, _, seeded_records, seeded_remainder) =
-                typed_cast(source, origin, Some(&seeded), 0, None);
-            assert_eq!(seeded_green, green, "{source:?} at {origin}");
-            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
-            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+            let expected = structural_fact(kind, relative_range);
+            let (_, _, facts, _) = typed_cast(source, origin, 0, None);
+            assert_eq!(facts.first(), Some(&expected), "{source:?} at {origin}");
         }
     }
 }
@@ -1718,7 +1308,7 @@ fn cast_pattern_close_exact_equals_preserves_form_and_body() {
 }
 
 #[test]
-fn cast_pattern_absence_records_are_exact_and_reconcile() {
+fn cast_pattern_absence_structural_facts_are_exact() {
     for origin in [100, 12_000] {
         for source in [
             "cast(",
@@ -1728,29 +1318,12 @@ fn cast_pattern_absence_records_are_exact_and_reconcile() {
             "cast(;",
             "cast(= value",
         ] {
-            let mut expected = vec![cast_pattern_record(0, origin + 5)];
+            let mut expected = vec![structural_fact(StructuralKind::Missing, 5..5)];
             if source == "cast()" {
-                expected.push(cast_target_introducer_record(
-                    1,
-                    RecoveryKind::Missing,
-                    origin + 6..origin + 6,
-                ));
+                expected.push(structural_fact(StructuralKind::Missing, 6..6));
             }
-            let (green, _, records, remainder) = typed_cast(source, origin, None, 0, None);
-            assert_eq!(records, expected, "{source:?} at {origin}");
-            let (again, _, frozen, frozen_remainder) =
-                typed_cast(source, origin, Some(&records), 0, None);
-            assert_eq!(again, green, "{source:?} at {origin}");
-            assert_eq!(frozen, records, "{source:?} at {origin}");
-            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
-
-            let mut seeded = records.clone();
-            seeded[0].id = crate::recovery_record::DiagnosticId(71);
-            let (seeded_green, _, seeded_records, seeded_remainder) =
-                typed_cast(source, origin, Some(&seeded), 0, None);
-            assert_eq!(seeded_green, green, "{source:?} at {origin}");
-            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
-            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+            let (_, _, facts, _) = typed_cast(source, origin, 0, None);
+            assert_eq!(facts, expected, "{source:?} at {origin}");
         }
     }
 }
@@ -1845,7 +1418,6 @@ fn cast_pattern_value_direct_rowan_boundary_has_no_later_slot() {
 
 #[test]
 fn cast_pattern_initial_shared_slots_have_direct_rowan_selectors() {
-    use crate::recovery_record::{ExpectedSyntax, GrammarRole, PatternRole};
     use SyntaxKind::*;
 
     for (source, pattern_end, initial_children, tail_children, expected_recoveries) in [
@@ -1854,14 +1426,14 @@ fn cast_pattern_initial_shared_slots_have_direct_rowan_selectors() {
             7,
             vec![(Missing, 5..5), (PatternAlternationTail, 5..7)],
             vec![(Pipe, 5..6), (Pattern, 6..7)],
-            vec![(Missing, PatternRole::Primary, 5..5)],
+            vec![structural_fact(StructuralKind::Missing, 5..5)],
         ),
         (
             "cast(@ x): T;",
             8,
             vec![(Error, 5..6), (Whitespace, 6..7), (IdentifierPattern, 7..8)],
             vec![],
-            vec![(Error, PatternRole::Primary, 5..6)],
+            vec![structural_fact(StructuralKind::ErrorGroup, 5..6)],
         ),
         (
             "cast(|): T;",
@@ -1869,8 +1441,8 @@ fn cast_pattern_initial_shared_slots_have_direct_rowan_selectors() {
             vec![(Missing, 5..5), (PatternAlternationTail, 5..6)],
             vec![(Pipe, 5..6), (Pattern, 6..6)],
             vec![
-                (Missing, PatternRole::Primary, 5..5),
-                (Missing, PatternRole::AlternationRhs, 6..6),
+                structural_fact(StructuralKind::Missing, 5..5),
+                structural_fact(StructuralKind::Missing, 6..6),
             ],
         ),
     ] {
@@ -1964,8 +1536,8 @@ fn cast_pattern_initial_shared_slots_have_direct_rowan_selectors() {
             ],
         );
 
-        // Select from direct Rowan ancestry and child position before consulting
-        // any parser recovery records. The two Missing nodes have distinct owners.
+        // Direct Rowan ancestry and child position distinguish the two Missing
+        // nodes without parser-owned recovery state.
         let projected = root
             .descendants_with_tokens()
             .filter(|element| matches!(element.kind(), Missing | Error | Invalid))
@@ -1988,47 +1560,33 @@ fn cast_pattern_initial_shared_slots_have_direct_rowan_selectors() {
                     }
                     _ => panic!("unexpected recovery category"),
                 }
-                let parent = owner.parent().unwrap();
-                let role = match parent.kind() {
+                match owner.parent().unwrap().kind() {
                     CastPattern => {
-                        assert_eq!(parent, cast_pattern);
-                        PatternRole::Primary
+                        assert_eq!(owner.parent(), Some(cast_pattern.clone()));
                     }
                     PatternAlternationTail => {
+                        let parent = owner.parent().unwrap();
                         assert_eq!(parent.parent().as_ref(), Some(&pattern));
                         assert_eq!(parent.first_child_or_token().unwrap().kind(), Pipe);
                         assert_eq!(
                             parent.last_child_or_token().unwrap().as_node(),
                             Some(&owner)
                         );
-                        PatternRole::AlternationRhs
                     }
                     _ => panic!("unexpected initial Pattern owner"),
-                };
+                }
                 let range = element.text_range();
                 (
-                    element.kind(),
-                    GrammarRole::Pattern(role),
-                    [ExpectedSyntax::Pattern],
-                    0,
+                    match element.kind() {
+                        Missing => StructuralKind::Missing,
+                        Error => StructuralKind::ErrorGroup,
+                        _ => unreachable!(),
+                    },
                     usize::from(range.start())..usize::from(range.end()),
                 )
             })
             .collect::<Vec<_>>();
-        assert_eq!(
-            projected,
-            expected_recoveries
-                .into_iter()
-                .map(|(kind, role, range)| (
-                    kind,
-                    GrammarRole::Pattern(role),
-                    [ExpectedSyntax::Pattern],
-                    0,
-                    range
-                ))
-                .collect::<Vec<_>>(),
-            "{source}"
-        );
+        assert_eq!(projected, expected_recoveries, "{source}");
         assert_eq!(remainder, "");
         let NormalizedExit::Complete(Err(Either::Right(end)), LineEntry::InLine) = exit else {
             panic!("bodyless Cast must return the EOF Item in-line")
@@ -2258,56 +1816,34 @@ fn cast_pattern_introducer_rowan_error_group_ends_before_phase_handoff() {
 }
 
 #[test]
-fn cast_pattern_introducer_records_are_exact_shifted_and_reconciled() {
+fn cast_pattern_introducer_structural_facts_are_exact_and_shifted() {
     for origin in [100, 12_000] {
         for (source, stops, kind, relative_range) in [
-            ("cast", 0, RecoveryKind::Missing, 4..4),
-            ("cast x", 0, RecoveryKind::Missing, 5..5),
-            ("cast;", 0, RecoveryKind::Missing, 4..4),
-            ("cast: T;", 0, RecoveryKind::Missing, 4..4),
-            ("cast= x", 0, RecoveryKind::Missing, 4..4),
-            ("cast )", 0, RecoveryKind::Missing, 4..4),
-            ("cast else tail", STOP_ELSE, RecoveryKind::Missing, 4..4),
-            ("cast @", 0, RecoveryKind::Error, 5..6),
-            ("cast @ x", 0, RecoveryKind::Error, 5..6),
-            ("cast @ # x", 0, RecoveryKind::Error, 5..8),
-            ("cast @ (x): T;", 0, RecoveryKind::Error, 5..6),
-            ("cast @ : T;", 0, RecoveryKind::Error, 5..6),
-            ("cast @ = x", 0, RecoveryKind::Error, 5..6),
-            ("cast @ )", 0, RecoveryKind::Error, 5..6),
-            ("cast @   ", 0, RecoveryKind::Error, 5..9),
-            ("cast @\r\n", 0, RecoveryKind::Error, 5..6),
-            ("cast @ あ x", 0, RecoveryKind::Error, 5..6),
+            ("cast", 0, StructuralKind::Missing, 4..4),
+            ("cast x", 0, StructuralKind::Missing, 5..5),
+            ("cast;", 0, StructuralKind::Missing, 4..4),
+            ("cast: T;", 0, StructuralKind::Missing, 4..4),
+            ("cast= x", 0, StructuralKind::Missing, 4..4),
+            ("cast )", 0, StructuralKind::Missing, 4..4),
+            ("cast else tail", STOP_ELSE, StructuralKind::Missing, 4..4),
+            ("cast @", 0, StructuralKind::ErrorGroup, 5..6),
+            ("cast @ x", 0, StructuralKind::ErrorGroup, 5..6),
+            ("cast @ # x", 0, StructuralKind::ErrorGroup, 5..8),
+            ("cast @ (x): T;", 0, StructuralKind::ErrorGroup, 5..6),
+            ("cast @ : T;", 0, StructuralKind::ErrorGroup, 5..6),
+            ("cast @ = x", 0, StructuralKind::ErrorGroup, 5..6),
+            ("cast @ )", 0, StructuralKind::ErrorGroup, 5..6),
+            ("cast @   ", 0, StructuralKind::ErrorGroup, 5..9),
+            ("cast @\r\n", 0, StructuralKind::ErrorGroup, 5..6),
+            ("cast @ あ x", 0, StructuralKind::ErrorGroup, 5..6),
         ] {
-            let range = origin + relative_range.start..origin + relative_range.end;
-            let mut expected = vec![pattern_introducer_record(0, kind, range)];
+            let mut expected = vec![structural_fact(kind, relative_range)];
             if source == "cast @ あ x" {
-                expected.push(cast_target_introducer_record(
-                    1,
-                    RecoveryKind::Missing,
-                    origin + 11..origin + 11,
-                ));
-                expected.push(cast_body_introducer_record(
-                    2,
-                    RecoveryKind::Missing,
-                    origin + 12..origin + 12,
-                ));
+                expected.push(structural_fact(StructuralKind::Missing, 11..11));
+                expected.push(structural_fact(StructuralKind::Missing, 12..12));
             }
-            let (green, _, records, remainder) = typed_cast(source, origin, None, stops, None);
-            assert_eq!(records, expected, "{source:?} at {origin}");
-            let (again, _, frozen, frozen_remainder) =
-                typed_cast(source, origin, Some(&records), stops, None);
-            assert_eq!(again, green, "{source:?} at {origin}");
-            assert_eq!(frozen, records, "{source:?} at {origin}");
-            assert_eq!(frozen_remainder, remainder, "{source:?} at {origin}");
-
-            let mut seeded = records.clone();
-            seeded[0].id = crate::recovery_record::DiagnosticId(71);
-            let (seeded_green, _, seeded_records, seeded_remainder) =
-                typed_cast(source, origin, Some(&seeded), stops, None);
-            assert_eq!(seeded_green, green, "{source:?} at {origin}");
-            assert_eq!(seeded_records, seeded, "{source:?} at {origin}");
-            assert_eq!(seeded_remainder, remainder, "{source:?} at {origin}");
+            let (_, _, facts, _) = typed_cast(source, origin, stops, None);
+            assert_eq!(facts, expected, "{source:?} at {origin}");
         }
     }
 }
@@ -3277,22 +2813,21 @@ fn cast_malformed_body_owns_only_same_line_eof_trivia() {
 }
 
 #[test]
-fn cast_indented_body_recovery_keeps_the_child_role() {
+fn cast_indented_body_recovery_has_a_child_structural_fact() {
     let source = "cast(x): A =\n  ";
-    let (_, _, records, remainder) = typed_cast(source, 0, None, 0, None);
+    let (green, _, facts, remainder) = typed_cast(source, 0, 0, None);
     assert_eq!(remainder, "");
-    assert!(records.iter().any(|record| {
-        record.site.role
-            == crate::recovery_record::GrammarRole::Declaration(
-                crate::recovery_record::DeclarationRole::Cast(CastRole::IndentedStatement),
-            )
-    }));
-    assert!(!records.iter().any(|record| {
-        record.site.role
-            == crate::recovery_record::GrammarRole::Declaration(
-                crate::recovery_record::DeclarationRole::Cast(CastRole::Body),
-            )
-    }));
+    let declaration = declaration(&green);
+    let indented = declaration
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::IndentedStatementBlock)
+        .expect("indented body owner");
+    let missing = indented
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::Missing)
+        .expect("indented body Missing");
+    let range = usize::from(missing.text_range().start())..usize::from(missing.text_range().end());
+    assert_eq!(facts, [structural_fact(StructuralKind::Missing, range)]);
 }
 
 #[test]
@@ -3371,41 +2906,27 @@ fn cast_fence_and_origin_boundary_remain_outer_owned() {
         Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
     ));
 
-    let (_, _, records, typed_remainder) = typed_cast_at(
-        &source,
-        origin,
-        None,
-        0,
-        LineEntry::PhysicalStart,
-        Some(&fence),
-    );
+    let (_, _, facts, typed_remainder) =
+        typed_cast_at(&source, origin, 0, LineEntry::PhysicalStart, Some(&fence));
     assert_eq!(typed_remainder, "> > ```\r\nouter");
     assert_eq!(
-        records,
-        [cast_body_introducer_record(
-            0,
-            RecoveryKind::Missing,
-            origin + accepted.len() + 2..origin + accepted.len() + 2,
+        facts,
+        [structural_fact(
+            StructuralKind::Missing,
+            accepted.len()..accepted.len(),
         )]
     );
 
     let accepted = "> > cast(x): A =";
     let source = format!("{accepted}\r\n> > ```\r\nouter");
-    let (_, _, records, typed_remainder) = typed_cast_at(
-        &source,
-        origin,
-        None,
-        0,
-        LineEntry::PhysicalStart,
-        Some(&fence),
-    );
+    let (_, _, facts, typed_remainder) =
+        typed_cast_at(&source, origin, 0, LineEntry::PhysicalStart, Some(&fence));
     assert_eq!(typed_remainder, "> > ```\r\nouter");
     assert_eq!(
-        records,
-        [cast_body_record(
-            0,
-            RecoveryKind::Missing,
-            origin + accepted.len() + 2..origin + accepted.len() + 2,
+        facts,
+        [structural_fact(
+            StructuralKind::Missing,
+            accepted.len()..accepted.len(),
         )]
     );
 
@@ -3426,77 +2947,53 @@ fn cast_fence_and_origin_boundary_remain_outer_owned() {
         Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
     ));
 
-    let (_, _, records, typed_remainder) = typed_cast_at(
-        &source,
-        origin,
-        None,
-        0,
-        LineEntry::PhysicalStart,
-        Some(&fence),
-    );
+    let (_, _, facts, typed_remainder) =
+        typed_cast_at(&source, origin, 0, LineEntry::PhysicalStart, Some(&fence));
     assert_eq!(typed_remainder, "> > ```\r\nouter");
     assert_eq!(
-        records,
-        [pattern_introducer_record(
-            0,
-            RecoveryKind::Error,
-            origin + "> > cast ".len()..origin + accepted.len(),
+        facts,
+        [structural_fact(
+            StructuralKind::ErrorGroup,
+            "> > cast ".len()..accepted.len(),
         )]
     );
 
     let accepted = "> > cast(";
     let source = format!("{accepted}\r\n> > ```\r\nouter");
-    let (_, _, records, typed_remainder) = typed_cast_at(
-        &source,
-        origin,
-        None,
-        0,
-        LineEntry::PhysicalStart,
-        Some(&fence),
-    );
+    let (_, _, facts, typed_remainder) =
+        typed_cast_at(&source, origin, 0, LineEntry::PhysicalStart, Some(&fence));
     assert_eq!(typed_remainder, "> > ```\r\nouter");
     assert_eq!(
-        records,
-        [cast_pattern_record(0, origin + accepted.len() + 2)]
+        facts,
+        [structural_fact(
+            StructuralKind::Missing,
+            accepted.len()..accepted.len(),
+        )]
     );
 
     let accepted = "> > cast(x) @";
     let source = format!("{accepted}\r\n> > ```\r\nouter");
-    let (_, _, records, typed_remainder) = typed_cast_at(
-        &source,
-        origin,
-        None,
-        0,
-        LineEntry::PhysicalStart,
-        Some(&fence),
-    );
+    let (_, _, facts, typed_remainder) =
+        typed_cast_at(&source, origin, 0, LineEntry::PhysicalStart, Some(&fence));
     assert_eq!(typed_remainder, "> > ```\r\nouter");
     assert_eq!(
-        records,
-        [cast_target_introducer_record(
-            0,
-            RecoveryKind::Error,
-            origin + "> > cast(x) ".len()..origin + accepted.len(),
+        facts,
+        [structural_fact(
+            StructuralKind::ErrorGroup,
+            "> > cast(x) ".len()..accepted.len(),
         )]
     );
 
     let accepted = "> > cast(x): A @";
     let source = format!("{accepted}\r\n> > ```\r\nouter");
-    let (_, _, records, typed_remainder) = typed_cast_at(
-        &source,
-        origin,
-        None,
-        0,
-        LineEntry::PhysicalStart,
-        Some(&fence),
-    );
+    let (_, _, facts, typed_remainder) =
+        typed_cast_at(&source, origin, 0, LineEntry::PhysicalStart, Some(&fence));
     assert_eq!(typed_remainder, "> > ```\r\nouter");
     assert_eq!(
-        records,
-        [cast_body_introducer_record(
-            0,
-            RecoveryKind::Error,
-            origin + "> > cast(x): A ".len()..origin + accepted.len(),
+        facts,
+        [structural_fact(
+            StructuralKind::ErrorGroup,
+            "> > cast(x): A ".len()..accepted.len(),
         )]
     );
 }

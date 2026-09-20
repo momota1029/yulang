@@ -6,7 +6,7 @@ use reborrow_generic::Reborrow as _;
 
 use crate::{
     HeaderCoverage, HeaderImport, HeaderInfo, HeaderOperator, HeaderStop, SourceText,
-    recovery_record::CommittedRecoveryRecord, syntax_kind::SyntaxKind,
+    syntax_kind::SyntaxKind,
 };
 
 use crate::{
@@ -20,14 +20,12 @@ pub(crate) struct HeaderDiscovery {
     pub(crate) stop: HeaderStop,
     pub(crate) imports: Vec<HeaderImport>,
     pub(crate) operators: Vec<HeaderOperator>,
-    pub(crate) recoveries: Vec<CommittedRecoveryRecord>,
 }
 
 impl HeaderDiscovery {
     pub(crate) fn into_header_info(self, source: Arc<SourceText>) -> HeaderInfo {
         HeaderInfo {
             source,
-            recoveries: self.recoveries.into(),
             coverage: HeaderCoverage {
                 range: self.coverage,
                 stop: self.stop,
@@ -39,14 +37,7 @@ impl HeaderDiscovery {
 }
 
 pub(crate) fn discover_header(source: &str) -> HeaderDiscovery {
-    discover_header_with_frozen(source, None)
-}
-
-pub(super) fn discover_header_with_frozen(
-    source: &str,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> HeaderDiscovery {
-    crate::cursor::discover_header(source, frozen)
+    crate::cursor::discover_header(source)
 }
 
 pub(crate) fn discover_header_with_cursor(
@@ -105,13 +96,14 @@ pub(crate) fn discover_header_with_cursor(
         }
         drop(i);
         if is_use {
-            let (exit, batch) = crate::cursor::recovery::with_header_reconciliation(
+            let (exit, batch) = crate::declaration::use_declaration_header_normalized(
                 crate::cursor::SyntaxIn::new(&mut remaining, &mut *recover, &mut *output),
-                |i| {
-                    crate::declaration::use_declaration_header_normalized(
-                        i, item, 0, 0, origin, line, None,
-                    )
-                },
+                item,
+                0,
+                0,
+                origin,
+                line,
+                None,
             );
             imports.extend(batch);
             origin = source.len() - remaining.len();
@@ -125,9 +117,12 @@ pub(crate) fn discover_header_with_cursor(
             line = next_line;
         } else {
             let (item, next_origin, next_line, fact) =
-                crate::cursor::recovery::with_header_reconciliation(
+                crate::declaration::operator_header_normalized(
                     crate::cursor::SyntaxIn::new(&mut remaining, &mut *recover, &mut *output),
-                    |i| crate::declaration::operator_header_normalized(i, item, origin, line, None),
+                    item,
+                    origin,
+                    line,
+                    None,
                 );
             origin = next_origin;
             line = next_line;
@@ -156,7 +151,6 @@ pub(crate) fn discover_header_with_cursor(
         stop,
         imports,
         operators: facts,
-        recoveries: Vec::new(),
     }
 }
 

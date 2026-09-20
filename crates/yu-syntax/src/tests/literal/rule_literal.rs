@@ -1,5 +1,23 @@
 use crate::tests::literal::*;
 
+// The recovery contract is represented by the Missing node's direct CST
+// owner and preceding child below.  These test-local tags name those concrete
+// slots; they are not parser recovery records.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LiteralSlot {
+    InterpolationCloseBrace,
+    Terminator,
+    LazyCaptureCloseBrace,
+    LazyCaptureName,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SlotExpectation {
+    ClosingBrace,
+    Terminator,
+    Identifier,
+}
+
 #[test]
 fn expression_rule_literal_owns_raw_text_and_both_lazy_capture_forms() {
     let source = "~\"a\\b:name:{x=y\"z\r\nw}\"tail";
@@ -322,11 +340,6 @@ fn rule_lazy_capture_missing_slots_preserve_outer_quote_or_boundary() {
 #[test]
 fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
     {
-        use crate::recovery_record::{
-            Delimiter, ExpectedSyntax, GrammarRole, LiteralExpected, LiteralRole,
-            PunctuationEvidence,
-        };
-
         let source = "~\"é{α";
         let (green, exit, remainder) = run_rule_literal(source, 0, &fence(FencePrefixPolicy::None));
         assert_eq!(remainder, "");
@@ -449,17 +462,16 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
                 let preceding = missing.prev_sibling_or_token().expect("preceding child");
                 let (role, expected) = match (owner.kind(), preceding.kind()) {
                     (SyntaxKind::RuleLiteralInterpolation, SyntaxKind::RuleSequence) => (
-                        LiteralRole::RuleLiteralInterpolationCloseBrace,
-                        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
+                        LiteralSlot::InterpolationCloseBrace,
+                        SlotExpectation::ClosingBrace,
                     ),
-                    (SyntaxKind::RuleLiteral, SyntaxKind::RuleLiteralInterpolation) => (
-                        LiteralRole::RuleLiteralTerminator,
-                        ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
-                    ),
+                    (SyntaxKind::RuleLiteral, SyntaxKind::RuleLiteralInterpolation) => {
+                        (LiteralSlot::Terminator, SlotExpectation::Terminator)
+                    }
                     context => panic!("unexpected terminal slot: {context:?}"),
                 };
                 (
-                    GrammarRole::Literal(role),
+                    role,
                     usize::from(missing.text_range().start())
                         ..usize::from(missing.text_range().end()),
                     [expected],
@@ -471,19 +483,15 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
             projected,
             [
                 (
-                    GrammarRole::Literal(LiteralRole::RuleLiteralInterpolationCloseBrace),
+                    LiteralSlot::InterpolationCloseBrace,
                     7..7,
-                    [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                        Delimiter::Brace
-                    ))],
+                    [SlotExpectation::ClosingBrace],
                     0,
                 ),
                 (
-                    GrammarRole::Literal(LiteralRole::RuleLiteralTerminator),
+                    LiteralSlot::Terminator,
                     7..7,
-                    [ExpectedSyntax::Literal(
-                        LiteralExpected::RuleLiteralTerminator
-                    )],
+                    [SlotExpectation::Terminator],
                     0,
                 ),
             ]
@@ -491,11 +499,6 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
     }
 
     {
-        use crate::recovery_record::{
-            Delimiter, ExpectedSyntax, GrammarRole, LiteralExpected, LiteralRole,
-            PunctuationEvidence,
-        };
-
         let source = "~\":{α";
         let (green, exit, remainder) = run_rule_literal(source, 0, &fence(FencePrefixPolicy::None));
         assert_eq!(remainder, "");
@@ -614,20 +617,17 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
                             ]) =>
                     {
                         (
-                            LiteralRole::RuleLazyCaptureCloseBrace,
-                            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                                Delimiter::Brace,
-                            )),
+                            LiteralSlot::LazyCaptureCloseBrace,
+                            SlotExpectation::ClosingBrace,
                         )
                     }
-                    (SyntaxKind::RuleLiteral, SyntaxKind::RuleLazyCapture) => (
-                        LiteralRole::RuleLiteralTerminator,
-                        ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
-                    ),
+                    (SyntaxKind::RuleLiteral, SyntaxKind::RuleLazyCapture) => {
+                        (LiteralSlot::Terminator, SlotExpectation::Terminator)
+                    }
                     context => panic!("unexpected terminal slot: {context:?}"),
                 };
                 (
-                    GrammarRole::Literal(role),
+                    role,
                     usize::from(missing.text_range().start())
                         ..usize::from(missing.text_range().end()),
                     [expected],
@@ -639,19 +639,15 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
             projected,
             [
                 (
-                    GrammarRole::Literal(LiteralRole::RuleLazyCaptureCloseBrace),
+                    LiteralSlot::LazyCaptureCloseBrace,
                     6..6,
-                    [ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                        Delimiter::Brace
-                    ))],
+                    [SlotExpectation::ClosingBrace],
                     0,
                 ),
                 (
-                    GrammarRole::Literal(LiteralRole::RuleLiteralTerminator),
+                    LiteralSlot::Terminator,
                     6..6,
-                    [ExpectedSyntax::Literal(
-                        LiteralExpected::RuleLiteralTerminator
-                    )],
+                    [SlotExpectation::Terminator],
                     0,
                 ),
             ]
@@ -659,8 +655,6 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
     }
 
     {
-        use crate::recovery_record::{ExpectedSyntax, GrammarRole, LiteralExpected, LiteralRole};
-
         let source = "~\"é:";
         let (green, exit, remainder) = run_rule_literal(source, 0, &fence(FencePrefixPolicy::None));
         assert_eq!(remainder, "");
@@ -770,16 +764,15 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
                                 (SyntaxKind::Missing, false),
                             ]) =>
                     {
-                        (LiteralRole::RuleLazyCaptureName, ExpectedSyntax::Identifier)
+                        (LiteralSlot::LazyCaptureName, SlotExpectation::Identifier)
                     }
-                    (SyntaxKind::RuleLiteral, SyntaxKind::RuleLazyCapture) => (
-                        LiteralRole::RuleLiteralTerminator,
-                        ExpectedSyntax::Literal(LiteralExpected::RuleLiteralTerminator),
-                    ),
+                    (SyntaxKind::RuleLiteral, SyntaxKind::RuleLazyCapture) => {
+                        (LiteralSlot::Terminator, SlotExpectation::Terminator)
+                    }
                     context => panic!("unexpected terminal slot: {context:?}"),
                 };
                 (
-                    GrammarRole::Literal(role),
+                    role,
                     usize::from(missing.text_range().start())
                         ..usize::from(missing.text_range().end()),
                     [expected],
@@ -791,17 +784,15 @@ fn rule_literal_child_slots_are_directly_distinguished_by_rowan_context() {
             projected,
             [
                 (
-                    GrammarRole::Literal(LiteralRole::RuleLazyCaptureName),
+                    LiteralSlot::LazyCaptureName,
                     5..5,
-                    [ExpectedSyntax::Identifier],
+                    [SlotExpectation::Identifier],
                     0,
                 ),
                 (
-                    GrammarRole::Literal(LiteralRole::RuleLiteralTerminator),
+                    LiteralSlot::Terminator,
                     5..5,
-                    [ExpectedSyntax::Literal(
-                        LiteralExpected::RuleLiteralTerminator
-                    )],
+                    [SlotExpectation::Terminator],
                     0,
                 ),
             ]

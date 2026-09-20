@@ -480,9 +480,7 @@ fn act_body_introducer_schema_uses_completed_type_and_native_retry_boundaries() 
 
 #[test]
 fn act_source_schema_uses_equals_and_ordered_required_type_evidence() {
-    use crate::recovery_record::{
-        ActDeclarationRole, DeclarationRole, GrammarRole, RecoveryKind, TypeRole,
-    };
+    use crate::structural_diagnostic::StructuralKind;
     use SyntaxKind::*;
 
     for (source, suffix, missing_at) in [
@@ -493,7 +491,7 @@ fn act_source_schema_uses_equals_and_ordered_required_type_evidence() {
                 (Whitespace, false, 7..8, " "),
                 (Semicolon, false, 8..9, ";"),
             ],
-            Some(7),
+            Some(7usize),
         ),
         (
             "act = B;",
@@ -502,7 +500,7 @@ fn act_source_schema_uses_equals_and_ordered_required_type_evidence() {
                 (TypeExpression, true, 6..7, "B"),
                 (Semicolon, false, 7..8, ";"),
             ],
-            Some(3),
+            Some(3usize),
         ),
         (
             "act A = @;",
@@ -545,7 +543,7 @@ fn act_source_schema_uses_equals_and_ordered_required_type_evidence() {
             None,
         ),
     ] {
-        let (green, exit, records, remainder) = typed_act(source, None, 0, None);
+        let (green, exit, facts, remainder) = typed_act(source, 0, None);
         assert_eq!(green.to_string(), source, "{source:?}");
         assert_eq!(remainder, "");
         let (canonical, _, canonical_remainder) =
@@ -672,7 +670,10 @@ fn act_source_schema_uses_equals_and_ordered_required_type_evidence() {
                 }
             );
             assert_eq!(parent.children_with_tokens().count(), 1);
-            assert_eq!(parent.text_range(), rowan::TextRange::empty(at.into()));
+            assert_eq!(
+                parent.text_range(),
+                rowan::TextRange::empty((at as u32).into())
+            );
             assert_eq!(missing[0].text_range(), parent.text_range());
             assert_eq!(missing[0].to_string(), "");
             assert_eq!(missing[0].children_with_tokens().count(), 0);
@@ -696,38 +697,15 @@ fn act_source_schema_uses_equals_and_ordered_required_type_evidence() {
             assert_eq!(emit_pending_leading_text(&mut item), "");
         };
         assert_handoff(exit);
-        // Compatibility only: the CST checks above identify the owning slot.
-        assert_eq!(
-            records.len(),
-            usize::from(missing_at.is_some() || !errors.is_empty())
-        );
-        if let Some(record) = records.first() {
-            if let Some(at) = missing_at {
-                assert_eq!(record.kind, RecoveryKind::Missing);
-                assert_eq!(
-                    record.site.role,
-                    GrammarRole::Declaration(DeclarationRole::Act(if at == 3 {
-                        ActDeclarationRole::Head
-                    } else {
-                        ActDeclarationRole::Source
-                    }))
-                );
-                assert_eq!(record.site.range, 100 + at as usize..100 + at as usize);
-            } else {
-                assert_eq!(record.kind, RecoveryKind::Error);
-                assert_eq!(record.site.role, GrammarRole::Type(TypeRole::Primary));
-                assert_eq!(
-                    record.site.range,
-                    108..if source.contains('%') { 111 } else { 109 }
-                );
-            }
-        }
-        let (again, again_exit, frozen, again_remainder) =
-            typed_act(source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(again_remainder, remainder);
-        assert_handoff(again_exit);
+        let expected_facts = if let Some(at) = missing_at {
+            vec![(StructuralKind::Missing, at..at)]
+        } else if errors.is_empty() {
+            vec![]
+        } else {
+            let end = if source.contains('%') { 11 } else { 9 };
+            vec![(StructuralKind::ErrorGroup, 8..end)]
+        };
+        assert_eq!(facts, expected_facts, "{source:?}");
     }
 }
 
@@ -897,15 +875,12 @@ fn act_required_type_slots_have_direct_ordered_rowan_evidence() {
 
 #[test]
 fn act_required_type_terminal_error_has_direct_head_and_source_slots() {
-    use crate::recovery_record::{
-        ActDeclarationRole, ExpectedSyntax, GrammarRole, RecoveryKind, TypeRole,
-    };
+    use crate::structural_diagnostic::StructuralKind;
     use SyntaxKind::*;
 
-    for (source, expected_slot, error_start, expected) in [
+    for (source, error_start, expected) in [
         (
             "act @;",
-            ActDeclarationRole::Head,
             4u32,
             vec![
                 (ActKw, false, 0..3),
@@ -916,7 +891,6 @@ fn act_required_type_terminal_error_has_direct_head_and_source_slots() {
         ),
         (
             "act A = @;",
-            ActDeclarationRole::Source,
             8u32,
             vec![
                 (ActKw, false, 0..3),
@@ -965,17 +939,16 @@ fn act_required_type_terminal_error_has_direct_head_and_source_slots() {
             assert_eq!(child.to_string(), &source[range]);
         }
 
-        // Select the mandatory slot from the ordered shell, before consulting
-        // compatibility records. Only a completed Head plus actual Equals
+        // Select the mandatory slot from the ordered shell. Only a completed Head plus actual Equals
         // enters Source; a direct post-ActKw Error still occupies Head.
-        let (slot, group_start) = match children.as_slice() {
+        let group_start = match children.as_slice() {
             [kw, space, error, terminal]
                 if kw.kind() == ActKw
                     && space.kind() == Whitespace
                     && error.kind() == Error
                     && terminal.kind() == Semicolon =>
             {
-                (ActDeclarationRole::Head, 2)
+                2
             }
             [
                 kw,
@@ -1003,11 +976,10 @@ fn act_required_type_terminal_error_has_direct_head_and_source_slots() {
                 assert_eq!(identifier.parent(), Some(head.clone()));
                 assert_eq!(identifier.text_range(), head.text_range());
                 assert_eq!(identifier.to_string(), "A");
-                (ActDeclarationRole::Source, 6)
+                6
             }
             _ => panic!("terminal Type Error requires the ordered Act shell"),
         };
-        assert_eq!(slot, expected_slot);
         let group = children[group_start..]
             .iter()
             .take_while(|child| child.kind() == Error && child.as_token().is_some())
@@ -1023,20 +995,9 @@ fn act_required_type_terminal_error_has_direct_head_and_source_slots() {
             group.first().unwrap().text_range().start(),
             group.last().unwrap().text_range().end(),
         );
-        let projected = (
-            GrammarRole::Type(TypeRole::Primary),
-            vec![ExpectedSyntax::TypeExpression],
-            0usize,
-            range,
-        );
         assert_eq!(
-            projected,
-            (
-                GrammarRole::Type(TypeRole::Primary),
-                vec![ExpectedSyntax::TypeExpression],
-                0usize,
-                rowan::TextRange::new(error_start.into(), (error_start + 1).into()),
-            )
+            range,
+            rowan::TextRange::new(error_start.into(), (error_start + 1).into())
         );
         // Required Type hands its terminal to Act, which consumes the direct
         // semicolon with no Type retry and leaves only an empty EOF Item.
@@ -1059,27 +1020,18 @@ fn act_required_type_terminal_error_has_direct_head_and_source_slots() {
             assert!(item.payload_view().is_eof());
             assert_eq!(emit_pending_leading_text(&mut item), "");
         };
-        let (green, exit, records, remainder) = typed_act(source, None, 0, None);
+        let (green, exit, facts, remainder) = typed_act(source, 0, None);
         assert_eq!(act.green(), declaration(&green).green());
         assert_eq!(green.to_string(), source);
         assert_eq!(remainder, "");
         assert_eof(exit);
-        assert_eq!(records.len(), 1);
-        let record = &records[0];
-        assert_eq!(record.kind, RecoveryKind::Error);
-        assert_eq!(record.site.role, projected.0);
         assert_eq!(
-            record.site.range,
-            100 + error_start as usize..101 + error_start as usize
+            facts,
+            [(
+                StructuralKind::ErrorGroup,
+                error_start as usize..error_start as usize + 1
+            )]
         );
-        assert_eq!(record.expectations.len(), 1);
-        assert_eq!(record.expectations[0].expected, projected.1[0]);
-        assert_eq!(record.primary_expectation, projected.2);
-        let (again, exit, frozen, remainder) = typed_act(source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(remainder, "");
-        assert_eof(exit);
     }
 }
 
@@ -1132,112 +1084,53 @@ fn act_inline_body_schema_requires_direct_colon_and_preserves_child_ownership() 
     );
 }
 
-fn act_record(
-    slot: crate::recovery_record::ActDeclarationRole,
-    kind: crate::recovery_record::RecoveryKind,
-    range: std::ops::Range<usize>,
-) -> CommittedRecoveryRecord {
-    use crate::recovery_record::*;
-    use std::sync::Arc;
-    let role = GrammarRole::Declaration(DeclarationRole::Act(slot));
-    let expected = if slot == ActDeclarationRole::BodyIntroducer {
-        vec![
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        ]
-    } else {
-        vec![ExpectedSyntax::Statement]
-    };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: expected
-            .into_iter()
-            .map(|expected| SyntaxExpectation {
-                role,
-                expected,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .collect::<Vec<_>>()
-            .into(),
-        primary_expectation: 0,
-    }
-}
-
 #[test]
-fn act_typed_runs_retry_each_starter_and_statement_with_exact_records() {
-    use crate::recovery_record::{ActDeclarationRole as R, RecoveryKind as K};
-    for (source, slot, range) in [
-        ("act A @ % ;", R::BodyIntroducer, 106..109),
-        ("act A @ {} derives Eq", R::BodyIntroducer, 106..107),
-        ("act A @ : my x = y", R::BodyIntroducer, 106..107),
-        ("act A: @ % my x = y", R::Body, 107..110),
-        ("act 名: @ my x = y", R::Body, 109..110),
+fn act_typed_runs_retry_each_starter_and_statement_with_exact_structural_facts() {
+    use crate::structural_diagnostic::StructuralKind;
+    for (source, fact) in [
+        ("act A @ % ;", (StructuralKind::ErrorGroup, 6..9)),
+        ("act A @ {} derives Eq", (StructuralKind::ErrorGroup, 6..7)),
+        ("act A @ : my x = y", (StructuralKind::ErrorGroup, 6..7)),
+        ("act A: @ % my x = y", (StructuralKind::ErrorGroup, 7..10)),
+        ("act 名: @ my x = y", (StructuralKind::ErrorGroup, 9..10)),
     ] {
-        let (green, _, records, rest) = typed_act(source, None, 0, None);
+        let (green, _, facts, rest) = typed_act(source, 0, None);
         assert_eq!(green.to_string(), source, "{source}");
         assert_eq!(rest, "");
-        assert_eq!(records, [act_record(slot, K::Error, range)], "{source}");
-        let (again, _, frozen, rest) = typed_act(source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(rest, "");
+        assert_eq!(facts, [fact], "{source}");
     }
 }
 
 #[test]
 fn act_typed_absence_and_post_error_boundaries_preserve_whole_items() {
-    use crate::recovery_record::{ActDeclarationRole as R, RecoveryKind as K};
-    for (owned, slot, kind, range) in [
-        ("act A:", R::Body, K::Missing, 106..106),
-        ("act A: @", R::Body, K::Error, 107..108),
-        ("act A @", R::BodyIntroducer, K::Error, 106..107),
+    use crate::structural_diagnostic::StructuralKind;
+    for (owned, fact) in [
+        ("act A:", (StructuralKind::Missing, 6..6)),
+        ("act A: @", (StructuralKind::ErrorGroup, 7..8)),
+        ("act A @", (StructuralKind::ErrorGroup, 6..7)),
     ] {
         for suffix in ["  ", "  ) tail", "  , tail", "  else tail", "\r\nnext tail"] {
             let source = format!("{owned}{suffix}");
-            let (green, _, records, _) = typed_act(&source, None, STOP_ELSE, None);
+            let (green, exit, facts, rest) = typed_act(&source, STOP_ELSE, None);
             assert_eq!(green.to_string(), owned, "{source:?}");
-            assert_eq!(
-                records,
-                [act_record(slot, kind, range.clone())],
-                "{source:?}"
-            );
-            for frozen in [None, Some(records.as_slice())] {
-                let (again, exit, actual, rest) = typed_act(&source, frozen, STOP_ELSE, None);
-                assert_eq!(again, green);
-                assert_eq!(actual, records);
-                let mut item = match exit {
-                    Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
-                    Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) => end.item,
-                    _ => panic!("pending {source:?}"),
-                };
-                let leading = emit_pending_leading_text(&mut item);
-                let payload = item.payload_view().spelling().unwrap_or("");
-                assert_eq!(format!("{owned}{leading}{payload}{rest}"), source);
-            }
+            assert_eq!(facts, [fact.clone()], "{source:?}");
+            let mut item = match exit {
+                Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
+                Some(NormalizedExit::Complete(Err(Either::Right(end)), _)) => end.item,
+                _ => panic!("pending {source:?}"),
+            };
+            let leading = emit_pending_leading_text(&mut item);
+            let payload = item.payload_view().spelling().unwrap_or("");
+            assert_eq!(format!("{owned}{leading}{payload}{rest}"), source);
         }
     }
-    let (green, _, records, _) = typed_act("act A: ;", None, 0, None);
+    let (green, _, facts, _) = typed_act("act A: ;", 0, None);
     assert_eq!(green.to_string(), "act A:");
-    assert_eq!(records, [act_record(R::Body, K::Missing, 106..106)]);
+    assert_eq!(facts, [(StructuralKind::Missing, 6..6)]);
 }
 
 #[test]
-fn act_typed_bodyless_and_attachment_controls_remain_zero_recovery() {
+fn act_typed_bodyless_and_attachment_controls_remain_without_structural_facts() {
     for source in [
         "act A",
         "act A = B",
@@ -1246,42 +1139,36 @@ fn act_typed_bodyless_and_attachment_controls_remain_zero_recovery() {
         "act A {} derives Eq",
         "act A: my x = y",
     ] {
-        let (green, _, records, rest) = typed_act(source, None, 0, None);
+        let (green, _, facts, rest) = typed_act(source, 0, None);
         assert_eq!(green.to_string(), source);
-        assert!(records.is_empty(), "{source}");
+        assert!(facts.is_empty(), "{source}");
         assert_eq!(rest, "");
-        let (again, _, frozen, _) = typed_act(source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
 }
 
 #[test]
 fn act_typed_bodyless_closing_owner_boundary_keeps_the_whole_item() {
     let source = "act A  } tail";
-    let expected = [];
-    for frozen in [None, Some(expected.as_slice())] {
-        let (green, exit, records, rest) = typed_act(source, frozen, 0, None);
-        assert_eq!(green.to_string(), "act A");
-        assert_eq!(records, expected);
-        assert_eq!(rest, " tail");
-        let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine)) = exit
-        else {
-            panic!("the closing owner's brace must remain pending")
-        };
-        assert_eq!(token_kind(&item), Some(TokenKind::RBrace));
-        let successor = 100 + source.len() - rest.len();
-        assert_eq!(successor, 108);
-        assert_eq!(item.extent(successor).recovery_range(), 105..108);
-        assert_eq!(emit_pending_leading_text(&mut item), "  ");
-        assert_eq!(item.payload_view().spelling(), Some("}"));
-    }
+    let (green, exit, facts, rest) = typed_act(source, 0, None);
+    assert_eq!(green.to_string(), "act A");
+    assert!(facts.is_empty());
+    assert_eq!(rest, " tail");
+    let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine)) = exit
+    else {
+        panic!("the closing owner's brace must remain pending")
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::RBrace));
+    let successor = 100 + source.len() - rest.len();
+    assert_eq!(successor, 108);
+    assert_eq!(item.extent(successor).recovery_range(), 105..108);
+    assert_eq!(emit_pending_leading_text(&mut item), "  ");
+    assert_eq!(item.payload_view().spelling(), Some("}"));
 }
 
 #[test]
 fn act_typed_fence_absence_and_error_keep_crlf_and_abstract_coordinate() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
-    use crate::recovery_record::{ActDeclarationRole as R, RecoveryKind as K};
+    use crate::structural_diagnostic::StructuralKind;
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -1291,80 +1178,65 @@ fn act_typed_fence_absence_and_error_keep_crlf_and_abstract_coordinate() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
         close_column: 0,
     };
-    for (owned, expected) in [
-        ("act A", None),
-        ("act A:", Some(act_record(R::Body, K::Missing, 108..108))),
-        (
-            "act A @",
-            Some(act_record(R::BodyIntroducer, K::Error, 106..107)),
-        ),
-        ("act A: @", Some(act_record(R::Body, K::Error, 107..108))),
+    for (owned, expected_facts) in [
+        ("act A", vec![]),
+        ("act A:", vec![(StructuralKind::Missing, 6..6)]),
+        ("act A @", vec![(StructuralKind::ErrorGroup, 6..7)]),
+        ("act A: @", vec![(StructuralKind::ErrorGroup, 7..8)]),
     ] {
         let source = format!("{owned}\r\n> > ```\r\nouter");
-        let expected: Vec<_> = expected.into_iter().collect();
-        for frozen in [None, Some(expected.as_slice())] {
-            let (green, exit, records, rest) = typed_act(&source, frozen, 0, Some(&fence));
-            assert_eq!(green.to_string(), owned);
-            assert_eq!(records, expected);
-            assert_eq!(rest, "> > ```\r\nouter");
-            let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
-                exit
-            else {
-                panic!("fence pending")
-            };
-            let (leading, boundary) = emit_terminal_leading_text(item);
-            assert_eq!(leading, "\r\n");
-            assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
-        }
+        let (green, exit, facts, rest) = typed_act(&source, 0, Some(&fence));
+        assert_eq!(green.to_string(), owned);
+        assert_eq!(facts, expected_facts);
+        assert_eq!(rest, "> > ```\r\nouter");
+        let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("fence pending")
+        };
+        let (leading, boundary) = emit_terminal_leading_text(item);
+        assert_eq!(leading, "\r\n");
+        assert_eq!(boundary.coordinate(), 100 + owned.len() + 2);
     }
 }
 
 #[test]
-fn act_typed_shell_preserves_head_source_and_child_owners_without_cascade() {
-    use crate::recovery_record::{
-        ActDeclarationRole as R, BindingRole, DeclarationRole, GrammarRole,
-    };
-    for (source, role) in [
-        (
-            "act;",
-            GrammarRole::Declaration(DeclarationRole::Act(R::Head)),
-        ),
-        (
-            "act A = ;",
-            GrammarRole::Declaration(DeclarationRole::Act(R::Source)),
-        ),
+fn act_typed_shell_preserves_head_source_and_child_facts_without_cascade() {
+    use crate::structural_diagnostic::StructuralKind;
+    use SyntaxKind::{BindingBody, Missing, TypeExpression};
+    for (source, fact, parent) in [
+        ("act;", (StructuralKind::Missing, 3..3), TypeExpression),
+        ("act A = ;", (StructuralKind::Missing, 7..7), TypeExpression),
         (
             "act A: my x =",
-            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body)),
+            (StructuralKind::Missing, 13..13),
+            BindingBody,
         ),
     ] {
-        let (green, _, records, _) = typed_act(source, None, 0, None);
-        assert_eq!(records.len(), 1, "{source}");
-        assert_eq!(records[0].site.role, role);
-        let (again, _, frozen, _) = typed_act(source, Some(&records), 0, None);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        let (green, _, facts, _) = typed_act(source, 0, None);
+        assert_eq!(facts, [fact], "{source}");
+        let missing = SyntaxNode::new_root(green)
+            .descendants()
+            .find(|node| node.kind() == Missing)
+            .unwrap();
+        assert_eq!(missing.parent().unwrap().kind(), parent, "{source}");
     }
 }
 
 fn typed_act<'s>(
     source: &'s str,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     stops: Stops,
     fence: Option<&FenceBoundary>,
 ) -> (
     GreenNode,
     Option<NormalizedExit>,
-    Vec<CommittedRecoveryRecord>,
+    Vec<StructuralFact>,
     &'s str,
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = act_declaration_witness(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
@@ -1376,8 +1248,9 @@ fn typed_act<'s>(
         fence,
     );
     builder.finish_node();
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, exit, records, input)
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, exit, facts, input)
 }
 
 fn declaration(green: &GreenNode) -> SyntaxNode {

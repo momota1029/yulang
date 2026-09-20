@@ -3,25 +3,14 @@
 use crate::ambient_claim::{AmbientClaimContext, AmbientClaimView};
 #[cfg(test)]
 use crate::handoff::ordinary_exit;
-use crate::recovery_record::{
-    BracedStatementBlockRole, ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax,
-    GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-    UnexpectedCategory, UnexpectedSyntax,
-};
 use reborrow_generic::Reborrow as _;
-use std::sync::Arc;
 
 use crate::{
     lexical::operator_scan::OperatorSite, operator_table::BindingPower, syntax_kind::SyntaxKind,
 };
 
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     declaration::{
         act_declaration_normalized, act_declaration_selected_lexical, binding_statement_normalized,
@@ -392,28 +381,6 @@ pub(super) fn is_canonical_statement_nud(i: SyntaxIn, item: &Item, baseline: usi
 #[derive(Clone, Copy)]
 pub(super) struct StatementAdmission(StatementFamily);
 
-impl StatementAdmission {
-    pub(super) fn root_trailing_role(&self) -> crate::recovery_record::StatementRole {
-        use crate::recovery_record::{StatementKind as Kind, StatementRole};
-        let owner = match self.0 {
-            StatementFamily::Struct => Kind::StructDeclaration,
-            StatementFamily::Enum => Kind::EnumDeclaration,
-            StatementFamily::Error => Kind::ErrorDeclaration,
-            StatementFamily::Mod => Kind::ModDeclaration,
-            StatementFamily::Type => Kind::TypeDeclaration,
-            StatementFamily::Role => Kind::RoleDeclaration,
-            StatementFamily::Impl => Kind::ImplDeclaration,
-            StatementFamily::Cast => Kind::CastDeclaration,
-            StatementFamily::Act => Kind::ActDeclaration,
-            StatementFamily::For => Kind::ForStatement,
-            StatementFamily::Binding => Kind::BindingDeclaration,
-            StatementFamily::Use => Kind::UseDeclaration,
-            StatementFamily::Expression => return StatementRole::Separator,
-        };
-        StatementRole::TrailingInput { owner }
-    }
-}
-
 #[derive(Clone, Copy)]
 enum StatementFamily {
     Struct,
@@ -500,17 +467,13 @@ pub(super) fn classify_statement_item_lexical(
 
 #[derive(Clone, Copy)]
 enum StatementSequencePolicy {
-    Indented {
-        block_indent: usize,
-        role: GrammarRole,
-    },
+    Indented { block_indent: usize },
     Braced,
 }
 
 pub(super) fn indented_statement_block_normalized(
     mut i: SyntaxIn,
     base_indent: usize,
-    role: GrammarRole,
     stops: Stops,
     item_origin: usize,
     line_entry: LineEntry,
@@ -523,7 +486,7 @@ pub(super) fn indented_statement_block_normalized(
     i.state
         .start_node(SyntaxKind::IndentedStatementBlock.into());
     if item.payload_view().is_boundary() {
-        emit_indented_missing(i.rb(), &mut item, item_origin, role);
+        emit_indented_missing(i.rb(), &mut item, item_origin);
         i.state.finish_node();
         return complete(handoff(item), line_entry);
     }
@@ -538,7 +501,7 @@ pub(super) fn indented_statement_block_normalized(
     let exit = statement_sequence_normalized(
         i.rb(),
         item,
-        StatementSequencePolicy::Indented { block_indent, role },
+        StatementSequencePolicy::Indented { block_indent },
         block_indent,
         stops,
         item_origin,
@@ -660,14 +623,13 @@ fn statement_sequence_normalized(
     let mut known_admission = None;
     loop {
         match policy {
-            StatementSequencePolicy::Indented { block_indent, role } => {
+            StatementSequencePolicy::Indented { block_indent } => {
                 let entry = suffix_marker(i.rb());
                 let exit = indented_statement_slot_normalized(
                     i.rb(),
                     item,
                     baseline,
                     block_indent,
-                    role,
                     stops,
                     true,
                     item_origin,
@@ -759,7 +721,6 @@ fn indented_statement_slot_normalized(
     mut item: Item,
     baseline: usize,
     block_indent: usize,
-    role: GrammarRole,
     stops: Stops,
     missing_on_boundary: bool,
     item_origin: usize,
@@ -772,13 +733,13 @@ fn indented_statement_slot_normalized(
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
         if missing_on_boundary {
-            emit_indented_missing(i.rb(), &mut item, item_origin, role);
+            emit_indented_missing(i.rb(), &mut item, item_origin);
         }
         return complete(handoff(item), line_entry);
     }
     if indented_statement_slot_boundary(i.rb(), &item, block_indent, stops) {
         if missing_on_boundary {
-            emit_indented_missing(i.rb(), &mut item, item_origin, role);
+            emit_indented_missing(i.rb(), &mut item, item_origin);
         }
         return complete(handoff(item), line_entry);
     }
@@ -813,7 +774,6 @@ fn indented_statement_slot_normalized(
         item,
         baseline,
         block_indent,
-        role,
         stops,
         item_origin,
         line_entry,
@@ -844,64 +804,42 @@ fn retry_indented_statement_normalized(
     mut item: Item,
     baseline: usize,
     block_indent: usize,
-    role: GrammarRole,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
     item.emit_all_remaining_leading(&mut *i.state);
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind =
-                    token_syntax_kind(token_kind(&item).expect("an indented Error emits a token"));
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    scan_statement_item_lexical(
-                        lex,
-                        item_origin,
-                        line_entry,
-                        fence,
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_statement_item_lexical(lex, item_origin, line_entry, fence, baseline, stops)
+            });
+            let boundary = indented_statement_lexical_boundary(&item, block_indent)
+                || indentation_after_newline(item.leading_view()) == Some(block_indent)
+                || run.lexical(|lex| is_active_stop_lex(lex, &item, stops));
+            let admission = if boundary {
+                None
+            } else {
+                run.lexical(|lex| {
+                    classify_statement_item_lexical(
+                        lex.remainder(),
+                        &item,
                         baseline,
-                        stops,
+                        item_origin,
+                        fence,
                     )
-                });
-                let boundary = indented_statement_lexical_boundary(&item, block_indent)
-                    || indentation_after_newline(item.leading_view()) == Some(block_indent)
-                    || run.lexical(|lex| is_active_stop_lex(lex, &item, stops));
-                let admission = if boundary {
-                    None
-                } else {
-                    run.lexical(|lex| {
-                        classify_statement_item_lexical(
-                            lex.remainder(),
-                            &item,
-                            baseline,
-                            item_origin,
-                            fence,
-                        )
-                    })
-                };
-                if boundary || admission.is_some() {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, admission, item_origin, line_entry);
-                }
+                })
+            };
+            if boundary || admission.is_some() {
+                return (item, admission, item_origin, line_entry);
             }
-        },
-        |range, unexpected| indented_recovery_draft(role, RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }
 
-fn emit_indented_missing(i: SyntaxIn, item: &mut Item, origin: usize, role: GrammarRole) {
+fn emit_indented_missing(i: SyntaxIn, item: &mut Item, origin: usize) {
     let at = if item.payload_view().is_boundary() {
         item.payload_view()
             .pending_boundary()
@@ -913,32 +851,7 @@ fn emit_indented_missing(i: SyntaxIn, item: &mut Item, origin: usize, role: Gram
         }
         item.extent(origin).recovery_range().start
     };
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        indented_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn indented_recovery_draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Statement,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn indented_statement_lexical_boundary(item: &Item, block_indent: usize) -> bool {
@@ -1024,12 +937,7 @@ fn braced_statement_slot_normalized(
         if implicit_delimited_newline(baseline, item.leading_view()) {
             emit_separator_leading(&mut i, &mut item);
         }
-        emit_braced_missing(
-            i.rb(),
-            &item,
-            item_origin,
-            GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement),
-        );
+        emit_braced_missing(i.rb(), &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     let admission = known_admission.unwrap_or_else(|| {
@@ -1099,60 +1007,31 @@ fn retry_braced_statement_normalized(
     fence: Option<&FenceBoundary>,
 ) -> (Item, Option<StatementAdmission>, usize, LineEntry) {
     item.emit_all_remaining_leading(&mut *i.state);
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind = token_syntax_kind(
-                    token_kind(&item).expect("a braced Statement Error emits a token"),
-                );
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    scan_statement_item_lexical(
-                        lex,
-                        item_origin,
-                        line_entry,
-                        fence,
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_statement_item_lexical(lex, item_origin, line_entry, fence, baseline, stops)
+            });
+            let boundary = braced_statement_boundary(&item, baseline);
+            let admission = if boundary {
+                None
+            } else {
+                run.lexical(|lex| {
+                    classify_statement_item_lexical(
+                        lex.remainder(),
+                        &item,
                         baseline,
-                        stops,
+                        item_origin,
+                        fence,
                     )
-                });
-                let boundary = braced_statement_boundary(&item, baseline);
-                let admission = if boundary {
-                    None
-                } else {
-                    run.lexical(|lex| {
-                        classify_statement_item_lexical(
-                            lex.remainder(),
-                            &item,
-                            baseline,
-                            item_origin,
-                            fence,
-                        )
-                    })
-                };
-                if boundary || admission.is_some() {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, admission, item_origin, line_entry);
-                }
+                })
+            };
+            if boundary || admission.is_some() {
+                return (item, admission, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            braced_recovery_draft(
-                GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement),
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    )
+        }
+    })
 }
 
 fn braced_statement_boundary(item: &Item, baseline: usize) -> bool {
@@ -1231,12 +1110,7 @@ fn braced_statement_successor_normalized(
             let admission =
                 classify_statement_item_normalized(i.rb(), &item, baseline, item_origin, fence);
             if admission.is_some() {
-                emit_braced_missing(
-                    i.rb(),
-                    &item,
-                    item_origin,
-                    GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator),
-                );
+                emit_braced_missing(i.rb(), &item, item_origin);
             }
             Ok((item, line_entry, item_origin, Some(admission)))
         }
@@ -1278,62 +1152,17 @@ fn missing_brace_close(mut i: SyntaxIn, mut item: Item, origin: usize) -> TailEx
     if item.payload_view().is_eof() {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    emit_braced_missing(
-        i.rb(),
-        &item,
-        origin,
-        GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::BracedStatementBlockExpression,
-            delimiter: Delimiter::Brace,
-        },
-    );
+    emit_braced_missing(i.rb(), &item, origin);
     handoff(item)
 }
 
-fn emit_braced_missing(i: SyntaxIn, item: &Item, origin: usize, role: GrammarRole) {
+fn emit_braced_missing(i: SyntaxIn, item: &Item, origin: usize) {
     let at = item
         .payload_view()
         .pending_boundary()
         .map(|boundary| boundary.coordinate())
         .unwrap_or_else(|| item.extent(origin).recovery_range().start);
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        braced_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn braced_recovery_draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement) => {
-            ExpectedSyntax::Statement
-        }
-        GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator) => {
-            ExpectedSyntax::StatementSeparator
-        }
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        _ => unreachable!("braced Statement recovery role"),
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 pub(super) fn statement_item_normalized(

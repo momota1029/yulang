@@ -2,16 +2,8 @@
 
 use crate::ambient_claim::AmbientClaimContext;
 use reborrow_generic::Reborrow as _;
-use std::sync::Arc;
 
-use crate::{
-    recovery_record::{
-        ConstructRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, TypeRole,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 
 use crate::type_expr::{
     TypeApplyBoundary, TypeMlContext, TypeOuterBoundary, continue_type_tail_normalized,
@@ -20,14 +12,10 @@ use crate::type_expr::{
     is_type_record_field_name, type_chain_trivia, type_delimited_baseline,
     type_expr_from_nud_normalized, type_item_with_pipe_lexical_normalized,
     type_nud_item_with_pipe_lexical_normalized,
-    type_nud_item_with_pipe_lexical_normalized_in_error_run, type_recovery_error_syntax_kind,
-    with_type_outer_close,
+    type_nud_item_with_pipe_lexical_normalized_in_error_run, with_type_outer_close,
 };
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     handoff::{Either, NormalizedExit, complete, handoff},
     lexical::{
@@ -158,7 +146,7 @@ fn type_record_fields_normalized(
                 position,
                 RecordPosition::Initial | RecordPosition::AfterComma
             ) {
-                emit_record_field_missing(&mut i, TypeRole::RecordField, &item, item_origin);
+                emit_record_field_missing(&mut i, &item, item_origin);
             }
             emit_token_item(&mut i, item);
             (item, item_origin, line_entry) = type_item_with_pipe_lexical_normalized(
@@ -213,7 +201,7 @@ fn type_record_fields_normalized(
         }
         if is_type_mismatched_close(&item, TokenKind::RBrace) {
             if missing_field {
-                emit_record_field_missing(&mut i, TypeRole::RecordField, &item, item_origin);
+                emit_record_field_missing(&mut i, &item, item_origin);
             }
             i.state.start_node(SyntaxKind::NamedRecordTypeClose.into());
             let caller_owned;
@@ -252,7 +240,7 @@ fn type_record_fields_normalized(
             item.emit_all_remaining_leading(&mut *i.state);
             i.state
                 .start_node(SyntaxKind::NamedRecordTypeSeparator.into());
-            emit_record_field_missing(&mut i, TypeRole::RecordFieldSeparator, &item, item_origin);
+            emit_record_field_missing(&mut i, &item, item_origin);
             i.state.finish_node();
         } else if token_kind(&item) == Some(TokenKind::Semicolon)
             || (position == RecordPosition::AfterField && !newline)
@@ -450,7 +438,7 @@ fn type_record_missing_name_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     i.state.start_node(SyntaxKind::TypeRecordField.into());
-    emit_record_field_missing(&mut i, TypeRole::RecordFieldName, &colon, item_origin);
+    emit_record_field_missing(&mut i, &colon, item_origin);
     emit_token_item(&mut i, colon);
     let exit = type_record_rhs_normalized(
         i.rb(),
@@ -653,17 +641,6 @@ enum RecordErrorSlot {
     Close,
 }
 
-impl RecordErrorSlot {
-    fn role(self) -> GrammarRole {
-        match self {
-            Self::Field => GrammarRole::Type(TypeRole::RecordField),
-            Self::Separator => GrammarRole::Type(TypeRole::RecordFieldSeparator),
-            Self::Name => GrammarRole::Type(TypeRole::RecordFieldName),
-            Self::Close => record_close_role(),
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn retry_record_run_normalized(
     i: SyntaxIn,
@@ -679,97 +656,81 @@ fn retry_record_run_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry, bool) {
     item.emit_all_remaining_leading(&mut *i.state);
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            let mut closes = Vec::new();
-            let (end, caller_owned) = loop {
-                advance_record_nesting(&mut closes, token_kind(&item));
-                let kind = type_recovery_error_syntax_kind(&item);
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) =
-                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                if item.payload_view().is_boundary() || item.payload_view().is_eof() {
-                    break (end, false);
-                }
-                let kind = token_kind(&item);
-                let local_close = closes.last().copied();
-                let caller = is_type_caller_boundary(&item, caller_stops);
-                if slot == RecordErrorSlot::Name {
-                    let local_colon = local_close.is_none()
-                        && is_record_colon_kind(kind)
-                        && !item.leading_view().contains_line_break();
-                    if item.leading_view().contains_line_break()
-                        || is_record_name_boundary(
-                            kind,
-                            item.payload_view().spelling(),
-                            local_close,
-                            caller_stops,
-                        )
-                    {
-                        break (end, caller && !local_colon);
-                    }
-                    continue;
-                }
-                let matching_nested_close = local_close.is_some() && kind == local_close;
-                let candidate = closes.is_empty()
-                    && slot != RecordErrorSlot::Close
-                    && (is_record_colon_kind(kind)
-                        || (is_type_record_field_name(&item)
-                            && ((slot == RecordErrorSlot::Separator && !caller)
-                                || run.lexical(|lex| {
-                                    type_record_field_head_probe(
-                                        lex,
-                                        baseline,
-                                        item_origin,
-                                        line_entry,
-                                        fence,
-                                        pipe_lexical,
-                                    )
-                                }))));
-                let local_comma = closes.is_empty()
-                    && slot != RecordErrorSlot::Close
-                    && kind == Some(TokenKind::Comma);
-                let record_close = kind == Some(TokenKind::RBrace) && !matching_nested_close;
-                if caller && !candidate && !local_comma && !record_close {
-                    // Preserve this immediate ownership decision: the sequence
-                    // must not reopen a nested caller Item as a fresh field.
-                    break (end, true);
-                }
-                if candidate
-                    || local_comma
-                    || record_close
-                    || (is_record_close_kind(kind)
-                        && !matching_nested_close
-                        && (slot != RecordErrorSlot::Close
-                            || is_type_outer_close(&item, outer_closes)))
-                    || (is_type_implicit_boundary(baseline, item.leading_view())
-                        && !matching_nested_close)
+    emit_recovery_error_run(i, |run| {
+        let mut closes = Vec::new();
+        let caller_owned = loop {
+            advance_record_nesting(&mut closes, token_kind(&item));
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) =
+                type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                    ambient,
+                );
+            if item.payload_view().is_boundary() || item.payload_view().is_eof() {
+                break false;
+            }
+            let kind = token_kind(&item);
+            let local_close = closes.last().copied();
+            let caller = is_type_caller_boundary(&item, caller_stops);
+            if slot == RecordErrorSlot::Name {
+                let local_colon = local_close.is_none()
+                    && is_record_colon_kind(kind)
+                    && !item.leading_view().contains_line_break();
+                if item.leading_view().contains_line_break()
+                    || is_record_name_boundary(
+                        kind,
+                        item.payload_view().spelling(),
+                        local_close,
+                        caller_stops,
+                    )
                 {
-                    break (end, false);
+                    break caller && !local_colon;
                 }
-            };
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range: start..end,
-                category: UnexpectedCategory::OtherCharacter,
-            });
-            (item, item_origin, line_entry, caller_owned)
-        },
-        |range, unexpected| {
-            record_recovery_draft(slot.role(), RecoveryKind::Error, range, unexpected)
-        },
-    )
+                continue;
+            }
+            let matching_nested_close = local_close.is_some() && kind == local_close;
+            let candidate = closes.is_empty()
+                && slot != RecordErrorSlot::Close
+                && (is_record_colon_kind(kind)
+                    || (is_type_record_field_name(&item)
+                        && ((slot == RecordErrorSlot::Separator && !caller)
+                            || run.lexical(|lex| {
+                                type_record_field_head_probe(
+                                    lex,
+                                    baseline,
+                                    item_origin,
+                                    line_entry,
+                                    fence,
+                                    pipe_lexical,
+                                )
+                            }))));
+            let local_comma = closes.is_empty()
+                && slot != RecordErrorSlot::Close
+                && kind == Some(TokenKind::Comma);
+            let record_close = kind == Some(TokenKind::RBrace) && !matching_nested_close;
+            if caller && !candidate && !local_comma && !record_close {
+                // Preserve this immediate ownership decision: the sequence
+                // must not reopen a nested caller Item as a fresh field.
+                break true;
+            }
+            if candidate
+                || local_comma
+                || record_close
+                || (is_record_close_kind(kind)
+                    && !matching_nested_close
+                    && (slot != RecordErrorSlot::Close || is_type_outer_close(&item, outer_closes)))
+                || (is_type_implicit_boundary(baseline, item.leading_view())
+                    && !matching_nested_close)
+            {
+                break false;
+            }
+        };
+        (item, item_origin, line_entry, caller_owned)
+    })
 }
 
 fn advance_record_nesting(closes: &mut Vec<TokenKind>, kind: Option<TokenKind>) {
@@ -829,7 +790,7 @@ fn type_record_colon_normalized(
         colon.emit_all_remaining_leading(&mut *i.state);
         (colon, item_origin, line_entry) = retry_record_field_slot_normalized(
             i.rb(),
-            TypeRole::RecordFieldColon,
+            true,
             colon,
             baseline,
             colon_stops,
@@ -843,7 +804,7 @@ fn type_record_colon_normalized(
     }
     if at_boundary {
         if !recovered {
-            emit_record_field_missing(&mut i, TypeRole::RecordFieldColon, &colon, item_origin);
+            emit_record_field_missing(&mut i, &colon, item_origin);
         }
         return complete(handoff(colon), line_entry);
     }
@@ -865,7 +826,7 @@ fn type_record_colon_normalized(
     debug_assert!(is_type_nud(&colon));
     colon.emit_all_remaining_leading(&mut *i.state);
     if !recovered {
-        emit_record_field_missing(&mut i, TypeRole::RecordFieldColon, &colon, item_origin);
+        emit_record_field_missing(&mut i, &colon, item_origin);
     }
     type_expr_from_nud_normalized(
         i,
@@ -907,14 +868,14 @@ fn type_record_rhs_normalized(
         ambient,
     );
     if is_record_field_slot_boundary(&rhs, baseline, caller_stops) {
-        emit_record_field_missing(&mut i, TypeRole::RecordFieldType, &rhs, item_origin);
+        emit_record_field_missing(&mut i, &rhs, item_origin);
         return complete(handoff(rhs), line_entry);
     }
     if !is_type_nud(&rhs) {
         rhs.emit_all_remaining_leading(&mut *i.state);
         (rhs, item_origin, line_entry) = retry_record_field_slot_normalized(
             i.rb(),
-            TypeRole::RecordFieldType,
+            false,
             rhs,
             baseline,
             caller_stops,
@@ -958,7 +919,7 @@ fn is_record_field_slot_boundary(item: &Item, baseline: usize, caller_stops: Sto
 #[allow(clippy::too_many_arguments)]
 fn retry_record_field_slot_normalized(
     i: SyntaxIn,
-    role: TypeRole,
+    stop_at_colon: bool,
     mut item: Item,
     baseline: usize,
     caller_stops: Stops,
@@ -968,102 +929,35 @@ fn retry_record_field_slot_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            let end = loop {
-                let kind = type_recovery_error_syntax_kind(&item);
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) =
-                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                if is_record_field_slot_boundary(&item, baseline, caller_stops)
-                    || is_type_nud(&item)
-                    || (role == TypeRole::RecordFieldColon
-                        && is_record_colon_kind(token_kind(&item)))
-                {
-                    break end;
-                }
-            };
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range: start..end,
-                category: UnexpectedCategory::OtherCharacter,
-            });
-            (item, item_origin, line_entry)
-        },
-        |range, unexpected| {
-            record_field_recovery_draft(role, RecoveryKind::Error, range, unexpected)
-        },
-    )
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) =
+                type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                    ambient,
+                );
+            if is_record_field_slot_boundary(&item, baseline, caller_stops)
+                || is_type_nud(&item)
+                || (stop_at_colon && is_record_colon_kind(token_kind(&item)))
+            {
+                break;
+            }
+        }
+        (item, item_origin, line_entry)
+    })
 }
 
-fn emit_record_field_missing(i: &mut SyntaxIn, role: TypeRole, item: &Item, item_origin: usize) {
+fn emit_record_field_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        record_field_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn record_field_recovery_draft(
-    role: TypeRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    record_recovery_draft(GrammarRole::Type(role), kind, range, unexpected)
-}
-
-fn record_recovery_draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        GrammarRole::Type(TypeRole::RecordField | TypeRole::RecordFieldName) => {
-            ExpectedSyntax::Identifier
-        }
-        GrammarRole::Type(TypeRole::RecordFieldColon) => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
-        }
-        GrammarRole::Type(TypeRole::RecordFieldType) => ExpectedSyntax::TypeExpression,
-        GrammarRole::Type(TypeRole::RecordFieldSeparator) => {
-            ExpectedSyntax::DelimitedSequenceSeparator
-        }
-        GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::NamedRecordType,
-            delimiter: Delimiter::Brace,
-        } => ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
-        _ => unreachable!("only named-record recovery slots use this draft"),
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn is_record_colon_kind(kind: Option<TokenKind>) -> bool {
@@ -1089,7 +983,7 @@ fn record_boundary_normalized(
         item.emit_all_remaining_leading(&mut *i.state);
     }
     if missing_field {
-        emit_record_field_missing(&mut i, TypeRole::RecordField, &item, item_origin);
+        emit_record_field_missing(&mut i, &item, item_origin);
     }
     i.state.start_node(SyntaxKind::NamedRecordTypeClose.into());
     emit_record_close_missing(&mut i, &item, item_origin);
@@ -1102,21 +996,7 @@ fn emit_record_close_missing(i: &mut SyntaxIn, item: &Item, item_origin: usize) 
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        record_recovery_draft(
-            record_close_role(),
-            RecoveryKind::Missing,
-            range,
-            Arc::from([]),
-        )
-    });
-}
-
-fn record_close_role() -> GrammarRole {
-    GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::NamedRecordType,
-        delimiter: Delimiter::Brace,
-    }
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 fn observe_type_item<'source>(

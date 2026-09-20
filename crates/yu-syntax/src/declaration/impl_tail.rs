@@ -1,20 +1,11 @@
 //! Post-keyword `impl` head, description, body, and recovery construction.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::cursor::recovery::RecoveryDraft;
-use crate::recovery_record::{
-    DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, ImplRole,
-    PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-    UnexpectedSyntax,
-};
-use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cursor::recovery::emit::{
-        emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     expression::if_expr::active_statement_companion,
     handoff::{Either, NormalizedExit, complete, handoff},
@@ -44,6 +35,12 @@ use crate::{
 };
 
 use super::impl_decl::{impl_gap_allowed, impl_item_normalized, scan_impl_item};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ImplBodyRecoveryPhase {
+    Introducer,
+    Body,
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn impl_tail_normalized(
@@ -80,7 +77,6 @@ pub(super) fn impl_tail_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
             i.rb(),
             head,
-            GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Head)),
             baseline,
             stops,
             TypeOuterBoundary::VARIANT_BODY,
@@ -163,7 +159,7 @@ fn after_head_from_item_normalized(
             if impl_gap_allowed(&item, baseline) && item.payload_view().is_eof() {
                 item.emit_eof_leading(&mut *i.state);
             }
-            impl_missing(&mut i, &item, item_origin, ImplRole::BodyIntroducer);
+            impl_missing(&mut i, &item, item_origin);
         }
         return complete(handoff(item), line_entry);
     }
@@ -276,7 +272,6 @@ fn description_normalized(
         required_type_expr_with_caller_stops_and_outer_boundary_and_fresh_primary_policy_normalized(
             i.rb(),
             description,
-            GrammarRole::Declaration(DeclarationRole::Impl(ImplRole::Description)),
             baseline,
             stops,
             TypeOuterBoundary::VARIANT_BODY,
@@ -330,7 +325,7 @@ fn body_from_item_normalized(
             if impl_gap_allowed(&item, baseline) && item.payload_view().is_eof() {
                 item.emit_eof_leading(&mut *i.state);
             }
-            impl_missing(&mut i, &item, item_origin, ImplRole::BodyIntroducer);
+            impl_missing(&mut i, &item, item_origin);
         }
         return complete(handoff(item), line_entry);
     }
@@ -430,7 +425,7 @@ fn recover_body_introducer_normalized(
     (item, item_origin, line_entry) = impl_error_run(
         i.rb(),
         item,
-        ImplRole::BodyIntroducer,
+        ImplBodyRecoveryPhase::Introducer,
         baseline,
         stops,
         item_origin,
@@ -472,11 +467,6 @@ fn colon_body_normalized(
         Some(indentation) if indentation > baseline => indented_statement_block_normalized(
             i,
             baseline,
-            crate::recovery_record::GrammarRole::Declaration(
-                crate::recovery_record::DeclarationRole::Impl(
-                    crate::recovery_record::ImplRole::IndentedStatement,
-                ),
-            ),
             stops,
             item_origin,
             line_entry,
@@ -494,7 +484,7 @@ fn colon_body_normalized(
                 false,
                 false,
             );
-            impl_missing(&mut i, &item, origin, ImplRole::Body);
+            impl_missing(&mut i, &item, origin);
             complete(handoff(item), line_entry)
         }
         None => {
@@ -538,7 +528,7 @@ fn inline_body_from_item_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if inline_body_boundary(i.rb(), &item, baseline, stops) {
-        impl_missing(&mut i, &item, item_origin, ImplRole::Body);
+        impl_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if let Some(admission) =
@@ -589,7 +579,7 @@ fn recover_inline_body_normalized(
     (item, item_origin, line_entry) = impl_error_run(
         i.rb(),
         item,
-        ImplRole::Body,
+        ImplBodyRecoveryPhase::Body,
         baseline,
         stops,
         item_origin,
@@ -764,76 +754,32 @@ fn inline_terminal_semicolon(item: &Item) -> bool {
     token_kind(item) == Some(TokenKind::Semicolon)
         && indentation_after_newline(item.leading_view()).is_none()
 }
-fn impl_draft(
-    slot: ImplRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let role = GrammarRole::Declaration(DeclarationRole::Impl(slot));
-    let expected: &[ExpectedSyntax] = match slot {
-        ImplRole::BodyIntroducer => &[
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Semicolon),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace)),
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        ],
-        ImplRole::Body => &[ExpectedSyntax::Statement],
-        _ => unreachable!("local Impl recovery slot"),
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        expected
-            .iter()
-            .map(|expected| SyntaxExpectation {
-                role,
-                expected: *expected,
-                range: range.clone(),
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            })
-            .collect::<Vec<_>>()
-            .into(),
-        0,
-    )
-}
-
-fn impl_missing(i: &mut SyntaxIn, item: &Item, origin: usize, role: ImplRole) {
+fn impl_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        impl_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
 fn impl_error_run(
     mut i: SyntaxIn,
     mut item: Item,
-    role: ImplRole,
+    phase: ImplBodyRecoveryPhase,
     baseline: usize,
     stops: Stops,
     mut origin: usize,
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    let start = item.extent(origin).recovery_range().start;
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = token_kind(&item)
-                .map(token_syntax_kind)
-                .unwrap_or(SyntaxKind::Operator);
-            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, origin);
             (item, origin, line) = run.lexical(|lex| {
                 scan_impl_item(lex, origin, line, fence, baseline, stops, false, false)
             });
-            let starter = role == ImplRole::BodyIntroducer && body_starter(&item);
+            let starter = phase == ImplBodyRecoveryPhase::Introducer && body_starter(&item);
             let boundary = item.payload_view().is_boundary()
                 || item.payload_view().is_eof()
                 || !impl_gap_allowed(&item, baseline)
@@ -847,7 +793,7 @@ fn impl_error_run(
                         )));
             let retry = !boundary
                 && (starter
-                    || (role == ImplRole::Body
+                    || (phase == ImplBodyRecoveryPhase::Body
                         && run
                             .lexical(|lex| {
                                 crate::statement::classify_statement_item_lexical(
@@ -860,13 +806,8 @@ fn impl_error_run(
                             })
                             .is_some()));
             if boundary || retry {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: start..end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, origin, line);
             }
-        },
-        |range, unexpected| impl_draft(role, RecoveryKind::Error, range, unexpected),
-    )
+        }
+    })
 }

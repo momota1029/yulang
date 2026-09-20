@@ -1,36 +1,36 @@
-//! Structured diagnostics emitted by the syntax phase.
+//! CST/environment-derived syntax diagnostics.
 
 use std::ops::Range;
 
 use crate::{
-    OperatorFixity, operator_table::OperatorOrigin, recovery_record::CommittedRecoveryRecord,
+    OperatorFixity, SyntaxDiagnosticIdentity, operator_table::OperatorOrigin,
+    structural_diagnostic::StructuralDiagnostic,
 };
 
-/// Structured syntax diagnostic owned by the syntax phase.
+/// One diagnostic emitted by the current CST/environment analysis walk.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SyntaxDiagnostic {
-    id: u32,
+    identity: SyntaxDiagnosticIdentity,
     primary: Range<usize>,
     cause: SyntaxDiagnosticCause,
 }
 
 impl SyntaxDiagnostic {
-    pub(crate) fn recovery(record: CommittedRecoveryRecord) -> Self {
+    pub(crate) fn structural(occurrence: StructuralDiagnostic) -> Self {
         Self {
-            id: record.id.0,
-            primary: record.site.range.clone(),
-            cause: SyntaxDiagnosticCause::Recovery(RecoveryDiagnostic { record }),
+            identity: occurrence.identity(),
+            primary: occurrence.range().clone(),
+            cause: SyntaxDiagnosticCause::Structural(occurrence),
         }
     }
 
     pub(crate) fn conflicting_operator_fixity(
-        id: u32,
+        identity: SyntaxDiagnosticIdentity,
         conflict: crate::operator_compilation::RejectedOperatorFixity,
     ) -> Self {
-        let primary = conflict.second_range.clone();
         Self {
-            id,
-            primary,
+            identity,
+            primary: conflict.second_range.clone(),
             cause: SyntaxDiagnosticCause::ConflictingOperatorFixity(OperatorConflictDiagnostic {
                 spelling: conflict.spelling,
                 fixity: conflict.fixity,
@@ -42,12 +42,12 @@ impl SyntaxDiagnostic {
         }
     }
 
-    pub fn id(&self) -> u32 {
-        self.id
-    }
-
     pub fn primary(&self) -> &Range<usize> {
         &self.primary
+    }
+
+    pub fn identity(&self) -> &SyntaxDiagnosticIdentity {
+        &self.identity
     }
 
     pub fn cause(&self) -> &SyntaxDiagnosticCause {
@@ -55,29 +55,11 @@ impl SyntaxDiagnostic {
     }
 }
 
-/// The typed cause of a syntax diagnostic.
+/// The CST or selected-environment fact that caused a syntax diagnostic.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SyntaxDiagnosticCause {
-    /// A committed grammar recovery, distinct from semantic table construction.
-    Recovery(RecoveryDiagnostic),
+    Structural(StructuralDiagnostic),
     ConflictingOperatorFixity(OperatorConflictDiagnostic),
-}
-
-/// The committed recovery record behind a recovery diagnostic.
-///
-/// Its typed site, unexpected evidence, and expectation union remain an
-/// internal grammar vocabulary until the diagnostic presentation API is
-/// versioned, but no information is collapsed into a message string here.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RecoveryDiagnostic {
-    record: CommittedRecoveryRecord,
-}
-
-impl RecoveryDiagnostic {
-    #[cfg(test)]
-    pub(crate) fn record(&self) -> &CommittedRecoveryRecord {
-        &self.record
-    }
 }
 
 /// One rejected operator capability and the already-accepted conflicting site.
@@ -95,63 +77,19 @@ impl OperatorConflictDiagnostic {
     pub fn spelling(&self) -> &str {
         &self.spelling
     }
-
     pub fn fixity(&self) -> OperatorFixity {
         self.fixity
     }
-
     pub fn first_origin(&self) -> OperatorOrigin {
         self.first_origin
     }
-
     pub fn first_range(&self) -> &Range<usize> {
         &self.first_range
     }
-
     pub fn second_origin(&self) -> OperatorOrigin {
         self.second_origin
     }
-
     pub fn second_range(&self) -> &Range<usize> {
         &self.second_range
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::Arc;
-
-    use crate::recovery_record::{
-        DiagnosticId, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
-        RecoverySiteKey, StatementRole, SyntaxExpectation,
-    };
-
-    #[test]
-    fn recovery_diagnostic_keeps_the_committed_record_distinct_from_construction() {
-        let record = CommittedRecoveryRecord {
-            id: DiagnosticId(9),
-            site: RecoverySiteKey {
-                role: GrammarRole::Statement(StatementRole::Starter),
-                range: 4..4,
-            },
-            kind: RecoveryKind::Missing,
-            unexpected: Arc::from([]),
-            expectations: Arc::from([SyntaxExpectation {
-                role: GrammarRole::Statement(StatementRole::Starter),
-                expected: ExpectedSyntax::Expression,
-                range: 4..4,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            primary_expectation: 0,
-        };
-        let diagnostic = SyntaxDiagnostic::recovery(record.clone());
-
-        assert_eq!(diagnostic.id(), 9);
-        assert_eq!(diagnostic.primary(), &(4..4));
-        let SyntaxDiagnosticCause::Recovery(recovery) = diagnostic.cause() else {
-            panic!("a recovery record must not be a construction conflict");
-        };
-        assert_eq!(recovery.record(), &record);
     }
 }

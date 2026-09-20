@@ -1,25 +1,12 @@
 //! Direct ownership for NUD `if` expressions and their arm boundaries.
 
 use crate::ambient_claim::AmbientClaimContext;
-use std::sync::Arc;
-
 use crate::{
-    lexical::operator_scan::OperatorSite,
-    operator_table::BindingPower,
-    recovery_record::{
-        ExpectationSources, ExpectedSyntax, GrammarRole, IfExpressionRole, RecoveryKind,
-        RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
+    lexical::operator_scan::OperatorSite, operator_table::BindingPower, syntax_kind::SyntaxKind,
 };
 
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     expression::{
         continue_normalized_tail, expr_from_nud_normalized, is_nud_item,
@@ -245,7 +232,6 @@ fn if_arm_normalized(
             emit_token_item(&mut i, colon);
             colon_body_normalized(
                 i.rb(),
-                InlineBodyRole::Body,
                 baseline,
                 outer_stops | STOP_ELSIF | STOP_ELSE,
                 line_handoff,
@@ -292,7 +278,6 @@ fn condition_normalized(
     let exit = required_expr_item_normalized(
         i.rb(),
         item,
-        GrammarRole::IfExpression(IfExpressionRole::Condition),
         None,
         baseline,
         stops,
@@ -323,17 +308,12 @@ fn missing_if_arm_normalized(
             if !item.payload_view().is_boundary() {
                 item.emit_all_remaining_leading(&mut *i.state);
             }
-            emit_if_missing(i.rb(), &item, item_origin, IfExpressionRole::BodyIntroducer);
+            emit_if_missing(i.rb(), &item, item_origin);
             complete(handoff(item), line_entry)
         }
         NormalizedExit::Complete(Err(Either::Right(mut end)), line_entry) => {
             end.item.emit_all_remaining_leading(&mut *i.state);
-            emit_if_missing(
-                i.rb(),
-                &end.item,
-                item_origin,
-                IfExpressionRole::BodyIntroducer,
-            );
+            emit_if_missing(i.rb(), &end.item, item_origin);
             complete(Err(Either::Right(end)), line_entry)
         }
         NormalizedExit::Complete(Ok(()), _) => {
@@ -371,7 +351,7 @@ fn else_arm_normalized(
         outer_stops,
     );
     if item.payload_view().is_boundary() {
-        emit_if_missing(i.rb(), &item, item_origin, IfExpressionRole::ElseBody);
+        emit_if_missing(i.rb(), &item, item_origin);
         i.state.finish_node();
         return complete(handoff(item), line_entry);
     }
@@ -379,7 +359,6 @@ fn else_arm_normalized(
         emit_token_item(&mut i, item);
         colon_body_normalized(
             i.rb(),
-            InlineBodyRole::ElseBody,
             baseline,
             outer_stops | STOP_ELSIF | STOP_ELSE,
             line_handoff,
@@ -393,7 +372,6 @@ fn else_arm_normalized(
         inline_body_item_normalized(
             i.rb(),
             item,
-            InlineBodyRole::ElseBody,
             baseline,
             outer_stops | STOP_ELSIF | STOP_ELSE,
             line_handoff,
@@ -408,25 +386,9 @@ fn else_arm_normalized(
     exit
 }
 
-#[derive(Clone, Copy)]
-enum InlineBodyRole {
-    Body,
-    ElseBody,
-}
-
-impl InlineBodyRole {
-    fn recovery_role(self) -> IfExpressionRole {
-        match self {
-            Self::Body => IfExpressionRole::Body,
-            Self::ElseBody => IfExpressionRole::ElseBody,
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn colon_body_normalized(
     mut i: SyntaxIn,
-    inline_role: InlineBodyRole,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -442,7 +404,6 @@ fn colon_body_normalized(
         indented_statement_block_normalized(
             i,
             baseline,
-            GrammarRole::IfExpression(IfExpressionRole::IndentedStatement),
             stops,
             item_origin,
             line_entry,
@@ -452,7 +413,6 @@ fn colon_body_normalized(
     } else {
         inline_body_normalized(
             i,
-            inline_role,
             baseline,
             stops,
             line_handoff,
@@ -468,7 +428,6 @@ fn colon_body_normalized(
 #[allow(clippy::too_many_arguments)]
 fn inline_body_normalized(
     mut i: SyntaxIn,
-    role: InlineBodyRole,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -490,7 +449,6 @@ fn inline_body_normalized(
     inline_body_item_normalized(
         i,
         item,
-        role,
         baseline,
         stops,
         line_handoff,
@@ -506,7 +464,6 @@ fn inline_body_normalized(
 fn inline_body_item_normalized(
     mut i: SyntaxIn,
     mut item: Item,
-    role: InlineBodyRole,
     baseline: usize,
     stops: Stops,
     line_handoff: StatementLineHandoff,
@@ -517,11 +474,11 @@ fn inline_body_item_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     if item.payload_view().is_boundary() {
-        emit_if_missing(i.rb(), &item, item_origin, role.recovery_role());
+        emit_if_missing(i.rb(), &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     if inline_boundary(i.rb(), &item, baseline, stops) {
-        emit_inline_missing(&mut i, &mut item, baseline, item_origin, role);
+        emit_inline_missing(&mut i, &mut item, baseline, item_origin);
         return complete(handoff(item), line_entry);
     }
 
@@ -546,7 +503,6 @@ fn inline_body_item_normalized(
     (item, item_origin, line_entry) = retry_inline_body_normalized(
         i.rb(),
         item,
-        role,
         baseline,
         stops,
         item_origin,
@@ -584,53 +540,34 @@ fn inline_body_item_normalized(
 fn retry_inline_body_normalized(
     i: SyntaxIn,
     mut item: Item,
-    role: InlineBodyRole,
     baseline: usize,
     stops: Stops,
     mut item_origin: usize,
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry) {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind = match token_kind(&item).expect("inline Error owns a lexical Item") {
-                    TokenKind::Operator => SyntaxKind::Operator,
-                    kind => token_syntax_kind(kind),
-                };
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    scan_expression_item_lexical(
-                        lex,
-                        OperatorSite::Nud,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        baseline,
-                        stops,
-                    )
-                });
-                if item.payload_view().is_boundary()
-                    || run.lexical(|lex| inline_boundary_lex(lex, &item, baseline, stops))
-                    || is_nud_item(&item)
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry);
-                }
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_expression_item_lexical(
+                    lex,
+                    OperatorSite::Nud,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    baseline,
+                    stops,
+                )
+            });
+            if item.payload_view().is_boundary()
+                || run.lexical(|lex| inline_boundary_lex(lex, &item, baseline, stops))
+                || is_nud_item(&item)
+            {
+                return (item, item_origin, line_entry);
             }
-        },
-        |range, unexpected| {
-            if_recovery_draft(role.recovery_role(), RecoveryKind::Error, range, unexpected)
-        },
-    )
+        }
+    })
 }
 
 fn inline_boundary(mut i: SyntaxIn, item: &Item, baseline: usize, stops: Stops) -> bool {
@@ -652,56 +589,19 @@ fn emit_inline_leading(i: &mut SyntaxIn, item: &mut Item) {
     }
 }
 
-fn emit_inline_missing(
-    i: &mut SyntaxIn,
-    item: &mut Item,
-    baseline: usize,
-    item_origin: usize,
-    role: InlineBodyRole,
-) {
+fn emit_inline_missing(i: &mut SyntaxIn, item: &mut Item, baseline: usize, item_origin: usize) {
     if !implicit_delimited_newline(baseline, item.leading_view()) {
         emit_inline_leading(i, item);
     }
-    emit_if_missing(i.rb(), item, item_origin, role.recovery_role());
+    emit_if_missing(i.rb(), item, item_origin);
 }
 
-fn emit_if_missing(i: SyntaxIn, item: &Item, item_origin: usize, role: IfExpressionRole) {
+fn emit_if_missing(i: SyntaxIn, item: &Item, item_origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        if_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn if_recovery_draft(
-    role: IfExpressionRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = if role == IfExpressionRole::BodyIntroducer {
-        ExpectedSyntax::Punctuation(crate::recovery_record::PunctuationEvidence::Colon)
-    } else {
-        ExpectedSyntax::Expression
-    };
-    let role = GrammarRole::IfExpression(role);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn emit_contextual_keyword(i: &mut SyntaxIn, item: Item, kind: SyntaxKind) {

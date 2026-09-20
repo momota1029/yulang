@@ -1,27 +1,16 @@
 use crate::tests::support::*;
-use crate::{ambient_claim::AmbientClaimView, recovery_record::*};
-use std::{ops::Range, sync::Arc};
+use crate::{ambient_claim::AmbientClaimView, structural_diagnostic::StructuralKind};
+use std::ops::Range;
 
 fn parse<'s>(
     source: &'s str,
     origin: usize,
     fence: Option<&FenceBoundary>,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (
-    GreenNode,
-    Vec<CommittedRecoveryRecord>,
-    NormalizedExit,
-    &'s str,
-) {
+) -> (GreenNode, Vec<StructuralFact>, NormalizedExit, &'s str) {
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let mut output = frozen
-        .map(|records| {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        })
-        .unwrap_or_else(GreenNodeBuilder::new);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -34,140 +23,76 @@ fn parse<'s>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, records, exit, input)
+    let green = finish_with_discarded_recoveries(output, recover);
+    let facts = structural_facts(&green);
+    (green, facts, exit, input)
 }
 
-fn record(
-    id: usize,
-    role: GrammarRole,
-    range: Range<usize>,
-    error: bool,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement) => {
-            ExpectedSyntax::Statement
-        }
-        GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator) => {
-            ExpectedSyntax::StatementSeparator
-        }
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        _ => unreachable!(),
-    };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id as u32),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if error {
-            RecoveryKind::Error
-        } else {
-            RecoveryKind::Missing
-        },
-        unexpected: if error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+fn structural_fact(kind: StructuralKind, range: Range<usize>) -> StructuralFact {
+    (kind, range)
 }
 
 #[test]
-fn braced_slots_have_exact_shifted_and_frozen_records() {
-    let statement = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
-    let separator = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator);
-    let close = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::BracedStatementBlockExpression,
-        delimiter: Delimiter::Brace,
-    };
+fn braced_slots_have_exact_structural_facts() {
+    use StructuralKind::{ErrorGroup, Missing};
     for (source, slots) in [
-        (
-            "{,;}",
-            vec![(statement, 1..1, false), (statement, 2..2, false)],
-        ),
-        ("{ @ @ α}", vec![(statement, 2..5, true)]),
-        ("{@,}", vec![(statement, 1..2, true)]),
-        (
-            "{@\n,}",
-            vec![(statement, 1..2, true), (statement, 3..3, false)],
-        ),
-        (
-            "{@\r\n;}",
-            vec![(statement, 1..2, true), (statement, 4..4, false)],
-        ),
-        ("{x\n;}", vec![(statement, 3..3, false)]),
-        ("{x\r\n,}", vec![(statement, 4..4, false)]),
-        ("{@}", vec![(statement, 1..2, true)]),
-        ("{@  ", vec![(statement, 1..2, true), (close, 4..4, false)]),
-        ("{  ", vec![(close, 3..3, false)]),
-        ("{use a use b}", vec![(separator, 6..6, false)]),
+        ("{,;}", vec![(Missing, 1..1), (Missing, 2..2)]),
+        ("{ @ @ α}", vec![(ErrorGroup, 2..5)]),
+        ("{@,}", vec![(ErrorGroup, 1..2)]),
+        ("{@\n,}", vec![(ErrorGroup, 1..2), (Missing, 3..3)]),
+        ("{@\r\n;}", vec![(ErrorGroup, 1..2), (Missing, 4..4)]),
+        ("{x\n;}", vec![(Missing, 3..3)]),
+        ("{x\r\n,}", vec![(Missing, 4..4)]),
+        ("{@}", vec![(ErrorGroup, 1..2)]),
+        ("{@  ", vec![(ErrorGroup, 1..2), (Missing, 4..4)]),
+        ("{  ", vec![(Missing, 3..3)]),
+        ("{use a use b}", vec![(Missing, 6..6)]),
     ] {
         for origin in [0, 137] {
-            let expected: Vec<_> = slots
-                .iter()
-                .enumerate()
-                .map(|(id, (role, range, error))| {
-                    record(id, *role, origin + range.start..origin + range.end, *error)
-                })
-                .collect();
-            let (green, records, _, _) = parse(source, origin, None, None);
+            let (green, facts, _, _) = parse(source, origin, None);
             assert_eq!(green.to_string(), source);
-            assert_eq!(records, expected, "{source:?}");
-            let (again, frozen, _, _) = parse(source, origin, None, Some(&records));
+            assert_eq!(facts, slots, "{source:?} at {origin}");
+            let (again, repeated_facts, _, _) = parse(source, origin, None);
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(repeated_facts, facts);
         }
     }
 }
 
 #[test]
 fn braced_missing_slots_collide_at_the_same_direct_rowan_occurrence_path() {
-    let statement = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
-    let separator = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator);
-    let close = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::BracedStatementBlockExpression,
-        delimiter: Delimiter::Brace,
-    };
     let cases = [
         // The comma and semicolon remain in their explicit separator phase.
         (
             "{,;}",
-            statement,
+            "required statement",
             1..1,
             vec![
-                record(0, statement, 1..1, false),
-                record(1, statement, 2..2, false),
+                structural_fact(StructuralKind::Missing, 1..1),
+                structural_fact(StructuralKind::Missing, 2..2),
             ],
         ),
         // The second statement is admitted after the missing separator.
         (
             "{use a use b}",
-            separator,
+            "separator",
             6..6,
-            vec![record(0, separator, 6..6, false)],
+            vec![structural_fact(StructuralKind::Missing, 6..6)],
         ),
         // EOF reaches the local close phase after its horizontal leading.
-        ("{  ", close, 3..3, vec![record(0, close, 3..3, false)]),
+        (
+            "{  ",
+            "closing brace",
+            3..3,
+            vec![structural_fact(StructuralKind::Missing, 3..3)],
+        ),
     ];
 
     let mut paths = Vec::new();
     for (source, role, range, expected) in cases {
-        let (green, records, exit, suffix) = parse(source, 0, None, None);
+        let (green, facts, exit, suffix) = parse(source, 0, None);
         assert_eq!(green.to_string(), source, "{source:?}");
-        assert_eq!(records, expected, "{source:?}");
+        assert_eq!(facts, expected, "{source:?}");
         assert!(matches!(exit, NormalizedExit::Complete(_, _)), "{source:?}");
         assert_eq!(suffix, "", "{source:?}");
 
@@ -281,7 +206,7 @@ fn braced_missing_slots_collide_at_the_same_direct_rowan_occurrence_path() {
                 .collect::<Vec<_>>(),
         );
 
-        if role == separator {
+        if role == "separator" {
             assert_eq!(
                 block
                     .children()
@@ -292,14 +217,14 @@ fn braced_missing_slots_collide_at_the_same_direct_rowan_occurrence_path() {
             );
         }
 
-        let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+        let (again, repeated_facts, repeated_exit, repeated_suffix) = parse(source, 0, None);
         assert_eq!(again, green, "{source:?}");
-        assert_eq!(frozen, records, "{source:?}");
+        assert_eq!(repeated_facts, facts, "{source:?}");
         assert!(
-            matches!(frozen_exit, NormalizedExit::Complete(_, _)),
+            matches!(repeated_exit, NormalizedExit::Complete(_, _)),
             "{source:?}"
         );
-        assert_eq!(frozen_suffix, suffix, "{source:?}");
+        assert_eq!(repeated_suffix, suffix, "{source:?}");
     }
 
     assert_eq!(
@@ -328,7 +253,7 @@ fn protected_nonlocal_closes_keep_horizontal_and_crlf_leading() {
         for leading in ["  ", "\r\n  "] {
             for close in [')', ']'] {
                 let source = format!("{prefix}{leading}{close}tail");
-                let (green, records, exit, suffix) = parse(&source, 100, None, None);
+                let (green, facts, exit, suffix) = parse(&source, 100, None);
                 assert_eq!(green.to_string(), prefix);
                 assert_eq!(suffix, "tail");
                 let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
@@ -340,8 +265,11 @@ fn protected_nonlocal_closes_keep_horizontal_and_crlf_leading() {
                     100 + prefix.len()..100 + prefix.len() + leading.len() + 1
                 );
                 assert_eq!(
-                    records.last().unwrap().site.range,
-                    100 + prefix.len()..100 + prefix.len()
+                    facts.last(),
+                    Some(&structural_fact(
+                        StructuralKind::Missing,
+                        prefix.len()..prefix.len(),
+                    ))
                 );
             }
         }
@@ -349,16 +277,16 @@ fn protected_nonlocal_closes_keep_horizontal_and_crlf_leading() {
 }
 
 #[test]
-fn accepted_braced_sequence_controls_stay_record_free() {
+fn accepted_braced_sequence_controls_have_only_structural_recovery() {
     for source in [
         "{}", "{ }", "{x;}", "{x,}", "{x;  ", "{f x}", "{f: x,y}", "{x\n y}",
     ] {
-        let (green, records, _, _) = parse(source, 0, None, None);
+        let (green, facts, _, _) = parse(source, 0, None);
         assert_eq!(green.to_string(), source);
         if source.ends_with('}') {
-            assert!(records.is_empty(), "{source:?}: {records:?}");
+            assert!(facts.is_empty(), "{source:?}: {facts:?}");
         } else {
-            assert_eq!(records.len(), 1);
+            assert_eq!(facts.len(), 1);
         }
     }
 }
@@ -369,7 +297,7 @@ fn declaration_body_callers_publish_the_braced_child_role() {
 
     for prefix in ["mod M ", "role R ", "impl T ", "act A ", "for x in xs "] {
         let source = format!("{prefix}{{ @ }}");
-        let (green, records, exit, suffix) = parse(&source, 0, None, None);
+        let (green, facts, exit, suffix) = parse(&source, 0, None);
         assert_eq!(green.to_string(), source);
         assert_eq!(suffix, "");
         let p = prefix.len();
@@ -514,7 +442,6 @@ fn declaration_body_callers_publish_the_braced_child_role() {
 
         // The required-Statement phase and immediate block own this maximal
         // Error group; caller ancestry does not change its schema projection.
-        let role = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
         let mut projected = Vec::new();
         let mut index = 1;
         while index + 1 < body.len() {
@@ -532,16 +459,14 @@ fn declaration_body_callers_publish_the_braced_child_role() {
                 end = token.text_range().end();
                 index += 1;
             }
-            projected.push((
-                role,
-                vec![ExpectedSyntax::Statement],
-                0,
+            projected.push(structural_fact(
+                StructuralKind::ErrorGroup,
                 usize::from(start)..usize::from(end),
             ));
         }
         assert_eq!(
             projected,
-            vec![(role, vec![ExpectedSyntax::Statement], 0, p + 2..p + 3)]
+            vec![structural_fact(StructuralKind::ErrorGroup, p + 2..p + 3,)]
         );
         let NormalizedExit::Complete(tail, line) = exit else {
             panic!("deferred: {source:?}")
@@ -556,58 +481,37 @@ fn declaration_body_callers_publish_the_braced_child_role() {
             assert!(end.item.payload_view().is_eof());
         }
 
-        // Temporary ledger compatibility follows the structural proof.
-        assert_eq!(records.len(), projected.len());
-        for (record, (role, expected, primary, range)) in records.iter().zip(&projected) {
-            assert_eq!(record.site.role, *role);
-            assert_eq!(record.site.range, *range);
-            assert_eq!(
-                record
-                    .expectations
-                    .iter()
-                    .map(|expectation| expectation.expected)
-                    .collect::<Vec<_>>(),
-                *expected
-            );
-            assert_eq!(record.primary_expectation, *primary);
-        }
-        assert_eq!(
-            records,
-            [record(
-                0,
-                GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement),
-                prefix.len() + 2..prefix.len() + 3,
-                true
-            )],
-            "{source:?}"
-        );
-        let (again, frozen, frozen_exit, frozen_suffix) = parse(&source, 0, None, Some(&records));
+        assert_eq!(facts, projected, "{source:?}");
+        let (again, repeated_facts, repeated_exit, repeated_suffix) = parse(&source, 0, None);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(frozen_suffix, suffix);
-        let NormalizedExit::Complete(frozen_tail, frozen_line) = frozen_exit else {
-            panic!("frozen deferred: {source:?}")
+        assert_eq!(repeated_facts, facts);
+        assert_eq!(repeated_suffix, suffix);
+        let NormalizedExit::Complete(repeated_tail, repeated_line) = repeated_exit else {
+            panic!("repeated parse deferred: {source:?}")
         };
-        assert_eq!(frozen_tail, tail);
-        assert_eq!(frozen_line, line);
+        assert_eq!(repeated_tail, tail);
+        assert_eq!(repeated_line, line);
     }
 }
 
 #[test]
 fn declaration_body_callers_return_protected_closes_with_leading() {
-    let role = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::BracedStatementBlockExpression,
-        delimiter: Delimiter::Brace,
-    };
     for prefix in ["mod M ", "role R ", "impl T ", "act A ", "for x in xs "] {
         for leading in ["  ", "\r\n  "] {
             for close in [')', ']'] {
                 let owned = format!("{prefix}{{x");
                 let source = format!("{owned}{leading}{close}tail");
-                let (green, records, exit, suffix) = parse(&source, 100, None, None);
+                let (green, facts, exit, suffix) = parse(&source, 100, None);
                 assert_eq!(green.to_string(), owned, "{source:?}");
                 let at = 100 + owned.len();
-                assert_eq!(records, [record(0, role, at..at, false)], "{source:?}");
+                assert_eq!(
+                    facts,
+                    [structural_fact(
+                        StructuralKind::Missing,
+                        owned.len()..owned.len(),
+                    )],
+                    "{source:?}"
+                );
                 let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
                     panic!("protected close: {source:?}")
                 };
@@ -617,9 +521,9 @@ fn declaration_body_callers_return_protected_closes_with_leading() {
                         .recovery_range(),
                     at..at + leading.len() + 1
                 );
-                let (again, frozen, _, remainder) = parse(&source, 100, None, Some(&records));
+                let (again, repeated_facts, _, remainder) = parse(&source, 100, None);
                 assert_eq!(again, green);
-                assert_eq!(frozen, records);
+                assert_eq!(repeated_facts, facts);
                 assert_eq!(remainder, suffix);
             }
         }
@@ -639,26 +543,13 @@ fn error_run_stops_at_quoted_fence_and_qualifying_newline() {
         close_column: 0,
     };
     let source = "{ 💥\r\n> ```\nouter";
-    let (green, records, exit, suffix) = parse(source, 100, Some(&fence), None);
+    let (green, facts, exit, suffix) = parse(source, 100, Some(&fence));
     assert_eq!(green.to_string(), "{ 💥");
     assert_eq!(
-        records,
+        facts,
         [
-            record(
-                0,
-                GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement),
-                102..106,
-                true
-            ),
-            record(
-                1,
-                GrammarRole::ClosingDelimiter {
-                    owner: ConstructRole::BracedStatementBlockExpression,
-                    delimiter: Delimiter::Brace
-                },
-                108..108,
-                false
-            )
+            structural_fact(StructuralKind::ErrorGroup, 2..6),
+            structural_fact(StructuralKind::Missing, 6..6),
         ]
     );
     assert!(matches!(
@@ -666,35 +557,25 @@ fn error_run_stops_at_quoted_fence_and_qualifying_newline() {
         NormalizedExit::Complete(Err(Either::Left(_)), _)
     ));
     assert_eq!(suffix, "> ```\nouter");
-    let (again, frozen, _, _) = parse(source, 100, Some(&fence), Some(&records));
+    let (again, repeated_facts, _, _) = parse(source, 100, Some(&fence));
     assert_eq!(again, green);
-    assert_eq!(frozen, records);
-    let (green, records, _, _) = parse("{ @\n@ x}", 0, None, None);
+    assert_eq!(repeated_facts, facts);
+    let (green, facts, _, _) = parse("{ @\n@ x}", 0, None);
     assert_eq!(green.to_string(), "{ @\n@ x}");
     assert_eq!(
-        records,
+        facts,
         [
-            record(
-                0,
-                GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement),
-                2..3,
-                true
-            ),
-            record(
-                1,
-                GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement),
-                4..5,
-                true
-            )
+            structural_fact(StructuralKind::ErrorGroup, 2..3),
+            structural_fact(StructuralKind::ErrorGroup, 4..5),
         ]
     );
 }
 
 #[test]
 fn optional_statement_rejection_is_effect_free() {
-    let (green, records, exit, suffix) = parse("@ rest", 0, None, None);
+    let (green, facts, exit, suffix) = parse("@ rest", 0, None);
     assert_eq!(green.to_string(), "");
-    assert!(records.is_empty());
+    assert!(facts.is_empty());
     assert!(matches!(
         exit,
         NormalizedExit::Complete(Err(Either::Left(_)), _)
@@ -771,7 +652,7 @@ fn braced_statement_raw_error_ordered_children() {
             ],
         ),
     ] {
-        let (green, records, exit, suffix) = parse(source, 0, None, None);
+        let (green, facts, exit, suffix) = parse(source, 0, None);
         assert_eq!(green.to_string(), source);
         assert_eq!(suffix, "", "{source:?}");
         assert!(matches!(
@@ -815,10 +696,9 @@ fn braced_statement_raw_error_ordered_children() {
             )
         );
 
-        // The direct sequence phase selects the slot before consulting records.
+        // The direct sequence phase selects each structural occurrence.
         // Only adjacent Error tokens share an occurrence; a separator or retry
         // Statement ends it even when the next malformed slot has the same role.
-        let role = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
         let mut projected = Vec::new();
         let mut required_statement = true;
         let mut index = 1;
@@ -835,11 +715,9 @@ fn braced_statement_raw_error_ordered_children() {
                         end = token.text_range().end();
                         index += 1;
                     }
-                    projected.push((
-                        role,
-                        vec![ExpectedSyntax::Statement],
-                        0,
-                        rowan::TextRange::new(start, end),
+                    projected.push(structural_fact(
+                        StructuralKind::ErrorGroup,
+                        usize::from(start)..usize::from(end),
                     ));
                     continue;
                 }
@@ -908,41 +786,18 @@ fn braced_statement_raw_error_ordered_children() {
             projected,
             ranges
                 .iter()
-                .map(|range| (
-                    role,
-                    vec![ExpectedSyntax::Statement],
-                    0,
-                    rowan::TextRange::new(range.start.into(), range.end.into()),
-                ))
+                .map(|range| structural_fact(StructuralKind::ErrorGroup, range.clone()))
                 .collect::<Vec<_>>(),
             "{source:?}",
         );
 
-        // Compatibility is checked only after the independent Rowan projection.
-        assert_eq!(records.len(), projected.len(), "{source:?}");
-        for (record, (role, expected, primary, range)) in records.iter().zip(&projected) {
-            assert_eq!(record.kind, RecoveryKind::Error);
-            assert_eq!(record.site.role, *role);
-            assert_eq!(
-                record.site.range,
-                usize::from(range.start())..usize::from(range.end())
-            );
-            assert_eq!(
-                record
-                    .expectations
-                    .iter()
-                    .map(|expectation| expectation.expected)
-                    .collect::<Vec<_>>(),
-                *expected
-            );
-            assert_eq!(record.primary_expectation, *primary);
-        }
-        let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+        assert_eq!(facts, projected, "{source:?}");
+        let (again, repeated_facts, repeated_exit, repeated_suffix) = parse(source, 0, None);
         assert_eq!(again, green, "{source:?}");
-        assert_eq!(frozen, records, "{source:?}");
-        assert_eq!(frozen_suffix, suffix, "{source:?}");
+        assert_eq!(repeated_facts, facts, "{source:?}");
+        assert_eq!(repeated_suffix, suffix, "{source:?}");
         assert!(matches!(
-            frozen_exit,
+            repeated_exit,
             NormalizedExit::Complete(Err(Either::Right(_)), _)
         ));
     }
@@ -1005,7 +860,7 @@ fn braced_statement_raw_error_terminal_prefixes() {
         ("{@\r\n  ]tail", None),
         ("{@\r\n> ```\nouter", Some(&fence)),
     ] {
-        let (green, records, exit, suffix) = parse(source, 0, boundary, None);
+        let (green, facts, exit, suffix) = parse(source, 0, boundary);
         let root = SyntaxNode::new_root(green.clone());
         let block = root
             .descendants()
@@ -1076,13 +931,8 @@ fn braced_statement_raw_error_terminal_prefixes() {
             }
         }
 
-        // Ordered direct children select Statement Error followed by terminal
-        // closing-brace Missing, without consulting compatibility records.
-        let statement = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
-        let close = GrammarRole::ClosingDelimiter {
-            owner: ConstructRole::BracedStatementBlockExpression,
-            delimiter: Delimiter::Brace,
-        };
+        // Ordered direct children select an Error group followed by terminal
+        // closing-brace Missing.
         let mut projected = Vec::new();
         let mut index = 1;
         while index < children.len() {
@@ -1097,11 +947,8 @@ fn braced_statement_raw_error_terminal_prefixes() {
                         end = token.text_range().end();
                         index += 1;
                     }
-                    projected.push((
-                        RecoveryKind::Error,
-                        statement,
-                        ExpectedSyntax::Statement,
-                        0,
+                    projected.push(structural_fact(
+                        StructuralKind::ErrorGroup,
                         usize::from(start)..usize::from(end),
                     ));
                     continue;
@@ -1114,11 +961,8 @@ fn braced_statement_raw_error_terminal_prefixes() {
                             .iter()
                             .any(|child| child.kind() == SyntaxKind::RBrace)
                     );
-                    projected.push((
-                        RecoveryKind::Missing,
-                        close,
-                        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
-                        0,
+                    projected.push(structural_fact(
+                        StructuralKind::Missing,
                         usize::from(child.text_range().start())
                             ..usize::from(child.text_range().end()),
                     ));
@@ -1130,20 +974,8 @@ fn braced_statement_raw_error_terminal_prefixes() {
         assert_eq!(
             projected,
             vec![
-                (
-                    RecoveryKind::Error,
-                    statement,
-                    ExpectedSyntax::Statement,
-                    0,
-                    1..2
-                ),
-                (
-                    RecoveryKind::Missing,
-                    close,
-                    ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
-                    0,
-                    owned.len()..owned.len()
-                ),
+                structural_fact(StructuralKind::ErrorGroup, 1..2),
+                structural_fact(StructuralKind::Missing, owned.len()..owned.len()),
             ]
         );
         assert_eq!(
@@ -1222,20 +1054,12 @@ fn braced_statement_raw_error_terminal_prefixes() {
                 assert_eq!(format!("{green}{leading}{suffix}"), source);
             };
             inspect_fence_exit(exit, suffix);
-            // Rowan ends at 2; the temporary compatibility close record anchors
-            // at the inspected fence coordinate 4, beyond the pending CRLF.
-            assert_eq!(
-                records,
-                vec![
-                    record(0, statement, 1..2, true),
-                    record(1, close, 4..4, false)
-                ]
-            );
-            let (again, frozen, frozen_exit, frozen_suffix) =
-                parse(source, 0, Some(&fence), Some(&records));
+            assert_eq!(facts, projected);
+            let (again, repeated_facts, repeated_exit, repeated_suffix) =
+                parse(source, 0, Some(&fence));
             assert_eq!(again, green);
-            assert_eq!(frozen, records);
-            inspect_fence_exit(frozen_exit, frozen_suffix);
+            assert_eq!(repeated_facts, facts);
+            inspect_fence_exit(repeated_exit, repeated_suffix);
             continue;
         }
 
@@ -1282,32 +1106,18 @@ fn braced_statement_raw_error_terminal_prefixes() {
             }
         };
         inspect_exit(exit, suffix);
-        assert_eq!(records.len(), projected.len());
-        for (record, (kind, role, expected, primary, range)) in records.iter().zip(&projected) {
-            assert_eq!(record.kind, *kind);
-            assert_eq!(record.site.role, *role);
-            assert_eq!(record.site.range, *range);
-            assert_eq!(
-                record
-                    .expectations
-                    .iter()
-                    .map(|expectation| expectation.expected)
-                    .collect::<Vec<_>>(),
-                vec![*expected]
-            );
-            assert_eq!(record.primary_expectation, *primary);
-        }
-        let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+        assert_eq!(facts, projected);
+        let (again, repeated_facts, repeated_exit, repeated_suffix) = parse(source, 0, None);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        inspect_exit(frozen_exit, frozen_suffix);
+        assert_eq!(repeated_facts, facts);
+        inspect_exit(repeated_exit, repeated_suffix);
     }
 }
 
 #[test]
 fn braced_statement_raw_error_stays_in_nested_for_body() {
     let source = "{for x in xs {@}; use a}";
-    let (green, records, exit, suffix) = parse(source, 0, None, None);
+    let (green, facts, exit, suffix) = parse(source, 0, None);
     assert_eq!(green.to_string(), source);
     assert_eq!(suffix, "");
     let root = SyntaxNode::new_root(green.clone());
@@ -1406,7 +1216,6 @@ fn braced_statement_raw_error_stays_in_nested_for_body() {
 
     // Interpret each block's direct slots independently: the accepted For
     // carries its child's recovery without adding one to the outer sequence.
-    let role = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Statement);
     let mut projected = Vec::new();
     for (children, expected_count) in [(&outer_children, 0), (&inner_children, 1)] {
         let mut direct = Vec::new();
@@ -1427,10 +1236,8 @@ fn braced_statement_raw_error_stays_in_nested_for_body() {
                 index += 1;
             }
             assert_eq!(children[index].kind(), SyntaxKind::RBrace);
-            direct.push((
-                role,
-                vec![ExpectedSyntax::Statement],
-                0,
+            direct.push(structural_fact(
+                StructuralKind::ErrorGroup,
                 usize::from(start)..usize::from(end),
             ));
         }
@@ -1439,7 +1246,7 @@ fn braced_statement_raw_error_stays_in_nested_for_body() {
     }
     assert_eq!(
         projected,
-        vec![(role, vec![ExpectedSyntax::Statement], 0, 14..15)]
+        vec![structural_fact(StructuralKind::ErrorGroup, 14..15)]
     );
     let NormalizedExit::Complete(tail, line) = exit else {
         panic!("completed outer block")
@@ -1451,51 +1258,34 @@ fn braced_statement_raw_error_stays_in_nested_for_body() {
     assert!(end.item.payload_view().is_eof());
     assert_eq!(end.item.extent(source.len()).recovery_range(), 24..24);
 
-    // Temporary ledger compatibility follows the independent structural proof.
-    assert_eq!(records.len(), projected.len());
-    for (record, (role, expected, primary, range)) in records.iter().zip(&projected) {
-        assert_eq!(record.kind, RecoveryKind::Error);
-        assert_eq!(record.site.role, *role);
-        assert_eq!(record.site.range, *range);
-        assert_eq!(
-            record
-                .expectations
-                .iter()
-                .map(|expectation| expectation.expected)
-                .collect::<Vec<_>>(),
-            *expected
-        );
-        assert_eq!(record.primary_expectation, *primary);
-    }
-    assert_eq!(records, vec![record(0, role, 14..15, true)]);
-    let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+    assert_eq!(facts, projected);
+    let (again, repeated_facts, repeated_exit, repeated_suffix) = parse(source, 0, None);
     assert_eq!(again, green);
-    assert_eq!(frozen, records);
-    assert_eq!(frozen_suffix, suffix);
-    let NormalizedExit::Complete(frozen_tail, frozen_line) = frozen_exit else {
-        panic!("frozen completed outer block")
+    assert_eq!(repeated_facts, facts);
+    assert_eq!(repeated_suffix, suffix);
+    let NormalizedExit::Complete(repeated_tail, repeated_line) = repeated_exit else {
+        panic!("repeated parse completed outer block")
     };
-    assert_eq!(frozen_tail, tail);
-    assert_eq!(frozen_line, line);
+    assert_eq!(repeated_tail, tail);
+    assert_eq!(repeated_line, line);
 }
 
 #[test]
 fn nested_for_braced_body_success_resumes_the_enclosing_sequence() {
-    let separator = GrammarRole::BracedStatementBlock(BracedStatementBlockRole::Separator);
-    for (source, expected_records) in [
+    for (source, expected_facts) in [
         ("{for x in xs {}}", vec![]),
         (
             "{for x in xs {} use a}",
-            vec![record(0, separator, 15..15, false)],
+            vec![structural_fact(StructuralKind::Missing, 15..15)],
         ),
         ("{for x in xs {}; use a}", vec![]),
         ("{for x in xs {}, use a}", vec![]),
         ("{for x in xs {}\nuse a}", vec![]),
         ("{for x in xs {}\r\nuse a}", vec![]),
     ] {
-        let (green, records, exit, suffix) = parse(source, 0, None, None);
+        let (green, facts, exit, suffix) = parse(source, 0, None);
         assert_eq!(green.to_string(), source, "{source:?}");
-        assert_eq!(records, expected_records, "{source:?}");
+        assert_eq!(facts, expected_facts, "{source:?}");
         assert!(matches!(
             exit,
             NormalizedExit::Complete(Err(Either::Right(_)), _)
@@ -1586,13 +1376,13 @@ fn nested_for_braced_body_success_resumes_the_enclosing_sequence() {
             }
         }
 
-        let (again, frozen, frozen_exit, frozen_suffix) = parse(source, 0, None, Some(&records));
+        let (again, repeated_facts, repeated_exit, repeated_suffix) = parse(source, 0, None);
         assert_eq!(again, green, "{source:?}");
-        assert_eq!(frozen, records, "{source:?}");
+        assert_eq!(repeated_facts, facts, "{source:?}");
         assert!(matches!(
-            frozen_exit,
+            repeated_exit,
             NormalizedExit::Complete(Err(Either::Right(_)), _)
         ));
-        assert_eq!(frozen_suffix, suffix, "{source:?}");
+        assert_eq!(repeated_suffix, suffix, "{source:?}");
     }
 }

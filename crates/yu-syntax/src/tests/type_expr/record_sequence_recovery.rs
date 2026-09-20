@@ -24,10 +24,9 @@ fn record_sequence_cst_occurrences_distinguish_field_separator_and_close() {
         ("{a:A]}", vec![(Close, Error, 4..5)]),
         ("{a:A]", vec![(Close, Error, 4..5), (Close, Missing, 5..5)]),
     ] {
-        let (green, _, _) = run_type_with_context_and_recoveries(
+        let (green, _, _) = run_type_with_context_and_structural_diagnostics(
             source,
             crate::type_expr::TypeMlContext::INACTIVE,
-            None,
         );
         let root = SyntaxNode::new_root(green);
         assert_eq!(root.text(), source);
@@ -87,41 +86,18 @@ fn record_sequence_cst_occurrences_distinguish_field_separator_and_close() {
     }
 }
 
-pub(super) fn close(id: u32, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
-    let role = GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::NamedRecordType,
-        delimiter: Delimiter::Brace,
-    };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if error {
-            RecoveryKind::Error
+pub(super) fn close(_: u32, range: Range<usize>, error: bool) -> ExpectedStructural {
+    (
+        if error {
+            StructuralKind::ErrorGroup
         } else {
-            RecoveryKind::Missing
+            StructuralKind::Missing
         },
-        unexpected: if error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace)),
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+        range,
+    )
 }
 
-fn assert_typed_nodes(root: &SyntaxNode, expected: &[CommittedRecoveryRecord]) {
+fn assert_typed_nodes(root: &SyntaxNode, expected: &[ExpectedStructural]) {
     for record in root
         .descendants()
         .filter(|node| node.kind() == SyntaxKind::NamedRecordType)
@@ -136,26 +112,28 @@ fn assert_typed_nodes(root: &SyntaxNode, expected: &[CommittedRecoveryRecord]) {
             SyntaxKind::RBrace | SyntaxKind::Missing
         ));
     }
-    for (syntax, recovery) in [
-        (SyntaxKind::Missing, RecoveryKind::Missing),
-        (SyntaxKind::Error, RecoveryKind::Error),
-    ] {
-        assert_eq!(
-            if syntax == SyntaxKind::Error {
-                recovery_groups(root).len()
-            } else {
-                root.descendants()
-                    .filter(|node| node.kind() == syntax)
-                    .count()
-            },
-            expected
-                .iter()
-                .filter(|record| record.kind == recovery)
-                .count(),
-            "{}",
-            root.text(),
-        );
-    }
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        expected
+            .iter()
+            .filter(|(kind, _)| *kind == StructuralKind::Missing)
+            .count(),
+        "{}",
+        root.text(),
+    );
+    assert_eq!(
+        recovery_groups(root).len(),
+        expected
+            .iter()
+            .filter(|(kind, _)| {
+                matches!(kind, StructuralKind::ErrorGroup | StructuralKind::Invalid)
+            })
+            .count(),
+        "{}",
+        root.text(),
+    );
 }
 
 #[test]
@@ -187,12 +165,11 @@ fn record_accepted_closes_have_one_slot_and_commas_remain_native() {
 
 #[test]
 fn record_separator_error_slots_preserve_initial_leading_and_field_errors() {
-    use TypeRole::{RecordField as F, RecordFieldSeparator as S};
     for (source, expected, separator) in [
-        ("{;}", vec![field_record(0, S, 1..2, true)], ";"),
-        ("{ ;}", vec![field_record(0, S, 2..3, true)], ";"),
-        ("{a:A,;}", vec![field_record(0, S, 5..6, true)], ";"),
-        ("{a:A ; b:B}", vec![field_record(0, S, 5..6, true)], ";"),
+        ("{;}", vec![field_record(0, 1..2, true)], ";"),
+        ("{ ;}", vec![field_record(0, 2..3, true)], ";"),
+        ("{a:A,;}", vec![field_record(0, 5..6, true)], ";"),
+        ("{a:A ; b:B}", vec![field_record(0, 5..6, true)], ";"),
     ] {
         let root = assert_complete_type_recovery(source, 0, &expected);
         assert_typed_nodes(&root, &expected);
@@ -215,7 +192,7 @@ fn record_separator_error_slots_preserve_initial_leading_and_field_errors() {
         }
     }
     // A semicolon inside an already committed Field run stays in that run.
-    let expected = [field_record(0, F, 1..3, true)];
+    let expected = [field_record(0, 1..3, true)];
     let root = assert_complete_type_recovery("{@;}", 0, &expected);
     assert_typed_nodes(&root, &expected);
     assert!(
@@ -234,13 +211,12 @@ fn record_separator_error_slots_preserve_initial_leading_and_field_errors() {
 
 #[test]
 fn record_close_slot_distinguishes_fresh_and_committed_eof_leading() {
-    use TypeRole::RecordField as F;
     for (source, expected, close_text, direct_missing) in [
         ("{", vec![close(0, 1..1, false)], "", false),
         ("{  ", vec![close(0, 3..3, false)], "", false),
         (
             "{a:A,  ",
-            vec![field_record(0, F, 7..7, false), close(1, 7..7, false)],
+            vec![field_record(0, 7..7, false), close(1, 7..7, false)],
             "",
             true,
         ),
@@ -253,7 +229,7 @@ fn record_close_slot_distinguishes_fresh_and_committed_eof_leading() {
         (
             "{a:A,]  ",
             vec![
-                field_record(0, F, 5..5, false),
+                field_record(0, 5..5, false),
                 close(1, 5..6, true),
                 close(2, 8..8, false),
             ],
@@ -279,31 +255,30 @@ fn record_close_slot_distinguishes_fresh_and_committed_eof_leading() {
 
 #[test]
 fn record_sequence_missing_slots_are_typed_and_nested_closes_are_not_deduplicated() {
-    use TypeRole::{RecordField as F, RecordFieldSeparator as S};
     for origin in [0, 41] {
         for (source, expected) in [
             (
                 "{,a:A}",
-                vec![field_record(0, F, origin + 1..origin + 1, false)],
+                vec![field_record(0, origin + 1..origin + 1, false)],
             ),
             (
                 "{a:A,,b:B}",
-                vec![field_record(0, F, origin + 5..origin + 5, false)],
+                vec![field_record(0, origin + 5..origin + 5, false)],
             ),
             (
                 "{a:A b:B}",
-                vec![field_record(0, S, origin + 5..origin + 5, false)],
+                vec![field_record(0, origin + 5..origin + 5, false)],
             ),
             (
                 "{a:A b:{c:C}}",
-                vec![field_record(0, S, origin + 5..origin + 5, false)],
+                vec![field_record(0, origin + 5..origin + 5, false)],
             ),
             ("{", vec![close(0, origin + 1..origin + 1, false)]),
             ("{a:A", vec![close(0, origin + 4..origin + 4, false)]),
             (
                 "{a:A,",
                 vec![
-                    field_record(0, F, origin + 5..origin + 5, false),
+                    field_record(0, origin + 5..origin + 5, false),
                     close(1, origin + 5..origin + 5, false),
                 ],
             ),
@@ -340,34 +315,39 @@ fn record_sequence_missing_slots_are_typed_and_nested_closes_are_not_deduplicate
 
 #[test]
 fn record_sequence_and_name_errors_keep_their_cut_and_native_nested_items() {
-    use TypeRole::{RecordField as F, RecordFieldName as N, RecordFieldSeparator as S};
-    for (source, role, range, text) in [
-        ("{@ a:A}", F, 1..2, "@"),
-        ("{..A,b:B}", F, 1..4, "..A"),
-        ("{@\nb:B}", F, 1..2, "@"),
-        ("{@ (\nb:B}", F, 1..4, "@ ("),
-        ("{@:A}", N, 1..2, "@"),
-        ("{():A}", N, 1..3, "()"),
-        ("{(:):A}", N, 1..4, "(:)"),
-        ("{a:A; b:B}", S, 4..5, ";"),
-        ("{a:A; (\n) b:B}", S, 4..9, "; (\n)"),
-        ("{a:A; /*é*/ b:B}", S, 4..5, ";"),
+    for (source, range, text, parent) in [
+        ("{@ a:A}", 1..2, "@", SyntaxKind::NamedRecordType),
+        ("{..A,b:B}", 1..4, "..A", SyntaxKind::NamedRecordType),
+        ("{@\nb:B}", 1..2, "@", SyntaxKind::NamedRecordType),
+        ("{@ (\nb:B}", 1..4, "@ (", SyntaxKind::NamedRecordType),
+        ("{@:A}", 1..2, "@", SyntaxKind::TypeRecordField),
+        ("{():A}", 1..3, "()", SyntaxKind::TypeRecordField),
+        ("{(:):A}", 1..4, "(:)", SyntaxKind::TypeRecordField),
+        (
+            "{a:A; b:B}",
+            4..5,
+            ";",
+            SyntaxKind::NamedRecordTypeSeparator,
+        ),
+        (
+            "{a:A; (\n) b:B}",
+            4..9,
+            "; (\n)",
+            SyntaxKind::NamedRecordTypeSeparator,
+        ),
+        (
+            "{a:A; /*é*/ b:B}",
+            4..5,
+            ";",
+            SyntaxKind::NamedRecordTypeSeparator,
+        ),
     ] {
-        let expected = [field_record(0, role, range, true)];
+        let expected = [field_record(0, range, true)];
         let root = assert_complete_type_recovery(source, 0, &expected);
         assert_typed_nodes(&root, &expected);
         let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(error.text(), text, "{source:?}");
-        assert_eq!(
-            error.parent().unwrap().kind(),
-            if role == N {
-                SyntaxKind::TypeRecordField
-            } else if role == S {
-                SyntaxKind::NamedRecordTypeSeparator
-            } else {
-                SyntaxKind::NamedRecordType
-            }
-        );
+        assert_eq!(error.parent().unwrap().kind(), parent);
         if text.contains('(') {
             assert!(
                 error
@@ -378,7 +358,7 @@ fn record_sequence_and_name_errors_keep_their_cut_and_native_nested_items() {
         }
     }
     // A ')' cannot discharge the '[' in a malformed name authority probe.
-    let expected = [field_record(0, F, 1..3, true), close(1, 3..7, true)];
+    let expected = [field_record(0, 1..3, true), close(1, 3..7, true)];
     let root = assert_complete_type_recovery("{([)]:A}", 0, &expected);
     // The approved close slot preserves the Field/Close record boundary.
     let groups = recovery_groups(&root);
@@ -419,7 +399,6 @@ fn record_sequence_and_name_errors_keep_their_cut_and_native_nested_items() {
 
 #[test]
 fn record_unclaimed_closes_use_one_native_close_only_run_and_preserve_outer_tails() {
-    use TypeRole::RecordField as F;
     for origin in [0, 41] {
         for (source, expected) in [
             ("{a:A]}", vec![close(0, origin + 4..origin + 5, true)]),
@@ -442,7 +421,7 @@ fn record_unclaimed_closes_use_one_native_close_only_run_and_preserve_outer_tail
             (
                 "{a:A,]",
                 vec![
-                    field_record(0, F, origin + 5..origin + 5, false),
+                    field_record(0, origin + 5..origin + 5, false),
                     close(1, origin + 5..origin + 6, true),
                     close(2, origin + 6..origin + 6, false),
                 ],
@@ -496,63 +475,63 @@ fn assert_pending_record(
     suffix: &str,
     stops: Stops,
     outer_closes: u8,
-    expected: &[CommittedRecoveryRecord],
+    expected: &[ExpectedStructural],
 ) {
     let source = format!("{prefix}{suffix}");
-    let frozen = frozen_recovery_ids(expected);
-    for (input, records) in [
-        (None, expected),
-        (Some(frozen.as_slice()), frozen.as_slice()),
-    ] {
-        let run = run_contextual_type_snapshot(
-            &source,
-            crate::type_expr::TypeMlContext::INACTIVE,
-            stops,
-            outer_closes,
-            0,
-            LineEntry::InLine,
-            None,
-            input,
-        );
-        assert_eq!(
-            run.green.to_string(),
-            format!("sentinel{prefix}"),
-            "{source:?}"
-        );
-        assert_eq!(run.records, records, "{source:?}");
-        assert_eq!(run.slots, records.len());
-        assert_typed_nodes(&SyntaxNode::new_root(run.green), records);
-        let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
-            panic!("complete caller Item must remain pending: {source:?}")
-        };
-        let (control, origin, control_line, remainder, _, _) =
-            scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
-        assert_eq!(pending, control, "{source:?}");
-        assert_eq!(run.successor_origin, origin);
-        assert_eq!(run.remainder, remainder);
-        assert_eq!(line, control_line);
-        assert_eq!(run.mark, ());
-        assert!(run.same_operators);
-    }
+    let run = run_contextual_type_snapshot(
+        &source,
+        crate::type_expr::TypeMlContext::INACTIVE,
+        stops,
+        outer_closes,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(
+        run.green.to_string(),
+        format!("sentinel{prefix}"),
+        "{source:?}"
+    );
+    let expected = expected
+        .iter()
+        .map(|(kind, range)| {
+            (
+                *kind,
+                "sentinel".len() + range.start.."sentinel".len() + range.end,
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(run.facts, expected, "{source:?}");
+    assert_typed_nodes(&SyntaxNode::new_root(run.green), &expected);
+    let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
+        panic!("complete caller Item must remain pending: {source:?}")
+    };
+    let (control, origin, control_line, remainder, _, _) =
+        scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
+    assert_eq!(pending, control, "{source:?}");
+    assert_eq!(run.successor_origin, origin);
+    assert_eq!(run.remainder, remainder);
+    assert_eq!(line, control_line);
+    assert_eq!(run.mark, ());
+    assert!(run.same_operators);
 }
 
 #[test]
 fn record_caller_and_inherited_close_boundaries_keep_the_complete_pending_item() {
-    use TypeRole::{RecordField as F, RecordFieldSeparator as S};
     for (prefix, expected) in [
         ("{", vec![close(0, 1..1, false)]),
         ("{a:A", vec![close(0, 4..4, false)]),
         (
             "{a:A,",
-            vec![field_record(0, F, 5..5, false), close(1, 5..5, false)],
+            vec![field_record(0, 5..5, false), close(1, 5..5, false)],
         ),
         (
             "{@",
-            vec![field_record(0, F, 1..2, true), close(1, 2..2, false)],
+            vec![field_record(0, 1..2, true), close(1, 2..2, false)],
         ),
         (
             "{a:A;",
-            vec![field_record(0, S, 4..5, true), close(1, 5..5, false)],
+            vec![field_record(0, 4..5, true), close(1, 5..5, false)],
         ),
         ("{a:A]", vec![close(0, 4..5, true), close(1, 5..5, false)]),
     ] {
@@ -573,20 +552,19 @@ fn record_caller_and_inherited_close_boundaries_keep_the_complete_pending_item()
         "] tail",
         0,
         inherited,
-        &[field_record(0, F, 5..5, false), close(1, 5..5, false)],
+        &[field_record(0, 5..5, false), close(1, 5..5, false)],
     );
     assert_pending_record(
         "{a:A",
         "\nwith tail",
         crate::lexical::stops::STOP_WITH,
         0,
-        &[field_record(0, F, 4..4, false), close(1, 4..4, false)],
+        &[field_record(0, 4..4, false), close(1, 4..4, false)],
     );
 }
 
 #[test]
 fn record_name_authority_and_nested_recovery_do_not_cross_caller_stops() {
-    use TypeRole::{RecordField as F, RecordFieldSeparator as S};
     for (suffix, stops) in [
         (":):A}", STOP_COLON),
         ("with):A}", crate::lexical::stops::STOP_WITH),
@@ -598,7 +576,7 @@ fn record_name_authority_and_nested_recovery_do_not_cross_caller_stops() {
             suffix,
             stops,
             0,
-            &[field_record(0, F, 1..4, true), close(1, 4..4, false)],
+            &[field_record(0, 1..4, true), close(1, 4..4, false)],
         );
     }
     assert_pending_record(
@@ -606,7 +584,7 @@ fn record_name_authority_and_nested_recovery_do_not_cross_caller_stops() {
         "} tail",
         stops_for(TokenKind::RBrace),
         0,
-        &[field_record(0, F, 1..4, true), close(1, 4..4, false)],
+        &[field_record(0, 1..4, true), close(1, 4..4, false)],
     );
     assert_pending_record(
         "{a:A",
@@ -621,8 +599,8 @@ fn record_name_authority_and_nested_recovery_do_not_cross_caller_stops() {
         crate::lexical::stops::STOP_WITH,
         0,
         &[
-            field_record(0, S, 4..7, true),
-            field_record(1, F, 7..7, false),
+            field_record(0, 4..7, true),
+            field_record(1, 7..7, false),
             close(2, 7..7, false),
         ],
     );
@@ -630,7 +608,6 @@ fn record_name_authority_and_nested_recovery_do_not_cross_caller_stops() {
 
 #[test]
 fn record_sequence_fence_handoff_records_each_slot_without_consuming_leading() {
-    use TypeRole::{RecordField as F, RecordFieldSeparator as S};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -641,137 +618,122 @@ fn record_sequence_fence_handoff_records_each_slot_without_consuming_leading() {
         close_column: 0,
     };
     for (prefix, expected) in [
-        ("> > {", vec![close(0, 6..6, false)]),
+        ("> > {", vec![close(0, 5..5, false)]),
         (
             "> > {a:A,",
-            vec![field_record(0, F, 10..10, false), close(1, 10..10, false)],
+            vec![field_record(0, 9..9, false), close(1, 9..9, false)],
         ),
         (
             "> > {@",
-            vec![field_record(0, F, 5..6, true), close(1, 7..7, false)],
+            vec![field_record(0, 5..6, true), close(1, 6..6, false)],
         ),
         (
             "> > {a:A;",
-            vec![field_record(0, S, 8..9, true), close(1, 10..10, false)],
+            vec![field_record(0, 8..9, true), close(1, 9..9, false)],
         ),
         (
             "> > {a:A]",
-            vec![close(0, 8..9, true), close(1, 10..10, false)],
+            vec![close(0, 8..9, true), close(1, 9..9, false)],
         ),
         (
             "> > {a:A,]",
             vec![
-                field_record(0, F, 9..9, false),
+                field_record(0, 9..9, false),
                 close(1, 9..10, true),
-                close(2, 11..11, false),
+                close(2, 10..10, false),
             ],
         ),
     ] {
         let source = format!("{prefix}\n> > ```\nouter");
-        let frozen = frozen_recovery_ids(&expected);
-        for (input, records) in [
-            (None, expected.as_slice()),
-            (Some(frozen.as_slice()), frozen.as_slice()),
-        ] {
-            let (green, exit, remainder, actual) = run_type_normalized_with_recoveries(
-                &source,
-                0,
-                LineEntry::PhysicalStart,
-                Some(&fence),
-                input,
-            );
-            assert_eq!(green.to_string(), prefix);
-            assert_eq!(actual, records, "{prefix:?}");
-            let root = SyntaxNode::new_root(green);
-            assert_typed_nodes(&root, records);
-            if prefix.ends_with(']') {
-                let slot = root
-                    .descendants()
-                    .find(|node| node.kind() == SyntaxKind::NamedRecordTypeClose)
-                    .unwrap();
-                assert_eq!(slot.text(), "]");
-                assert_eq!(
-                    slot.children_with_tokens()
-                        .map(|element| element.kind())
-                        .collect::<Vec<_>>(),
-                    [SyntaxKind::Error, SyntaxKind::Missing]
-                );
-                assert_eq!(
-                    slot.prev_sibling_or_token()
-                        .is_some_and(|element| element.kind() == SyntaxKind::Missing),
-                    prefix.ends_with(",]")
-                );
-            }
-            assert_eq!(remainder, "> > ```\nouter");
-            let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
-                exit
-            else {
-                panic!("record must preserve the fence Item")
-            };
-            assert!(item.payload_view().is_boundary());
-            assert!(item.leading_view().has_ordinary_newline());
+        let (green, exit, remainder, facts) = run_type_normalized_with_structural_diagnostics(
+            &source,
+            0,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+        );
+        assert_eq!(green.to_string(), prefix);
+        assert_eq!(facts, expected, "{prefix:?}");
+        let root = SyntaxNode::new_root(green);
+        assert_typed_nodes(&root, &expected);
+        if prefix.ends_with(']') {
+            let slot = root
+                .descendants()
+                .find(|node| node.kind() == SyntaxKind::NamedRecordTypeClose)
+                .unwrap();
+            assert_eq!(slot.text(), "]");
             assert_eq!(
-                item.payload_view().pending_boundary().unwrap().coordinate(),
-                prefix.len() + 1
+                slot.children_with_tokens()
+                    .map(|element| element.kind())
+                    .collect::<Vec<_>>(),
+                [SyntaxKind::Error, SyntaxKind::Missing]
+            );
+            assert_eq!(
+                slot.prev_sibling_or_token()
+                    .is_some_and(|element| element.kind() == SyntaxKind::Missing),
+                prefix.ends_with(",]")
             );
         }
+        assert_eq!(remainder, "> > ```\nouter");
+        let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("record must preserve the fence Item")
+        };
+        assert!(item.payload_view().is_boundary());
+        assert!(item.leading_view().has_ordinary_newline());
+        assert_eq!(
+            item.payload_view().pending_boundary().unwrap().coordinate(),
+            prefix.len() + 1
+        );
     }
 }
 
 #[test]
 fn record_eof_newline_opens_a_distinct_field_slot_and_stays_outside_the_record() {
-    use TypeRole::RecordField as F;
     for (source, at) in [("{a:A\n", 4), ("{a:A,\n", 5)] {
-        let expected = [field_record(0, F, at..at, false), close(1, at..at, false)];
-        let frozen = frozen_recovery_ids(&expected);
-        for (input, records) in [
-            (None, expected.as_slice()),
-            (Some(frozen.as_slice()), frozen.as_slice()),
-        ] {
-            let run = run_contextual_type_snapshot(
-                source,
-                crate::type_expr::TypeMlContext::INACTIVE,
-                0,
-                0,
-                0,
-                LineEntry::InLine,
-                None,
-                input,
-            );
-            assert_eq!(run.green.to_string(), format!("sentinel{source}"));
-            assert_eq!(run.records, records);
-            assert_eq!(run.successor_origin, source.len());
-            assert_eq!(run.remainder, "");
-            let NormalizedExit::Complete(Err(Either::Right(_)), line) = run.exit else {
-                panic!("record must return the EOF Item")
-            };
-            let (_, _, control_line, _, _, _) =
-                scan_type_item_control("\n", at, &OperatorTable::empty());
-            assert_eq!(line, control_line);
-            let root = SyntaxNode::new_root(run.green);
-            assert_typed_nodes(&root, records);
-            let newline = root
-                .descendants_with_tokens()
-                .filter_map(|element| element.into_token())
-                .find(|token| token.kind() == SyntaxKind::Newline)
-                .unwrap();
-            assert_eq!(newline.parent().unwrap().kind(), SyntaxKind::Root);
-        }
+        let raw_at = "sentinel".len() + at;
+        let expected = [
+            field_record(0, raw_at..raw_at, false),
+            close(1, raw_at..raw_at, false),
+        ];
+        let run = run_contextual_type_snapshot(
+            source,
+            crate::type_expr::TypeMlContext::INACTIVE,
+            0,
+            0,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(run.green.to_string(), format!("sentinel{source}"));
+        assert_eq!(run.facts, expected);
+        assert_eq!(run.successor_origin, source.len());
+        assert_eq!(run.remainder, "");
+        let NormalizedExit::Complete(Err(Either::Right(_)), line) = run.exit else {
+            panic!("record must return the EOF Item")
+        };
+        let (_, _, control_line, _, _, _) =
+            scan_type_item_control("\n", at, &OperatorTable::empty());
+        assert_eq!(line, control_line);
+        let root = SyntaxNode::new_root(run.green);
+        assert_typed_nodes(&root, &expected);
+        let newline = root
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Newline)
+            .unwrap();
+        assert_eq!(newline.parent().unwrap().kind(), SyntaxKind::Root);
     }
 }
 
 #[test]
 fn record_sequence_records_remain_inside_ordered_structured_pv_reservations() {
-    use TypeRole::{RecordField as F, RecordFieldSeparator as S};
     for (source, extent, nested) in [
-        (":{{@}}", 2..5, field_record(1, F, 3..4, true)),
-        (":{{a:A; b:B}}", 2..12, field_record(1, S, 6..7, true)),
+        (":{{@}}", 2..5, field_record(1, 3..4, true)),
+        (":{{a:A; b:B}}", 2..12, field_record(1, 6..7, true)),
         (":{{a:A]}}", 2..8, close(1, 6..7, true)),
     ] {
-        let expected = [
-            expected_type_error(0, TypeRole::PolymorphicVariantTagName, extent),
-            nested,
-        ];
+        let expected = [(StructuralKind::Invalid, extent), nested];
         let root = assert_complete_type_recovery(source, 0, &expected);
         assert_typed_nodes(&root, &expected);
     }
@@ -796,10 +758,9 @@ fn record_local_skeletons_and_punctuation_keep_accepted_caller_contexts() {
             0,
             LineEntry::InLine,
             None,
-            None,
         );
         assert_eq!(run.green.to_string(), format!("sentinel{source}"));
-        assert_eq!(run.records, [], "{source:?}");
+        assert_eq!(run.facts, [], "{source:?}");
         assert!(matches!(
             run.exit,
             NormalizedExit::Complete(Err(Either::Right(_)), _)

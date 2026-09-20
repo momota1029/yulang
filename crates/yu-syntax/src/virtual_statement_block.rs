@@ -4,19 +4,12 @@
 //! root-style Statement sequence and its separators, then returns the exact
 //! borrowed close or boundary Item.
 
-use std::{ops::Range, sync::Arc};
-
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
     ambient_claim::AmbientClaimContext,
     cursor::SyntaxIn,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     handoff::{Either, NormalizedExit},
     lexical::{
         current_item::LineEntry,
@@ -25,10 +18,6 @@ use crate::{
         position::{advanced_origin, suffix_marker},
         stops::{STOP_COMMA, STOP_SEMICOLON, Stops, stops_for},
         yumark::FenceBoundary,
-    },
-    recovery_record::{
-        ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind, RecoverySiteKey,
-        StatementRole, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
     },
     statement::{
         StatementAdmission, StatementLineHandoff, canonical_statement_from_admission_normalized,
@@ -119,11 +108,7 @@ pub(super) fn virtual_statement_block_normalized(
                 emit_newline_separator(&mut i, &mut item);
                 position = SequencePosition::AfterSeparator;
             } else if admission.is_some() {
-                emit_virtual_missing(
-                    i.rb(),
-                    StatementRole::Separator,
-                    item.extent(item_origin).recovery_range().start,
-                );
+                emit_virtual_missing(i.rb(), item.extent(item_origin).recovery_range().start);
                 position = SequencePosition::AfterSeparator;
             } else {
                 match retry_statement(
@@ -229,72 +214,43 @@ fn retry_statement(
     mut line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> RetryExit {
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            loop {
-                let kind = token_syntax_kind(
-                    token_kind(&item).expect("a Virtual Statement Error emits a token"),
-                );
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) = run.lexical(|lex| {
-                    scan_statement_item_lexical(
-                        lex,
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) = run.lexical(|lex| {
+                scan_statement_item_lexical(lex, item_origin, line_entry, fence, baseline, stops)
+            });
+            let boundary = retry_boundary(&item);
+            let admission = if boundary {
+                None
+            } else {
+                run.lexical(|lex| {
+                    classify_statement_item_lexical(
+                        lex.remainder(),
+                        &item,
+                        baseline,
+                        item_origin,
+                        fence,
+                    )
+                })
+            };
+            if boundary || admission.is_some() {
+                return match admission {
+                    Some(admission) => RetryExit::Candidate {
+                        item,
+                        admission,
                         item_origin,
                         line_entry,
-                        fence,
-                        baseline,
-                        stops,
-                    )
-                });
-                let boundary = retry_boundary(&item);
-                let admission = if boundary {
-                    None
-                } else {
-                    run.lexical(|lex| {
-                        classify_statement_item_lexical(
-                            lex.remainder(),
-                            &item,
-                            baseline,
-                            item_origin,
-                            fence,
-                        )
-                    })
+                    },
+                    None => RetryExit::Incomplete {
+                        item,
+                        item_origin,
+                        line_entry,
+                    },
                 };
-                if boundary || admission.is_some() {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return match admission {
-                        Some(admission) => RetryExit::Candidate {
-                            item,
-                            admission,
-                            item_origin,
-                            line_entry,
-                        },
-                        None => RetryExit::Incomplete {
-                            item,
-                            item_origin,
-                            line_entry,
-                        },
-                    };
-                }
             }
-        },
-        |range, unexpected| {
-            virtual_recovery_draft(
-                StatementRole::Starter,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    )
+        }
+    })
 }
 
 fn retry_boundary(item: &Item) -> bool {
@@ -353,43 +309,12 @@ fn emit_newline_separator(i: &mut SyntaxIn, item: &mut Item) {
 
 fn emit_missing_statement(i: &mut SyntaxIn, at: usize) {
     i.state.start_node(SyntaxKind::Statement.into());
-    emit_virtual_missing(i.rb(), StatementRole::Starter, at);
+    emit_virtual_missing(i.rb(), at);
     i.state.finish_node();
 }
 
-fn emit_virtual_missing(i: SyntaxIn, role: StatementRole, at: usize) {
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        virtual_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn virtual_recovery_draft(
-    role: StatementRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        StatementRole::Starter => ExpectedSyntax::Statement,
-        StatementRole::Separator => ExpectedSyntax::StatementSeparator,
-        _ => unreachable!("Virtual owns only Statement starter and separator recovery"),
-    };
-    let role = GrammarRole::Statement(role);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+fn emit_virtual_missing(i: SyntaxIn, at: usize) {
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn statement_successor(

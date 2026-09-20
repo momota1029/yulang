@@ -1,30 +1,19 @@
 //! Forall type owner and its phase-local, forward recovery.
 
 use crate::ambient_claim::AmbientClaimContext;
-use std::sync::Arc;
 
-use crate::{
-    recovery_record::{
-        ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
-        RecoverySiteKey, SyntaxExpectation, TypeRole, UnexpectedCategory, UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 
 use crate::type_expr::{
     TypeApplyBoundary, TypeMlContext, TypeOuterBoundary, is_forall_binder, is_type_caller_boundary,
     is_type_nud, is_type_outer_boundary, is_type_separator, type_chain_trivia,
     type_expr_from_nud_normalized, type_nud_item_with_pipe_lexical_normalized,
-    type_nud_item_with_pipe_lexical_normalized_in_error_run, type_recovery_error_syntax_kind,
+    type_nud_item_with_pipe_lexical_normalized_in_error_run,
 };
 use crate::{
     cursor::SyntaxIn,
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing,
-            emit_token_item,
-        },
+    cursor::recovery::emit::{
+        emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
     },
     handoff::{NormalizedExit, complete, handoff},
     lexical::{
@@ -89,14 +78,6 @@ impl ForallHeadPhase {
         matches!(self, Self::First | Self::RecoveredFirst)
     }
 
-    fn role(self) -> TypeRole {
-        if self.is_first() {
-            TypeRole::ForallBinder
-        } else {
-            TypeRole::ForallColon
-        }
-    }
-
     fn recovered(self) -> bool {
         matches!(self, Self::RecoveredFirst | Self::RecoveredColon)
     }
@@ -152,7 +133,8 @@ fn type_forall_head_normalized(
     let mut phase = ForallHeadPhase::First;
     let mut target = forall_retry(
         &item,
-        phase.role(),
+        true,
+        phase.is_first(),
         baseline,
         outer_separators,
         caller_stops,
@@ -163,14 +145,14 @@ fn type_forall_head_normalized(
         match target {
             Some(ForallRetry::Boundary) => {
                 if !phase.recovered() {
-                    emit_forall_missing(&mut i, phase.role(), &item, item_origin);
+                    emit_forall_missing(&mut i, phase.is_first(), &item, item_origin);
                 }
                 return complete(handoff(item), line_entry);
             }
             Some(ForallRetry::Colon) => {
                 item.emit_all_remaining_leading(&mut *i.state);
                 if phase.is_first() && !phase.recovered() {
-                    emit_forall_missing(&mut i, TypeRole::ForallBinder, &item, item_origin);
+                    emit_forall_missing(&mut i, true, &item, item_origin);
                 }
                 return type_forall_body_normalized(
                     i,
@@ -191,7 +173,7 @@ fn type_forall_head_normalized(
             Some(ForallRetry::Body) => {
                 item.emit_all_remaining_leading(&mut *i.state);
                 if !phase.recovered() {
-                    emit_forall_missing(&mut i, TypeRole::ForallColon, &item, item_origin);
+                    emit_forall_missing(&mut i, false, &item, item_origin);
                 }
                 return type_expr_from_nud_normalized(
                     i,
@@ -225,7 +207,8 @@ fn type_forall_head_normalized(
                 (item, item_origin, line_entry, retry) = retry_forall_normalized(
                     i.rb(),
                     item,
-                    phase.role(),
+                    true,
+                    phase.is_first(),
                     baseline,
                     outer_separators,
                     caller_stops,
@@ -256,7 +239,8 @@ fn type_forall_head_normalized(
         );
         target = forall_retry(
             &item,
-            phase.role(),
+            true,
+            phase.is_first(),
             baseline,
             outer_separators,
             caller_stops,
@@ -268,7 +252,8 @@ fn type_forall_head_normalized(
 
 fn forall_retry(
     item: &Item,
-    role: TypeRole,
+    accepts_colon: bool,
+    first_head_slot: bool,
     baseline: usize,
     outer_separators: bool,
     caller_stops: Stops,
@@ -283,7 +268,7 @@ fn forall_retry(
     if !type_chain_trivia(item.leading_view(), baseline) && !matching_nested_close {
         return Some(ForallRetry::Boundary);
     }
-    let local_colon = role != TypeRole::ForallBody
+    let local_colon = accepts_colon
         && local_close.is_none()
         && matches!(
             kind,
@@ -306,10 +291,10 @@ fn forall_retry(
     if local_colon {
         return Some(ForallRetry::Colon);
     }
-    if role != TypeRole::ForallBody && is_forall_binder(item) {
+    if is_forall_binder(item) {
         return Some(ForallRetry::Binder);
     }
-    if role != TypeRole::ForallBinder && is_type_nud(item) {
+    if !first_head_slot && is_type_nud(item) {
         return Some(ForallRetry::Body);
     }
     None
@@ -319,7 +304,8 @@ fn forall_retry(
 fn retry_forall_normalized(
     i: SyntaxIn,
     mut item: Item,
-    role: TypeRole,
+    accepts_colon: bool,
+    first_head_slot: bool,
     baseline: usize,
     outer_separators: bool,
     caller_stops: Stops,
@@ -331,86 +317,55 @@ fn retry_forall_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> (Item, usize, LineEntry, ForallRetry) {
     item.emit_all_remaining_leading(&mut *i.state);
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(item_origin).recovery_range().start;
-            let mut closes = Vec::new();
-            loop {
-                match token_kind(&item) {
-                    Some(TokenKind::LParen) => closes.push(TokenKind::RParen),
-                    Some(TokenKind::LBracket) => closes.push(TokenKind::RBracket),
-                    Some(TokenKind::LBrace) => closes.push(TokenKind::RBrace),
-                    Some(close) if Some(&close) == closes.last() => {
-                        closes.pop();
-                    }
-                    _ => {}
+    emit_recovery_error_run(i, |run| {
+        let mut closes = Vec::new();
+        loop {
+            match token_kind(&item) {
+                Some(TokenKind::LParen) => closes.push(TokenKind::RParen),
+                Some(TokenKind::LBracket) => closes.push(TokenKind::RBracket),
+                Some(TokenKind::LBrace) => closes.push(TokenKind::RBrace),
+                Some(close) if Some(&close) == closes.last() => {
+                    closes.pop();
                 }
-                let kind = type_recovery_error_syntax_kind(&item);
-                let end = run
-                    .emit_item_as(item, item_origin, kind)
-                    .recovery_range()
-                    .end;
-                (item, item_origin, line_entry) =
-                    type_nud_item_with_pipe_lexical_normalized_in_error_run(
-                        run,
-                        item_origin,
-                        line_entry,
-                        fence,
-                        pipe_lexical,
-                        ambient,
-                    );
-                if let Some(target) = forall_retry(
-                    &item,
-                    role,
-                    baseline,
-                    outer_separators,
-                    caller_stops,
-                    outer_boundary,
-                    closes.last().copied(),
-                ) {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (item, item_origin, line_entry, target);
-                }
+                _ => {}
             }
-        },
-        |range, unexpected| forall_recovery_draft(role, RecoveryKind::Error, range, unexpected),
-    )
+            run.emit_item_as(item, item_origin);
+            (item, item_origin, line_entry) =
+                type_nud_item_with_pipe_lexical_normalized_in_error_run(
+                    run,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    pipe_lexical,
+                    ambient,
+                );
+            if let Some(target) = forall_retry(
+                &item,
+                accepts_colon,
+                first_head_slot,
+                baseline,
+                outer_separators,
+                caller_stops,
+                outer_boundary,
+                closes.last().copied(),
+            ) {
+                return (item, item_origin, line_entry, target);
+            }
+        }
+    })
 }
 
 fn emit_forall_separator_binder(mut i: SyntaxIn, mut separator: Item, item_origin: usize) {
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
     separator.emit_all_remaining_leading(&mut *i.state);
-    let range = separator.extent(item_origin).recovery_range();
-    let kind = type_recovery_error_syntax_kind(&separator);
-    emit_recovery_error_item(
-        i.rb(),
-        separator,
-        item_origin,
-        kind,
-        UnexpectedSyntax::Token {
-            range,
-            category: UnexpectedCategory::OtherCharacter,
-        },
-        |range, unexpected| {
-            forall_recovery_draft(
-                TypeRole::ForallBinderBoundary,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    );
+    emit_recovery_error_item(i.rb(), separator, item_origin);
     i.state.finish_node();
 }
 
 fn type_forall_binder(mut i: SyntaxIn, mut binder: Item, item_origin: usize) {
     i.state.start_node(SyntaxKind::ForallTypeBinder.into());
     if binder.leading_view().is_grammar_empty() {
-        emit_forall_missing(&mut i, TypeRole::ForallBinderBoundary, &binder, item_origin);
+        emit_forall_missing(&mut i, false, &binder, item_origin);
     }
     binder.emit_all_remaining_leading(&mut *i.state);
     emit_token_item(&mut i, binder);
@@ -444,7 +399,8 @@ fn type_forall_body_normalized(
     );
     let target = forall_retry(
         &body,
-        TypeRole::ForallBody,
+        false,
+        false,
         baseline,
         outer_separators,
         caller_stops,
@@ -452,7 +408,7 @@ fn type_forall_body_normalized(
         None,
     );
     if target == Some(ForallRetry::Boundary) {
-        emit_forall_missing(&mut i, TypeRole::ForallBody, &body, item_origin);
+        emit_forall_missing(&mut i, false, &body, item_origin);
         return complete(handoff(body), line_entry);
     }
     if target.is_none() {
@@ -460,7 +416,8 @@ fn type_forall_body_normalized(
         (body, item_origin, line_entry, retry) = retry_forall_normalized(
             i.rb(),
             body,
-            TypeRole::ForallBody,
+            false,
+            false,
             baseline,
             outer_separators,
             caller_stops,
@@ -495,49 +452,16 @@ fn type_forall_body_normalized(
     )
 }
 
-fn emit_forall_missing(i: &mut SyntaxIn, role: TypeRole, item: &Item, item_origin: usize) {
-    if role == TypeRole::ForallBinder {
+fn emit_forall_missing(i: &mut SyntaxIn, opens_binder: bool, item: &Item, item_origin: usize) {
+    if opens_binder {
         i.state.start_node(SyntaxKind::ForallTypeBinder.into());
     }
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(item_origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        forall_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-    if role == TypeRole::ForallBinder {
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
+    if opens_binder {
         i.state.finish_node();
     }
-}
-
-fn forall_recovery_draft(
-    role: TypeRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        TypeRole::ForallBinder => ExpectedSyntax::ForallTypeBinder,
-        TypeRole::ForallBinderBoundary => ExpectedSyntax::TypeBinderBoundary,
-        TypeRole::ForallColon => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        TypeRole::ForallBody => ExpectedSyntax::TypeExpression,
-        _ => unreachable!("only forall recovery slots use this draft"),
-    };
-    let role = GrammarRole::Type(role);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
 }

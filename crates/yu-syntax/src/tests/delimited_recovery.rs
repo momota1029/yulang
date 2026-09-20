@@ -1,15 +1,9 @@
 use crate::tests::support::*;
 use crate::{
-    ambient_claim::AmbientClaimView,
-    handoff::MlMode,
-    recovery_record::{
-        ConstructRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax, ExpressionRole,
-        GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-        UnexpectedCategory, UnexpectedSyntax,
-    },
-    statement::StatementLineHandoff,
+    ambient_claim::AmbientClaimView, handoff::MlMode, statement::StatementLineHandoff,
+    structural_diagnostic::StructuralKind,
 };
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
 #[derive(Clone, Copy)]
 enum Form {
@@ -20,64 +14,16 @@ enum Form {
     Record,
 }
 
-impl Form {
-    fn item(self) -> ExpressionRole {
-        match self {
-            Self::Group => ExpressionRole::Nud,
-            Self::Call => ExpressionRole::CallArgument,
-            Self::Index => ExpressionRole::IndexItem,
-            Self::Tuple => ExpressionRole::ProjectionTupleItem,
-            Self::Record => ExpressionRole::ProjectionRecordItem,
-        }
-    }
-    fn separator(self) -> ExpressionRole {
-        match self {
-            Self::Group => ExpressionRole::ParenthesizedSeparator,
-            Self::Call => ExpressionRole::CallArgumentSeparator,
-            Self::Index => ExpressionRole::IndexSeparator,
-            Self::Tuple => ExpressionRole::ProjectionTupleSeparator,
-            Self::Record => ExpressionRole::ProjectionRecordSeparator,
-        }
-    }
-    fn closing(self) -> GrammarRole {
-        GrammarRole::ClosingDelimiter {
-            owner: match self {
-                Self::Group => ConstructRole::ExpressionGroup,
-                Self::Call => ConstructRole::ArgumentList,
-                Self::Index => ConstructRole::IndexTail,
-                Self::Tuple => ConstructRole::ProjectionTupleTail,
-                Self::Record => ConstructRole::ProjectionRecordTail,
-            },
-            delimiter: match self {
-                Self::Index => Delimiter::Bracket,
-                Self::Record => Delimiter::Brace,
-                _ => Delimiter::Parenthesis,
-            },
-        }
-    }
-}
-
 fn parse<'s>(
     source: &'s str,
     form: Form,
     origin: usize,
     fence: Option<&FenceBoundary>,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (
-    GreenNode,
-    NormalizedExit,
-    &'s str,
-    Vec<CommittedRecoveryRecord>,
-) {
+) -> (GreenNode, NormalizedExit, &'s str) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut output = frozen
-        .map(|records| {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        })
-        .unwrap_or_else(GreenNodeBuilder::new);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let exit = crate::expression::delimited::delimited_items_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -102,70 +48,26 @@ fn parse<'s>(
         Some(AmbientClaimView::root_statement(0)).into(),
     );
     output.finish_node();
-    let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
-    (green, exit, input, records)
+    (
+        finish_with_discarded_recoveries(output, recover),
+        exit,
+        input,
+    )
 }
 
-fn record(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    category: UnexpectedCategory,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        GrammarRole::Expression(
-            ExpressionRole::ParenthesizedSeparator
-            | ExpressionRole::CallArgumentSeparator
-            | ExpressionRole::IndexSeparator
-            | ExpressionRole::ProjectionTupleSeparator
-            | ExpressionRole::ProjectionRecordSeparator,
-        ) => ExpectedSyntax::DelimitedSequenceSeparator,
-        _ => ExpectedSyntax::Expression,
-    };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Missing {
-            Arc::from([])
-        } else {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category,
-            }])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+fn structural_fact(kind: StructuralKind, range: Range<usize>) -> StructuralFact {
+    (kind, range)
 }
 
-fn check(source: &str, form: Form, mut expected: Vec<CommittedRecoveryRecord>) {
-    for (index, record) in expected.iter_mut().enumerate() {
-        record.id = DiagnosticId(index as u32);
-    }
-    let (green, _, remainder, actual) = parse(source, form, 0, None, None);
-    assert_eq!(actual, expected, "{source:?}");
+fn check(source: &str, form: Form, expected: Vec<StructuralFact>) {
+    let (green, _, remainder) = parse(source, form, 0, None);
+    assert_eq!(structural_facts(&green), expected, "{source:?}");
     assert_eq!(green.to_string(), source);
-    assert_eq!(remainder, "");
-    let (reconciled, _, remainder, records) = parse(source, form, 0, None, Some(&actual));
-    assert_eq!(reconciled, green);
-    assert_eq!(records, actual);
     assert_eq!(remainder, "");
 }
 
 #[test]
-fn all_descriptors_publish_item_separator_and_close_records() {
+fn all_descriptors_publish_structural_recovery_facts() {
     for (form, close) in [
         (Form::Group, ')'),
         (Form::Call, ')'),
@@ -173,38 +75,14 @@ fn all_descriptors_publish_item_separator_and_close_records() {
         (Form::Tuple, ')'),
         (Form::Record, '}'),
     ] {
-        let item = GrammarRole::Expression(form.item());
-        let missing = |range| {
-            record(
-                item,
-                RecoveryKind::Missing,
-                range,
-                UnexpectedCategory::OtherCharacter,
-            )
-        };
-        let error = |range| {
-            record(
-                item,
-                RecoveryKind::Error,
-                range,
-                UnexpectedCategory::OtherCharacter,
-            )
-        };
+        let missing = |range| structural_fact(StructuralKind::Missing, range);
+        let error = |range| structural_fact(StructuralKind::ErrorGroup, range);
         check(&format!("{close}"), form, vec![]);
         check(&format!("x,y{close}"), form, vec![]);
         if !matches!(form, Form::Group) {
             check(&format!("x;y{close}"), form, vec![]);
         }
-        check(
-            &format!("1x{close}"),
-            form,
-            vec![record(
-                GrammarRole::Expression(form.separator()),
-                RecoveryKind::Missing,
-                1..1,
-                UnexpectedCategory::OtherCharacter,
-            )],
-        );
+        check(&format!("1x{close}"), form, vec![missing(1..1)]);
         check(
             &format!(",,{close}"),
             form,
@@ -213,125 +91,44 @@ fn all_descriptors_publish_item_separator_and_close_records() {
         check(&format!("@ x{close}"), form, vec![error(0..1)]);
         check(&format!("@,{close}"), form, vec![error(0..1)]);
         check(&format!("@{close}"), form, vec![error(0..1)]);
-        check(
-            " ",
-            form,
-            vec![record(
-                form.closing(),
-                RecoveryKind::Missing,
-                1..1,
-                UnexpectedCategory::OtherCharacter,
-            )],
-        );
-        check(
-            "@",
-            form,
-            vec![
-                error(0..1),
-                record(
-                    form.closing(),
-                    RecoveryKind::Missing,
-                    1..1,
-                    UnexpectedCategory::OtherCharacter,
-                ),
-            ],
-        );
-        check(
-            "",
-            form,
-            vec![record(
-                form.closing(),
-                RecoveryKind::Missing,
-                0..0,
-                UnexpectedCategory::OtherCharacter,
-            )],
-        );
-        check(
-            &format!("x @ y{close}"),
-            form,
-            vec![record(
-                GrammarRole::Expression(form.separator()),
-                RecoveryKind::Error,
-                2..3,
-                UnexpectedCategory::OtherCharacter,
-            )],
-        );
+        check(" ", form, vec![missing(1..1)]);
+        check("@", form, vec![error(0..1), missing(1..1)]);
+        check("", form, vec![missing(0..0)]);
+        check(&format!("x @ y{close}"), form, vec![error(2..3)]);
         let wrong = if close == ']' { ')' } else { ']' };
-        let delimiter = if wrong == ')' {
-            Delimiter::Parenthesis
-        } else {
-            Delimiter::Bracket
-        };
-        check(
-            &format!(" {wrong}{close}"),
-            form,
-            vec![record(
-                form.closing(),
-                RecoveryKind::Error,
-                0..2,
-                UnexpectedCategory::Punctuation(PunctuationEvidence::Close(delimiter)),
-            )],
-        );
+        check(&format!(" {wrong}{close}"), form, vec![error(0..2)]);
     }
 }
 
 #[test]
 fn parenthesized_semicolon_is_a_separator_error_in_every_phase() {
-    let error = |range| {
-        record(
-            GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
-            RecoveryKind::Error,
-            range,
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
-        )
-    };
+    let error = |range| structural_fact(StructuralKind::ErrorGroup, range);
     check(";x)", Form::Group, vec![error(0..1)]);
     check(";;)", Form::Group, vec![error(0..1), error(1..2)]);
     check("x;)", Form::Group, vec![error(1..2)]);
     check(
         "x y)",
         Form::Group,
-        vec![record(
-            GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
-            RecoveryKind::Missing,
-            1..1,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::Missing, 1..1)],
     );
 }
 
 #[test]
-fn record_spread_rhs_is_typed_without_duplicate_missing() {
-    let role = GrammarRole::Expression(ExpressionRole::ProjectionRecordSpreadRhs);
+fn record_spread_rhs_has_no_duplicate_missing_fact() {
     check(
         "..,}",
         Form::Record,
-        vec![record(
-            role,
-            RecoveryKind::Missing,
-            2..2,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::Missing, 2..2)],
     );
     check(
         "..@ x}",
         Form::Record,
-        vec![record(
-            role,
-            RecoveryKind::Error,
-            2..3,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::ErrorGroup, 2..3)],
     );
     check(
         "..@,}",
         Form::Record,
-        vec![record(
-            role,
-            RecoveryKind::Error,
-            2..3,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::ErrorGroup, 2..3)],
     );
 }
 
@@ -339,22 +136,14 @@ fn record_spread_rhs_is_typed_without_duplicate_missing() {
 fn lexical_errors_end_at_lf_and_crlf_implicit_separators() {
     for newline in ["\n", "\r\n"] {
         let source = format!("@{newline}@)");
-        let role = GrammarRole::Expression(ExpressionRole::Nud);
         check(
             &source,
             Form::Group,
             vec![
-                record(
-                    role,
-                    RecoveryKind::Error,
-                    0..1,
-                    UnexpectedCategory::OtherCharacter,
-                ),
-                record(
-                    role,
-                    RecoveryKind::Error,
+                structural_fact(StructuralKind::ErrorGroup, 0..1),
+                structural_fact(
+                    StructuralKind::ErrorGroup,
                     1 + newline.len()..2 + newline.len(),
-                    UnexpectedCategory::OtherCharacter,
                 ),
             ],
         );
@@ -362,7 +151,7 @@ fn lexical_errors_end_at_lf_and_crlf_implicit_separators() {
 }
 
 #[test]
-fn delimited_fence_and_nonzero_utf8_extents_reconcile() {
+fn delimited_fence_and_nonzero_utf8_extents_stay_physical() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
@@ -381,15 +170,10 @@ fn delimited_fence_and_nonzero_utf8_extents_reconcile() {
         Form::Record,
     ] {
         let source = "é\r\n```\nouter";
-        let (green, exit, remainder, records) = parse(source, form, 100, Some(&fence), None);
+        let (green, exit, remainder) = parse(source, form, 100, Some(&fence));
         assert_eq!(
-            records,
-            [record(
-                form.closing(),
-                RecoveryKind::Missing,
-                104..104,
-                UnexpectedCategory::OtherCharacter
-            )]
+            structural_facts(&green),
+            [structural_fact(StructuralKind::Missing, 2..2)]
         );
         assert_eq!(green.to_string(), "é");
         assert_raw_slots(&SyntaxNode::new_root(green.clone()), &[]);
@@ -398,25 +182,14 @@ fn delimited_fence_and_nonzero_utf8_extents_reconcile() {
             exit,
             NormalizedExit::Complete(Err(Either::Left(_)), LineEntry::PhysicalStart)
         ));
-        let (again, _, _, frozen) = parse(source, form, 100, Some(&fence), Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
 }
 
-fn full(
-    source: &str,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
+fn full(source: &str) -> GreenNode {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut output = frozen
-        .map(|records| {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        })
-        .unwrap_or_else(GreenNodeBuilder::new);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let exit = expr_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut output),
@@ -433,7 +206,7 @@ fn full(
     );
     assert!(exit.is_some());
     output.finish_node();
-    (output.finish(), recover.finish_recoveries_for_test())
+    finish_with_discarded_recoveries(output, recover)
 }
 
 #[test]
@@ -452,11 +225,11 @@ fn projection_delimited_missing_slots_are_distinguished_by_ordered_cst() {
             );
         }
     };
-    for (form, owner_kind, opening, closing, open, close) in [
+    for (_form, owner_kind, opening, closing, open, close) in [
         (Form::Tuple, ProjectionTupleTail, "(", ")", LParen, RParen),
         (Form::Record, ProjectionRecordTail, "{", "}", LBrace, RBrace),
     ] {
-        for (body, has_close, slots, expected_role) in [
+        for (body, has_close, slots) in [
             (
                 ",a",
                 true,
@@ -465,7 +238,6 @@ fn projection_delimited_missing_slots_are_distinguished_by_ordered_cst() {
                     (Comma, false, 3..4),
                     (OperatorChain, true, 4..5),
                 ],
-                Some(GrammarRole::Expression(form.item())),
             ),
             (
                 "1x",
@@ -475,19 +247,17 @@ fn projection_delimited_missing_slots_are_distinguished_by_ordered_cst() {
                     (Missing, true, 4..4),
                     (OperatorChain, true, 4..5),
                 ],
-                Some(GrammarRole::Expression(form.separator())),
             ),
             (
                 "a",
                 false,
                 vec![(OperatorChain, true, 3..4), (Missing, true, 4..4)],
-                Some(form.closing()),
             ),
-            ("", true, vec![], None),
-            ("a", true, vec![(OperatorChain, true, 3..4)], None),
+            ("", true, vec![]),
+            ("a", true, vec![(OperatorChain, true, 3..4)]),
         ] {
             let source = format!("x.{opening}{body}{}", if has_close { closing } else { "" });
-            let (green, records) = full(&source, None);
+            let green = full(&source);
             let root = SyntaxNode::new_root(green.clone());
             let end = source.len();
             assert_eq!(root.kind(), Root);
@@ -538,64 +308,12 @@ fn projection_delimited_missing_slots_are_distinguished_by_ordered_cst() {
                 ));
             }
 
-            // Classify from the real owner and ordered siblings before consulting records.
-            let owner_form = match owner.kind() {
-                ProjectionTupleTail => Form::Tuple,
-                ProjectionRecordTail => Form::Record,
-                _ => unreachable!(),
-            };
-            let children = owner.children_with_tokens().collect::<Vec<_>>();
-            let mut classified = vec![];
-            for (index, child) in children
+            let expected = direct
                 .iter()
-                .enumerate()
-                .filter(|(_, child)| child.kind() == Missing)
-            {
-                let missing = child.as_node().expect("Missing node");
-                assert_eq!(missing.children_with_tokens().count(), 0);
-                assert!(missing.text_range().is_empty());
-                let role = match children.get(index + 1) {
-                    Some(next) if next.kind() == Comma => {
-                        assert!(matches!(children[index - 1].kind(), LParen | LBrace));
-                        GrammarRole::Expression(owner_form.item())
-                    }
-                    Some(next) if next.kind() == OperatorChain => {
-                        assert_eq!(children[index - 1].kind(), OperatorChain);
-                        GrammarRole::Expression(owner_form.separator())
-                    }
-                    None => {
-                        assert_eq!(children[index - 1].kind(), OperatorChain);
-                        owner_form.closing()
-                    }
-                    _ => panic!("unclassified direct Missing: {source:?}"),
-                };
-                classified.push((role, usize::from(missing.text_range().start())));
-            }
-            assert_eq!(
-                classified.iter().map(|(role, _)| *role).collect::<Vec<_>>(),
-                expected_role.into_iter().collect::<Vec<_>>()
-            );
-            assert_eq!(
-                root.descendants()
-                    .filter(|node| node.kind() == Missing)
-                    .count(),
-                classified.len()
-            );
-            let expected = classified
-                .into_iter()
-                .map(|(role, anchor)| {
-                    record(
-                        role,
-                        RecoveryKind::Missing,
-                        anchor..anchor,
-                        UnexpectedCategory::OtherCharacter,
-                    )
-                })
+                .filter(|(kind, _, _)| *kind == Missing)
+                .map(|(_, _, range)| structural_fact(StructuralKind::Missing, range.clone()))
                 .collect::<Vec<_>>();
-            assert_eq!(records, expected, "{source:?}");
-            let (again, frozen) = full(&source, Some(&records));
-            assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(structural_facts(&green), expected, "{source:?}");
         }
     }
 }
@@ -634,7 +352,7 @@ fn ordinary_delimited_missing_slots_are_distinguished_by_ordered_cst() {
         } else {
             OperatorChain
         };
-        for (body, has_close, slots, expected_role) in [
+        for (body, has_close, slots) in [
             (
                 ",a",
                 true,
@@ -643,7 +361,6 @@ fn ordinary_delimited_missing_slots_are_distinguished_by_ordered_cst() {
                     (Comma, false, 1..2),
                     (item_kind, true, 2..3),
                 ],
-                Some(GrammarRole::Expression(form.item())),
             ),
             (
                 "1x",
@@ -653,23 +370,21 @@ fn ordinary_delimited_missing_slots_are_distinguished_by_ordered_cst() {
                     (Missing, true, 2..2),
                     (item_kind, true, 2..3),
                 ],
-                Some(GrammarRole::Expression(form.separator())),
             ),
             (
                 "a",
                 false,
                 vec![(item_kind, true, 1..2), (Missing, true, 2..2)],
-                Some(form.closing()),
             ),
-            ("", true, vec![], None),
-            ("a", true, vec![(item_kind, true, 1..2)], None),
+            ("", true, vec![]),
+            ("a", true, vec![(item_kind, true, 1..2)]),
         ] {
             let opening = if open == LBracket { "[" } else { "(" };
             let source = format!(
                 "{prefix}{opening}{body}{}",
                 if has_close { closing } else { "" }
             );
-            let (green, records) = full(&source, None);
+            let green = full(&source);
             let root = SyntaxNode::new_root(green.clone());
             let end = source.len();
             assert_eq!(root.kind(), Root);
@@ -722,73 +437,17 @@ fn ordinary_delimited_missing_slots_are_distinguished_by_ordered_cst() {
                 }
             }
 
-            // Classify from the owner and adjacent children, before consulting records.
-            let owner_form = match owner.kind() {
-                ParenthesizedExpression => Form::Group,
-                CallTail => Form::Call,
-                IndexTail => Form::Index,
-                _ => unreachable!(),
-            };
-            let admitted_kind = match owner.kind() {
-                IndexTail => IndexItem,
-                ParenthesizedExpression | CallTail => OperatorChain,
-                _ => unreachable!(),
-            };
-            let children = owner.children_with_tokens().collect::<Vec<_>>();
-            let mut classified = vec![];
-            for (index, child) in children
+            let expected = direct
                 .iter()
-                .enumerate()
-                .filter(|(_, child)| child.kind() == Missing)
-            {
-                let missing = child.as_node().expect("Missing node");
-                assert_eq!(missing.children_with_tokens().count(), 0);
-                assert!(missing.text_range().is_empty());
-                let role = match children.get(index + 1) {
-                    Some(next) if next.kind() == Comma => {
-                        GrammarRole::Expression(owner_form.item())
-                    }
-                    Some(next) if next.kind() == admitted_kind => {
-                        assert_eq!(children[index - 1].kind(), admitted_kind);
-                        GrammarRole::Expression(owner_form.separator())
-                    }
-                    None => owner_form.closing(),
-                    _ => panic!("unclassified direct Missing: {source:?}"),
-                };
-                classified.push((role, usize::from(missing.text_range().start())));
-            }
-            assert_eq!(
-                classified.iter().map(|(role, _)| *role).collect::<Vec<_>>(),
-                expected_role.into_iter().collect::<Vec<_>>()
-            );
-            assert_eq!(
-                root.descendants()
-                    .filter(|node| node.kind() == Missing)
-                    .count(),
-                classified.len()
-            );
-
-            let expected = classified
-                .into_iter()
-                .map(|(role, anchor)| {
-                    record(
-                        role,
-                        RecoveryKind::Missing,
-                        anchor..anchor,
-                        UnexpectedCategory::OtherCharacter,
-                    )
-                })
+                .filter(|(kind, _, _)| *kind == Missing)
+                .map(|(_, _, range)| structural_fact(StructuralKind::Missing, range.clone()))
                 .collect::<Vec<_>>();
-            assert_eq!(records, expected, "{source:?}");
-            let (again, frozen) = full(&source, Some(&records));
-            assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(structural_facts(&green), expected, "{source:?}");
 
             // The existing loop seam exposes its exact accepted-close/EOF handoff.
             let interior = &source[start + 1..];
-            let (_, exit, remainder, local_records) = parse(interior, form, start + 1, None, None);
+            let (_, exit, remainder) = parse(interior, form, start + 1, None);
             assert_eq!(remainder, "");
-            assert_eq!(local_records, records);
             if has_close {
                 assert!(matches!(
                     exit,
@@ -812,44 +471,18 @@ fn ordinary_delimited_missing_slots_are_distinguished_by_ordered_cst() {
 }
 
 #[test]
-fn parenthesized_collision_literals_keep_distinct_records_and_raw_slots() {
-    for (source, slot, expected) in [
-        (
-            "(@)",
-            SyntaxKind::Error,
-            record(
-                GrammarRole::Expression(ExpressionRole::Nud),
-                RecoveryKind::Error,
-                1..2,
-                UnexpectedCategory::OtherCharacter,
-            ),
-        ),
-        (
-            "(;)",
-            SyntaxKind::ExpressionDelimitedSeparator,
-            record(
-                GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
-                RecoveryKind::Error,
-                1..2,
-                UnexpectedCategory::Punctuation(PunctuationEvidence::Semicolon),
-            ),
-        ),
-        (
-            "(])",
-            SyntaxKind::ExpressionDelimitedForeignClose,
-            record(
-                GrammarRole::ClosingDelimiter {
-                    owner: ConstructRole::ExpressionGroup,
-                    delimiter: Delimiter::Parenthesis,
-                },
-                RecoveryKind::Error,
-                1..2,
-                UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
-            ),
-        ),
+fn parenthesized_collision_literals_keep_distinct_raw_slots() {
+    for (source, slot) in [
+        ("(@)", SyntaxKind::Error),
+        ("(;)", SyntaxKind::ExpressionDelimitedSeparator),
+        ("(])", SyntaxKind::ExpressionDelimitedForeignClose),
     ] {
-        let (green, records) = full(source, None);
-        assert_eq!(records, [expected], "{source:?}");
+        let green = full(source);
+        assert_eq!(
+            structural_facts(&green),
+            [structural_fact(StructuralKind::ErrorGroup, 1..2)],
+            "{source:?}"
+        );
         assert_eq!(green.to_string(), source, "{source:?}");
 
         let root = SyntaxNode::new_root(green.clone());
@@ -897,23 +530,18 @@ fn parenthesized_collision_literals_keep_distinct_records_and_raw_slots() {
                 .any(|element| matches!(element.kind(), SyntaxKind::Missing | SyntaxKind::Invalid)),
             "{source:?}"
         );
-
-        let (frozen, frozen_records) = full(source, Some(&records));
-        assert_eq!(frozen, green, "{source:?}");
-        assert_eq!(frozen_records, records, "{source:?}");
     }
 }
 
 #[test]
 fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
-    for (form, owner, source, role, range, category, direct) in [
+    for (form, owner, source, slot, range, direct) in [
         (
             Form::Group,
             SyntaxKind::ParenthesizedExpression,
             "(@)",
-            GrammarRole::Expression(ExpressionRole::Nud),
+            SyntaxKind::Error,
             1..2,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::LParen, 0..1),
                 (SyntaxKind::Error, 1..2),
@@ -924,9 +552,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Group,
             SyntaxKind::ParenthesizedExpression,
             "(a @ b)",
-            GrammarRole::Expression(ExpressionRole::ParenthesizedSeparator),
+            SyntaxKind::ExpressionDelimitedSeparator,
             3..4,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::LParen, 0..1),
                 (SyntaxKind::OperatorChain, 1..2),
@@ -940,9 +567,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Group,
             SyntaxKind::ParenthesizedExpression,
             "(])",
-            Form::Group.closing(),
+            SyntaxKind::ExpressionDelimitedForeignClose,
             1..2,
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
             vec![
                 (SyntaxKind::LParen, 0..1),
                 (SyntaxKind::Error, 1..2),
@@ -953,9 +579,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Call,
             SyntaxKind::CallTail,
             "f(@)",
-            GrammarRole::Expression(ExpressionRole::CallArgument),
+            SyntaxKind::Error,
             2..3,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::LParen, 1..2),
                 (SyntaxKind::Error, 2..3),
@@ -966,9 +591,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Call,
             SyntaxKind::CallTail,
             "f(a @ b)",
-            GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
+            SyntaxKind::ExpressionDelimitedSeparator,
             4..5,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::LParen, 1..2),
                 (SyntaxKind::OperatorChain, 2..3),
@@ -982,9 +606,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Call,
             SyntaxKind::CallTail,
             "f(])",
-            Form::Call.closing(),
+            SyntaxKind::ExpressionDelimitedForeignClose,
             2..3,
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
             vec![
                 (SyntaxKind::LParen, 1..2),
                 (SyntaxKind::Error, 2..3),
@@ -995,9 +618,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Index,
             SyntaxKind::IndexTail,
             "x[@]",
-            GrammarRole::Expression(ExpressionRole::IndexItem),
+            SyntaxKind::Error,
             2..3,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::LBracket, 1..2),
                 (SyntaxKind::Error, 2..3),
@@ -1008,9 +630,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Index,
             SyntaxKind::IndexTail,
             "x[a @ b]",
-            GrammarRole::Expression(ExpressionRole::IndexSeparator),
+            SyntaxKind::ExpressionDelimitedSeparator,
             4..5,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::LBracket, 1..2),
                 (SyntaxKind::IndexItem, 2..3),
@@ -1024,9 +645,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Index,
             SyntaxKind::IndexTail,
             "x[)]",
-            Form::Index.closing(),
+            SyntaxKind::ExpressionDelimitedForeignClose,
             2..3,
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
             vec![
                 (SyntaxKind::LBracket, 1..2),
                 (SyntaxKind::Error, 2..3),
@@ -1037,9 +657,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Tuple,
             SyntaxKind::ProjectionTupleTail,
             "x.(@)",
-            GrammarRole::Expression(ExpressionRole::ProjectionTupleItem),
+            SyntaxKind::Error,
             3..4,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::Dot, 1..2),
                 (SyntaxKind::LParen, 2..3),
@@ -1051,9 +670,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Tuple,
             SyntaxKind::ProjectionTupleTail,
             "x.(a @ b)",
-            GrammarRole::Expression(ExpressionRole::ProjectionTupleSeparator),
+            SyntaxKind::ExpressionDelimitedSeparator,
             5..6,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::Dot, 1..2),
                 (SyntaxKind::LParen, 2..3),
@@ -1068,9 +686,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Tuple,
             SyntaxKind::ProjectionTupleTail,
             "x.(])",
-            Form::Tuple.closing(),
+            SyntaxKind::ExpressionDelimitedForeignClose,
             3..4,
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
             vec![
                 (SyntaxKind::Dot, 1..2),
                 (SyntaxKind::LParen, 2..3),
@@ -1082,9 +699,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Record,
             SyntaxKind::ProjectionRecordTail,
             "x.{@}",
-            GrammarRole::Expression(ExpressionRole::ProjectionRecordItem),
+            SyntaxKind::Error,
             3..4,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::Dot, 1..2),
                 (SyntaxKind::LBrace, 2..3),
@@ -1096,9 +712,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Record,
             SyntaxKind::ProjectionRecordTail,
             "x.{a @ b}",
-            GrammarRole::Expression(ExpressionRole::ProjectionRecordSeparator),
+            SyntaxKind::ExpressionDelimitedSeparator,
             5..6,
-            UnexpectedCategory::OtherCharacter,
             vec![
                 (SyntaxKind::Dot, 1..2),
                 (SyntaxKind::LBrace, 2..3),
@@ -1113,9 +728,8 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             Form::Record,
             SyntaxKind::ProjectionRecordTail,
             "x.{)}",
-            Form::Record.closing(),
+            SyntaxKind::ExpressionDelimitedForeignClose,
             3..4,
-            UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Parenthesis)),
             vec![
                 (SyntaxKind::Dot, 1..2),
                 (SyntaxKind::LBrace, 2..3),
@@ -1124,24 +738,7 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
             ],
         ),
     ] {
-        let separator = matches!(
-            role,
-            GrammarRole::Expression(
-                ExpressionRole::ParenthesizedSeparator
-                    | ExpressionRole::CallArgumentSeparator
-                    | ExpressionRole::IndexSeparator
-                    | ExpressionRole::ProjectionTupleSeparator
-                    | ExpressionRole::ProjectionRecordSeparator
-            )
-        );
-        let expected = record(role, RecoveryKind::Error, range.clone(), category);
-        let slot = if separator {
-            SyntaxKind::ExpressionDelimitedSeparator
-        } else if matches!(role, GrammarRole::ClosingDelimiter { .. }) {
-            SyntaxKind::ExpressionDelimitedForeignClose
-        } else {
-            SyntaxKind::Error
-        };
+        let separator = slot == SyntaxKind::ExpressionDelimitedSeparator;
         let direct = direct
             .into_iter()
             .map(|(kind, range)| {
@@ -1155,8 +752,12 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
                 )
             })
             .collect::<Vec<_>>();
-        let (green, records) = full(source, None);
-        assert_eq!(records, [expected], "{source:?}");
+        let green = full(source);
+        assert_eq!(
+            structural_facts(&green),
+            [structural_fact(StructuralKind::ErrorGroup, range.clone())],
+            "{source:?}"
+        );
         assert_eq!(green.to_string(), source, "{source:?}");
 
         let root = SyntaxNode::new_root(green.clone());
@@ -1228,42 +829,22 @@ fn expression_delimited_raw_item_separator_and_foreign_close_matrix() {
         } else {
             assert!(admitted.is_empty(), "{source:?}");
         }
-
-        let (frozen, frozen_records) = full(source, Some(&records));
-        assert_eq!(frozen, green, "{source:?}");
-        assert_eq!(frozen_records, records, "{source:?}");
     }
 }
 
 #[test]
 fn outer_index_close_survives_parenthesized_and_call_nesting() {
     for source in ["a[(f(x ]", "a[(f(@ ]"] {
-        let (green, records) = full(source, None);
+        let green = full(source);
         let mut expected = vec![];
         if source.contains('@') {
-            expected.push(record(
-                GrammarRole::Expression(ExpressionRole::CallArgument),
-                RecoveryKind::Error,
-                5..6,
-                UnexpectedCategory::OtherCharacter,
-            ));
+            expected.push(structural_fact(StructuralKind::ErrorGroup, 5..6));
         }
-        expected.push(record(
-            Form::Call.closing(),
-            RecoveryKind::Missing,
-            6..6,
-            UnexpectedCategory::OtherCharacter,
-        ));
-        expected.push(record(
-            Form::Group.closing(),
-            RecoveryKind::Missing,
-            6..6,
-            UnexpectedCategory::OtherCharacter,
-        ));
-        for (index, record) in expected.iter_mut().enumerate() {
-            record.id = DiagnosticId(index as u32);
-        }
-        assert_eq!(records, expected, "{source:?}");
+        expected.extend([
+            structural_fact(StructuralKind::Missing, 6..6),
+            structural_fact(StructuralKind::Missing, 6..6),
+        ]);
+        assert_eq!(structural_facts(&green), expected, "{source:?}");
         assert_eq!(green.to_string(), source);
         let root = SyntaxNode::new_root(green.clone());
         assert_raw_slots(&root, &[]);
@@ -1276,9 +857,6 @@ fn outer_index_close_survives_parenthesized_and_call_nesting() {
         let leading = bracket.prev_token().unwrap();
         assert_eq!(leading.text(), " ");
         assert_eq!(leading.parent().unwrap().kind(), SyntaxKind::IndexTail);
-        let (again, frozen) = full(source, Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
 }
 
@@ -1330,7 +908,7 @@ fn raw_slots_preserve_mixed_repeated_runs_and_recovered_phase_for_every_owner() 
     ] {
         // The foreign close preserves Separator, then Recovered, then Item.
         let source = format!("a{wrong}@{wrong}@,{wrong}@{close}");
-        let (green, _, remainder, records) = parse(&source, form, 0, None, None);
+        let (green, _, remainder) = parse(&source, form, 0, None);
         assert_eq!(green.to_string(), source);
         assert_eq!(remainder, "");
         let root = SyntaxNode::new_root(green.clone());
@@ -1353,40 +931,41 @@ fn raw_slots_preserve_mixed_repeated_runs_and_recovered_phase_for_every_owner() 
             .collect::<Vec<_>>();
         assert_eq!(direct, [4..5, 7..8]);
         assert_eq!(
-            records
-                .iter()
-                .map(|record| record.site.role)
-                .collect::<Vec<_>>(),
+            structural_facts(&green),
             [
-                form.closing(),
-                GrammarRole::Expression(form.separator()),
-                form.closing(),
-                GrammarRole::Expression(form.item()),
-                form.closing(),
-                GrammarRole::Expression(form.item()),
-            ]
+                structural_fact(StructuralKind::ErrorGroup, 1..2),
+                structural_fact(StructuralKind::ErrorGroup, 2..3),
+                structural_fact(StructuralKind::ErrorGroup, 3..4),
+                structural_fact(StructuralKind::ErrorGroup, 4..5),
+                structural_fact(StructuralKind::ErrorGroup, 6..7),
+                structural_fact(StructuralKind::ErrorGroup, 7..8),
+            ],
+            "{source:?}"
         );
-        let (again, _, _, frozen) = parse(&source, form, 0, None, Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
 }
 
 #[test]
 fn raw_separator_slots_keep_semicolons_leading_comments_utf8_and_newline_retry() {
-    for (source, expected) in [
+    for (source, expected, fact_ranges) in [
         (
             ";a;@;;)",
             vec![(0..1, ";"), (2..3, ";"), (4..5, ";"), (5..6, ";")],
+            vec![0..1, 2..3, 3..4, 4..5, 5..6],
         ),
-        ("a @ /*c*/ 💥 b)", vec![(2..14, "@ /*c*/ 💥")]),
-        ("a ;)", vec![(1..3, " ;")]),
-        ("a @\n@)", vec![(2..3, "@")]),
-        ("a @\r\n@)", vec![(2..3, "@")]),
+        ("a @ /*c*/ 💥 b)", vec![(2..14, "@ /*c*/ 💥")], vec![2..14]),
+        ("a ;)", vec![(1..3, " ;")], vec![1..3]),
+        ("a @\n@)", vec![(2..3, "@")], vec![2..3, 4..5]),
+        ("a @\r\n@)", vec![(2..3, "@")], vec![2..3, 5..6]),
     ] {
-        let (green, _, remainder, records) = parse(source, Form::Group, 0, None, None);
+        let (green, _, remainder) = parse(source, Form::Group, 0, None);
         assert_eq!(green.to_string(), source);
         assert_eq!(remainder, "");
+        let facts = fact_ranges
+            .into_iter()
+            .map(|range| structural_fact(StructuralKind::ErrorGroup, range))
+            .collect::<Vec<_>>();
+        assert_eq!(structural_facts(&green), facts, "{source:?}");
         assert_raw_slots(
             &SyntaxNode::new_root(green.clone()),
             &expected
@@ -1394,11 +973,12 @@ fn raw_separator_slots_keep_semicolons_leading_comments_utf8_and_newline_retry()
                 .map(|(range, text)| (SyntaxKind::ExpressionDelimitedSeparator, range, text))
                 .collect::<Vec<_>>(),
         );
-        let (again, _, _, frozen) = parse(source, Form::Group, 0, None, Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
-    let (green, _) = full("x.{..@ x}", None);
+    let green = full("x.{..@ x}");
+    assert_eq!(
+        structural_facts(&green),
+        [structural_fact(StructuralKind::ErrorGroup, 5..6)]
+    );
     let root = SyntaxNode::new_root(green);
     assert_raw_slots(&root, &[]);
     let error = root
@@ -1416,117 +996,60 @@ fn maximal_runs_preserve_initial_and_internal_leading_and_exact_spread_retry() {
     check(
         "  @ @ x)",
         Form::Call,
-        vec![record(
-            GrammarRole::Expression(ExpressionRole::CallArgument),
-            RecoveryKind::Error,
-            2..5,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::ErrorGroup, 2..5)],
     );
     check(
         "@ ..x}",
         Form::Record,
-        vec![record(
-            GrammarRole::Expression(ExpressionRole::ProjectionRecordItem),
-            RecoveryKind::Error,
-            0..1,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::ErrorGroup, 0..1)],
     );
     check(
         "@.. x}",
         Form::Record,
-        vec![record(
-            GrammarRole::Expression(ExpressionRole::ProjectionRecordItem),
-            RecoveryKind::Error,
-            0..1,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::ErrorGroup, 0..1)],
     );
     check(
         "..@.. x}",
         Form::Record,
         vec![
-            record(
-                GrammarRole::Expression(ExpressionRole::ProjectionRecordSpreadRhs),
-                RecoveryKind::Error,
-                2..3,
-                UnexpectedCategory::OtherCharacter,
-            ),
-            record(
-                GrammarRole::Expression(ExpressionRole::ProjectionRecordSeparator),
-                RecoveryKind::Missing,
-                3..3,
-                UnexpectedCategory::OtherCharacter,
-            ),
+            structural_fact(StructuralKind::ErrorGroup, 2..3),
+            structural_fact(StructuralKind::Missing, 3..3),
         ],
     );
     for source in ["+.. x}", "..+.. x}"] {
         check(
             source,
             Form::Record,
-            vec![record(
-                GrammarRole::Expression(ExpressionRole::ProjectionRecordItem),
-                RecoveryKind::Error,
+            vec![structural_fact(
+                StructuralKind::ErrorGroup,
                 0..source.find(' ').unwrap(),
-                UnexpectedCategory::OtherCharacter,
             )],
         );
     }
     check(
         ".. +.. x}",
         Form::Record,
-        vec![record(
-            GrammarRole::Expression(ExpressionRole::ProjectionRecordSpreadRhs),
-            RecoveryKind::Error,
-            3..6,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::ErrorGroup, 3..6)],
     );
     check(
         "x @,)",
         Form::Call,
-        vec![record(
-            GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
-            RecoveryKind::Error,
-            2..3,
-            UnexpectedCategory::OtherCharacter,
-        )],
+        vec![structural_fact(StructuralKind::ErrorGroup, 2..3)],
     );
     check(
         "x @",
         Form::Call,
         vec![
-            record(
-                GrammarRole::Expression(ExpressionRole::CallArgumentSeparator),
-                RecoveryKind::Error,
-                2..3,
-                UnexpectedCategory::OtherCharacter,
-            ),
-            record(
-                Form::Call.closing(),
-                RecoveryKind::Missing,
-                3..3,
-                UnexpectedCategory::OtherCharacter,
-            ),
+            structural_fact(StructuralKind::ErrorGroup, 2..3),
+            structural_fact(StructuralKind::Missing, 3..3),
         ],
     );
     check(
         " ]",
         Form::Group,
         vec![
-            record(
-                Form::Group.closing(),
-                RecoveryKind::Error,
-                0..2,
-                UnexpectedCategory::Punctuation(PunctuationEvidence::Close(Delimiter::Bracket)),
-            ),
-            record(
-                Form::Group.closing(),
-                RecoveryKind::Missing,
-                2..2,
-                UnexpectedCategory::OtherCharacter,
-            ),
+            structural_fact(StructuralKind::ErrorGroup, 0..2),
+            structural_fact(StructuralKind::Missing, 2..2),
         ],
     );
 }
@@ -1545,9 +1068,9 @@ fn accepted_delimiters_shield_contextual_stops_and_keep_ml_items() {
         "f(case x: _ -> y)",
         "f({for x in xs: y})",
     ] {
-        let (green, records) = full(source, None);
+        let green = full(source);
         assert_eq!(green.to_string(), source, "{source:?}");
-        assert!(records.is_empty(), "{source:?}: {records:?}");
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
         assert_raw_slots(&SyntaxNode::new_root(green.clone()), &[]);
         assert!(
             !SyntaxNode::new_root(green.clone())
@@ -1558,14 +1081,11 @@ fn accepted_delimiters_shield_contextual_stops_and_keep_ml_items() {
                 )),
             "{source:?}"
         );
-        let (again, frozen) = full(source, Some(&records));
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
     }
 }
 
 #[test]
-fn quoted_prefix_and_utf8_error_ranges_stay_physical_and_reconcile() {
+fn quoted_prefix_and_utf8_error_ranges_stay_physical() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
@@ -1577,22 +1097,14 @@ fn quoted_prefix_and_utf8_error_ranges_stay_physical_and_reconcile() {
         close_column: 0,
     };
     let source = "@\r\n> > 💥)";
-    let (green, exit, remainder, records) = parse(source, Form::Group, 100, Some(&fence), None);
-    let role = GrammarRole::Expression(ExpressionRole::Nud);
-    let first = record(
-        role,
-        RecoveryKind::Error,
-        100..101,
-        UnexpectedCategory::OtherCharacter,
+    let (green, exit, remainder) = parse(source, Form::Group, 100, Some(&fence));
+    assert_eq!(
+        structural_facts(&green),
+        [
+            structural_fact(StructuralKind::ErrorGroup, 0..1),
+            structural_fact(StructuralKind::ErrorGroup, 7..11),
+        ]
     );
-    let mut second = record(
-        role,
-        RecoveryKind::Error,
-        107..111,
-        UnexpectedCategory::OtherCharacter,
-    );
-    second.id = DiagnosticId(1);
-    assert_eq!(records, [first, second]);
     assert_eq!(green.to_string(), source);
     assert_eq!(remainder, "");
     assert!(matches!(
@@ -1615,12 +1127,9 @@ fn quoted_prefix_and_utf8_error_ranges_stay_physical_and_reconcile() {
             .collect::<Vec<_>>(),
         ["@", "💥"]
     );
-    let (again, _, _, frozen) = parse(source, Form::Group, 100, Some(&fence), Some(&records));
-    assert_eq!(again, green);
-    assert_eq!(frozen, records);
 
     let source = "@\r\n> > ])";
-    let (green, _, remainder, records) = parse(source, Form::Group, 100, Some(&fence), None);
+    let (green, _, remainder) = parse(source, Form::Group, 100, Some(&fence));
     assert_eq!(green.to_string(), source);
     assert_eq!(remainder, "");
     assert_raw_slots(
@@ -1631,7 +1140,11 @@ fn quoted_prefix_and_utf8_error_ranges_stay_physical_and_reconcile() {
             "\r\n> > ]",
         )],
     );
-    let (again, _, _, frozen) = parse(source, Form::Group, 100, Some(&fence), Some(&records));
-    assert_eq!(again, green);
-    assert_eq!(frozen, records);
+    assert_eq!(
+        structural_facts(&green),
+        [
+            structural_fact(StructuralKind::ErrorGroup, 0..1),
+            structural_fact(StructuralKind::ErrorGroup, 1..8),
+        ]
+    );
 }

@@ -1,66 +1,39 @@
 use crate::tests::support::*;
 use crate::{
-    recovery_record::{
-        ConstructRole, Delimiter, DiagnosticId, ExpectationSources, ExpectedSyntax,
-        ExpressionListRole, GrammarRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey,
-        SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    },
     rule::{
         RuleWitnessExit, rule_body_normalized_witness, scan_rule_current_item_witness,
         scan_rule_item_witness,
     },
+    structural_diagnostic::StructuralKind,
 };
-use std::{ops::Range, sync::Arc};
 
-fn parse(
-    source: &str,
-    origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
-    parse_with_fence(source, origin, frozen, None)
+fn parse(source: &str, origin: usize) -> GreenNode {
+    parse_with_fence(source, origin, None)
 }
 
-fn parse_with_fence(
-    source: &str,
-    origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-    fence: Option<&FenceBoundary>,
-) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
-    let (green, records, _) = parse_with_fence_remainder(source, origin, frozen, fence);
-    (green, records)
+fn parse_with_fence(source: &str, origin: usize, fence: Option<&FenceBoundary>) -> GreenNode {
+    let (green, _) = parse_with_fence_remainder(source, origin, fence);
+    green
 }
 
 fn parse_with_fence_remainder(
     source: &str,
     origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     fence: Option<&FenceBoundary>,
-) -> (GreenNode, Vec<CommittedRecoveryRecord>, String) {
-    let (green, records, remainder, _, _) = parse_with_fence_handoff(source, origin, frozen, fence);
-    (green, records, remainder)
+) -> (GreenNode, String) {
+    let (green, remainder, _, _) = parse_with_fence_handoff(source, origin, fence);
+    (green, remainder)
 }
 
 fn parse_with_fence_handoff(
     source: &str,
     origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     fence: Option<&FenceBoundary>,
-) -> (
-    GreenNode,
-    Vec<CommittedRecoveryRecord>,
-    String,
-    RuleWitnessExit,
-    LineEntry,
-) {
+) -> (GreenNode, String, RuleWitnessExit, LineEntry) {
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
-    let mut output = frozen
-        .map(|records| {
-            recover = Recover::reconcile_for_test(recover.operators(), records);
-            GreenNodeBuilder::new()
-        })
-        .unwrap_or_else(GreenNodeBuilder::new);
+    let mut output = GreenNodeBuilder::new();
     output.start_node(SyntaxKind::Root.into());
     let opener = scan_rule_item_witness(chasa_recover::In::new(
         &mut input,
@@ -89,52 +62,11 @@ fn parse_with_fence_handoff(
     );
     output.finish_node();
     (
-        output.finish(),
-        recover.finish_recoveries_for_test(),
+        finish_with_discarded_recoveries(output, recover),
         input.to_owned(),
         exit,
         line_entry,
     )
-}
-
-fn record(id: u32, role: GrammarRole, range: Range<usize>, error: bool) -> CommittedRecoveryRecord {
-    let expected = match role {
-        GrammarRole::ExpressionList(ExpressionListRole::Item) => ExpectedSyntax::Expression,
-        GrammarRole::ExpressionList(ExpressionListRole::Separator) => {
-            ExpectedSyntax::DelimitedSequenceSeparator
-        }
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        _ => unreachable!(),
-    };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if error {
-            RecoveryKind::Error
-        } else {
-            RecoveryKind::Missing
-        },
-        unexpected: if error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
 }
 
 fn direct_kinds(node: &SyntaxNode) -> Vec<SyntaxKind> {
@@ -182,8 +114,8 @@ fn direct_rowan_expression_list_phases_distinguish_every_rule_caller() {
             2..7,
         ),
     ] {
-        let (green, records) = parse(source, 0, None);
-        assert!(records.is_empty(), "{source:?}");
+        let green = parse(source, 0);
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
         let caller = only_node(&SyntaxNode::new_root(green), caller);
         assert_eq!(
             caller.text_range(),
@@ -276,8 +208,8 @@ fn direct_rowan_expression_list_accepts_empty_and_trailing_contents() {
             true,
         ),
     ] {
-        let (green, records) = parse(source, 0, None);
-        assert!(records.is_empty(), "{source:?}");
+        let green = parse(source, 0);
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
         let caller = only_node(&SyntaxNode::new_root(green), caller);
         let children = direct_kinds(&caller);
         assert_eq!(children.first(), Some(&open), "{source:?}");
@@ -303,7 +235,7 @@ fn direct_rowan_expression_list_accepts_empty_and_trailing_contents() {
 
 #[test]
 fn direct_rowan_expression_list_recovery_has_phase_order_and_caller_paths() {
-    let (green, _) = parse("{a(@x)}", 0, None);
+    let green = parse("{a(@x)}", 0);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
     assert_eq!(
         direct_kinds(&call),
@@ -319,7 +251,7 @@ fn direct_rowan_expression_list_recovery_has_phase_order_and_caller_paths() {
         rowan::TextRange::new(3.into(), 4.into())
     );
 
-    let (green, _) = parse("{a(1;)}", 0, None);
+    let green = parse("{a(1;)}", 0);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
     assert_eq!(
         direct_kinds(&call),
@@ -335,7 +267,7 @@ fn direct_rowan_expression_list_recovery_has_phase_order_and_caller_paths() {
         rowan::TextRange::new(4.into(), 5.into())
     );
 
-    let (green, _) = parse("{a(1;,x)}", 0, None);
+    let green = parse("{a(1;,x)}", 0);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
     assert_eq!(
         direct_kinds(&call),
@@ -353,7 +285,7 @@ fn direct_rowan_expression_list_recovery_has_phase_order_and_caller_paths() {
         rowan::TextRange::new(4.into(), 5.into())
     );
 
-    let (green, _) = parse("{a(@)}", 0, None);
+    let green = parse("{a(@)}", 0);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
     assert_eq!(
         direct_kinds(&call),
@@ -378,7 +310,7 @@ fn direct_rowan_expression_list_recovery_has_phase_order_and_caller_paths() {
         ("{[1}", SyntaxKind::RuleItem, 3),
         ("{a[1}", SyntaxKind::RuleIndex, 4),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let green = parse(source, 0);
         let caller = only_node(&SyntaxNode::new_root(green), caller);
         let missing = only_node(&caller, SyntaxKind::Missing);
         assert_eq!(
@@ -393,7 +325,7 @@ fn direct_rowan_expression_list_recovery_has_phase_order_and_caller_paths() {
 fn direct_rowan_expression_list_newline_and_handoff_controls() {
     for (source, missing_at, newline) in [("{a(1\n\n2)}", 5, "\n"), ("{a(1\r\n\r\n2)}", 6, "\r\n")]
     {
-        let (green, _) = parse(source, 0, None);
+        let green = parse(source, 0);
         let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
         let children = call.children_with_tokens().collect::<Vec<_>>();
         let missing_index = children
@@ -420,7 +352,7 @@ fn direct_rowan_expression_list_newline_and_handoff_controls() {
         );
     }
 
-    let (green, _) = parse("{a(1]}", 0, None);
+    let green = parse("{a(1]}", 0);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
     assert_eq!(direct_kinds(&call).last(), Some(&SyntaxKind::Missing));
     assert_eq!(
@@ -428,7 +360,7 @@ fn direct_rowan_expression_list_newline_and_handoff_controls() {
         rowan::TextRange::empty(4.into())
     );
 
-    let (green, _) = parse("{a(1", 0, None);
+    let green = parse("{a(1", 0);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
     assert_eq!(
         direct_kinds(&call),
@@ -442,7 +374,7 @@ fn direct_rowan_expression_list_newline_and_handoff_controls() {
     assert_eq!(missing.parent(), Some(call.clone()));
     assert_eq!(missing.text_range(), rowan::TextRange::empty(4.into()));
 
-    let (green, _) = parse("{a(x.)}", 0, None);
+    let green = parse("{a(x.)}", 0);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
     let expression = only_node(&call, SyntaxKind::OperatorChain);
     assert!(
@@ -456,7 +388,7 @@ fn direct_rowan_expression_list_newline_and_handoff_controls() {
             .any(|node| node.kind() == SyntaxKind::Missing)
     );
 
-    let (green, _) = parse("{a(1).x}", 0, None);
+    let green = parse("{a(1).x}", 0);
     let root = SyntaxNode::new_root(green);
     let call = only_node(&root, SyntaxKind::RuleCall);
     let field = only_node(&root, SyntaxKind::RuleField);
@@ -469,112 +401,67 @@ fn direct_rowan_expression_list_newline_and_handoff_controls() {
 }
 
 #[test]
-fn list_slots_have_exact_shifted_and_frozen_records_in_all_callers() {
-    let item = GrammarRole::ExpressionList(ExpressionListRole::Item);
-    let separator = GrammarRole::ExpressionList(ExpressionListRole::Separator);
-    let close = |delimiter| GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::ExpressionList,
-        delimiter,
-    };
-    for (source, slots) in [
-        ("{[,]}", vec![(item, 2..2, false)]),
-        ("{a[,]}", vec![(item, 3..3, false)]),
-        ("{a(,)}", vec![(item, 3..3, false)]),
-        ("{a(@@x)}", vec![(item, 3..4, true), (item, 4..5, true)]),
-        ("{a(@)}", vec![(item, 3..4, true), (item, 4..4, false)]),
-        ("{a(α;)}", vec![(separator, 5..6, true)]),
+fn list_slots_have_exact_structural_facts_in_all_callers() {
+    for (source, expected) in [
+        ("{[,]}", vec![(StructuralKind::Missing, 2..2)]),
+        ("{a[,]}", vec![(StructuralKind::Missing, 3..3)]),
+        ("{a(,)}", vec![(StructuralKind::Missing, 3..3)]),
+        ("{a(@@x)}", vec![(StructuralKind::ErrorGroup, 3..5)]),
+        (
+            "{a(@)}",
+            vec![
+                (StructuralKind::ErrorGroup, 3..4),
+                (StructuralKind::Missing, 4..4),
+            ],
+        ),
+        ("{a(α;)}", vec![(StructuralKind::ErrorGroup, 5..6)]),
         (
             "{a(1\r\n\r\n\n2)}",
-            vec![(item, 8..8, false), (item, 9..9, false)],
+            vec![
+                (StructuralKind::Missing, 6..6),
+                (StructuralKind::Missing, 8..8),
+            ],
         ),
-        ("{a(1}", vec![(close(Delimiter::Parenthesis), 4..4, false)]),
-        ("{a[1}", vec![(close(Delimiter::Bracket), 4..4, false)]),
+        ("{a(1}", vec![(StructuralKind::Missing, 4..4)]),
+        ("{a[1}", vec![(StructuralKind::Missing, 4..4)]),
     ] {
         for origin in [0, 137] {
-            let expected: Vec<_> = slots
-                .iter()
-                .enumerate()
-                .map(|(id, (role, range, error))| {
-                    record(
-                        id as u32,
-                        *role,
-                        origin + range.start..origin + range.end,
-                        *error,
-                    )
-                })
-                .collect();
-            let (green, records) = parse(source, origin, None);
+            let green = parse(source, origin);
             assert_eq!(green.to_string(), source);
-            assert_eq!(records, expected, "{source:?}");
-            let (again, frozen) = parse(source, origin, Some(&records));
-            assert_eq!(again, green);
-            assert_eq!(frozen, records);
+            assert_eq!(structural_facts(&green), expected, "{source:?} at {origin}");
         }
     }
 }
 
 #[test]
-fn accepted_empty_and_trailing_separators_remain_record_free() {
+fn accepted_empty_and_trailing_separators_remain_structural_fact_free() {
     for source in ["{[] a() a[]}", "{[α,] a(1,) a[1,]}", "{a(1\r\n)}"] {
-        let (green, records) = parse(source, 0, None);
+        let green = parse(source, 0);
         assert_eq!(green.to_string(), source);
-        assert!(records.is_empty(), "{source:?}: {records:?}");
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
     }
 }
 
 #[test]
-fn nested_expression_recovery_keeps_its_child_role() {
-    let (green, records) = parse("{a(x.)}", 0, None);
+fn nested_expression_recovery_has_its_child_structural_fact() {
+    let green = parse("{a(x.)}", 0);
     assert_eq!(green.to_string(), "{a(x.)}");
-    assert_eq!(records.len(), 1);
-    assert_eq!(
-        records[0].site.role,
-        GrammarRole::Expression(crate::recovery_record::ExpressionRole::FieldName)
-    );
-    assert_eq!(records[0].site.range, 5..5);
-    assert_eq!(records[0].kind, RecoveryKind::Missing);
+    assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 5..5)]);
 }
 
 #[test]
 fn nested_field_missing_has_one_cst_occurrence_in_every_rule_list_caller() {
-    use crate::recovery_record::ExpressionRole;
     use SyntaxKind::*;
 
     let range = |node: &SyntaxNode| {
         usize::from(node.text_range().start())..usize::from(node.text_range().end())
     };
-    // Only Rowan occurrences and their direct grammar context select this slot.
-    let project = |root: &SyntaxNode| {
-        root.descendants()
-            .filter(|node| node.kind() == Missing)
-            .map(|missing| {
-                assert_eq!(missing.children_with_tokens().count(), 0);
-                let owner = missing.parent().expect("name slot owner");
-                let (role, expected) = match (owner.kind(), direct_kinds(&owner).as_slice()) {
-                    (FieldTail, [Dot, Missing]) => (
-                        GrammarRole::Expression(ExpressionRole::FieldName),
-                        ExpectedSyntax::Identifier,
-                    ),
-                    other => panic!("unexpected nested recovery context: {other:?}"),
-                };
-                (
-                    role,
-                    range(&missing),
-                    RecoveryKind::Missing,
-                    vec![expected],
-                    0,
-                )
-            })
-            .collect::<Vec<_>>()
-    };
-
     for (source, caller_kind, open, close, at) in [
         ("{[x.]}", RuleItem, LBracket, RBracket, 4),
         ("{a(x.)}", RuleCall, LParen, RParen, 5),
         ("{a[x.]}", RuleIndex, LBracket, RBracket, 5),
     ] {
-        let (green, records, remainder, exit, line_entry) =
-            parse_with_fence_handoff(source, 0, None, None);
+        let (green, remainder, exit, line_entry) = parse_with_fence_handoff(source, 0, None);
         let root = SyntaxNode::new_root(green.clone());
         let end = source.len();
         let separate_caller = caller_kind != RuleItem;
@@ -657,53 +544,19 @@ fn nested_field_missing_has_one_cst_occurrence_in_every_rule_list_caller() {
             .collect::<Vec<_>>();
         assert_eq!(recovery.len(), 1, "{source:?}");
         assert_eq!(recovery[0].as_node(), Some(&nodes[field_index + 1]));
-        let projected = project(&root);
         assert_eq!(
-            projected,
-            vec![(
-                GrammarRole::Expression(ExpressionRole::FieldName),
-                at..at,
-                RecoveryKind::Missing,
-                vec![ExpectedSyntax::Identifier],
-                0
-            )]
+            structural_facts(&green),
+            [(StructuralKind::Missing, at..at)]
         );
         assert_eq!(green.to_string(), source);
         assert!(remainder.is_empty());
         assert_eq!(exit, RuleWitnessExit::Complete);
         assert_eq!(line_entry, LineEntry::InLine);
-
-        // Temporary records are compatibility output, never projection input.
-        let compatibility = records
-            .iter()
-            .map(|record| {
-                (
-                    record.site.role,
-                    record.site.range.clone(),
-                    record.kind,
-                    record
-                        .expectations
-                        .iter()
-                        .map(|expectation| expectation.expected)
-                        .collect::<Vec<_>>(),
-                    record.primary_expectation,
-                )
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(compatibility, projected);
-        let (again, frozen, frozen_remainder, frozen_exit, frozen_line_entry) =
-            parse_with_fence_handoff(source, 0, Some(&records), None);
-        assert_eq!(project(&SyntaxNode::new_root(again.clone())), projected);
-        assert_eq!(again, green);
-        assert_eq!(frozen, records);
-        assert_eq!(frozen_remainder, remainder);
-        assert_eq!(frozen_exit, exit);
-        assert_eq!(frozen_line_entry, line_entry);
     }
 }
 
 #[test]
-fn fenced_repeated_newlines_use_physical_end_coordinates_and_frozen_records() {
+fn fenced_repeated_newlines_use_physical_end_coordinates_and_structural_facts() {
     use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
     let fence = FenceBoundary {
         opener: FenceOpener {
@@ -715,24 +568,13 @@ fn fenced_repeated_newlines_use_physical_end_coordinates_and_frozen_records() {
         close_column: 0,
     };
     let source = "{a(1\r\n> \r\n> 2)}";
-    let (green, records) = parse_with_fence(source, 100, None, Some(&fence));
+    let green = parse_with_fence(source, 100, Some(&fence));
     assert_eq!(green.to_string(), source);
-    assert_eq!(
-        records,
-        [record(
-            0,
-            GrammarRole::ExpressionList(ExpressionListRole::Item),
-            110..110,
-            false
-        )]
-    );
-    let (again, frozen) = parse_with_fence(source, 100, Some(&records), Some(&fence));
-    assert_eq!(again, green);
-    assert_eq!(frozen, records);
+    assert_eq!(structural_facts(&green), [(StructuralKind::Missing, 8..8)]);
 }
 
 #[test]
-fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
+fn protected_terminal_items_keep_all_leading_and_exact_close_handoff() {
     use crate::{
         lexical::{
             expression_item::expression_item,
@@ -749,10 +591,10 @@ fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
         prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 1, base: 0 },
         close_column: 0,
     };
-    for (source, fenced, at) in [
-        (" \r\n  ", false, 105),
-        (" \r\n  }", false, 100),
-        ("\r\n> ```\nouter", true, 102),
+    for (source, fenced) in [
+        (" \r\n  ", false),
+        (" \r\n  }", false),
+        ("\r\n> ```\nouter", true),
     ] {
         let operators = OperatorTable::empty();
         let mut recover = Recover::new_for_test(&operators);
@@ -791,19 +633,12 @@ fn protected_terminal_items_keep_all_leading_and_exact_close_records() {
         assert_eq!(pending, original);
         assert_eq!(input, suffix);
         output.finish_node();
-        let (green, records) = (output.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(output, recover);
         assert_eq!(green.to_string(), "");
         assert_eq!(
-            records,
-            [record(
-                0,
-                GrammarRole::ClosingDelimiter {
-                    owner: ConstructRole::ExpressionList,
-                    delimiter: Delimiter::Parenthesis
-                },
-                at..at,
-                false
-            )]
+            structural_facts(&green),
+            [(StructuralKind::Missing, 0..0)],
+            "{source:?}"
         );
     }
 }
@@ -833,7 +668,7 @@ fn direct_rowan_expression_list_recovery_is_proven_per_caller_phase() {
             3..4,
         ),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let green = parse(source, 0);
         let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
         assert_eq!(
             direct_kinds(&caller),
@@ -867,7 +702,7 @@ fn direct_rowan_expression_list_recovery_is_proven_per_caller_phase() {
             4..5,
         ),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let green = parse(source, 0);
         let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
         assert_eq!(
             direct_kinds(&caller),
@@ -901,7 +736,7 @@ fn direct_rowan_expression_list_recovery_is_proven_per_caller_phase() {
             4..5,
         ),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let green = parse(source, 0);
         let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
         assert_eq!(
             direct_kinds(&caller),
@@ -931,7 +766,7 @@ fn direct_rowan_expression_list_terminal_item_suffixes_are_caller_specific() {
         ("{a(@]}", SyntaxKind::RuleCall, SyntaxKind::LParen, 4),
         ("{a[@)}", SyntaxKind::RuleIndex, SyntaxKind::LBracket, 4),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let green = parse(source, 0);
         let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
         assert_eq!(
             direct_kinds(&caller),
@@ -976,7 +811,7 @@ fn direct_rowan_expression_list_terminal_item_suffixes_are_caller_specific() {
             4,
         ),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let green = parse(source, 0);
         let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
         assert_eq!(
             direct_kinds(&caller),
@@ -999,7 +834,7 @@ fn direct_rowan_expression_list_newline_missing_ranges_cover_all_callers() {
         ("{a(1\r\n\r\n2)}", SyntaxKind::RuleCall, 6, "\r\n"),
         ("{a[1\r\n\r\n2]}", SyntaxKind::RuleIndex, 6, "\r\n"),
     ] {
-        let (green, _) = parse(source, 0, None);
+        let green = parse(source, 0);
         let caller = only_node(&SyntaxNode::new_root(green), caller_kind);
         let children = caller.children_with_tokens().collect::<Vec<_>>();
         let missing_index = children
@@ -1065,8 +900,8 @@ fn direct_rowan_expression_list_fence_handoff_is_caller_owned_but_not_a_complete
         ),
     ] {
         let origin = 100;
-        let (green, _, remainder, exit, line_entry) =
-            parse_with_fence_handoff(source, origin, None, Some(&fence));
+        let (green, remainder, exit, line_entry) =
+            parse_with_fence_handoff(source, origin, Some(&fence));
         let RuleWitnessExit::Returned(item) = exit else {
             panic!("the caller returns its protected fence Item")
         };
@@ -1179,8 +1014,7 @@ fn direct_rowan_expression_list_fence_close_slots_have_native_caller_controls() 
         ),
     ] {
         for (input, fenced) in [(source, true), (native, false)] {
-            let (green, _, remainder) =
-                parse_with_fence_remainder(input, 0, None, fenced.then_some(&fence));
+            let (green, remainder) = parse_with_fence_remainder(input, 0, fenced.then_some(&fence));
             assert_eq!(green.to_string(), if fenced { prefix } else { native });
             assert_eq!(remainder, if fenced { "> ```\nouter" } else { "" });
             let root = SyntaxNode::new_root(green);
@@ -1234,7 +1068,7 @@ fn direct_rowan_expression_list_fence_close_slots_have_native_caller_controls() 
 
 #[test]
 fn direct_rowan_expression_list_error_leaves_preserve_present_boundaries() {
-    let (green, _) = parse("{a(@ @x)}", 0, None);
+    let green = parse("{a(@ @x)}", 0);
     let call = only_node(&SyntaxNode::new_root(green), SyntaxKind::RuleCall);
     assert_eq!(
         direct_kinds(&call),

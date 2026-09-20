@@ -2806,10 +2806,11 @@ fn ordinary_type_unmatched_balanced_head_consumes_its_safe_prefix() {
         panic!("the unmatched ordinary head must reach EOF")
     };
 
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
+    let green = builder.finish();
+    let records = structural_diagnostics(&green);
     assert_eq!(green.to_string(), "[e][bad");
     assert_eq!(records.len(), 1);
-    assert_eq!(records[0].site.range, 3..7);
+    assert_eq!(records[0].range(), &(3..7));
     assert_eq!(input, "");
 }
 

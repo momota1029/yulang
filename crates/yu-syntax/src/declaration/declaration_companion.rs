@@ -6,15 +6,8 @@
 //! separators/brace close.
 
 use crate::ambient_claim::{AmbientClaimContext, AmbientClaimView};
-use crate::cursor::recovery::RecoveryDraft;
-use crate::recovery_record::{
-    ConstructRole, DeclarationCompanionRole as CompanionRole, DeclarationRole, Delimiter,
-    ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence, RecoveryKind,
-    RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-};
 #[cfg(test)]
 use reborrow_generic::Reborrow as _;
-use std::sync::Arc;
 
 use crate::syntax_kind::SyntaxKind;
 
@@ -24,7 +17,7 @@ use crate::lexical::current_item::CurrentItem;
 use crate::{
     cursor::recovery::emit::{
         emit_recovery_error_item, emit_recovery_error_run, emit_recovery_missing, emit_token_item,
-        emit_with_keyword, token_syntax_kind,
+        emit_with_keyword,
     },
     cursor::{LexIn, SyntaxIn},
     declaration::derives::{derives_clause_normalized, is_word},
@@ -54,6 +47,12 @@ enum CompanionLayout {
     Inline,
     Indented { block_indent: usize },
     Braced { baseline: usize },
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum CompanionRecoveryPhase {
+    Introducer,
+    Item,
 }
 
 struct SlotExit {
@@ -129,12 +128,7 @@ fn companion_after_keyword(
         if item.payload_view().is_eof() && !item.leading_view().has_ordinary_newline() {
             item.emit_eof_leading(&mut *i.state);
         }
-        emit_companion_missing(
-            &mut i,
-            &item,
-            item_origin,
-            companion_role(CompanionRole::Introducer),
-        );
+        emit_companion_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
 
@@ -168,12 +162,7 @@ fn companion_after_keyword(
             )
         }
         _ if !matches!(admission, CompanionItemAdmission::Rejected) => {
-            emit_companion_missing(
-                &mut i,
-                &item,
-                item_origin,
-                companion_role(CompanionRole::Introducer),
-            );
+            emit_companion_missing(&mut i, &item, item_origin);
             inline_form_from_item(
                 i,
                 item,
@@ -216,7 +205,7 @@ fn retry_introducer(
     let (mut item, origin, entry, admission) = companion_error_run(
         i.rb(),
         item,
-        CompanionRole::Introducer,
+        CompanionRecoveryPhase::Introducer,
         CompanionLayout::Inline,
         baseline,
         caller_stops,
@@ -299,12 +288,7 @@ fn colon_form(
         if block_indent <= baseline
             || companion_body_boundary(i.rb(), &item, baseline, caller_stops)
         {
-            emit_companion_missing(
-                &mut i,
-                &item,
-                item_origin,
-                companion_role(CompanionRole::Body),
-            );
+            emit_companion_missing(&mut i, &item, item_origin);
             return complete(handoff(item), line_entry);
         }
         return indented_form_from_item(
@@ -323,12 +307,7 @@ fn colon_form(
         if item.payload_view().is_eof() {
             item.emit_eof_leading(&mut *i.state);
         }
-        emit_companion_missing(
-            &mut i,
-            &item,
-            item_origin,
-            companion_role(CompanionRole::Body),
-        );
+        emit_companion_missing(&mut i, &item, item_origin);
         return complete(handoff(item), line_entry);
     }
     let admission = classify_companion_item(i.rb(), &item, baseline, item_origin, fence);
@@ -424,7 +403,7 @@ fn indented_form_from_item(
 
         if token_kind(&item) == Some(TokenKind::Semicolon) {
             if after_separator {
-                emit_missing_statement(&mut i, &item, item_origin, CompanionRole::IndentedItem);
+                emit_missing_statement(&mut i, &item, item_origin);
             }
             (item, item_origin, line_entry) = consume_explicit_separator(
                 i.rb(),
@@ -483,12 +462,7 @@ fn indented_form_from_item(
         if !matches!(admission, CompanionItemAdmission::Rejected)
             && indentation_after_newline(item.leading_view()).is_none()
         {
-            emit_companion_missing(
-                &mut i,
-                &item,
-                item_origin,
-                companion_role(CompanionRole::Separator),
-            );
+            emit_companion_missing(&mut i, &item, item_origin);
         }
     }
 }
@@ -537,7 +511,7 @@ fn braced_form(
                 }
                 Some(TokenKind::Comma | TokenKind::Semicolon) => {
                     if matches!(slot, BracedSlot::Initial | BracedSlot::AfterSeparator) {
-                        emit_missing_statement(&mut i, &item, item_origin, CompanionRole::Item);
+                        emit_missing_statement(&mut i, &item, item_origin);
                     }
                     (item, item_origin, line_entry) = consume_explicit_separator(
                         i.rb(),
@@ -562,47 +536,21 @@ fn braced_form(
             if item.payload_view().is_eof() {
                 item.emit_eof_leading(&mut *i.state);
             }
-            emit_companion_missing(&mut i, &item, item_origin, companion_close_role());
+            emit_companion_missing(&mut i, &item, item_origin);
             return complete(handoff(item), line_entry);
         }
 
         if is_active_stop(i.rb(), &item, caller_stops)
             || active_statement_companion(i.rb(), &item, baseline, caller_stops).is_some()
         {
-            emit_companion_missing(&mut i, &item, item_origin, companion_close_role());
+            emit_companion_missing(&mut i, &item, item_origin);
             return complete(handoff(item), line_entry);
         }
 
         match token_kind(&item) {
             Some(TokenKind::RParen | TokenKind::RBracket) => {
                 item.emit_all_remaining_leading(&mut *i.state);
-                let delimiter = if token_kind(&item) == Some(TokenKind::RParen) {
-                    Delimiter::Parenthesis
-                } else {
-                    Delimiter::Bracket
-                };
-                let kind = token_syntax_kind(token_kind(&item).unwrap());
-                let range = item.extent(item_origin).recovery_range();
-                emit_recovery_error_item(
-                    i.rb(),
-                    item,
-                    item_origin,
-                    kind,
-                    UnexpectedSyntax::Token {
-                        range,
-                        category: UnexpectedCategory::Punctuation(PunctuationEvidence::Close(
-                            delimiter,
-                        )),
-                    },
-                    |range, unexpected| {
-                        companion_draft(
-                            companion_close_role(),
-                            RecoveryKind::Error,
-                            range,
-                            unexpected,
-                        )
-                    },
-                );
+                emit_recovery_error_item(i.rb(), item, item_origin);
                 (item, item_origin, line_entry) = statement_item_normalized(
                     i.rb(),
                     item_origin,
@@ -628,12 +576,7 @@ fn braced_form(
 
         let candidate = !matches!(admission, CompanionItemAdmission::Rejected);
         if matches!(slot, BracedSlot::AfterItem) && candidate {
-            emit_companion_missing(
-                &mut i,
-                &item,
-                item_origin,
-                companion_role(CompanionRole::Separator),
-            );
+            emit_companion_missing(&mut i, &item, item_origin);
         }
 
         let parsed = companion_item_slot(
@@ -764,12 +707,7 @@ fn derives_run_slot(
             if pending_admission
                 .is_some_and(|admission| !matches!(admission, CompanionItemAdmission::Rejected))
             {
-                emit_companion_missing(
-                    &mut i,
-                    &item,
-                    item_origin,
-                    companion_role(CompanionRole::Separator),
-                );
+                emit_companion_missing(&mut i, &item, item_origin);
             }
             return SlotExit {
                 exit: complete(handoff(item), line_entry),
@@ -824,15 +762,10 @@ fn statement_slot(
     if !item.payload_view().is_boundary() {
         item.emit_all_remaining_leading(&mut *i.state);
     }
-    let role = match layout {
-        CompanionLayout::Inline => CompanionRole::Body,
-        CompanionLayout::Indented { .. } => CompanionRole::IndentedItem,
-        CompanionLayout::Braced { .. } => CompanionRole::Item,
-    };
     let (next, origin, entry, admission) = companion_error_run(
         i.rb(),
         item,
-        role,
+        CompanionRecoveryPhase::Item,
         layout,
         baseline,
         stops,
@@ -1048,68 +981,19 @@ fn emit_separator_leading(i: &mut SyntaxIn, item: &mut Item) {
     i.state.finish_node();
 }
 
-fn companion_role(role: CompanionRole) -> GrammarRole {
-    GrammarRole::Declaration(DeclarationRole::Companion(role))
-}
-
-fn companion_close_role() -> GrammarRole {
-    GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::DeclarationCompanion,
-        delimiter: Delimiter::Brace,
-    }
-}
-
-fn emit_companion_missing(i: &mut SyntaxIn, item: &Item, origin: usize, role: GrammarRole) {
+fn emit_companion_missing(i: &mut SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at, |range| {
-        companion_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn companion_draft(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Introducer)) => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
-        }
-        GrammarRole::Declaration(DeclarationRole::Companion(CompanionRole::Separator)) => {
-            ExpectedSyntax::StatementSeparator
-        }
-        GrammarRole::Declaration(DeclarationRole::Companion(_)) => ExpectedSyntax::Statement,
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        _ => unreachable!("companion publication role"),
-    };
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i.rb(), LeadingTrivia::default(), at);
 }
 
 #[allow(clippy::too_many_arguments)]
 fn companion_error_run(
     mut i: SyntaxIn,
     mut item: Item,
-    role: CompanionRole,
+    phase: CompanionRecoveryPhase,
     layout: CompanionLayout,
     baseline: usize,
     stops: Stops,
@@ -1117,16 +1001,9 @@ fn companion_error_run(
     mut line: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (Item, usize, LineEntry, CompanionItemAdmission) {
-    let start = item.extent(origin).recovery_range().start;
-    emit_recovery_error_run(
-        i.rb(),
-        |run| loop {
-            let kind = item
-                .payload_view()
-                .token_kind()
-                .map(token_syntax_kind)
-                .unwrap_or(SyntaxKind::Operator);
-            let end = run.emit_item_as(item, origin, kind).recovery_range().end;
+    emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, origin);
             (item, origin, line) = run.lexical(|lex| {
                 scan_companion_item_lexical(
                     lex,
@@ -1135,14 +1012,14 @@ fn companion_error_run(
                     fence,
                     baseline,
                     stops,
-                    role == CompanionRole::Introducer,
+                    phase == CompanionRecoveryPhase::Introducer,
                 )
             });
             let boundary = item.payload_view().is_boundary()
                 || item.payload_view().is_eof()
                 || is_separator(&item)
                 || is_close(&item)
-                || (if role == CompanionRole::Introducer {
+                || (if phase == CompanionRecoveryPhase::Introducer {
                     item.leading_view().has_ordinary_newline()
                 } else {
                     derives_separator_before(&item, layout)
@@ -1170,23 +1047,16 @@ fn companion_error_run(
                     CompanionItemAdmission::Statement,
                 )
             };
-            let introducer = role == CompanionRole::Introducer
+            let introducer = phase == CompanionRecoveryPhase::Introducer
                 && matches!(
                     token_kind(&item),
                     Some(TokenKind::Colon | TokenKind::LBrace)
                 );
             if boundary || introducer || !matches!(admission, CompanionItemAdmission::Rejected) {
-                run.append_unexpected(UnexpectedSyntax::Token {
-                    range: start..end,
-                    category: UnexpectedCategory::OtherCharacter,
-                });
                 return (item, origin, line, admission);
             }
-        },
-        |range, unexpected| {
-            companion_draft(companion_role(role), RecoveryKind::Error, range, unexpected)
-        },
-    )
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1226,9 +1096,9 @@ fn scan_companion_item_lexical(
     )
 }
 
-fn emit_missing_statement(i: &mut SyntaxIn, item: &Item, origin: usize, role: CompanionRole) {
+fn emit_missing_statement(i: &mut SyntaxIn, item: &Item, origin: usize) {
     i.state.start_node(SyntaxKind::Statement.into());
-    emit_companion_missing(i, item, origin, companion_role(role));
+    emit_companion_missing(i, item, origin);
     i.state.finish_node();
 }
 

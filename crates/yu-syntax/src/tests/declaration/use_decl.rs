@@ -224,10 +224,10 @@ fn use_schema_full_tree_accepted_composition() {
             ],
         ),
     ] {
-        let (green, records) = use_group_recoveries(source, None);
+        let (green, facts) = use_group_structural_facts(source);
         let root = SyntaxNode::new_root(green.clone());
         assert_eq!(root.to_string(), source);
-        assert!(records.is_empty(), "{source:?}");
+        assert!(facts.is_empty(), "{source:?}");
         assert!(
             root.descendants_with_tokens().all(|child| !matches!(
                 child.kind(),
@@ -264,9 +264,6 @@ fn use_schema_full_tree_accepted_composition() {
                 [UseAlias, UseGlob, UseTree]
             );
         }
-        let (frozen, frozen_records) = use_group_recoveries(source, Some(&records));
-        assert_eq!(green, frozen, "{source:?}");
-        assert_eq!(records, frozen_records, "{source:?}");
     }
 }
 
@@ -386,14 +383,10 @@ fn use_schema_full_tree_recovered_and_protected_composition() {
             vec![(Missing, UsePath, 10..10)],
         ),
     ] {
-        let operators = OperatorTable::empty();
-        let mut previous: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
-        for _ in 0..2 {
+        {
             let mut input = source;
-            let mut recover = match &previous {
-                Some((_, records)) => Recover::reconcile_for_test(&operators, records),
-                None => Recover::new_for_test(&operators),
-            };
+            let operators = OperatorTable::empty();
+            let mut recover = Recover::new_for_test(&operators);
             let mut builder = GreenNodeBuilder::new();
             builder.start_node(Root.into());
             let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
@@ -402,7 +395,7 @@ fn use_schema_full_tree_recovered_and_protected_composition() {
             }
             builder.finish_node();
             let green = builder.finish();
-            let records = recover.finish_recoveries_for_test();
+            let facts = structural_facts(&green);
             let root = SyntaxNode::new_root(green.clone());
             let tree = root
                 .descendants()
@@ -423,6 +416,21 @@ fn use_schema_full_tree_recovered_and_protected_composition() {
                     })
                     .collect::<Vec<_>>(),
                 recovery,
+                "{source:?}"
+            );
+            assert_eq!(
+                facts,
+                recovery
+                    .iter()
+                    .map(|(kind, _, range)| (
+                        if *kind == Missing {
+                            crate::structural_diagnostic::StructuralKind::Missing
+                        } else {
+                            crate::structural_diagnostic::StructuralKind::ErrorGroup
+                        },
+                        usize::try_from(range.start).unwrap()..usize::try_from(range.end).unwrap(),
+                    ))
+                    .collect::<Vec<_>>(),
                 "{source:?}"
             );
             for node in root.descendants().filter(|node| node.kind() == UseTree) {
@@ -456,12 +464,6 @@ fn use_schema_full_tree_recovered_and_protected_composition() {
                 assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
                 assert_eq!(input, "");
                 assert_eq!(root.to_string(), source);
-            }
-            if let Some((fresh, fresh_records)) = &previous {
-                assert_eq!(&green, fresh, "{source:?}");
-                assert_eq!(&records, fresh_records, "{source:?}");
-            } else {
-                previous = Some((green, records));
             }
         }
     }
@@ -553,8 +555,8 @@ fn use_terminal_join_is_direct_tree_child() {
             vec![(UsePath, "p::q"), (Slash, "/"), (UseGroup, "{x}")],
         ),
     ] {
-        let (green, records) = use_group_recoveries(source, None);
-        assert!(records.is_empty(), "{source:?}");
+        let (green, facts) = use_group_structural_facts(source);
+        assert!(facts.is_empty(), "{source:?}");
         let root = SyntaxNode::new_root(green.clone());
         assert_eq!(root.text().to_string(), source);
         let tree = root
@@ -585,22 +587,13 @@ fn use_terminal_join_is_direct_tree_child() {
             expected,
             "{source:?}"
         );
-        let (frozen, frozen_records) = use_group_recoveries(source, Some(&records));
-        assert_eq!(green, frozen, "{source:?}");
-        assert_eq!(records, frozen_records, "{source:?}");
     }
 }
 
-fn use_group_recoveries(
-    source: &str,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (GreenNode, Vec<CommittedRecoveryRecord>) {
+fn use_group_structural_facts(source: &str) -> (GreenNode, Vec<StructuralFact>) {
     let operators = OperatorTable::empty();
     let mut input = source;
-    let mut recover = match frozen {
-        Some(records) => Recover::reconcile_for_test(&operators, records),
-        None => Recover::new_for_test(&operators),
-    };
+    let mut recover = Recover::new_for_test(&operators);
     let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
@@ -610,36 +603,32 @@ fn use_group_recoveries(
     emit_end(&mut builder, end);
     builder.finish_node();
     assert_eq!(input, "");
-    (builder.finish(), recover.finish_recoveries_for_test())
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, facts)
 }
 
 #[test]
-fn use_group_foreign_close_topology_and_unchanged_frozen_records() {
-    use crate::recovery_record::*;
+fn use_group_foreign_close_topology_has_structural_facts() {
     use SyntaxKind::*;
-    let close_role = |delimiter| GrammarRole::ClosingDelimiter {
-        owner: ConstructRole::ImportGroup,
-        delimiter,
-    };
-    let group_role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::GroupEntry));
-    let close_expected =
-        |delimiter| ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter));
     for (source, owner, children, occurrences) in [
         (
             "use {)}",
             UseGroup,
             vec![(LBrace, 4..5), (UseGroupForeignClose, 5..6), (RBrace, 6..7)],
             vec![(
+                crate::structural_diagnostic::StructuralKind::ErrorGroup,
                 5..6,
-                close_role(Delimiter::Brace),
-                close_expected(Delimiter::Brace),
             )],
         ),
         (
             "use {@}",
             UseGroup,
             vec![(LBrace, 4..5), (Error, 5..6), (RBrace, 6..7)],
-            vec![(5..6, group_role, ExpectedSyntax::Path)],
+            vec![(
+                crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                5..6,
+            )],
         ),
         (
             "use x::* without {)}",
@@ -650,9 +639,8 @@ fn use_group_foreign_close_topology_and_unchanged_frozen_records() {
                 (RBrace, 19..20),
             ],
             vec![(
+                crate::structural_diagnostic::StructuralKind::ErrorGroup,
                 18..19,
-                close_role(Delimiter::Brace),
-                close_expected(Delimiter::Brace),
             )],
         ),
         (
@@ -664,9 +652,8 @@ fn use_group_foreign_close_topology_and_unchanged_frozen_records() {
                 (RParen, 19..20),
             ],
             vec![(
+                crate::structural_diagnostic::StructuralKind::ErrorGroup,
                 18..19,
-                close_role(Delimiter::Parenthesis),
-                close_expected(Delimiter::Parenthesis),
             )],
         ),
         (
@@ -680,14 +667,12 @@ fn use_group_foreign_close_topology_and_unchanged_frozen_records() {
             ],
             vec![
                 (
+                    crate::structural_diagnostic::StructuralKind::ErrorGroup,
                     5..6,
-                    close_role(Delimiter::Brace),
-                    close_expected(Delimiter::Brace),
                 ),
                 (
+                    crate::structural_diagnostic::StructuralKind::ErrorGroup,
                     6..7,
-                    close_role(Delimiter::Brace),
-                    close_expected(Delimiter::Brace),
                 ),
             ],
         ),
@@ -702,24 +687,32 @@ fn use_group_foreign_close_topology_and_unchanged_frozen_records() {
             ],
             vec![
                 (
+                    crate::structural_diagnostic::StructuralKind::ErrorGroup,
                     5..6,
-                    close_role(Delimiter::Brace),
-                    close_expected(Delimiter::Brace),
                 ),
-                (6..7, group_role, ExpectedSyntax::Path),
+                (
+                    crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                    6..7,
+                ),
             ],
         ),
         (
             "use {@)}",
             UseGroup,
             vec![(LBrace, 4..5), (Error, 5..6), (Error, 6..7), (RBrace, 7..8)],
-            vec![(5..7, group_role, ExpectedSyntax::Path)],
+            vec![(
+                crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                5..7,
+            )],
         ),
         (
             "use {]}",
             UseGroup,
             vec![(LBrace, 4..5), (Error, 5..6), (RBrace, 6..7)],
-            vec![(5..6, group_role, ExpectedSyntax::Path)],
+            vec![(
+                crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                5..6,
+            )],
         ),
         (
             "use { /*é*/ )}",
@@ -733,40 +726,13 @@ fn use_group_foreign_close_topology_and_unchanged_frozen_records() {
                 (RBrace, 14..15),
             ],
             vec![(
+                crate::structural_diagnostic::StructuralKind::ErrorGroup,
                 13..14,
-                close_role(Delimiter::Brace),
-                close_expected(Delimiter::Brace),
             )],
         ),
     ] {
-        let expected: Vec<_> = occurrences
-            .into_iter()
-            .enumerate()
-            .map(|(id, (range, role, expected))| CommittedRecoveryRecord {
-                id: DiagnosticId(id as u32),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone(),
-                },
-                kind: RecoveryKind::Error,
-                unexpected: std::sync::Arc::from([UnexpectedSyntax::Token {
-                    range: range.clone(),
-                    category: UnexpectedCategory::OtherCharacter,
-                }]),
-                expectations: std::sync::Arc::from([SyntaxExpectation {
-                    role,
-                    expected,
-                    range,
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            })
-            .collect();
-        let (green, records) = use_group_recoveries(source, None);
-        assert_eq!(records, expected, "{source:?}");
-        let (frozen_green, frozen_records) = use_group_recoveries(source, Some(&records));
-        assert_eq!(frozen_records, records, "{source:?}");
-        assert_eq!(frozen_green, green, "{source:?}");
+        let (green, facts) = use_group_structural_facts(source);
+        assert_eq!(facts, occurrences, "{source:?}");
         let root = SyntaxNode::new_root(green);
         assert_eq!(root.to_string(), source);
         let group = root
@@ -813,7 +779,7 @@ fn use_group_foreign_close_topology_and_unchanged_frozen_records() {
 }
 
 #[test]
-fn use_group_accepted_groups_have_no_foreign_close_wrapper_or_records() {
+fn use_group_accepted_groups_have_no_foreign_close_wrapper_or_structural_facts() {
     for source in [
         "use {}",
         "use {a,b}",
@@ -821,12 +787,9 @@ fn use_group_accepted_groups_have_no_foreign_close_wrapper_or_records() {
         "use x::* without ()",
         "use {x::* without (a)}",
     ] {
-        let (green, records) = use_group_recoveries(source, None);
+        let (green, facts) = use_group_structural_facts(source);
         assert_eq!(green.to_string(), source);
-        assert!(records.is_empty());
-        let (frozen, frozen_records) = use_group_recoveries(source, Some(&records));
-        assert_eq!(frozen, green);
-        assert_eq!(frozen_records, records);
+        assert!(facts.is_empty());
         assert_eq!(
             descendants_of_kind(
                 &SyntaxNode::new_root(green),
@@ -2812,7 +2775,6 @@ fn use_schema_marker_target_dispatch() {
 
 #[test]
 fn use_schema_anchor_rejects_structural_heads_with_word_retry() {
-    use crate::recovery_record::*;
     use SyntaxKind::*;
 
     for (source, children, error_range, pending) in [
@@ -2836,35 +2798,10 @@ fn use_schema_anchor_rejects_structural_heads_with_word_retry() {
             Some((TokenKind::RBrace, "}", 18)),
         ),
     ] {
-        let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
-        let expected_records = vec![CommittedRecoveryRecord {
-            id: DiagnosticId(0),
-            site: RecoverySiteKey {
-                role,
-                range: error_range.clone(),
-            },
-            kind: RecoveryKind::Error,
-            unexpected: std::sync::Arc::from([UnexpectedSyntax::Token {
-                range: error_range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }]),
-            expectations: std::sync::Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Path,
-                range: error_range,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            primary_expectation: 0,
-        }];
         let operators = OperatorTable::empty();
-        let mut fresh = None;
-        for frozen in [false, true] {
+        {
             let mut input = source;
-            let mut recover = if frozen {
-                Recover::reconcile_for_test(&operators, &expected_records)
-            } else {
-                Recover::new_for_test(&operators)
-            };
+            let mut recover = Recover::new_for_test(&operators);
             let mut builder = GreenNodeBuilder::new();
             builder.start_node(Root.into());
             let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
@@ -2872,14 +2809,15 @@ fn use_schema_anchor_rejects_structural_heads_with_word_retry() {
                 emit_end(&mut builder, end);
             }
             builder.finish_node();
-            let green = builder.finish();
-            let records = recover.finish_recoveries_for_test();
-            assert_eq!(records, expected_records, "{source:?}");
-            if let Some(previous) = &fresh {
-                assert_eq!(&green, previous, "{source:?}");
-            } else {
-                fresh = Some(green.clone());
-            }
+            let green = finish_with_discarded_recoveries(builder, recover);
+            assert_eq!(
+                structural_facts(&green),
+                [(
+                    crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                    error_range
+                )],
+                "{source:?}"
+            );
             let root = SyntaxNode::new_root(green);
             let anchor = root
                 .descendants()
@@ -2953,7 +2891,6 @@ fn use_schema_anchor_rejects_structural_heads_with_word_retry() {
 
 #[test]
 fn use_schema_anchor_reserved_head_missing_identifier_handoff() {
-    use crate::recovery_record::*;
     use SyntaxKind::*;
 
     let projection = |node: &SyntaxNode| {
@@ -2972,45 +2909,23 @@ fn use_schema_anchor_reserved_head_missing_identifier_handoff() {
     // EOF/protected boundaries instead retain the earlier Path Missing slot.
     for word in ["mod", "as", "with", "without"] {
         let source = format!("use a with {word}");
-        let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
-        let expected_records = vec![CommittedRecoveryRecord {
-            id: DiagnosticId(0),
-            site: RecoverySiteKey {
-                role,
-                range: 11..11,
-            },
-            kind: RecoveryKind::Missing,
-            unexpected: std::sync::Arc::from([]),
-            expectations: std::sync::Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Identifier,
-                range: 11..11,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            primary_expectation: 0,
-        }];
-        let mut fresh = None;
-        for frozen in [false, true] {
+        {
             let operators = OperatorTable::empty();
             let mut input = source.as_str();
-            let mut recover = if frozen {
-                Recover::reconcile_for_test(&operators, &expected_records)
-            } else {
-                Recover::new_for_test(&operators)
-            };
+            let mut recover = Recover::new_for_test(&operators);
             let mut builder = GreenNodeBuilder::new();
             builder.start_node(Root.into());
             let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
             builder.finish_node();
-            let green = builder.finish();
-            let records = recover.finish_recoveries_for_test();
-            assert_eq!(records, expected_records, "{source:?}");
-            if let Some((fresh_green, fresh_records)) = &fresh {
-                assert_eq!(&green, fresh_green);
-                assert_eq!(&records, fresh_records);
-            } else {
-                fresh = Some((green.clone(), records));
-            }
+            let green = finish_with_discarded_recoveries(builder, recover);
+            assert_eq!(
+                structural_facts(&green),
+                [(
+                    crate::structural_diagnostic::StructuralKind::Missing,
+                    11..11
+                )],
+                "{source:?}"
+            );
             let root = SyntaxNode::new_root(green);
             let anchor = root
                 .descendants()
@@ -3684,28 +3599,16 @@ fn use_schema_glob_without_probe_requires_inline_leading() {
     for gap in ["", "\n", " /* comment\n */ ", " "] {
         let source = format!("use p::*{gap}without a");
         let accepted = gap == " ";
-        let mut fresh: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
-        for frozen in [false, true] {
+        {
             let operators = OperatorTable::empty();
             let mut input = source.as_str();
-            let mut recover = if frozen {
-                Recover::reconcile_for_test(&operators, &fresh.as_ref().unwrap().1)
-            } else {
-                Recover::new_for_test(&operators)
-            };
+            let mut recover = Recover::new_for_test(&operators);
             let mut builder = GreenNodeBuilder::new();
             builder.start_node(Root.into());
             let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
             builder.finish_node();
-            let green = builder.finish();
-            let records = recover.finish_recoveries_for_test();
-            assert!(records.is_empty(), "{source:?}");
-            if let Some((fresh_green, fresh_records)) = &fresh {
-                assert_eq!(&green, fresh_green);
-                assert_eq!(&records, fresh_records);
-            } else {
-                fresh = Some((green.clone(), records));
-            }
+            let green = finish_with_discarded_recoveries(builder, recover);
+            assert!(structural_facts(&green).is_empty(), "{source:?}");
             let root = SyntaxNode::new_root(green);
             let glob = root
                 .descendants()
@@ -3807,31 +3710,16 @@ fn use_schema_glob_unseparated_exclusion_not_admitted() {
         for comma in [false, true] {
             let separator = if comma { "," } else { "" };
             let source = format!("use p::* without a{separator}{gap}b");
-            let mut fresh: Option<(
-                GreenNode,
-                Vec<crate::recovery_record::CommittedRecoveryRecord>,
-            )> = None;
-            for frozen in [false, true] {
+            {
                 let operators = OperatorTable::empty();
                 let mut input = source.as_str();
-                let mut recover = if frozen {
-                    Recover::reconcile_for_test(&operators, &fresh.as_ref().unwrap().1)
-                } else {
-                    Recover::new_for_test(&operators)
-                };
+                let mut recover = Recover::new_for_test(&operators);
                 let mut builder = GreenNodeBuilder::new();
                 builder.start_node(Root.into());
                 let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
                 builder.finish_node();
-                let green = builder.finish();
-                let records = recover.finish_recoveries_for_test();
-                assert!(records.is_empty(), "{source:?}");
-                if let Some((fresh_green, fresh_records)) = &fresh {
-                    assert_eq!(&green, fresh_green);
-                    assert_eq!(&records, fresh_records);
-                } else {
-                    fresh = Some((green.clone(), records));
-                }
+                let green = finish_with_discarded_recoveries(builder, recover);
+                assert!(structural_facts(&green).is_empty(), "{source:?}");
                 let root = SyntaxNode::new_root(green);
                 let glob = root
                     .descendants()
@@ -3952,28 +3840,16 @@ fn use_schema_glob_pre_comma_trivia_keeps_comma_pending() {
             } else {
                 format!("use p::* without a{gap},b")
             };
-            let mut fresh: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
-            for frozen in [false, true] {
+            {
                 let operators = OperatorTable::empty();
                 let mut input = source.as_str();
-                let mut recover = if frozen {
-                    Recover::reconcile_for_test(&operators, &fresh.as_ref().unwrap().1)
-                } else {
-                    Recover::new_for_test(&operators)
-                };
+                let mut recover = Recover::new_for_test(&operators);
                 let mut builder = GreenNodeBuilder::new();
                 builder.start_node(Root.into());
                 let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
                 builder.finish_node();
-                let green = builder.finish();
-                let records = recover.finish_recoveries_for_test();
-                assert!(records.is_empty(), "{source:?}");
-                if let Some((fresh_green, fresh_records)) = &fresh {
-                    assert_eq!(&green, fresh_green, "{source:?}");
-                    assert_eq!(&records, fresh_records, "{source:?}");
-                } else {
-                    fresh = Some((green.clone(), records));
-                }
+                let green = finish_with_discarded_recoveries(builder, recover);
+                assert!(structural_facts(&green).is_empty(), "{source:?}");
                 let root = SyntaxNode::new_root(green);
                 let glob = root
                     .descendants()
@@ -4065,7 +3941,6 @@ fn use_schema_glob_pre_comma_trivia_keeps_comma_pending() {
 
 #[test]
 fn use_schema_glob_post_comma_boundary_missing_handoff() {
-    use crate::recovery_record::*;
     use SyntaxKind::*;
 
     for (gap, spelling, stops) in [
@@ -4078,19 +3953,10 @@ fn use_schema_glob_post_comma_boundary_missing_handoff() {
     ] {
         let remainder = if spelling.is_empty() { "" } else { "next" };
         let source = format!("use p::* without a,{gap}{spelling}{remainder}");
-        let mut fresh: Option<(
-            GreenNode,
-            Vec<crate::recovery_record::CommittedRecoveryRecord>,
-        )> = None;
-        for frozen in [false, true] {
+        {
             let operators = OperatorTable::empty();
             let mut input = source.as_str();
-            let mut recover = if frozen {
-                let (_, records) = fresh.as_ref().unwrap();
-                Recover::reconcile_for_test(&operators, records)
-            } else {
-                Recover::new_for_test(&operators)
-            };
+            let mut recover = Recover::new_for_test(&operators);
             let mut builder = GreenNodeBuilder::new();
             builder.start_node(Root.into());
             let exit = statement(
@@ -4099,36 +3965,15 @@ fn use_schema_glob_post_comma_boundary_missing_handoff() {
                 stops,
             );
             builder.finish_node();
-            let green = builder.finish();
-            let records = recover.finish_recoveries_for_test();
-            if spelling == ";" {
-                let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
-                assert_eq!(
-                    records,
-                    [CommittedRecoveryRecord {
-                        id: DiagnosticId(0),
-                        site: RecoverySiteKey {
-                            role,
-                            range: 19..19,
-                        },
-                        kind: RecoveryKind::Missing,
-                        unexpected: std::sync::Arc::from([]),
-                        expectations: std::sync::Arc::from([SyntaxExpectation {
-                            role,
-                            expected: ExpectedSyntax::Path,
-                            range: 19..19,
-                            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                        }]),
-                        primary_expectation: 0,
-                    }]
-                );
-            }
-            if let Some((fresh_green, fresh_records)) = &fresh {
-                assert_eq!(&green, fresh_green);
-                assert_eq!(&records, fresh_records);
-            } else {
-                fresh = Some((green.clone(), records));
-            }
+            let green = finish_with_discarded_recoveries(builder, recover);
+            assert_eq!(
+                structural_facts(&green),
+                [(
+                    crate::structural_diagnostic::StructuralKind::Missing,
+                    19..19
+                )],
+                "{source:?}"
+            );
             let root = SyntaxNode::new_root(green);
             let glob = root
                 .descendants()
@@ -4210,49 +4055,25 @@ fn use_schema_glob_post_comma_boundary_missing_handoff() {
 
 #[test]
 fn use_schema_glob_post_comma_reserved_with_handoff() {
-    use crate::recovery_record::*;
     use SyntaxKind::*;
 
     let source = "use p::* without a, with";
-    let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
-    let expected_records = vec![CommittedRecoveryRecord {
-        id: DiagnosticId(0),
-        site: RecoverySiteKey {
-            role,
-            range: 20..20,
-        },
-        kind: RecoveryKind::Missing,
-        unexpected: std::sync::Arc::from([]),
-        expectations: std::sync::Arc::from([SyntaxExpectation {
-            role,
-            expected: ExpectedSyntax::Path,
-            range: 20..20,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }];
-    let mut fresh = None;
-    for frozen in [false, true] {
+    {
         let operators = OperatorTable::empty();
         let mut input = source;
-        let mut recover = if frozen {
-            Recover::reconcile_for_test(&operators, &expected_records)
-        } else {
-            Recover::new_for_test(&operators)
-        };
+        let mut recover = Recover::new_for_test(&operators);
         let mut builder = GreenNodeBuilder::new();
         builder.start_node(Root.into());
         let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
         builder.finish_node();
-        let green = builder.finish();
-        let records = recover.finish_recoveries_for_test();
-        assert_eq!(records, expected_records);
-        if let Some((fresh_green, fresh_records)) = &fresh {
-            assert_eq!(&green, fresh_green);
-            assert_eq!(&records, fresh_records);
-        } else {
-            fresh = Some((green.clone(), records));
-        }
+        let green = finish_with_discarded_recoveries(builder, recover);
+        assert_eq!(
+            structural_facts(&green),
+            [(
+                crate::structural_diagnostic::StructuralKind::Missing,
+                20..20
+            )]
+        );
         let root = SyntaxNode::new_root(green);
         let glob = root
             .descendants()
@@ -4338,7 +4159,6 @@ fn use_schema_glob_post_comma_reserved_with_handoff() {
 
 #[test]
 fn use_schema_glob_first_required_exclusion_inline_gap() {
-    use crate::recovery_record::*;
     use SyntaxKind::*;
 
     let projection = |node: &SyntaxNode| {
@@ -4362,15 +4182,10 @@ fn use_schema_glob_first_required_exclusion_inline_gap() {
             let source = format!("use p::* without{gap}{payload}");
             let start = 16 + gap.len() as u32;
             let end = start + payload.len() as u32;
-            let mut fresh: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
-            for frozen in [false, true] {
+            {
                 let operators = OperatorTable::empty();
                 let mut input = source.as_str();
-                let mut recover = if frozen {
-                    Recover::reconcile_for_test(&operators, &fresh.as_ref().unwrap().1)
-                } else {
-                    Recover::new_for_test(&operators)
-                };
+                let mut recover = Recover::new_for_test(&operators);
                 let mut builder = GreenNodeBuilder::new();
                 builder.start_node(Root.into());
                 let mut exit =
@@ -4380,40 +4195,19 @@ fn use_schema_glob_first_required_exclusion_inline_gap() {
                 }
                 assert!(matches!(exit, Err(Either::Right(_))));
                 builder.finish_node();
-                let green = builder.finish();
-                let records = recover.finish_recoveries_for_test();
-                // Records check migration parity; CST ownership is asserted below.
-                if gap.is_empty() && payload == "(a)" {
-                    let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Path));
-                    assert_eq!(
-                        records,
-                        [CommittedRecoveryRecord {
-                            id: DiagnosticId(0),
-                            site: RecoverySiteKey {
-                                role,
-                                range: 16..16
-                            },
-                            kind: RecoveryKind::Missing,
-                            unexpected: std::sync::Arc::from([]),
-                            expectations: std::sync::Arc::from([SyntaxExpectation {
-                                role,
-                                expected: ExpectedSyntax::Path,
-                                range: 16..16,
-                                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                            }]),
-                            primary_expectation: 0,
-                        }]
-                    );
-                }
-                if !gap.is_empty() {
-                    assert!(records.is_empty());
-                }
-                if let Some((fresh_green, fresh_records)) = &fresh {
-                    assert_eq!(&green, fresh_green);
-                    assert_eq!(&records, fresh_records);
-                } else {
-                    fresh = Some((green.clone(), records));
-                }
+                let green = finish_with_discarded_recoveries(builder, recover);
+                assert_eq!(
+                    structural_facts(&green),
+                    if gap.is_empty() {
+                        vec![(
+                            crate::structural_diagnostic::StructuralKind::Missing,
+                            16..16,
+                        )]
+                    } else {
+                        vec![]
+                    },
+                    "{source:?}"
+                );
                 let root = SyntaxNode::new_root(green);
                 let glob = root
                     .descendants()
@@ -4981,11 +4775,8 @@ fn use_schema_recursive_glob_qualifier_siblings() {
         ("use x::* without {y::* without z v1}", 35),
         ("use x::* without {y::* without z v1 with anchor}", 47),
     ] {
-        let (green, records) = use_group_recoveries(source, None);
-        assert!(records.is_empty());
-        let (frozen, frozen_records) = use_group_recoveries(source, Some(&records));
-        assert_eq!(green, frozen);
-        assert_eq!(records, frozen_records);
+        let (green, facts) = use_group_structural_facts(source);
+        assert!(facts.is_empty());
         assert_eq!(green.to_string(), source);
         let root = SyntaxNode::new_root(green);
         let group = root
@@ -5253,18 +5044,13 @@ fn use_path_frames_balance_at_required_segment_exits() {
     ] {
         let source: Arc<crate::SourceText> = Arc::from(text);
         let header = Arc::new(crate::scan_header(Arc::clone(&source)));
-        let fresh = crate::cursor::parse_root(text, &OperatorTable::empty(), &[]);
+        let fresh = crate::cursor::parse_root(text, &OperatorTable::empty());
         let parsed = crate::parse_file(
             source,
             Arc::clone(&header),
             Arc::new(crate::SyntaxEnvironment::empty()),
         );
-        assert_eq!(parsed.green(), &fresh.green, "{text:?}");
-        assert_eq!(
-            fresh.committed_recoveries.as_slice(),
-            header.recoveries.as_ref(),
-            "{text:?}"
-        );
+        assert_eq!(parsed.green(), &fresh, "{text:?}");
         let root = SyntaxNode::new_root(parsed.green().clone());
         assert_eq!(root.kind(), Root, "{text:?}");
         assert_eq!(root.to_string(), text);
@@ -5302,7 +5088,16 @@ fn use_path_frames_balance_at_required_segment_exits() {
             builder.start_node(Root.into());
             let exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
             builder.finish_node();
-            let root = SyntaxNode::new_root(builder.finish());
+            let green = finish_with_discarded_recoveries(builder, recover);
+            assert_eq!(
+                structural_facts(&green),
+                [(
+                    crate::structural_diagnostic::StructuralKind::Missing,
+                    prefix.len()..prefix.len()
+                )],
+                "{source:?}"
+            );
+            let root = SyntaxNode::new_root(green);
             assert_eq!(root.kind(), Root, "{source:?}");
             assert_eq!(root.to_string(), prefix);
             let Err(Either::Left(mut item)) = exit else {
@@ -5312,7 +5107,6 @@ fn use_path_frames_balance_at_required_segment_exits() {
             let leading = emit_pending_leading_text(&mut item);
             assert_eq!(format!("{root}{leading}{spelling}{input}"), source);
             assert_eq!(input, "next");
-            assert_eq!(recover.finish_recoveries_for_test().len(), 1);
         }
     }
 }
@@ -5333,18 +5127,13 @@ fn use_mod_path_frames_balance_at_required_word_exits() {
     ] {
         let source: Arc<crate::SourceText> = Arc::from(text);
         let header = Arc::new(crate::scan_header(Arc::clone(&source)));
-        let fresh = crate::cursor::parse_root(text, &OperatorTable::empty(), &[]);
+        let fresh = crate::cursor::parse_root(text, &OperatorTable::empty());
         let parsed = crate::parse_file(
             source,
             Arc::clone(&header),
             Arc::new(crate::SyntaxEnvironment::empty()),
         );
-        assert_eq!(parsed.green(), &fresh.green, "{text:?}");
-        assert_eq!(
-            fresh.committed_recoveries.as_slice(),
-            header.recoveries.as_ref(),
-            "{text:?}"
-        );
+        assert_eq!(parsed.green(), &fresh, "{text:?}");
         let root = SyntaxNode::new_root(parsed.green().clone());
         assert_eq!(root.kind(), Root, "{text:?}");
         assert_eq!(root.to_string(), text);
@@ -5460,13 +5249,9 @@ fn use_schema_required_path_segment_direct_occurrences() {
             let mut expected = vec![(Identifier, "猫"), (kind, separator)];
             expected.extend(children);
             let operators = OperatorTable::empty();
-            let mut previous: Option<(GreenNode, Vec<CommittedRecoveryRecord>)> = None;
-            for _ in 0..2 {
+            {
                 let mut input = source.as_str();
-                let mut recover = match &previous {
-                    Some((_, records)) => Recover::reconcile_for_test(&operators, records),
-                    None => Recover::new_for_test(&operators),
-                };
+                let mut recover = Recover::new_for_test(&operators);
                 let mut builder = GreenNodeBuilder::new();
                 builder.start_node(Root.into());
                 let mut exit =
@@ -5475,8 +5260,7 @@ fn use_schema_required_path_segment_direct_occurrences() {
                     emit_end(&mut builder, end);
                 }
                 builder.finish_node();
-                let green = builder.finish();
-                let records = recover.finish_recoveries_for_test();
+                let green = finish_with_discarded_recoveries(builder, recover);
                 let root = SyntaxNode::new_root(green.clone());
                 let path = root
                     .descendants()
@@ -5558,12 +5342,6 @@ fn use_schema_required_path_segment_direct_occurrences() {
                     assert_eq!(input, "next");
                     assert_eq!(format!("{root}{leading};{input}"), source);
                 }
-                if let Some((fresh, fresh_records)) = &previous {
-                    assert_eq!(&green, fresh, "{source:?}");
-                    assert_eq!(&records, fresh_records, "{source:?}");
-                } else {
-                    previous = Some((green, records));
-                }
             }
         }
     }
@@ -5571,7 +5349,6 @@ fn use_schema_required_path_segment_direct_occurrences() {
 
 #[test]
 fn use_schema_root_alias_direct_recovery_and_handoff() {
-    use crate::recovery_record::*;
     use SyntaxKind::*;
 
     for (tail, alias_children, range, missing) in [
@@ -5606,43 +5383,10 @@ fn use_schema_root_alias_direct_recovery_and_handoff() {
         for boundary in ["", " ;next", "\r\n;next"] {
             let prefix = format!("use p as{tail}");
             let source = format!("{prefix}{boundary}");
-            let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Alias));
-            let expected_records = vec![CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone(),
-                },
-                kind: if missing {
-                    RecoveryKind::Missing
-                } else {
-                    RecoveryKind::Error
-                },
-                unexpected: if missing {
-                    std::sync::Arc::from([])
-                } else {
-                    std::sync::Arc::from([UnexpectedSyntax::Token {
-                        range: range.clone(),
-                        category: UnexpectedCategory::OtherCharacter,
-                    }])
-                },
-                expectations: std::sync::Arc::from([SyntaxExpectation {
-                    role,
-                    expected: ExpectedSyntax::Identifier,
-                    range: range.clone(),
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            }];
             let operators = OperatorTable::empty();
-            let mut fresh = None;
-            for frozen in [false, true] {
+            {
                 let mut input = source.as_str();
-                let mut recover = if frozen {
-                    Recover::reconcile_for_test(&operators, &expected_records)
-                } else {
-                    Recover::new_for_test(&operators)
-                };
+                let mut recover = Recover::new_for_test(&operators);
                 let mut builder = GreenNodeBuilder::new();
                 builder.start_node(Root.into());
                 let mut exit =
@@ -5651,10 +5395,17 @@ fn use_schema_root_alias_direct_recovery_and_handoff() {
                     emit_end(&mut builder, end);
                 }
                 builder.finish_node();
-                let green = builder.finish();
+                let green = finish_with_discarded_recoveries(builder, recover);
                 assert_eq!(
-                    recover.finish_recoveries_for_test(),
-                    expected_records,
+                    structural_facts(&green),
+                    [(
+                        if missing {
+                            crate::structural_diagnostic::StructuralKind::Missing
+                        } else {
+                            crate::structural_diagnostic::StructuralKind::ErrorGroup
+                        },
+                        range.clone(),
+                    )],
                     "{source:?}"
                 );
                 let root = SyntaxNode::new_root(green.clone());
@@ -5718,11 +5469,6 @@ fn use_schema_root_alias_direct_recovery_and_handoff() {
                     assert_eq!(input, "next");
                     assert_eq!(format!("{root}{leading};{input}"), source);
                 }
-                if let Some(fresh) = &fresh {
-                    assert_eq!(&green, fresh);
-                } else {
-                    fresh = Some(green);
-                }
             }
         }
     }
@@ -5730,7 +5476,6 @@ fn use_schema_root_alias_direct_recovery_and_handoff() {
 
 #[test]
 fn use_schema_group_and_glob_alias_direct_recovery_and_handoff() {
-    use crate::recovery_record::*;
     use SyntaxKind::*;
 
     for (head, parent_kind, terminal_kind, terminal_text) in [
@@ -5773,43 +5518,10 @@ fn use_schema_group_and_glob_alias_direct_recovery_and_handoff() {
                     let prefix = format!("{head}{earlier} as{tail}");
                     let range = (range.start + alias_start - 6)..(range.end + alias_start - 6);
                     let source = format!("{prefix}{boundary}");
-                    let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Alias));
-                    let expected_records = vec![CommittedRecoveryRecord {
-                        id: DiagnosticId(0),
-                        site: RecoverySiteKey {
-                            role,
-                            range: range.clone(),
-                        },
-                        kind: if missing {
-                            RecoveryKind::Missing
-                        } else {
-                            RecoveryKind::Error
-                        },
-                        unexpected: if missing {
-                            std::sync::Arc::from([])
-                        } else {
-                            std::sync::Arc::from([UnexpectedSyntax::Token {
-                                range: range.clone(),
-                                category: UnexpectedCategory::OtherCharacter,
-                            }])
-                        },
-                        expectations: std::sync::Arc::from([SyntaxExpectation {
-                            role,
-                            expected: ExpectedSyntax::Identifier,
-                            range: range.clone(),
-                            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                        }]),
-                        primary_expectation: 0,
-                    }];
                     let operators = OperatorTable::empty();
-                    let mut fresh = None;
-                    for frozen in [false, true] {
+                    {
                         let mut input = source.as_str();
-                        let mut recover = if frozen {
-                            Recover::reconcile_for_test(&operators, &expected_records)
-                        } else {
-                            Recover::new_for_test(&operators)
-                        };
+                        let mut recover = Recover::new_for_test(&operators);
                         let mut builder = GreenNodeBuilder::new();
                         builder.start_node(Root.into());
                         let mut exit =
@@ -5818,10 +5530,17 @@ fn use_schema_group_and_glob_alias_direct_recovery_and_handoff() {
                             emit_end(&mut builder, end);
                         }
                         builder.finish_node();
-                        let green = builder.finish();
+                        let green = finish_with_discarded_recoveries(builder, recover);
                         assert_eq!(
-                            recover.finish_recoveries_for_test(),
-                            expected_records,
+                            structural_facts(&green),
+                            [(
+                                if missing {
+                                    crate::structural_diagnostic::StructuralKind::Missing
+                                } else {
+                                    crate::structural_diagnostic::StructuralKind::ErrorGroup
+                                },
+                                range.clone(),
+                            )],
                             "{source:?}"
                         );
                         let root = SyntaxNode::new_root(green.clone());
@@ -5911,11 +5630,6 @@ fn use_schema_group_and_glob_alias_direct_recovery_and_handoff() {
                             assert_eq!(input, "next");
                             assert_eq!(format!("{root}{leading};{input}"), source);
                         }
-                        if let Some(fresh) = &fresh {
-                            assert_eq!(&green, fresh);
-                        } else {
-                            fresh = Some(green);
-                        }
                     }
                 }
             }
@@ -5925,27 +5639,12 @@ fn use_schema_group_and_glob_alias_direct_recovery_and_handoff() {
 
 #[test]
 fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
-    use crate::recovery_record::*;
     use SyntaxKind::*;
 
-    for (head, group_kind, open_kind, close_kind, close, delimiter) in [
-        ("use {", UseGroup, LBrace, RBrace, "}", Delimiter::Brace),
-        (
-            "use p::* without {",
-            UseExclusionGroup,
-            LBrace,
-            RBrace,
-            "}",
-            Delimiter::Brace,
-        ),
-        (
-            "use p::* without (",
-            UseExclusionGroup,
-            LParen,
-            RParen,
-            ")",
-            Delimiter::Parenthesis,
-        ),
+    for (head, group_kind, open_kind, close_kind, close) in [
+        ("use {", UseGroup, LBrace, RBrace, "}"),
+        ("use p::* without {", UseExclusionGroup, LBrace, RBrace, "}"),
+        ("use p::* without (", UseExclusionGroup, LParen, RParen, ")"),
     ] {
         for (tail, missing, retry) in [
             ("", true, false),
@@ -5968,60 +5667,21 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
                     let start = source.find('@').unwrap();
                     start..start + "@ #".len()
                 };
-                let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Alias));
-                let mut expected_records = vec![CommittedRecoveryRecord {
-                    id: DiagnosticId(0),
-                    site: RecoverySiteKey {
-                        role,
-                        range: range.clone(),
-                    },
-                    kind: if missing {
-                        RecoveryKind::Missing
+                let mut expected_facts = vec![(
+                    if missing {
+                        crate::structural_diagnostic::StructuralKind::Missing
                     } else {
-                        RecoveryKind::Error
+                        crate::structural_diagnostic::StructuralKind::ErrorGroup
                     },
-                    unexpected: if missing {
-                        std::sync::Arc::from([])
-                    } else {
-                        std::sync::Arc::from([UnexpectedSyntax::Token {
-                            range: range.clone(),
-                            category: UnexpectedCategory::OtherCharacter,
-                        }])
-                    },
-                    expectations: std::sync::Arc::from([SyntaxExpectation {
-                        role,
-                        expected: ExpectedSyntax::Identifier,
-                        range,
-                        sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                    }]),
-                    primary_expectation: 0,
-                }];
+                    range.clone(),
+                )];
                 let matching_close = boundary.ends_with(close);
                 let close_missing = retry && !matching_close;
                 if close_missing {
-                    let role = GrammarRole::ClosingDelimiter {
-                        owner: ConstructRole::ImportGroup,
-                        delimiter,
-                    };
-                    let range = prefix.len()..prefix.len();
-                    expected_records.push(CommittedRecoveryRecord {
-                        id: DiagnosticId(1),
-                        site: RecoverySiteKey {
-                            role,
-                            range: range.clone(),
-                        },
-                        kind: RecoveryKind::Missing,
-                        unexpected: std::sync::Arc::from([]),
-                        expectations: std::sync::Arc::from([SyntaxExpectation {
-                            role,
-                            expected: ExpectedSyntax::Punctuation(PunctuationEvidence::Close(
-                                delimiter,
-                            )),
-                            range,
-                            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                        }]),
-                        primary_expectation: 0,
-                    });
+                    expected_facts.push((
+                        crate::structural_diagnostic::StructuralKind::Missing,
+                        prefix.len()..prefix.len(),
+                    ));
                 }
                 let mut alias_children = vec![(AsKw, "as")];
                 if missing {
@@ -6038,14 +5698,9 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
                     }
                 }
                 let operators = OperatorTable::empty();
-                let mut fresh = None;
-                for frozen in [false, true] {
+                {
                     let mut input = source.as_str();
-                    let mut recover = if frozen {
-                        Recover::reconcile_for_test(&operators, &expected_records)
-                    } else {
-                        Recover::new_for_test(&operators)
-                    };
+                    let mut recover = Recover::new_for_test(&operators);
                     let mut builder = GreenNodeBuilder::new();
                     builder.start_node(Root.into());
                     let mut exit =
@@ -6054,12 +5709,8 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
                         emit_end(&mut builder, end);
                     }
                     builder.finish_node();
-                    let green = builder.finish();
-                    assert_eq!(
-                        recover.finish_recoveries_for_test(),
-                        expected_records,
-                        "{source:?}"
-                    );
+                    let green = finish_with_discarded_recoveries(builder, recover);
+                    assert_eq!(structural_facts(&green), expected_facts, "{source:?}");
                     let root = SyntaxNode::new_root(green.clone());
                     let alias = root
                         .descendants()
@@ -6172,11 +5823,6 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
                         assert_eq!(input, if matching_close { "" } else { "next" });
                         assert_eq!(format!("{root}{leading}{spelling}{input}"), source);
                     }
-                    if let Some(fresh) = &fresh {
-                        assert_eq!(&green, fresh);
-                    } else {
-                        fresh = Some(green);
-                    }
                 }
             }
         }
@@ -6193,35 +5839,10 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
         let prefix = format!("{head}q as @ # r, x{close}");
         let range_start = prefix.find('@').unwrap();
         let range = range_start..range_start + "@ #".len();
-        let role = GrammarRole::Declaration(DeclarationRole::Import(ImportRole::Alias));
-        let expected_records = vec![CommittedRecoveryRecord {
-            id: DiagnosticId(0),
-            site: RecoverySiteKey {
-                role,
-                range: range.clone(),
-            },
-            kind: RecoveryKind::Error,
-            unexpected: std::sync::Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }]),
-            expectations: std::sync::Arc::from([SyntaxExpectation {
-                role,
-                expected: ExpectedSyntax::Identifier,
-                range,
-                sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-            }]),
-            primary_expectation: 0,
-        }];
         let operators = OperatorTable::empty();
-        let mut fresh = None;
-        for frozen in [false, true] {
+        {
             let mut input = prefix.as_str();
-            let mut recover = if frozen {
-                Recover::reconcile_for_test(&operators, &expected_records)
-            } else {
-                Recover::new_for_test(&operators)
-            };
+            let mut recover = Recover::new_for_test(&operators);
             let mut builder = GreenNodeBuilder::new();
             builder.start_node(Root.into());
             let mut exit = statement(SyntaxIn::new(&mut input, &mut recover, &mut builder), 0, 0);
@@ -6229,10 +5850,13 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
                 emit_end(&mut builder, end);
             }
             builder.finish_node();
-            let green = builder.finish();
+            let green = finish_with_discarded_recoveries(builder, recover);
             assert_eq!(
-                recover.finish_recoveries_for_test(),
-                expected_records,
+                structural_facts(&green),
+                [(
+                    crate::structural_diagnostic::StructuralKind::ErrorGroup,
+                    range
+                )],
                 "{prefix:?}"
             );
             assert!(matches!(exit, Err(Either::Right(_))), "{prefix:?}");
@@ -6293,11 +5917,6 @@ fn use_schema_inner_group_alias_direct_recovery_and_handoff() {
                     assert_eq!(child.parent().as_ref(), Some(&alias));
                 }
                 assert_ne!(child.kind(), Missing);
-            }
-            if let Some(fresh) = &fresh {
-                assert_eq!(&green, fresh);
-            } else {
-                fresh = Some(green);
             }
         }
     }

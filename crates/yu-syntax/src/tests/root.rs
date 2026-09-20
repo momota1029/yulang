@@ -1,10 +1,11 @@
+use crate::header::discover_header;
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::recovery_output::recovery_groups;
-use crate::{
-    OperatorTable, SyntaxNode,
-    recovery_record::{GrammarRole, StatementRole},
-    syntax_kind::SyntaxKind,
-};
-use crate::{header::discover_header, source_file::parse_root_candidate};
+use crate::{OperatorTable, SyntaxNode, syntax_kind::SyntaxKind};
+
+fn parse_root(source: &str, operators: &OperatorTable) -> rowan::GreenNode {
+    crate::cursor::parse_root(source, operators)
+}
 
 fn direct_cst_order(syntax: &SyntaxNode) -> Vec<(bool, SyntaxKind, std::ops::Range<usize>)> {
     syntax
@@ -45,15 +46,13 @@ fn root_binding_intro_wins_over_header_words() {
         assert_eq!(header.coverage, 0..0);
         assert!(header.imports.is_empty());
         assert!(header.operators.is_empty());
-        assert!(header.recoveries.is_empty());
-        let root = parse_root_candidate(&source, &OperatorTable::empty(), &header.recoveries);
-        assert_eq!(root.green.to_string(), source);
+        let green = parse_root(&source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source);
         assert!(
-            root.committed_recoveries.is_empty(),
-            "{word}: {:?}",
-            root.committed_recoveries
+            crate::tests::support::structural_facts(&green).is_empty(),
+            "{word}"
         );
-        let syntax = SyntaxNode::new_root(root.green);
+        let syntax = SyntaxNode::new_root(green);
         assert_eq!(
             syntax
                 .children()
@@ -67,14 +66,14 @@ fn root_binding_intro_wins_over_header_words() {
 #[test]
 fn root_initial_indent_is_rejected_but_semicolon_gap_is_allowed() {
     for source in ["  use a", "\n  my a = 1"] {
-        let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
-        assert_eq!(root.green.to_string(), source);
-        assert_eq!(root.committed_recoveries.len(), 1);
+        let green = parse_root(source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source);
+        let error_start = source.len() - source.trim_start().len();
         assert_eq!(
-            root.committed_recoveries[0].site.role,
-            GrammarRole::Statement(StatementRole::Starter)
+            crate::tests::support::structural_facts(&green),
+            [(StructuralKind::ErrorGroup, error_start..source.len())]
         );
-        let syntax = SyntaxNode::new_root(root.green);
+        let syntax = SyntaxNode::new_root(green);
         assert_eq!(syntax.children().count(), 0);
         let groups = recovery_groups(&syntax);
         assert_eq!(groups.len(), 1);
@@ -82,10 +81,10 @@ fn root_initial_indent_is_rejected_but_semicolon_gap_is_allowed() {
         assert_eq!(groups[0].text(), source.trim_start());
     }
     let source = "a;  use b;  my c = 1";
-    let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
-    assert_eq!(root.green.to_string(), source);
-    assert!(root.committed_recoveries.is_empty());
-    let syntax = SyntaxNode::new_root(root.green);
+    let green = parse_root(source, &OperatorTable::empty());
+    assert_eq!(green.to_string(), source);
+    assert!(crate::tests::support::structural_facts(&green).is_empty());
+    let syntax = SyntaxNode::new_root(green);
     assert_eq!(
         syntax
             .children()
@@ -108,15 +107,10 @@ fn root_keeps_private_and_public_lazy_operator_modifiers() {
         let header = discover_header(source);
         assert_eq!(header.operators.len(), 1);
         assert_eq!(header.imports.len(), 1);
-        assert!(header.recoveries.is_empty());
-        let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
-        assert_eq!(root.green.to_string(), source);
-        assert!(
-            root.committed_recoveries.is_empty(),
-            "{:?}",
-            root.committed_recoveries
-        );
-        let syntax = SyntaxNode::new_root(root.green);
+        let green = parse_root(source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source);
+        assert!(crate::tests::support::structural_facts(&green).is_empty());
+        let syntax = SyntaxNode::new_root(green);
         assert_eq!(
             syntax
                 .children()
@@ -141,38 +135,13 @@ fn root_keeps_multiple_statements_and_separators_lossless() {
         "my a = 1\r\nmy b = 2\r\n",
         "use a\nuse b\nmy x = 1\n",
     ] {
-        let header = discover_header(source);
-        let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
-        assert_eq!(root.green.to_string(), source, "{source:?}");
+        let green = parse_root(source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source, "{source:?}");
         assert!(
-            root.committed_recoveries.is_empty(),
-            "{source:?}: {:?}",
-            root.committed_recoveries
+            crate::tests::support::structural_facts(&green).is_empty(),
+            "{source:?}"
         );
     }
-}
-
-#[test]
-fn root_reconciles_header_records_after_full_only_operator_body_record() {
-    let source = "prefix (?) 70 =\nuse a as\nuse good\nmy x = 1\n";
-    let header = discover_header(source);
-    assert!(!header.recoveries.is_empty());
-    let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
-    assert_eq!(root.green.to_string(), source);
-    for frozen in &header.recoveries {
-        assert_eq!(
-            root.committed_recoveries
-                .iter()
-                .find(|record| record.id == frozen.id),
-            Some(frozen)
-        );
-    }
-    assert!(
-        root.committed_recoveries
-            .iter()
-            .any(|record| record.site.role
-                == GrammarRole::Statement(StatementRole::OperatorDefinitionBody))
-    );
 }
 
 #[test]
@@ -186,19 +155,17 @@ fn root_error_keeps_nested_delimiters_and_literal_newlines_inside_one_run() {
         "] '[a;\nb]\nuse good\n",
         "] '{\n```text\n}\n```\n}\nuse good\n",
     ] {
-        let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
-        assert_eq!(root.green.to_string(), source, "{source:?}");
+        let green = parse_root(source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source, "{source:?}");
         assert_eq!(
-            root.committed_recoveries.len(),
-            1,
-            "{source:?}: {:?}",
-            root.committed_recoveries
+            crate::tests::support::structural_facts(&green),
+            [(
+                StructuralKind::ErrorGroup,
+                0..source.find("\nuse good").unwrap()
+            )],
+            "{source:?}"
         );
-        assert_eq!(
-            root.committed_recoveries[0].site.range,
-            0..source.find("\nuse good").unwrap()
-        );
-        let syntax = SyntaxNode::new_root(root.green);
+        let syntax = SyntaxNode::new_root(green);
         assert_eq!(
             syntax
                 .descendants()
@@ -212,9 +179,16 @@ fn root_error_keeps_nested_delimiters_and_literal_newlines_inside_one_run() {
 #[test]
 fn root_raw_error_repeats_across_a_native_semicolon_and_progresses() {
     let source = "];]\r\nnext";
-    let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
-    assert_eq!(root.green.to_string(), source);
-    let syntax = SyntaxNode::new_root(root.green);
+    let green = parse_root(source, &OperatorTable::empty());
+    assert_eq!(green.to_string(), source);
+    assert_eq!(
+        crate::tests::support::structural_facts(&green),
+        [
+            (StructuralKind::ErrorGroup, 0..1),
+            (StructuralKind::ErrorGroup, 2..3),
+        ]
+    );
+    let syntax = SyntaxNode::new_root(green);
     assert_eq!(direct_error_ranges(&syntax), [0..1, 2..3]);
     let groups = recovery_groups(&syntax);
     assert_eq!(groups.len(), 2);
@@ -263,20 +237,6 @@ fn root_raw_error_repeats_across_a_native_semicolon_and_progresses() {
 
 #[test]
 fn root_raw_error_retry_and_terminal_leading_preserve_direct_ownership() {
-    use crate::recovery_record::{
-        ExpectationSources, ExpectedSyntax, KeywordEvidence, RecoveryKind, RootUnexpected,
-        UnexpectedSyntax,
-    };
-
-    const ROOT_KEYWORDS: [KeywordEvidence; 6] = [
-        KeywordEvidence::Use,
-        KeywordEvidence::Lazy,
-        KeywordEvidence::Prefix,
-        KeywordEvidence::Infix,
-        KeywordEvidence::Suffix,
-        KeywordEvidence::Nullfix,
-    ];
-
     struct Row {
         source: &'static str,
         error_range: std::ops::Range<usize>,
@@ -332,59 +292,21 @@ fn root_raw_error_retry_and_terminal_leading_preserve_direct_ownership() {
     ];
 
     for row in rows {
-        let root = parse_root_candidate(row.source, &OperatorTable::empty(), &[]);
-        assert_eq!(root.green.to_string(), row.source, "{:?}", row.source);
-        assert_eq!(root.committed_recoveries.len(), 1, "{:?}", row.source);
-        let record = &root.committed_recoveries[0];
-        assert_eq!(record.kind, RecoveryKind::Error, "{:?}", row.source);
+        let green = parse_root(row.source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), row.source, "{:?}", row.source);
         assert_eq!(
-            record.site.role,
-            GrammarRole::Statement(StatementRole::Starter),
+            crate::tests::support::structural_facts(&green),
+            [(StructuralKind::ErrorGroup, row.error_range.clone())],
             "{:?}",
             row.source
         );
-        assert_eq!(record.site.range, row.error_range, "{:?}", row.source);
-        assert!(
-            matches!(
-                record.unexpected.as_ref(),
-                [UnexpectedSyntax::Root(RootUnexpected::UnrecognizedStarter { range, .. })]
-                    if range == &record.site.range
-            ),
-            "{:?}: {:?}",
-            row.source,
-            record.unexpected
-        );
-        assert_eq!(record.primary_expectation, 0, "{:?}", row.source);
-        assert_eq!(
-            record.expectations.len(),
-            ROOT_KEYWORDS.len(),
-            "{:?}",
-            row.source
-        );
-        for (expectation, keyword) in record.expectations.iter().zip(ROOT_KEYWORDS) {
-            assert_eq!(expectation.role, record.site.role, "{:?}", row.source);
-            assert_eq!(
-                expectation.expected,
-                ExpectedSyntax::Keyword(keyword),
-                "{:?}",
-                row.source
-            );
-            assert_eq!(expectation.range, record.site.range, "{:?}", row.source);
-            assert_eq!(
-                expectation.sources,
-                ExpectationSources::COMMITTED_RECOVERY_RULE,
-                "{:?}",
-                row.source
-            );
-        }
-
-        let syntax = SyntaxNode::new_root(root.green);
+        let syntax = SyntaxNode::new_root(green);
         let groups = recovery_groups(&syntax);
         assert_eq!(groups.len(), 1, "{:?}: {groups:#?}", row.source);
         assert_eq!(groups[0].parent(), Some(syntax.clone()), "{:?}", row.source);
         assert_eq!(
             usize::from(groups[0].text_range().start())..usize::from(groups[0].text_range().end()),
-            record.site.range,
+            row.error_range,
             "{:?}",
             row.source
         );
@@ -421,9 +343,13 @@ fn root_raw_error_retry_and_terminal_leading_preserve_direct_ownership() {
 #[test]
 fn root_raw_error_opaque_utf8_fragments_preserve_byte_ranges() {
     let source = "] \"é;\n💥\"\nuse good\n";
-    let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
-    assert_eq!(root.green.to_string(), source);
-    let syntax = SyntaxNode::new_root(root.green);
+    let green = parse_root(source, &OperatorTable::empty());
+    assert_eq!(green.to_string(), source);
+    assert_eq!(
+        crate::tests::support::structural_facts(&green),
+        [(StructuralKind::ErrorGroup, 0..12)]
+    );
+    let syntax = SyntaxNode::new_root(green);
     assert_eq!(direct_error_ranges(&syntax), [0..12]);
     assert_eq!(
         direct_cst_order(&syntax),
@@ -479,15 +405,10 @@ fn root_raw_error_opaque_utf8_fragments_preserve_byte_ranges() {
 #[test]
 fn root_operator_body_uses_expression_and_preserves_following_statement() {
     let source = "prefix (?) 70 = value\nmy next = 2\n";
-    let header = discover_header(source);
-    let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
-    assert_eq!(root.green.to_string(), source);
-    assert!(
-        root.committed_recoveries.is_empty(),
-        "{:?}",
-        root.committed_recoveries
-    );
-    let syntax = SyntaxNode::new_root(root.green);
+    let green = parse_root(source, &OperatorTable::empty());
+    assert_eq!(green.to_string(), source);
+    assert!(crate::tests::support::structural_facts(&green).is_empty());
+    let syntax = SyntaxNode::new_root(green);
     assert_eq!(
         syntax
             .children()
@@ -510,23 +431,14 @@ fn root_operator_body_uses_expression_and_preserves_following_statement() {
 
 #[test]
 fn root_expression_trailing_input_has_separator_role_and_root_owned_gaps() {
-    use crate::recovery_record::{ExpectedSyntax, RecoveryKind};
     let source = "値  ] \r\nnext";
-    let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
-    assert_eq!(root.green.to_string(), source);
-    assert_eq!(root.committed_recoveries.len(), 1);
-    let record = &root.committed_recoveries[0];
+    let green = parse_root(source, &OperatorTable::empty());
+    assert_eq!(green.to_string(), source);
     assert_eq!(
-        record.site.role,
-        GrammarRole::Statement(StatementRole::Separator)
+        crate::tests::support::structural_facts(&green),
+        [(StructuralKind::ErrorGroup, 5..6)]
     );
-    assert_eq!(record.kind, RecoveryKind::Error);
-    assert_eq!(record.site.range, 5..6);
-    assert_eq!(
-        record.expectations[0].expected,
-        ExpectedSyntax::StatementSeparator
-    );
-    let syntax = SyntaxNode::new_root(root.green);
+    let syntax = SyntaxNode::new_root(green);
     let children = syntax
         .children_with_tokens()
         .map(|element| (element.kind(), element.to_string()))
@@ -546,32 +458,14 @@ fn root_expression_trailing_input_has_separator_role_and_root_owned_gaps() {
 
 #[test]
 fn root_error_keeps_undeclared_operator_as_raw_token() {
-    use crate::recovery_record::{
-        RecoveryKind, RootUnexpected, RootUnexpectedHead, StatementKind, UnexpectedSyntax,
-    };
-
     let source = "use a <+>\r\nnext";
-    let root = parse_root_candidate(source, &OperatorTable::empty(), &[]);
-    assert_eq!(root.green.to_string(), source);
-    assert_eq!(root.committed_recoveries.len(), 1);
-    let record = &root.committed_recoveries[0];
-    assert_eq!(record.kind, RecoveryKind::Error);
+    let green = parse_root(source, &OperatorTable::empty());
+    assert_eq!(green.to_string(), source);
     assert_eq!(
-        record.site.role,
-        GrammarRole::Statement(StatementRole::TrailingInput {
-            owner: StatementKind::UseDeclaration,
-        })
+        crate::tests::support::structural_facts(&green),
+        [(StructuralKind::ErrorGroup, 6..9)]
     );
-    assert_eq!(record.site.range, 6..9);
-    assert_eq!(
-        record.unexpected.as_ref(),
-        [UnexpectedSyntax::Root(RootUnexpected::TrailingInput {
-            owner: StatementKind::UseDeclaration,
-            range: 6..9,
-            head: RootUnexpectedHead::OperatorLike,
-        })]
-    );
-    let syntax = SyntaxNode::new_root(root.green);
+    let syntax = SyntaxNode::new_root(green);
     let error = recovery_groups(&syntax).into_iter().next().unwrap();
     assert_eq!(error.parent(), Some(syntax));
     assert_eq!(error.to_string(), "<+>");
@@ -585,44 +479,14 @@ fn root_error_keeps_undeclared_operator_as_raw_token() {
 
 #[test]
 fn root_direct_raw_error_requires_ordered_context() {
-    use crate::recovery_record::{ExpectedSyntax, KeywordEvidence, RecoveryKind, StatementKind};
-
-    const ROOT_EXPECTATIONS: &[ExpectedSyntax] = &[
-        ExpectedSyntax::Keyword(KeywordEvidence::Use),
-        ExpectedSyntax::Keyword(KeywordEvidence::Lazy),
-        ExpectedSyntax::Keyword(KeywordEvidence::Prefix),
-        ExpectedSyntax::Keyword(KeywordEvidence::Infix),
-        ExpectedSyntax::Keyword(KeywordEvidence::Suffix),
-        ExpectedSyntax::Keyword(KeywordEvidence::Nullfix),
-    ];
-    const SEPARATOR_EXPECTATIONS: &[ExpectedSyntax] = &[ExpectedSyntax::StatementSeparator];
-    const BODY_EXPECTATIONS: &[ExpectedSyntax] = &[ExpectedSyntax::Expression];
-
     struct Row {
         prefix: &'static str,
         before_error: &'static str,
         malformed: &'static str,
         after_error: &'static str,
-        role: GrammarRole,
-        expectations: &'static [ExpectedSyntax],
         before_group: Vec<SyntaxKind>,
         after_group: Vec<(SyntaxKind, &'static str)>,
     }
-
-    let trailing = |owner, accepted_owner| Row {
-        prefix: "",
-        before_error: " ",
-        malformed: "]",
-        after_error: "",
-        role: GrammarRole::Statement(StatementRole::TrailingInput { owner }),
-        expectations: ROOT_EXPECTATIONS,
-        before_group: if owner == StatementKind::OperatorDefinition {
-            vec![SyntaxKind::OperatorHeader, SyntaxKind::OperatorChain]
-        } else {
-            vec![accepted_owner]
-        },
-        after_group: vec![(SyntaxKind::OperatorChain, "next")],
-    };
 
     let mut rows = vec![
         Row {
@@ -630,8 +494,6 @@ fn root_direct_raw_error_requires_ordered_context() {
             before_error: "",
             malformed: "]",
             after_error: "",
-            role: GrammarRole::Statement(StatementRole::Starter),
-            expectations: ROOT_EXPECTATIONS,
             before_group: vec![],
             after_group: vec![(SyntaxKind::OperatorChain, "next")],
         },
@@ -640,90 +502,42 @@ fn root_direct_raw_error_requires_ordered_context() {
             before_error: "   ",
             malformed: "]",
             after_error: "",
-            role: GrammarRole::Statement(StatementRole::Separator),
-            expectations: SEPARATOR_EXPECTATIONS,
             before_group: vec![SyntaxKind::OperatorChain],
             after_group: vec![(SyntaxKind::OperatorChain, "next")],
         },
     ];
-    for (prefix, owner, accepted_owner) in [
-        (
-            "use a",
-            StatementKind::UseDeclaration,
-            SyntaxKind::UseDeclaration,
-        ),
-        (
-            "my x = value",
-            StatementKind::BindingDeclaration,
-            SyntaxKind::BindingStatement,
-        ),
-        (
-            "mod M {x}",
-            StatementKind::ModDeclaration,
-            SyntaxKind::ModDeclaration,
-        ),
-        (
-            "struct S {}",
-            StatementKind::StructDeclaration,
-            SyntaxKind::StructDeclaration,
-        ),
-        (
-            "enum E {A}",
-            StatementKind::EnumDeclaration,
-            SyntaxKind::EnumDeclaration,
-        ),
-        (
-            "error E {A}",
-            StatementKind::ErrorDeclaration,
-            SyntaxKind::ErrorDeclaration,
-        ),
-        (
-            "type T = A",
-            StatementKind::TypeDeclaration,
-            SyntaxKind::TypeDeclaration,
-        ),
-        (
-            "role R {}",
-            StatementKind::RoleDeclaration,
-            SyntaxKind::RoleDeclaration,
-        ),
-        (
-            "impl T {}",
-            StatementKind::ImplDeclaration,
-            SyntaxKind::ImplDeclaration,
-        ),
-        (
-            "cast(x): A = value",
-            StatementKind::CastDeclaration,
-            SyntaxKind::CastDeclaration,
-        ),
-        (
-            "act A {}",
-            StatementKind::ActDeclaration,
-            SyntaxKind::ActDeclaration,
-        ),
-        (
-            "for x in xs: x",
-            StatementKind::ForStatement,
-            SyntaxKind::ForStatement,
-        ),
+    for (prefix, before_group) in [
+        ("use a", vec![SyntaxKind::UseDeclaration]),
+        ("my x = value", vec![SyntaxKind::BindingStatement]),
+        ("mod M {x}", vec![SyntaxKind::ModDeclaration]),
+        ("struct S {}", vec![SyntaxKind::StructDeclaration]),
+        ("enum E {A}", vec![SyntaxKind::EnumDeclaration]),
+        ("error E {A}", vec![SyntaxKind::ErrorDeclaration]),
+        ("type T = A", vec![SyntaxKind::TypeDeclaration]),
+        ("role R {}", vec![SyntaxKind::RoleDeclaration]),
+        ("impl T {}", vec![SyntaxKind::ImplDeclaration]),
+        ("cast(x): A = value", vec![SyntaxKind::CastDeclaration]),
+        ("act A {}", vec![SyntaxKind::ActDeclaration]),
+        ("for x in xs: x", vec![SyntaxKind::ForStatement]),
         (
             "prefix (?) 70 = value",
-            StatementKind::OperatorDefinition,
-            SyntaxKind::OperatorHeader,
+            vec![SyntaxKind::OperatorHeader, SyntaxKind::OperatorChain],
         ),
     ] {
-        let mut row = trailing(owner, accepted_owner);
-        row.prefix = prefix;
-        rows.push(row);
+        rows.push(Row {
+            prefix,
+            before_error: " ",
+            malformed: "]",
+            after_error: "",
+            before_group,
+            after_group: vec![(SyntaxKind::OperatorChain, "next")],
+        });
     }
     rows.push(Row {
         prefix: "prefix (?) 70 = ",
         before_error: "",
         malformed: "@@",
         after_error: "value",
-        role: GrammarRole::Statement(StatementRole::OperatorDefinitionBody),
-        expectations: BODY_EXPECTATIONS,
         before_group: vec![SyntaxKind::OperatorHeader],
         after_group: vec![
             (SyntaxKind::OperatorChain, "value"),
@@ -738,28 +552,15 @@ fn root_direct_raw_error_requires_ordered_context() {
         );
         let error_start = source.find(row.malformed).unwrap();
         let error_end = error_start + row.malformed.len();
-        let header = discover_header(&source);
-        let fresh = parse_root_candidate(&source, &OperatorTable::empty(), &header.recoveries);
-        assert_eq!(fresh.green.to_string(), source, "{source:?}");
-        assert_eq!(fresh.committed_recoveries.len(), 1, "{source:?}");
-        let record = &fresh.committed_recoveries[0];
-        assert_eq!(record.kind, RecoveryKind::Error, "{source:?}");
-        assert_eq!(record.site.role, row.role, "{source:?}");
-        assert_eq!(record.site.range, error_start..error_end, "{source:?}");
+        let green = parse_root(&source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source, "{source:?}");
         assert_eq!(
-            record.expectations.len(),
-            row.expectations.len(),
+            crate::tests::support::structural_facts(&green),
+            [(StructuralKind::ErrorGroup, error_start..error_end)],
             "{source:?}"
         );
-        for (expectation, expected) in record.expectations.iter().zip(row.expectations) {
-            assert_eq!(expectation.role, row.role, "{source:?}");
-            assert_eq!(expectation.range, error_start..error_end, "{source:?}");
-            assert_eq!(expectation.expected, *expected, "{source:?}");
-        }
-
-        let syntax = SyntaxNode::new_root(fresh.green);
-        // Keep native boundaries and node/token identity: Error spelling and
-        // recovery records cannot select the Root slot in a CST-only walk.
+        let syntax = SyntaxNode::new_root(green);
+        // Keep native boundaries and node/token identity.
         let mut expected_direct = Vec::new();
         if row.before_group.first() == Some(&SyntaxKind::OperatorHeader) {
             expected_direct.push((true, SyntaxKind::OperatorHeader, 0..15));
@@ -882,31 +683,17 @@ fn root_direct_raw_error_requires_ordered_context() {
 
 #[test]
 fn root_operator_body_missing_gap_and_empty_body_keep_typed_owner() {
-    use crate::recovery_record::{ExpectedSyntax, LayoutRole, RecoveryKind};
-    for (source, role, at, expected) in [
-        (
-            "prefix (?) 70 =value",
-            GrammarRole::Layout(LayoutRole::InlineTrivia),
-            15,
-            ExpectedSyntax::InlineTrivia,
-        ),
-        (
-            "prefix (?) 70 =\r\nuse good",
-            GrammarRole::Statement(StatementRole::OperatorDefinitionBody),
-            15,
-            ExpectedSyntax::Expression,
-        ),
+    for (source, trailing_statement) in [
+        ("prefix (?) 70 =value", false),
+        ("prefix (?) 70 =\r\nuse good", true),
     ] {
-        let header = discover_header(source);
-        let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
-        assert_eq!(root.green.to_string(), source);
-        assert_eq!(root.committed_recoveries.len(), 1);
-        let record = &root.committed_recoveries[0];
-        assert_eq!(record.site.role, role);
-        assert_eq!(record.site.range, at..at);
-        assert_eq!(record.kind, RecoveryKind::Missing);
-        assert_eq!(record.expectations[0].expected, expected);
-        let syntax = SyntaxNode::new_root(root.green);
+        let green = parse_root(source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source);
+        assert_eq!(
+            crate::tests::support::structural_facts(&green),
+            [(StructuralKind::Missing, 15..15)]
+        );
+        let syntax = SyntaxNode::new_root(green);
         let header = syntax.children().next().unwrap();
         assert!(header.children_with_tokens().any(|element| {
             matches!(element, rowan::NodeOrToken::Token(_)) && element.kind() == SyntaxKind::Equals
@@ -915,58 +702,38 @@ fn root_operator_body_missing_gap_and_empty_body_keep_typed_owner() {
             (true, SyntaxKind::OperatorHeader, 0..15),
             (true, SyntaxKind::Missing, 15..15),
         ];
-        if expected == ExpectedSyntax::InlineTrivia {
-            order.push((true, SyntaxKind::OperatorChain, 15..20));
-        } else {
+        if trailing_statement {
             order.push((false, SyntaxKind::Newline, 15..17));
             order.push((true, SyntaxKind::UseDeclaration, 17..25));
+        } else {
+            order.push((true, SyntaxKind::OperatorChain, 15..20));
         }
         assert_eq!(direct_cst_order(&syntax), order, "{source:?}");
     }
 }
 
 #[test]
-fn later_use_recovery_allocates_above_seeded_leading_header_identity() {
-    use crate::recovery_record::DiagnosticId;
-    let source = "use a as\nmy x = 1\nuse b as";
-    let mut header = discover_header(source);
-    assert_eq!(header.recoveries.len(), 1);
-    header.recoveries[0].id = DiagnosticId(41);
-    let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
-    assert_eq!(root.green.to_string(), source);
-    assert_eq!(root.committed_recoveries.len(), 2);
-    assert_eq!(root.committed_recoveries[0], header.recoveries[0]);
-    assert_eq!(root.committed_recoveries[1].id, DiagnosticId(42));
-}
-
-#[test]
 fn operator_body_error_is_root_sibling_and_cannot_retry_into_later_header() {
-    use crate::recovery_record::RecoveryKind;
     for source in [
         "prefix (?) 70 = @@value\nuse a as",
         "prefix (?) 70 = @@\nuse a as",
     ] {
-        let header = discover_header(source);
-        let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
-        assert_eq!(root.green.to_string(), source);
-        let body_records = root
-            .committed_recoveries
-            .iter()
-            .filter(|record| {
-                record.site.role == GrammarRole::Statement(StatementRole::OperatorDefinitionBody)
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(body_records[0].kind, RecoveryKind::Error);
-        assert_eq!(body_records[0].site.range, 16..18);
-        if source.contains("@@\n") {
-            assert_eq!(body_records.len(), 2);
-            assert_eq!(body_records[1].kind, RecoveryKind::Missing);
-            assert_eq!(body_records[1].site.range, 18..18);
+        let green = parse_root(source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source);
+        let expected = if source.contains("@@\n") {
+            vec![
+                (StructuralKind::ErrorGroup, 16..18),
+                (StructuralKind::Missing, 18..18),
+                (StructuralKind::Missing, source.len()..source.len()),
+            ]
         } else {
-            assert_eq!(body_records.len(), 1);
-        }
-        assert_eq!(root.committed_recoveries.last(), header.recoveries.last());
-        let syntax = SyntaxNode::new_root(root.green);
+            vec![
+                (StructuralKind::ErrorGroup, 16..18),
+                (StructuralKind::Missing, source.len()..source.len()),
+            ]
+        };
+        assert_eq!(crate::tests::support::structural_facts(&green), expected);
+        let syntax = SyntaxNode::new_root(green);
         let groups = recovery_groups(&syntax);
         let trailing = groups
             .iter()
@@ -983,10 +750,9 @@ fn operator_body_error_is_root_sibling_and_cannot_retry_into_later_header() {
 #[test]
 fn root_operator_header_body_and_trailing_errors_are_direct_and_ordered() {
     let parse = |source| {
-        let header = discover_header(source);
-        let root = parse_root_candidate(source, &OperatorTable::empty(), &header.recoveries);
-        assert_eq!(root.green.to_string(), source, "{source:?}");
-        SyntaxNode::new_root(root.green)
+        let green = parse_root(source, &OperatorTable::empty());
+        assert_eq!(green.to_string(), source, "{source:?}");
+        SyntaxNode::new_root(green)
     };
     let direct = |syntax: &SyntaxNode| {
         syntax

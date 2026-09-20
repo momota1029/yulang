@@ -3,18 +3,10 @@
 use reborrow_generic::Reborrow as _;
 use unicode_ident::is_xid_continue;
 
-use crate::cursor::recovery::RecoveryDraft;
-use crate::recovery_record::{
-    ConstructRole, DeclarationRole, Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole,
-    ImportRole, PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation,
-    UnexpectedCategory, UnexpectedSyntax,
-};
 use crate::{
     HeaderImport, HeaderImportForm, HeaderImportRoute, HeaderImportRouteSeparator, Visibility,
     syntax_kind::SyntaxKind,
 };
-use std::{ops::Range, sync::Arc};
-
 use crate::{
     cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing},
     cursor::{LexIn, SyntaxIn},
@@ -298,25 +290,13 @@ fn use_declaration_projected_normalized(
 
     let mut item = next_use_item(i.rb(), &mut item_origin, &mut line_entry, fence);
     if item.payload_view().is_boundary() {
-        missing(
-            i.rb(),
-            &item,
-            item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, item_origin);
         i.state.finish_node();
         return complete(handoff(item), line_entry);
     }
     let had_inline_gap = inline_gap(&item);
     if declaration_boundary(i.rb(), &item, stops, true) {
-        missing(
-            i.rb(),
-            &item,
-            item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, item_origin);
         i.state.finish_node();
         return complete(handoff(item), line_entry);
     }
@@ -324,18 +304,11 @@ fn use_declaration_projected_normalized(
         item.emit_all_remaining_leading(&mut *i.state);
     }
     if use_tree_starter(&item) && !had_inline_gap {
-        missing(
-            i.rb(),
-            &item,
-            item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, item_origin);
     }
 
     if !use_tree_starter(&item) {
         match recover_until(
-            ImportRole::Path,
             i.rb(),
             item,
             |_, item, _, _, _| use_tree_retry(item),
@@ -552,30 +525,17 @@ fn parse_mod_target(
     }
     i.state.start_node(SyntaxKind::UsePath.into());
     if boundary {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, *item_origin);
         i.state.finish_node();
         return Err(item);
     }
     if gap {
         item.emit_all_remaining_leading(&mut *i.state);
     } else if word_starter(&item) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, *item_origin);
     }
     let (present, item) = match required_word(
         projection,
-        ImportRole::Path,
         i.rb(),
         item,
         baseline,
@@ -782,27 +742,14 @@ fn required_path_segment(
         ));
     }
     if path_local_boundary(&item) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, *item_origin);
         return Ok((false, item));
     }
     if declaration_boundary(i.rb(), &item, stops, true) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, *item_origin);
         return Err(item);
     }
     let (retry, mut item) = recover_until(
-        ImportRole::Path,
         i.rb(),
         item,
         path_segment_retry,
@@ -828,7 +775,6 @@ fn required_path_segment(
 #[allow(clippy::too_many_arguments)]
 fn required_word(
     projection: &mut Projection,
-    role: ImportRole,
     mut i: SyntaxIn,
     item: Item,
     baseline: usize,
@@ -843,27 +789,14 @@ fn required_word(
         return Ok((true, next_use_item(i, item_origin, line_entry, fence)));
     }
     if reserved_use_atom(&item) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(role),
-            ExpectedSyntax::Identifier,
-        );
+        missing(i.rb(), &item, *item_origin);
         return Ok((false, item));
     }
     if declaration_boundary(i.rb(), &item, stops, true) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(role),
-            ExpectedSyntax::Identifier,
-        );
+        missing(i.rb(), &item, *item_origin);
         return Err(item);
     }
     let (retry, item) = recover_until(
-        role,
         i.rb(),
         item,
         |_, item, _, _, _| word_retry(item),
@@ -913,13 +846,7 @@ fn parse_operator_name(
     emit_item_as(&mut i, open, SyntaxKind::LParen);
     let item = next_use_item(i.rb(), item_origin, line_entry, fence);
     if !item.leading_view().is_grammar_empty() || !operator_spelling(&item) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::OperatorName,
-        );
+        missing(i.rb(), &item, *item_origin);
         i.state.finish_node();
         return item;
     }
@@ -932,13 +859,7 @@ fn parse_operator_name(
         i.state.finish_node();
         item
     } else {
-        missing_close(
-            i.rb(),
-            &item,
-            *item_origin,
-            ')',
-            ConstructRole::OperatorName,
-        );
+        missing_close(i.rb(), &item, *item_origin);
         i.state.finish_node();
         item
     }
@@ -965,13 +886,7 @@ fn parse_group(
     let mut after_child = false;
     loop {
         if group_caller_boundary(i.rb(), &item, close, baseline, stops) {
-            missing_close(
-                i.rb(),
-                &item,
-                *item_origin,
-                close,
-                ConstructRole::ImportGroup,
-            );
+            missing_close(i.rb(), &item, *item_origin);
             i.state.finish_node();
             return Err(item);
         }
@@ -985,13 +900,7 @@ fn parse_group(
         }
         if exact_char(&item, ',') {
             if !after_child {
-                missing(
-                    i.rb(),
-                    &item,
-                    *item_origin,
-                    import_role(ImportRole::GroupEntry),
-                    ExpectedSyntax::Path,
-                );
+                missing(i.rb(), &item, *item_origin);
             }
             emit_item_as(&mut i, item, SyntaxKind::Comma);
             item = next_use_item(i.rb(), item_origin, line_entry, fence);
@@ -1000,37 +909,19 @@ fn parse_group(
         }
         if mismatched_close(&item, close) {
             if outer_close.is_some_and(|outer| exact_char(&item, outer)) {
-                missing_close(
-                    i.rb(),
-                    &item,
-                    *item_origin,
-                    close,
-                    ConstructRole::ImportGroup,
-                );
+                missing_close(i.rb(), &item, *item_origin);
                 i.state.finish_node();
                 return Ok(item);
             }
             i.state.start_node(SyntaxKind::UseGroupForeignClose.into());
-            error_item(
-                i.rb(),
-                item,
-                *item_origin,
-                closing_role(close, ConstructRole::ImportGroup),
-                ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter(close))),
-            );
+            error_item(i.rb(), item, *item_origin);
             i.state.finish_node();
             item = next_use_item(i.rb(), item_origin, line_entry, fence);
             continue;
         }
         if use_tree_starter(&item) {
             if after_child && !newline {
-                missing(
-                    i.rb(),
-                    &item,
-                    *item_origin,
-                    import_role(ImportRole::GroupEntry),
-                    ExpectedSyntax::Punctuation(PunctuationEvidence::Comma),
-                );
+                missing(i.rb(), &item, *item_origin);
             }
             item = match parse_use_tree(
                 projection,
@@ -1109,25 +1000,13 @@ fn parse_glob(
             emit_item_as(&mut i, item, SyntaxKind::WithoutKw);
             item = next_use_item(i.rb(), item_origin, line_entry, fence);
             if declaration_boundary(i.rb(), &item, stops, true) {
-                missing(
-                    i.rb(),
-                    &item,
-                    *item_origin,
-                    import_role(ImportRole::Path),
-                    ExpectedSyntax::Path,
-                );
+                missing(i.rb(), &item, *item_origin);
                 return Err(item);
             }
             if inline_gap(&item) {
                 item.emit_all_remaining_leading(&mut *i.state);
             } else if exclusion_starter(&item) {
-                missing(
-                    i.rb(),
-                    &item,
-                    *item_origin,
-                    import_role(ImportRole::Path),
-                    ExpectedSyntax::Path,
-                );
+                missing(i.rb(), &item, *item_origin);
             }
             let (present, next) = required_exclusion(
                 projection,
@@ -1146,13 +1025,7 @@ fn parse_glob(
                     emit_item_as(&mut i, item, SyntaxKind::Comma);
                     item = next_use_item(i.rb(), item_origin, line_entry, fence);
                     if declaration_boundary(i.rb(), &item, stops, false) {
-                        missing(
-                            i.rb(),
-                            &item,
-                            *item_origin,
-                            import_role(ImportRole::Path),
-                            ExpectedSyntax::Path,
-                        );
+                        missing(i.rb(), &item, *item_origin);
                         return Err(item);
                     }
                     item.emit_all_remaining_leading(&mut *i.state);
@@ -1209,27 +1082,14 @@ fn required_exclusion(
         ));
     }
     if reserved_use_atom(&item) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, *item_origin);
         return Ok((false, item));
     }
     if declaration_boundary(i.rb(), &item, stops, true) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, *item_origin);
         return Err(item);
     }
     let (retry, item) = recover_until(
-        ImportRole::Path,
         i.rb(),
         item,
         |_, item, _, _, _| {
@@ -1344,31 +1204,18 @@ fn parse_aliases(
         item = next_use_item(i.rb(), item_origin, line_entry, fence);
         if declaration_boundary(i.rb(), &item, stops, true) {
             projection.invalid = true;
-            missing(
-                i.rb(),
-                &item,
-                *item_origin,
-                import_role(ImportRole::Alias),
-                ExpectedSyntax::Identifier,
-            );
+            missing(i.rb(), &item, *item_origin);
             i.state.finish_node();
             return Err(item);
         }
         if inline_gap(&item) {
             item.emit_all_remaining_leading(&mut *i.state);
         } else if word_starter(&item) {
-            missing(
-                i.rb(),
-                &item,
-                *item_origin,
-                import_role(ImportRole::Alias),
-                ExpectedSyntax::Identifier,
-            );
+            missing(i.rb(), &item, *item_origin);
         }
         projection.alias = true;
         let result = required_word(
             projection,
-            ImportRole::Alias,
             i.rb(),
             item,
             baseline,
@@ -1464,13 +1311,7 @@ fn parse_anchor(
     item = next_use_item(i.rb(), item_origin, line_entry, fence);
     if declaration_boundary(i.rb(), &item, stops, true) {
         i.state.start_node(SyntaxKind::UsePath.into());
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, *item_origin);
         i.state.finish_node();
         i.state.finish_node();
         return Err(item);
@@ -1481,18 +1322,11 @@ fn parse_anchor(
     }
     i.state.start_node(SyntaxKind::UsePath.into());
     if !has_inline_gap && word_starter(&item) {
-        missing(
-            i.rb(),
-            &item,
-            *item_origin,
-            import_role(ImportRole::Path),
-            ExpectedSyntax::Path,
-        );
+        missing(i.rb(), &item, *item_origin);
     }
     let result = (|| -> UseResult {
         let (present, mut item) = required_word(
             projection,
-            ImportRole::Path,
             i.rb(),
             item,
             baseline,
@@ -1507,7 +1341,6 @@ fn parse_anchor(
                 item = next_use_item(i.rb(), item_origin, line_entry, fence);
                 let (present, next) = required_word(
                     projection,
-                    ImportRole::Path,
                     i.rb(),
                     item,
                     baseline,
@@ -1531,7 +1364,6 @@ fn parse_anchor(
 
 #[allow(clippy::too_many_arguments)]
 fn recover_until<C, L>(
-    role: ImportRole,
     mut i: SyntaxIn,
     mut item: Item,
     candidate: C,
@@ -1560,48 +1392,26 @@ where
         return Ok((false, item));
     }
     item.emit_all_remaining_leading(&mut *i.state);
-    let result = emit_recovery_error_run(
-        i.rb(),
-        |run| {
-            let start = item.extent(*item_origin).recovery_range().start;
-            loop {
-                let kind = SyntaxKind::Unknown;
-                let extent = run.emit_item_as(item, *item_origin, kind);
-                item = run.lexical(|lex| next_use_item_lex(lex, item_origin, line_entry, fence));
-                let (boundary, accepted, local) = run.lexical(|mut lex| {
-                    (
-                        declaration_boundary_lex(lex.rb(), &item, stops, newline_boundary),
-                        candidate(lex.rb(), &item, *item_origin, *line_entry, fence),
-                        local_boundary(lex, &item, *item_origin, *line_entry, fence),
-                    )
-                });
-                if boundary || accepted || local {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..extent.recovery_range().end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return if boundary {
-                        Err(item)
-                    } else {
-                        Ok((accepted, item))
-                    };
-                }
-            }
-        },
-        |range, unexpected| {
-            recovery_draft(
-                import_role(role),
-                if role == ImportRole::Alias {
-                    ExpectedSyntax::Identifier
+    let result = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(item, *item_origin);
+            item = run.lexical(|lex| next_use_item_lex(lex, item_origin, line_entry, fence));
+            let (boundary, accepted, local) = run.lexical(|mut lex| {
+                (
+                    declaration_boundary_lex(lex.rb(), &item, stops, newline_boundary),
+                    candidate(lex.rb(), &item, *item_origin, *line_entry, fence),
+                    local_boundary(lex, &item, *item_origin, *line_entry, fence),
+                )
+            });
+            if boundary || accepted || local {
+                return if boundary {
+                    Err(item)
                 } else {
-                    ExpectedSyntax::Path
-                },
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    );
+                    Ok((accepted, item))
+                };
+            }
+        }
+    });
     result
 }
 
@@ -1617,124 +1427,36 @@ fn recover_group(
     fence: Option<&FenceBoundary>,
 ) -> UseResult {
     item.emit_all_remaining_leading(&mut *i.state);
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let start = item.extent(*item_origin).recovery_range().start;
-            loop {
-                let kind = SyntaxKind::Unknown;
-                let extent = run.emit_item_as(item, *item_origin, kind);
-                item = run.lexical(|lex| next_use_item_lex(lex, item_origin, line_entry, fence));
-                let boundary = run
-                    .lexical(|lex| group_caller_boundary_lex(lex, &item, close, baseline, stops));
-                if boundary
-                    || use_tree_retry(&item)
-                    || raw_char(&item, ',')
-                    || raw_char(&item, close)
-                {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..extent.recovery_range().end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return if boundary { Err(item) } else { Ok(item) };
-                }
+    emit_recovery_error_run(i, |run| {
+        loop {
+            run.emit_item_as(item, *item_origin);
+            item = run.lexical(|lex| next_use_item_lex(lex, item_origin, line_entry, fence));
+            let boundary =
+                run.lexical(|lex| group_caller_boundary_lex(lex, &item, close, baseline, stops));
+            if boundary || use_tree_retry(&item) || raw_char(&item, ',') || raw_char(&item, close) {
+                return if boundary { Err(item) } else { Ok(item) };
             }
-        },
-        |range, unexpected| {
-            recovery_draft(
-                import_role(ImportRole::GroupEntry),
-                ExpectedSyntax::Path,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    )
+        }
+    })
 }
 
-fn import_role(role: ImportRole) -> GrammarRole {
-    GrammarRole::Declaration(DeclarationRole::Import(role))
-}
-
-fn delimiter(close: char) -> Delimiter {
-    if close == ')' {
-        Delimiter::Parenthesis
-    } else {
-        Delimiter::Brace
-    }
-}
-
-fn closing_role(close: char, owner: ConstructRole) -> GrammarRole {
-    GrammarRole::ClosingDelimiter {
-        owner,
-        delimiter: delimiter(close),
-    }
-}
-
-fn recovery_draft(
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn missing(i: SyntaxIn, item: &Item, origin: usize, role: GrammarRole, expected: ExpectedSyntax) {
+fn missing(i: SyntaxIn, item: &Item, origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || item.extent(origin).recovery_range().start,
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        recovery_draft(role, expected, RecoveryKind::Missing, range, Arc::from([]))
-    });
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
-fn missing_close(i: SyntaxIn, item: &Item, origin: usize, close: char, owner: ConstructRole) {
-    missing(
-        i,
-        item,
-        origin,
-        closing_role(close, owner),
-        ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter(close))),
-    );
+fn missing_close(i: SyntaxIn, item: &Item, origin: usize) {
+    missing(i, item, origin);
 }
 
-fn error_item(
-    i: SyntaxIn,
-    mut item: Item,
-    origin: usize,
-    role: GrammarRole,
-    expected: ExpectedSyntax,
-) {
+fn error_item(i: SyntaxIn, mut item: Item, origin: usize) {
     item.emit_all_remaining_leading(&mut *i.state);
-    emit_recovery_error_run(
-        i,
-        |run| {
-            let kind = SyntaxKind::Unknown;
-            let extent = run.emit_item_as(item, origin, kind);
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range: extent.recovery_range(),
-                category: UnexpectedCategory::OtherCharacter,
-            });
-        },
-        |range, unexpected| recovery_draft(role, expected, RecoveryKind::Error, range, unexpected),
-    );
+    emit_recovery_error_run(i, |run| {
+        run.emit_item_as(item, origin);
+    });
 }
 
 fn declaration_boundary(i: SyntaxIn, item: &Item, stops: Stops, newline: bool) -> bool {

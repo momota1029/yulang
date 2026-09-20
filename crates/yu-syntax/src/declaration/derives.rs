@@ -2,22 +2,12 @@
 //! companion-item owners.
 
 use crate::ambient_claim::AmbientClaimContext;
-use crate::recovery_record::{
-    DeclarationRole, DerivesRole, ExpectationSources, ExpectedSyntax, GrammarRole, RecoveryKind,
-    RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-};
 use reborrow_generic::Reborrow as _;
-use std::{ops::Range, sync::Arc};
 
 use crate::syntax_kind::SyntaxKind;
 
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{
-            emit_recovery_error_run, emit_recovery_missing, emit_token_item, token_syntax_kind,
-        },
-    },
+    cursor::recovery::emit::{emit_recovery_error_run, emit_recovery_missing, emit_token_item},
     cursor::{LexIn, SyntaxIn},
     handoff::{Either, NormalizedExit},
     lexical::{
@@ -119,7 +109,7 @@ fn required_role_normalized(
         || !clause_gap_continues(i.rb(), &primary, baseline, caller_stops, line_handoff)
     {
         i.state.start_node(SyntaxKind::TypeExpression.into());
-        emit_derives_missing(i.rb(), &primary, item_origin, DerivesRole::RoleReference);
+        emit_derives_missing(i.rb(), &primary, item_origin);
         i.state.finish_node();
         return (primary, item_origin, line_entry);
     }
@@ -127,7 +117,6 @@ fn required_role_normalized(
     let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
         i.rb(),
         primary,
-        GrammarRole::Declaration(DeclarationRole::Derives(DerivesRole::RoleReference)),
         baseline,
         caller_stops,
         role_boundary,
@@ -157,7 +146,7 @@ fn required_via_target_normalized(
     if !clause_gap_continues(i.rb(), &target, baseline, caller_stops, line_handoff)
         || via_target_boundary(&target)
     {
-        emit_derives_missing(i.rb(), &target, item_origin, DerivesRole::ViaTarget);
+        emit_derives_missing(i.rb(), &target, item_origin);
         return (target, item_origin, line_entry);
     }
     if raw_identifier(&target) {
@@ -165,45 +154,20 @@ fn required_via_target_normalized(
         return next_clause_item_normalized(i, item_origin, line_entry, fence, false);
     }
 
-    let (target, item_origin, line_entry, protected) = emit_recovery_error_run(
-        i.rb(),
-        |run| {
-            let start = target.extent(item_origin).recovery_range().start;
-            loop {
-                let kind =
-                    token_syntax_kind(token_kind(&target).expect("ViaTarget Error is lexical"));
-                let extent = run.emit_item_as(target, item_origin, kind);
-                (target, item_origin, line_entry) = run.lexical(|lex| {
-                    next_clause_item_lexical(lex, item_origin, line_entry, fence, true)
+    let (target, item_origin, line_entry, protected) = emit_recovery_error_run(i.rb(), |run| {
+        loop {
+            run.emit_item_as(target, item_origin);
+            (target, item_origin, line_entry) = run
+                .lexical(|lex| next_clause_item_lexical(lex, item_origin, line_entry, fence, true));
+            let protected = via_target_boundary(&target)
+                || !run.lexical(|lex| {
+                    clause_gap_continues_lexical(lex, &target, baseline, caller_stops, line_handoff)
                 });
-                let protected = via_target_boundary(&target)
-                    || !run.lexical(|lex| {
-                        clause_gap_continues_lexical(
-                            lex,
-                            &target,
-                            baseline,
-                            caller_stops,
-                            line_handoff,
-                        )
-                    });
-                if protected || raw_identifier(&target) {
-                    run.append_unexpected(UnexpectedSyntax::Token {
-                        range: start..extent.recovery_range().end,
-                        category: UnexpectedCategory::OtherCharacter,
-                    });
-                    return (target, item_origin, line_entry, protected);
-                }
+            if protected || raw_identifier(&target) {
+                return (target, item_origin, line_entry, protected);
             }
-        },
-        |range, unexpected| {
-            derives_recovery_draft(
-                DerivesRole::ViaTarget,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    );
+        }
+    });
     // Protected contextual and outer-owned newline Items win over raw retry.
     if protected {
         return (target, item_origin, line_entry);
@@ -355,7 +319,7 @@ fn clause_gap_continues_lexical(
     matches!(line_handoff, StatementLineHandoff::OrdinaryLayout) && indentation > baseline
 }
 
-fn emit_derives_missing(i: SyntaxIn, item: &Item, item_origin: usize, role: DerivesRole) {
+fn emit_derives_missing(i: SyntaxIn, item: &Item, item_origin: usize) {
     let at = item.payload_view().pending_boundary().map_or_else(
         || {
             if item.payload_view().is_eof() {
@@ -366,37 +330,7 @@ fn emit_derives_missing(i: SyntaxIn, item: &Item, item_origin: usize, role: Deri
         },
         |boundary| boundary.coordinate(),
     );
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        derives_recovery_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
-}
-
-fn derives_recovery_draft(
-    role: DerivesRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        DerivesRole::RoleReference => ExpectedSyntax::TypeExpression,
-        DerivesRole::ViaTarget => ExpectedSyntax::Identifier,
-    };
-    let role = GrammarRole::Declaration(DeclarationRole::Derives(role));
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn emit_contextual_keyword(i: &mut SyntaxIn, item: Item, kind: SyntaxKind) {

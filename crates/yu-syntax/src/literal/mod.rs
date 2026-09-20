@@ -1,21 +1,10 @@
 //! Isolated literal Item construction before expression or Pattern dispatch.
 
-use crate::{
-    recovery_record::{
-        Delimiter, ExpectationSources, ExpectedSyntax, GrammarRole, LiteralExpected, LiteralRole,
-        PunctuationEvidence, RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory,
-        UnexpectedSyntax,
-    },
-    syntax_kind::SyntaxKind,
-};
+use crate::syntax_kind::SyntaxKind;
 use reborrow_generic::Reborrow as _;
-use std::{ops::Range, sync::Arc};
 
 use crate::{
-    cursor::recovery::{
-        RecoveryDraft,
-        emit::{emit_literal_item, emit_recovery_error_run, emit_recovery_missing},
-    },
+    cursor::recovery::emit::{emit_literal_item, emit_recovery_error_run, emit_recovery_missing},
     cursor::{LexIn, SyntaxIn},
     lexical::{
         current_item::LineEntry,
@@ -432,11 +421,7 @@ fn emit_string_interpolation<'source, 'operators, 'frozen>(
     ) {
         Ok(prefix) => prefix,
         Err(pending) => {
-            emit_literal_missing(
-                i.rb(),
-                LiteralRole::StringInterpolationOpenBrace,
-                boundary_coordinate(&pending, *part_origin),
-            );
+            emit_literal_missing(i.rb(), boundary_coordinate(&pending, *part_origin));
             i.state.finish_node();
             return Err(pending);
         }
@@ -481,11 +466,7 @@ fn emit_string_interpolation<'source, 'operators, 'frozen>(
         InterpolationBodyExit::Boundary { item, line_entry } => {
             let _ = line_entry;
             i.state.finish_node();
-            emit_literal_missing(
-                i.rb(),
-                LiteralRole::StringInterpolationCloseBrace,
-                boundary_coordinate(&item, *part_origin),
-            );
+            emit_literal_missing(i.rb(), boundary_coordinate(&item, *part_origin));
             i.state.finish_node();
             Err(item)
         }
@@ -641,7 +622,7 @@ fn emit_string_escape(
         .token(|lex| Some(lex.remainder().is_empty()))
         .expect("the literal EOF probe is total");
     if at_close || at_eof {
-        emit_literal_missing(i.rb(), LiteralRole::StringEscapeSimpleTarget, *part_origin);
+        emit_literal_missing(i.rb(), *part_origin);
         i.state.finish_node();
         if at_eof {
             return EscapeExit::Boundary(current_boundary_item(i.rb(), *part_origin, fence));
@@ -677,7 +658,7 @@ fn emit_unicode_escape(
 
     if let Some(end) = i.token(scan_unicode_end) {
         if !has_hex {
-            emit_literal_missing(i.rb(), LiteralRole::StringEscapeUnicodeHex, *part_origin);
+            emit_literal_missing(i.rb(), *part_origin);
         }
         advance_item_origin(part_origin, &end);
         emit_literal_item(&mut i, end, SyntaxKind::StringEscapeUnicodeEnd);
@@ -696,9 +677,9 @@ fn emit_unicode_escape(
         .expect("the unicode sentinel probe is total");
     if at_sentinel {
         if !has_hex {
-            emit_literal_missing(i.rb(), LiteralRole::StringEscapeUnicodeHex, *part_origin);
+            emit_literal_missing(i.rb(), *part_origin);
         }
-        emit_literal_missing(i.rb(), LiteralRole::StringEscapeUnicodeEnd, *part_origin);
+        emit_literal_missing(i.rb(), *part_origin);
         i.state.finish_node();
         if i.token(|lex| Some(lex.remainder().is_empty()))
             .expect("the unicode EOF probe is total")
@@ -708,41 +689,26 @@ fn emit_unicode_escape(
         return EscapeExit::Continue;
     }
 
-    let (pending, next_prefix) = emit_recovery_error_run(
-        i.rb(),
-        |run| {
-            let scan = run.lexical(|lex| {
-                scan_multiline_literal_item(lex, *part_origin, fence, false, |source| {
-                    unicode_error_stop(source, mode)
-                })
-            });
-            let (error, pending) = match scan
-                .piece
-                .expect("unicode recovery starts on one malformed scalar")
-            {
-                LiteralPiece::Complete(error) => (error, None),
-                LiteralPiece::Boundary { accepted, pending } => (
-                    accepted.expect("unicode recovery consumes its initial malformed scalar"),
-                    Some(pending),
-                ),
-            };
-            advance_item_origin(part_origin, &error);
-            let extent = run.emit_item_as(error, *part_origin, SyntaxKind::StringEscapeUnicodeHex);
-            run.append_unexpected(UnexpectedSyntax::Token {
-                range: extent.recovery_range(),
-                category: UnexpectedCategory::OtherCharacter,
-            });
-            (pending, scan.next_prefix)
-        },
-        |range, unexpected| {
-            literal_draft(
-                LiteralRole::StringEscapeUnicodeHex,
-                RecoveryKind::Error,
-                range,
-                unexpected,
-            )
-        },
-    );
+    let (pending, next_prefix) = emit_recovery_error_run(i.rb(), |run| {
+        let scan = run.lexical(|lex| {
+            scan_multiline_literal_item(lex, *part_origin, fence, false, |source| {
+                unicode_error_stop(source, mode)
+            })
+        });
+        let (error, pending) = match scan
+            .piece
+            .expect("unicode recovery starts on one malformed scalar")
+        {
+            LiteralPiece::Complete(error) => (error, None),
+            LiteralPiece::Boundary { accepted, pending } => (
+                accepted.expect("unicode recovery consumes its initial malformed scalar"),
+                Some(pending),
+            ),
+        };
+        advance_item_origin(part_origin, &error);
+        run.emit_item_as(error, *part_origin);
+        (pending, scan.next_prefix)
+    });
     match pending {
         None => {
             if let Some(prefix) = next_prefix {
@@ -769,7 +735,7 @@ fn emit_unicode_escape(
                     i.state.finish_node();
                     return EscapeExit::Continue;
                 }
-                emit_literal_missing(i.rb(), LiteralRole::StringEscapeUnicodeEnd, *part_origin);
+                emit_literal_missing(i.rb(), *part_origin);
                 i.state.finish_node();
                 return EscapeExit::NextPrefix(prefix);
             }
@@ -777,67 +743,21 @@ fn emit_unicode_escape(
                 advance_item_origin(part_origin, &end);
                 emit_literal_item(&mut i, end, SyntaxKind::StringEscapeUnicodeEnd);
             } else {
-                emit_literal_missing(i.rb(), LiteralRole::StringEscapeUnicodeEnd, *part_origin);
+                emit_literal_missing(i.rb(), *part_origin);
             }
             i.state.finish_node();
             EscapeExit::Continue
         }
         Some(pending) => {
-            emit_literal_missing(
-                i.rb(),
-                LiteralRole::StringEscapeUnicodeEnd,
-                boundary_coordinate(&pending, *part_origin),
-            );
+            emit_literal_missing(i.rb(), boundary_coordinate(&pending, *part_origin));
             i.state.finish_node();
             EscapeExit::Boundary(pending)
         }
     }
 }
 
-fn literal_draft(
-    role: LiteralRole,
-    kind: RecoveryKind,
-    range: Range<usize>,
-    unexpected: Arc<[UnexpectedSyntax]>,
-) -> RecoveryDraft {
-    let expected = match role {
-        LiteralRole::StringTerminator => ExpectedSyntax::Literal(LiteralExpected::StringTerminator),
-        LiteralRole::StringEscapeSimpleTarget => {
-            ExpectedSyntax::Literal(LiteralExpected::StringEscapeTarget)
-        }
-        LiteralRole::StringEscapeUnicodeHex => {
-            ExpectedSyntax::Literal(LiteralExpected::UnicodeHexDigit)
-        }
-        LiteralRole::StringEscapeUnicodeEnd | LiteralRole::StringInterpolationCloseBrace => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(Delimiter::Brace))
-        }
-        LiteralRole::StringInterpolationOpenBrace => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Open(Delimiter::Brace))
-        }
-        _ => unreachable!("Rule recovery belongs to its own owner"),
-    };
-    let role = GrammarRole::Literal(role);
-    RecoveryDraft::new(
-        RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected,
-        Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        0,
-    )
-}
-
-fn emit_literal_missing(i: SyntaxIn, role: LiteralRole, at: usize) {
-    emit_recovery_missing(i, LeadingTrivia::default(), at, |range| {
-        literal_draft(role, RecoveryKind::Missing, range, Arc::from([]))
-    });
+fn emit_literal_missing(i: SyntaxIn, at: usize) {
+    emit_recovery_missing(i, LeadingTrivia::default(), at);
 }
 
 fn boundary_coordinate(item: &Item, origin: usize) -> usize {
@@ -852,11 +772,7 @@ fn finish_string_boundary(
     origin: usize,
 ) -> NormalizedStringLiteralExit {
     let line_entry = pending_line_entry(&pending);
-    emit_literal_missing(
-        i.rb(),
-        LiteralRole::StringTerminator,
-        boundary_coordinate(&pending, origin),
-    );
+    emit_literal_missing(i.rb(), boundary_coordinate(&pending, origin));
     i.state.finish_node();
     NormalizedStringLiteralExit::Boundary(pending, line_entry)
 }

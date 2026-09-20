@@ -1,38 +1,24 @@
 use crate::lexical::yumark::{FenceOpener, FencePrefixPolicy};
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
 
 fn typed_binding<'a>(
     source: &'a str,
     origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-) -> (
-    GreenNode,
-    NormalizedExit,
-    &'a str,
-    Vec<CommittedRecoveryRecord>,
-) {
-    typed_binding_fenced(source, origin, frozen, None, 0)
+) -> (GreenNode, NormalizedExit, &'a str, Vec<StructuralFact>) {
+    typed_binding_fenced(source, origin, None, 0)
 }
 
 fn typed_binding_fenced<'a>(
     source: &'a str,
     origin: usize,
-    frozen: Option<&[CommittedRecoveryRecord]>,
     fence: Option<&FenceBoundary>,
     stops: Stops,
-) -> (
-    GreenNode,
-    NormalizedExit,
-    &'a str,
-    Vec<CommittedRecoveryRecord>,
-) {
+) -> (GreenNode, NormalizedExit, &'a str, Vec<StructuralFact>) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
     let exit = statement_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
@@ -45,24 +31,27 @@ fn typed_binding_fenced<'a>(
         Some(crate::sequence::SequenceOwner::RootStatement),
     );
     builder.finish_node();
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, exit, input, records)
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, exit, input, facts)
 }
 
 #[test]
 fn binding_body_keeps_complete_protected_items_and_quoted_fences() {
-    use crate::recovery_record::{BindingRole, DeclarationRole, GrammarRole, RecoveryKind};
     for (source, text, range, kind) in [
-        ("my x =  ]tail", "my x =", 106..106, RecoveryKind::Missing),
-        ("my x = @  ]tail", "my x = @", 107..108, RecoveryKind::Error),
+        ("my x =  ]tail", "my x =", 6..6, StructuralKind::Missing),
+        (
+            "my x = @  ]tail",
+            "my x = @",
+            7..8,
+            StructuralKind::ErrorGroup,
+        ),
     ] {
         let stops = crate::lexical::stops::stops_for(TokenKind::RBracket);
-        let (green, exit, suffix, records) = typed_binding_fenced(source, 100, None, None, stops);
+        let (green, exit, suffix, facts) = typed_binding_fenced(source, 100, None, stops);
         assert_eq!(green.to_string(), text);
         assert_eq!(suffix, "tail");
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].site.range, range);
-        assert_eq!(records[0].kind, kind);
+        assert_eq!(facts, [(kind, range)]);
         let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
             panic!("active close remains pending")
         };
@@ -74,13 +63,13 @@ fn binding_body_keeps_complete_protected_items_and_quoted_fences() {
             100 + text.len()
         );
     }
-    for source in [
-        "my x =  ;tail",
-        "my x = @  ;tail",
-        "my x =\r\nnext tail",
-        "my x = @\r\nnext tail",
+    for (source, fact) in [
+        ("my x =  ;tail", (StructuralKind::Missing, 6..6)),
+        ("my x = @  ;tail", (StructuralKind::ErrorGroup, 7..8)),
+        ("my x =\r\nnext tail", (StructuralKind::Missing, 6..6)),
+        ("my x = @\r\nnext tail", (StructuralKind::ErrorGroup, 7..8)),
     ] {
-        let (_, exit, suffix, records) = typed_binding(source, 100, None);
+        let (_, exit, suffix, facts) = typed_binding(source, 100);
         let NormalizedExit::Complete(Err(Either::Left(item)), _) = exit else {
             panic!("pending boundary: {source:?}")
         };
@@ -91,7 +80,7 @@ fn binding_body_keeps_complete_protected_items_and_quoted_fences() {
             protected_start,
             "{source:?}"
         );
-        assert_eq!(records.len(), 1);
+        assert_eq!(facts, [fact]);
     }
     let fence = FenceBoundary {
         opener: FenceOpener {
@@ -103,206 +92,88 @@ fn binding_body_keeps_complete_protected_items_and_quoted_fences() {
         close_column: 0,
     };
     for (source, text, kind, range) in [
-        (
-            "my x =\r\n>> ```",
-            "my x =",
-            RecoveryKind::Missing,
-            108..108,
-        ),
+        ("my x =\r\n>> ```", "my x =", StructuralKind::Missing, 6..6),
         (
             "my x = @\r\n>> ```",
             "my x = @",
-            RecoveryKind::Error,
-            107..108,
+            StructuralKind::ErrorGroup,
+            7..8,
         ),
     ] {
-        let (green, exit, _, records) = typed_binding_fenced(source, 100, None, Some(&fence), 0);
+        let (green, exit, _, facts) = typed_binding_fenced(source, 100, Some(&fence), 0);
         assert_eq!(green.to_string(), text);
-        assert_eq!(records.len(), 1);
-        assert_eq!(records[0].kind, kind);
-        assert_eq!(records[0].site.range, range);
-        assert_eq!(records[0].expectations.len(), 1);
-        assert_eq!(records[0].expectations[0].range, range);
-        assert_eq!(
-            records[0].site.role,
-            GrammarRole::Declaration(DeclarationRole::Binding(BindingRole::Body))
-        );
+        assert_eq!(facts, [(kind, range)]);
         assert!(
             matches!(exit, NormalizedExit::Complete(Err(Either::Left(ref item)), _) if item.payload_view().is_boundary())
         );
-        let (again, _, _, frozen) =
-            typed_binding_fenced(source, 100, Some(&records), Some(&fence), 0);
+        let (again, _, _, repeated_facts) = typed_binding_fenced(source, 100, Some(&fence), 0);
         assert_eq!(again, green);
-        assert_eq!(frozen, records);
+        assert_eq!(repeated_facts, facts);
     }
 }
 
 #[test]
-fn binding_initial_slots_publish_exact_shifted_and_frozen_records() {
-    use crate::recovery_record::*;
-    use std::sync::Arc;
-    for (source, slot, kind, range, text) in [
-        ("my", BindingRole::Target, RecoveryKind::Missing, 2..2, "my"),
-        (
-            "my = value",
-            BindingRole::Target,
-            RecoveryKind::Missing,
-            3..3,
-            "my = value",
-        ),
+fn binding_initial_slots_publish_exact_structural_facts() {
+    for (source, kind, range, text) in [
+        ("my", StructuralKind::Missing, 2..2, "my"),
+        ("my = value", StructuralKind::Missing, 3..3, "my = value"),
         (
             "my @ x = value",
-            BindingRole::Target,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             3..4,
             "my @ x = value",
         ),
         (
             "my @ = value",
-            BindingRole::Target,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             3..4,
             "my @ = value",
         ),
-        (
-            "my @ ;",
-            BindingRole::Target,
-            RecoveryKind::Error,
-            3..4,
-            "my @",
-        ),
-        (
-            "my x =  ",
-            BindingRole::Body,
-            RecoveryKind::Missing,
-            8..8,
-            "my x =  ",
-        ),
-        (
-            "my x =  ;",
-            BindingRole::Body,
-            RecoveryKind::Missing,
-            6..6,
-            "my x =",
-        ),
-        (
-            "my x =\r\nnext",
-            BindingRole::Body,
-            RecoveryKind::Missing,
-            6..6,
-            "my x =",
-        ),
+        ("my @ ;", StructuralKind::ErrorGroup, 3..4, "my @"),
+        ("my x =  ", StructuralKind::Missing, 8..8, "my x =  "),
+        ("my x =  ;", StructuralKind::Missing, 6..6, "my x ="),
+        ("my x =\r\nnext", StructuralKind::Missing, 6..6, "my x ="),
         (
             "my x = @ @ value",
-            BindingRole::Body,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..10,
             "my x = @ @ value",
         ),
-        (
-            "my x = @  ;",
-            BindingRole::Body,
-            RecoveryKind::Error,
-            7..8,
-            "my x = @",
-        ),
+        ("my x = @  ;", StructuralKind::ErrorGroup, 7..8, "my x = @"),
         (
             "my x = @\r\nnext",
-            BindingRole::Body,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             7..8,
             "my x = @",
         ),
-        (
-            "my x = @  ",
-            BindingRole::Body,
-            RecoveryKind::Error,
-            7..8,
-            "my x = @  ",
-        ),
+        ("my x = @  ", StructuralKind::ErrorGroup, 7..8, "my x = @  "),
         (
             "my 界 = @ λ",
-            BindingRole::Body,
-            RecoveryKind::Error,
+            StructuralKind::ErrorGroup,
             9..10,
             "my 界 = @ λ",
         ),
     ] {
         for origin in [0, 4103] {
-            let (green, _, _, records) = typed_binding(source, origin, None);
+            let (green, _, _, facts) = typed_binding(source, origin);
             assert_eq!(green.to_string(), text, "{source:?}");
-            let range = origin + range.start..origin + range.end;
-            let role = GrammarRole::Declaration(DeclarationRole::Binding(slot));
-            let unexpected = if kind == RecoveryKind::Error {
-                Arc::from([UnexpectedSyntax::Token {
-                    range: range.clone(),
-                    category: UnexpectedCategory::OtherCharacter,
-                }])
-            } else {
-                Arc::from([])
-            };
-            let expected = [CommittedRecoveryRecord {
-                id: DiagnosticId(0),
-                site: RecoverySiteKey {
-                    role,
-                    range: range.clone(),
-                },
-                kind,
-                unexpected,
-                expectations: Arc::from([SyntaxExpectation {
-                    role,
-                    expected: if slot == BindingRole::Target {
-                        ExpectedSyntax::Pattern
-                    } else {
-                        ExpectedSyntax::Expression
-                    },
-                    range,
-                    sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-                }]),
-                primary_expectation: 0,
-            }];
-            assert_eq!(records, expected, "{source:?}");
-            let (again, _, _, reconciled) = typed_binding(source, origin, Some(&records));
+            assert_eq!(facts, [(kind, range.clone())], "{source:?}");
+            let (again, _, _, repeated_facts) = typed_binding(source, origin);
             assert_eq!(again, green);
-            assert_eq!(reconciled, records);
+            assert_eq!(repeated_facts, facts);
         }
     }
 }
 
 #[test]
-fn binding_admitted_children_keep_their_own_recovery_roles() {
-    use crate::recovery_record::*;
-    for (source, role) in [
-        (
-            "my (,) = value",
-            GrammarRole::Pattern(PatternRole::ParenthesizedElement),
-        ),
-        (
-            "my x: = value",
-            GrammarRole::Pattern(PatternRole::TypeAnnotation),
-        ),
-        (
-            "my x = (",
-            GrammarRole::ClosingDelimiter {
-                owner: ConstructRole::ExpressionGroup,
-                delimiter: Delimiter::Parenthesis,
-            },
-        ),
+fn binding_admitted_children_keep_their_own_structural_facts() {
+    for (source, fact) in [
+        ("my (,) = value", (StructuralKind::Missing, 4..4)),
+        ("my x: = value", (StructuralKind::Missing, 6..6)),
+        ("my x = (", (StructuralKind::Missing, 8..8)),
     ] {
-        let (_, _, _, records) = typed_binding(source, 0, None);
-        assert!(
-            records.iter().any(|record| record.site.role == role),
-            "{source:?}: {records:?}"
-        );
-        assert!(
-            records.iter().all(|record| !matches!(
-                record.site.role,
-                GrammarRole::Declaration(DeclarationRole::Binding(
-                    BindingRole::Target | BindingRole::Body
-                ))
-            )),
-            "{source:?}: {records:?}"
-        );
+        let (_, _, _, facts) = typed_binding(source, 0);
+        assert_eq!(facts, [fact], "{source:?}");
     }
 }
 

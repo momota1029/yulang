@@ -1,12 +1,6 @@
 use crate::declaration::declaration_variant::{VariantOwner, declaration_variant_owner_witness};
-use crate::recovery_record::{
-    ConstructRole, DeclarationRole, Delimiter, DiagnosticId, EnumDeclarationRole,
-    ErrorDeclarationRole, ExpectationSources, ExpectedSyntax, GrammarRole, PunctuationEvidence,
-    RecoveryKind, RecoverySiteKey, SyntaxExpectation, UnexpectedCategory, UnexpectedSyntax,
-    VariantDeclarationRole,
-};
+use crate::structural_diagnostic::StructuralKind;
 use crate::tests::support::*;
-use std::sync::Arc;
 
 #[test]
 fn equals_inline_variant_sequence_composes_header_retries_and_body_occurrences() {
@@ -1969,8 +1963,8 @@ fn declaration_variant_from_type_missing_has_direct_enum_error_cst_evidence() {
 fn declaration_variant_core_slots_have_direct_enum_error_cst_evidence() {
     use SyntaxKind::{EnumVariant, Error, Identifier, Missing, Whitespace};
     // Publication and handoff selects Name only on an admitted raw-name retry.
-    // The enclosing declaration supplies the Enum/Error distinction; records
-    // in the isolated typed harness remain compatibility evidence only.
+    // The enclosing declaration supplies the Enum/Error distinction; the
+    // isolated typed harness asserts only durable structural CST facts.
     for (keyword, declaration) in [
         ("enum", SyntaxKind::EnumDeclaration),
         ("error", SyntaxKind::ErrorDeclaration),
@@ -2117,74 +2111,11 @@ fn active_fence() -> FenceBoundary {
     }
 }
 
-fn variant_role(owner: VariantOwner, slot: VariantDeclarationRole) -> GrammarRole {
-    GrammarRole::Declaration(match owner {
-        VariantOwner::Enum => DeclarationRole::Enum(EnumDeclarationRole::Variant(slot)),
-        VariantOwner::Error => DeclarationRole::Error(ErrorDeclarationRole::Variant(slot)),
-    })
-}
-
-fn record(
-    role: GrammarRole,
-    kind: RecoveryKind,
-    range: std::ops::Range<usize>,
-    id: usize,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        GrammarRole::ClosingDelimiter { delimiter, .. } => {
-            ExpectedSyntax::Punctuation(PunctuationEvidence::Close(delimiter))
-        }
-        GrammarRole::Declaration(
-            DeclarationRole::Enum(EnumDeclarationRole::Variant(VariantDeclarationRole::Separator))
-            | DeclarationRole::Error(ErrorDeclarationRole::Variant(
-                VariantDeclarationRole::Separator,
-            )),
-        ) => ExpectedSyntax::DelimitedSequenceSeparator,
-        GrammarRole::Declaration(
-            DeclarationRole::Enum(EnumDeclarationRole::Variant(
-                VariantDeclarationRole::NamedFieldSeparator,
-            ))
-            | DeclarationRole::Error(ErrorDeclarationRole::Variant(
-                VariantDeclarationRole::NamedFieldSeparator,
-            )),
-        ) => ExpectedSyntax::DelimitedSequenceSeparator,
-        _ => ExpectedSyntax::Identifier,
-    };
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id as u32),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind,
-        unexpected: if kind == RecoveryKind::Error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
-}
-
 #[test]
-fn typed_variant_field_sequence_uses_the_payload_separator_role() {
+fn typed_variant_field_sequence_has_a_payload_separator_fact() {
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
-        for (source, role, kind, range) in [(
-            "{V{a:A b:B}}",
-            variant_role(owner, VariantDeclarationRole::NamedFieldSeparator),
-            RecoveryKind::Missing,
-            7..7,
-        )] {
-            let (green, records, _, _) = typed_variant(
+        for (source, range) in [("{V{a:A b:B}}", 7..7)] {
+            let (green, facts, _, _) = typed_variant(
                 source,
                 owner,
                 VariantSequenceForm::Braced,
@@ -2192,14 +2123,9 @@ fn typed_variant_field_sequence_uses_the_payload_separator_role() {
                 0,
                 700,
                 None,
-                None,
-                false,
             );
             assert_eq!(green.to_string(), source, "{owner:?} {source:?}");
-            assert_eq!(
-                records,
-                [record(role, kind, 700 + range.start..700 + range.end, 0)]
-            );
+            assert_eq!(facts, [(StructuralKind::Missing, range)]);
         }
     }
 }
@@ -2213,39 +2139,17 @@ fn typed_variant<'a>(
     stops: Stops,
     origin: usize,
     fence: Option<&FenceBoundary>,
-    frozen: Option<&[CommittedRecoveryRecord]>,
-    seeded: bool,
 ) -> (
     GreenNode,
-    Vec<CommittedRecoveryRecord>,
+    Vec<StructuralFact>,
     Option<NormalizedExit>,
     &'a str,
 ) {
     let operators = OperatorTable::empty();
     let mut input = source;
     let mut recover = Recover::new_for_test(&operators);
-    let mut builder = frozen.map_or_else(GreenNodeBuilder::new, |records| {
-        recover = Recover::reconcile_for_test(recover.operators(), records);
-        GreenNodeBuilder::new()
-    });
+    let mut builder = GreenNodeBuilder::new();
     builder.start_node(SyntaxKind::Root.into());
-    if seeded {
-        let seed = record(
-            variant_role(owner, VariantDeclarationRole::Name),
-            RecoveryKind::Missing,
-            0..0,
-            0,
-        );
-        builder.start_node(SyntaxKind::Missing.into());
-        builder.finish_node();
-        recover.commit_recovery_for_test(crate::cursor::recovery::RecoveryDraft::new(
-            seed.site,
-            seed.kind,
-            seed.unexpected,
-            seed.expectations,
-            0,
-        ));
-    }
     let exit = declaration_variant_owner_witness(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         owner,
@@ -2262,8 +2166,9 @@ fn typed_variant<'a>(
         fence,
     );
     builder.finish_node();
-    let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
-    (green, records, exit, input)
+    let green = finish_with_discarded_recoveries(builder, recover);
+    let facts = structural_facts(&green);
+    (green, facts, exit, input)
 }
 
 #[test]
@@ -2278,17 +2183,22 @@ fn typed_variant_payload_scoped_caller_stops_preserve_pending_items() {
             ("= A", "else", STOP_ELSE, None),
             ("= A", "elsif", STOP_ELSIF, None),
             ("= A", "with", STOP_WITH, None),
-            ("= A from", ":", STOP_COLON, Some(RecoveryKind::Missing)),
-            ("= A from", "{", STOP_LBRACE, Some(RecoveryKind::Missing)),
-            ("= A from @", ":", STOP_COLON, Some(RecoveryKind::Error)),
-            ("= A @", ":", STOP_COLON, Some(RecoveryKind::Error)),
+            ("= A from", ":", STOP_COLON, Some(StructuralKind::Missing)),
+            ("= A from", "{", STOP_LBRACE, Some(StructuralKind::Missing)),
+            (
+                "= A from @",
+                ":",
+                STOP_COLON,
+                Some(StructuralKind::ErrorGroup),
+            ),
+            ("= A @", ":", STOP_COLON, Some(StructuralKind::ErrorGroup)),
             ("= A T", ":", STOP_COLON, None),
             ("= A from T", "else", STOP_ELSE, None),
             ("= A from (T -> U)", "->", STOP_ARROW, None),
             ("= A F(T->U)", "->", STOP_ARROW, None),
         ] {
             let source = format!("{prefix} /*pending*/ {stop} tail");
-            let (green, records, exit, remainder) = typed_variant(
+            let (green, facts, exit, remainder) = typed_variant(
                 &source,
                 owner,
                 VariantSequenceForm::EqualsInline,
@@ -2296,30 +2206,24 @@ fn typed_variant_payload_scoped_caller_stops_preserve_pending_items() {
                 stops,
                 0,
                 None,
-                None,
-                false,
             );
             assert_eq!(green.to_string(), prefix, "{source}");
             assert_eq!(remainder, " tail", "{source}");
-            assert_eq!(records.len(), usize::from(recovery.is_some()), "{source}");
+            assert_eq!(facts.len(), usize::from(recovery.is_some()), "{source}");
             if let Some(kind) = recovery {
-                assert_eq!(records[0].kind, kind, "{source}");
-                if kind == RecoveryKind::Missing {
-                    assert_eq!(
-                        records[0].site.role,
-                        variant_role(owner, VariantDeclarationRole::FromType)
-                    );
-                    let root = syntax_root(green);
-                    let missing = root
-                        .descendants()
-                        .find(|node| node.kind() == SyntaxKind::Missing)
-                        .unwrap();
-                    assert_eq!(missing.parent().unwrap().kind(), SyntaxKind::TypeExpression);
-                } else {
-                    assert!(
-                        matches!(records[0].site.role, GrammarRole::Type(_)),
-                        "{source}"
-                    );
+                match kind {
+                    StructuralKind::Missing => {
+                        let root = syntax_root(green);
+                        let missing = root
+                            .descendants()
+                            .find(|node| node.kind() == SyntaxKind::Missing)
+                            .unwrap();
+                        assert_eq!(missing.parent().unwrap().kind(), SyntaxKind::TypeExpression);
+                    }
+                    StructuralKind::ErrorGroup => {
+                        assert_eq!(facts[0].0, StructuralKind::ErrorGroup)
+                    }
+                    StructuralKind::Invalid => unreachable!("variant witness has no Invalid fact"),
                 }
             }
             let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
@@ -2332,13 +2236,23 @@ fn typed_variant_payload_scoped_caller_stops_preserve_pending_items() {
                 "{source}"
             );
         }
-        for (source, recovery_count, yield_with, stops) in [
-            ("= A from T -> with", 0, false, STOP_WITH),
-            ("= A from T -> @ with", 1, false, STOP_WITH),
-            ("= A from T -> with", 0, true, 0),
-            ("= A from T -> @ with", 1, true, 0),
+        for (source, facts, yield_with, stops) in [
+            ("= A from T -> with", vec![], false, STOP_WITH),
+            (
+                "= A from T -> @ with",
+                vec![(StructuralKind::ErrorGroup, 13..15)],
+                false,
+                STOP_WITH,
+            ),
+            ("= A from T -> with", vec![], true, 0),
+            (
+                "= A from T -> @ with",
+                vec![(StructuralKind::ErrorGroup, 13..15)],
+                true,
+                0,
+            ),
         ] {
-            let (green, records, _, remainder) = typed_variant(
+            let (green, actual_facts, _, remainder) = typed_variant(
                 source,
                 owner,
                 VariantSequenceForm::EqualsInline,
@@ -2346,19 +2260,10 @@ fn typed_variant_payload_scoped_caller_stops_preserve_pending_items() {
                 stops,
                 0,
                 None,
-                None,
-                false,
             );
             assert_eq!(green.to_string(), source, "{owner:?}: {source}");
             assert!(remainder.is_empty(), "{owner:?}: {source}");
-            assert_eq!(records.len(), recovery_count, "{owner:?}: {source}");
-            if recovery_count != 0 {
-                assert_eq!(records[0].kind, RecoveryKind::Error);
-                assert_eq!(
-                    records[0].site.role,
-                    GrammarRole::Type(crate::recovery_record::TypeRole::ArrowRhs)
-                );
-            }
+            assert_eq!(actual_facts, facts, "{owner:?}: {source}");
             let root = syntax_root(green);
             let arrow = root
                 .descendants()
@@ -2375,7 +2280,7 @@ fn typed_variant_payload_scoped_caller_stops_preserve_pending_items() {
 #[test]
 fn typed_variant_inactive_brace_and_semicolon_preserve_payload_and_progress() {
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
-        let (green, records, _, remainder) = typed_variant(
+        let (green, facts, _, remainder) = typed_variant(
             "= A {x:T}",
             owner,
             VariantSequenceForm::EqualsInline,
@@ -2383,14 +2288,12 @@ fn typed_variant_inactive_brace_and_semicolon_preserve_payload_and_progress() {
             0,
             0,
             None,
-            None,
-            false,
         );
         assert_eq!(green.to_string(), "= A {x:T}");
-        assert!(records.is_empty());
+        assert!(facts.is_empty());
         assert!(remainder.is_empty());
         assert_eq!(count(&syntax_root(green), SyntaxKind::StructField), 1);
-        let (green, records, _, remainder) = typed_variant(
+        let (green, facts, _, remainder) = typed_variant(
             "= A ;",
             owner,
             VariantSequenceForm::EqualsInline,
@@ -2398,29 +2301,24 @@ fn typed_variant_inactive_brace_and_semicolon_preserve_payload_and_progress() {
             0,
             0,
             None,
-            None,
-            false,
         );
         assert_eq!(green.to_string(), "= A ;");
         assert!(remainder.is_empty());
-        assert_eq!(records.len(), 2);
         assert_eq!(
-            records[0].site.role,
-            variant_role(owner, VariantDeclarationRole::Separator)
+            facts,
+            [
+                (StructuralKind::Missing, 3..3),
+                (StructuralKind::ErrorGroup, 4..5)
+            ]
         );
-        assert_eq!(
-            records[1].site.role,
-            variant_role(owner, VariantDeclarationRole::Item)
-        );
-        assert_eq!(records[1].kind, RecoveryKind::Error);
     }
 }
 
 #[test]
-fn typed_variant_child_records_keep_their_role_and_order_without_duplicate_variant_records() {
+fn typed_variant_child_facts_keep_cst_order_without_duplicate_variant_facts() {
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
         let source = "= A from (T -> ) | @";
-        let (green, records, _, _) = typed_variant(
+        let (green, facts, _, _) = typed_variant(
             source,
             owner,
             VariantSequenceForm::EqualsInline,
@@ -2428,56 +2326,30 @@ fn typed_variant_child_records_keep_their_role_and_order_without_duplicate_varia
             0,
             700,
             None,
-            None,
-            false,
         );
         assert_eq!(green.to_string(), source);
-        let child_role = GrammarRole::Type(crate::recovery_record::TypeRole::ArrowRhs);
-        let close = 700 + source.find(')').unwrap();
-        let malformed = 700 + source.find('@').unwrap();
-        let mut child = record(child_role, RecoveryKind::Missing, close..close, 0);
-        child.expectations = Arc::from([SyntaxExpectation {
-            role: child_role,
-            expected: ExpectedSyntax::TypeExpression,
-            range: close..close,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]);
-        let expected = vec![
-            child,
-            record(
-                variant_role(owner, VariantDeclarationRole::Item),
-                RecoveryKind::Error,
-                malformed..malformed + 1,
-                1,
-            ),
-        ];
-        // The variant recovery design's Publication and handoff section keeps
-        // nested payload records at their child owner, with no Item cascade.
-        assert_eq!(records, expected, "{owner:?}");
+        let close = source.find(')').unwrap();
+        let malformed = source.find('@').unwrap();
+        assert_eq!(
+            facts,
+            [
+                (StructuralKind::Missing, close..close),
+                (StructuralKind::ErrorGroup, malformed..malformed + 1),
+            ],
+            "{owner:?}"
+        );
         let root = syntax_root(green);
         assert_eq!(count(&root, SyntaxKind::Missing), 1);
         assert_eq!(count(&root, SyntaxKind::Error), 1);
-        let (_, frozen, _, _) = typed_variant(
-            source,
-            owner,
-            VariantSequenceForm::EqualsInline,
-            false,
-            0,
-            700,
-            None,
-            Some(&expected),
-            false,
-        );
-        assert_eq!(frozen, expected);
     }
 }
 
 #[test]
-fn typed_variant_named_field_records_keep_each_outer_owner() {
+fn typed_variant_named_field_has_an_outer_error_fact() {
     let source = "{V{@ : T}}";
-    let at = 700 + source.find('@').expect("malformed field name");
+    let at = source.find('@').expect("malformed field name");
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
-        let (green, records, _, _) = typed_variant(
+        let (green, facts, _, _) = typed_variant(
             source,
             owner,
             VariantSequenceForm::Braced,
@@ -2485,46 +2357,26 @@ fn typed_variant_named_field_records_keep_each_outer_owner() {
             0,
             700,
             None,
-            None,
-            false,
         );
         assert_eq!(green.to_string(), source);
-        let expected = vec![record(
-            variant_role(owner, VariantDeclarationRole::NamedFieldName),
-            RecoveryKind::Error,
-            at..at + 1,
-            0,
-        )];
-        assert_eq!(records, expected, "{owner:?}");
-        let mut frozen = expected.clone();
-        frozen[0].id = DiagnosticId(71);
-        let (again, reconciled, _, _) = typed_variant(
-            source,
-            owner,
-            VariantSequenceForm::Braced,
-            false,
-            0,
-            700,
-            None,
-            Some(&frozen),
-            false,
+        assert_eq!(
+            facts,
+            [(StructuralKind::ErrorGroup, at..at + 1)],
+            "{owner:?}"
         );
-        assert_eq!(again, green, "{owner:?}");
-        assert_eq!(reconciled, frozen, "{owner:?}");
     }
 }
 
 #[test]
 fn typed_variant_optional_shell_rejection_is_effect_free_for_both_owners() {
     // Evidence and execution in the variant recovery design requires optional
-    // shell rejection to preserve input, output, and the diagnostic cursor.
+    // shell rejection to preserve input and output without CST recovery facts.
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
         let operators = OperatorTable::empty();
         let mut recover = Recover::new_for_test(&operators);
         let mut input = "  @ rest";
         let mut builder = GreenNodeBuilder::new();
         builder.start_node(SyntaxKind::Root.into());
-        let before = recover.diagnostic_position();
         let entry = match owner {
             VariantOwner::Enum => enum_declaration_witness,
             VariantOwner::Error => error_declaration_witness,
@@ -2540,18 +2392,16 @@ fn typed_variant_optional_shell_rejection_is_effect_free_for_both_owners() {
         );
         assert!(exit.is_none());
         assert_eq!(input, "  @ rest");
-        assert_eq!(recover.diagnostic_position(), before);
-        assert_eq!(recover.recovery_slot_count(), 0);
         builder.finish_node();
-        let (green, records) = (builder.finish(), recover.finish_recoveries_for_test());
+        let green = finish_with_discarded_recoveries(builder, recover);
         assert_eq!(green.to_string(), "");
-        assert_eq!(syntax_root(green).children_with_tokens().count(), 0);
-        assert!(records.is_empty());
+        assert_eq!(syntax_root(green.clone()).children_with_tokens().count(), 0);
+        assert!(structural_facts(&green).is_empty());
     }
 }
 
 #[test]
-fn typed_variant_records_cover_both_owners_all_forms_and_frozen_seeded_ids() {
+fn typed_variant_facts_cover_both_owners_all_forms() {
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
         for (form, source, start, end) in [
             (VariantSequenceForm::Braced, "{  @ $ 名}", 3, 6),
@@ -2559,53 +2409,23 @@ fn typed_variant_records_cover_both_owners_all_forms_and_frozen_seeded_ids() {
             (VariantSequenceForm::ColonIndented, ":\r\n  @ $ 名", 5, 8),
             (VariantSequenceForm::EqualsIndented, "=\r\n  @ $ 名", 5, 8),
         ] {
-            for seeded in [false, true] {
-                let (green, records, _, _) =
-                    typed_variant(source, owner, form, false, 0, 700, None, None, seeded);
-                assert_eq!(green.to_string(), source);
-                let mut expected = Vec::new();
-                if seeded {
-                    expected.push(record(
-                        variant_role(owner, VariantDeclarationRole::Name),
-                        RecoveryKind::Missing,
-                        0..0,
-                        0,
-                    ));
-                }
-                expected.push(record(
-                    variant_role(owner, VariantDeclarationRole::Name),
-                    RecoveryKind::Error,
-                    700 + start..700 + end,
-                    usize::from(seeded),
-                ));
-                assert_eq!(records, expected, "{source:?} {owner:?}");
-                let root = syntax_root(green.clone());
-                assert_eq!(
-                    crate::tests::recovery_output::recovery_groups(&root)
-                        .into_iter()
-                        .next()
-                        .unwrap()
-                        .text()
-                        .to_string(),
-                    "@ $"
-                );
-                for (index, entry) in expected.iter_mut().enumerate() {
-                    entry.id = DiagnosticId(17 + index as u32 * 11);
-                }
-                let (again, frozen, _, _) = typed_variant(
-                    source,
-                    owner,
-                    form,
-                    false,
-                    0,
-                    700,
-                    None,
-                    Some(&expected),
-                    seeded,
-                );
-                assert_eq!(again, green);
-                assert_eq!(frozen, expected);
-            }
+            let (green, facts, _, _) = typed_variant(source, owner, form, false, 0, 700, None);
+            assert_eq!(green.to_string(), source);
+            assert_eq!(
+                facts,
+                [(StructuralKind::ErrorGroup, start..end)],
+                "{source:?} {owner:?}"
+            );
+            let root = syntax_root(green);
+            assert_eq!(
+                crate::tests::recovery_output::recovery_groups(&root)
+                    .into_iter()
+                    .next()
+                    .unwrap()
+                    .text()
+                    .to_string(),
+                "@ $"
+            );
         }
     }
 }
@@ -2613,11 +2433,15 @@ fn typed_variant_records_cover_both_owners_all_forms_and_frozen_seeded_ids() {
 #[test]
 fn typed_variant_terminal_runs_and_missing_keep_protected_items() {
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
-        for (source, accepted, error, missing_at) in [
-            ("= @ $ ]rest", "= @ $", Some(2..5), None),
-            ("= ]rest", "=", None, Some(1)),
+        for (source, accepted, facts) in [
+            (
+                "= @ $ ]rest",
+                "= @ $",
+                vec![(StructuralKind::ErrorGroup, 2..5)],
+            ),
+            ("= ]rest", "=", vec![(StructuralKind::Missing, 1..1)]),
         ] {
-            let (green, records, exit, remainder) = typed_variant(
+            let (green, actual_facts, exit, remainder) = typed_variant(
                 source,
                 owner,
                 VariantSequenceForm::EqualsInline,
@@ -2625,29 +2449,10 @@ fn typed_variant_terminal_runs_and_missing_keep_protected_items() {
                 0,
                 100,
                 None,
-                None,
-                false,
             );
             assert_eq!(green.to_string(), accepted);
             assert_eq!(remainder, "rest");
-            let mut expected = Vec::new();
-            if let Some(range) = error {
-                expected.push(record(
-                    variant_role(owner, VariantDeclarationRole::Item),
-                    RecoveryKind::Error,
-                    100 + range.start..100 + range.end,
-                    0,
-                ));
-            }
-            if let Some(at) = missing_at {
-                expected.push(record(
-                    variant_role(owner, VariantDeclarationRole::Item),
-                    RecoveryKind::Missing,
-                    100 + at..100 + at,
-                    0,
-                ));
-            }
-            assert_eq!(records, expected);
+            assert_eq!(actual_facts, facts);
             let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
                 panic!("outer close pending")
             };
@@ -2655,7 +2460,7 @@ fn typed_variant_terminal_runs_and_missing_keep_protected_items() {
             assert_eq!(emit_pending_leading_text(&mut item), " ");
         }
         for (source, at) in [("=  ", 3), ("=\r\n", 3)] {
-            let (green, records, _, _) = typed_variant(
+            let (green, facts, _, _) = typed_variant(
                 source,
                 owner,
                 VariantSequenceForm::EqualsInline,
@@ -2663,21 +2468,11 @@ fn typed_variant_terminal_runs_and_missing_keep_protected_items() {
                 0,
                 100,
                 None,
-                None,
-                false,
             );
             assert_eq!(green.to_string(), source);
-            assert_eq!(
-                records,
-                [record(
-                    variant_role(owner, VariantDeclarationRole::Item),
-                    RecoveryKind::Missing,
-                    100 + at..100 + at,
-                    0
-                )]
-            );
+            assert_eq!(facts, [(StructuralKind::Missing, at..at)]);
         }
-        let (green, records, _, _) = typed_variant(
+        let (green, facts, _, _) = typed_variant(
             "{ @ $  ",
             owner,
             VariantSequenceForm::Braced,
@@ -2685,28 +2480,13 @@ fn typed_variant_terminal_runs_and_missing_keep_protected_items() {
             0,
             100,
             None,
-            None,
-            false,
         );
         assert_eq!(green.to_string(), "{ @ $  ");
         assert_eq!(
-            records,
+            facts,
             [
-                record(
-                    variant_role(owner, VariantDeclarationRole::Item),
-                    RecoveryKind::Error,
-                    102..105,
-                    0
-                ),
-                record(
-                    GrammarRole::ClosingDelimiter {
-                        owner: ConstructRole::EnumBracedVariantBody,
-                        delimiter: Delimiter::Brace
-                    },
-                    RecoveryKind::Missing,
-                    107..107,
-                    1
-                )
+                (StructuralKind::ErrorGroup, 2..5),
+                (StructuralKind::Missing, 7..7),
             ]
         );
     }
@@ -2715,7 +2495,7 @@ fn typed_variant_terminal_runs_and_missing_keep_protected_items() {
 #[test]
 fn typed_variant_separators_and_with_preserve_trailing_control() {
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
-        let (green, records, _, _) = typed_variant(
+        let (green, facts, _, _) = typed_variant(
             "{,A,,B,}",
             owner,
             VariantSequenceForm::Braced,
@@ -2723,28 +2503,16 @@ fn typed_variant_separators_and_with_preserve_trailing_control() {
             0,
             0,
             None,
-            None,
-            false,
         );
         assert_eq!(green.to_string(), "{,A,,B,}");
         assert_eq!(
-            records,
+            facts,
             [
-                record(
-                    variant_role(owner, VariantDeclarationRole::Item),
-                    RecoveryKind::Missing,
-                    1..1,
-                    0
-                ),
-                record(
-                    variant_role(owner, VariantDeclarationRole::Item),
-                    RecoveryKind::Missing,
-                    4..4,
-                    1
-                )
+                (StructuralKind::Missing, 1..1),
+                (StructuralKind::Missing, 4..4)
             ]
         );
-        let (_, records, _, _) = typed_variant(
+        let (_, facts, _, _) = typed_variant(
             "{A()B}",
             owner,
             VariantSequenceForm::Braced,
@@ -2752,20 +2520,10 @@ fn typed_variant_separators_and_with_preserve_trailing_control() {
             0,
             0,
             None,
-            None,
-            false,
         );
-        assert_eq!(
-            records,
-            [record(
-                variant_role(owner, VariantDeclarationRole::Separator),
-                RecoveryKind::Missing,
-                4..4,
-                0
-            )]
-        );
+        assert_eq!(facts, [(StructuralKind::Missing, 4..4)]);
         for source in ["= A | with", "= | with"] {
-            let (green, records, exit, _) = typed_variant(
+            let (green, facts, exit, _) = typed_variant(
                 source,
                 owner,
                 VariantSequenceForm::EqualsInline,
@@ -2773,11 +2531,9 @@ fn typed_variant_separators_and_with_preserve_trailing_control() {
                 0,
                 0,
                 None,
-                None,
-                false,
             );
             assert_eq!(green.to_string(), source.trim_end_matches(" with"));
-            assert!(records.is_empty());
+            assert!(facts.is_empty());
             let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
                 panic!("with stays pending")
             };
@@ -2791,7 +2547,7 @@ fn typed_variant_separators_and_with_preserve_trailing_control() {
 fn typed_variant_raw_run_keeps_fence_and_contextual_stops_before_name_retry() {
     for owner in [VariantOwner::Enum, VariantOwner::Error] {
         for (yield_with, stops) in [(true, 0), (false, crate::lexical::stops::STOP_WITH)] {
-            let (green, records, exit, _) = typed_variant(
+            let (green, facts, exit, _) = typed_variant(
                 "= @ $ with",
                 owner,
                 VariantSequenceForm::EqualsInline,
@@ -2799,19 +2555,9 @@ fn typed_variant_raw_run_keeps_fence_and_contextual_stops_before_name_retry() {
                 stops,
                 50,
                 None,
-                None,
-                false,
             );
             assert_eq!(green.to_string(), "= @ $");
-            assert_eq!(
-                records,
-                [record(
-                    variant_role(owner, VariantDeclarationRole::Item),
-                    RecoveryKind::Error,
-                    52..55,
-                    0
-                )]
-            );
+            assert_eq!(facts, [(StructuralKind::ErrorGroup, 2..5)]);
             let Some(NormalizedExit::Complete(Err(Either::Left(mut item)), _)) = exit else {
                 panic!("with pending")
             };
@@ -2820,7 +2566,7 @@ fn typed_variant_raw_run_keeps_fence_and_contextual_stops_before_name_retry() {
         }
         let fence = active_fence();
         let source = "> > = @ $\r\n> > ```\r\nouter";
-        let (green, records, exit, remainder) = typed_variant(
+        let (green, facts, exit, remainder) = typed_variant(
             source,
             owner,
             VariantSequenceForm::EqualsInline,
@@ -2828,19 +2574,9 @@ fn typed_variant_raw_run_keeps_fence_and_contextual_stops_before_name_retry() {
             0,
             100,
             Some(&fence),
-            None,
-            false,
         );
         assert_eq!(green.to_string(), "> > = @ $");
-        assert_eq!(
-            records,
-            [record(
-                variant_role(owner, VariantDeclarationRole::Item),
-                RecoveryKind::Error,
-                106..109,
-                0
-            )]
-        );
+        assert_eq!(facts, [(StructuralKind::ErrorGroup, 6..9)]);
         assert_eq!(remainder, "> > ```\r\nouter");
         let Some(NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart)) =
             exit
@@ -3378,8 +3114,6 @@ fn declaration_variant_field_local_close_missing_preserves_borrowed_close_cst() 
                 0,
                 100,
                 None,
-                None,
-                false,
             );
             assert_eq!(green.to_string(), accepted, "{owner:?} {source:?}");
             assert_eq!(remainder, "");

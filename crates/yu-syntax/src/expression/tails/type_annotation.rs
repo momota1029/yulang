@@ -5,7 +5,6 @@ use crate::{
     cursor::SyntaxIn,
     handoff::NormalizedExit,
     lexical::{current_item::LineEntry, item::Item, stops::Stops, yumark::FenceBoundary},
-    recovery_record::{ExpressionRole, GrammarRole},
     syntax_kind::SyntaxKind,
     type_expr::{
         TypeOuterBoundary,
@@ -33,7 +32,6 @@ pub(crate) fn type_annotation_tail_normalized(
     let (exit, _) = required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
         i.rb(),
         item,
-        GrammarRole::Expression(ExpressionRole::TypeAnnotation),
         baseline,
         stops,
         TypeOuterBoundary::NONE,

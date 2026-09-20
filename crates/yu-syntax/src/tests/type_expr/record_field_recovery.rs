@@ -22,10 +22,9 @@ fn record_field_cst_orders_name_colon_and_type_recovery_without_ledger_context()
         ("{a @\r\n  B}", vec![Identifier, Error, Type]),
         ("{a:{b:}}", vec![Identifier, Colon, Type]),
     ] {
-        let (green, _, _) = run_type_with_context_and_recoveries(
+        let (green, _, _) = run_type_with_context_and_structural_diagnostics(
             source,
             crate::type_expr::TypeMlContext::INACTIVE,
-            None,
         );
         let root = SyntaxNode::new_root(green);
         assert_eq!(root.text(), source);
@@ -64,76 +63,37 @@ fn record_field_cst_orders_name_colon_and_type_recovery_without_ledger_context()
     }
 }
 
-pub(super) fn field_record(
-    id: u32,
-    role: TypeRole,
-    range: Range<usize>,
-    error: bool,
-) -> CommittedRecoveryRecord {
-    let expected = match role {
-        TypeRole::RecordField | TypeRole::RecordFieldName => ExpectedSyntax::Identifier,
-        TypeRole::RecordFieldColon => ExpectedSyntax::Punctuation(PunctuationEvidence::Colon),
-        TypeRole::RecordFieldType => ExpectedSyntax::TypeExpression,
-        TypeRole::RecordFieldSeparator => ExpectedSyntax::DelimitedSequenceSeparator,
-        _ => panic!("only named-record field test records"),
-    };
-    let role = GrammarRole::Type(role);
-    CommittedRecoveryRecord {
-        id: DiagnosticId(id),
-        site: RecoverySiteKey {
-            role,
-            range: range.clone(),
-        },
-        kind: if error {
-            RecoveryKind::Error
+pub(super) fn field_record(_: u32, range: Range<usize>, error: bool) -> ExpectedStructural {
+    (
+        if error {
+            StructuralKind::ErrorGroup
         } else {
-            RecoveryKind::Missing
+            StructuralKind::Missing
         },
-        unexpected: if error {
-            Arc::from([UnexpectedSyntax::Token {
-                range: range.clone(),
-                category: UnexpectedCategory::OtherCharacter,
-            }])
-        } else {
-            Arc::from([])
-        },
-        expectations: Arc::from([SyntaxExpectation {
-            role,
-            expected,
-            range,
-            sources: ExpectationSources::COMMITTED_RECOVERY_RULE,
-        }]),
-        primary_expectation: 0,
-    }
+        range,
+    )
 }
 
 #[test]
 fn record_field_missing_slots_keep_roles_and_do_not_cascade_colon_into_type() {
-    use TypeRole::{RecordFieldColon as C, RecordFieldName as N, RecordFieldType as T};
     for (source, expected) in [
-        ("{: A}", vec![field_record(0, N, 1..1, false)]),
-        ("{:{b:B}}", vec![field_record(0, N, 1..1, false)]),
+        ("{: A}", vec![field_record(0, 1..1, false)]),
+        ("{:{b:B}}", vec![field_record(0, 1..1, false)]),
         (
             "{:}",
-            vec![
-                field_record(0, N, 1..1, false),
-                field_record(1, T, 2..2, false),
-            ],
+            vec![field_record(0, 1..1, false), field_record(0, 2..2, false)],
         ),
-        ("{a}", vec![field_record(0, C, 2..2, false)]),
-        ("{a }", vec![field_record(0, C, 2..2, false)]),
-        ("{a A}", vec![field_record(0, C, 3..3, false)]),
-        ("{a :{A}}", vec![field_record(0, C, 6..6, false)]),
+        ("{a}", vec![field_record(0, 2..2, false)]),
+        ("{a }", vec![field_record(0, 2..2, false)]),
+        ("{a A}", vec![field_record(0, 3..3, false)]),
+        ("{a :{A}}", vec![field_record(0, 6..6, false)]),
         (
             "{a @ :{A}}",
-            vec![
-                field_record(0, C, 3..4, true),
-                field_record(1, C, 8..8, false),
-            ],
+            vec![field_record(0, 3..4, true), field_record(0, 8..8, false)],
         ),
-        ("{a:}", vec![field_record(0, T, 3..3, false)]),
-        ("{a: }", vec![field_record(0, T, 3..3, false)]),
-        ("{a:\nb: B}", vec![field_record(0, T, 3..3, false)]),
+        ("{a:}", vec![field_record(0, 3..3, false)]),
+        ("{a: }", vec![field_record(0, 3..3, false)]),
+        ("{a:\nb: B}", vec![field_record(0, 3..3, false)]),
     ] {
         let root = assert_complete_type_recovery(source, 0, &expected);
         assert_eq!(
@@ -142,7 +102,7 @@ fn record_field_missing_slots_keep_roles_and_do_not_cascade_colon_into_type() {
                 .count(),
             expected
                 .iter()
-                .filter(|record| record.kind == RecoveryKind::Missing)
+                .filter(|(kind, _)| *kind == StructuralKind::Missing)
                 .count()
         );
         if source.ends_with(" }") {
@@ -174,32 +134,31 @@ fn record_field_missing_slots_keep_roles_and_do_not_cascade_colon_into_type() {
 
 #[test]
 fn record_field_errors_publish_exact_slot_extents_and_native_retry_structure() {
-    use TypeRole::{RecordFieldColon as C, RecordFieldName as N, RecordFieldType as T};
-    for (source, role, range, error_text, first_kind) in [
-        ("{@: A}", N, 1..2, "@", SyntaxKind::Unknown),
-        ("{@:{b:B}}", N, 1..2, "@", SyntaxKind::Unknown),
-        ("{'a: A}", N, 1..3, "'a", SyntaxKind::SigilIdentifier),
-        ("{1: A}", N, 1..2, "1", SyntaxKind::Integer),
-        ("{@ (): A}", N, 1..5, "@ ()", SyntaxKind::Unknown),
-        ("{@ !: A}", N, 1..4, "@ !", SyntaxKind::Unknown),
-        ("{a @ : B}", C, 3..4, "@", SyntaxKind::Unknown),
-        ("{a @ : :{A}}", C, 3..4, "@", SyntaxKind::Unknown),
-        ("{a @:{b:B}}", C, 3..4, "@", SyntaxKind::Unknown),
-        ("{a @ B}", C, 3..4, "@", SyntaxKind::Unknown),
-        ("{a @}", C, 3..4, "@", SyntaxKind::Unknown),
-        ("{a :: B}", C, 3..5, "::", SyntaxKind::ColonColon),
-        ("{a = B}", C, 3..4, "=", SyntaxKind::Equals),
-        ("{a @\n  B}", C, 3..4, "@", SyntaxKind::Unknown),
-        ("{a @\r\n  B}", C, 3..4, "@", SyntaxKind::Unknown),
-        ("{a: @ B}", T, 4..5, "@", SyntaxKind::Unknown),
-        ("{a: @}", T, 4..5, "@", SyntaxKind::Unknown),
-        ("{a: @, b: B}", T, 4..5, "@", SyntaxKind::Unknown),
-        ("{a: @\nb: B}", T, 4..5, "@", SyntaxKind::Unknown),
-        ("{a: @\n  B}", T, 4..5, "@", SyntaxKind::Unknown),
-        ("{a: @/*é*/B}", T, 4..5, "@", SyntaxKind::Unknown),
-        ("{a: @ : B}", T, 4..7, "@ :", SyntaxKind::Unknown),
+    for (source, range, error_text, first_kind) in [
+        ("{@: A}", 1..2, "@", SyntaxKind::Unknown),
+        ("{@:{b:B}}", 1..2, "@", SyntaxKind::Unknown),
+        ("{'a: A}", 1..3, "'a", SyntaxKind::SigilIdentifier),
+        ("{1: A}", 1..2, "1", SyntaxKind::Integer),
+        ("{@ (): A}", 1..5, "@ ()", SyntaxKind::Unknown),
+        ("{@ !: A}", 1..4, "@ !", SyntaxKind::Unknown),
+        ("{a @ : B}", 3..4, "@", SyntaxKind::Unknown),
+        ("{a @ : :{A}}", 3..4, "@", SyntaxKind::Unknown),
+        ("{a @:{b:B}}", 3..4, "@", SyntaxKind::Unknown),
+        ("{a @ B}", 3..4, "@", SyntaxKind::Unknown),
+        ("{a @}", 3..4, "@", SyntaxKind::Unknown),
+        ("{a :: B}", 3..5, "::", SyntaxKind::ColonColon),
+        ("{a = B}", 3..4, "=", SyntaxKind::Equals),
+        ("{a @\n  B}", 3..4, "@", SyntaxKind::Unknown),
+        ("{a @\r\n  B}", 3..4, "@", SyntaxKind::Unknown),
+        ("{a: @ B}", 4..5, "@", SyntaxKind::Unknown),
+        ("{a: @}", 4..5, "@", SyntaxKind::Unknown),
+        ("{a: @, b: B}", 4..5, "@", SyntaxKind::Unknown),
+        ("{a: @\nb: B}", 4..5, "@", SyntaxKind::Unknown),
+        ("{a: @\n  B}", 4..5, "@", SyntaxKind::Unknown),
+        ("{a: @/*é*/B}", 4..5, "@", SyntaxKind::Unknown),
+        ("{a: @ : B}", 4..7, "@ :", SyntaxKind::Unknown),
     ] {
-        let root = assert_complete_type_recovery(source, 0, &[field_record(0, role, range, true)]);
+        let root = assert_complete_type_recovery(source, 0, &[field_record(0, range, true)]);
         let error = recovery_groups(&root).into_iter().next().unwrap();
         assert_eq!(error.text(), error_text, "{source:?}");
         assert_eq!(error.first_token().unwrap().kind(), SyntaxKind::Error);
@@ -233,17 +192,16 @@ fn record_field_errors_publish_exact_slot_extents_and_native_retry_structure() {
             );
         }
     }
-    assert_complete_type_recovery("{a: @ B}", 40, &[field_record(0, T, 44..45, true)]);
+    assert_complete_type_recovery("{a: @ B}", 40, &[field_record(0, 44..45, true)]);
 }
 
 #[test]
 fn record_field_caller_words_are_checked_before_fresh_and_recovered_candidates() {
-    use TypeRole::{RecordFieldColon as C, RecordFieldType as T};
     for (prefix, expected) in [
-        ("{a", field_record(0, C, 2..2, false)),
-        ("{a @", field_record(0, C, 3..4, true)),
-        ("{a:", field_record(0, T, 3..3, false)),
-        ("{a: @", field_record(0, T, 4..5, true)),
+        ("{a", field_record(0, 2..2, false)),
+        ("{a @", field_record(0, 3..4, true)),
+        ("{a:", field_record(0, 3..3, false)),
+        ("{a: @", field_record(0, 4..5, true)),
     ] {
         for (suffix, stops) in [
             (" with tail", crate::lexical::stops::STOP_WITH),
@@ -254,36 +212,34 @@ fn record_field_caller_words_are_checked_before_fresh_and_recovered_candidates()
                 expected.clone(),
                 close(1, prefix.len()..prefix.len(), false),
             ];
-            let frozen = frozen_recovery_ids(&expected);
-            for (input, records) in [
-                (None, expected.as_slice()),
-                (Some(frozen.as_slice()), frozen.as_slice()),
-            ] {
-                let run = run_contextual_type_snapshot(
-                    &source,
-                    crate::type_expr::TypeMlContext::INACTIVE,
-                    stops,
-                    0,
-                    0,
-                    LineEntry::InLine,
-                    None,
-                    input,
-                );
-                assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
-                assert_eq!(run.records, records, "{source:?}");
-                assert_eq!(run.slots, 2);
-                let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
-                    panic!("caller Item stays pending")
-                };
-                let (control, origin, control_line, remainder, _, _) =
-                    scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
-                assert_eq!(pending, control, "{source:?}");
-                assert_eq!(run.successor_origin, origin);
-                assert_eq!(run.remainder, remainder);
-                assert_eq!(line, control_line);
-                assert_eq!(run.mark, ());
-                assert!(run.same_operators);
-            }
+            let run = run_contextual_type_snapshot(
+                &source,
+                crate::type_expr::TypeMlContext::INACTIVE,
+                stops,
+                0,
+                0,
+                LineEntry::InLine,
+                None,
+            );
+            assert_eq!(run.green.to_string(), format!("sentinel{prefix}"));
+            let expected = expected.map(|(kind, range)| {
+                (
+                    kind,
+                    "sentinel".len() + range.start.."sentinel".len() + range.end,
+                )
+            });
+            assert_eq!(run.facts, expected, "{source:?}");
+            let NormalizedExit::Complete(Err(Either::Left(pending)), line) = run.exit else {
+                panic!("caller Item stays pending")
+            };
+            let (control, origin, control_line, remainder, _, _) =
+                scan_type_item_control(suffix, prefix.len(), &OperatorTable::empty());
+            assert_eq!(pending, control, "{source:?}");
+            assert_eq!(run.successor_origin, origin);
+            assert_eq!(run.remainder, remainder);
+            assert_eq!(line, control_line);
+            assert_eq!(run.mark, ());
+            assert!(run.same_operators);
         }
     }
 }
@@ -291,10 +247,9 @@ fn record_field_caller_words_are_checked_before_fresh_and_recovered_candidates()
 #[test]
 fn record_field_colon_is_local_only_in_its_own_mandatory_slot() {
     for source in ["{a: A}", "{@: A}", "{a @ : A}", "{a:{b:B}}", "{a: :{B}}"] {
-        let (green, exit, records) = run_type_with_context_and_recoveries(
+        let (green, exit, facts) = run_type_with_context_and_structural_diagnostics(
             source,
             crate::type_expr::TypeMlContext::INACTIVE,
-            None,
         );
         let contextual = run_contextual_type_snapshot(
             source,
@@ -304,10 +259,20 @@ fn record_field_colon_is_local_only_in_its_own_mandatory_slot() {
             0,
             LineEntry::InLine,
             None,
-            None,
         );
         assert_eq!(contextual.green.to_string(), format!("sentinel{green}"));
-        assert_eq!(contextual.records, records);
+        assert_eq!(
+            contextual.facts,
+            facts
+                .iter()
+                .map(|(kind, range)| {
+                    (
+                        *kind,
+                        "sentinel".len() + range.start.."sentinel".len() + range.end,
+                    )
+                })
+                .collect::<Vec<_>>()
+        );
         assert!(matches!(
             exit,
             NormalizedExit::Complete(Err(Either::Right(_)), _)
@@ -325,14 +290,10 @@ fn record_field_colon_is_local_only_in_its_own_mandatory_slot() {
         0,
         LineEntry::InLine,
         None,
-        None,
     );
     assert_eq!(
-        run.records,
-        [
-            field_record(0, TypeRole::RecordFieldType, 3..3, false),
-            close(1, 3..3, false)
-        ]
+        run.facts,
+        [field_record(0, 11..11, false), close(1, 11..11, false)]
     );
     assert_eq!(run.green.to_string(), "sentinel{a:");
     let NormalizedExit::Complete(Err(Either::Left(pending)), _) = run.exit else {
@@ -349,14 +310,10 @@ fn record_field_colon_is_local_only_in_its_own_mandatory_slot() {
         0,
         LineEntry::InLine,
         None,
-        None,
     );
     assert_eq!(
-        run.records,
-        [
-            field_record(0, TypeRole::RecordField, 1..4, true),
-            close(1, 4..4, false)
-        ]
+        run.facts,
+        [field_record(0, 9..12, true), close(1, 12..12, false)]
     );
     assert_eq!(run.green.to_string(), "sentinel{@ (");
     let NormalizedExit::Complete(Err(Either::Left(pending)), _) = run.exit else {
@@ -368,7 +325,6 @@ fn record_field_colon_is_local_only_in_its_own_mandatory_slot() {
 
 #[test]
 fn record_field_fence_handoff_keeps_missing_and_error_anchors_truthful() {
-    use TypeRole::{RecordFieldColon as C, RecordFieldType as T};
     let fence = FenceBoundary {
         opener: FenceOpener {
             line: 0,
@@ -379,47 +335,38 @@ fn record_field_fence_handoff_keeps_missing_and_error_anchors_truthful() {
         close_column: 0,
     };
     for (prefix, expected) in [
-        ("> > {a", field_record(0, C, 7..7, false)),
-        ("> > {a:", field_record(0, T, 8..8, false)),
-        ("> > {a @", field_record(0, C, 7..8, true)),
-        ("> > {a: @", field_record(0, T, 8..9, true)),
+        ("> > {a", field_record(0, 6..6, false)),
+        ("> > {a:", field_record(0, 7..7, false)),
+        ("> > {a @", field_record(0, 7..8, true)),
+        ("> > {a: @", field_record(0, 8..9, true)),
     ] {
         let source = format!("{prefix}\n> > ```\nouter");
-        let at = prefix.len() + 1;
+        let at = prefix.len();
         let expected = [expected, close(1, at..at, false)];
-        let frozen = frozen_recovery_ids(&expected);
-        for (input, records) in [
-            (None, expected.as_slice()),
-            (Some(frozen.as_slice()), frozen.as_slice()),
-        ] {
-            let (green, exit, remainder, actual) = run_type_normalized_with_recoveries(
-                &source,
-                0,
-                LineEntry::PhysicalStart,
-                Some(&fence),
-                input,
-            );
-            assert_eq!(green.to_string(), prefix);
-            assert_eq!(actual, records);
-            assert_eq!(remainder, "> > ```\nouter");
-            let Some(NormalizedExit::Complete(
-                Err(Either::Left(pending)),
-                LineEntry::PhysicalStart,
-            )) = exit
-            else {
-                panic!("field preserves fence")
-            };
-            assert!(pending.payload_view().is_boundary());
-            assert!(pending.leading_view().has_ordinary_newline());
-            assert_eq!(
-                pending
-                    .payload_view()
-                    .pending_boundary()
-                    .unwrap()
-                    .coordinate(),
-                prefix.len() + 1
-            );
-        }
+        let (green, exit, remainder, facts) = run_type_normalized_with_structural_diagnostics(
+            &source,
+            0,
+            LineEntry::PhysicalStart,
+            Some(&fence),
+        );
+        assert_eq!(green.to_string(), prefix);
+        assert_eq!(facts, expected);
+        assert_eq!(remainder, "> > ```\nouter");
+        let Some(NormalizedExit::Complete(Err(Either::Left(pending)), LineEntry::PhysicalStart)) =
+            exit
+        else {
+            panic!("field preserves fence")
+        };
+        assert!(pending.payload_view().is_boundary());
+        assert!(pending.leading_view().has_ordinary_newline());
+        assert_eq!(
+            pending
+                .payload_view()
+                .pending_boundary()
+                .unwrap()
+                .coordinate(),
+            prefix.len() + 1
+        );
     }
 }
 
@@ -430,7 +377,6 @@ fn record_field_structured_pv_reservations_order_parent_before_each_nested_slot(
         PolymorphicVariantTag, PolymorphicVariantType, RBrace, Root, TypeExpression,
         TypeRecordField, Whitespace,
     };
-    use TypeRole::{RecordFieldColon as C, RecordFieldType as T};
 
     fn children(node: &SyntaxNode, expected: &[(SyntaxKind, bool, Range<usize>, &str)]) {
         let actual = node
@@ -451,177 +397,138 @@ fn record_field_structured_pv_reservations_order_parent_before_each_nested_slot(
         assert_eq!(actual, expected);
     }
 
-    for (source, extent, nested_role, error_range) in [
-        (":{{a @ B}}", 2..9, C, 5..6),
-        (":{{a: @ B}}", 2..10, T, 6..7),
-    ] {
-        let mut fresh_green = None;
+    for (source, extent, error_range) in [(":{{a @ B}}", 2..9, 5..6), (":{{a: @ B}}", 2..10, 6..7)]
+    {
         let expected = [
-            expected_type_error(0, TypeRole::PolymorphicVariantTagName, extent.clone()),
-            field_record(1, nested_role, error_range.clone(), true),
+            (StructuralKind::Invalid, extent.clone()),
+            field_record(1, error_range.clone(), true),
         ];
-        let frozen = frozen_recovery_ids(&expected);
-        for input in [None, Some(frozen.as_slice())] {
-            let (green, exit, remainder, records) =
-                run_type_normalized_with_recoveries(source, 0, LineEntry::InLine, None, input);
-            let root = SyntaxNode::new_root(green.clone());
-            assert_eq!(root.text(), source);
-            assert_eq!(remainder, "");
-            assert!(matches!(
-                exit,
-                Some(NormalizedExit::Complete(
-                    Err(Either::Right(_)),
-                    LineEntry::InLine
-                ))
-            ));
-            let invalid = root
-                .descendants()
-                .find(|node| node.kind() == Invalid)
-                .unwrap();
-            let tag = invalid.parent().unwrap();
-            let pv = tag.parent().unwrap();
-            assert_eq!(
-                invalid
-                    .ancestors()
-                    .map(|node| node.kind())
-                    .collect::<Vec<_>>(),
-                [
-                    Invalid,
-                    PolymorphicVariantTag,
-                    PolymorphicVariantType,
-                    TypeExpression,
-                    Root
-                ]
-            );
-            let end = source.len();
-            children(
-                &pv,
-                &[
-                    (Colon, false, 0..1, ":"),
-                    (LBrace, false, 1..2, "{"),
-                    (PolymorphicVariantTag, true, 2..end - 1, &source[2..end - 1]),
-                    (RBrace, false, end - 1..end, "}"),
-                ],
-            );
-            children(&tag, &[(Invalid, true, 2..end - 1, &source[2..end - 1])]);
-            children(
-                &invalid,
-                &[(TypeExpression, true, 2..end - 1, &source[2..end - 1])],
-            );
-            let retained_type = invalid.first_child().unwrap();
-            children(
-                &retained_type,
-                &[(NamedRecordType, true, 2..end - 1, &source[2..end - 1])],
-            );
-            let record = retained_type.first_child().unwrap();
-            children(
-                &record,
-                &[
-                    (LBrace, false, 2..3, "{"),
-                    (TypeRecordField, true, 3..end - 2, &source[3..end - 2]),
-                    (NamedRecordTypeClose, true, end - 2..end - 1, "}"),
-                ],
-            );
-            children(
-                &record.last_child().unwrap(),
-                &[(RBrace, false, end - 2..end - 1, "}")],
-            );
-            let field = record.first_child().unwrap();
-            let mut field_children = vec![(Identifier, false, 3..4, "a")];
-            if nested_role == T {
-                field_children.push((Colon, false, 4..5, ":"));
-            }
-            field_children.extend([
-                (
-                    Whitespace,
-                    false,
-                    error_range.start - 1..error_range.start,
-                    " ",
-                ),
-                (Error, false, error_range.clone(), "@"),
-                (Whitespace, false, error_range.end..error_range.end + 1, " "),
-                (TypeExpression, true, end - 3..end - 2, "B"),
-            ]);
-            children(&field, &field_children);
-            children(
-                &field.last_child().unwrap(),
-                &[(Identifier, false, end - 3..end - 2, "B")],
-            );
+        let (green, exit, remainder, facts) =
+            run_type_normalized_with_structural_diagnostics(source, 0, LineEntry::InLine, None);
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.text(), source);
+        assert_eq!(remainder, "");
+        assert!(matches!(
+            exit,
+            Some(NormalizedExit::Complete(
+                Err(Either::Right(_)),
+                LineEntry::InLine
+            ))
+        ));
+        let invalid = root
+            .descendants()
+            .find(|node| node.kind() == Invalid)
+            .unwrap();
+        let tag = invalid.parent().unwrap();
+        let pv = tag.parent().unwrap();
+        assert_eq!(
+            invalid
+                .ancestors()
+                .map(|node| node.kind())
+                .collect::<Vec<_>>(),
+            [
+                Invalid,
+                PolymorphicVariantTag,
+                PolymorphicVariantType,
+                TypeExpression,
+                Root
+            ]
+        );
+        let end = source.len();
+        children(
+            &pv,
+            &[
+                (Colon, false, 0..1, ":"),
+                (LBrace, false, 1..2, "{"),
+                (PolymorphicVariantTag, true, 2..end - 1, &source[2..end - 1]),
+                (RBrace, false, end - 1..end, "}"),
+            ],
+        );
+        children(&tag, &[(Invalid, true, 2..end - 1, &source[2..end - 1])]);
+        children(
+            &invalid,
+            &[(TypeExpression, true, 2..end - 1, &source[2..end - 1])],
+        );
+        let retained_type = invalid.first_child().unwrap();
+        children(
+            &retained_type,
+            &[(NamedRecordType, true, 2..end - 1, &source[2..end - 1])],
+        );
+        let record = retained_type.first_child().unwrap();
+        children(
+            &record,
+            &[
+                (LBrace, false, 2..3, "{"),
+                (TypeRecordField, true, 3..end - 2, &source[3..end - 2]),
+                (NamedRecordTypeClose, true, end - 2..end - 1, "}"),
+            ],
+        );
+        children(
+            &record.last_child().unwrap(),
+            &[(RBrace, false, end - 2..end - 1, "}")],
+        );
+        let field = record.first_child().unwrap();
+        let mut field_children = vec![(Identifier, false, 3..4, "a")];
+        if source.contains("{a: @") {
+            field_children.push((Colon, false, 4..5, ":"));
+        }
+        field_children.extend([
+            (
+                Whitespace,
+                false,
+                error_range.start - 1..error_range.start,
+                " ",
+            ),
+            (Error, false, error_range.clone(), "@"),
+            (Whitespace, false, error_range.end..error_range.end + 1, " "),
+            (TypeExpression, true, end - 3..end - 2, "B"),
+        ]);
+        children(&field, &field_children);
+        children(
+            &field.last_child().unwrap(),
+            &[(Identifier, false, end - 3..end - 2, "B")],
+        );
 
-            // Enter Invalid before descending to the field. Select the nested
-            // slot from actual Colon/order, never from temporary record facts.
-            let mut projection = Vec::new();
-            for event in root.preorder_with_tokens() {
-                let rowan::WalkEvent::Enter(child) = event else {
-                    continue;
-                };
-                let (role, expected_syntax) = match child.kind() {
-                    Invalid => {
-                        assert_eq!(child.as_node(), Some(&invalid));
-                        (
-                            TypeRole::PolymorphicVariantTagName,
-                            ExpectedSyntax::Identifier,
-                        )
+        // Enter Invalid before descending to the field. Select the nested
+        // slot from actual Colon/order, never from temporary record facts.
+        let mut projection = Vec::new();
+        for event in root.preorder_with_tokens() {
+            let rowan::WalkEvent::Enter(child) = event else {
+                continue;
+            };
+            match child.kind() {
+                Invalid => {
+                    assert_eq!(child.as_node(), Some(&invalid));
+                    projection.push((Invalid, SyntaxKind::PolymorphicVariantType, extent.clone()));
+                }
+                Error => {
+                    assert!(child.as_token().is_some());
+                    assert_eq!(child.parent(), Some(field.clone()));
+                    let direct = field.children_with_tokens().collect::<Vec<_>>();
+                    let at = direct.iter().position(|element| element == &child).unwrap();
+                    assert_ne!(direct[at - 1].kind(), Error);
+                    assert_ne!(direct[at + 1].kind(), Error);
+                    assert_eq!(direct[at + 1].kind(), Whitespace);
+                    assert_eq!(direct[at + 2].kind(), TypeExpression);
+                    if direct[..at].iter().any(|element| element.kind() == Colon) {
+                        projection.push((Error, TypeRecordField, error_range.clone()));
+                    } else {
+                        projection.push((Error, TypeRecordField, error_range.clone()));
                     }
-                    Error => {
-                        assert!(child.as_token().is_some());
-                        assert_eq!(child.parent(), Some(field.clone()));
-                        let direct = field.children_with_tokens().collect::<Vec<_>>();
-                        let at = direct.iter().position(|element| element == &child).unwrap();
-                        assert_ne!(direct[at - 1].kind(), Error);
-                        assert_ne!(direct[at + 1].kind(), Error);
-                        assert_eq!(direct[at + 1].kind(), Whitespace);
-                        assert_eq!(direct[at + 2].kind(), TypeExpression);
-                        if direct[..at].iter().any(|element| element.kind() == Colon) {
-                            (T, ExpectedSyntax::TypeExpression)
-                        } else {
-                            (C, ExpectedSyntax::Punctuation(PunctuationEvidence::Colon))
-                        }
-                    }
-                    SyntaxKind::Missing => panic!("no nested Missing cascade"),
-                    _ => continue,
-                };
-                projection.push((
-                    child.kind(),
-                    role,
-                    [expected_syntax],
-                    0usize,
-                    usize::from(child.text_range().start())..usize::from(child.text_range().end()),
-                ));
-            }
-            assert_eq!(
-                projection,
-                [
-                    (
-                        Invalid,
-                        TypeRole::PolymorphicVariantTagName,
-                        [ExpectedSyntax::Identifier],
-                        0,
-                        extent.clone()
-                    ),
-                    (
-                        Error,
-                        nested_role,
-                        [if nested_role == C {
-                            ExpectedSyntax::Punctuation(PunctuationEvidence::Colon)
-                        } else {
-                            ExpectedSyntax::TypeExpression
-                        }],
-                        0,
-                        error_range.clone()
-                    ),
-                ]
-            );
-
-            // Temporary compatibility assertions follow the independent CST projection.
-            assert_eq!(records, input.unwrap_or(&expected));
-            if let Some(fresh) = &fresh_green {
-                assert_eq!(&green, fresh);
-            } else {
-                fresh_green = Some(green);
+                }
+                SyntaxKind::Missing => panic!("no nested Missing cascade"),
+                _ => {}
             }
         }
-        // Retain seeded output, cursor state, and exact fresh/frozen EOF Item coverage.
+        assert_eq!(
+            projection,
+            [
+                (Invalid, SyntaxKind::PolymorphicVariantType, extent.clone()),
+                (Error, TypeRecordField, error_range.clone()),
+            ]
+        );
+
+        assert_eq!(facts, expected);
         assert_complete_type_recovery(source, 0, &expected);
     }
 }
@@ -656,11 +563,7 @@ fn record_field_accepted_controls_keep_full_type_and_layout_grammar() {
 #[test]
 fn record_field_next_head_query_shares_exact_colon_ownership() {
     let source = "{a:A b:{c:C}}";
-    let root = assert_complete_type_recovery(
-        source,
-        0,
-        &[field_record(0, TypeRole::RecordFieldSeparator, 5..5, false)],
-    );
+    let root = assert_complete_type_recovery(source, 0, &[field_record(0, 5..5, false)]);
     let record = root
         .descendants()
         .find(|node| node.kind() == SyntaxKind::NamedRecordType)
