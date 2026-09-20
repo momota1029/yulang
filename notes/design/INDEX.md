@@ -4,6 +4,7 @@ This index is a navigation aid. The listed source document remains authoritative
 
 | Document | Status | Authority scope | Approved / state | Useful locator or gate |
 |---|---|---|---|---|
+| `notes/design/2026-09-20-binding-body-definition-root-directed-subtype-draft.md` | Reviewed; authorizes no implementation | proposed binding-body to definition-root subtype relation | M3 compiler/specification/performance review clean 2026-09-20; user decision pending | one value-only body-to-root relation; no definition effect/name/generalization |
 | `notes/design/2026-09-20-directed-subtyping-integer-slice-draft.md` | Authoritative; construction complete | first type/effect vertical slice for direct-root decimal integers | user approved integrated choice 1 on 2026-09-20; M3 implementation and delta reviews clean | directed lower/upper bounds, pure effect, artifact-scoped occurrence identity, reference `SolvedModule` |
 | `notes/design/2026-09-20-hir-direct-root-expression-slice.md` | Authoritative; construction complete | direct-root OperatorChain HIR items | user approved and M2-reviewed 2026-09-20 | neutral Integer/Identifier root lowering; no types/evaluation |
 | `notes/design/2026-09-20-successor-bracket-row-close-topology-supersession.md` | Authoritative; construction complete | BracketRow Item/Close raw-Error topology | user approved and M2-reviewed 2026-09-20 | direct Item Error; close-only `TypeDelimitedForeignClose > Error+` |

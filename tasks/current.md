@@ -154,6 +154,12 @@ without a new approved gate. Immediate next action: select the next concrete
 vertical semantic slice from existing accepted input and the established
 subtyping model.
 
+The next binding-body-to-definition-root semantic proposal is reviewed in
+`notes/design/2026-09-20-binding-body-definition-root-directed-subtype-draft.md`.
+It remains non-authoritative pending a user decision; do not implement its HIR
+definition-root API, component/index topology, or fifth relation until approval
+is recorded.
+
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
 
