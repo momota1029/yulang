@@ -1,7 +1,7 @@
 //! Ordered directed-subtyping collection and deterministic reference solving.
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, hash_map::Entry},
     hash::{Hash, Hasher},
     sync::{
         Arc,
@@ -9,7 +9,9 @@ use std::{
     },
 };
 
-use yu_hir::{DefinitionRootId, HirItem, HirModule, HirOccurrenceId, ResolvedExpr};
+use yu_hir::{
+    DefId, DefinitionRootId, HirItem, HirModule, HirOccurrenceId, NameResolution, ResolvedExpr,
+};
 use yu_types::{ComponentKind, Leaf};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -121,6 +123,207 @@ pub struct Components {
     value: ComponentId,
     effect: ComponentId,
 }
+
+/// A deterministic definition key, meaningful only within one collected batch.
+///
+/// Its ordinal is allocated from admitted-binding HIR order.  It deliberately
+/// carries no spelling, range, module-path, or hash-iteration information.
+#[derive(Clone)]
+pub(crate) struct DefinitionOrderId {
+    artifact: Arc<CollectionArtifactToken>,
+    ordinal: u32,
+}
+impl DefinitionOrderId {
+    fn new(artifact: Arc<CollectionArtifactToken>, ordinal: u32) -> Self {
+        Self { artifact, ordinal }
+    }
+    pub(crate) const fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+}
+impl std::fmt::Debug for DefinitionOrderId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DefinitionOrderId")
+            .field("ordinal", &self.ordinal)
+            .finish_non_exhaustive()
+    }
+}
+impl PartialEq for DefinitionOrderId {
+    fn eq(&self, other: &Self) -> bool {
+        self.ordinal == other.ordinal && Arc::ptr_eq(&self.artifact, &other.artifact)
+    }
+}
+impl Eq for DefinitionOrderId {}
+impl Hash for DefinitionOrderId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.artifact).hash(state);
+        self.ordinal.hash(state);
+    }
+}
+
+/// A completed body remains present even when lowering produced an error body.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CollectedBodyStatus {
+    Complete,
+    Error,
+}
+
+/// Immutable F0 record for one admitted binding and its pre-existing facts.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CollectedDefinition {
+    definition: DefinitionOrderId,
+    root: DefinitionRootId,
+    body_fact_range: std::ops::Range<usize>,
+    body_status: CollectedBodyStatus,
+}
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "F0 records become the direct F1 SCC-plan input")
+)]
+impl CollectedDefinition {
+    pub(crate) fn definition(&self) -> &DefinitionOrderId {
+        &self.definition
+    }
+    pub(crate) fn body_fact_range(&self) -> &std::ops::Range<usize> {
+        &self.body_fact_range
+    }
+    pub(crate) const fn body_status(&self) -> CollectedBodyStatus {
+        self.body_status
+    }
+}
+
+/// A dependency-use key branded by its immutable collected batch.
+#[derive(Clone)]
+pub(crate) struct DefinitionUseId {
+    artifact: Arc<CollectionArtifactToken>,
+    occurrence: HirOccurrenceId,
+}
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "F0 use identities become the direct F1 graph payload"
+    )
+)]
+impl DefinitionUseId {
+    fn new(artifact: Arc<CollectionArtifactToken>, occurrence: HirOccurrenceId) -> Self {
+        Self {
+            artifact,
+            occurrence,
+        }
+    }
+    pub(crate) fn occurrence(&self) -> &HirOccurrenceId {
+        &self.occurrence
+    }
+}
+impl std::fmt::Debug for DefinitionUseId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DefinitionUseId")
+            .finish_non_exhaustive()
+    }
+}
+impl PartialEq for DefinitionUseId {
+    fn eq(&self, other: &Self) -> bool {
+        self.occurrence == other.occurrence && Arc::ptr_eq(&self.artifact, &other.artifact)
+    }
+}
+impl Eq for DefinitionUseId {}
+impl Hash for DefinitionUseId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.artifact).hash(state);
+        self.occurrence.hash(state);
+    }
+}
+
+/// Provenance for a dependency occurrence. It is not a type fact or component.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct DefinitionUseCause {
+    id: DefinitionUseId,
+}
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "F0 provenance becomes the direct F1 graph payload"
+    )
+)]
+impl DefinitionUseCause {
+    fn for_use(id: DefinitionUseId) -> Self {
+        Self { id }
+    }
+    pub(crate) fn id(&self) -> &DefinitionUseId {
+        &self.id
+    }
+}
+
+/// One resolved use from an admitted binding body to another definition.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct DefinitionUse {
+    id: DefinitionUseId,
+    parent: DefinitionOrderId,
+    target: DefinitionOrderId,
+    occurrence: HirOccurrenceId,
+    cause: DefinitionUseCause,
+}
+#[cfg_attr(
+    not(test),
+    allow(
+        dead_code,
+        reason = "F0 dependency records become the direct F1 SCC-plan input"
+    )
+)]
+impl DefinitionUse {
+    pub(crate) fn id(&self) -> &DefinitionUseId {
+        &self.id
+    }
+    pub(crate) fn parent(&self) -> &DefinitionOrderId {
+        &self.parent
+    }
+    pub(crate) fn target(&self) -> &DefinitionOrderId {
+        &self.target
+    }
+    pub(crate) fn occurrence(&self) -> &HirOccurrenceId {
+        &self.occurrence
+    }
+    pub(crate) fn cause(&self) -> &DefinitionUseCause {
+        &self.cause
+    }
+}
+
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "F0 crate-private queries become F1 plan queries")
+)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CollectionLookupError {
+    ArtifactMismatch,
+    MissingIdentity,
+}
+
+#[derive(Debug)]
+struct CollectionArtifactToken;
+
+struct PendingDefinitionUse<'hir> {
+    parent_ordinal: u32,
+    target: &'hir DefId,
+    occurrence: HirOccurrenceId,
+}
+
+/// Collection failures are structural availability failures, never local type
+/// results.  Their variants deliberately carry no source spelling or payload.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CollectionAvailabilityError {
+    DefinitionIdentityExhausted,
+    DefinitionUseIdentityExhausted,
+    DuplicateDefinitionId,
+    DuplicateDefinitionOrderId,
+    DuplicateDefinitionUseId,
+    MissingDefinitionEndpoint,
+    NonTotalDefinitionMap,
+    NonTotalDefinitionUseMap,
+}
 impl Components {
     pub fn value(&self) -> &ComponentId {
         &self.value
@@ -139,28 +342,42 @@ struct ComponentPositions {
 #[derive(Clone, Debug)]
 pub struct ConstraintBatch {
     hir: Arc<HirModule>,
+    collection_artifact: Arc<CollectionArtifactToken>,
     projection_order: Vec<HirOccurrenceId>,
     root_order: Vec<DefinitionRootId>,
+    definitions: Vec<CollectedDefinition>,
+    definition_positions: HashMap<DefinitionOrderId, usize>,
+    definition_uses: Vec<DefinitionUse>,
+    definition_use_positions: HashMap<DefinitionUseId, usize>,
     components: Vec<ComponentId>,
     occurrence_component_positions: HashMap<HirOccurrenceId, ComponentPositions>,
     root_component_positions: HashMap<DefinitionRootId, usize>,
     occurrences: Vec<ConstraintOccurrence>,
     counters: ProductionCounters,
+    definition_query_probes: Arc<AtomicUsize>,
+    definition_use_query_probes: Arc<AtomicUsize>,
     occurrence_component_query_probes: Arc<AtomicUsize>,
     root_component_query_probes: Arc<AtomicUsize>,
 }
 impl ConstraintBatch {
-    pub fn collect(hir: Arc<HirModule>) -> Self {
+    pub fn collect(hir: Arc<HirModule>) -> Result<Self, CollectionAvailabilityError> {
         let hir_definition_root_allocation_bytes = hir.definition_root_allocation_bytes();
         let definition_root_def_id_clone_bytes = hir.definition_root_def_id_clone_bytes();
         let mut batch = Self {
             hir,
+            collection_artifact: Arc::new(CollectionArtifactToken),
             projection_order: Vec::new(),
             root_order: Vec::new(),
+            definitions: Vec::new(),
+            definition_positions: HashMap::new(),
+            definition_uses: Vec::new(),
+            definition_use_positions: HashMap::new(),
             components: Vec::new(),
             occurrence_component_positions: HashMap::new(),
             root_component_positions: HashMap::new(),
             occurrences: Vec::new(),
+            definition_query_probes: Arc::new(AtomicUsize::new(0)),
+            definition_use_query_probes: Arc::new(AtomicUsize::new(0)),
             occurrence_component_query_probes: Arc::new(AtomicUsize::new(0)),
             root_component_query_probes: Arc::new(AtomicUsize::new(0)),
             counters: ProductionCounters {
@@ -171,21 +388,182 @@ impl ConstraintBatch {
             },
         };
         let hir = batch.hir.clone();
+        // This spelling-bearing index borrows HIR and is discarded after the
+        // endpoint pass; the immutable batch retains only order identities.
+        let mut definition_by_hir_id = HashMap::<&DefId, DefinitionOrderId>::new();
+        let mut pending_uses = Vec::new();
         for item in hir.items() {
-            let (expression, definition_root) = match item {
-                HirItem::Expression(expression) => (expression, None),
-                HirItem::Binding(binding) => (binding.value(), Some(binding.definition_root())),
+            batch.counters.body_pass_visits += 1;
+            let (expression, definition_root, definition) = match item {
+                HirItem::Expression(expression) => (expression, None, None),
+                HirItem::Binding(binding) => {
+                    let ordinal = u32::try_from(batch.definitions.len())
+                        .map_err(|_| CollectionAvailabilityError::DefinitionIdentityExhausted)?;
+                    let definition =
+                        DefinitionOrderId::new(batch.collection_artifact.clone(), ordinal);
+                    let fact_start = batch.occurrences.len();
+                    batch.add_definition_root(binding.definition_root().clone())?;
+                    let endpoint_identity_payload_bytes = binding.id().hash_eq_payload_bytes();
+                    let old_capacity = definition_by_hir_id.capacity();
+                    let Entry::Vacant(entry) = definition_by_hir_id.entry(binding.id()) else {
+                        return Err(CollectionAvailabilityError::DuplicateDefinitionId);
+                    };
+                    entry.insert(definition.clone());
+                    batch.counters.definition_endpoint_index_inserts += 1;
+                    batch
+                        .counters
+                        .definition_endpoint_identity_hash_byte_incidences +=
+                        endpoint_identity_payload_bytes;
+                    if definition_by_hir_id.capacity() != old_capacity {
+                        batch.counters.definition_endpoint_index_capacity_growths += 1;
+                        batch.counters.index_rebuilds += 1;
+                    }
+                    let definition_position = batch.definitions.len();
+                    let old_capacity = batch.definition_positions.capacity();
+                    let Entry::Vacant(entry) = batch.definition_positions.entry(definition.clone())
+                    else {
+                        return Err(CollectionAvailabilityError::DuplicateDefinitionOrderId);
+                    };
+                    entry.insert(definition_position);
+                    batch.counters.definition_record_index_inserts += 1;
+                    if batch.definition_positions.capacity() != old_capacity {
+                        batch.counters.index_rebuilds += 1;
+                    }
+                    let body_status = match binding.value() {
+                        ResolvedExpr::Integer { .. }
+                        | ResolvedExpr::Name {
+                            resolution: NameResolution::Resolved(_),
+                            ..
+                        } => CollectedBodyStatus::Complete,
+                        ResolvedExpr::Name {
+                            resolution: NameResolution::Ambiguous,
+                            ..
+                        } => {
+                            batch.counters.collected_ambiguous_name_bodies += 1;
+                            CollectedBodyStatus::Error
+                        }
+                        ResolvedExpr::Name {
+                            resolution: NameResolution::Unresolved,
+                            ..
+                        } => {
+                            batch.counters.collected_unresolved_name_bodies += 1;
+                            CollectedBodyStatus::Error
+                        }
+                        ResolvedExpr::Error { .. } => CollectedBodyStatus::Error,
+                    };
+                    match body_status {
+                        CollectedBodyStatus::Complete => {
+                            batch.counters.collected_complete_bodies += 1
+                        }
+                        CollectedBodyStatus::Error => batch.counters.collected_error_bodies += 1,
+                    }
+                    batch.definitions.push(CollectedDefinition {
+                        definition: definition.clone(),
+                        root: binding.definition_root().clone(),
+                        body_fact_range: fact_start..fact_start,
+                        body_status,
+                    });
+                    batch.counters.definition_registration_visits += 1;
+                    batch.counters.collected_definitions += 1;
+                    (
+                        binding.value(),
+                        Some(binding.definition_root()),
+                        Some(definition),
+                    )
+                }
                 HirItem::Error { .. } => continue,
             };
             batch.projection_order.push(expression.occurrence().clone());
             batch.counters.occurrence_allocations += 1;
-            if let Some(root) = definition_root {
-                batch.add_definition_root(root.clone());
-            }
             if matches!(expression, ResolvedExpr::Integer { .. }) {
-                batch.emit_integer(expression.occurrence().clone(), definition_root.cloned());
+                batch.emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
+            }
+            if let (
+                Some(parent),
+                ResolvedExpr::Name {
+                    occurrence,
+                    resolution: NameResolution::Resolved(target),
+                    ..
+                },
+            ) = (definition.as_ref(), expression)
+            {
+                let old_capacity = pending_uses.capacity();
+                pending_uses.push(PendingDefinitionUse {
+                    parent_ordinal: parent.ordinal(),
+                    target,
+                    occurrence: occurrence.clone(),
+                });
+                let capacity = pending_uses.capacity();
+                batch
+                    .counters
+                    .definition_use_endpoint_workspace_peak_capacity = batch
+                    .counters
+                    .definition_use_endpoint_workspace_peak_capacity
+                    .max(capacity);
+                if capacity != old_capacity {
+                    batch
+                        .counters
+                        .definition_use_endpoint_workspace_capacity_growths += 1;
+                }
+            }
+            if let Some(definition) = definition {
+                let record = batch
+                    .definitions
+                    .get_mut(definition.ordinal() as usize)
+                    .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)?;
+                debug_assert_eq!(record.definition, definition);
+                record.body_fact_range.end = batch.occurrences.len();
             }
         }
+        batch.ensure_total_definition_maps(&definition_by_hir_id)?;
+        batch.counters.definition_endpoint_index_peak_capacity = definition_by_hir_id.capacity();
+        for pending in &pending_uses {
+            batch.counters.definition_use_endpoint_pass_visits += 1;
+            batch.counters.definition_endpoint_index_probes += 1;
+            batch
+                .counters
+                .definition_endpoint_identity_hash_byte_incidences +=
+                pending.target.hash_eq_payload_bytes();
+            let target = definition_by_hir_id
+                .get(&pending.target)
+                .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?
+                .clone();
+            batch
+                .counters
+                .definition_endpoint_logical_successful_equality_byte_incidences +=
+                pending.target.hash_eq_payload_bytes();
+            let parent = batch
+                .definitions
+                .get(pending.parent_ordinal as usize)
+                .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?
+                .definition
+                .clone();
+            u32::try_from(batch.definition_uses.len())
+                .map_err(|_| CollectionAvailabilityError::DefinitionUseIdentityExhausted)?;
+            let id = DefinitionUseId::new(
+                batch.collection_artifact.clone(),
+                pending.occurrence.clone(),
+            );
+            let position = batch.definition_uses.len();
+            batch.definition_uses.push(DefinitionUse {
+                cause: DefinitionUseCause::for_use(id.clone()),
+                id: id.clone(),
+                parent,
+                target,
+                occurrence: pending.occurrence.clone(),
+            });
+            let old_capacity = batch.definition_use_positions.capacity();
+            let Entry::Vacant(entry) = batch.definition_use_positions.entry(id) else {
+                return Err(CollectionAvailabilityError::DuplicateDefinitionUseId);
+            };
+            entry.insert(position);
+            batch.counters.definition_use_index_inserts += 1;
+            if batch.definition_use_positions.capacity() != old_capacity {
+                batch.counters.index_rebuilds += 1;
+            }
+            batch.counters.retained_definition_uses += 1;
+        }
+        batch.ensure_total_definition_use_map()?;
         batch.counters.occurrence_retained_bytes =
             batch.projection_order.capacity() * std::mem::size_of::<HirOccurrenceId>();
         batch.counters.component_retained_bytes =
@@ -205,7 +583,23 @@ impl ConstraintBatch {
                 * std::mem::size_of::<(DefinitionRootId, usize)>();
         batch.counters.index_capacity = batch.occurrence_component_positions.capacity()
             + batch.root_component_positions.capacity();
+        batch.counters.definition_record_index_capacity = batch.definition_positions.capacity();
+        batch.counters.definition_record_index_retained_bytes =
+            batch.definition_positions.capacity()
+                * std::mem::size_of::<(DefinitionOrderId, usize)>();
+        batch.counters.definition_record_retained_bytes =
+            batch.definitions.capacity() * std::mem::size_of::<CollectedDefinition>();
+        batch.counters.definition_use_retained_bytes =
+            batch.definition_uses.capacity() * std::mem::size_of::<DefinitionUse>();
+        batch.counters.definition_use_index_capacity = batch.definition_use_positions.capacity();
+        batch.counters.definition_use_index_retained_bytes =
+            batch.definition_use_positions.capacity()
+                * std::mem::size_of::<(DefinitionUseId, usize)>();
         batch
+            .finish_collection_accounting(definition_by_hir_id.capacity(), pending_uses.capacity());
+        drop(pending_uses);
+        drop(definition_by_hir_id);
+        Ok(batch)
     }
     pub fn hir(&self) -> &Arc<HirModule> {
         &self.hir
@@ -213,8 +607,56 @@ impl ConstraintBatch {
     pub fn occurrences(&self) -> &[ConstraintOccurrence] {
         &self.occurrences
     }
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "F0 records become the direct F1 SCC-plan input")
+    )]
+    pub(crate) fn definitions(&self) -> &[CollectedDefinition] {
+        &self.definitions
+    }
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "F0 uses become the direct F1 graph input")
+    )]
+    pub(crate) fn definition_uses(&self) -> &[DefinitionUse] {
+        &self.definition_uses
+    }
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "F0 identity query becomes an F1 plan query")
+    )]
+    pub(crate) fn definition(
+        &self,
+        definition: &DefinitionOrderId,
+    ) -> Result<&CollectedDefinition, CollectionLookupError> {
+        self.require_owned_definition(definition)?;
+        self.definition_query_probes.fetch_add(1, Ordering::Relaxed);
+        self.definition_positions
+            .get(definition)
+            .and_then(|&position| self.definitions.get(position))
+            .ok_or(CollectionLookupError::MissingIdentity)
+    }
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "F0 use query becomes an F1 plan query")
+    )]
+    pub(crate) fn definition_use(
+        &self,
+        id: &DefinitionUseId,
+    ) -> Result<&DefinitionUse, CollectionLookupError> {
+        self.require_owned_definition_use(id)?;
+        self.definition_use_query_probes
+            .fetch_add(1, Ordering::Relaxed);
+        self.definition_use_positions
+            .get(id)
+            .and_then(|&position| self.definition_uses.get(position))
+            .ok_or(CollectionLookupError::MissingIdentity)
+    }
     pub fn counters(&self) -> ProductionCounters {
         let mut counters = self.counters.clone();
+        counters.definition_query_probes = self.definition_query_probes.load(Ordering::Relaxed);
+        counters.definition_use_query_probes =
+            self.definition_use_query_probes.load(Ordering::Relaxed);
         counters.occurrence_component_query_probes = self
             .occurrence_component_query_probes
             .load(Ordering::Relaxed);
@@ -251,7 +693,13 @@ impl ConstraintBatch {
             .ok_or(ArtifactMismatch)?;
         Ok(self.components[position].clone())
     }
-    fn add_definition_root(&mut self, root: DefinitionRootId) {
+    fn add_definition_root(
+        &mut self,
+        root: DefinitionRootId,
+    ) -> Result<(), CollectionAvailabilityError> {
+        if self.root_component_positions.contains_key(&root) {
+            return Err(CollectionAvailabilityError::DuplicateDefinitionId);
+        }
         self.root_order.push(root.clone());
         self.counters.root_allocations += 1;
         let value = self.definition_value_component(root.clone());
@@ -262,12 +710,13 @@ impl ConstraintBatch {
             self.counters.index_rebuilds += 1;
         }
         debug_assert!(matches!(value, ComponentId::DefinitionValue { .. }));
+        Ok(())
     }
     fn emit_integer(
         &mut self,
         occurrence: HirOccurrenceId,
         definition_root: Option<DefinitionRootId>,
-    ) {
+    ) -> Result<(), CollectionAvailabilityError> {
         let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value);
         let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect);
         let positions = ComponentPositions {
@@ -305,7 +754,7 @@ impl ConstraintBatch {
             Term::Leaf(Leaf::EmptyEffectNegative),
         );
         if let Some(root) = definition_root {
-            let definition_value = self.root_value_component_for_collect(&root);
+            let definition_value = self.root_value_component_for_collect(&root)?;
             self.emit(
                 occurrence,
                 4,
@@ -313,6 +762,7 @@ impl ConstraintBatch {
                 Term::Component(definition_value),
             );
         }
+        Ok(())
     }
     fn occurrence_component(
         &mut self,
@@ -373,13 +823,80 @@ impl ConstraintBatch {
             .then_some(())
             .ok_or(ArtifactMismatch)
     }
-    fn root_value_component_for_collect(&mut self, root: &DefinitionRootId) -> ComponentId {
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "F0 identity query becomes an F1 plan query")
+    )]
+    fn require_owned_definition(
+        &self,
+        definition: &DefinitionOrderId,
+    ) -> Result<(), CollectionLookupError> {
+        Arc::ptr_eq(&self.collection_artifact, &definition.artifact)
+            .then_some(())
+            .ok_or(CollectionLookupError::ArtifactMismatch)
+    }
+    #[cfg_attr(
+        not(test),
+        allow(dead_code, reason = "F0 use query becomes an F1 plan query")
+    )]
+    fn require_owned_definition_use(
+        &self,
+        id: &DefinitionUseId,
+    ) -> Result<(), CollectionLookupError> {
+        Arc::ptr_eq(&self.collection_artifact, &id.artifact)
+            .then_some(())
+            .ok_or(CollectionLookupError::ArtifactMismatch)
+    }
+    fn root_value_component_for_collect(
+        &mut self,
+        root: &DefinitionRootId,
+    ) -> Result<ComponentId, CollectionAvailabilityError> {
         self.counters.root_component_index_probes += 1;
         let position = *self
             .root_component_positions
             .get(root)
-            .expect("admitted binding root has a value component");
-        self.components[position].clone()
+            .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)?;
+        self.components
+            .get(position)
+            .cloned()
+            .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)
+    }
+    fn ensure_total_definition_maps(
+        &self,
+        definition_by_hir_id: &HashMap<&DefId, DefinitionOrderId>,
+    ) -> Result<(), CollectionAvailabilityError> {
+        (self.definitions.len() == self.definition_positions.len()
+            && self.definitions.len() == definition_by_hir_id.len())
+        .then_some(())
+        .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)
+    }
+    fn ensure_total_definition_use_map(&self) -> Result<(), CollectionAvailabilityError> {
+        (self.definition_uses.len() == self.definition_use_positions.len())
+            .then_some(())
+            .ok_or(CollectionAvailabilityError::NonTotalDefinitionUseMap)
+    }
+    fn finish_collection_accounting(
+        &mut self,
+        definition_endpoint_index_capacity: usize,
+        pending_endpoint_capacity: usize,
+    ) {
+        self.counters.definition_endpoint_index_peak_bytes =
+            definition_endpoint_index_capacity * std::mem::size_of::<(&DefId, DefinitionOrderId)>();
+        self.counters.definition_use_endpoint_workspace_peak_bytes =
+            pending_endpoint_capacity * std::mem::size_of::<PendingDefinitionUse<'_>>();
+        self.counters.f0_collection_retained_bytes = self.counters.occurrence_retained_bytes
+            + self.counters.root_retained_bytes
+            + self.counters.definition_record_retained_bytes
+            + self.counters.definition_record_index_retained_bytes
+            + self.counters.definition_use_retained_bytes
+            + self.counters.definition_use_index_retained_bytes
+            + self.counters.component_retained_bytes
+            + self.counters.occurrence_component_index_retained_bytes
+            + self.counters.root_component_index_retained_bytes
+            + self.counters.occurrence_record_retained_bytes;
+        self.counters.f0_collection_peak_bytes = self.counters.f0_collection_retained_bytes
+            + self.counters.definition_endpoint_index_peak_bytes
+            + self.counters.definition_use_endpoint_workspace_peak_bytes;
     }
 }
 
@@ -392,6 +909,64 @@ pub struct ArtifactMismatch;
 /// the paired capacity fields report the exact container capacities observed.
 pub struct ProductionCounters {
     hir_traversals: usize,
+    /// One physical visit per HIR item during F0 collection.
+    body_pass_visits: usize,
+    /// Admitted definitions registered during the one physical HIR pass.
+    definition_registration_visits: usize,
+    /// Completed non-error bodies retained by F0.
+    collected_complete_bodies: usize,
+    /// Error bodies retained by F0 rather than dropped from the definition table.
+    collected_error_bodies: usize,
+    /// Error-status binding bodies whose HIR name resolution was ambiguous.
+    collected_ambiguous_name_bodies: usize,
+    /// Error-status binding bodies whose HIR name resolution was unresolved.
+    collected_unresolved_name_bodies: usize,
+    collected_definitions: usize,
+    /// One logical endpoint-resolution visit per collected binding-body name use.
+    definition_use_endpoint_pass_visits: usize,
+    /// Greatest pending-endpoint vector capacity while collection owns it.
+    definition_use_endpoint_workspace_peak_capacity: usize,
+    /// Pending-endpoint vector capacity growths, including initial allocation.
+    definition_use_endpoint_workspace_capacity_growths: usize,
+    /// Byte model for the temporary pending-endpoint vector at its greatest capacity.
+    definition_use_endpoint_workspace_peak_bytes: usize,
+    /// One insert into the temporary borrowed `DefId -> DefinitionOrderId` index.
+    definition_endpoint_index_inserts: usize,
+    /// One lookup in that index for each pending resolved endpoint.
+    definition_endpoint_index_probes: usize,
+    /// Dynamic `DefId` payload bytes presented to the endpoint index's derived
+    /// hash: once for each successful definition insert and every use lookup.
+    /// This counts spelling plus module file-key realm/path payload only; it is
+    /// not allocator, timing, or bucket-control accounting.
+    definition_endpoint_identity_hash_byte_incidences: usize,
+    /// Conservative logical `DefId` equality-payload bytes for successful
+    /// endpoint lookups. This assigns one full matching identity payload per
+    /// successful lookup; it does not claim to observe the `HashMap`'s actual
+    /// collision comparisons or their byte scans.
+    definition_endpoint_logical_successful_equality_byte_incidences: usize,
+    /// Greatest capacity of the temporary borrowed endpoint index.
+    definition_endpoint_index_peak_capacity: usize,
+    /// Endpoint-index capacity growths, including initial allocation.
+    definition_endpoint_index_capacity_growths: usize,
+    /// Byte model for the temporary endpoint index at its greatest capacity.
+    definition_endpoint_index_peak_bytes: usize,
+    /// One insert into the retained opaque definition-order index.
+    definition_record_index_inserts: usize,
+    /// One insert into the retained definition-use index.
+    definition_use_index_inserts: usize,
+    /// Sum of the retained F0 batch containers after temporary endpoint workspace drops.
+    f0_collection_retained_bytes: usize,
+    /// Retained F0 bytes plus both temporary endpoint workspaces at their co-resident peak.
+    f0_collection_peak_bytes: usize,
+    retained_definition_uses: usize,
+    definition_record_index_capacity: usize,
+    definition_record_index_retained_bytes: usize,
+    definition_record_retained_bytes: usize,
+    definition_use_retained_bytes: usize,
+    definition_use_index_capacity: usize,
+    definition_use_index_retained_bytes: usize,
+    definition_query_probes: usize,
+    definition_use_query_probes: usize,
     cst_traversals: usize,
     cst_rescans: usize,
     hir_clone_count: usize,
@@ -459,6 +1034,37 @@ macro_rules! access { ($($field:ident),+ $(,)?) => {$(pub const fn $field(&self)
 impl ProductionCounters {
     access!(
         hir_traversals,
+        body_pass_visits,
+        definition_registration_visits,
+        collected_complete_bodies,
+        collected_error_bodies,
+        collected_ambiguous_name_bodies,
+        collected_unresolved_name_bodies,
+        collected_definitions,
+        definition_use_endpoint_pass_visits,
+        definition_use_endpoint_workspace_peak_capacity,
+        definition_use_endpoint_workspace_capacity_growths,
+        definition_use_endpoint_workspace_peak_bytes,
+        definition_endpoint_index_inserts,
+        definition_endpoint_index_probes,
+        definition_endpoint_identity_hash_byte_incidences,
+        definition_endpoint_logical_successful_equality_byte_incidences,
+        definition_endpoint_index_peak_capacity,
+        definition_endpoint_index_capacity_growths,
+        definition_endpoint_index_peak_bytes,
+        definition_record_index_inserts,
+        definition_use_index_inserts,
+        f0_collection_retained_bytes,
+        f0_collection_peak_bytes,
+        retained_definition_uses,
+        definition_record_index_capacity,
+        definition_record_index_retained_bytes,
+        definition_record_retained_bytes,
+        definition_use_retained_bytes,
+        definition_use_index_capacity,
+        definition_use_index_retained_bytes,
+        definition_query_probes,
+        definition_use_query_probes,
         cst_traversals,
         cst_rescans,
         hir_clone_count,
@@ -524,6 +1130,37 @@ impl ProductionCounters {
         macro_rules! add { ($($field:ident),+) => {$(self.$field += other.$field;)+}; }
         add!(
             hir_traversals,
+            body_pass_visits,
+            definition_registration_visits,
+            collected_complete_bodies,
+            collected_error_bodies,
+            collected_ambiguous_name_bodies,
+            collected_unresolved_name_bodies,
+            collected_definitions,
+            definition_use_endpoint_pass_visits,
+            definition_use_endpoint_workspace_peak_capacity,
+            definition_use_endpoint_workspace_capacity_growths,
+            definition_use_endpoint_workspace_peak_bytes,
+            definition_endpoint_index_inserts,
+            definition_endpoint_index_probes,
+            definition_endpoint_identity_hash_byte_incidences,
+            definition_endpoint_logical_successful_equality_byte_incidences,
+            definition_endpoint_index_peak_capacity,
+            definition_endpoint_index_capacity_growths,
+            definition_endpoint_index_peak_bytes,
+            definition_record_index_inserts,
+            definition_use_index_inserts,
+            f0_collection_retained_bytes,
+            f0_collection_peak_bytes,
+            retained_definition_uses,
+            definition_record_index_capacity,
+            definition_record_index_retained_bytes,
+            definition_record_retained_bytes,
+            definition_use_retained_bytes,
+            definition_use_index_capacity,
+            definition_use_index_retained_bytes,
+            definition_query_probes,
+            definition_use_query_probes,
             cst_traversals,
             cst_rescans,
             hir_clone_count,
@@ -1145,16 +1782,22 @@ mod tests {
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
     fn module(source: &str, path: &str) -> Arc<HirModule> {
+        module_with_identity(source, "test", path)
+    }
+    fn module_with_identity(source: &str, realm: &str, path: &str) -> Arc<HirModule> {
         let source: Arc<SourceText> = Arc::from(source);
         let header = Arc::new(scan_header(source.clone()));
         Arc::new(
             lower_module(
-                ModuleIdentity::source_root(FileId::new(FileKey::new("test", path))),
+                ModuleIdentity::source_root(FileId::new(FileKey::new(realm, path))),
                 &parse_file(source, header, Arc::new(SyntaxEnvironment::empty())),
                 SemanticImports::empty(),
             )
             .unwrap(),
         )
+    }
+    fn collect(hir: Arc<HirModule>) -> ConstraintBatch {
+        ConstraintBatch::collect(hir).unwrap()
     }
     fn root(module: &HirModule, index: usize) -> &ResolvedExpr {
         match &module.items()[index] {
@@ -1176,7 +1819,7 @@ mod tests {
     #[test]
     fn exact_four_ordered_relations_and_empty_effect() {
         let hir = module("42", "one.yu");
-        let batch = ConstraintBatch::collect(hir.clone());
+        let batch = collect(hir.clone());
         assert_eq!(
             batch
                 .occurrences()
@@ -1208,8 +1851,8 @@ mod tests {
     fn deterministic_multi_expression_alpha_and_path_independence() {
         let a = module("my alpha = 0; 42; f 1; 42", "a/one.yu");
         let b = module("my beta = 0; 42; f 1; 42", "b/two.yu");
-        let ab = ConstraintBatch::collect(a.clone());
-        let bb = ConstraintBatch::collect(b.clone());
+        let ab = collect(a.clone());
+        let bb = collect(b.clone());
         let order = |batch: &ConstraintBatch| {
             batch
                 .occurrences()
@@ -1252,7 +1895,7 @@ mod tests {
         let [HirItem::Binding(binding)] = hir.items() else {
             panic!("one binding")
         };
-        let batch = ConstraintBatch::collect(hir.clone());
+        let batch = collect(hir.clone());
         let body = batch
             .components_for(binding.value().occurrence())
             .unwrap()
@@ -1300,12 +1943,344 @@ mod tests {
         assert_eq!(counters.solved_root_query_probes(), 1);
     }
     #[test]
+    fn f0_collects_definition_order_body_status_and_resolved_binding_uses() {
+        let hir = module(
+            "my forward = target; my target = 42; my backward = forward; target; my broken = @",
+            "f0-collection.yu",
+        );
+        let batch = collect(hir);
+
+        assert_eq!(batch.definitions().len(), 4);
+        assert_eq!(batch.definition_uses().len(), 2);
+        assert_eq!(
+            batch
+                .definitions()
+                .iter()
+                .map(|definition| definition.definition().ordinal())
+                .collect::<Vec<_>>(),
+            vec![0, 1, 2, 3]
+        );
+        assert_eq!(
+            batch
+                .definitions()
+                .iter()
+                .map(|definition| {
+                    (
+                        definition.body_fact_range().clone(),
+                        definition.body_status(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                (0..0, CollectedBodyStatus::Complete),
+                (0..5, CollectedBodyStatus::Complete),
+                (5..5, CollectedBodyStatus::Complete),
+                (5..5, CollectedBodyStatus::Error),
+            ]
+        );
+        assert_eq!(
+            batch
+                .definition_uses()
+                .iter()
+                .map(|use_record| {
+                    (
+                        use_record.parent().ordinal(),
+                        use_record.target().ordinal(),
+                        use_record.id().occurrence().ordinal(),
+                        use_record.occurrence().ordinal(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            vec![(0, 1, 0, 0), (2, 0, 2, 2)]
+        );
+        for use_record in batch.definition_uses() {
+            assert_eq!(use_record.cause().id(), use_record.id());
+            assert_eq!(batch.definition_use(use_record.id()), Ok(use_record));
+        }
+        for definition in batch.definitions() {
+            assert_eq!(batch.definition(definition.definition()), Ok(definition));
+        }
+        let counters = batch.counters();
+        assert_eq!(counters.hir_traversals(), 1);
+        assert_eq!(counters.body_pass_visits(), 5);
+        assert_eq!(counters.definition_registration_visits(), 4);
+        assert_eq!(counters.collected_definitions(), 4);
+        assert_eq!(counters.collected_complete_bodies(), 3);
+        assert_eq!(counters.collected_error_bodies(), 1);
+        assert_eq!(counters.collected_ambiguous_name_bodies(), 0);
+        assert_eq!(counters.collected_unresolved_name_bodies(), 0);
+        assert_eq!(counters.definition_use_endpoint_pass_visits(), 2);
+        assert!(counters.definition_use_endpoint_workspace_peak_capacity() >= 2);
+        assert_eq!(counters.definition_endpoint_index_inserts(), 4);
+        assert_eq!(counters.definition_endpoint_index_probes(), 2);
+        assert_eq!(counters.definition_record_index_inserts(), 4);
+        assert_eq!(counters.definition_use_index_inserts(), 2);
+        assert_eq!(counters.retained_definition_uses(), 2);
+        assert_eq!(counters.definition_query_probes(), 4);
+        assert_eq!(counters.definition_use_query_probes(), 2);
+    }
+    #[test]
+    fn f0_definition_queries_reject_foreign_and_missing_batch_identities() {
+        let first = collect(module("my x = 42", "f0-first.yu"));
+        let second = collect(module("my x = 42", "f0-second.yu"));
+        let foreign_definition = second.definitions()[0].definition();
+        let foreign_use = {
+            let with_use = collect(module("my x = x", "f0-use.yu"));
+            with_use.definition_uses()[0].id().clone()
+        };
+        assert_eq!(
+            first.definition(foreign_definition),
+            Err(CollectionLookupError::ArtifactMismatch)
+        );
+        assert_eq!(
+            first.definition_use(&foreign_use),
+            Err(CollectionLookupError::ArtifactMismatch)
+        );
+        let missing_definition = DefinitionOrderId::new(first.collection_artifact.clone(), 99);
+        assert_eq!(
+            first.definition(&missing_definition),
+            Err(CollectionLookupError::MissingIdentity)
+        );
+    }
+    #[test]
+    fn f0_keeps_direct_ambiguous_and_unresolved_names_out_of_dependencies() {
+        let batch = collect(module(
+            "my x = 1; my x = 2; my ambiguous = x; my unresolved = missing; x; missing",
+            "f0-no-false-use.yu",
+        ));
+        assert_eq!(batch.definitions().len(), 4);
+        assert!(batch.definition_uses().is_empty());
+        assert_eq!(
+            batch
+                .definitions()
+                .iter()
+                .map(CollectedDefinition::body_status)
+                .collect::<Vec<_>>(),
+            vec![
+                CollectedBodyStatus::Complete,
+                CollectedBodyStatus::Complete,
+                CollectedBodyStatus::Error,
+                CollectedBodyStatus::Error,
+            ]
+        );
+        let counters = batch.counters();
+        assert_eq!(counters.collected_complete_bodies(), 2);
+        assert_eq!(counters.collected_error_bodies(), 2);
+        assert_eq!(counters.collected_ambiguous_name_bodies(), 1);
+        assert_eq!(counters.collected_unresolved_name_bodies(), 1);
+    }
+    #[test]
+    fn f0_retains_self_and_mutual_dependency_occurrences() {
+        let batch = collect(module(
+            "my self = self; my left = right; my right = left",
+            "f0-cycles.yu",
+        ));
+        assert_eq!(
+            batch
+                .definition_uses()
+                .iter()
+                .map(|use_record| (use_record.parent().ordinal(), use_record.target().ordinal()))
+                .collect::<Vec<_>>(),
+            vec![(0, 0), (1, 2), (2, 1)]
+        );
+    }
+    #[test]
+    fn f0_resolved_name_endpoint_work_remains_linear_for_chain_and_repeated_target_families() {
+        let chain = |n| {
+            let mut source = String::from("my binding_0 = 42");
+            for index in 1..n {
+                source.push_str(&format!("; my binding_{index} = binding_{}", index - 1));
+            }
+            source
+        };
+        let repeated_target = |n| {
+            let mut source = String::from("my target = 42");
+            for index in 1..n {
+                source.push_str(&format!("; my user_{index} = target"));
+            }
+            source
+        };
+        let assert_exact_counts = |n, batch: &ConstraintBatch| {
+            let counters = batch.counters();
+            let (definition_insert_bytes, successful_lookup_bytes) = batch
+                .hir()
+                .items()
+                .iter()
+                .filter_map(|item| {
+                    let HirItem::Binding(binding) = item else {
+                        return None;
+                    };
+                    let successful_lookup_bytes = match binding.value() {
+                        ResolvedExpr::Name {
+                            resolution: NameResolution::Resolved(target),
+                            ..
+                        } => target.hash_eq_payload_bytes(),
+                        _ => 0,
+                    };
+                    Some((
+                        binding.id().hash_eq_payload_bytes(),
+                        successful_lookup_bytes,
+                    ))
+                })
+                .fold((0, 0), |(inserts, lookups), (insert, lookup)| {
+                    (inserts + insert, lookups + lookup)
+                });
+            assert_eq!(counters.hir_traversals(), 1);
+            assert_eq!(counters.body_pass_visits(), n);
+            assert_eq!(counters.definition_registration_visits(), n);
+            assert_eq!(counters.collected_definitions(), n);
+            assert_eq!(counters.collected_complete_bodies(), n);
+            assert_eq!(counters.collected_error_bodies(), 0);
+            assert_eq!(counters.collected_ambiguous_name_bodies(), 0);
+            assert_eq!(counters.collected_unresolved_name_bodies(), 0);
+            assert_eq!(counters.definition_endpoint_index_inserts(), n);
+            assert_eq!(counters.definition_use_endpoint_pass_visits(), n - 1);
+            assert_eq!(counters.definition_endpoint_index_probes(), n - 1);
+            assert_eq!(
+                counters.definition_endpoint_identity_hash_byte_incidences(),
+                definition_insert_bytes + successful_lookup_bytes
+            );
+            assert_eq!(
+                counters.definition_endpoint_logical_successful_equality_byte_incidences(),
+                successful_lookup_bytes
+            );
+            assert_eq!(counters.retained_definition_uses(), n - 1);
+            assert_eq!(counters.definition_record_index_inserts(), n);
+            assert_eq!(counters.definition_use_index_inserts(), n - 1);
+            assert_eq!(
+                counters.definition_endpoint_index_peak_bytes(),
+                counters.definition_endpoint_index_peak_capacity()
+                    * std::mem::size_of::<(&DefId, DefinitionOrderId)>()
+            );
+            assert_eq!(
+                counters.definition_use_endpoint_workspace_peak_bytes(),
+                counters.definition_use_endpoint_workspace_peak_capacity()
+                    * std::mem::size_of::<PendingDefinitionUse<'_>>()
+            );
+            assert_eq!(
+                counters.f0_collection_peak_bytes(),
+                counters.f0_collection_retained_bytes()
+                    + counters.definition_endpoint_index_peak_bytes()
+                    + counters.definition_use_endpoint_workspace_peak_bytes()
+            );
+            // Canonical-store comparison growth has its later O(N log N) budget;
+            // this F0-only witness does not fold it into the linear endpoint budget.
+            assert_eq!(counters.canonical_map_probes(), 0);
+            assert_eq!(counters.canonical_map_rebuilds(), 0);
+        };
+        let chains = [1000, 2000, 4000].map(|n| collect(module(&chain(n), "f0-chain.yu")));
+        let repeated = [1000, 2000, 4000]
+            .map(|n| collect(module(&repeated_target(n), "f0-repeated-target.yu")));
+        let long_realm = "endpoint-realm-".repeat(64);
+        let long_path = format!("f0/{}/endpoint.yu", "module-path-".repeat(128));
+        let long_target = format!("target_{}", "identity_".repeat(128));
+        let repeated_long_identity_target = |n| {
+            let mut source = format!("my {long_target} = 42");
+            for index in 1..n {
+                source.push_str(&format!("; my user_{index} = {long_target}"));
+            }
+            source
+        };
+        let repeated_long_identity = [1000, 2000, 4000].map(|n| {
+            collect(module_with_identity(
+                &repeated_long_identity_target(n),
+                &long_realm,
+                &long_path,
+            ))
+        });
+        for (((&n, chain), repeated), long_identity) in [1000, 2000, 4000]
+            .iter()
+            .zip(chains.iter())
+            .zip(repeated.iter())
+            .zip(repeated_long_identity.iter())
+        {
+            assert_exact_counts(n, &chain);
+            assert_exact_counts(n, &repeated);
+            assert_exact_counts(n, long_identity);
+            assert!(
+                long_identity
+                    .counters()
+                    .definition_endpoint_identity_hash_byte_incidences()
+                    > repeated
+                        .counters()
+                        .definition_endpoint_identity_hash_byte_incidences()
+            );
+            assert!(
+                long_identity
+                    .counters()
+                    .definition_endpoint_logical_successful_equality_byte_incidences()
+                    > repeated
+                        .counters()
+                        .definition_endpoint_logical_successful_equality_byte_incidences()
+            );
+        }
+        for family in [&chains, &repeated, &repeated_long_identity] {
+            for pair in family.windows(2) {
+                let small = pair[0].counters();
+                let large = pair[1].counters();
+                for (large, small) in [
+                    (
+                        large.definition_endpoint_index_peak_capacity(),
+                        small.definition_endpoint_index_peak_capacity(),
+                    ),
+                    (
+                        large.definition_use_endpoint_workspace_peak_capacity(),
+                        small.definition_use_endpoint_workspace_peak_capacity(),
+                    ),
+                    (
+                        large.definition_endpoint_index_capacity_growths(),
+                        small.definition_endpoint_index_capacity_growths(),
+                    ),
+                    (
+                        large.definition_use_endpoint_workspace_capacity_growths(),
+                        small.definition_use_endpoint_workspace_capacity_growths(),
+                    ),
+                    (
+                        large.definition_endpoint_index_peak_bytes(),
+                        small.definition_endpoint_index_peak_bytes(),
+                    ),
+                    (
+                        large.definition_use_endpoint_workspace_peak_bytes(),
+                        small.definition_use_endpoint_workspace_peak_bytes(),
+                    ),
+                    (
+                        large.definition_endpoint_identity_hash_byte_incidences(),
+                        small.definition_endpoint_identity_hash_byte_incidences(),
+                    ),
+                    (
+                        large.definition_endpoint_logical_successful_equality_byte_incidences(),
+                        small.definition_endpoint_logical_successful_equality_byte_incidences(),
+                    ),
+                    (
+                        large.definition_record_index_capacity(),
+                        small.definition_record_index_capacity(),
+                    ),
+                    (
+                        large.definition_use_index_capacity(),
+                        small.definition_use_index_capacity(),
+                    ),
+                    (
+                        large.f0_collection_retained_bytes(),
+                        small.f0_collection_retained_bytes(),
+                    ),
+                    (
+                        large.f0_collection_peak_bytes(),
+                        small.f0_collection_peak_bytes(),
+                    ),
+                    (large.index_rebuilds(), small.index_rebuilds()),
+                ] {
+                    assert!(large < small * 5 / 2 + 1);
+                }
+            }
+        }
+    }
+    #[test]
     fn names_errors_and_underconstrained_intervals_remain_unknown() {
         let hir = module(
             "my resolved = 42; resolved; my dup = 0; my dup = 1; dup; missing; f 1; 42",
             "states.yu",
         );
-        let batch = ConstraintBatch::collect(hir.clone());
+        let batch = collect(hir.clone());
         assert_eq!(batch.occurrences().len(), 19);
         assert!(
             batch
@@ -1377,7 +2352,7 @@ mod tests {
             SolvedValue::Int
         );
         let hir = module("42", "under.yu");
-        let mut batch = ConstraintBatch::collect(hir.clone());
+        let mut batch = collect(hir.clone());
         batch.occurrences.retain(|item| item.id.local_slot != 1);
         assert_eq!(
             SolvedModule::solve(batch)
@@ -1389,7 +2364,7 @@ mod tests {
                 effect: SolvedEffect::Empty
             }
         );
-        let mut batch = ConstraintBatch::collect(hir.clone());
+        let mut batch = collect(hir.clone());
         batch.occurrences.retain(|item| item.id.local_slot != 3);
         assert_eq!(
             SolvedModule::solve(batch)
@@ -1416,7 +2391,7 @@ mod tests {
                 _ => panic!("admitted binding"),
             })
             .collect::<Vec<_>>();
-        let batch = ConstraintBatch::collect(hir.clone());
+        let batch = collect(hir.clone());
         assert_eq!(batch.occurrences().len(), 15);
         assert_ne!(bindings[0].definition_root(), bindings[1].definition_root());
         for binding in &bindings {
@@ -1464,8 +2439,8 @@ mod tests {
         let HirItem::Binding(second_binding) = &second.items()[0] else {
             panic!("second binding")
         };
-        let first_batch = ConstraintBatch::collect(first.clone());
-        let second_batch = ConstraintBatch::collect(second.clone());
+        let first_batch = collect(first.clone());
+        let second_batch = collect(second.clone());
         assert_eq!(first_batch.occurrences().len(), 5);
         assert!(matches!(
             first_batch.root_value_component(second_binding.definition_root()),
@@ -1501,8 +2476,8 @@ mod tests {
     fn brands_receipts_and_local_failure_are_isolated() {
         let first = module("42; 42", "first.yu");
         let second = module("42", "second.yu");
-        let batch = ConstraintBatch::collect(first.clone());
-        let other = ConstraintBatch::collect(second.clone());
+        let batch = collect(first.clone());
+        let other = collect(second.clone());
         assert_ne!(batch.occurrences()[0].id(), other.occurrences()[0].id());
         assert_ne!(
             batch.occurrences()[0].cause(),
@@ -1544,7 +2519,7 @@ mod tests {
             store.record_provenance(receipt),
             Err(ConstraintError::ReceiptConsumed)
         ));
-        let mut failure = ConstraintBatch::collect(first.clone());
+        let mut failure = collect(first.clone());
         failure.occurrences[0] = ConstraintOccurrence {
             id: failure.occurrences[0].id.clone(),
             cause: failure.occurrences[0].cause.clone(),
@@ -1577,16 +2552,8 @@ mod tests {
     #[test]
     fn direct_root_n_and_2n_counters_remain_linear() {
         let source = |n| std::iter::repeat_n("42", n).collect::<Vec<_>>().join("; ");
-        let a = SolvedModule::solve(ConstraintBatch::collect(module(
-            &source(1000),
-            "direct-n.yu",
-        )))
-        .unwrap();
-        let b = SolvedModule::solve(ConstraintBatch::collect(module(
-            &source(2000),
-            "direct-2n.yu",
-        )))
-        .unwrap();
+        let a = SolvedModule::solve(collect(module(&source(1000), "direct-n.yu"))).unwrap();
+        let b = SolvedModule::solve(collect(module(&source(2000), "direct-2n.yu"))).unwrap();
         for (n, solved) in [(1000, &a), (2000, &b)] {
             let c = solved.counters();
             assert_eq!(c.hir_traversals(), 1);
@@ -1654,13 +2621,19 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("; ")
         };
-        let a =
-            SolvedModule::solve(ConstraintBatch::collect(module(&source(1000), "n.yu"))).unwrap();
-        let b =
-            SolvedModule::solve(ConstraintBatch::collect(module(&source(2000), "2n.yu"))).unwrap();
+        let a = SolvedModule::solve(collect(module(&source(1000), "n.yu"))).unwrap();
+        let b = SolvedModule::solve(collect(module(&source(2000), "2n.yu"))).unwrap();
         for (n, solved) in [(1000, &a), (2000, &b)] {
             let c = solved.counters();
             assert_eq!(c.hir_traversals(), 1);
+            assert_eq!(c.body_pass_visits(), n);
+            assert_eq!(c.definition_registration_visits(), n);
+            assert_eq!(c.collected_definitions(), n);
+            assert_eq!(c.collected_complete_bodies(), n);
+            assert_eq!(c.collected_error_bodies(), 0);
+            assert_eq!(c.definition_use_endpoint_pass_visits(), 0);
+            assert_eq!(c.definition_use_endpoint_workspace_peak_capacity(), 0);
+            assert_eq!(c.retained_definition_uses(), 0);
             assert_eq!(c.emitted_facts(), 5 * n);
             assert_eq!(c.admitted_facts(), 5 * n);
             assert_eq!(c.occurrence_allocations(), n);
@@ -1781,6 +2754,14 @@ mod tests {
             (y.index_capacity(), x.index_capacity()),
             (y.canonical_map_rebuilds(), x.canonical_map_rebuilds()),
             (y.index_rebuilds(), x.index_rebuilds()),
+            (
+                y.definition_endpoint_index_peak_capacity(),
+                x.definition_endpoint_index_peak_capacity(),
+            ),
+            (
+                y.definition_record_index_capacity(),
+                x.definition_record_index_capacity(),
+            ),
         ] {
             assert!(large < small * 5 / 2 + 1);
         }

@@ -172,9 +172,12 @@ The frozen Yulang lifecycle is the semantic oracle; its superlinear incremental
 graph mechanism is evidence rather than a code template. Identity-function
 polarity remains later evidence. Open-root connection, closed-scheme
 instantiation, generalization, and publication remain later gates. Immediate
-next action: implement F0 immutable collected definitions and dependency-only
-resolved binding-body uses, preserving one HIR traversal and all current Name
-type/effect projections. Scheme/generalization representation, recursive-cycle result,
+F0 immutable collected definitions and dependency-only resolved binding-body
+uses are complete with clean M3 implementation review. Collection remains one
+HIR traversal plus one collected-endpoint pass; Name type/effect projections
+and integer fact counts are unchanged. Immediate next action: implement F1's
+iterative static SCC/condensation plan over F0 records. Scheme/generalization
+representation, recursive-cycle result,
 Function syntax/types, application, methods/roles, and Core IR remain later
 structure gates rather than fixture-specific extensions.
 

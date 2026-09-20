@@ -131,6 +131,22 @@ impl DefId {
     pub fn same_name_ordinal(&self) -> u32 {
         self.same_name_ordinal
     }
+
+    /// Returns the dynamic identity payload bytes that this `DefId`'s derived
+    /// `Hash` and equality may scan.
+    ///
+    /// This includes the definition spelling plus the source-root module
+    /// file-key realm and normalized workspace-relative path. It excludes
+    /// fixed-size enum discriminants, string length metadata, pointer and
+    /// container storage, and `same_name_ordinal`: those values participate in
+    /// the derived operations but do not add a variable-length identity payload
+    /// to scan.
+    pub fn hash_eq_payload_bytes(&self) -> usize {
+        let file_key = self.module.file().key();
+        self.spelling.len()
+            + file_key.realm().len()
+            + file_key.normalized_workspace_relative_path().len()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -1365,5 +1381,24 @@ mod tests {
         };
         assert_eq!(first.range(), second.range());
         assert_ne!(first.occurrence(), second.occurrence());
+    }
+
+    #[test]
+    fn def_id_hash_eq_payload_bytes_include_spelling_and_source_root_file_key_text() {
+        let realm = "identity-realm";
+        let path = "nested/identity-module.yu";
+        let module = lower_module(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(realm, path))),
+            &parsed("my definition = 42"),
+            SemanticImports::empty(),
+        )
+        .expect("simple binding lowers");
+        let HirItem::Binding(binding) = &module.items()[0] else {
+            panic!("binding");
+        };
+        assert_eq!(
+            binding.id().hash_eq_payload_bytes(),
+            realm.len() + path.len() + binding.id().spelling().len()
+        );
     }
 }
