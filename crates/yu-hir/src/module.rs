@@ -1,10 +1,29 @@
-use std::{collections::HashMap, ops::Range};
+use std::{collections::HashMap, ops::Range, sync::Arc};
+
+#[cfg(test)]
+use std::{cell::RefCell, rc::Rc};
 
 use yu_syntax::{
     ParsedFile, SourceRevision, StructuralRecovery, StructuralRecoveryKind, SyntaxKind, SyntaxNode,
 };
 
 use crate::{AssociationError, HirExpr, associate_chain_owned, range_of};
+
+#[cfg(test)]
+macro_rules! count_lowering {
+    ($field:ident += $value:expr) => {
+        LOWERING_COUNTERS.with(|active| {
+            if let Some(counters) = active.borrow().as_ref() {
+                counters.borrow_mut().$field += $value;
+            }
+        });
+    };
+}
+
+#[cfg(not(test))]
+macro_rules! count_lowering {
+    ($field:ident += $value:expr) => {};
+}
 
 /// A compiler-supplied, already-normalized file key.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -104,24 +123,51 @@ impl SemanticImports {
 }
 
 /// A stable definition identity within one source-root module.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct DefId {
+#[derive(Debug, Eq, Hash, PartialEq)]
+pub struct DefId(Arc<DefIdPayload>);
+
+#[derive(Debug, Eq, Hash, PartialEq)]
+struct DefIdPayload {
     module: ModuleId,
     spelling: Box<str>,
     same_name_ordinal: u32,
 }
 
+impl Clone for DefId {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
 impl DefId {
+    fn new(module: ModuleId, spelling: Box<str>, same_name_ordinal: u32) -> Self {
+        Self(Arc::new(DefIdPayload {
+            module,
+            spelling,
+            same_name_ordinal,
+        }))
+    }
+
     pub fn module(&self) -> &ModuleId {
-        &self.module
+        &self.0.module
     }
 
     pub fn spelling(&self) -> &str {
-        &self.spelling
+        &self.0.spelling
     }
 
     pub fn same_name_ordinal(&self) -> u32 {
-        self.same_name_ordinal
+        self.0.same_name_ordinal
+    }
+}
+
+/// A dense expression identity within one exact immutable [`HirModule`].
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct HirExprId(u32);
+
+impl HirExprId {
+    pub fn index(self) -> u32 {
+        self.0
     }
 }
 
@@ -176,21 +222,30 @@ pub enum NameResolution {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResolvedExpr {
     Integer {
+        id: HirExprId,
         spelling: String,
         range: Range<usize>,
     },
     Name {
+        id: HirExprId,
         name: HirName,
         resolution: NameResolution,
         range: Range<usize>,
     },
     Error {
+        id: HirExprId,
         errors: Box<[HirErrorId]>,
         range: Range<usize>,
     },
 }
 
 impl ResolvedExpr {
+    pub fn id(&self) -> HirExprId {
+        match self {
+            Self::Integer { id, .. } | Self::Name { id, .. } | Self::Error { id, .. } => *id,
+        }
+    }
+
     pub fn range(&self) -> &Range<usize> {
         match self {
             Self::Integer { range, .. } | Self::Name { range, .. } | Self::Error { range, .. } => {
@@ -360,15 +415,13 @@ pub fn lower_module(
     parsed: &ParsedFile,
     _imports: SemanticImports,
 ) -> Result<HirModule, HirAvailabilityError> {
-    let mut counters = LoweringCounters::default();
-    lower_module_with_counters(identity, parsed, _imports, &mut counters)
+    lower_module_impl(identity, parsed, _imports)
 }
 
-fn lower_module_with_counters(
+fn lower_module_impl(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
     _imports: SemanticImports,
-    counters: &mut LoweringCounters,
 ) -> Result<HirModule, HirAvailabilityError> {
     if identity.file != *identity.module.file() {
         return Err(HirAvailabilityError::InconsistentIdentity);
@@ -378,14 +431,15 @@ fn lower_module_with_counters(
     let mut plans = Vec::new();
     for (index, node) in root.children().enumerate() {
         let ordinal = u32::try_from(index).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-        plans.push(plan_root(node, ordinal, &identity, counters)?);
+        plans.push(plan_root(node, ordinal)?);
     }
-    let partition = partition_recoveries(&recoveries, plans.len(), counters)?;
-    let namespace = namespace(&mut plans)?;
+    let partition = partition_recoveries(&recoveries, plans.len())?;
+    let namespace = namespace(&mut plans, identity.module())?;
     let mut sink = ErrorSink::default();
-    let root_errors = emit_structural_errors(&recoveries, &partition, &plans, &mut sink, counters)?;
+    let root_errors = emit_structural_errors(&recoveries, &partition, &plans, &mut sink)?;
 
     let mut items = Vec::with_capacity(plans.len());
+    let mut expression_ids = ExprIdAllocator::default();
     for (plan, errors) in plans.iter().zip(root_errors) {
         items.push(lower_plan(
             plan,
@@ -394,7 +448,7 @@ fn lower_module_with_counters(
             errors.item,
             errors.value,
             &mut sink,
-            counters,
+            &mut expression_ids,
         )?);
     }
     Ok(HirModule {
@@ -406,11 +460,73 @@ fn lower_module_with_counters(
     })
 }
 
+#[cfg(test)]
 #[derive(Default)]
 struct LoweringCounters {
     recovery_visits: usize,
     syntax_emissions: usize,
     copied_spelling_bytes: usize,
+    expression_id_assignments: usize,
+}
+
+#[cfg(test)]
+thread_local! {
+    static LOWERING_COUNTERS: RefCell<Option<Rc<RefCell<LoweringCounters>>>> = const { RefCell::new(None) };
+}
+
+#[cfg(test)]
+struct LoweringCounterScope {
+    previous: Option<Rc<RefCell<LoweringCounters>>>,
+}
+
+#[cfg(test)]
+impl LoweringCounterScope {
+    fn enter(counters: Rc<RefCell<LoweringCounters>>) -> Self {
+        let previous = LOWERING_COUNTERS.with(|active| active.replace(Some(counters)));
+        Self { previous }
+    }
+}
+
+#[cfg(test)]
+impl Drop for LoweringCounterScope {
+    fn drop(&mut self) {
+        LOWERING_COUNTERS.with(|active| {
+            active.replace(self.previous.take());
+        });
+    }
+}
+
+#[cfg(test)]
+fn lower_module_with_counters(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<(HirModule, LoweringCounters), HirAvailabilityError> {
+    let counters = Rc::new(RefCell::new(LoweringCounters::default()));
+    let scope = LoweringCounterScope::enter(Rc::clone(&counters));
+    let module = lower_module_impl(identity, parsed, imports);
+    drop(scope);
+    let counters = Rc::into_inner(counters)
+        .expect("the test-only counter scope releases its sole handle")
+        .into_inner();
+    module.map(|module| (module, counters))
+}
+
+#[derive(Default)]
+struct ExprIdAllocator {
+    next: u32,
+}
+
+impl ExprIdAllocator {
+    fn allocate(&mut self) -> Result<HirExprId, HirAvailabilityError> {
+        let id = HirExprId(self.next);
+        self.next = self
+            .next
+            .checked_add(1)
+            .ok_or(HirAvailabilityError::IdentityExhausted)?;
+        count_lowering!(expression_id_assignments += 1);
+        Ok(id)
+    }
 }
 
 struct RecoveryPartition {
@@ -427,14 +543,13 @@ struct RootErrors {
 fn partition_recoveries(
     recoveries: &[StructuralRecovery],
     root_count: usize,
-    counters: &mut LoweringCounters,
 ) -> Result<RecoveryPartition, HirAvailabilityError> {
     let mut partition = RecoveryPartition {
         module: Vec::new(),
         roots: (0..root_count).map(|_| Vec::new()).collect(),
     };
     for (index, recovery) in recoveries.iter().enumerate() {
-        counters.recovery_visits += 1;
+        count_lowering!(recovery_visits += 1);
         match recovery.direct_root_ordinal() {
             None => partition.module.push(index),
             Some(ordinal) => {
@@ -456,7 +571,6 @@ fn emit_structural_errors(
     partition: &RecoveryPartition,
     plans: &[RootPlan],
     sink: &mut ErrorSink,
-    counters: &mut LoweringCounters,
 ) -> Result<Vec<RootErrors>, HirAvailabilityError> {
     let mut recovery_errors = Vec::with_capacity(recoveries.len());
     for recovery in recoveries {
@@ -472,7 +586,7 @@ fn emit_structural_errors(
             }
         };
         recovery_errors.push(sink.syntax(recovery, attachment)?);
-        counters.syntax_emissions += 1;
+        count_lowering!(syntax_emissions += 1);
     }
 
     let mut roots = (0..plans.len())
@@ -521,9 +635,17 @@ enum RootPlanKind {
 
 #[derive(Clone)]
 struct Admitted {
-    id: DefId,
+    id: Option<DefId>,
     visibility: HirVisibility,
     name: HirName,
+}
+
+impl Admitted {
+    fn id(&self) -> &DefId {
+        self.id.as_ref().expect(
+            "namespace assigns every admitted binding identity before recovery and body lowering",
+        )
+    }
 }
 
 impl RootPlan {
@@ -531,9 +653,9 @@ impl RootPlan {
         match &self.kind {
             RootPlanKind::Binding(admitted) => {
                 if recovery.path().contains(&SyntaxKind::BindingBody) {
-                    HirErrorAttachment::Value(admitted.id.clone())
+                    HirErrorAttachment::Value(admitted.id().clone())
                 } else {
-                    HirErrorAttachment::Definition(admitted.id.clone())
+                    HirErrorAttachment::Definition(admitted.id().clone())
                 }
             }
             RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => {
@@ -543,12 +665,7 @@ impl RootPlan {
     }
 }
 
-fn plan_root(
-    node: SyntaxNode,
-    ordinal: u32,
-    identity: &ModuleIdentity,
-    counters: &mut LoweringCounters,
-) -> Result<RootPlan, HirAvailabilityError> {
+fn plan_root(node: SyntaxNode, ordinal: u32) -> Result<RootPlan, HirAvailabilityError> {
     let range = range_of(&node);
     if node.kind() == SyntaxKind::OperatorChain {
         return Ok(RootPlan {
@@ -574,26 +691,23 @@ fn plan_root(
             kind: RootPlanKind::Unsupported(HirErrorKind::UnsupportedTarget),
         });
     };
-    counters.copied_spelling_bytes += name.spelling.len();
-    let same_name_ordinal = 0; // assigned after all direct-root headers are known
-    let id = DefId {
-        module: identity.module.clone(),
-        spelling: name.spelling.clone().into_boxed_str(),
-        same_name_ordinal,
-    };
+    count_lowering!(copied_spelling_bytes += name.spelling.len());
     Ok(RootPlan {
         ordinal,
         node,
         range,
         kind: RootPlanKind::Binding(Admitted {
-            id,
+            id: None,
             visibility,
             name,
         }),
     })
 }
 
-fn namespace(plans: &mut [RootPlan]) -> Result<HashMap<String, Vec<DefId>>, HirAvailabilityError> {
+fn namespace(
+    plans: &mut [RootPlan],
+    module: &ModuleId,
+) -> Result<HashMap<String, Vec<DefId>>, HirAvailabilityError> {
     let mut seen = HashMap::<String, u32>::new();
     let mut namespace = HashMap::<String, Vec<DefId>>::new();
     for plan in plans {
@@ -601,15 +715,15 @@ fn namespace(plans: &mut [RootPlan]) -> Result<HashMap<String, Vec<DefId>>, HirA
             continue;
         };
         let ordinal = seen.entry(admitted.name.spelling.clone()).or_default();
-        let id = DefId {
-            module: admitted.id.module.clone(),
-            spelling: admitted.id.spelling.clone(),
-            same_name_ordinal: *ordinal,
-        };
+        let id = DefId::new(
+            module.clone(),
+            admitted.name.spelling.clone().into_boxed_str(),
+            *ordinal,
+        );
         *ordinal = ordinal
             .checked_add(1)
             .ok_or(HirAvailabilityError::IdentityExhausted)?;
-        admitted.id = id.clone();
+        admitted.id = Some(id.clone());
         namespace
             .entry(admitted.name.spelling.clone())
             .or_default()
@@ -625,13 +739,18 @@ fn lower_plan(
     mut item_errors: Vec<HirErrorId>,
     value_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
-    counters: &mut LoweringCounters,
+    expression_ids: &mut ExprIdAllocator,
 ) -> Result<HirItem, HirAvailabilityError> {
     let RootPlanKind::Binding(admitted) = &plan.kind else {
         return match &plan.kind {
-            RootPlanKind::DirectExpression => {
-                lower_direct_root_expression(plan, parsed, namespace, item_errors, sink, counters)
-            }
+            RootPlanKind::DirectExpression => lower_direct_root_expression(
+                plan,
+                parsed,
+                namespace,
+                item_errors,
+                sink,
+                expression_ids,
+            ),
             RootPlanKind::Unsupported(kind) => {
                 item_errors.push(sink.lowering(
                     *kind,
@@ -646,10 +765,17 @@ fn lower_plan(
             RootPlanKind::Binding(_) => unreachable!("binding plan matched above"),
         };
     };
-    let id = admitted.id.clone();
-    let (value, body_semantic_error) =
-        lower_body(plan, parsed, namespace, &id, value_errors, sink, counters)?;
-    if id.same_name_ordinal > 0 {
+    let id = admitted.id().clone();
+    let (value, body_semantic_error) = lower_body(
+        plan,
+        parsed,
+        namespace,
+        &id,
+        value_errors,
+        sink,
+        expression_ids,
+    )?;
+    if id.same_name_ordinal() > 0 {
         sink.lowering(
             HirErrorKind::DuplicateDefinition,
             HirErrorAttachment::Definition(id.clone()),
@@ -674,15 +800,16 @@ fn lower_direct_root_expression(
     namespace: &HashMap<String, Vec<DefId>>,
     mut causal_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
-    counters: &mut LoweringCounters,
+    expression_ids: &mut ExprIdAllocator,
 ) -> Result<HirItem, HirAvailabilityError> {
     if !causal_errors.is_empty() {
         return Ok(HirItem::Expression(ResolvedExpr::Error {
+            id: expression_ids.allocate()?,
             errors: causal_errors.into_boxed_slice(),
             range: plan.range.clone(),
         }));
     }
-    match lower_simple_chain(parsed, &plan.node, namespace, counters)? {
+    match lower_simple_chain(parsed, &plan.node, namespace, expression_ids)? {
         SimpleChainLowering::Resolved {
             expression,
             semantic_error,
@@ -703,6 +830,7 @@ fn lower_direct_root_expression(
                 range.clone(),
             )?);
             Ok(HirItem::Expression(ResolvedExpr::Error {
+                id: expression_ids.allocate()?,
                 errors: causal_errors.into_boxed_slice(),
                 range,
             }))
@@ -717,7 +845,7 @@ fn lower_body(
     id: &DefId,
     mut causal_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
-    counters: &mut LoweringCounters,
+    expression_ids: &mut ExprIdAllocator,
 ) -> Result<(ResolvedExpr, Option<(HirErrorKind, Range<usize>)>), HirAvailabilityError> {
     let Some(body) = plan
         .node
@@ -731,6 +859,7 @@ fn lower_body(
         )?);
         return Ok((
             ResolvedExpr::Error {
+                id: expression_ids.allocate()?,
                 errors: causal_errors.into_boxed_slice(),
                 range: plan.range.clone(),
             },
@@ -747,6 +876,7 @@ fn lower_body(
         )?);
         return Ok((
             ResolvedExpr::Error {
+                id: expression_ids.allocate()?,
                 errors: causal_errors.into_boxed_slice(),
                 range: range_of(&body),
             },
@@ -756,6 +886,7 @@ fn lower_body(
     if has_recovery(&body) {
         return Ok((
             ResolvedExpr::Error {
+                id: expression_ids.allocate()?,
                 errors: causal_errors.into_boxed_slice(),
                 range: range_of(&body),
             },
@@ -770,6 +901,7 @@ fn lower_body(
         )?);
         return Ok((
             ResolvedExpr::Error {
+                id: expression_ids.allocate()?,
                 errors: causal_errors.into_boxed_slice(),
                 range: range_of(&body),
             },
@@ -784,13 +916,14 @@ fn lower_body(
         )?);
         return Ok((
             ResolvedExpr::Error {
+                id: expression_ids.allocate()?,
                 errors: causal_errors.into_boxed_slice(),
                 range: range_of(&body),
             },
             None,
         ));
     }
-    match lower_simple_chain(parsed, chain, namespace, counters)? {
+    match lower_simple_chain(parsed, chain, namespace, expression_ids)? {
         SimpleChainLowering::Resolved {
             expression,
             semantic_error,
@@ -803,6 +936,7 @@ fn lower_body(
             )?);
             Ok((
                 ResolvedExpr::Error {
+                    id: expression_ids.allocate()?,
                     errors: causal_errors.into_boxed_slice(),
                     range,
                 },
@@ -826,7 +960,7 @@ fn lower_simple_chain(
     parsed: &ParsedFile,
     chain: &SyntaxNode,
     namespace: &HashMap<String, Vec<DefId>>,
-    counters: &mut LoweringCounters,
+    expression_ids: &mut ExprIdAllocator,
 ) -> Result<SimpleChainLowering, HirAvailabilityError> {
     let chain_range = range_of(chain);
     let (expression, atom) = associate_chain_owned(parsed, chain.clone())
@@ -846,8 +980,9 @@ fn lower_simple_chain(
     match atom.kind {
         SyntaxKind::IntegerLiteral => Ok(SimpleChainLowering::Resolved {
             expression: ResolvedExpr::Integer {
+                id: expression_ids.allocate()?,
                 spelling: {
-                    counters.copied_spelling_bytes += atom.spelling.len();
+                    count_lowering!(copied_spelling_bytes += atom.spelling.len());
                     atom.spelling
                 },
                 range: atom.range,
@@ -855,7 +990,7 @@ fn lower_simple_chain(
             semantic_error: None,
         }),
         SyntaxKind::IdentifierExpression => {
-            counters.copied_spelling_bytes += atom.spelling.len();
+            count_lowering!(copied_spelling_bytes += atom.spelling.len());
             let name = HirName {
                 spelling: atom.spelling,
                 range: atom.range.clone(),
@@ -872,6 +1007,7 @@ fn lower_simple_chain(
             };
             Ok(SimpleChainLowering::Resolved {
                 expression: ResolvedExpr::Name {
+                    id: expression_ids.allocate()?,
                     range: name.range.clone(),
                     name: name.clone(),
                     resolution,
@@ -1055,14 +1191,9 @@ mod tests {
     fn recovery_partition_visits_and_emits_each_occurrence_once() {
         let parsed = parsed("my x = @; my y = (");
         let recoveries = parsed.structural_recoveries();
-        let mut counters = LoweringCounters::default();
-        let module = lower_module_with_counters(
-            identity(),
-            &parsed,
-            SemanticImports::empty(),
-            &mut counters,
-        )
-        .expect("recovery lowering remains available");
+        let (module, counters) =
+            lower_module_with_counters(identity(), &parsed, SemanticImports::empty())
+                .expect("recovery lowering remains available");
 
         assert_eq!(counters.recovery_visits, recoveries.len());
         assert_eq!(counters.syntax_emissions, recoveries.len());
@@ -1075,5 +1206,42 @@ mod tests {
             recoveries.len()
         );
         assert_eq!(counters.copied_spelling_bytes, b"xy".len());
+    }
+
+    #[test]
+    fn expression_ids_are_dense_in_source_order_including_errors() {
+        let parsed = parsed("42; my x = @; missing; f 1");
+        let (module, counters) =
+            lower_module_with_counters(identity(), &parsed, SemanticImports::empty())
+                .expect("expression identity allocation remains available");
+
+        let expression_ids = module
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding.value().id()),
+                HirItem::Expression(expression) => Some(expression.id()),
+                HirItem::Error { .. } => None,
+            })
+            .map(HirExprId::index)
+            .collect::<Vec<_>>();
+        assert_eq!(expression_ids, vec![0, 1, 2, 3]);
+        assert_eq!(counters.expression_id_assignments, expression_ids.len());
+    }
+
+    #[test]
+    fn def_id_clone_shares_its_immutable_payload() {
+        let module = lower_module(
+            identity(),
+            &parsed("my repeated = 1"),
+            SemanticImports::empty(),
+        )
+        .expect("definition identity remains available");
+        let [HirItem::Binding(binding)] = module.items() else {
+            panic!("one binding");
+        };
+
+        let clone = binding.id().clone();
+        assert!(Arc::ptr_eq(&binding.id().0, &clone.0));
     }
 }

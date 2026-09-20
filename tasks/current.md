@@ -146,6 +146,12 @@ boundary is complete. The user-selected next gate is the separately designed
 `ConstraintBatch` collection boundary; do not begin it until its exact
 expression-identity/type semantics are recorded Authoritatively.
 
+The ConstraintBatch collection boundary is complete: dense same-artifact
+`HirExprId`, canonical `int`, immutable ordered occurrences, and the
+`yu-solver -> {yu-hir, yu-types}` fan-in are implemented and verified. Solve,
+type variables, and every deferred type feature remain outside this completed
+gate.
+
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
 

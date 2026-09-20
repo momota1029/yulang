@@ -191,6 +191,16 @@ impl WorkspaceGraph {
                         ));
                     }
                 }
+
+                if matches!(
+                    (source.as_str(), dependency.package.as_str()),
+                    ("yu-hir", "yu-types") | ("yu-types", "yu-hir")
+                ) {
+                    violations.push(format!(
+                        "{} `{source}` must remain independent from sibling `{}`",
+                        dependency.kind, dependency.package
+                    ));
+                }
             }
         }
 
@@ -298,7 +308,7 @@ mod tests {
         let graph = graph(&[
             ("yu-syntax", &[]),
             ("yu-hir", &[("yu-syntax", DependencyKind::Normal)]),
-            ("yu-types", &[("yu-hir", DependencyKind::Normal)]),
+            ("yu-types", &[]),
             (
                 "yu-solver",
                 &[
@@ -327,6 +337,19 @@ mod tests {
                 .iter()
                 .any(|violation| violation.contains("`yu-core` points downstream"))
         );
+    }
+
+    #[test]
+    fn rejects_hir_and_types_sibling_dependencies_in_both_directions() {
+        for (source, dependency) in [("yu-hir", "yu-types"), ("yu-types", "yu-hir")] {
+            let violations =
+                graph(&[(source, &[(dependency, DependencyKind::Normal)])]).violations();
+            assert!(
+                violations.iter().any(|violation| {
+                    violation.contains("must remain independent from sibling")
+                })
+            );
+        }
     }
 
     #[test]

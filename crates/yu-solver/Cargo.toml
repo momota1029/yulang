@@ -1,0 +1,12 @@
+[package]
+name = "yu-solver"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+yu-hir = { path = "../yu-hir" }
+yu-types = { path = "../yu-types" }
+
+[dev-dependencies]
+yu-syntax = { path = "../yu-syntax" }
