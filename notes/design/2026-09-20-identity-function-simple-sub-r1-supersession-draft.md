@@ -1,11 +1,20 @@
 # Identity-function Simple-Sub R1 supersession
 
-Status: Reviewed
+Status: Reviewed; withdrawn as an implementation candidate (2026-09-20)
 
 Date: 2026-09-20
 
 Reviewed by: compiler-referee, specification, and performance M3 reviews on
 2026-09-20; clean after one bounded repair/delta round.
+
+Withdrawn by the user's structure-first direction and replaced as the active
+proposal by
+`2026-09-20-constraint-collection-scc-foundation-draft.md`. A later semantic
+audit found that this record generalized definitions without first owning the
+complete definition-use graph or SCC lifecycle. Its identity-function polarity
+derivation remains evidence only; its source/definition-order generalization,
+ordinary-self classification, whole-module unsupported-expansion failure, and
+no-SCC assumptions are withdrawn and must not drive implementation.
 
 Scope: redefine R1 as the first complete Simple-Sub definition witness. R1 is
 not complete until both `my x = 42` and `my f x = x` pass from source through

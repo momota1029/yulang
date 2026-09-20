@@ -163,31 +163,30 @@ definition roots remain `Unknown`. Definition effects, name propagation,
 equality, and generalization remain deferred. Immediate next action: select a
 new approved vertical semantic gate; do not extend this relation implicitly.
 
-The direct-Int proposal is superseded as an implementation candidate because
-integer-only completion is not a sufficient Simple-Sub gate. The active Draft
-is the Reviewed
-`2026-09-20-identity-function-simple-sub-r1-supersession-draft.md`. R1 now
-closes only when `my x = 42` freezes a zero-binder `int` scheme and
-`my f x = x` passes through canonical Pattern ML application, parameter/local
-HIR, polarity-aware Function expansion, simplification, and generalization to
-the structural scheme `forall a. a -> a`. The direct literal remains canonical
-`Int`; no equality, reverse edge, or exact interval is reintroduced. Immediate
-next action: obtain user approval for this M3-clean expanded R1 before
-construction. Module-name scheme instantiation, expression
-application typing, recursion, and Core IR remain unauthorized.
+Fixture-led identity inference is withdrawn as the active implementation
+sequence. The active Reviewed proposal is
+`2026-09-20-constraint-collection-scc-foundation-draft.md`: first collect the
+complete definition/root/constraint/use structure, then build a sealed static
+SCC/condensation plan and integrate its artifact-checked queries into the batch.
+The frozen Yulang lifecycle is the semantic oracle; its superlinear incremental
+graph mechanism is evidence rather than a code template. Identity-function
+polarity remains later evidence. Open-root connection, closed-scheme
+instantiation, generalization, and publication remain later gates. Immediate
+next action: obtain user approval for the M3-clean F0-F2 design before code
+construction. Scheme/generalization representation, recursive-cycle result,
+Function syntax/types, application, methods/roles, and Core IR remain later
+structure gates rather than fixture-specific extensions.
 
-The direct integer attachment and the bounded parameter/lambda attachment are
-now captured by the active successor without a HIR inferred-type field. Broader
-associated-expression type attachment remains open in
-`notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
+The broader associated-expression type attachment question remains open in
+`notes/design/2026-09-18-hir-type-attachment-open-questions.md`; this foundation
+does not attach inferred types to HIR.
 
-For the active identity-function R1 successor, the user's explicit witness is
-the concrete trigger that reopens canonical Pattern ML application. Its
-approved design, once authoritative, overrides the older existing-fixture-only
-ordering below for this gate. Do not use that older ordering to reject or defer
-the required `my f x = x` syntax work.
+For the active SCC-foundation successor, the user's explicit structure-first
+direction overrides the older existing-fixture-only ordering below. F0-F2 use
+definition-use records and a static plan over current resolved-name HIR; do not add Pattern ML
+application merely to obtain a surface witness for these gates.
 
-Proceed in this order for work outside that successor unless a concrete blocker
+Proceed in this order for work outside the SCC foundation unless a concrete blocker
 changes it:
 
 1. Select the smallest **existing accepted** fixture that can exercise a useful valid-program path from source -> Rowan CST -> HIR/type analysis. Do not design new syntax for this slice.
