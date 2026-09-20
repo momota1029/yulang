@@ -1,4 +1,12 @@
-use std::{collections::HashMap, ops::Range};
+use std::{
+    collections::HashMap,
+    hash::{Hash, Hasher},
+    ops::Range,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 use yu_syntax::{
     ParsedFile, SourceRevision, StructuralRecovery, StructuralRecoveryKind, SyntaxKind, SyntaxNode,
@@ -143,6 +151,64 @@ impl HirDiagnosticId {
     }
 }
 
+/// A lowering-order expression identity branded by its immutable HIR artifact.
+///
+/// The token is intentionally private and non-serializable. An ordinal is only
+/// meaningful alongside this token, so independently lowered modules cannot
+/// accidentally use each other's occurrence zero.
+#[derive(Clone)]
+pub struct HirOccurrenceId {
+    artifact: Arc<HirArtifactToken>,
+    ordinal: u32,
+}
+
+impl HirOccurrenceId {
+    fn new(artifact: Arc<HirArtifactToken>, ordinal: u32) -> Self {
+        Self { artifact, ordinal }
+    }
+
+    pub const fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+}
+
+impl std::fmt::Debug for HirOccurrenceId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("HirOccurrenceId")
+            .field("ordinal", &self.ordinal)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for HirOccurrenceId {
+    fn eq(&self, other: &Self) -> bool {
+        self.ordinal == other.ordinal && Arc::ptr_eq(&self.artifact, &other.artifact)
+    }
+}
+
+impl Eq for HirOccurrenceId {}
+
+impl Hash for HirOccurrenceId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.artifact).hash(state);
+        self.ordinal.hash(state);
+    }
+}
+
+#[derive(Debug)]
+struct HirArtifactToken {
+    _serial: u64,
+}
+
+static NEXT_HIR_ARTIFACT: AtomicU64 = AtomicU64::new(0);
+
+fn mint_artifact_token() -> Arc<HirArtifactToken> {
+    Arc::new(HirArtifactToken {
+        _serial: NEXT_HIR_ARTIFACT.fetch_add(1, Ordering::Relaxed),
+    })
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HirName {
     spelling: String,
@@ -173,24 +239,35 @@ pub enum NameResolution {
     Unresolved,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum ResolvedExpr {
     Integer {
+        occurrence: HirOccurrenceId,
         spelling: String,
         range: Range<usize>,
     },
     Name {
+        occurrence: HirOccurrenceId,
         name: HirName,
         resolution: NameResolution,
         range: Range<usize>,
     },
     Error {
+        occurrence: HirOccurrenceId,
         errors: Box<[HirErrorId]>,
         range: Range<usize>,
     },
 }
 
 impl ResolvedExpr {
+    pub fn occurrence(&self) -> &HirOccurrenceId {
+        match self {
+            Self::Integer { occurrence, .. }
+            | Self::Name { occurrence, .. }
+            | Self::Error { occurrence, .. } => occurrence,
+        }
+    }
+
     pub fn range(&self) -> &Range<usize> {
         match self {
             Self::Integer { range, .. } | Self::Name { range, .. } | Self::Error { range, .. } => {
@@ -199,6 +276,61 @@ impl ResolvedExpr {
         }
     }
 }
+
+// Artifact identity protects cross-module lookup. It is not source semantics,
+// so existing structural HIR equality intentionally continues to compare the
+// lowered expression payload rather than the freshly minted artifact token.
+impl PartialEq for ResolvedExpr {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::Integer {
+                    spelling: left_spelling,
+                    range: left_range,
+                    ..
+                },
+                Self::Integer {
+                    spelling: right_spelling,
+                    range: right_range,
+                    ..
+                },
+            ) => left_spelling == right_spelling && left_range == right_range,
+            (
+                Self::Name {
+                    name: left_name,
+                    resolution: left_resolution,
+                    range: left_range,
+                    ..
+                },
+                Self::Name {
+                    name: right_name,
+                    resolution: right_resolution,
+                    range: right_range,
+                    ..
+                },
+            ) => {
+                left_name == right_name
+                    && left_resolution == right_resolution
+                    && left_range == right_range
+            }
+            (
+                Self::Error {
+                    errors: left_errors,
+                    range: left_range,
+                    ..
+                },
+                Self::Error {
+                    errors: right_errors,
+                    range: right_range,
+                    ..
+                },
+            ) => left_errors == right_errors && left_range == right_range,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for ResolvedExpr {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HirBinding {
@@ -319,8 +451,9 @@ impl HirDiagnostic {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct HirModule {
+    artifact: Arc<HirArtifactToken>,
     identity: ModuleIdentity,
     source_revision: SourceRevision,
     items: Vec<HirItem>,
@@ -329,6 +462,11 @@ pub struct HirModule {
 }
 
 impl HirModule {
+    /// Tests whether a branded occurrence was minted by this exact artifact.
+    pub fn owns_occurrence(&self, occurrence: &HirOccurrenceId) -> bool {
+        Arc::ptr_eq(&self.artifact, &occurrence.artifact)
+    }
+
     pub fn identity(&self) -> &ModuleIdentity {
         &self.identity
     }
@@ -345,6 +483,18 @@ impl HirModule {
         &self.diagnostics
     }
 }
+
+impl PartialEq for HirModule {
+    fn eq(&self, other: &Self) -> bool {
+        self.identity == other.identity
+            && self.source_revision == other.source_revision
+            && self.items == other.items
+            && self.errors == other.errors
+            && self.diagnostics == other.diagnostics
+    }
+}
+
+impl Eq for HirModule {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirAvailabilityError {
@@ -385,8 +535,10 @@ fn lower_module_with_counters(
     let mut sink = ErrorSink::default();
     let root_errors = emit_structural_errors(&recoveries, &partition, &plans, &mut sink, counters)?;
 
+    let artifact = mint_artifact_token();
     let mut items = Vec::with_capacity(plans.len());
     for (plan, errors) in plans.iter().zip(root_errors) {
+        let occurrence = HirOccurrenceId::new(artifact.clone(), plan.ordinal);
         items.push(lower_plan(
             plan,
             parsed,
@@ -395,9 +547,11 @@ fn lower_module_with_counters(
             errors.value,
             &mut sink,
             counters,
+            occurrence,
         )?);
     }
     Ok(HirModule {
+        artifact,
         identity,
         source_revision: parsed.revision(),
         items,
@@ -626,12 +780,19 @@ fn lower_plan(
     value_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
     counters: &mut LoweringCounters,
+    occurrence: HirOccurrenceId,
 ) -> Result<HirItem, HirAvailabilityError> {
     let RootPlanKind::Binding(admitted) = &plan.kind else {
         return match &plan.kind {
-            RootPlanKind::DirectExpression => {
-                lower_direct_root_expression(plan, parsed, namespace, item_errors, sink, counters)
-            }
+            RootPlanKind::DirectExpression => lower_direct_root_expression(
+                plan,
+                parsed,
+                namespace,
+                item_errors,
+                sink,
+                counters,
+                occurrence,
+            ),
             RootPlanKind::Unsupported(kind) => {
                 item_errors.push(sink.lowering(
                     *kind,
@@ -647,8 +808,16 @@ fn lower_plan(
         };
     };
     let id = admitted.id.clone();
-    let (value, body_semantic_error) =
-        lower_body(plan, parsed, namespace, &id, value_errors, sink, counters)?;
+    let (value, body_semantic_error) = lower_body(
+        plan,
+        parsed,
+        namespace,
+        &id,
+        value_errors,
+        sink,
+        counters,
+        occurrence,
+    )?;
     if id.same_name_ordinal > 0 {
         sink.lowering(
             HirErrorKind::DuplicateDefinition,
@@ -675,14 +844,16 @@ fn lower_direct_root_expression(
     mut causal_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
     counters: &mut LoweringCounters,
+    occurrence: HirOccurrenceId,
 ) -> Result<HirItem, HirAvailabilityError> {
     if !causal_errors.is_empty() {
         return Ok(HirItem::Expression(ResolvedExpr::Error {
+            occurrence,
             errors: causal_errors.into_boxed_slice(),
             range: plan.range.clone(),
         }));
     }
-    match lower_simple_chain(parsed, &plan.node, namespace, counters)? {
+    match lower_simple_chain(parsed, &plan.node, namespace, counters, occurrence.clone())? {
         SimpleChainLowering::Resolved {
             expression,
             semantic_error,
@@ -703,6 +874,7 @@ fn lower_direct_root_expression(
                 range.clone(),
             )?);
             Ok(HirItem::Expression(ResolvedExpr::Error {
+                occurrence,
                 errors: causal_errors.into_boxed_slice(),
                 range,
             }))
@@ -718,6 +890,7 @@ fn lower_body(
     mut causal_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
     counters: &mut LoweringCounters,
+    occurrence: HirOccurrenceId,
 ) -> Result<(ResolvedExpr, Option<(HirErrorKind, Range<usize>)>), HirAvailabilityError> {
     let Some(body) = plan
         .node
@@ -731,6 +904,7 @@ fn lower_body(
         )?);
         return Ok((
             ResolvedExpr::Error {
+                occurrence,
                 errors: causal_errors.into_boxed_slice(),
                 range: plan.range.clone(),
             },
@@ -747,6 +921,7 @@ fn lower_body(
         )?);
         return Ok((
             ResolvedExpr::Error {
+                occurrence,
                 errors: causal_errors.into_boxed_slice(),
                 range: range_of(&body),
             },
@@ -756,6 +931,7 @@ fn lower_body(
     if has_recovery(&body) {
         return Ok((
             ResolvedExpr::Error {
+                occurrence,
                 errors: causal_errors.into_boxed_slice(),
                 range: range_of(&body),
             },
@@ -770,6 +946,7 @@ fn lower_body(
         )?);
         return Ok((
             ResolvedExpr::Error {
+                occurrence,
                 errors: causal_errors.into_boxed_slice(),
                 range: range_of(&body),
             },
@@ -784,13 +961,14 @@ fn lower_body(
         )?);
         return Ok((
             ResolvedExpr::Error {
+                occurrence,
                 errors: causal_errors.into_boxed_slice(),
                 range: range_of(&body),
             },
             None,
         ));
     }
-    match lower_simple_chain(parsed, chain, namespace, counters)? {
+    match lower_simple_chain(parsed, chain, namespace, counters, occurrence.clone())? {
         SimpleChainLowering::Resolved {
             expression,
             semantic_error,
@@ -803,6 +981,7 @@ fn lower_body(
             )?);
             Ok((
                 ResolvedExpr::Error {
+                    occurrence,
                     errors: causal_errors.into_boxed_slice(),
                     range,
                 },
@@ -827,6 +1006,7 @@ fn lower_simple_chain(
     chain: &SyntaxNode,
     namespace: &HashMap<String, Vec<DefId>>,
     counters: &mut LoweringCounters,
+    occurrence: HirOccurrenceId,
 ) -> Result<SimpleChainLowering, HirAvailabilityError> {
     let chain_range = range_of(chain);
     let (expression, atom) = associate_chain_owned(parsed, chain.clone())
@@ -846,6 +1026,7 @@ fn lower_simple_chain(
     match atom.kind {
         SyntaxKind::IntegerLiteral => Ok(SimpleChainLowering::Resolved {
             expression: ResolvedExpr::Integer {
+                occurrence,
                 spelling: {
                     counters.copied_spelling_bytes += atom.spelling.len();
                     atom.spelling
@@ -872,6 +1053,7 @@ fn lower_simple_chain(
             };
             Ok(SimpleChainLowering::Resolved {
                 expression: ResolvedExpr::Name {
+                    occurrence,
                     range: name.range.clone(),
                     name: name.clone(),
                     resolution,
@@ -1075,5 +1257,22 @@ mod tests {
             recoveries.len()
         );
         assert_eq!(counters.copied_spelling_bytes, b"xy".len());
+    }
+
+    #[test]
+    fn occurrence_ids_remain_distinct_for_equal_zero_width_error_ranges() {
+        let artifact = mint_artifact_token();
+        let first = ResolvedExpr::Error {
+            occurrence: HirOccurrenceId::new(artifact.clone(), 0),
+            errors: Box::new([]),
+            range: 0..0,
+        };
+        let second = ResolvedExpr::Error {
+            occurrence: HirOccurrenceId::new(artifact, 1),
+            errors: Box::new([]),
+            range: 0..0,
+        };
+        assert_eq!(first.range(), second.range());
+        assert_ne!(first.occurrence(), second.occurrence());
     }
 }

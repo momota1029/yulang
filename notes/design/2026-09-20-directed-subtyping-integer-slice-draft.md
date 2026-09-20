@@ -1,6 +1,6 @@
 # Directed-subtyping integer slice
 
-Status: Authoritative
+Status: Authoritative; construction complete (2026-09-20)
 
 Approved by: user, 2026-09-20 (integrated choice 1).
 
@@ -178,3 +178,19 @@ identity, a CST rescan, a retained parallel typed tree, a prelude/module graph,
 equality, definition/name shortcuts, scheme-less propagation, `Any`/`Never`
 recovery, duplicated semantic/provenance authority, or non-linear ordinary
 admission.  Roll back the whole gate if any such condition appears.
+
+## Construction result
+
+Construction is complete. `yu-hir` now mints artifact-branded occurrence IDs
+for every lowered `ResolvedExpr`, including equal zero-width Error ranges.
+`yu-types` owns the four specified leaves; `yu-solver` owns direct-root integer
+collection, exact-artifact batch/store/provenance/solution ownership, total
+local-error `Unknown` projection, and the reference solve. The physical Cargo
+graph is `yu-types -> yu-hir` and `yu-solver -> {yu-hir, yu-types}`.
+
+Focused M3 evidence is clean: 35 `yu-hir` tests, 5 `yu-solver` tests,
+`cargo xtask check-graph`, and `cargo check --workspace`, all with
+`RUSTC_WRAPPER=`. The production N/2N 1,000/2,000 direct-root literal witness
+asserts linear logical work and retained/workspace growth, including full
+endpoint fan-out. No bindings, names, equality, generalization, annotations,
+applications, Core IR, or runtime semantics entered this gate.

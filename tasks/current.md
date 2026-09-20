@@ -146,9 +146,13 @@ boundary is complete. The proposed next gate is the separately designed
 `ConstraintBatch` collection boundary. Its exact expression-identity/type
 semantics are Authoritative in
 `notes/design/2026-09-20-directed-subtyping-integer-slice-draft.md`: the user
-approved integrated choice 1 on 2026-09-20. Implement the gate under its M3
-construction and measurement contract; do not broaden it to names, bindings,
-or equality relations.
+approved integrated choice 1 on 2026-09-20, and its M3 construction is complete.
+The direct-root decimal-integer slice now ends at a total `SolvedModule` with
+directed value/effect bounds and local `Unknown` results. Do not broaden it to
+names, bindings, equality relations, generalization, annotations, or Core IR
+without a new approved gate. Immediate next action: select the next concrete
+vertical semantic slice from existing accepted input and the established
+subtyping model.
 
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.

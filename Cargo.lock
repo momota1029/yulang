@@ -798,6 +798,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "yu-solver"
+version = "0.1.0"
+dependencies = [
+ "yu-hir",
+ "yu-syntax",
+ "yu-types",
+]
+
+[[package]]
 name = "yu-syntax"
 version = "0.1.0"
 dependencies = [
@@ -811,6 +820,9 @@ dependencies = [
 [[package]]
 name = "yu-types"
 version = "0.1.0"
+dependencies = [
+ "yu-hir",
+]
 
 [[package]]
 name = "zmij"
