@@ -195,7 +195,9 @@ is withdrawn. The active Draft is
 commit whole-SCC Failed/Blocked outcomes inside `Ok(SolvedModule)`, preserve
 independent published facts, suppress dependent cascade diagnostics, and reserve
 whole-session `ExecutionUnavailable` for structural failures. Fresh M3 review
-is clean; post-review confirmation remains required before implementation.
+is clean and the user approved R2 on 2026-09-21. Immediate next action: implement
+the structural R2 executor and recovery outcome machinery without schemes,
+Name facts, generalization, or other deferred semantic payloads.
 
 The broader associated-expression type attachment question remains open in
 `notes/design/2026-09-18-hir-type-attachment-open-questions.md`; this foundation

@@ -1,6 +1,6 @@
 # SCC lifecycle executor R1
 
-Status: Reviewed; withdrawn as implementation candidate
+Status: Superseded; withdrawn as implementation candidate
 
 Date: 2026-09-21
 
@@ -22,6 +22,9 @@ solve-failure API change described below.
 
 Withdrawn-by: user selection of recoverable inference on 2026-09-21. R1 is
 historical lifecycle evidence only; R2 is the active successor candidate.
+
+Superseded-by: `2026-09-21-recoverable-scc-execution-r2-draft.md`, approved by
+the user on 2026-09-21.
 
 ## Decision and ownership
 

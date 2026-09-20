@@ -1,8 +1,12 @@
 # Recoverable SCC execution R2
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-21
+
+Approved-by: user
+
+Approved-at: 2026-09-21
 
 Scope: replace R1's whole-session semantic failure model with recoverable,
 component-atomic SCC inference while retaining terminal failure for structural
@@ -242,7 +246,7 @@ Schemes, generalization, freshening, concrete Name/open/closed facts,
 recursive-cycle semantic results beyond failure propagation, and later language
 features remain separate gates.
 
-R2 requires post-review user confirmation before implementation.
+R2 is approved for implementation.
 
 ## Normative round-1 repair
 
