@@ -5,7 +5,6 @@ members = [
     "crates/yu-syntax",
     "crates/yu-hir",
     "crates/yu-types",
-    "crates/yu-solver",
     "crates/yu-core",
     "crates/yu-backend-vm",
     "crates/yu-backend-native",

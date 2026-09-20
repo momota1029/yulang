@@ -31,11 +31,11 @@ fn public_parser_preflight_and_fixture_resolution_are_recovery_free() {
     };
     assert_eq!(x.visibility(), HirVisibility::Private);
     assert!(
-        matches!(x.value(), ResolvedExpr::Integer { spelling, range, .. } if spelling == "1" && range == &(7..8))
+        matches!(x.value(), ResolvedExpr::Integer { spelling, range } if spelling == "1" && range == &(7..8))
     );
     assert!(matches!(
         y.value(),
-        ResolvedExpr::Name { name, resolution: NameResolution::Resolved(def), range, .. }
+        ResolvedExpr::Name { name, resolution: NameResolution::Resolved(def), range }
             if name.spelling() == "x" && range == &(17..18) && def == x.id()
     ));
     assert!(module.errors().is_empty());

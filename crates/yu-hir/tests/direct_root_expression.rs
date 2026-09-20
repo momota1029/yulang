@@ -27,12 +27,7 @@ fn startup_minimal_source_lowers_to_one_integer_expression() {
     assert!(parsed.structural_recoveries().is_empty());
 
     let module = lower_module(identity(), &parsed, SemanticImports::empty()).unwrap();
-    let [
-        HirItem::Expression(ResolvedExpr::Integer {
-            spelling, range, ..
-        }),
-    ] = module.items()
-    else {
+    let [HirItem::Expression(ResolvedExpr::Integer { spelling, range })] = module.items() else {
         panic!("startup minimal is one direct-root integer expression")
     };
     assert_eq!(spelling, "42");
@@ -59,7 +54,6 @@ fn direct_expressions_keep_source_order_and_resolve_the_complete_binding_namespa
         HirItem::Expression(ResolvedExpr::Integer {
             spelling,
             range: integer_range,
-            ..
         }),
         HirItem::Binding(y),
     ] = module.items()
@@ -150,7 +144,7 @@ fn direct_name_errors_attach_to_their_root_items_without_changing_binding_identi
 #[test]
 fn complex_and_recovery_direct_chains_have_distinct_error_ownership() {
     let complex = lower_module(identity(), &parsed("f 1"), SemanticImports::empty()).unwrap();
-    let [HirItem::Expression(ResolvedExpr::Error { errors, range, .. })] = complex.items() else {
+    let [HirItem::Expression(ResolvedExpr::Error { errors, range })] = complex.items() else {
         panic!("recovery-free complex chain remains an expression item")
     };
     assert_eq!(range, &(0..3));
@@ -232,9 +226,7 @@ fn operator_header_stays_unsupported_while_its_sibling_body_is_an_expression() {
     .unwrap();
     let [
         HirItem::Error { .. },
-        HirItem::Expression(ResolvedExpr::Integer {
-            spelling, range, ..
-        }),
+        HirItem::Expression(ResolvedExpr::Integer { spelling, range }),
     ] = module.items()
     else {
         panic!("operator header and its body are sibling direct roots")
