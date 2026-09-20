@@ -31,8 +31,12 @@ dependency contracts otherwise remain in force.
 Drafted by: primary with an independent architect and bounded legacy-evidence
 exploration on 2026-09-20.
 
-Reviewed by: compiler-referee, specification, and performance M3 pre-approval
-reviews on 2026-09-20; clean after two bounded repair/delta rounds.
+Review history: compiler-referee, specification, and performance M3
+pre-approval reviews closed the original draft on 2026-09-20. A subsequent
+legacy-representation audit found that its `Int+` scheme payload conflated a
+solver bound leaf with a canonical scheme body. The corrected `Int`-scheme
+revision passed fresh compiler-referee and specification review; the unchanged
+performance review carries forward. User approval remains required.
 
 ## Evidence and semantic boundary
 
@@ -81,15 +85,17 @@ remain total HIR name states and stay `(Unknown, Unknown)`.
 - `HirModule` remains the sole authority for exact artifact identity,
   `DefId`, `DefinitionRootId`, resolution, and occurrence ownership.
 - `yu-types` owns an immutable `ClosedValueScheme`. In this slice it has zero
-  binders and exactly one positive predicate, `Int+`.
+  binders and canonical semantic body `ClosedValueType::Int`. It does not store
+  a solver leaf or a polarity suffix.
 - A scheme's semantic identity is its existing artifact-branded
   `DefinitionRootId`; no parallel `SchemeId` or raw-`DefId` scheme key is
   introduced. Equal payloads on duplicate roots remain distinct schemes.
 - `ConstraintBatch` owns components, integer generalization candidates, and
   resolved-name instantiation requests for the exact HIR artifact.
 - `ConstraintStore` remains the sole authority for committed directed subtype
-  facts. A scheme is a frozen derived view of the root's positive lower
-  closure, not a second mutable bound authority.
+  facts. A scheme is a frozen canonical type derived from the root's positive
+  lower closure, not a second mutable bound authority. The solver alone lowers
+  `ClosedValueType::Int` back to `Leaf::IntPositive` when instantiating a use.
 - `SolvedModule` owns the exact-artifact O(1) root-to-scheme projection and the
   existing occurrence value/effect projections.
 
@@ -175,8 +181,8 @@ drained, and candidate schemes are frozen in binding/root order.
 This gate adds no upper-bound propagation, lower-by-upper pair materialization,
 SCC scheduler, recursive/open scheme, role predicate, effect-row closure, or
 full-store replay. Definition-root solved values remain `Unknown`; positive
-lower closure is enough to construct a positive scheme but not enough to claim
-an exact solved value.
+lower closure is enough to construct a canonical `Int` scheme but not enough to
+claim an exact solved value.
 
 ### Instantiation and effects
 
@@ -185,8 +191,9 @@ name-occurrence order. The post-freeze endpoint fence permits only admitted
 leaves and the request's own occurrence components; no definition/body
 component or component-to-component edge may be committed after the freeze.
 All request ownership, endpoints, identities, capacity, and source-link inputs
-are validated before its per-request atomic commit. A fulfilled request copies
-the closed positive predicate and emits exactly one value relation:
+are validated before its per-request atomic commit. A fulfilled request lowers
+the canonical scheme body to its directed lower endpoint and emits exactly one
+value relation:
 
 ```text
 Int+ <: use.value
@@ -194,7 +201,9 @@ Int+ <: use.value
 
 The zero-binder scheme needs no fresh semantic predicate component, but every
 use still owns distinct fresh value/effect occurrence components and a distinct
-request/cause. No live-root-to-use shortcut is permitted.
+request/cause. `ClosedValueType::Int -> Leaf::IntPositive` is a solver-owned
+one-way instantiation conversion, not a stored `Int+` scheme payload or a
+live-root-to-use shortcut.
 
 Every uniquely resolved name lookup independently emits:
 
@@ -227,7 +236,7 @@ For `my x = 42; x`, the exact observable result is:
 
 - body: `(Int, EmptyEffect)`;
 - definition root value: `Unknown`;
-- root scheme: zero-binder closed predicate `Int+`;
+- root scheme: zero-binder canonical value scheme `Int`;
 - name use: `(Unknown, EmptyEffect)`;
 - eight admitted facts in the global order above: five existing binding facts,
   two name-effect facts, then one instantiated value fact.
@@ -238,7 +247,8 @@ For `my x = 42; x`, the exact observable result is:
 | --- | --- | --- | --- |
 | positive adjacency | accepted `(lower component, upper component)` arcs, derived index | admission receipt / closure queue | solve-session-only; appended once from committed deltas, never rebuilt or updated after freeze |
 | positive root bound | `(root component, positive leaf)` immutable frozen summary | solve delta closure / generalization planner | derived from accepted receipts; frozen before endpoint fence, retired with solve workspace |
-| definition scheme state | every `DefinitionRootId` maps to exactly one `Generalized`/`NotGeneralized` state | generalization freeze / `scheme_state_for` decisive-one query | `SolvedModule`; payload owned by `yu-types`, exact artifact lifetime |
+| definition scheme state | every `DefinitionRootId` maps to exactly one `Generalized`/`NotGeneralized` state | generalization freeze / `scheme_state_for` decisive-one query | `SolvedModule`; `Generalized` owns `ClosedValueType::Int` from `yu-types`, exact artifact lifetime |
+| scheme instantiation conversion | `ClosedValueType::Int -> Leaf::IntPositive` derived one-way lowering | request planner / transaction plan | `yu-solver`; no persistent duplicate bound authority or public scheme payload containing `Int+` |
 | instantiation request | `(name occurrence, target root)` append-only batch occurrence | collector / solve planner | `ConstraintBatch`; exact-artifact only |
 | instantiated subtype fact | canonical `(positive predicate, use value)` current fact | transaction commit / store query | `ConstraintStore`; deduplicated semantic authority |
 | instantiated cause edge | `(CauseId, FactId)` append-only provenance | transaction receipt / provenance query | existing provenance log |
@@ -277,7 +287,11 @@ order.
 
 Focused semantic fixtures:
 
-- `my x = 42; x`: exact contract and admission sequence above;
+- `my x = 42; x`: exact contract and admission sequence above; its structural
+  scheme query returns `Generalized(ClosedValueScheme { binders: [], body:
+  ClosedValueType::Int })`, its display is `Int` with no polarity suffix, and
+  only the solver-owned instantiation conversion produces
+  `Leaf::IntPositive <: use.value`;
 - `x; my x = 42`: exact forward admission sequence above;
 - `my x = 42; x; x`: one scheme, distinct use components and causes;
 - `my bad = @; bad; my good = 42; good`: local recovery isolation;
@@ -297,11 +311,12 @@ Focused semantic fixtures:
   required root closure delta: solve availability fails and no `SolvedModule`
   or recoverable `NotGeneralized` state is returned.
 
-Tests assert exact edge direction, absence of reverse/equality/definition
-effect facts, definition roots remaining `Unknown`, resolved-name value
-remaining `Unknown`, resolved-name effect becoming `EmptyEffect`, deterministic
-ordering, query cardinality, artifact isolation, forward references, alpha/path
-independence, and zero HIR/CST rescans or parallel typed-tree copies.
+Tests assert exact edge direction, the structural scheme payload/conversion
+boundary above, absence of reverse/equality/definition effect facts, definition
+roots remaining `Unknown`, resolved-name value remaining `Unknown`, resolved-name
+effect becoming `EmptyEffect`, deterministic ordering, query cardinality,
+artifact isolation, forward references, alpha/path independence, and zero
+HIR/CST rescans or parallel typed-tree copies.
 
 The N/2N witness uses 1,000 and 2,000 unique pairs `my x_i = 42; x_i`. For N
 pairs it requires 5N components, 8N emitted/admitted facts and fact-provenance
@@ -342,9 +357,11 @@ projection enters this gate.
 ## Approval choice
 
 Recommended integrated choice: accept integer-only candidate eligibility,
-positive lower-bound closure, an artifact-root-keyed zero-binder `Int+` scheme,
-per-use directed instantiation, independent pure lookup effects, and the
-deliberate observable `(Unknown, EmptyEffect)` name result.
+positive lower-bound closure, an artifact-root-keyed zero-binder canonical
+`Int` scheme, solver-owned lowering to the `IntPositive` constraint endpoint at
+each use, independent pure lookup effects, and the deliberate current-Yulang3
+observable `(Unknown, EmptyEffect)` name result. The last projection is a new
+Yulang3 solved-module contract, not a legacy per-use projection claim.
 
 Alternative: defer generalization and resolved-name typing entirely. Exact
 `Int` at a name occurrence is not a safe sub-option of this proposal: it needs
