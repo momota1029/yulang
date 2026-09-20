@@ -144,10 +144,11 @@ direct-root `OperatorChain` HIR lowering under
 `2026-09-20-hir-direct-root-expression-slice.md`; that neutral expression-owner
 boundary is complete. The proposed next gate is the separately designed
 `ConstraintBatch` collection boundary. Its exact expression-identity/type
-semantics are reviewed in
-`notes/design/2026-09-20-directed-subtyping-integer-slice-draft.md`, but remain
-non-authoritative pending a user decision; do not begin implementation until
-that decision is recorded.
+semantics are Authoritative in
+`notes/design/2026-09-20-directed-subtyping-integer-slice-draft.md`: the user
+approved integrated choice 1 on 2026-09-20. Implement the gate under its M3
+construction and measurement contract; do not broaden it to names, bindings,
+or equality relations.
 
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.

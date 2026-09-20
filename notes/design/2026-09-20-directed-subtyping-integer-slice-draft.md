@@ -1,6 +1,8 @@
 # Directed-subtyping integer slice
 
-Status: Reviewed (proposal only; user decision pending; authorizes no implementation)
+Status: Authoritative
+
+Approved by: user, 2026-09-20 (integrated choice 1).
 
 Date: 2026-09-20
 
