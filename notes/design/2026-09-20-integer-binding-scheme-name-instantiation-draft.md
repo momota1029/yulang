@@ -1,6 +1,6 @@
 # Integer binding scheme and resolved-name instantiation slice
 
-Status: Reviewed
+Status: Superseded in active implementation-candidate scope
 
 Date: 2026-09-20
 
@@ -8,6 +8,11 @@ Scope: the next Yulang3 type/effect vertical slice for recovery-free integer
 bindings and uniquely resolved value-name occurrences: positive lower-bound
 closure, a closed value-only scheme, and per-use instantiation with a pure
 lookup effect.
+
+Superseded by: the user-directed canonical-`Int` endpoint redesign at
+`2026-09-20-canonical-int-endpoint-polarity-supersession-draft.md`, pending its
+review and approval. This document cannot authorize construction because its
+endpoint premise remains incompatible with one canonical internal `Int`.
 
 Related authority:
 
