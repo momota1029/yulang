@@ -1,6 +1,12 @@
 # Canonical `Int` and endpoint-polarity supersession
 
-Status: Reviewed
+Status: Superseded as an implementation candidate (2026-09-20)
+
+Superseded by: `2026-09-20-simple-sub-direct-int-expansion-supersession-draft.md`.
+The later user decision requires a direct literal `int` and positive root
+expansion; this record's literal value component, exact interval, and
+root-`Unknown` model are not available for implementation. Its review history
+remains historical evidence only.
 
 Date: 2026-09-20
 

@@ -163,16 +163,22 @@ definition roots remain `Unknown`. Definition effects, name propagation,
 equality, and generalization remain deferred. Immediate next action: select a
 new approved vertical semantic gate; do not extend this relation implicitly.
 
-The previous scheme/name proposal is superseded as an implementation candidate:
-it still relied on a polarity-suffixed solver leaf. The active Reviewed design is
-`2026-09-20-canonical-int-endpoint-polarity-supersession-draft.md`. It follows
-the user's explicit requirement that internal primitive identity is one
-canonical `Int`; lower/upper are endpoint positions, not types. Immediate next
-action: obtain user approval for R1 canonical endpoint repair and R2 binding
-compatibility. No scheme/name implementation is authorized before R1/R2 close.
+The former canonical-endpoint proposal is superseded as an implementation
+candidate: correcting only primitive spelling retained a literal value
+component, exact lower/upper projection, and a valid integer root of
+`Unknown`. The active Draft is
+`2026-09-20-simple-sub-direct-int-expansion-supersession-draft.md`: `42` is
+direct canonical `Int`; an integer binding emits `Int <: definition.value`; and
+positive expansion/simplification yields `definition.value | Int -> Int`
+without equality, a reverse edge, or an upper `Int`. M3 compiler,
+specification, and performance reviews are clean. Immediate next action: obtain
+user approval for R1 direct-value/expansion repair and R2 recertification. No
+scheme/name implementation is authorized before R1/R2 close.
 
-The question of how a type attaches to an associated expression is captured, not
-decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
+The direct integer attachment is now narrowly captured by the active successor:
+solver-owned batch metadata freezes `Known(Int)` into the solved occurrence,
+without a HIR type field. Broader associated-expression type attachment remains
+open in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
 
 Proceed in this order unless a concrete blocker changes it:
 

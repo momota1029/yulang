@@ -9,10 +9,11 @@ bindings and uniquely resolved value-name occurrences: positive lower-bound
 closure, a closed value-only scheme, and per-use instantiation with a pure
 lookup effect.
 
-Superseded by: the user-directed canonical-`Int` endpoint redesign at
-`2026-09-20-canonical-int-endpoint-polarity-supersession-draft.md`, pending its
-review and approval. This document cannot authorize construction because its
-endpoint premise remains incompatible with one canonical internal `Int`.
+Superseded by: the user-directed direct-`Int`/Simple-Sub expansion successor at
+`2026-09-20-simple-sub-direct-int-expansion-supersession-draft.md`. This
+document cannot authorize construction: its five-fact chain, literal value
+variable, and root-`Unknown` premises are withdrawn. The successor is Reviewed;
+its later approval does not revive this historical scheme/name proposal.
 
 Related authority:
 
