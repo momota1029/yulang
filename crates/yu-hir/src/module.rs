@@ -230,6 +230,7 @@ impl HirBinding {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirItem {
     Binding(HirBinding),
+    Expression(ResolvedExpr),
     Error {
         errors: Box<[HirErrorId]>,
         range: Range<usize>,
@@ -353,7 +354,7 @@ pub enum HirAvailabilityError {
     IdentityExhausted,
 }
 
-/// Lowers direct-root ordinary bindings against one complete local namespace.
+/// Lowers direct-root bindings and expressions against one complete local namespace.
 pub fn lower_module(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
@@ -508,8 +509,14 @@ struct RootPlan {
     ordinal: u32,
     node: SyntaxNode,
     range: Range<usize>,
-    admitted: Option<Admitted>,
-    failure: Option<HirErrorKind>,
+    kind: RootPlanKind,
+}
+
+#[derive(Clone)]
+enum RootPlanKind {
+    Binding(Admitted),
+    DirectExpression,
+    Unsupported(HirErrorKind),
 }
 
 #[derive(Clone)]
@@ -521,13 +528,17 @@ struct Admitted {
 
 impl RootPlan {
     fn recovery_attachment(&self, recovery: &StructuralRecovery) -> HirErrorAttachment {
-        let Some(admitted) = &self.admitted else {
-            return HirErrorAttachment::DirectRootItem(self.ordinal);
-        };
-        if recovery.path().contains(&SyntaxKind::BindingBody) {
-            HirErrorAttachment::Value(admitted.id.clone())
-        } else {
-            HirErrorAttachment::Definition(admitted.id.clone())
+        match &self.kind {
+            RootPlanKind::Binding(admitted) => {
+                if recovery.path().contains(&SyntaxKind::BindingBody) {
+                    HirErrorAttachment::Value(admitted.id.clone())
+                } else {
+                    HirErrorAttachment::Definition(admitted.id.clone())
+                }
+            }
+            RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => {
+                HirErrorAttachment::DirectRootItem(self.ordinal)
+            }
         }
     }
 }
@@ -539,13 +550,20 @@ fn plan_root(
     counters: &mut LoweringCounters,
 ) -> Result<RootPlan, HirAvailabilityError> {
     let range = range_of(&node);
+    if node.kind() == SyntaxKind::OperatorChain {
+        return Ok(RootPlan {
+            ordinal,
+            node,
+            range,
+            kind: RootPlanKind::DirectExpression,
+        });
+    }
     if node.kind() != SyntaxKind::BindingStatement {
         return Ok(RootPlan {
             ordinal,
             node,
             range,
-            admitted: None,
-            failure: Some(HirErrorKind::UnsupportedItem),
+            kind: RootPlanKind::Unsupported(HirErrorKind::UnsupportedItem),
         });
     }
     let Some((visibility, name)) = plain_binding_header(&node) else {
@@ -553,8 +571,7 @@ fn plan_root(
             ordinal,
             node,
             range,
-            admitted: None,
-            failure: Some(HirErrorKind::UnsupportedTarget),
+            kind: RootPlanKind::Unsupported(HirErrorKind::UnsupportedTarget),
         });
     };
     counters.copied_spelling_bytes += name.spelling.len();
@@ -568,12 +585,11 @@ fn plan_root(
         ordinal,
         node,
         range,
-        admitted: Some(Admitted {
+        kind: RootPlanKind::Binding(Admitted {
             id,
             visibility,
             name,
         }),
-        failure: None,
     })
 }
 
@@ -581,7 +597,7 @@ fn namespace(plans: &mut [RootPlan]) -> Result<HashMap<String, Vec<DefId>>, HirA
     let mut seen = HashMap::<String, u32>::new();
     let mut namespace = HashMap::<String, Vec<DefId>>::new();
     for plan in plans {
-        let Some(admitted) = &mut plan.admitted else {
+        let RootPlanKind::Binding(admitted) = &mut plan.kind else {
             continue;
         };
         let ordinal = seen.entry(admitted.name.spelling.clone()).or_default();
@@ -611,19 +627,24 @@ fn lower_plan(
     sink: &mut ErrorSink,
     counters: &mut LoweringCounters,
 ) -> Result<HirItem, HirAvailabilityError> {
-    let Some(admitted) = &plan.admitted else {
-        item_errors.push(
-            sink.lowering(
-                plan.failure
-                    .ok_or(HirAvailabilityError::StructuralProjection)?,
-                HirErrorAttachment::DirectRootItem(plan.ordinal),
-                plan.range.clone(),
-            )?,
-        );
-        return Ok(HirItem::Error {
-            errors: item_errors.into_boxed_slice(),
-            range: plan.range.clone(),
-        });
+    let RootPlanKind::Binding(admitted) = &plan.kind else {
+        return match &plan.kind {
+            RootPlanKind::DirectExpression => {
+                lower_direct_root_expression(plan, parsed, namespace, item_errors, sink, counters)
+            }
+            RootPlanKind::Unsupported(kind) => {
+                item_errors.push(sink.lowering(
+                    *kind,
+                    HirErrorAttachment::DirectRootItem(plan.ordinal),
+                    plan.range.clone(),
+                )?);
+                Ok(HirItem::Error {
+                    errors: item_errors.into_boxed_slice(),
+                    range: plan.range.clone(),
+                })
+            }
+            RootPlanKind::Binding(_) => unreachable!("binding plan matched above"),
+        };
     };
     let id = admitted.id.clone();
     let (value, body_semantic_error) =
@@ -645,6 +666,48 @@ fn lower_plan(
         value,
         range: plan.range.clone(),
     }))
+}
+
+fn lower_direct_root_expression(
+    plan: &RootPlan,
+    parsed: &ParsedFile,
+    namespace: &HashMap<String, Vec<DefId>>,
+    mut causal_errors: Vec<HirErrorId>,
+    sink: &mut ErrorSink,
+    counters: &mut LoweringCounters,
+) -> Result<HirItem, HirAvailabilityError> {
+    if !causal_errors.is_empty() {
+        return Ok(HirItem::Expression(ResolvedExpr::Error {
+            errors: causal_errors.into_boxed_slice(),
+            range: plan.range.clone(),
+        }));
+    }
+    match lower_simple_chain(parsed, &plan.node, namespace, counters)? {
+        SimpleChainLowering::Resolved {
+            expression,
+            semantic_error,
+        } => {
+            if let Some((kind, range)) = semantic_error {
+                sink.lowering(
+                    kind,
+                    HirErrorAttachment::DirectRootItem(plan.ordinal),
+                    range,
+                )?;
+            }
+            Ok(HirItem::Expression(expression))
+        }
+        SimpleChainLowering::Unsupported { range } => {
+            causal_errors.push(sink.lowering(
+                HirErrorKind::UnsupportedExpression,
+                HirErrorAttachment::DirectRootItem(plan.ordinal),
+                range.clone(),
+            )?);
+            Ok(HirItem::Expression(ResolvedExpr::Error {
+                errors: causal_errors.into_boxed_slice(),
+                range,
+            }))
+        }
+    }
 }
 
 fn lower_body(
@@ -727,7 +790,45 @@ fn lower_body(
             None,
         ));
     }
-    let chain_range = range_of(&chain);
+    match lower_simple_chain(parsed, chain, namespace, counters)? {
+        SimpleChainLowering::Resolved {
+            expression,
+            semantic_error,
+        } => Ok((expression, semantic_error)),
+        SimpleChainLowering::Unsupported { range } => {
+            causal_errors.push(sink.lowering(
+                HirErrorKind::UnsupportedExpression,
+                HirErrorAttachment::Value(id.clone()),
+                range.clone(),
+            )?);
+            Ok((
+                ResolvedExpr::Error {
+                    errors: causal_errors.into_boxed_slice(),
+                    range,
+                },
+                None,
+            ))
+        }
+    }
+}
+
+enum SimpleChainLowering {
+    Resolved {
+        expression: ResolvedExpr,
+        semantic_error: Option<(HirErrorKind, Range<usize>)>,
+    },
+    Unsupported {
+        range: Range<usize>,
+    },
+}
+
+fn lower_simple_chain(
+    parsed: &ParsedFile,
+    chain: &SyntaxNode,
+    namespace: &HashMap<String, Vec<DefId>>,
+    counters: &mut LoweringCounters,
+) -> Result<SimpleChainLowering, HirAvailabilityError> {
+    let chain_range = range_of(chain);
     let (expression, atom) = associate_chain_owned(parsed, chain.clone())
         .map_err(|error| match error {
             AssociationError::ExactOperatorEnvironment => {
@@ -737,44 +838,22 @@ fn lower_body(
         })?
         .into_parts();
     let Some(atom) = atom else {
-        causal_errors.push(sink.lowering(
-            HirErrorKind::UnsupportedExpression,
-            HirErrorAttachment::Value(id.clone()),
-            chain_range.clone(),
-        )?);
-        return Ok((
-            ResolvedExpr::Error {
-                errors: causal_errors.into_boxed_slice(),
-                range: chain_range,
-            },
-            None,
-        ));
+        return Ok(SimpleChainLowering::Unsupported { range: chain_range });
     };
     if !matches!(expression, HirExpr::Value { children, .. } if children.is_empty()) {
-        causal_errors.push(sink.lowering(
-            HirErrorKind::UnsupportedExpression,
-            HirErrorAttachment::Value(id.clone()),
-            chain_range.clone(),
-        )?);
-        return Ok((
-            ResolvedExpr::Error {
-                errors: causal_errors.into_boxed_slice(),
-                range: chain_range,
-            },
-            None,
-        ));
+        return Ok(SimpleChainLowering::Unsupported { range: chain_range });
     }
     match atom.kind {
-        SyntaxKind::IntegerLiteral => Ok((
-            ResolvedExpr::Integer {
+        SyntaxKind::IntegerLiteral => Ok(SimpleChainLowering::Resolved {
+            expression: ResolvedExpr::Integer {
                 spelling: {
                     counters.copied_spelling_bytes += atom.spelling.len();
                     atom.spelling
                 },
                 range: atom.range,
             },
-            None,
-        )),
+            semantic_error: None,
+        }),
         SyntaxKind::IdentifierExpression => {
             counters.copied_spelling_bytes += atom.spelling.len();
             let name = HirName {
@@ -791,14 +870,14 @@ fn lower_body(
                     Some(HirErrorKind::UnresolvedName),
                 ),
             };
-            Ok((
-                ResolvedExpr::Name {
+            Ok(SimpleChainLowering::Resolved {
+                expression: ResolvedExpr::Name {
                     range: name.range.clone(),
                     name: name.clone(),
                     resolution,
                 },
-                kind.map(|kind| (kind, name.range)),
-            ))
+                semantic_error: kind.map(|kind| (kind, name.range)),
+            })
         }
         _ => Err(HirAvailabilityError::StructuralProjection),
     }

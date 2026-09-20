@@ -4,6 +4,7 @@ This index is a navigation aid. The listed source document remains authoritative
 
 | Document | Status | Authority scope | Approved / state | Useful locator or gate |
 |---|---|---|---|---|
+| `notes/design/2026-09-20-hir-direct-root-expression-slice.md` | Authoritative; construction complete | direct-root OperatorChain HIR items | user approved and M2-reviewed 2026-09-20 | neutral Integer/Identifier root lowering; no types/evaluation |
 | `notes/design/2026-09-20-successor-bracket-row-close-topology-supersession.md` | Authoritative; construction complete | BracketRow Item/Close raw-Error topology | user approved and M2-reviewed 2026-09-20 | direct Item Error; close-only `TypeDelimitedForeignClose > Error+` |
 | `notes/design/2026-09-19-hir-simple-module-resolution-first-slice-draft.md` | Authoritative; implementation complete | first immutable `HirModule` and module-local simple-binding resolution slice | user approved 2026-09-19; M2 implementation and final delta reviews closed 2026-09-19 | public-parser preflight; simple `x`/`y` binding fixture; two-pass resolution |
 | `notes/design/2026-09-19-hir-associated-chains-ownership-amendment.md` | Authoritative | ownership of nested results in the first `AssociatedChains` product | user approved the top-level-only topology 2026-09-19 after a performance audit exposed quadratic duplicate retention | nested chains stay only in their enclosing owned tree; no standalone duplicate entry |

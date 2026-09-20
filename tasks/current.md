@@ -139,7 +139,12 @@ generic CST-derived diagnostics retain distinct occurrence paths, M2
 recovery/spec delta reviews are clean, and final verification passes. The next
 frontend work must be selected by a new concrete vertical-slice trigger; do not
 reopen completed parser-ledger retirement or the BracketRow topology without a
-new contradiction or scope expansion.
+new contradiction or scope expansion. The next approved vertical slice is
+direct-root `OperatorChain` HIR lowering under
+`2026-09-20-hir-direct-root-expression-slice.md`; that neutral expression-owner
+boundary is complete. The user-selected next gate is the separately designed
+`ConstraintBatch` collection boundary; do not begin it until its exact
+expression-identity/type semantics are recorded Authoritatively.
 
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
