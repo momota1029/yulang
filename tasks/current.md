@@ -163,24 +163,32 @@ definition roots remain `Unknown`. Definition effects, name propagation,
 equality, and generalization remain deferred. Immediate next action: select a
 new approved vertical semantic gate; do not extend this relation implicitly.
 
-The former canonical-endpoint proposal is superseded as an implementation
-candidate: correcting only primitive spelling retained a literal value
-component, exact lower/upper projection, and a valid integer root of
-`Unknown`. The active Draft is
-`2026-09-20-simple-sub-direct-int-expansion-supersession-draft.md`: `42` is
-direct canonical `Int`; an integer binding emits `Int <: definition.value`; and
-positive expansion/simplification yields `definition.value | Int -> Int`
-without equality, a reverse edge, or an upper `Int`. M3 compiler,
-specification, and performance reviews are clean. Immediate next action: obtain
-user approval for R1 direct-value/expansion repair and R2 recertification. No
-scheme/name implementation is authorized before R1/R2 close.
+The direct-Int proposal is superseded as an implementation candidate because
+integer-only completion is not a sufficient Simple-Sub gate. The active Draft
+is the Reviewed
+`2026-09-20-identity-function-simple-sub-r1-supersession-draft.md`. R1 now
+closes only when `my x = 42` freezes a zero-binder `int` scheme and
+`my f x = x` passes through canonical Pattern ML application, parameter/local
+HIR, polarity-aware Function expansion, simplification, and generalization to
+the structural scheme `forall a. a -> a`. The direct literal remains canonical
+`Int`; no equality, reverse edge, or exact interval is reintroduced. Immediate
+next action: obtain user approval for this M3-clean expanded R1 before
+construction. Module-name scheme instantiation, expression
+application typing, recursion, and Core IR remain unauthorized.
 
-The direct integer attachment is now narrowly captured by the active successor:
-solver-owned batch metadata freezes `Known(Int)` into the solved occurrence,
-without a HIR type field. Broader associated-expression type attachment remains
-open in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
+The direct integer attachment and the bounded parameter/lambda attachment are
+now captured by the active successor without a HIR inferred-type field. Broader
+associated-expression type attachment remains open in
+`notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
 
-Proceed in this order unless a concrete blocker changes it:
+For the active identity-function R1 successor, the user's explicit witness is
+the concrete trigger that reopens canonical Pattern ML application. Its
+approved design, once authoritative, overrides the older existing-fixture-only
+ordering below for this gate. Do not use that older ordering to reject or defer
+the required `my f x = x` syntax work.
+
+Proceed in this order for work outside that successor unless a concrete blocker
+changes it:
 
 1. Select the smallest **existing accepted** fixture that can exercise a useful valid-program path from source -> Rowan CST -> HIR/type analysis. Do not design new syntax for this slice.
 2. Build that vertical frontend slice. Let implementation expose missing design information instead of pre-enumerating it.

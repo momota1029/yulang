@@ -1,6 +1,13 @@
 # Direct `Int` and Simple-Sub expansion supersession
 
-Status: Reviewed
+Status: Superseded as an implementation candidate (2026-09-20)
+
+Superseded by:
+`2026-09-20-identity-function-simple-sub-r1-supersession-draft.md`. The user's
+expanded R1 completion criterion requires `my f x = x` to infer a structural
+identity scheme, so this record's integer-only completion boundary is no longer
+available for implementation. Its direct-`Int` decisions remain candidate
+inputs explicitly retained by the successor.
 
 Reviewed by: compiler-referee, specification, and performance M3 reviews on
 2026-09-20; clean after one bounded repair/delta round.
