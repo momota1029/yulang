@@ -163,6 +163,18 @@ definition roots remain `Unknown`. Definition effects, name propagation,
 equality, and generalization remain deferred. Immediate next action: select a
 new approved vertical semantic gate; do not extend this relation implicitly.
 
+The selected successor is now Reviewed in
+`notes/design/2026-09-20-integer-binding-scheme-name-instantiation-draft.md`.
+It proposes integer-only positive lower-bound closure, a dense value-only
+scheme state for every definition root, and positive-only instantiation for
+uniquely resolved names with an independent pure lookup effect. The deliberate
+result for `my x = 42; x` is body `(Int, EmptyEffect)`, root `Unknown`, and name
+use `(Unknown, EmptyEffect)`; equality, reverse bounds, definition effects,
+aliases, recursive schemes, and public types remain excluded. M3
+compiler-referee, specification, and performance pre-approval reviews are
+clean after bounded repairs. Immediate next action: obtain user approval or
+defer this gate; no implementation is authorized yet.
+
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
 
