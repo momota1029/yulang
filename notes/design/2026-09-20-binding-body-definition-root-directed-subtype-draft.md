@@ -1,6 +1,8 @@
 # Binding body to definition-root directed subtype slice
 
-Status: Reviewed (proposal only; user decision pending; authorizes no implementation)
+Status: Authoritative; construction complete (2026-09-20)
+
+Approved by: user, 2026-09-20 (recommended integrated choice).
 
 Date: 2026-09-20
 
@@ -139,3 +141,24 @@ Stop before implementation if this relation requires range identity, a CST
 rescan, a parallel typed tree, unbranded `DefId`, body/root identity aliasing,
 effect-root invention, equality, name/generalization shortcuts,
 diagnostic-dependent fact suppression, or non-linear ordinary admission.
+
+## Construction result
+
+Construction is complete. Every admitted `HirBinding` now retains an
+artifact-branded `DefinitionRootId`; solver components structurally distinguish
+occurrence value/effect owners from value-only definition roots. Recovery-free
+integer bodies emit their four literal/pure-effect facts followed by exactly
+`body.value <: definition.value`. Definition projections remain explicitly
+present `Unknown` values, while malformed and Name bodies emit no relation.
+
+Duplicate roots remain distinct, foreign roots/components reject, definition
+effects are unrepresentable, and same-artifact missing solved-root entries are
+invariant failures rather than implicit `Unknown`. Receipt provenance, name
+resolution, generalization, annotations, Core IR, and runtime behavior remain
+outside this gate except for the existing receipt authority reused unchanged.
+
+M3 compiler-referee, specification, and performance delta reviews are clean.
+With `RUSTC_WRAPPER=`, 36 `yu-hir` tests and 9 `yu-solver` tests pass;
+`cargo xtask check-graph`, `cargo check --workspace`, and `git diff --check`
+pass. Separate 1,000/2,000 direct-root and binding witnesses retain the former
+2N/4N/8N contract and prove the new 3N/5N/10N linear contract respectively.

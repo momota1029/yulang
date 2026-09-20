@@ -131,6 +131,39 @@ fn malformed_bodies_keep_admitted_definition_identity() {
 }
 
 #[test]
+fn every_admitted_binding_has_a_distinct_artifact_branded_definition_root() {
+    let first = lower_module(
+        identity(),
+        &parsed("my x = 1; my x = 2; my malformed = @"),
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let second = lower_module(identity(), &parsed("my x = 1"), SemanticImports::empty()).unwrap();
+    let [
+        HirItem::Binding(first_x),
+        HirItem::Binding(second_x),
+        HirItem::Binding(malformed),
+    ] = first.items()
+    else {
+        panic!("admitted bindings")
+    };
+    let [HirItem::Binding(foreign_x)] = second.items() else {
+        panic!("foreign binding")
+    };
+    assert!(first.owns_definition_root(first_x.definition_root()));
+    assert!(first.owns_definition_root(second_x.definition_root()));
+    assert!(first.owns_definition_root(malformed.definition_root()));
+    assert_ne!(first_x.definition_root(), second_x.definition_root());
+    assert!(!first.owns_definition_root(foreign_x.definition_root()));
+    assert!(matches!(malformed.value(), ResolvedExpr::Error { .. }));
+    assert_eq!(
+        first.definition_root_allocation_bytes(),
+        3 * std::mem::size_of::<yu_hir::DefinitionRootId>()
+    );
+    assert_eq!(first.definition_root_def_id_clone_bytes(), 0);
+}
+
+#[test]
 fn recovery_projection_keeps_preorder_and_direct_root_attachment() {
     let parsed = parsed("my x = @; my y = 1");
     let recoveries = parsed.structural_recoveries();

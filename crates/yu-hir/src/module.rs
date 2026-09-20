@@ -162,6 +162,47 @@ pub struct HirOccurrenceId {
     ordinal: u32,
 }
 
+/// An admitted definition identity branded by the immutable HIR artifact that
+/// owns it. The definition payload is shared with its binding so copying a
+/// root never copies a `DefId` payload.
+#[derive(Clone)]
+pub struct DefinitionRootId {
+    artifact: Arc<HirArtifactToken>,
+    definition: Arc<DefId>,
+}
+
+impl DefinitionRootId {
+    fn new(artifact: Arc<HirArtifactToken>, definition: Arc<DefId>) -> Self {
+        Self {
+            artifact,
+            definition,
+        }
+    }
+}
+
+impl std::fmt::Debug for DefinitionRootId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DefinitionRootId")
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for DefinitionRootId {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.artifact, &other.artifact) && self.definition == other.definition
+    }
+}
+
+impl Eq for DefinitionRootId {}
+
+impl Hash for DefinitionRootId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.artifact).hash(state);
+        self.definition.hash(state);
+    }
+}
+
 impl HirOccurrenceId {
     fn new(artifact: Arc<HirArtifactToken>, ordinal: u32) -> Self {
         Self { artifact, ordinal }
@@ -332,9 +373,10 @@ impl PartialEq for ResolvedExpr {
 
 impl Eq for ResolvedExpr {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct HirBinding {
-    id: DefId,
+    id: Arc<DefId>,
+    definition_root: DefinitionRootId,
     visibility: HirVisibility,
     name: HirName,
     value: ResolvedExpr,
@@ -344,6 +386,9 @@ pub struct HirBinding {
 impl HirBinding {
     pub fn id(&self) -> &DefId {
         &self.id
+    }
+    pub fn definition_root(&self) -> &DefinitionRootId {
+        &self.definition_root
     }
     pub fn visibility(&self) -> HirVisibility {
         self.visibility
@@ -358,6 +403,20 @@ impl HirBinding {
         &self.range
     }
 }
+
+// Artifact identity protects root queries but is not source semantics, just
+// like expression occurrence identity. Structural HIR equality excludes it.
+impl PartialEq for HirBinding {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.visibility == other.visibility
+            && self.name == other.name
+            && self.value == other.value
+            && self.range == other.range
+    }
+}
+
+impl Eq for HirBinding {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirItem {
@@ -459,12 +518,19 @@ pub struct HirModule {
     items: Vec<HirItem>,
     errors: Vec<HirError>,
     diagnostics: Vec<HirDiagnostic>,
+    definition_root_allocation_bytes: usize,
+    definition_root_def_id_clone_bytes: usize,
 }
 
 impl HirModule {
     /// Tests whether a branded occurrence was minted by this exact artifact.
     pub fn owns_occurrence(&self, occurrence: &HirOccurrenceId) -> bool {
         Arc::ptr_eq(&self.artifact, &occurrence.artifact)
+    }
+
+    /// Tests whether a branded definition root was minted by this exact artifact.
+    pub fn owns_definition_root(&self, root: &DefinitionRootId) -> bool {
+        Arc::ptr_eq(&self.artifact, &root.artifact)
     }
 
     pub fn identity(&self) -> &ModuleIdentity {
@@ -481,6 +547,15 @@ impl HirModule {
     }
     pub fn diagnostics(&self) -> &[HirDiagnostic] {
         &self.diagnostics
+    }
+    /// Storage reserved for definition roots in this immutable HIR artifact.
+    pub const fn definition_root_allocation_bytes(&self) -> usize {
+        self.definition_root_allocation_bytes
+    }
+    /// Definition roots share their binding's `DefId` reference rather than
+    /// cloning a definition payload.
+    pub const fn definition_root_def_id_clone_bytes(&self) -> usize {
+        self.definition_root_def_id_clone_bytes
     }
 }
 
@@ -539,6 +614,15 @@ fn lower_module_with_counters(
     let mut items = Vec::with_capacity(plans.len());
     for (plan, errors) in plans.iter().zip(root_errors) {
         let occurrence = HirOccurrenceId::new(artifact.clone(), plan.ordinal);
+        let definition_root = match &plan.kind {
+            RootPlanKind::Binding(admitted) => {
+                Some(DefinitionRootId::new(artifact.clone(), admitted.id.clone()))
+            }
+            RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => None,
+        };
+        if definition_root.is_some() {
+            counters.definition_root_allocation_bytes += std::mem::size_of::<DefinitionRootId>();
+        }
         items.push(lower_plan(
             plan,
             parsed,
@@ -548,6 +632,7 @@ fn lower_module_with_counters(
             &mut sink,
             counters,
             occurrence,
+            definition_root,
         )?);
     }
     Ok(HirModule {
@@ -557,6 +642,8 @@ fn lower_module_with_counters(
         items,
         errors: sink.errors,
         diagnostics: sink.diagnostics,
+        definition_root_allocation_bytes: counters.definition_root_allocation_bytes,
+        definition_root_def_id_clone_bytes: counters.definition_root_def_id_clone_bytes,
     })
 }
 
@@ -565,6 +652,8 @@ struct LoweringCounters {
     recovery_visits: usize,
     syntax_emissions: usize,
     copied_spelling_bytes: usize,
+    definition_root_allocation_bytes: usize,
+    definition_root_def_id_clone_bytes: usize,
 }
 
 struct RecoveryPartition {
@@ -675,7 +764,7 @@ enum RootPlanKind {
 
 #[derive(Clone)]
 struct Admitted {
-    id: DefId,
+    id: Arc<DefId>,
     visibility: HirVisibility,
     name: HirName,
 }
@@ -685,9 +774,9 @@ impl RootPlan {
         match &self.kind {
             RootPlanKind::Binding(admitted) => {
                 if recovery.path().contains(&SyntaxKind::BindingBody) {
-                    HirErrorAttachment::Value(admitted.id.clone())
+                    HirErrorAttachment::Value((*admitted.id).clone())
                 } else {
-                    HirErrorAttachment::Definition(admitted.id.clone())
+                    HirErrorAttachment::Definition((*admitted.id).clone())
                 }
             }
             RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => {
@@ -730,11 +819,11 @@ fn plan_root(
     };
     counters.copied_spelling_bytes += name.spelling.len();
     let same_name_ordinal = 0; // assigned after all direct-root headers are known
-    let id = DefId {
+    let id = Arc::new(DefId {
         module: identity.module.clone(),
         spelling: name.spelling.clone().into_boxed_str(),
         same_name_ordinal,
-    };
+    });
     Ok(RootPlan {
         ordinal,
         node,
@@ -755,11 +844,11 @@ fn namespace(plans: &mut [RootPlan]) -> Result<HashMap<String, Vec<DefId>>, HirA
             continue;
         };
         let ordinal = seen.entry(admitted.name.spelling.clone()).or_default();
-        let id = DefId {
+        let id = Arc::new(DefId {
             module: admitted.id.module.clone(),
             spelling: admitted.id.spelling.clone(),
             same_name_ordinal: *ordinal,
-        };
+        });
         *ordinal = ordinal
             .checked_add(1)
             .ok_or(HirAvailabilityError::IdentityExhausted)?;
@@ -767,7 +856,7 @@ fn namespace(plans: &mut [RootPlan]) -> Result<HashMap<String, Vec<DefId>>, HirA
         namespace
             .entry(admitted.name.spelling.clone())
             .or_default()
-            .push(id);
+            .push((*id).clone());
     }
     Ok(namespace)
 }
@@ -781,6 +870,7 @@ fn lower_plan(
     sink: &mut ErrorSink,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
+    definition_root: Option<DefinitionRootId>,
 ) -> Result<HirItem, HirAvailabilityError> {
     let RootPlanKind::Binding(admitted) = &plan.kind else {
         return match &plan.kind {
@@ -821,15 +911,16 @@ fn lower_plan(
     if id.same_name_ordinal > 0 {
         sink.lowering(
             HirErrorKind::DuplicateDefinition,
-            HirErrorAttachment::Definition(id.clone()),
+            HirErrorAttachment::Definition((*id).clone()),
             admitted.name.range.clone(),
         )?;
     }
     if let Some((kind, range)) = body_semantic_error {
-        sink.lowering(kind, HirErrorAttachment::Value(id.clone()), range)?;
+        sink.lowering(kind, HirErrorAttachment::Value((*id).clone()), range)?;
     }
     Ok(HirItem::Binding(HirBinding {
         id,
+        definition_root: definition_root.expect("admitted binding has a definition root"),
         visibility: admitted.visibility,
         name: admitted.name.clone(),
         value,

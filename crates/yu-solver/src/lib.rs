@@ -9,20 +9,36 @@ use std::{
     },
 };
 
-use yu_hir::{HirItem, HirModule, HirOccurrenceId, ResolvedExpr};
+use yu_hir::{DefinitionRootId, HirItem, HirModule, HirOccurrenceId, ResolvedExpr};
 use yu_types::{ComponentKind, Leaf};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct ComponentId {
-    occurrence: HirOccurrenceId,
-    kind: ComponentKind,
+pub enum ComponentId {
+    Occurrence {
+        occurrence: HirOccurrenceId,
+        kind: ComponentKind,
+    },
+    /// Definition roots are value-only: an effect variant cannot be formed.
+    DefinitionValue { root: DefinitionRootId },
 }
 impl ComponentId {
-    pub fn occurrence(&self) -> &HirOccurrenceId {
-        &self.occurrence
+    pub fn occurrence(&self) -> Option<&HirOccurrenceId> {
+        match self {
+            Self::Occurrence { occurrence, .. } => Some(occurrence),
+            Self::DefinitionValue { .. } => None,
+        }
+    }
+    pub fn definition_root(&self) -> Option<&DefinitionRootId> {
+        match self {
+            Self::Occurrence { .. } => None,
+            Self::DefinitionValue { root } => Some(root),
+        }
     }
     pub const fn kind(&self) -> ComponentKind {
-        self.kind
+        match self {
+            Self::Occurrence { kind, .. } => *kind,
+            Self::DefinitionValue { .. } => ComponentKind::Value,
+        }
     }
 }
 
@@ -35,7 +51,7 @@ impl Term {
     pub const fn kind(&self) -> ComponentKind {
         match self {
             Self::Leaf(leaf) => leaf.component_kind(),
-            Self::Component(component) => component.kind,
+            Self::Component(component) => component.kind(),
         }
     }
 }
@@ -124,35 +140,50 @@ struct ComponentPositions {
 pub struct ConstraintBatch {
     hir: Arc<HirModule>,
     projection_order: Vec<HirOccurrenceId>,
+    root_order: Vec<DefinitionRootId>,
     components: Vec<ComponentId>,
-    component_positions: HashMap<HirOccurrenceId, ComponentPositions>,
+    occurrence_component_positions: HashMap<HirOccurrenceId, ComponentPositions>,
+    root_component_positions: HashMap<DefinitionRootId, usize>,
     occurrences: Vec<ConstraintOccurrence>,
     counters: ProductionCounters,
+    occurrence_component_query_probes: Arc<AtomicUsize>,
+    root_component_query_probes: Arc<AtomicUsize>,
 }
 impl ConstraintBatch {
     pub fn collect(hir: Arc<HirModule>) -> Self {
+        let hir_definition_root_allocation_bytes = hir.definition_root_allocation_bytes();
+        let definition_root_def_id_clone_bytes = hir.definition_root_def_id_clone_bytes();
         let mut batch = Self {
             hir,
             projection_order: Vec::new(),
+            root_order: Vec::new(),
             components: Vec::new(),
-            component_positions: HashMap::new(),
+            occurrence_component_positions: HashMap::new(),
+            root_component_positions: HashMap::new(),
             occurrences: Vec::new(),
+            occurrence_component_query_probes: Arc::new(AtomicUsize::new(0)),
+            root_component_query_probes: Arc::new(AtomicUsize::new(0)),
             counters: ProductionCounters {
                 hir_traversals: 1,
+                hir_definition_root_allocation_bytes,
+                definition_root_def_id_clone_bytes,
                 ..ProductionCounters::default()
             },
         };
         let hir = batch.hir.clone();
         for item in hir.items() {
-            let expression = match item {
-                HirItem::Expression(expression) => expression,
-                HirItem::Binding(binding) => binding.value(),
+            let (expression, definition_root) = match item {
+                HirItem::Expression(expression) => (expression, None),
+                HirItem::Binding(binding) => (binding.value(), Some(binding.definition_root())),
                 HirItem::Error { .. } => continue,
             };
             batch.projection_order.push(expression.occurrence().clone());
             batch.counters.occurrence_allocations += 1;
-            if matches!(item, HirItem::Expression(ResolvedExpr::Integer { .. })) {
-                batch.emit_integer(expression.occurrence().clone());
+            if let Some(root) = definition_root {
+                batch.add_definition_root(root.clone());
+            }
+            if matches!(expression, ResolvedExpr::Integer { .. }) {
+                batch.emit_integer(expression.occurrence().clone(), definition_root.cloned());
             }
         }
         batch.counters.occurrence_retained_bytes =
@@ -161,7 +192,19 @@ impl ConstraintBatch {
             batch.components.capacity() * std::mem::size_of::<ComponentId>();
         batch.counters.occurrence_record_retained_bytes =
             batch.occurrences.capacity() * std::mem::size_of::<ConstraintOccurrence>();
-        batch.counters.index_capacity = batch.component_positions.capacity();
+        batch.counters.root_retained_bytes =
+            batch.root_order.capacity() * std::mem::size_of::<DefinitionRootId>();
+        batch.counters.occurrence_component_index_capacity =
+            batch.occurrence_component_positions.capacity();
+        batch.counters.occurrence_component_index_retained_bytes =
+            batch.occurrence_component_positions.capacity()
+                * std::mem::size_of::<(HirOccurrenceId, ComponentPositions)>();
+        batch.counters.root_component_index_capacity = batch.root_component_positions.capacity();
+        batch.counters.root_component_index_retained_bytes =
+            batch.root_component_positions.capacity()
+                * std::mem::size_of::<(DefinitionRootId, usize)>();
+        batch.counters.index_capacity = batch.occurrence_component_positions.capacity()
+            + batch.root_component_positions.capacity();
         batch
     }
     pub fn hir(&self) -> &Arc<HirModule> {
@@ -170,33 +213,71 @@ impl ConstraintBatch {
     pub fn occurrences(&self) -> &[ConstraintOccurrence] {
         &self.occurrences
     }
-    pub fn counters(&self) -> &ProductionCounters {
-        &self.counters
+    pub fn counters(&self) -> ProductionCounters {
+        let mut counters = self.counters.clone();
+        counters.occurrence_component_query_probes = self
+            .occurrence_component_query_probes
+            .load(Ordering::Relaxed);
+        counters.root_component_query_probes =
+            self.root_component_query_probes.load(Ordering::Relaxed);
+        counters
     }
     pub fn components_for(
         &self,
         occurrence: &HirOccurrenceId,
     ) -> Result<Option<Components>, ArtifactMismatch> {
         self.require_owned(occurrence)?;
+        self.occurrence_component_query_probes
+            .fetch_add(1, Ordering::Relaxed);
         Ok(self
-            .component_positions
+            .occurrence_component_positions
             .get(occurrence)
             .map(|positions| Components {
                 value: self.components[positions.value].clone(),
                 effect: self.components[positions.effect].clone(),
             }))
     }
-    fn emit_integer(&mut self, occurrence: HirOccurrenceId) {
-        let value = self.component(occurrence.clone(), ComponentKind::Value);
-        let effect = self.component(occurrence.clone(), ComponentKind::Effect);
+    pub fn root_value_component(
+        &self,
+        root: &DefinitionRootId,
+    ) -> Result<ComponentId, ArtifactMismatch> {
+        self.require_owned_root(root)?;
+        self.root_component_query_probes
+            .fetch_add(1, Ordering::Relaxed);
+        let position = self
+            .root_component_positions
+            .get(root)
+            .copied()
+            .ok_or(ArtifactMismatch)?;
+        Ok(self.components[position].clone())
+    }
+    fn add_definition_root(&mut self, root: DefinitionRootId) {
+        self.root_order.push(root.clone());
+        self.counters.root_allocations += 1;
+        let value = self.definition_value_component(root.clone());
+        let old_capacity = self.root_component_positions.capacity();
+        self.root_component_positions
+            .insert(root, self.components.len() - 1);
+        if self.root_component_positions.capacity() != old_capacity {
+            self.counters.index_rebuilds += 1;
+        }
+        debug_assert!(matches!(value, ComponentId::DefinitionValue { .. }));
+    }
+    fn emit_integer(
+        &mut self,
+        occurrence: HirOccurrenceId,
+        definition_root: Option<DefinitionRootId>,
+    ) {
+        let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value);
+        let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect);
         let positions = ComponentPositions {
             value: self.components.len() - 2,
             effect: self.components.len() - 1,
         };
-        let old_capacity = self.component_positions.capacity();
-        self.component_positions
+        let old_capacity = self.occurrence_component_positions.capacity();
+        self.occurrence_component_positions
             .insert(occurrence.clone(), positions);
-        if self.component_positions.capacity() != old_capacity {
+        if self.occurrence_component_positions.capacity() != old_capacity {
             self.counters.index_rebuilds += 1;
         }
         self.emit(
@@ -208,7 +289,7 @@ impl ConstraintBatch {
         self.emit(
             occurrence.clone(),
             1,
-            Term::Component(value),
+            Term::Component(value.clone()),
             Term::Leaf(Leaf::IntNegative),
         );
         self.emit(
@@ -218,14 +299,33 @@ impl ConstraintBatch {
             Term::Component(effect.clone()),
         );
         self.emit(
-            occurrence,
+            occurrence.clone(),
             3,
             Term::Component(effect),
             Term::Leaf(Leaf::EmptyEffectNegative),
         );
+        if let Some(root) = definition_root {
+            let definition_value = self.root_value_component_for_collect(&root);
+            self.emit(
+                occurrence,
+                4,
+                Term::Component(value),
+                Term::Component(definition_value),
+            );
+        }
     }
-    fn component(&mut self, occurrence: HirOccurrenceId, kind: ComponentKind) -> ComponentId {
-        let component = ComponentId { occurrence, kind };
+    fn occurrence_component(
+        &mut self,
+        occurrence: HirOccurrenceId,
+        kind: ComponentKind,
+    ) -> ComponentId {
+        let component = ComponentId::Occurrence { occurrence, kind };
+        self.components.push(component.clone());
+        self.counters.component_allocations += 1;
+        component
+    }
+    fn definition_value_component(&mut self, root: DefinitionRootId) -> ComponentId {
+        let component = ComponentId::DefinitionValue { root };
         self.components.push(component.clone());
         self.counters.component_allocations += 1;
         component
@@ -241,12 +341,25 @@ impl ConstraintBatch {
         self.counters.emitted_facts += 1;
         self.counters.generated_work_items += 1;
     }
-    fn component_position(&self, component: &ComponentId) -> Option<usize> {
-        let positions = self.component_positions.get(component.occurrence())?;
-        Some(match component.kind() {
-            ComponentKind::Value => positions.value,
-            ComponentKind::Effect => positions.effect,
-        })
+    fn component_position(
+        &self,
+        component: &ComponentId,
+        work: &mut ProductionCounters,
+    ) -> Option<usize> {
+        match component {
+            ComponentId::Occurrence { occurrence, kind } => {
+                work.occurrence_component_index_probes += 1;
+                let positions = self.occurrence_component_positions.get(occurrence)?;
+                Some(match kind {
+                    ComponentKind::Value => positions.value,
+                    ComponentKind::Effect => positions.effect,
+                })
+            }
+            ComponentId::DefinitionValue { root } => {
+                work.root_component_index_probes += 1;
+                self.root_component_positions.get(root).copied()
+            }
+        }
     }
     fn require_owned(&self, occurrence: &HirOccurrenceId) -> Result<(), ArtifactMismatch> {
         self.hir
@@ -254,12 +367,29 @@ impl ConstraintBatch {
             .then_some(())
             .ok_or(ArtifactMismatch)
     }
+    fn require_owned_root(&self, root: &DefinitionRootId) -> Result<(), ArtifactMismatch> {
+        self.hir
+            .owns_definition_root(root)
+            .then_some(())
+            .ok_or(ArtifactMismatch)
+    }
+    fn root_value_component_for_collect(&mut self, root: &DefinitionRootId) -> ComponentId {
+        self.counters.root_component_index_probes += 1;
+        let position = *self
+            .root_component_positions
+            .get(root)
+            .expect("admitted binding root has a value component");
+        self.components[position].clone()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ArtifactMismatch;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+/// Capacity and retained-byte fields model `capacity * size_of::<slot>()`.
+/// They exclude allocator metadata, bucket control bytes, and fragmentation;
+/// the paired capacity fields report the exact container capacities observed.
 pub struct ProductionCounters {
     hir_traversals: usize,
     cst_traversals: usize,
@@ -273,6 +403,22 @@ pub struct ProductionCounters {
     canonical_map_probes: usize,
     canonical_map_rebuilds: usize,
     canonical_map_capacity: usize,
+    canonical_map_retained_bytes: usize,
+    occurrence_component_index_probes: usize,
+    occurrence_component_index_capacity: usize,
+    occurrence_component_index_retained_bytes: usize,
+    occurrence_component_query_probes: usize,
+    root_component_index_probes: usize,
+    root_component_index_capacity: usize,
+    root_component_index_retained_bytes: usize,
+    root_component_query_probes: usize,
+    consumed_receipt_index_probes: usize,
+    consumed_receipt_index_capacity: usize,
+    consumed_receipt_index_retained_bytes: usize,
+    solved_root_index_probes: usize,
+    solved_root_index_capacity: usize,
+    solved_root_index_retained_bytes: usize,
+    solved_root_query_probes: usize,
     generated_work_items: usize,
     accepted_work_items: usize,
     duplicate_work_items: usize,
@@ -287,12 +433,24 @@ pub struct ProductionCounters {
     occurrence_allocations: usize,
     occurrence_retained_bytes: usize,
     occurrence_record_retained_bytes: usize,
+    root_allocations: usize,
+    root_retained_bytes: usize,
+    hir_definition_root_allocation_bytes: usize,
+    definition_root_def_id_clone_bytes: usize,
     index_rebuilds: usize,
     index_capacity: usize,
     provenance_edges: usize,
     provenance_retained_bytes: usize,
     solved_projection_retained_bytes: usize,
     solver_workspace_retained_bytes: usize,
+    bounds_workspace_capacity: usize,
+    bounds_workspace_retained_bytes: usize,
+    fanout_index_capacity: usize,
+    fanout_index_retained_bytes: usize,
+    failed_component_workspace_capacity: usize,
+    failed_component_workspace_retained_bytes: usize,
+    solver_error_workspace_capacity: usize,
+    solver_error_workspace_retained_bytes: usize,
     eager_explanation_builds: usize,
     maximum_fan_out: usize,
     scc_count: usize,
@@ -312,6 +470,22 @@ impl ProductionCounters {
         canonical_map_probes,
         canonical_map_rebuilds,
         canonical_map_capacity,
+        canonical_map_retained_bytes,
+        occurrence_component_index_probes,
+        occurrence_component_index_capacity,
+        occurrence_component_index_retained_bytes,
+        occurrence_component_query_probes,
+        root_component_index_probes,
+        root_component_index_capacity,
+        root_component_index_retained_bytes,
+        root_component_query_probes,
+        consumed_receipt_index_probes,
+        consumed_receipt_index_capacity,
+        consumed_receipt_index_retained_bytes,
+        solved_root_index_probes,
+        solved_root_index_capacity,
+        solved_root_index_retained_bytes,
+        solved_root_query_probes,
         generated_work_items,
         accepted_work_items,
         duplicate_work_items,
@@ -324,12 +498,24 @@ impl ProductionCounters {
         occurrence_allocations,
         occurrence_retained_bytes,
         occurrence_record_retained_bytes,
+        root_allocations,
+        root_retained_bytes,
+        hir_definition_root_allocation_bytes,
+        definition_root_def_id_clone_bytes,
         index_rebuilds,
         index_capacity,
         provenance_edges,
         provenance_retained_bytes,
         solved_projection_retained_bytes,
         solver_workspace_retained_bytes,
+        bounds_workspace_capacity,
+        bounds_workspace_retained_bytes,
+        fanout_index_capacity,
+        fanout_index_retained_bytes,
+        failed_component_workspace_capacity,
+        failed_component_workspace_retained_bytes,
+        solver_error_workspace_capacity,
+        solver_error_workspace_retained_bytes,
         eager_explanation_builds,
         maximum_fan_out,
         scc_count
@@ -349,6 +535,22 @@ impl ProductionCounters {
             canonical_map_probes,
             canonical_map_rebuilds,
             canonical_map_capacity,
+            canonical_map_retained_bytes,
+            occurrence_component_index_probes,
+            occurrence_component_index_capacity,
+            occurrence_component_index_retained_bytes,
+            occurrence_component_query_probes,
+            root_component_index_probes,
+            root_component_index_capacity,
+            root_component_index_retained_bytes,
+            root_component_query_probes,
+            consumed_receipt_index_probes,
+            consumed_receipt_index_capacity,
+            consumed_receipt_index_retained_bytes,
+            solved_root_index_probes,
+            solved_root_index_capacity,
+            solved_root_index_retained_bytes,
+            solved_root_query_probes,
             generated_work_items,
             accepted_work_items,
             duplicate_work_items,
@@ -361,12 +563,24 @@ impl ProductionCounters {
             occurrence_allocations,
             occurrence_retained_bytes,
             occurrence_record_retained_bytes,
+            root_allocations,
+            root_retained_bytes,
+            hir_definition_root_allocation_bytes,
+            definition_root_def_id_clone_bytes,
             index_rebuilds,
             index_capacity,
             provenance_edges,
             provenance_retained_bytes,
             solved_projection_retained_bytes,
             solver_workspace_retained_bytes,
+            bounds_workspace_capacity,
+            bounds_workspace_retained_bytes,
+            fanout_index_capacity,
+            fanout_index_retained_bytes,
+            failed_component_workspace_capacity,
+            failed_component_workspace_retained_bytes,
+            solver_error_workspace_capacity,
+            solver_error_workspace_retained_bytes,
             eager_explanation_builds,
             scc_count
         );
@@ -489,6 +703,7 @@ impl ConstraintStore {
         {
             return Err(ConstraintError::ReceiptMismatch);
         }
+        self.counters.consumed_receipt_index_probes += 1;
         if !self.consumed_receipts.insert(receipt.serial) {
             return Err(ConstraintError::ReceiptConsumed);
         }
@@ -516,11 +731,26 @@ impl ConstraintStore {
             .then_some(())
             .ok_or(ConstraintError::ArtifactMismatch)
     }
+    fn require_owned_component(&self, component: &ComponentId) -> Result<(), ConstraintError> {
+        match component {
+            ComponentId::Occurrence { occurrence, .. } => self.require_owned(occurrence),
+            ComponentId::DefinitionValue { root } => self
+                .hir
+                .owns_definition_root(root)
+                .then_some(())
+                .ok_or(ConstraintError::ArtifactMismatch),
+        }
+    }
     fn finish_accounting(&mut self) {
         self.counters.fact_retained_bytes =
             self.facts.capacity() * std::mem::size_of::<SemanticFact>();
         self.counters.canonical_map_capacity = self.canonical.capacity();
+        self.counters.canonical_map_retained_bytes =
+            self.canonical.capacity() * std::mem::size_of::<(FactKey, FactId)>();
         self.counters.canonical_map_probes = self.comparisons.load(Ordering::Relaxed);
+        self.counters.consumed_receipt_index_capacity = self.consumed_receipts.capacity();
+        self.counters.consumed_receipt_index_retained_bytes =
+            self.consumed_receipts.capacity() * std::mem::size_of::<u64>();
     }
 }
 pub struct ConstraintTransaction<'a> {
@@ -537,7 +767,7 @@ impl ConstraintTransaction<'_> {
         }
         for term in [&occurrence.lower, &occurrence.upper] {
             if let Term::Component(component) = term {
-                self.store.require_owned(component.occurrence())?;
+                self.store.require_owned_component(component)?;
             }
         }
         if occurrence.lower.kind() != occurrence.upper.kind() {
@@ -716,9 +946,11 @@ pub struct SolvedModule {
     hir: Arc<HirModule>,
     projection_order: Vec<HirOccurrenceId>,
     projections: HashMap<HirOccurrenceId, SolvedProjection>,
+    root_values: HashMap<DefinitionRootId, SolvedValue>,
     errors: Vec<SolverError>,
     store: ConstraintStore,
     counters: ProductionCounters,
+    solved_root_query_probes: AtomicUsize,
 }
 impl SolvedModule {
     pub fn solve(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
@@ -760,6 +992,10 @@ impl SolvedModule {
                 },
             );
         }
+        let mut root_values = HashMap::with_capacity(batch.root_order.len());
+        for root in &batch.root_order {
+            root_values.insert(root.clone(), SolvedValue::Unknown);
+        }
         let mut bounds = vec![Bounds::default(); batch.components.len()];
         let mut fanout = HashMap::<Term, usize>::new();
         let mut work = ProductionCounters::default();
@@ -775,22 +1011,22 @@ impl SolvedModule {
             }
             match (fact.lower(), fact.upper()) {
                 (Term::Leaf(Leaf::IntPositive), Term::Component(component)) => {
-                    if let Some(index) = batch.component_position(component) {
+                    if let Some(index) = batch.component_position(component, &mut work) {
                         bounds[index].int_lower = true;
                     }
                 }
                 (Term::Component(component), Term::Leaf(Leaf::IntNegative)) => {
-                    if let Some(index) = batch.component_position(component) {
+                    if let Some(index) = batch.component_position(component, &mut work) {
                         bounds[index].int_upper = true;
                     }
                 }
                 (Term::Leaf(Leaf::EffectBottomPositive), Term::Component(component)) => {
-                    if let Some(index) = batch.component_position(component) {
+                    if let Some(index) = batch.component_position(component, &mut work) {
                         bounds[index].effect_lower = true;
                     }
                 }
                 (Term::Component(component), Term::Leaf(Leaf::EmptyEffectNegative)) => {
-                    if let Some(index) = batch.component_position(component) {
+                    if let Some(index) = batch.component_position(component, &mut work) {
                         bounds[index].effect_upper = true;
                     }
                 }
@@ -800,6 +1036,19 @@ impl SolvedModule {
         work.index_capacity = fanout.capacity();
         work.solved_projection_retained_bytes =
             projections.capacity() * std::mem::size_of::<(HirOccurrenceId, SolvedProjection)>();
+        work.solved_root_index_capacity = root_values.capacity();
+        work.solved_root_index_retained_bytes =
+            root_values.capacity() * std::mem::size_of::<(DefinitionRootId, SolvedValue)>();
+        work.bounds_workspace_capacity = bounds.capacity();
+        work.bounds_workspace_retained_bytes = bounds.capacity() * std::mem::size_of::<Bounds>();
+        work.fanout_index_capacity = fanout.capacity();
+        work.fanout_index_retained_bytes = fanout.capacity() * std::mem::size_of::<(Term, usize)>();
+        work.failed_component_workspace_capacity = failed_components.capacity();
+        work.failed_component_workspace_retained_bytes =
+            failed_components.capacity() * std::mem::size_of::<ComponentId>();
+        work.solver_error_workspace_capacity = errors.capacity();
+        work.solver_error_workspace_retained_bytes =
+            errors.capacity() * std::mem::size_of::<SolverError>();
         work.solver_workspace_retained_bytes = bounds.capacity() * std::mem::size_of::<Bounds>()
             + fanout.capacity() * std::mem::size_of::<(Term, usize)>()
             + failed_components.capacity() * std::mem::size_of::<ComponentId>()
@@ -811,8 +1060,11 @@ impl SolvedModule {
             if failed_components.contains(component) {
                 continue;
             }
+            let Some(occurrence) = component.occurrence() else {
+                continue;
+            };
             let projection = projections
-                .get_mut(component.occurrence())
+                .get_mut(occurrence)
                 .expect("batch owns component");
             match component.kind() {
                 ComponentKind::Value if bounds[index].int_lower && bounds[index].int_upper => {
@@ -826,16 +1078,18 @@ impl SolvedModule {
                 _ => {}
             }
         }
-        let mut counters = batch.counters.clone();
+        let mut counters = batch.counters();
         counters.combine(store.counters());
         counters.combine(&work);
         Ok(Self {
             hir: batch.hir,
             projection_order: batch.projection_order,
             projections,
+            root_values,
             errors,
             store,
             counters,
+            solved_root_query_probes: AtomicUsize::new(0),
         })
     }
     pub fn hir(&self) -> &Arc<HirModule> {
@@ -850,8 +1104,10 @@ impl SolvedModule {
     pub fn store(&self) -> &ConstraintStore {
         &self.store
     }
-    pub fn counters(&self) -> &ProductionCounters {
-        &self.counters
+    pub fn counters(&self) -> ProductionCounters {
+        let mut counters = self.counters.clone();
+        counters.solved_root_query_probes += self.solved_root_query_probes.load(Ordering::Relaxed);
+        counters
     }
     pub fn projection_for(
         &self,
@@ -867,6 +1123,17 @@ impl SolvedModule {
                 value: SolvedValue::Unknown,
                 effect: SolvedEffect::Unknown,
             }))
+    }
+    pub fn root_value_for(&self, root: &DefinitionRootId) -> Result<SolvedValue, ArtifactMismatch> {
+        if !self.hir.owns_definition_root(root) {
+            return Err(ArtifactMismatch);
+        }
+        self.solved_root_query_probes
+            .fetch_add(1, Ordering::Relaxed);
+        Ok(*self
+            .root_values
+            .get(root)
+            .expect("every admitted root has a solved projection"))
     }
 }
 
@@ -957,7 +1224,7 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         assert_eq!(order(&ab), order(&bb));
-        assert_eq!(order(&ab).len(), 8);
+        assert_eq!(order(&ab).len(), 13);
         let asolved = SolvedModule::solve(ab).unwrap();
         let bsolved = SolvedModule::solve(bb).unwrap();
         assert_eq!(
@@ -980,13 +1247,66 @@ mod tests {
         }
     }
     #[test]
-    fn bindings_names_errors_and_underconstrained_intervals_are_unknown() {
+    fn binding_bodies_attach_only_to_unknown_definition_roots() {
+        let hir = module("my x = 42", "binding.yu");
+        let [HirItem::Binding(binding)] = hir.items() else {
+            panic!("one binding")
+        };
+        let batch = ConstraintBatch::collect(hir.clone());
+        let body = batch
+            .components_for(binding.value().occurrence())
+            .unwrap()
+            .unwrap();
+        let root = batch
+            .root_value_component(binding.definition_root())
+            .unwrap();
+        assert_eq!(batch.occurrences().len(), 5);
+        assert!(matches!(body.value(), ComponentId::Occurrence { .. }));
+        assert!(
+            matches!(root, ComponentId::DefinitionValue { ref root } if root == binding.definition_root())
+        );
+        assert_eq!(
+            batch
+                .occurrences()
+                .iter()
+                .map(|item| (item.id().local_slot(), shape(item)))
+                .collect::<Vec<_>>(),
+            vec![
+                (0, (Some(Leaf::IntPositive), None)),
+                (1, (None, Some(Leaf::IntNegative))),
+                (2, (Some(Leaf::EffectBottomPositive), None)),
+                (3, (None, Some(Leaf::EmptyEffectNegative))),
+                (4, (None, None)),
+            ]
+        );
+        let fifth = &batch.occurrences()[4];
+        assert_eq!(fifth.lower(), &Term::Component(body.value().clone()));
+        assert_eq!(fifth.upper(), &Term::Component(root));
+        let solved = SolvedModule::solve(batch).unwrap();
+        assert_eq!(
+            solved.projection_for(binding.value().occurrence()).unwrap(),
+            SolvedProjection {
+                value: SolvedValue::Int,
+                effect: SolvedEffect::Empty,
+            }
+        );
+        assert_eq!(
+            solved.root_value_for(binding.definition_root()).unwrap(),
+            SolvedValue::Unknown
+        );
+        let counters = solved.counters();
+        assert_eq!(counters.occurrence_component_query_probes(), 1);
+        assert_eq!(counters.root_component_query_probes(), 1);
+        assert_eq!(counters.solved_root_query_probes(), 1);
+    }
+    #[test]
+    fn names_errors_and_underconstrained_intervals_remain_unknown() {
         let hir = module(
             "my resolved = 42; resolved; my dup = 0; my dup = 1; dup; missing; f 1; 42",
             "states.yu",
         );
         let batch = ConstraintBatch::collect(hir.clone());
-        assert_eq!(batch.occurrences().len(), 4);
+        assert_eq!(batch.occurrences().len(), 19);
         assert!(
             batch
                 .components_for(match &hir.items()[0] {
@@ -994,7 +1314,7 @@ mod tests {
                     _ => unreachable!(),
                 })
                 .unwrap()
-                .is_none()
+                .is_some()
         );
         assert!(matches!(
             root(&hir, 1),
@@ -1019,7 +1339,7 @@ mod tests {
         ));
         assert!(matches!(root(&hir, 6), ResolvedExpr::Error { .. }));
         let solved = SolvedModule::solve(batch).unwrap();
-        for index in 0..7 {
+        for index in [1, 4, 5, 6] {
             let expression = match &hir.items()[index] {
                 HirItem::Binding(binding) => binding.value(),
                 HirItem::Expression(expression) => expression,
@@ -1031,6 +1351,22 @@ mod tests {
                     value: SolvedValue::Unknown,
                     effect: SolvedEffect::Unknown
                 }
+            );
+        }
+        for index in [0, 2, 3] {
+            let HirItem::Binding(binding) = &hir.items()[index] else {
+                unreachable!()
+            };
+            assert_eq!(
+                solved.projection_for(binding.value().occurrence()).unwrap(),
+                SolvedProjection {
+                    value: SolvedValue::Int,
+                    effect: SolvedEffect::Empty,
+                }
+            );
+            assert_eq!(
+                solved.root_value_for(binding.definition_root()).unwrap(),
+                SolvedValue::Unknown
             );
         }
         assert_eq!(
@@ -1065,6 +1401,101 @@ mod tests {
                 effect: SolvedEffect::Unknown
             }
         );
+    }
+    #[test]
+    fn duplicate_malformed_and_name_bodies_keep_distinct_roots_without_relations() {
+        let hir = module(
+            "my x = 1; my x = 2; my broken = @; my named = x; my good = 42",
+            "roots.yu",
+        );
+        let bindings = hir
+            .items()
+            .iter()
+            .map(|item| match item {
+                HirItem::Binding(binding) => binding,
+                _ => panic!("admitted binding"),
+            })
+            .collect::<Vec<_>>();
+        let batch = ConstraintBatch::collect(hir.clone());
+        assert_eq!(batch.occurrences().len(), 15);
+        assert_ne!(bindings[0].definition_root(), bindings[1].definition_root());
+        for binding in &bindings {
+            assert!(
+                batch
+                    .root_value_component(binding.definition_root())
+                    .is_ok()
+            );
+        }
+        assert!(
+            batch
+                .components_for(bindings[2].value().occurrence())
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            batch
+                .components_for(bindings[3].value().occurrence())
+                .unwrap()
+                .is_none()
+        );
+        let solved = SolvedModule::solve(batch).unwrap();
+        assert_eq!(solved.root_values.len(), bindings.len());
+        for binding in &bindings {
+            assert_eq!(
+                solved.root_value_for(binding.definition_root()).unwrap(),
+                SolvedValue::Unknown
+            );
+        }
+        assert_eq!(
+            solved
+                .projection_for(bindings[4].value().occurrence())
+                .unwrap()
+                .value(),
+            SolvedValue::Int
+        );
+    }
+    #[test]
+    fn roots_and_components_reject_foreign_artifacts_without_name_relations() {
+        let first = module("my x = 42; x", "first-roots.yu");
+        let second = module("my x = 42", "second-roots.yu");
+        let HirItem::Binding(first_binding) = &first.items()[0] else {
+            panic!("first binding")
+        };
+        let HirItem::Binding(second_binding) = &second.items()[0] else {
+            panic!("second binding")
+        };
+        let first_batch = ConstraintBatch::collect(first.clone());
+        let second_batch = ConstraintBatch::collect(second.clone());
+        assert_eq!(first_batch.occurrences().len(), 5);
+        assert!(matches!(
+            first_batch.root_value_component(second_binding.definition_root()),
+            Err(ArtifactMismatch)
+        ));
+        assert!(matches!(
+            second_batch.components_for(first_binding.value().occurrence()),
+            Err(ArtifactMismatch)
+        ));
+        let local = first_batch.occurrences()[0].clone();
+        let bad_id = local.id.clone();
+        let foreign_definition_endpoint = ConstraintOccurrence {
+            id: bad_id.clone(),
+            cause: CauseId::for_occurrence(bad_id),
+            lower: Term::Component(ComponentId::DefinitionValue {
+                root: second_binding.definition_root().clone(),
+            }),
+            upper: local.upper.clone(),
+        };
+        assert!(matches!(
+            ConstraintStore::new(first.clone())
+                .transaction()
+                .admit(&foreign_definition_endpoint),
+            Err(ConstraintError::ArtifactMismatch)
+        ));
+        let solved = SolvedModule::solve(first_batch).unwrap();
+        assert!(matches!(
+            solved.root_value_for(second_binding.definition_root()),
+            Err(ArtifactMismatch)
+        ));
     }
     #[test]
     fn brands_receipts_and_local_failure_are_isolated() {
@@ -1144,19 +1575,25 @@ mod tests {
         );
     }
     #[test]
-    fn n_and_2n_counters_remain_linear() {
+    fn direct_root_n_and_2n_counters_remain_linear() {
         let source = |n| std::iter::repeat_n("42", n).collect::<Vec<_>>().join("; ");
-        let a =
-            SolvedModule::solve(ConstraintBatch::collect(module(&source(1000), "n.yu"))).unwrap();
-        let b =
-            SolvedModule::solve(ConstraintBatch::collect(module(&source(2000), "2n.yu"))).unwrap();
+        let a = SolvedModule::solve(ConstraintBatch::collect(module(
+            &source(1000),
+            "direct-n.yu",
+        )))
+        .unwrap();
+        let b = SolvedModule::solve(ConstraintBatch::collect(module(
+            &source(2000),
+            "direct-2n.yu",
+        )))
+        .unwrap();
         for (n, solved) in [(1000, &a), (2000, &b)] {
             let c = solved.counters();
             assert_eq!(c.hir_traversals(), 1);
+            assert_eq!(c.component_allocations(), 2 * n);
             assert_eq!(c.emitted_facts(), 4 * n);
             assert_eq!(c.admitted_facts(), 4 * n);
             assert_eq!(c.occurrence_allocations(), n);
-            assert_eq!(c.component_allocations(), 2 * n);
             assert_eq!(c.fact_allocations(), 4 * n);
             assert_eq!(c.provenance_edges(), 4 * n);
             assert_eq!(c.generated_work_items(), 4 * n);
@@ -1165,6 +1602,7 @@ mod tests {
             assert_eq!(c.adjacency_appends(), 8 * n);
             assert_eq!(c.adjacency_visits(), 8 * n);
             assert_eq!(c.maximum_fan_out(), n);
+            assert_eq!(c.root_allocations(), 0);
             assert_eq!(c.duplicate_facts(), 0);
             assert_eq!(c.cst_traversals(), 0);
             assert_eq!(c.cst_rescans(), 0);
@@ -1183,12 +1621,13 @@ mod tests {
             (y.component_allocations(), x.component_allocations()),
             (y.fact_allocations(), x.fact_allocations()),
             (y.occurrence_retained_bytes(), x.occurrence_retained_bytes()),
-            (y.component_retained_bytes(), x.component_retained_bytes()),
-            (y.fact_retained_bytes(), x.fact_retained_bytes()),
+            (y.emitted_facts(), x.emitted_facts()),
             (
                 y.occurrence_record_retained_bytes(),
                 x.occurrence_record_retained_bytes(),
             ),
+            (y.component_retained_bytes(), x.component_retained_bytes()),
+            (y.fact_retained_bytes(), x.fact_retained_bytes()),
             (y.provenance_retained_bytes(), x.provenance_retained_bytes()),
             (
                 y.solved_projection_retained_bytes(),
@@ -1206,5 +1645,162 @@ mod tests {
             assert!(large < small * 5 / 2 + 1);
         }
         assert!(y.canonical_map_probes() < x.canonical_map_probes().saturating_mul(5) / 2 + 1);
+    }
+    #[test]
+    fn binding_n_and_2n_counters_remain_linear() {
+        let source = |n| {
+            (0..n)
+                .map(|index| format!("my binding_{index} = 42"))
+                .collect::<Vec<_>>()
+                .join("; ")
+        };
+        let a =
+            SolvedModule::solve(ConstraintBatch::collect(module(&source(1000), "n.yu"))).unwrap();
+        let b =
+            SolvedModule::solve(ConstraintBatch::collect(module(&source(2000), "2n.yu"))).unwrap();
+        for (n, solved) in [(1000, &a), (2000, &b)] {
+            let c = solved.counters();
+            assert_eq!(c.hir_traversals(), 1);
+            assert_eq!(c.emitted_facts(), 5 * n);
+            assert_eq!(c.admitted_facts(), 5 * n);
+            assert_eq!(c.occurrence_allocations(), n);
+            assert_eq!(c.root_allocations(), n);
+            assert_eq!(
+                c.hir_definition_root_allocation_bytes(),
+                n * std::mem::size_of::<DefinitionRootId>()
+            );
+            assert_eq!(c.component_allocations(), 3 * n);
+            assert_eq!(c.fact_allocations(), 5 * n);
+            assert_eq!(c.provenance_edges(), 5 * n);
+            assert_eq!(c.generated_work_items(), 5 * n);
+            assert_eq!(c.accepted_work_items(), 5 * n);
+            assert_eq!(c.duplicate_work_items(), 0);
+            assert_eq!(c.adjacency_appends(), 10 * n);
+            assert_eq!(c.adjacency_visits(), 10 * n);
+            assert_eq!(c.maximum_fan_out(), n);
+            assert_eq!(c.duplicate_facts(), 0);
+            assert_eq!(c.cst_traversals(), 0);
+            assert_eq!(c.cst_rescans(), 0);
+            assert_eq!(c.hir_clone_count(), 0);
+            assert_eq!(c.typed_tree_copies(), 0);
+            assert_eq!(c.copied_spelling_bytes(), 0);
+            assert_eq!(c.definition_root_def_id_clone_bytes(), 0);
+            assert_eq!(c.eager_explanation_builds(), 0);
+            assert_eq!(c.scc_count(), 0);
+        }
+        for solved in [&a, &b] {
+            for item in solved.hir().items() {
+                if let HirItem::Binding(binding) = item {
+                    assert_eq!(
+                        solved.root_value_for(binding.definition_root()).unwrap(),
+                        SolvedValue::Unknown
+                    );
+                }
+            }
+        }
+        assert_eq!(a.counters().solved_root_query_probes(), 1000);
+        assert_eq!(b.counters().solved_root_query_probes(), 2000);
+        let x = a.counters();
+        let y = b.counters();
+        for (large, small) in [
+            (y.generated_work_items(), x.generated_work_items()),
+            (y.accepted_work_items(), x.accepted_work_items()),
+            (y.adjacency_visits(), x.adjacency_visits()),
+            (y.component_allocations(), x.component_allocations()),
+            (y.fact_allocations(), x.fact_allocations()),
+            (y.occurrence_retained_bytes(), x.occurrence_retained_bytes()),
+            (y.root_retained_bytes(), x.root_retained_bytes()),
+            (y.component_retained_bytes(), x.component_retained_bytes()),
+            (y.fact_retained_bytes(), x.fact_retained_bytes()),
+            (
+                y.canonical_map_retained_bytes(),
+                x.canonical_map_retained_bytes(),
+            ),
+            (
+                y.occurrence_component_index_retained_bytes(),
+                x.occurrence_component_index_retained_bytes(),
+            ),
+            (
+                y.root_component_index_retained_bytes(),
+                x.root_component_index_retained_bytes(),
+            ),
+            (
+                y.consumed_receipt_index_retained_bytes(),
+                x.consumed_receipt_index_retained_bytes(),
+            ),
+            (
+                y.solved_root_index_retained_bytes(),
+                x.solved_root_index_retained_bytes(),
+            ),
+            (
+                y.occurrence_record_retained_bytes(),
+                x.occurrence_record_retained_bytes(),
+            ),
+            (y.provenance_retained_bytes(), x.provenance_retained_bytes()),
+            (
+                y.solved_projection_retained_bytes(),
+                x.solved_projection_retained_bytes(),
+            ),
+            (
+                y.solver_workspace_retained_bytes(),
+                x.solver_workspace_retained_bytes(),
+            ),
+            (
+                y.bounds_workspace_retained_bytes(),
+                x.bounds_workspace_retained_bytes(),
+            ),
+            (
+                y.fanout_index_retained_bytes(),
+                x.fanout_index_retained_bytes(),
+            ),
+            (
+                y.failed_component_workspace_retained_bytes(),
+                x.failed_component_workspace_retained_bytes(),
+            ),
+            (
+                y.solver_error_workspace_retained_bytes(),
+                x.solver_error_workspace_retained_bytes(),
+            ),
+            (y.canonical_map_capacity(), x.canonical_map_capacity()),
+            (
+                y.occurrence_component_index_capacity(),
+                x.occurrence_component_index_capacity(),
+            ),
+            (
+                y.root_component_index_capacity(),
+                x.root_component_index_capacity(),
+            ),
+            (
+                y.consumed_receipt_index_capacity(),
+                x.consumed_receipt_index_capacity(),
+            ),
+            (
+                y.solved_root_index_capacity(),
+                x.solved_root_index_capacity(),
+            ),
+            (y.index_capacity(), x.index_capacity()),
+            (y.canonical_map_rebuilds(), x.canonical_map_rebuilds()),
+            (y.index_rebuilds(), x.index_rebuilds()),
+        ] {
+            assert!(large < small * 5 / 2 + 1);
+        }
+        for (large, small) in [
+            (y.canonical_map_probes(), x.canonical_map_probes()),
+            (
+                y.occurrence_component_index_probes(),
+                x.occurrence_component_index_probes(),
+            ),
+            (
+                y.root_component_index_probes(),
+                x.root_component_index_probes(),
+            ),
+            (
+                y.consumed_receipt_index_probes(),
+                x.consumed_receipt_index_probes(),
+            ),
+            (y.solved_root_query_probes(), x.solved_root_query_probes()),
+        ] {
+            assert!(large < small.saturating_mul(5) / 2 + 1);
+        }
     }
 }

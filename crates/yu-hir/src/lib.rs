@@ -7,10 +7,10 @@ use yu_syntax::{ParsedFile, SyntaxKind, SyntaxNode, SyntaxToken};
 mod module;
 
 pub use module::{
-    DefId, FileId, FileKey, HirAvailabilityError, HirBinding, HirDiagnostic, HirDiagnosticId,
-    HirError, HirErrorAttachment, HirErrorId, HirErrorKind, HirErrorOrigin, HirItem, HirModule,
-    HirName, HirOccurrenceId, HirVisibility, ModuleId, ModuleIdentity, NameResolution,
-    ResolvedExpr, SemanticImports, lower_module,
+    DefId, DefinitionRootId, FileId, FileKey, HirAvailabilityError, HirBinding, HirDiagnostic,
+    HirDiagnosticId, HirError, HirErrorAttachment, HirErrorId, HirErrorKind, HirErrorOrigin,
+    HirItem, HirModule, HirName, HirOccurrenceId, HirVisibility, ModuleId, ModuleIdentity,
+    NameResolution, ResolvedExpr, SemanticImports, lower_module,
 };
 
 /// Every top-level operator chain associated from one parsed file, in source order.

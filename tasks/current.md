@@ -154,11 +154,14 @@ without a new approved gate. Immediate next action: select the next concrete
 vertical semantic slice from existing accepted input and the established
 subtyping model.
 
-The next binding-body-to-definition-root semantic proposal is reviewed in
+The next binding-body-to-definition-root semantic gate is Authoritative in
 `notes/design/2026-09-20-binding-body-definition-root-directed-subtype-draft.md`.
-It remains non-authoritative pending a user decision; do not implement its HIR
-definition-root API, component/index topology, or fifth relation until approval
-is recorded.
+The user approved its recommended integrated choice on 2026-09-20 and its M3
+construction is complete. Admitted bindings now own artifact-branded definition
+roots; recovery-free integer bodies emit the value-only fifth relation, while
+definition roots remain `Unknown`. Definition effects, name propagation,
+equality, and generalization remain deferred. Immediate next action: select a
+new approved vertical semantic gate; do not extend this relation implicitly.
 
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
