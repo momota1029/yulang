@@ -14,6 +14,15 @@ use yu_hir::{
 };
 use yu_types::{ComponentKind, Leaf};
 
+#[allow(
+    dead_code,
+    reason = "F1 is a standalone static kernel; F2 owns batch integration and query exposure"
+)]
+mod scc;
+
+#[cfg(test)]
+use scc::SccPlan;
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ComponentId {
     Occurrence {
@@ -323,6 +332,10 @@ pub enum CollectionAvailabilityError {
     MissingDefinitionEndpoint,
     NonTotalDefinitionMap,
     NonTotalDefinitionUseMap,
+    GraphIdentityExhausted,
+    ComponentIdentityExhausted,
+    NonTotalSccMembershipMap,
+    NonTotalSccComponentMap,
 }
 impl Components {
     pub fn value(&self) -> &ComponentId {
@@ -967,6 +980,80 @@ pub struct ProductionCounters {
     definition_use_index_retained_bytes: usize,
     definition_query_probes: usize,
     definition_use_query_probes: usize,
+    /// F1's standalone static directed graph and frozen-plan accounting.
+    /// Byte fields use the established logical `capacity * size_of::<slot>()`
+    /// model for `Vec`, `HashMap`, and `HashSet` storage. They exclude allocator
+    /// metadata, hash control bytes, fragmentation, allocation timing, and
+    /// referent payloads behind stable IDs; capacity counters expose the same
+    /// containers independently.
+    scc_distinct_arcs: usize,
+    scc_retained_occurrence_payloads: usize,
+    scc_forward_adjacency_entries: usize,
+    scc_forward_payload_lengths: usize,
+    scc_forward_adjacency_capacity: usize,
+    scc_forward_payload_capacity: usize,
+    scc_reverse_adjacency_entries: usize,
+    scc_reverse_adjacency_capacity: usize,
+    scc_definition_index_probes: usize,
+    scc_definition_index_capacity: usize,
+    scc_seen_use_set_probes: usize,
+    scc_seen_use_set_capacity: usize,
+    scc_condensation_set_probes: usize,
+    scc_condensation_set_capacity: usize,
+    scc_plan_component_index_probes: usize,
+    scc_plan_component_index_capacity: usize,
+    scc_plan_definition_index_probes: usize,
+    scc_plan_definition_index_capacity: usize,
+    scc_map_set_rebuilds: usize,
+    /// Logical clone operations for F1's artifact-branded stable IDs.
+    scc_stable_id_clone_count: usize,
+    /// `size_of::<DefinitionOrderId/DefinitionUseId>()` per logical clone;
+    /// this is payload copying, not an allocator or `Arc`-control-block claim.
+    scc_stable_id_clone_payload_bytes: usize,
+    scc_node_visits: usize,
+    scc_edge_visits: usize,
+    scc_stack_pushes: usize,
+    scc_lowlink_writes: usize,
+    scc_component_writes: usize,
+    scc_peak_stack_bytes: usize,
+    scc_peak_temporary_set_bytes: usize,
+    /// Co-resident Kosaraju phase: then-live F1 input/graph/index baseline plus
+    /// visited/assigned, finish order, DFS stacks, and discovered components.
+    scc_kosaraju_workspace_peak_bytes: usize,
+    /// Co-resident partition transfer: source SCC/arc payloads and growing
+    /// destination components with all then-live graph/index baselines.
+    scc_partition_workspace_peak_bytes: usize,
+    /// Co-resident scheduler phase: all still-live graph/index/condensation
+    /// baselines plus predecessors, dependency counts, ready heap, and output.
+    scc_scheduler_workspace_peak_bytes: usize,
+    /// Co-resident freeze transition: remaining source component slots,
+    /// growing ordered plan components, both plan maps, and live graph/index
+    /// baselines after scheduler worklists have dropped.
+    scc_freeze_transition_peak_bytes: usize,
+    scc_maximum_component_size: usize,
+    scc_internal_use_count: usize,
+    scc_incoming_use_count: usize,
+    scc_condensation_node_visits: usize,
+    scc_condensation_edge_visits: usize,
+    scc_ready_queue_operations: usize,
+    scc_ready_queue_comparisons: usize,
+    scc_ready_queue_maximum_size: usize,
+    scc_sort_count: usize,
+    scc_sort_comparisons: usize,
+    scc_sort_elements: usize,
+    scc_plan_component_capacity: usize,
+    scc_plan_member_capacity: usize,
+    scc_plan_internal_use_capacity: usize,
+    scc_plan_incoming_use_capacity: usize,
+    /// Frozen retained plan: component/member/use vectors and both plan maps.
+    scc_plan_retained_payload_bytes: usize,
+    /// Allocation-free ordered-use sorting and graph construction with then-live input,
+    /// vector, map, and set logical bytes.
+    scc_graph_workspace_peak_known_bytes: usize,
+    /// Maximum sampled co-resident F1 phase (graph, Kosaraju, partition,
+    /// scheduler, freeze transition, or retained plan). It is deliberately
+    /// F1-only, not a claim about `ConstraintBatch` integration.
+    scc_f1_graph_input_plan_peak_known_bytes: usize,
     cst_traversals: usize,
     cst_rescans: usize,
     hir_clone_count: usize,
@@ -1065,6 +1152,56 @@ impl ProductionCounters {
         definition_use_index_retained_bytes,
         definition_query_probes,
         definition_use_query_probes,
+        scc_distinct_arcs,
+        scc_retained_occurrence_payloads,
+        scc_forward_adjacency_entries,
+        scc_forward_payload_lengths,
+        scc_forward_adjacency_capacity,
+        scc_forward_payload_capacity,
+        scc_reverse_adjacency_entries,
+        scc_reverse_adjacency_capacity,
+        scc_definition_index_probes,
+        scc_definition_index_capacity,
+        scc_seen_use_set_probes,
+        scc_seen_use_set_capacity,
+        scc_condensation_set_probes,
+        scc_condensation_set_capacity,
+        scc_plan_component_index_probes,
+        scc_plan_component_index_capacity,
+        scc_plan_definition_index_probes,
+        scc_plan_definition_index_capacity,
+        scc_map_set_rebuilds,
+        scc_stable_id_clone_count,
+        scc_stable_id_clone_payload_bytes,
+        scc_node_visits,
+        scc_edge_visits,
+        scc_stack_pushes,
+        scc_lowlink_writes,
+        scc_component_writes,
+        scc_peak_stack_bytes,
+        scc_peak_temporary_set_bytes,
+        scc_kosaraju_workspace_peak_bytes,
+        scc_partition_workspace_peak_bytes,
+        scc_scheduler_workspace_peak_bytes,
+        scc_freeze_transition_peak_bytes,
+        scc_maximum_component_size,
+        scc_internal_use_count,
+        scc_incoming_use_count,
+        scc_condensation_node_visits,
+        scc_condensation_edge_visits,
+        scc_ready_queue_operations,
+        scc_ready_queue_comparisons,
+        scc_ready_queue_maximum_size,
+        scc_sort_count,
+        scc_sort_comparisons,
+        scc_sort_elements,
+        scc_plan_component_capacity,
+        scc_plan_member_capacity,
+        scc_plan_internal_use_capacity,
+        scc_plan_incoming_use_capacity,
+        scc_plan_retained_payload_bytes,
+        scc_graph_workspace_peak_known_bytes,
+        scc_f1_graph_input_plan_peak_known_bytes,
         cst_traversals,
         cst_rescans,
         hir_clone_count,
@@ -2084,6 +2221,530 @@ mod tests {
             vec![(0, 0), (1, 2), (2, 1)]
         );
     }
+    fn synthetic_scc_plan(
+        definitions: usize,
+        edges: &[(usize, usize)],
+        insertion_order: &[usize],
+    ) -> (SccPlan, ProductionCounters) {
+        synthetic_scc_plan_with_identity(
+            definitions,
+            edges,
+            insertion_order,
+            "definition",
+            "f1-synthetic.yu",
+        )
+    }
+    fn synthetic_scc_plan_with_identity(
+        definitions: usize,
+        edges: &[(usize, usize)],
+        insertion_order: &[usize],
+        definition_stem: &str,
+        module_path: &str,
+    ) -> (SccPlan, ProductionCounters) {
+        let (artifact, synthetic_definitions, uses) = synthetic_scc_records(
+            definitions,
+            edges,
+            insertion_order,
+            definition_stem,
+            module_path,
+        );
+        let mut counters = ProductionCounters::default();
+        let plan = SccPlan::build(&artifact, &synthetic_definitions, &uses, &mut counters).unwrap();
+        (plan, counters)
+    }
+    fn synthetic_scc_records(
+        definitions: usize,
+        edges: &[(usize, usize)],
+        insertion_order: &[usize],
+        definition_stem: &str,
+        module_path: &str,
+    ) -> (
+        Arc<CollectionArtifactToken>,
+        Vec<DefinitionOrderId>,
+        Vec<DefinitionUse>,
+    ) {
+        assert_eq!(insertion_order.len(), edges.len());
+        let mut source = (0..definitions)
+            .map(|index| format!("my {definition_stem}_{index} = 0"))
+            .collect::<Vec<_>>();
+        for _ in definitions..edges.len() {
+            source.push("0".to_owned());
+        }
+        let hir = module(&source.join("; "), module_path);
+        let occurrences = hir
+            .items()
+            .iter()
+            .map(|item| match item {
+                HirItem::Binding(binding) => binding.value().occurrence().clone(),
+                HirItem::Expression(expression) => expression.occurrence().clone(),
+                HirItem::Error { .. } => panic!("synthetic source has no HIR error"),
+            })
+            .collect::<Vec<_>>();
+        assert!(occurrences.len() >= edges.len());
+        let artifact = Arc::new(CollectionArtifactToken);
+        let synthetic_definitions = (0..definitions)
+            .map(|ordinal| DefinitionOrderId::new(artifact.clone(), ordinal as u32))
+            .collect::<Vec<_>>();
+        let uses = insertion_order
+            .iter()
+            .map(|&edge_index| {
+                let (parent, target) = edges[edge_index];
+                let id = DefinitionUseId::new(artifact.clone(), occurrences[edge_index].clone());
+                DefinitionUse {
+                    cause: DefinitionUseCause::for_use(id.clone()),
+                    id,
+                    parent: synthetic_definitions[parent].clone(),
+                    target: synthetic_definitions[target].clone(),
+                    occurrence: occurrences[edge_index].clone(),
+                }
+            })
+            .collect::<Vec<_>>();
+        (artifact, synthetic_definitions, uses)
+    }
+    fn raw_scc_plan(plan: &SccPlan) -> Vec<(u32, Vec<u32>, Vec<u32>, Vec<u32>)> {
+        plan.components_in_dependency_first_order()
+            .map(|component| {
+                (
+                    component.canonical_definition().ordinal(),
+                    plan.members_for_test(component)
+                        .expect("plan component from its own iterator")
+                        .iter()
+                        .map(DefinitionOrderId::ordinal)
+                        .collect(),
+                    plan.internal_uses_for_test(component)
+                        .expect("plan component from its own iterator")
+                        .iter()
+                        .map(|id| id.occurrence().ordinal())
+                        .collect(),
+                    plan.incoming_uses_for_test(component)
+                        .expect("plan component from its own iterator")
+                        .iter()
+                        .map(|id| id.occurrence().ordinal())
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+    #[test]
+    fn f1_synthetic_records_freeze_isolated_and_dependency_sink_first_components() {
+        let (isolated, _) = synthetic_scc_plan(1, &[], &[]);
+        assert_eq!(raw_scc_plan(&isolated), vec![(0, vec![0], vec![], vec![])]);
+        let (forward, _) = synthetic_scc_plan(3, &[(0, 1), (1, 2)], &[0, 1]);
+        let (backward, _) = synthetic_scc_plan(3, &[(2, 1), (1, 0)], &[1, 0]);
+        assert_eq!(
+            raw_scc_plan(&forward),
+            vec![
+                (2, vec![2], vec![], vec![1]),
+                (1, vec![1], vec![], vec![0]),
+                (0, vec![0], vec![], vec![]),
+            ]
+        );
+        assert_eq!(
+            raw_scc_plan(&backward),
+            vec![
+                (0, vec![0], vec![], vec![1]),
+                (1, vec![1], vec![], vec![0]),
+                (2, vec![2], vec![], vec![]),
+            ]
+        );
+    }
+    #[test]
+    fn f1_partitions_diamond_duplicate_self_mutual_and_independent_uses() {
+        let (diamond, _) = synthetic_scc_plan(4, &[(0, 1), (0, 2), (1, 3), (2, 3)], &[0, 1, 2, 3]);
+        assert_eq!(
+            raw_scc_plan(&diamond),
+            vec![
+                (3, vec![3], vec![], vec![2, 3]),
+                (1, vec![1], vec![], vec![0]),
+                (2, vec![2], vec![], vec![1]),
+                (0, vec![0], vec![], vec![]),
+            ]
+        );
+        let (duplicate, _) = synthetic_scc_plan(2, &[(0, 1), (0, 1)], &[1, 0]);
+        assert_eq!(
+            raw_scc_plan(&duplicate),
+            vec![
+                (1, vec![1], vec![], vec![0, 1]),
+                (0, vec![0], vec![], vec![])
+            ]
+        );
+        let (self_cycle, _) = synthetic_scc_plan(1, &[(0, 0)], &[0]);
+        assert_eq!(
+            raw_scc_plan(&self_cycle),
+            vec![(0, vec![0], vec![0], vec![])]
+        );
+        let (mutual, _) = synthetic_scc_plan(2, &[(0, 1), (1, 0)], &[0, 1]);
+        assert_eq!(
+            raw_scc_plan(&mutual),
+            vec![(0, vec![0, 1], vec![0, 1], vec![])]
+        );
+        let (independent, _) = synthetic_scc_plan(4, &[], &[]);
+        assert_eq!(
+            raw_scc_plan(&independent),
+            vec![
+                (0, vec![0], vec![], vec![]),
+                (1, vec![1], vec![], vec![]),
+                (2, vec![2], vec![], vec![]),
+                (3, vec![3], vec![], vec![]),
+            ]
+        );
+    }
+    #[test]
+    fn f1_synthetic_plan_is_raw_insertion_and_identity_deterministic() {
+        let edges = [(0, 1), (0, 2), (1, 3), (2, 3), (0, 1)];
+        let (first, _) = synthetic_scc_plan(4, &edges, &[0, 1, 2, 3, 4]);
+        let (second, _) = synthetic_scc_plan(4, &edges, &[4, 3, 1, 0, 2]);
+        assert_eq!(raw_scc_plan(&first), raw_scc_plan(&second));
+    }
+    #[test]
+    fn f1_raw_plan_is_alpha_and_module_path_independent_modulo_artifact_brand() {
+        let edges = [(0, 1), (0, 2), (1, 3), (2, 3), (0, 1)];
+        let (first, _) = synthetic_scc_plan_with_identity(
+            4,
+            &edges,
+            &[0, 1, 2, 3, 4],
+            "alpha",
+            "alpha/module.yu",
+        );
+        let (second, _) = synthetic_scc_plan_with_identity(
+            4,
+            &edges,
+            &[4, 3, 1, 0, 2],
+            "renamed",
+            "renamed/other-module.yu",
+        );
+        assert_eq!(raw_scc_plan(&first), raw_scc_plan(&second));
+    }
+    #[test]
+    fn f1_standalone_build_rejects_foreign_missing_and_duplicate_identities() {
+        let (artifact, definitions, uses) =
+            synthetic_scc_records(2, &[(0, 1)], &[0], "negative", "f1-negative.yu");
+        let (foreign_artifact, foreign_definitions, _) =
+            synthetic_scc_records(2, &[], &[], "foreign", "f1-foreign.yu");
+        let mut counters = ProductionCounters::default();
+        assert!(matches!(
+            SccPlan::build(&artifact, &foreign_definitions, &uses, &mut counters),
+            Err(CollectionAvailabilityError::MissingDefinitionEndpoint)
+        ));
+        assert!(!Arc::ptr_eq(&artifact, &foreign_artifact));
+
+        let mut foreign_endpoint = uses.clone();
+        foreign_endpoint[0].target = foreign_definitions[1].clone();
+        assert!(matches!(
+            SccPlan::build(
+                &artifact,
+                &definitions,
+                &foreign_endpoint,
+                &mut ProductionCounters::default(),
+            ),
+            Err(CollectionAvailabilityError::MissingDefinitionEndpoint)
+        ));
+
+        let mut missing_endpoint = uses.clone();
+        missing_endpoint[0].target = DefinitionOrderId::new(artifact.clone(), 99);
+        assert!(matches!(
+            SccPlan::build(
+                &artifact,
+                &definitions,
+                &missing_endpoint,
+                &mut ProductionCounters::default(),
+            ),
+            Err(CollectionAvailabilityError::MissingDefinitionEndpoint)
+        ));
+
+        assert!(matches!(
+            SccPlan::build(
+                &artifact,
+                &[definitions[0].clone(), definitions[0].clone()],
+                &[],
+                &mut ProductionCounters::default(),
+            ),
+            Err(CollectionAvailabilityError::DuplicateDefinitionOrderId)
+        ));
+        assert!(matches!(
+            SccPlan::build(
+                &artifact,
+                &definitions,
+                &[uses[0].clone(), uses[0].clone()],
+                &mut ProductionCounters::default(),
+            ),
+            Err(CollectionAvailabilityError::DuplicateDefinitionUseId)
+        ));
+    }
+    #[test]
+    fn f1_static_scaling_keeps_graph_work_linear_and_ordering_budget_separate() {
+        let families: [fn(usize) -> Vec<(usize, usize)>; 7] = [
+            // Chain.
+            |n| (1..n).map(|index| (index, index - 1)).collect(),
+            // Diamond.
+            |n| {
+                (0..n / 4)
+                    .flat_map(|group| {
+                        let base = group * 4;
+                        [
+                            (base, base + 1),
+                            (base, base + 2),
+                            (base + 1, base + 3),
+                            (base + 2, base + 3),
+                        ]
+                    })
+                    .collect()
+            },
+            // Duplicate payloads on one arc.
+            |n| (1..n).flat_map(|index| [(index, 0), (index, 0)]).collect(),
+            // Independent components.
+            |_| Vec::new(),
+            // One long final cycle: one source-sized SCC, not a two-node proxy.
+            |n| (0..n).map(|index| (index, (index + 1) % n)).collect(),
+            // Self cycles.
+            |n| (0..n).map(|index| (index, index)).collect(),
+            // Independent mutual cycles.
+            |n| {
+                (0..n / 2)
+                    .flat_map(|pair| [(pair * 2, pair * 2 + 1), (pair * 2 + 1, pair * 2)])
+                    .collect()
+            },
+        ];
+        for family in families {
+            let measurements = [1000, 2000, 4000].map(|n| {
+                let edges = family(n);
+                let insertion = (0..edges.len()).rev().collect::<Vec<_>>();
+                let (_, counters) = synthetic_scc_plan(n, &edges, &insertion);
+                let ordering_limit =
+                    32 * (n + edges.len() + 1) * ((n + edges.len() + 1).ilog2() as usize + 1);
+                assert!(
+                    counters.scc_sort_comparisons() + counters.scc_ready_queue_comparisons()
+                        <= ordering_limit
+                );
+                (n, counters)
+            });
+            for pair in measurements.windows(2) {
+                let [(_, small), (large_n, large)] = pair else {
+                    unreachable!("two adjacent scaling measurements");
+                };
+                for (large, small) in [
+                    (large.scc_node_visits(), small.scc_node_visits()),
+                    (large.scc_edge_visits(), small.scc_edge_visits()),
+                    (large.scc_stack_pushes(), small.scc_stack_pushes()),
+                    (large.scc_lowlink_writes(), small.scc_lowlink_writes()),
+                    (large.scc_component_writes(), small.scc_component_writes()),
+                    (large.scc_distinct_arcs(), small.scc_distinct_arcs()),
+                    (
+                        large.scc_retained_occurrence_payloads(),
+                        small.scc_retained_occurrence_payloads(),
+                    ),
+                    (
+                        large.scc_forward_adjacency_entries(),
+                        small.scc_forward_adjacency_entries(),
+                    ),
+                    (
+                        large.scc_forward_payload_lengths(),
+                        small.scc_forward_payload_lengths(),
+                    ),
+                    (
+                        large.scc_forward_adjacency_capacity(),
+                        small.scc_forward_adjacency_capacity(),
+                    ),
+                    (
+                        large.scc_forward_payload_capacity(),
+                        small.scc_forward_payload_capacity(),
+                    ),
+                    (
+                        large.scc_reverse_adjacency_entries(),
+                        small.scc_reverse_adjacency_entries(),
+                    ),
+                    (
+                        large.scc_reverse_adjacency_capacity(),
+                        small.scc_reverse_adjacency_capacity(),
+                    ),
+                    (
+                        large.scc_definition_index_probes(),
+                        small.scc_definition_index_probes(),
+                    ),
+                    (
+                        large.scc_definition_index_capacity(),
+                        small.scc_definition_index_capacity(),
+                    ),
+                    (
+                        large.scc_seen_use_set_probes(),
+                        small.scc_seen_use_set_probes(),
+                    ),
+                    (
+                        large.scc_seen_use_set_capacity(),
+                        small.scc_seen_use_set_capacity(),
+                    ),
+                    (
+                        large.scc_condensation_set_probes(),
+                        small.scc_condensation_set_probes(),
+                    ),
+                    (
+                        large.scc_condensation_set_capacity(),
+                        small.scc_condensation_set_capacity(),
+                    ),
+                    (
+                        large.scc_plan_component_index_probes(),
+                        small.scc_plan_component_index_probes(),
+                    ),
+                    (
+                        large.scc_plan_component_index_capacity(),
+                        small.scc_plan_component_index_capacity(),
+                    ),
+                    (
+                        large.scc_plan_definition_index_probes(),
+                        small.scc_plan_definition_index_probes(),
+                    ),
+                    (
+                        large.scc_plan_definition_index_capacity(),
+                        small.scc_plan_definition_index_capacity(),
+                    ),
+                    (large.scc_map_set_rebuilds(), small.scc_map_set_rebuilds()),
+                    (
+                        large.scc_stable_id_clone_count(),
+                        small.scc_stable_id_clone_count(),
+                    ),
+                    (
+                        large.scc_stable_id_clone_payload_bytes(),
+                        small.scc_stable_id_clone_payload_bytes(),
+                    ),
+                    (large.scc_peak_stack_bytes(), small.scc_peak_stack_bytes()),
+                    (
+                        large.scc_peak_temporary_set_bytes(),
+                        small.scc_peak_temporary_set_bytes(),
+                    ),
+                    (
+                        large.scc_kosaraju_workspace_peak_bytes(),
+                        small.scc_kosaraju_workspace_peak_bytes(),
+                    ),
+                    (
+                        large.scc_partition_workspace_peak_bytes(),
+                        small.scc_partition_workspace_peak_bytes(),
+                    ),
+                    (
+                        large.scc_scheduler_workspace_peak_bytes(),
+                        small.scc_scheduler_workspace_peak_bytes(),
+                    ),
+                    (
+                        large.scc_freeze_transition_peak_bytes(),
+                        small.scc_freeze_transition_peak_bytes(),
+                    ),
+                    (
+                        large.scc_internal_use_count(),
+                        small.scc_internal_use_count(),
+                    ),
+                    (
+                        large.scc_incoming_use_count(),
+                        small.scc_incoming_use_count(),
+                    ),
+                    (
+                        large.scc_maximum_component_size(),
+                        small.scc_maximum_component_size(),
+                    ),
+                    (large.scc_count(), small.scc_count()),
+                    (
+                        large.scc_condensation_node_visits(),
+                        small.scc_condensation_node_visits(),
+                    ),
+                    (
+                        large.scc_condensation_edge_visits(),
+                        small.scc_condensation_edge_visits(),
+                    ),
+                    (
+                        large.scc_ready_queue_operations(),
+                        small.scc_ready_queue_operations(),
+                    ),
+                    (
+                        large.scc_ready_queue_maximum_size(),
+                        small.scc_ready_queue_maximum_size(),
+                    ),
+                    (large.scc_sort_count(), small.scc_sort_count()),
+                    (large.scc_sort_elements(), small.scc_sort_elements()),
+                    (
+                        large.scc_plan_component_capacity(),
+                        small.scc_plan_component_capacity(),
+                    ),
+                    (
+                        large.scc_plan_member_capacity(),
+                        small.scc_plan_member_capacity(),
+                    ),
+                    (
+                        large.scc_plan_internal_use_capacity(),
+                        small.scc_plan_internal_use_capacity(),
+                    ),
+                    (
+                        large.scc_plan_incoming_use_capacity(),
+                        small.scc_plan_incoming_use_capacity(),
+                    ),
+                    (
+                        large.scc_plan_retained_payload_bytes(),
+                        small.scc_plan_retained_payload_bytes(),
+                    ),
+                    (
+                        large.scc_graph_workspace_peak_known_bytes(),
+                        small.scc_graph_workspace_peak_known_bytes(),
+                    ),
+                    (
+                        large.scc_f1_graph_input_plan_peak_known_bytes(),
+                        small.scc_f1_graph_input_plan_peak_known_bytes(),
+                    ),
+                ] {
+                    if small != 0 {
+                        assert!(
+                            large * 2 < small * 5,
+                            "{large} exceeded linear growth from {small}"
+                        );
+                    } else {
+                        assert_eq!(large, 0, "zero linear counter grew at doubling");
+                    }
+                }
+                assert!(large.scc_count() <= *large_n);
+            }
+        }
+    }
+    #[test]
+    fn f1_peak_accounting_forces_co_resident_kosaraju_and_scheduler_workspaces() {
+        let n = 1_000;
+        let chain = (1..n).map(|index| (index, index - 1)).collect::<Vec<_>>();
+        let insertion = (0..chain.len()).rev().collect::<Vec<_>>();
+        let (_, chain_counters) = synthetic_scc_plan(n, &chain, &insertion);
+        assert!(
+            chain_counters.scc_kosaraju_workspace_peak_bytes()
+                >= chain_counters.scc_graph_workspace_peak_known_bytes()
+                    + 2 * n * std::mem::size_of::<bool>()
+                    + n * std::mem::size_of::<usize>()
+        );
+        assert!(chain_counters.scc_partition_workspace_peak_bytes() > 0);
+        assert!(
+            chain_counters.scc_f1_graph_input_plan_peak_known_bytes()
+                >= chain_counters.scc_kosaraju_workspace_peak_bytes()
+                && chain_counters.scc_f1_graph_input_plan_peak_known_bytes()
+                    >= chain_counters.scc_partition_workspace_peak_bytes()
+                && chain_counters.scc_f1_graph_input_plan_peak_known_bytes()
+                    >= chain_counters.scc_freeze_transition_peak_bytes()
+        );
+
+        let (_, independent_counters) = synthetic_scc_plan(n, &[], &[]);
+        assert_eq!(independent_counters.scc_ready_queue_maximum_size(), n);
+        assert!(
+            independent_counters.scc_scheduler_workspace_peak_bytes()
+                >= independent_counters.scc_graph_workspace_peak_known_bytes()
+                    + n * std::mem::size_of::<usize>()
+        );
+        assert!(
+            independent_counters.scc_f1_graph_input_plan_peak_known_bytes()
+                >= independent_counters.scc_scheduler_workspace_peak_bytes()
+        );
+    }
+    #[test]
+    fn f1_stable_id_clone_witness_counts_handles_not_referent_payloads() {
+        let (_, counters) = synthetic_scc_plan(3, &[(0, 1), (1, 2), (2, 0)], &[2, 1, 0]);
+        // 4D + 2C + 2U = 4 * 3 + 2 * 1 + 2 * 3 stable-ID handle clones.
+        assert_eq!(counters.scc_stable_id_clone_count(), 20);
+        assert_eq!(
+            counters.scc_stable_id_clone_payload_bytes(),
+            14 * std::mem::size_of::<DefinitionOrderId>()
+                + 6 * std::mem::size_of::<DefinitionUseId>()
+        );
+    }
     #[test]
     fn f0_resolved_name_endpoint_work_remains_linear_for_chain_and_repeated_target_families() {
         let chain = |n| {
@@ -2659,6 +3320,8 @@ mod tests {
             assert_eq!(c.copied_spelling_bytes(), 0);
             assert_eq!(c.definition_root_def_id_clone_bytes(), 0);
             assert_eq!(c.eager_explanation_builds(), 0);
+            // F1 remains a standalone static kernel; F0 collection and solve
+            // retain no SCC plan or execution state before the later F2 gate.
             assert_eq!(c.scc_count(), 0);
         }
         for solved in [&a, &b] {
