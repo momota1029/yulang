@@ -177,11 +177,14 @@ uses are complete with clean M3 implementation review. Collection remains one
 HIR traversal plus one collected-endpoint pass; Name type/effect projections
 and integer fact counts are unchanged. F1's standalone static SCC kernel is
 also complete after three bounded M3 review/repair rounds. It uses iterative
-Kosaraju over `parent -> target` arcs, freezes deterministic dependency-sink-first
-components and exact internal/incoming use partitions, and retains production
-resource counters without integrating the plan into `ConstraintBatch` or
-executing component semantics. Immediate next action: implement F2 batch
-integration and artifact-checked queries over this kernel. Scheme/generalization
+Kosaraju over `parent -> target` arcs and freezes deterministic dependency-sink-first
+components with exact internal/incoming use partitions. F2 batch integration is
+complete after two bounded M3 review rounds: `ConstraintBatch` now owns one plan
+frozen only after complete F0 endpoint resolution and exposes crate-private,
+artifact-checked indexed queries without executing component semantics. The
+F0-F2 foundation is complete. Immediate next action: design the first semantic
+SCC execution gate over internal open uses, dependency-closed instantiation,
+and atomic component publication before implementing any of them. Scheme/generalization
 representation, recursive-cycle result,
 Function syntax/types, application, methods/roles, and Core IR remain later
 structure gates rather than fixture-specific extensions.

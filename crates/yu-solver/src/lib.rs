@@ -14,14 +14,8 @@ use yu_hir::{
 };
 use yu_types::{ComponentKind, Leaf};
 
-#[allow(
-    dead_code,
-    reason = "F1 is a standalone static kernel; F2 owns batch integration and query exposure"
-)]
 mod scc;
-
-#[cfg(test)]
-use scc::SccPlan;
+use scc::{SccComponentId, SccPlan};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ComponentId {
@@ -362,6 +356,8 @@ pub struct ConstraintBatch {
     definition_positions: HashMap<DefinitionOrderId, usize>,
     definition_uses: Vec<DefinitionUse>,
     definition_use_positions: HashMap<DefinitionUseId, usize>,
+    /// Frozen once, after F0 endpoint resolution and both total-map checks.
+    scc_plan: Option<SccPlan>,
     components: Vec<ComponentId>,
     occurrence_component_positions: HashMap<HirOccurrenceId, ComponentPositions>,
     root_component_positions: HashMap<DefinitionRootId, usize>,
@@ -369,6 +365,10 @@ pub struct ConstraintBatch {
     counters: ProductionCounters,
     definition_query_probes: Arc<AtomicUsize>,
     definition_use_query_probes: Arc<AtomicUsize>,
+    scc_component_for_definition_query_probes: Arc<AtomicUsize>,
+    scc_component_members_query_probes: Arc<AtomicUsize>,
+    scc_component_internal_uses_query_probes: Arc<AtomicUsize>,
+    scc_component_incoming_uses_query_probes: Arc<AtomicUsize>,
     occurrence_component_query_probes: Arc<AtomicUsize>,
     root_component_query_probes: Arc<AtomicUsize>,
 }
@@ -385,12 +385,17 @@ impl ConstraintBatch {
             definition_positions: HashMap::new(),
             definition_uses: Vec::new(),
             definition_use_positions: HashMap::new(),
+            scc_plan: None,
             components: Vec::new(),
             occurrence_component_positions: HashMap::new(),
             root_component_positions: HashMap::new(),
             occurrences: Vec::new(),
             definition_query_probes: Arc::new(AtomicUsize::new(0)),
             definition_use_query_probes: Arc::new(AtomicUsize::new(0)),
+            scc_component_for_definition_query_probes: Arc::new(AtomicUsize::new(0)),
+            scc_component_members_query_probes: Arc::new(AtomicUsize::new(0)),
+            scc_component_internal_uses_query_probes: Arc::new(AtomicUsize::new(0)),
+            scc_component_incoming_uses_query_probes: Arc::new(AtomicUsize::new(0)),
             occurrence_component_query_probes: Arc::new(AtomicUsize::new(0)),
             root_component_query_probes: Arc::new(AtomicUsize::new(0)),
             counters: ProductionCounters {
@@ -608,10 +613,26 @@ impl ConstraintBatch {
         batch.counters.definition_use_index_retained_bytes =
             batch.definition_use_positions.capacity()
                 * std::mem::size_of::<(DefinitionUseId, usize)>();
-        batch
-            .finish_collection_accounting(definition_by_hir_id.capacity(), pending_uses.capacity());
+        let definition_endpoint_index_capacity = definition_by_hir_id.capacity();
+        let pending_endpoint_capacity = pending_uses.capacity();
+        batch.finish_collection_accounting(
+            definition_endpoint_index_capacity,
+            pending_endpoint_capacity,
+        );
+        // Endpoint resolution has completed. These F0-only borrowed/index
+        // workspaces cannot co-reside with F2 graph construction.
         drop(pending_uses);
         drop(definition_by_hir_id);
+        // F2 freezes exactly one plan from the sealed F0 records.  The plan
+        // borrows their identities during construction; it never needs a
+        // second definition-ID vector or another HIR traversal.
+        batch.scc_plan = Some(SccPlan::build(
+            &batch.collection_artifact,
+            &batch.definitions,
+            &batch.definition_uses,
+            &mut batch.counters,
+        )?);
+        batch.finish_scc_plan_accounting();
         Ok(batch)
     }
     pub fn hir(&self) -> &Arc<HirModule> {
@@ -665,11 +686,100 @@ impl ConstraintBatch {
             .and_then(|&position| self.definition_uses.get(position))
             .ok_or(CollectionLookupError::MissingIdentity)
     }
+    /// Canonical component identities in dependency-sink-first order.
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(crate) fn scc_components_in_dependency_first_order(
+        &self,
+    ) -> impl Iterator<Item = &SccComponentId> {
+        self.scc_plan().components_in_dependency_first_order()
+    }
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(crate) fn scc_component_for_definition(
+        &self,
+        definition: &DefinitionOrderId,
+    ) -> Result<&SccComponentId, CollectionLookupError> {
+        self.require_owned_definition(definition)?;
+        self.scc_component_for_definition_query_probes
+            .fetch_add(1, Ordering::Relaxed);
+        self.scc_plan().component_for_definition(definition)
+    }
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(crate) fn scc_component_members(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<&[DefinitionOrderId], CollectionLookupError> {
+        self.require_owned_scc_component(component)?;
+        self.scc_component_members_query_probes
+            .fetch_add(1, Ordering::Relaxed);
+        self.scc_plan().members(component)
+    }
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(crate) fn scc_component_internal_uses(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<&[DefinitionUseId], CollectionLookupError> {
+        self.require_owned_scc_component(component)?;
+        self.scc_component_internal_uses_query_probes
+            .fetch_add(1, Ordering::Relaxed);
+        self.scc_plan().internal_uses(component)
+    }
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(crate) fn scc_component_incoming_uses(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<&[DefinitionUseId], CollectionLookupError> {
+        self.require_owned_scc_component(component)?;
+        self.scc_component_incoming_uses_query_probes
+            .fetch_add(1, Ordering::Relaxed);
+        self.scc_plan().incoming_uses(component)
+    }
     pub fn counters(&self) -> ProductionCounters {
         let mut counters = self.counters.clone();
         counters.definition_query_probes = self.definition_query_probes.load(Ordering::Relaxed);
         counters.definition_use_query_probes =
             self.definition_use_query_probes.load(Ordering::Relaxed);
+        counters.scc_component_for_definition_query_probes = self
+            .scc_component_for_definition_query_probes
+            .load(Ordering::Relaxed);
+        counters.scc_component_members_query_probes = self
+            .scc_component_members_query_probes
+            .load(Ordering::Relaxed);
+        counters.scc_component_internal_uses_query_probes = self
+            .scc_component_internal_uses_query_probes
+            .load(Ordering::Relaxed);
+        counters.scc_component_incoming_uses_query_probes = self
+            .scc_component_incoming_uses_query_probes
+            .load(Ordering::Relaxed);
         counters.occurrence_component_query_probes = self
             .occurrence_component_query_probes
             .load(Ordering::Relaxed);
@@ -860,6 +970,31 @@ impl ConstraintBatch {
             .then_some(())
             .ok_or(CollectionLookupError::ArtifactMismatch)
     }
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    fn require_owned_scc_component(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<(), CollectionLookupError> {
+        self.require_owned_definition(component.canonical_definition())
+    }
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    fn scc_plan(&self) -> &SccPlan {
+        self.scc_plan
+            .as_ref()
+            .expect("complete F0 collection always freezes one SCC plan")
+    }
     fn root_value_component_for_collect(
         &mut self,
         root: &DefinitionRootId,
@@ -910,6 +1045,22 @@ impl ConstraintBatch {
         self.counters.f0_collection_peak_bytes = self.counters.f0_collection_retained_bytes
             + self.counters.definition_endpoint_index_peak_bytes
             + self.counters.definition_use_endpoint_workspace_peak_bytes;
+    }
+    fn finish_scc_plan_accounting(&mut self) {
+        let f1_input_bytes = scc::f1_input_retained_bytes(&self.definitions, &self.definition_uses);
+        let scc_temporary_or_plan_bytes = self
+            .counters
+            .scc_f1_graph_input_plan_peak_known_bytes
+            .saturating_sub(f1_input_bytes);
+        self.counters.f2_batch_retained_bytes = self.counters.f0_collection_retained_bytes
+            + self.counters.scc_plan_retained_payload_bytes;
+        // The endpoint workspaces peak before the retained plan exists.  SCC
+        // construction instead co-resides with the retained F0 batch, so add
+        // only its non-input workspace to avoid charging F0 records twice.
+        self.counters.f2_batch_plan_peak_bytes = self
+            .counters
+            .f0_collection_peak_bytes
+            .max(self.counters.f0_collection_retained_bytes + scc_temporary_or_plan_bytes);
     }
 }
 
@@ -971,6 +1122,12 @@ pub struct ProductionCounters {
     f0_collection_retained_bytes: usize,
     /// Retained F0 bytes plus both temporary endpoint workspaces at their co-resident peak.
     f0_collection_peak_bytes: usize,
+    /// Retained F0 batch storage plus its one immutable F2 SCC plan.
+    f2_batch_retained_bytes: usize,
+    /// Peak of endpoint resolution, or F2 SCC construction after its two
+    /// F0-only endpoint workspaces have dropped. The latter adds only F1's
+    /// non-input workspace to the already-retained F0 batch.
+    f2_batch_plan_peak_bytes: usize,
     retained_definition_uses: usize,
     definition_record_index_capacity: usize,
     definition_record_index_retained_bytes: usize,
@@ -980,6 +1137,10 @@ pub struct ProductionCounters {
     definition_use_index_retained_bytes: usize,
     definition_query_probes: usize,
     definition_use_query_probes: usize,
+    scc_component_for_definition_query_probes: usize,
+    scc_component_members_query_probes: usize,
+    scc_component_internal_uses_query_probes: usize,
+    scc_component_incoming_uses_query_probes: usize,
     /// F1's standalone static directed graph and frozen-plan accounting.
     /// Byte fields use the established logical `capacity * size_of::<slot>()`
     /// model for `Vec`, `HashMap`, and `HashSet` storage. They exclude allocator
@@ -1143,6 +1304,8 @@ impl ProductionCounters {
         definition_use_index_inserts,
         f0_collection_retained_bytes,
         f0_collection_peak_bytes,
+        f2_batch_retained_bytes,
+        f2_batch_plan_peak_bytes,
         retained_definition_uses,
         definition_record_index_capacity,
         definition_record_index_retained_bytes,
@@ -1152,6 +1315,10 @@ impl ProductionCounters {
         definition_use_index_retained_bytes,
         definition_query_probes,
         definition_use_query_probes,
+        scc_component_for_definition_query_probes,
+        scc_component_members_query_probes,
+        scc_component_internal_uses_query_probes,
+        scc_component_incoming_uses_query_probes,
         scc_distinct_arcs,
         scc_retained_occurrence_payloads,
         scc_forward_adjacency_entries,
@@ -1289,6 +1456,8 @@ impl ProductionCounters {
             definition_use_index_inserts,
             f0_collection_retained_bytes,
             f0_collection_peak_bytes,
+            f2_batch_retained_bytes,
+            f2_batch_plan_peak_bytes,
             retained_definition_uses,
             definition_record_index_capacity,
             definition_record_index_retained_bytes,
@@ -1298,6 +1467,60 @@ impl ProductionCounters {
             definition_use_index_retained_bytes,
             definition_query_probes,
             definition_use_query_probes,
+            scc_component_for_definition_query_probes,
+            scc_component_members_query_probes,
+            scc_component_internal_uses_query_probes,
+            scc_component_incoming_uses_query_probes,
+            scc_distinct_arcs,
+            scc_retained_occurrence_payloads,
+            scc_forward_adjacency_entries,
+            scc_forward_payload_lengths,
+            scc_forward_adjacency_capacity,
+            scc_forward_payload_capacity,
+            scc_reverse_adjacency_entries,
+            scc_reverse_adjacency_capacity,
+            scc_definition_index_probes,
+            scc_definition_index_capacity,
+            scc_seen_use_set_probes,
+            scc_seen_use_set_capacity,
+            scc_condensation_set_probes,
+            scc_condensation_set_capacity,
+            scc_plan_component_index_probes,
+            scc_plan_component_index_capacity,
+            scc_plan_definition_index_probes,
+            scc_plan_definition_index_capacity,
+            scc_map_set_rebuilds,
+            scc_stable_id_clone_count,
+            scc_stable_id_clone_payload_bytes,
+            scc_node_visits,
+            scc_edge_visits,
+            scc_stack_pushes,
+            scc_lowlink_writes,
+            scc_component_writes,
+            scc_peak_stack_bytes,
+            scc_peak_temporary_set_bytes,
+            scc_kosaraju_workspace_peak_bytes,
+            scc_partition_workspace_peak_bytes,
+            scc_scheduler_workspace_peak_bytes,
+            scc_freeze_transition_peak_bytes,
+            scc_maximum_component_size,
+            scc_internal_use_count,
+            scc_incoming_use_count,
+            scc_condensation_node_visits,
+            scc_condensation_edge_visits,
+            scc_ready_queue_operations,
+            scc_ready_queue_comparisons,
+            scc_ready_queue_maximum_size,
+            scc_sort_count,
+            scc_sort_comparisons,
+            scc_sort_elements,
+            scc_plan_component_capacity,
+            scc_plan_member_capacity,
+            scc_plan_internal_use_capacity,
+            scc_plan_incoming_use_capacity,
+            scc_plan_retained_payload_bytes,
+            scc_graph_workspace_peak_known_bytes,
+            scc_f1_graph_input_plan_peak_known_bytes,
             cst_traversals,
             cst_rescans,
             hir_clone_count,
@@ -2325,6 +2548,34 @@ mod tests {
             })
             .collect()
     }
+    fn raw_batch_scc_plan(batch: &ConstraintBatch) -> Vec<(u32, Vec<u32>, Vec<u32>, Vec<u32>)> {
+        batch
+            .scc_components_in_dependency_first_order()
+            .map(|component| {
+                (
+                    component.canonical_definition().ordinal(),
+                    batch
+                        .scc_component_members(component)
+                        .unwrap()
+                        .iter()
+                        .map(DefinitionOrderId::ordinal)
+                        .collect(),
+                    batch
+                        .scc_component_internal_uses(component)
+                        .unwrap()
+                        .iter()
+                        .map(|id| id.occurrence().ordinal())
+                        .collect(),
+                    batch
+                        .scc_component_incoming_uses(component)
+                        .unwrap()
+                        .iter()
+                        .map(|id| id.occurrence().ordinal())
+                        .collect(),
+                )
+            })
+            .collect()
+    }
     #[test]
     fn f1_synthetic_records_freeze_isolated_and_dependency_sink_first_components() {
         let (isolated, _) = synthetic_scc_plan(1, &[], &[]);
@@ -2470,6 +2721,331 @@ mod tests {
             ),
             Err(CollectionAvailabilityError::DuplicateDefinitionUseId)
         ));
+    }
+    #[test]
+    fn f2_hir_batches_freeze_dependency_first_order_and_exact_partitions() {
+        let isolated = collect(module("my lone = 42", "f2-isolated.yu"));
+        assert_eq!(
+            raw_batch_scc_plan(&isolated),
+            vec![(0, vec![0], vec![], vec![])]
+        );
+
+        let chain = collect(module(
+            "my head = middle; my middle = tail; my tail = 42",
+            "f2-chain.yu",
+        ));
+        assert_eq!(
+            raw_batch_scc_plan(&chain),
+            vec![
+                (2, vec![2], vec![], vec![1]),
+                (1, vec![1], vec![], vec![0]),
+                (0, vec![0], vec![], vec![]),
+            ]
+        );
+
+        let backward_chain = collect(module(
+            "my tail = 42; my middle = tail; my head = middle",
+            "f2-backward-chain.yu",
+        ));
+        assert_eq!(
+            raw_batch_scc_plan(&backward_chain),
+            vec![
+                (0, vec![0], vec![], vec![1]),
+                (1, vec![1], vec![], vec![2]),
+                (2, vec![2], vec![], vec![]),
+            ]
+        );
+
+        let diamond = collect(module(
+            "my top = left; my left = sink; my right = sink; my sink = 42",
+            "f2-diamond.yu",
+        ));
+        assert_eq!(
+            raw_batch_scc_plan(&diamond),
+            vec![
+                (3, vec![3], vec![], vec![1, 2]),
+                (1, vec![1], vec![], vec![0]),
+                (0, vec![0], vec![], vec![]),
+                (2, vec![2], vec![], vec![]),
+            ]
+        );
+
+        let duplicate = collect(module(
+            "my sink = 42; my first = sink; my second = sink",
+            "f2-duplicate.yu",
+        ));
+        assert_eq!(
+            raw_batch_scc_plan(&duplicate),
+            vec![
+                (0, vec![0], vec![], vec![1, 2]),
+                (1, vec![1], vec![], vec![]),
+                (2, vec![2], vec![], vec![]),
+            ]
+        );
+
+        let self_cycle = collect(module("my self_ref = self_ref", "f2-self.yu"));
+        assert_eq!(
+            raw_batch_scc_plan(&self_cycle),
+            vec![(0, vec![0], vec![0], vec![])]
+        );
+
+        let mutual = collect(module("my left = right; my right = left", "f2-mutual.yu"));
+        assert_eq!(
+            raw_batch_scc_plan(&mutual),
+            vec![(0, vec![0, 1], vec![0, 1], vec![])]
+        );
+
+        let independent = collect(module(
+            "my first = 42; my second = 42; my third = 42",
+            "f2-independent.yu",
+        ));
+        assert_eq!(
+            raw_batch_scc_plan(&independent),
+            vec![
+                (0, vec![0], vec![], vec![]),
+                (1, vec![1], vec![], vec![]),
+                (2, vec![2], vec![], vec![]),
+            ]
+        );
+    }
+    #[test]
+    fn f2_batch_queries_reject_foreign_and_missing_identities_with_decisive_probes() {
+        let first = collect(module("my x = x; 42", "f2-first.yu"));
+        let second = collect(module("my x = x", "f2-second.yu"));
+        let definition = first.definitions()[0].definition();
+        let component = first
+            .scc_component_for_definition(definition)
+            .unwrap()
+            .clone();
+        assert_eq!(
+            first.scc_component_members(&component).unwrap(),
+            std::slice::from_ref(definition)
+        );
+        assert_eq!(
+            first.scc_component_internal_uses(&component).unwrap(),
+            std::slice::from_ref(first.definition_uses()[0].id())
+        );
+        assert!(
+            first
+                .scc_component_incoming_uses(&component)
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            first
+                .definition_use(first.definition_uses()[0].id())
+                .unwrap()
+                .id(),
+            first.definition_uses()[0].id()
+        );
+
+        let missing_definition = DefinitionOrderId::new(first.collection_artifact.clone(), 99);
+        let missing_component = SccComponentId::new(missing_definition.clone());
+        let missing_use = DefinitionUseId::new(
+            first.collection_artifact.clone(),
+            root(first.hir(), 1).occurrence().clone(),
+        );
+        assert_eq!(
+            first.scc_component_for_definition(&missing_definition),
+            Err(CollectionLookupError::MissingIdentity)
+        );
+        assert_eq!(
+            first.scc_component_members(&missing_component),
+            Err(CollectionLookupError::MissingIdentity)
+        );
+        assert_eq!(
+            first.scc_component_internal_uses(&missing_component),
+            Err(CollectionLookupError::MissingIdentity)
+        );
+        assert_eq!(
+            first.scc_component_incoming_uses(&missing_component),
+            Err(CollectionLookupError::MissingIdentity)
+        );
+        assert_eq!(
+            first.definition_use(&missing_use),
+            Err(CollectionLookupError::MissingIdentity)
+        );
+
+        let foreign_definition = second.definitions()[0].definition();
+        let foreign_component = second
+            .scc_component_for_definition(foreign_definition)
+            .unwrap()
+            .clone();
+        assert_eq!(
+            first.scc_component_for_definition(foreign_definition),
+            Err(CollectionLookupError::ArtifactMismatch)
+        );
+        assert_eq!(
+            first.scc_component_members(&foreign_component),
+            Err(CollectionLookupError::ArtifactMismatch)
+        );
+        assert_eq!(
+            first.scc_component_internal_uses(&foreign_component),
+            Err(CollectionLookupError::ArtifactMismatch)
+        );
+        assert_eq!(
+            first.scc_component_incoming_uses(&foreign_component),
+            Err(CollectionLookupError::ArtifactMismatch)
+        );
+        assert_eq!(
+            first.definition_use(second.definition_uses()[0].id()),
+            Err(CollectionLookupError::ArtifactMismatch)
+        );
+
+        let counters = first.counters();
+        assert_eq!(counters.scc_component_for_definition_query_probes(), 2);
+        assert_eq!(counters.scc_component_members_query_probes(), 2);
+        assert_eq!(counters.scc_component_internal_uses_query_probes(), 2);
+        assert_eq!(counters.scc_component_incoming_uses_query_probes(), 2);
+        assert_eq!(counters.definition_use_query_probes(), 2);
+    }
+    #[test]
+    fn f2_preserves_full_internal_and_incoming_use_slices_and_composes_batch_plan_accounting() {
+        let internal_uses = 32;
+        let mut internal_source = String::new();
+        for index in 0..internal_uses {
+            if index != 0 {
+                internal_source.push_str("; ");
+            }
+            internal_source.push_str(&format!(
+                "my member_{index} = member_{}",
+                (index + 1) % internal_uses
+            ));
+        }
+        let internal_batch = collect(module(&internal_source, "f2-full-internal.yu"));
+        let internal_component = internal_batch
+            .scc_component_for_definition(internal_batch.definitions()[0].definition())
+            .unwrap();
+        let internal = internal_batch
+            .scc_component_internal_uses(internal_component)
+            .unwrap();
+        assert_eq!(internal.len(), internal_uses);
+        assert_eq!(
+            internal
+                .iter()
+                .map(|id| internal_batch
+                    .definition_use(id)
+                    .unwrap()
+                    .occurrence()
+                    .ordinal())
+                .collect::<Vec<_>>(),
+            (0..internal_uses as u32).collect::<Vec<_>>(),
+        );
+        assert_eq!(
+            internal_batch.counters().scc_internal_use_count(),
+            internal_uses
+        );
+
+        // One sink component retains every distinct incoming occurrence ID.
+        let uses = 32;
+        let mut source = String::from("my sink = 42");
+        for index in 0..uses {
+            source.push_str(&format!("; my user_{index} = sink"));
+        }
+        let batch = collect(module(&source, "f2-full-incoming.yu"));
+        let sink = batch.definitions()[0].definition();
+        let component = batch.scc_component_for_definition(sink).unwrap();
+        let incoming = batch.scc_component_incoming_uses(component).unwrap();
+        assert_eq!(incoming.len(), uses);
+        assert_eq!(
+            incoming
+                .iter()
+                .map(|id| batch.definition_use(id).unwrap().occurrence().ordinal())
+                .collect::<Vec<_>>(),
+            (1..=uses as u32).collect::<Vec<_>>(),
+        );
+        let counters = batch.counters();
+        assert_eq!(counters.scc_incoming_use_count(), uses);
+        assert!(counters.scc_plan_incoming_use_capacity() >= uses);
+        assert_eq!(
+            counters.f2_batch_retained_bytes(),
+            counters.f0_collection_retained_bytes() + counters.scc_plan_retained_payload_bytes()
+        );
+        let f1_input_bytes = batch.definitions().len() * std::mem::size_of::<CollectedDefinition>()
+            + batch.definition_uses().len() * std::mem::size_of::<DefinitionUse>();
+        assert_eq!(
+            counters.f2_batch_plan_peak_bytes(),
+            counters.f0_collection_peak_bytes().max(
+                // The endpoint index and pending-use vector were dropped before
+                // SccPlan::build, so this is the only F2 co-resident peak.
+                counters.f0_collection_retained_bytes()
+                    + counters
+                        .scc_f1_graph_input_plan_peak_known_bytes()
+                        .saturating_sub(f1_input_bytes)
+            )
+        );
+    }
+    #[test]
+    fn f2_batch_clone_preserves_immutable_plan_brand_and_existing_counter_contract() {
+        let batch = collect(module("my left = right; my right = left", "f2-clone.yu"));
+        let stable_id_clone_count = batch.counters().scc_stable_id_clone_count();
+        let cloned = batch.clone();
+
+        assert!(Arc::ptr_eq(
+            &batch.collection_artifact,
+            &cloned.collection_artifact
+        ));
+        assert_eq!(raw_batch_scc_plan(&cloned), raw_batch_scc_plan(&batch));
+        assert_eq!(
+            cloned.counters().scc_stable_id_clone_count(),
+            stable_id_clone_count
+        );
+
+        let component = cloned
+            .scc_component_for_definition(batch.definitions()[0].definition())
+            .unwrap();
+        assert_eq!(cloned.scc_component_members(component).unwrap().len(), 2);
+        // The pre-existing derived `ConstraintBatch::Clone` contract shares
+        // query probes through its `Arc<AtomicUsize>` fields. F1-only clone
+        // accounting intentionally remains a construction counter.
+        assert_eq!(
+            batch.counters().scc_component_for_definition_query_probes(),
+            1
+        );
+        assert_eq!(batch.counters(), cloned.counters());
+        assert_eq!(batch.counters().scc_component_members_query_probes(), 3);
+    }
+    #[test]
+    fn f2_excludes_error_ambiguous_unresolved_and_direct_root_names_without_semantic_changes() {
+        let hir = module(
+            "my target = 42; my user = target; my ambiguous = dup; my dup = 1; my dup = 2; my unresolved = missing; my broken = @; target",
+            "f2-exclusions.yu",
+        );
+        let batch = collect(hir.clone());
+        assert_eq!(batch.definition_uses().len(), 1);
+        assert_eq!(
+            raw_batch_scc_plan(&batch),
+            vec![
+                (0, vec![0], vec![], vec![1]),
+                (1, vec![1], vec![], vec![]),
+                (2, vec![2], vec![], vec![]),
+                (3, vec![3], vec![], vec![]),
+                (4, vec![4], vec![], vec![]),
+                (5, vec![5], vec![], vec![]),
+                (6, vec![6], vec![], vec![]),
+            ]
+        );
+        let solved = SolvedModule::solve(batch).unwrap();
+        let user_occurrence = match &hir.items()[1] {
+            HirItem::Binding(binding) => binding.value().occurrence(),
+            _ => panic!("second item is the user binding"),
+        };
+        assert_eq!(solved.store().facts().len(), 15);
+        assert_eq!(
+            solved.projection_for(user_occurrence).unwrap(),
+            SolvedProjection {
+                value: SolvedValue::Unknown,
+                effect: SolvedEffect::Unknown,
+            }
+        );
+        assert_eq!(
+            solved.projection_for(root(&hir, 7).occurrence()).unwrap(),
+            SolvedProjection {
+                value: SolvedValue::Unknown,
+                effect: SolvedEffect::Unknown,
+            }
+        );
+        assert_eq!(solved.counters().scc_count(), 7);
     }
     #[test]
     fn f1_static_scaling_keeps_graph_work_linear_and_ordering_budget_separate() {
@@ -2832,6 +3408,15 @@ mod tests {
         let chains = [1000, 2000, 4000].map(|n| collect(module(&chain(n), "f0-chain.yu")));
         let repeated = [1000, 2000, 4000]
             .map(|n| collect(module(&repeated_target(n), "f0-repeated-target.yu")));
+        let isolated = [1000, 2000, 4000].map(|n| {
+            collect(module(
+                &(0..n)
+                    .map(|index| format!("my isolated_{index} = 42"))
+                    .collect::<Vec<_>>()
+                    .join("; "),
+                "f2-isolated-scale.yu",
+            ))
+        });
         let long_realm = "endpoint-realm-".repeat(64);
         let long_path = format!("f0/{}/endpoint.yu", "module-path-".repeat(128));
         let long_target = format!("target_{}", "identity_".repeat(128));
@@ -2929,6 +3514,70 @@ mod tests {
                         small.f0_collection_peak_bytes(),
                     ),
                     (large.index_rebuilds(), small.index_rebuilds()),
+                ] {
+                    assert!(large < small * 5 / 2 + 1);
+                }
+            }
+        }
+        // F2 reuses the collected definitions directly: no DefinitionOrderId
+        // input vector is built, and the retained batch/plan peak is measured
+        // after F0 endpoint workspaces have dropped.
+        for (&n, batch) in [1000, 2000, 4000].iter().zip(isolated.iter()) {
+            let counters = batch.counters();
+            assert_eq!(counters.hir_traversals(), 1);
+            assert_eq!(counters.collected_definitions(), n);
+            assert_eq!(counters.retained_definition_uses(), 0);
+            assert_eq!(counters.scc_count(), n);
+        }
+        for family in [&chains, &repeated, &isolated] {
+            for batch in family {
+                let counters = batch.counters();
+                let f1_input_bytes = batch.definitions().len()
+                    * std::mem::size_of::<CollectedDefinition>()
+                    + batch.definition_uses().len() * std::mem::size_of::<DefinitionUse>();
+                assert_eq!(
+                    counters.f2_batch_retained_bytes(),
+                    counters.f0_collection_retained_bytes()
+                        + counters.scc_plan_retained_payload_bytes()
+                );
+                assert_eq!(
+                    counters.f2_batch_plan_peak_bytes(),
+                    counters.f0_collection_peak_bytes().max(
+                        counters.f0_collection_retained_bytes()
+                            + counters
+                                .scc_f1_graph_input_plan_peak_known_bytes()
+                                .saturating_sub(f1_input_bytes)
+                    )
+                );
+            }
+            for pair in family.windows(2) {
+                let small = pair[0].counters();
+                let large = pair[1].counters();
+                for (large, small) in [
+                    (
+                        large.definition_record_retained_bytes(),
+                        small.definition_record_retained_bytes(),
+                    ),
+                    (
+                        large.definition_record_index_retained_bytes(),
+                        small.definition_record_index_retained_bytes(),
+                    ),
+                    (
+                        large.f2_batch_retained_bytes(),
+                        small.f2_batch_retained_bytes(),
+                    ),
+                    (
+                        large.f2_batch_plan_peak_bytes(),
+                        small.f2_batch_plan_peak_bytes(),
+                    ),
+                    (
+                        large.scc_plan_retained_payload_bytes(),
+                        small.scc_plan_retained_payload_bytes(),
+                    ),
+                    (
+                        large.scc_f1_graph_input_plan_peak_known_bytes(),
+                        small.scc_f1_graph_input_plan_peak_known_bytes(),
+                    ),
                 ] {
                     assert!(large < small * 5 / 2 + 1);
                 }
@@ -3320,9 +3969,7 @@ mod tests {
             assert_eq!(c.copied_spelling_bytes(), 0);
             assert_eq!(c.definition_root_def_id_clone_bytes(), 0);
             assert_eq!(c.eager_explanation_builds(), 0);
-            // F1 remains a standalone static kernel; F0 collection and solve
-            // retain no SCC plan or execution state before the later F2 gate.
-            assert_eq!(c.scc_count(), 0);
+            assert_eq!(c.scc_count(), n);
         }
         for solved in [&a, &b] {
             for item in solved.hir().items() {
@@ -3347,6 +3994,16 @@ mod tests {
             (y.occurrence_retained_bytes(), x.occurrence_retained_bytes()),
             (y.root_retained_bytes(), x.root_retained_bytes()),
             (y.component_retained_bytes(), x.component_retained_bytes()),
+            (y.f2_batch_retained_bytes(), x.f2_batch_retained_bytes()),
+            (y.f2_batch_plan_peak_bytes(), x.f2_batch_plan_peak_bytes()),
+            (
+                y.scc_plan_retained_payload_bytes(),
+                x.scc_plan_retained_payload_bytes(),
+            ),
+            (
+                y.scc_f1_graph_input_plan_peak_known_bytes(),
+                x.scc_f1_graph_input_plan_peak_known_bytes(),
+            ),
             (y.fact_retained_bytes(), x.fact_retained_bytes()),
             (
                 y.canonical_map_retained_bytes(),

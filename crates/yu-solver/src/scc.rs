@@ -7,8 +7,8 @@ use std::{
 };
 
 use super::{
-    CollectionArtifactToken, CollectionAvailabilityError, DefinitionOrderId, DefinitionUse,
-    DefinitionUseId, ProductionCounters,
+    CollectedDefinition, CollectionArtifactToken, CollectionAvailabilityError,
+    CollectionLookupError, DefinitionOrderId, DefinitionUse, DefinitionUseId, ProductionCounters,
 };
 
 /// Artifact-branded canonical identity for one static SCC.
@@ -21,14 +21,34 @@ pub(crate) struct SccComponentId {
 }
 
 impl SccComponentId {
-    fn new(canonical_definition: DefinitionOrderId) -> Self {
+    pub(super) fn new(canonical_definition: DefinitionOrderId) -> Self {
         Self {
             canonical_definition,
         }
     }
 
-    pub(crate) fn canonical_definition(&self) -> &DefinitionOrderId {
+    pub(super) fn canonical_definition(&self) -> &DefinitionOrderId {
         &self.canonical_definition
+    }
+}
+
+/// The F1 kernel only needs a stable definition identity.  Keeping this as a
+/// borrowed input contract lets F2 build directly from F0's retained records
+/// instead of materializing a second `Vec<DefinitionOrderId>`.
+pub(super) trait SccDefinition {
+    fn identity(&self) -> &DefinitionOrderId;
+}
+
+impl SccDefinition for CollectedDefinition {
+    fn identity(&self) -> &DefinitionOrderId {
+        self.definition()
+    }
+}
+
+#[cfg(test)]
+impl SccDefinition for DefinitionOrderId {
+    fn identity(&self) -> &DefinitionOrderId {
+        self
     }
 }
 
@@ -70,6 +90,9 @@ pub(crate) struct SccPlan {
     component_of_definition: HashMap<DefinitionOrderId, SccComponentId>,
 }
 
+/// Cloning duplicates immutable plan indexes and ID handles while preserving
+/// the collection artifact brand through its shared `Arc` token. It does not
+/// change F1 construction counters, which report only `SccPlan::build` work.
 impl Clone for SccPlan {
     fn clone(&self) -> Self {
         Self {
@@ -186,9 +209,9 @@ impl ReadyQueue {
 }
 
 impl SccPlan {
-    pub(super) fn build(
+    pub(super) fn build<T: SccDefinition>(
         artifact: &Arc<CollectionArtifactToken>,
-        definitions: &[DefinitionOrderId],
+        definitions: &[T],
         uses: &[DefinitionUse],
         counters: &mut ProductionCounters,
     ) -> Result<Self, CollectionAvailabilityError> {
@@ -196,6 +219,7 @@ impl SccPlan {
             .map_err(|_| CollectionAvailabilityError::GraphIdentityExhausted)?;
         let mut node_for_definition = HashMap::with_capacity(definitions.len());
         for (node, definition) in definitions.iter().enumerate() {
+            let definition = definition.identity();
             if !Arc::ptr_eq(artifact, &definition.artifact) {
                 return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
             }
@@ -332,8 +356,9 @@ impl SccPlan {
             let component_index = components.len();
             sort_by_count(&mut members, counters, |left, right| {
                 definitions[*left]
+                    .identity()
                     .ordinal()
-                    .cmp(&definitions[*right].ordinal())
+                    .cmp(&definitions[*right].identity().ordinal())
             });
             let canonical = members
                 .first()
@@ -355,11 +380,11 @@ impl SccPlan {
                 partition_workspace.bytes(members_bytes + logical_vec_bytes(&component_members), 0),
             );
             for &node in &members {
-                component_members.push(definitions[node].clone());
+                component_members.push(definitions[node].identity().clone());
             }
             partition_workspace.component_member_bytes += logical_vec_bytes(&component_members);
             components.push(SccComponent {
-                id: SccComponentId::new(definitions[canonical].clone()),
+                id: SccComponentId::new(definitions[canonical].identity().clone()),
                 members: component_members,
                 internal_uses: Vec::new(),
                 incoming_uses: Vec::new(),
@@ -639,12 +664,126 @@ impl SccPlan {
     }
 
     /// Canonical component identities in condensation dependency-sink-first order.
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
     pub(crate) fn components_in_dependency_first_order(
         &self,
     ) -> impl Iterator<Item = &SccComponentId> {
         self.components_in_dependency_first_order
             .iter()
             .map(|component| &component.id)
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(super) fn component_for_definition(
+        &self,
+        definition: &DefinitionOrderId,
+    ) -> Result<&SccComponentId, CollectionLookupError> {
+        self.require_owned_definition(definition)?;
+        self.component_of_definition
+            .get(definition)
+            .ok_or(CollectionLookupError::MissingIdentity)
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(super) fn members(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<&[DefinitionOrderId], CollectionLookupError> {
+        Ok(self.component(component)?.members.as_slice())
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(super) fn internal_uses(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<&[DefinitionUseId], CollectionLookupError> {
+        Ok(self.component(component)?.internal_uses.as_slice())
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    pub(super) fn incoming_uses(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<&[DefinitionUseId], CollectionLookupError> {
+        Ok(self.component(component)?.incoming_uses.as_slice())
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    fn component(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<&SccComponent, CollectionLookupError> {
+        self.require_owned_component(component)?;
+        self.component_positions
+            .get(component)
+            .and_then(|&position| self.components_in_dependency_first_order.get(position))
+            .ok_or(CollectionLookupError::MissingIdentity)
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    fn require_owned_definition(
+        &self,
+        definition: &DefinitionOrderId,
+    ) -> Result<(), CollectionLookupError> {
+        Arc::ptr_eq(&self.artifact, &definition.artifact)
+            .then_some(())
+            .ok_or(CollectionLookupError::ArtifactMismatch)
+    }
+
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "F2 read-only plan query surface awaits the later execution gate"
+        )
+    )]
+    fn require_owned_component(
+        &self,
+        component: &SccComponentId,
+    ) -> Result<(), CollectionLookupError> {
+        self.require_owned_definition(&component.canonical_definition)
     }
 
     #[cfg(test)]
@@ -699,10 +838,10 @@ where
     });
 }
 
-fn strongly_connected_components(
+fn strongly_connected_components<T: SccDefinition>(
     forward: &[Vec<GraphArc>],
     reverse: &[Vec<usize>],
-    definitions: &[DefinitionOrderId],
+    definitions: &[T],
     baseline_bytes: usize,
     counters: &mut ProductionCounters,
 ) -> Vec<Vec<usize>> {
@@ -1068,7 +1207,6 @@ fn component_storage_bytes(component: &SccComponent) -> usize {
         + logical_vec_bytes(&component.incoming_uses)
 }
 
-fn f1_input_retained_bytes(definitions: &[DefinitionOrderId], uses: &[DefinitionUse]) -> usize {
-    definitions.len() * std::mem::size_of::<DefinitionOrderId>()
-        + uses.len() * std::mem::size_of::<DefinitionUse>()
+pub(super) fn f1_input_retained_bytes<T>(definitions: &[T], uses: &[DefinitionUse]) -> usize {
+    definitions.len() * std::mem::size_of::<T>() + uses.len() * std::mem::size_of::<DefinitionUse>()
 }
