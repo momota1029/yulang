@@ -142,9 +142,12 @@ reopen completed parser-ledger retirement or the BracketRow topology without a
 new contradiction or scope expansion. The next approved vertical slice is
 direct-root `OperatorChain` HIR lowering under
 `2026-09-20-hir-direct-root-expression-slice.md`; that neutral expression-owner
-boundary is complete. The user-selected next gate is the separately designed
-`ConstraintBatch` collection boundary; do not begin it until its exact
-expression-identity/type semantics are recorded Authoritatively.
+boundary is complete. The proposed next gate is the separately designed
+`ConstraintBatch` collection boundary. Its exact expression-identity/type
+semantics are reviewed in
+`notes/design/2026-09-20-directed-subtyping-integer-slice-draft.md`, but remain
+non-authoritative pending a user decision; do not begin implementation until
+that decision is recorded.
 
 The question of how a type attaches to an associated expression is captured, not
 decided, in `notes/design/2026-09-18-hir-type-attachment-open-questions.md`.
