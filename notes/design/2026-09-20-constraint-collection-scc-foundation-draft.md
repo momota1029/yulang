@@ -1,8 +1,12 @@
 # Constraint collection and SCC inference foundation
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-20
+
+Approved-by: user
+
+Approved-at: 2026-09-20
 
 Reviewed by: compiler-referee, specification, and performance M3 reviews on
 2026-09-20; clean after two bounded repair/delta rounds.
@@ -23,10 +27,10 @@ the files into this branch would add a second mutable source tree and is not
 required. A detached temporary worktree may be used only when a filesystem
 tool cannot read Git objects directly.
 
-The user's current direction withdraws
+The user's approval withdraws
 `2026-09-20-identity-function-simple-sub-r1-supersession-draft.md` from the
-active implementation sequence. Upon approval this record becomes its active
-replacement. The former record's identity derivation remains
+active implementation sequence. This record is its active replacement. The
+former record's identity derivation remains
 evidence for a later Function/generalization gate, but its definition-order
 generalization, ordinary-self failure classification, whole-module
 `UnsupportedValueExpansion`, and no-SCC assumptions are withdrawn.

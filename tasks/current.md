@@ -164,7 +164,7 @@ equality, and generalization remain deferred. Immediate next action: select a
 new approved vertical semantic gate; do not extend this relation implicitly.
 
 Fixture-led identity inference is withdrawn as the active implementation
-sequence. The active Reviewed proposal is
+sequence. The active Authoritative design is
 `2026-09-20-constraint-collection-scc-foundation-draft.md`: first collect the
 complete definition/root/constraint/use structure, then build a sealed static
 SCC/condensation plan and integrate its artifact-checked queries into the batch.
@@ -172,8 +172,9 @@ The frozen Yulang lifecycle is the semantic oracle; its superlinear incremental
 graph mechanism is evidence rather than a code template. Identity-function
 polarity remains later evidence. Open-root connection, closed-scheme
 instantiation, generalization, and publication remain later gates. Immediate
-next action: obtain user approval for the M3-clean F0-F2 design before code
-construction. Scheme/generalization representation, recursive-cycle result,
+next action: implement F0 immutable collected definitions and dependency-only
+resolved binding-body uses, preserving one HIR traversal and all current Name
+type/effect projections. Scheme/generalization representation, recursive-cycle result,
 Function syntax/types, application, methods/roles, and Core IR remain later
 structure gates rather than fixture-specific extensions.
 
