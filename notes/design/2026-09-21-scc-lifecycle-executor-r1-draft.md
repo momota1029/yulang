@@ -1,6 +1,6 @@
 # SCC lifecycle executor R1
 
-Status: Reviewed
+Status: Reviewed; withdrawn as implementation candidate
 
 Date: 2026-09-21
 
@@ -19,6 +19,9 @@ Reviewed-by: compiler-referee, specification, and performance M3 reviews on
 Supersedes: none. `SolvedModule::solve` remains the sole plan consumer; R1 is a
 private `SolveSession` sub-owner. User approval of R1 also authorizes the
 solve-failure API change described below.
+
+Withdrawn-by: user selection of recoverable inference on 2026-09-21. R1 is
+historical lifecycle evidence only; R2 is the active successor candidate.
 
 ## Decision and ownership
 
@@ -385,4 +388,4 @@ Later gates decide schemes, generalization, freshening, value restriction,
 occurrence components and facts, recursive-cycle results, semantic error
 recovery, and Function/effect/application/method/role/import/Core IR behavior.
 
-R1 is M3 and remains blocked on explicit user approval.
+R1 is not an implementation candidate.

@@ -189,16 +189,13 @@ representation, recursive-cycle result,
 Function syntax/types, application, methods/roles, and Core IR remain later
 structure gates rather than fixture-specific extensions.
 
-The proposed next gate is Reviewed in
-`notes/design/2026-09-21-scc-lifecycle-executor-r1-draft.md`. R1 keeps
-`SolvedModule::solve` as the sole consumer, globally activates the sealed batch,
-routes open/internal and closed/incoming uses around a generic component-wide
-publication transaction, and makes failure terminal to the private solve
-session. It deliberately introduces no scheme or type fact. Its only public
-surface change is an explicit `ExecutionFailed` solve-error variant and compact
-copyable stage/kind/counter payloads; this is source-breaking for downstream
-exhaustive enum matches. Implementation remains blocked on explicit user
-approval.
+The user selected recoverable type inference on 2026-09-21. Terminal-failure R1
+is withdrawn. The active Draft is
+`notes/design/2026-09-21-recoverable-scc-execution-r2-draft.md`: semantic errors
+commit whole-SCC Failed/Blocked outcomes inside `Ok(SolvedModule)`, preserve
+independent published facts, suppress dependent cascade diagnostics, and reserve
+whole-session `ExecutionUnavailable` for structural failures. Fresh M3 review
+is clean; post-review confirmation remains required before implementation.
 
 The broader associated-expression type attachment question remains open in
 `notes/design/2026-09-18-hir-type-attachment-open-questions.md`; this foundation
