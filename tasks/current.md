@@ -19,9 +19,23 @@ next action: F5a is complete. Its focused syntax suite passed 1380 tests with
 one ignored; `yu-hir` passed 46 unit/integration tests and five compile-fail
 doctests; `yu-solver` passed 56 tests; workspace check, formatting, and diff
 checks passed. Compiler-referee, specification, and regression review are
-clean. F5b is next: migrate the public closed/fact-view API and introduce the
-live polarized constraint algebra, levels, and extrusion without wiring source
-Lambda Function facts until F5d.
+clean. F5b architecture inspection found two blocking API-lifecycle decisions
+before its implementation may start:
+
+1. `yu-types` must keep raw closed-arena mutation private, but downstream
+   `yu-solver` must construct F4 Bottom/Int schemes and later F5c schemes after
+   public `ClosedValueScheme::new` is removed. Select an inter-crate sealed
+   high-level finalization gateway or change the ownership boundary; Rust has no
+   friend-crate visibility.
+2. The current standalone public `ConstraintStore::new(Arc<HirModule>)` admits
+   Terms from an independently owned `ConstraintBatch`. The approved TermArena
+   lifecycle instead moves that exact arena into the store during `solve`.
+   Select removal/privatization, a batch-bound constructor, or an explicit
+   transfer/share capability.
+
+Do not begin F5b live-algebra implementation until the user selects both
+durable API boundaries. The remaining F5b plan preserves F5a's zero source
+Function-fact invariant until F5d.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.
