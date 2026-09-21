@@ -12,9 +12,11 @@ SCC generalization, disjoint Q/R closure, and fresh incoming instantiation.
 
 M3 architect, semantic, specification, and performance review is clean. The
 user approved the atomic gate on 2026-09-21, with rollback to the design if
-implementation contradicts it. Immediate next action: implement F5a, the
-shared Pattern ML-application CST and exact one-parameter HIR/source contract,
-then run its focused syntax/HIR verification before F5b.
+implementation contradicts it. The user also approved delimiter-scoped
+non-binding Pattern evidence: `cast((f x)): A` is the production shared-grammar
+witness, while direct Cast depth retains `PATTERN_STOP_ITEM` ownership. Immediate
+next action: finish F5a with that witness and its focused verification, then
+run review before F5b.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.

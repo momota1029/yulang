@@ -1416,3 +1416,56 @@ so no remaining path comparison exists. Multi-source SCC buckets and FIFO
 insertion use the same ordering. Focused tests put different mismatch kinds in
 equal-depth Argument and Result children and assert this exact comparator under
 reversed admission and allocation order.
+
+## 41. Delimiter-scoped non-binding Pattern witness
+
+This section resolves the F5a caller-ownership contradiction discovered during
+implementation and supersedes the non-binding-consumer requirement in §20. The
+user approved this amendment on 2026-09-21.
+
+`PATTERN_STOP_ITEM` is a current-Pattern-frame capability boundary. It prevents
+`PatternMlApplicationTail` admission only at the Pattern depth directly owned
+by that caller. It does not disable fixed Pattern tails and is not inherited
+through a Pattern-owned explicit delimiter. `parenthesized_pattern`,
+`list_pattern`, and `record_pattern` replace the outer non-close stop mask with
+their local comma/matching-close mask and carried `PatternCallerCloses`; the
+outer Pattern resumes its original mask after the delimiter returns.
+
+Consequently `cast(f x): A` has no application tail: Cast owns the ordinary
+Item following its direct Pattern, including close/target recovery. In contrast,
+`cast((f x)): A` has exactly one application tail inside the nested
+`ParenthesizedPattern`; that delimiter owns its content through matching `)`.
+The latter is the required genuine production non-binding witness. Shared
+Pattern grammar means every consumer reaches the common parser subject to its
+explicit current-frame stops; it does not authorize consuming caller-owned
+recovery Items.
+
+Required witness topology is:
+
+```text
+CastDeclaration
+  CastPattern
+    Pattern
+      ParenthesizedPattern
+        Pattern
+          IdentifierPattern("f")
+          Whitespace(" ")
+          PatternMlApplicationTail
+            Pattern
+              IdentifierPattern("x")
+  CastTarget(": A")
+```
+
+Keep these regressions exact:
+
+| Source | Required disposition |
+|---|---|
+| `cast((f x)): A` | one inner ML tail; Cast target remains `: A` |
+| `cast(f x): A` | no ML tail; existing Cast close/target recovery owns the Item |
+| `cast(x else tail` with `STOP_ELSE` | `else` remains pending and CastPattern ends at its established coordinate |
+| `cast(x: A): B;` | first colon is Pattern annotation; second colon is Cast target |
+| `cast((f x) else tail` with `STOP_ELSE` | inner tail completes; `else` remains outer Cast-owned after synthesized outer close |
+
+Do not permit unparenthesized direct-depth ML application in Cast, case arms,
+catch handlers, or for patterns without a separately approved caller-recovery
+contract.
