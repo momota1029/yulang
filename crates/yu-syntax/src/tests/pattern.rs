@@ -12,8 +12,12 @@ use crate::{
         scan_pattern_literal_opener_witness, string_literal_with_virtual_statements_witness,
     },
     pattern::{
-        PATTERN_STOP_COLON, PATTERN_STOP_EQUALS, PatternCallerCloses, PatternCompletion,
-        PatternMandatorySlotPolicy, PatternStops, pattern_normalized,
+        PATTERN_STOP_ARM_GUARD_IF, PATTERN_STOP_ARM_GUARD_WHERE,
+        PATTERN_STOP_ARM_RECOVERY_SEPARATOR, PATTERN_STOP_ARROW, PATTERN_STOP_COLON,
+        PATTERN_STOP_COMMA, PATTERN_STOP_EQUALS, PATTERN_STOP_IN, PATTERN_STOP_ITEM,
+        PATTERN_STOP_LBRACE, PATTERN_STOP_PRIMARY_COLON, PATTERN_STOP_RBRACE,
+        PATTERN_STOP_RBRACKET, PATTERN_STOP_RPAREN, PATTERN_STOP_SEMICOLON, PatternCallerCloses,
+        PatternCompletion, PatternMandatorySlotPolicy, PatternStops, pattern_normalized,
         required_pattern_from_entry_item_with_policy_normalized,
     },
     statement::StatementLineHandoff,
@@ -87,6 +91,28 @@ fn run_required_pattern_with_context<'source>(
     line_entry: LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> (GreenNode, NormalizedExit, PatternCompletion, &'source str) {
+    run_required_pattern_with_context_at_baseline(
+        source,
+        stops,
+        policy,
+        caller_closes,
+        0,
+        item_origin,
+        line_entry,
+        fence,
+    )
+}
+
+fn run_required_pattern_with_context_at_baseline<'source>(
+    source: &'source str,
+    stops: PatternStops,
+    policy: PatternMandatorySlotPolicy,
+    caller_closes: PatternCallerCloses,
+    baseline: usize,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+) -> (GreenNode, NormalizedExit, PatternCompletion, &'source str) {
     let operators = OperatorTable::empty();
     let mut recover = Recover::new_for_test(&operators);
     let mut input = source;
@@ -115,7 +141,7 @@ fn run_required_pattern_with_context<'source>(
     let (exit, completion) = required_pattern_from_entry_item_with_policy_normalized(
         crate::cursor::SyntaxIn::new(&mut input, &mut recover, &mut builder),
         item,
-        0,
+        baseline,
         stops,
         StatementLineHandoff::OrdinaryLayout,
         policy,
@@ -2262,10 +2288,10 @@ fn standalone_pattern_recovery_leaves_caller_boundaries_and_their_gaps_intact() 
 fn standalone_patterns_keep_parenthesized_and_list_recovery_inside_their_owners() {
     for (source, owner, patterns, expected_missing, expected_errors) in [
         ("(,a)", SyntaxKind::ParenthesizedPattern, 2, 1, 0),
-        ("(a b)", SyntaxKind::ParenthesizedPattern, 2, 1, 0),
+        ("(a b)", SyntaxKind::ParenthesizedPattern, 2, 0, 0),
         ("(a]", SyntaxKind::ParenthesizedPattern, 1, 1, 1),
         ("[,a]", SyntaxKind::ListPattern, 2, 1, 0),
-        ("[a b]", SyntaxKind::ListPattern, 2, 1, 0),
+        ("[a b]", SyntaxKind::ListPattern, 2, 0, 0),
         ("[..]", SyntaxKind::ListPattern, 1, 1, 0),
         ("[..,a]", SyntaxKind::ListPattern, 2, 1, 0),
         ("[..@tail]", SyntaxKind::ListPattern, 1, 0, 1),
@@ -3000,4 +3026,527 @@ fn l7_pattern_literal_routes_preserve_multiline_and_fence_handoffs() {
             source.strip_suffix("> stop\n").expect("fence suffix")
         );
     }
+}
+
+#[test]
+fn pattern_ml_application_is_shared_lossless_tail_grammar() {
+    let direct_kinds = |source: &str| {
+        let (green, exit) = run_pattern(source);
+        assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        pattern_node(green)
+            .children()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(
+        direct_kinds("f x y"),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::PatternMlApplicationTail,
+            SyntaxKind::PatternMlApplicationTail,
+        ]
+    );
+    assert_eq!(
+        direct_kinds("f x as y"),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::PatternMlApplicationTail,
+            SyntaxKind::PatternAliasTail,
+        ]
+    );
+    assert_eq!(
+        direct_kinds("f x: T"),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::PatternMlApplicationTail,
+            SyntaxKind::PatternTypeAnnotation,
+        ]
+    );
+    assert_eq!(
+        direct_kinds("f x | g y"),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::PatternMlApplicationTail,
+            SyntaxKind::PatternAlternationTail,
+        ]
+    );
+    let (green, _) = run_pattern("f x | g y");
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+            .count(),
+        2
+    );
+
+    let (green, _) = run_pattern("f x");
+    let pattern = pattern_node(green);
+    let application = pattern
+        .children()
+        .find(|child| child.kind() == SyntaxKind::PatternMlApplicationTail)
+        .expect("ML application tail");
+    assert_eq!(
+        application
+            .children()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Pattern]
+    );
+    assert_eq!(
+        pattern
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.kind() == SyntaxKind::Whitespace)
+            .map(|token| token.parent().expect("direct Pattern trivia").kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Pattern]
+    );
+
+    let (green, _) = run_pattern("(f x)");
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+            .count(),
+        1
+    );
+    let (green, _) = run_pattern("[f x]");
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+            .count(),
+        1
+    );
+    let (green, _) = run_pattern("{f x}");
+    assert_eq!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+            .count(),
+        0
+    );
+
+    let (green, exit) = run_pattern("f (@)");
+    assert!(matches!(exit, Err(Either::Right(_))));
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.to_string(), "f (@)");
+    let pattern = root
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("outer Pattern");
+    assert_eq!(
+        pattern
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::PatternMlApplicationTail,
+        ]
+    );
+    let application = pattern
+        .children()
+        .find(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+        .expect("ML application tail");
+    let argument = application.first_child().expect("argument Pattern");
+    assert_eq!(
+        argument
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ParenthesizedPattern]
+    );
+    let parenthesized = argument.first_child().expect("ParenthesizedPattern");
+    assert_eq!(
+        parenthesized
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::LParen, SyntaxKind::Pattern, SyntaxKind::RParen,]
+    );
+    let nested_pattern = parenthesized
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("nested argument Pattern");
+    assert_eq!(
+        nested_pattern
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Error]
+    );
+    let errors = root
+        .descendants_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Error)
+        .collect::<Vec<_>>();
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].text().to_string(), "@");
+    assert_eq!(
+        errors[0].text_range(),
+        rowan::TextRange::new(3.into(), 4.into())
+    );
+    assert_eq!(errors[0].parent().as_ref(), Some(&nested_pattern));
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+            .count(),
+        1
+    );
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::Missing)
+            .count(),
+        0
+    );
+    assert_eq!(
+        root.descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .filter(|token| token.text() == "@")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn pattern_ml_application_respects_trivia_and_layout_boundaries() {
+    for source in ["f /* gap */ x", "f // gap\n  x", "f\n  x"] {
+        let (green, exit) = run_pattern(source);
+        assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(
+            SyntaxNode::new_root(green)
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+        );
+    }
+    let (green, exit) = run_pattern("f\nx");
+    assert_eq!(green.to_string(), "f");
+    assert!(matches!(
+        exit,
+        Err(Either::Left(item)) if item.leading_view().has_ordinary_newline()
+    ));
+
+    let (green, _) = run_pattern("f as x");
+    assert!(
+        !SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+    );
+    let (green, _) = run_pattern("f (as)");
+    assert!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+    );
+}
+
+#[test]
+fn pattern_ml_application_validates_every_gml_newline_continuation() {
+    let has_application = |source: &str| {
+        let (green, exit) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(matches!(exit, Err(Either::Right(_))), "{source:?}");
+        SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+    };
+
+    for source in [
+        "f\n  x",
+        "f /* gap */ x",
+        "f /*\n  continuation */ x",
+        "(\n  f\n    x)",
+    ] {
+        assert!(has_application(source), "{source:?}");
+    }
+    for source in ["f\nx", "f\n\n  x", "f\n// comment\n  x", "f /*\n*/ x"] {
+        let (green, exit) = run_pattern(source);
+        assert!(
+            !SyntaxNode::new_root(green.clone())
+                .descendants()
+                .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail),
+            "{source:?}"
+        );
+        assert!(matches!(exit, Err(Either::Left(_))), "{source:?}");
+        assert_ne!(
+            green.to_string(),
+            source,
+            "the whole Gml run stays pending: {source:?}"
+        );
+    }
+    let (green, _) = run_pattern("(\n  f\n  x)");
+    assert!(
+        !SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+    );
+}
+
+#[test]
+fn pattern_ml_application_rejects_a_shallower_nonzero_baseline_gml_run() {
+    let source = "f\n x";
+    let (green, exit, completion, remainder) = run_required_pattern_with_context_at_baseline(
+        source,
+        0,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        2,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "f");
+    assert_eq!(remainder, "");
+    assert_eq!(completion, PatternCompletion::Complete);
+    assert_eq!(
+        recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+        0
+    );
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 0);
+    let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+        panic!("the shallower Gml run must leave its item pending");
+    };
+    assert_eq!(item.payload_view().spelling(), Some("x"));
+    assert_eq!(emit_pending_leading_text(&mut item), "\n ");
+}
+
+#[test]
+fn pattern_ml_application_leaves_a_non_nud_at_item_pending() {
+    let source = "f @ tail";
+    let (green, exit, completion, remainder) = run_required_pattern_with_context(
+        source,
+        0,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "f");
+    assert_eq!(remainder, " tail");
+    assert_eq!(completion, PatternCompletion::Complete);
+    assert_eq!(
+        recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+        0
+    );
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 0);
+    let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+        panic!("the non-NUD Item must remain pending");
+    };
+    assert_eq!(item.payload_view().token_kind(), Some(TokenKind::Unknown));
+    assert_eq!(item.payload_view().spelling(), Some("@"));
+    assert_eq!(emit_pending_leading_text(&mut item), " ");
+}
+
+#[test]
+fn pattern_ml_application_boundary_matrix_leaves_every_caller_item_pending() {
+    for (source, stops, kind, spelling, remainder) in [
+        ("f : A", PATTERN_STOP_COLON, TokenKind::Colon, None, " A"),
+        ("f -> A", PATTERN_STOP_ARROW, TokenKind::Arrow, None, " A"),
+        (
+            "f if A",
+            PATTERN_STOP_ARM_GUARD_IF,
+            TokenKind::Identifier,
+            Some("if"),
+            " A",
+        ),
+        (
+            "f where A",
+            PATTERN_STOP_ARM_GUARD_WHERE,
+            TokenKind::Identifier,
+            Some("where"),
+            " A",
+        ),
+        ("f , A", PATTERN_STOP_COMMA, TokenKind::Comma, None, " A"),
+        (
+            "f , A",
+            PATTERN_STOP_ARM_RECOVERY_SEPARATOR,
+            TokenKind::Comma,
+            None,
+            " A",
+        ),
+        (
+            "f ; A",
+            PATTERN_STOP_SEMICOLON,
+            TokenKind::Semicolon,
+            None,
+            " A",
+        ),
+        (
+            "f ) tail",
+            PATTERN_STOP_RPAREN,
+            TokenKind::RParen,
+            None,
+            " tail",
+        ),
+        (
+            "f ] tail",
+            PATTERN_STOP_RBRACKET,
+            TokenKind::RBracket,
+            None,
+            " tail",
+        ),
+        (
+            "f } tail",
+            PATTERN_STOP_RBRACE,
+            TokenKind::RBrace,
+            None,
+            " tail",
+        ),
+        ("f = A", PATTERN_STOP_EQUALS, TokenKind::Equals, None, " A"),
+        (
+            "f in A",
+            PATTERN_STOP_IN,
+            TokenKind::Identifier,
+            Some("in"),
+            " A",
+        ),
+        ("f { A", PATTERN_STOP_LBRACE, TokenKind::LBrace, None, " A"),
+        (
+            "f x",
+            PATTERN_STOP_ITEM,
+            TokenKind::Identifier,
+            Some("x"),
+            "",
+        ),
+    ] {
+        let (green, exit, completion, actual_remainder) = run_required_pattern_with_context(
+            source,
+            stops,
+            PatternMandatorySlotPolicy::default(),
+            PatternCallerCloses::NONE,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), "f", "{source:?}");
+        assert_eq!(actual_remainder, remainder, "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+            0,
+            "{source:?}"
+        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0, "{source:?}");
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0, "{source:?}");
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("caller stop must remain pending: {source:?}");
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(kind), "{source:?}");
+        if let Some(spelling) = spelling {
+            assert_eq!(item.payload_view().spelling(), Some(spelling), "{source:?}");
+        }
+        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+    }
+
+    // This stop applies only when a Pattern primary has not been established;
+    // an established Pattern retains its fixed type-annotation tail.
+    let (green, exit, completion, remainder) = run_required_pattern_with_context(
+        "f : A",
+        PATTERN_STOP_PRIMARY_COLON,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        0,
+        LineEntry::InLine,
+        None,
+    );
+    assert_eq!(green.to_string(), "f : A");
+    assert_eq!(remainder, "");
+    assert_eq!(completion, PatternCompletion::Complete);
+    assert_eq!(
+        recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+        0
+    );
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 0);
+    assert!(matches!(
+        exit,
+        NormalizedExit::Complete(Err(Either::Right(_)), _)
+    ));
+
+    for (source, caller_closes, kind) in [
+        ("f ) tail", PatternCallerCloses::RPAREN, TokenKind::RParen),
+        ("f ] tail", PatternCallerCloses::RPAREN, TokenKind::RBracket),
+        ("f } tail", PatternCallerCloses::RPAREN, TokenKind::RBrace),
+    ] {
+        let (green, exit, completion, remainder) = run_required_pattern_with_context(
+            source,
+            0,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            0,
+            LineEntry::InLine,
+            None,
+        );
+        assert_eq!(green.to_string(), "f", "{source:?}");
+        assert_eq!(remainder, " tail", "{source:?}");
+        assert_eq!(completion, PatternCompletion::Complete, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+            0
+        );
+        assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+        assert_eq!(recovery_count(&green, SyntaxKind::Error), 0);
+        let NormalizedExit::Complete(Err(Either::Left(mut item)), LineEntry::InLine) = exit else {
+            panic!("close must remain pending: {source:?}");
+        };
+        assert_eq!(item.payload_view().token_kind(), Some(kind), "{source:?}");
+        assert_eq!(emit_pending_leading_text(&mut item), " ", "{source:?}");
+    }
+
+    let fence = FenceBoundary {
+        opener: FenceOpener {
+            line: 0,
+            marker: 0..3,
+            marker_width: 3,
+        },
+        prefix_policy: FencePrefixPolicy::ActivePrefixQuote { depth: 2, base: 0 },
+        close_column: 0,
+    };
+    let (green, exit, completion, remainder) = run_required_pattern_with_context(
+        "f\r\n> > ```\r\nouter",
+        0,
+        PatternMandatorySlotPolicy::default(),
+        PatternCallerCloses::NONE,
+        100,
+        LineEntry::InLine,
+        Some(&fence),
+    );
+    assert_eq!(green.to_string(), "f");
+    assert_eq!(remainder, "> > ```\r\nouter");
+    assert_eq!(completion, PatternCompletion::Complete);
+    assert_eq!(
+        recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+        0
+    );
+    assert_eq!(recovery_count(&green, SyntaxKind::Missing), 0);
+    assert_eq!(recovery_count(&green, SyntaxKind::Error), 0);
+    let NormalizedExit::Complete(Err(Either::Left(item)), LineEntry::PhysicalStart) = exit else {
+        panic!("fence boundary must remain pending");
+    };
+    let (leading, pending) = emit_terminal_leading_text(item);
+    assert_eq!(leading, "\r\n");
+    assert!(matches!(
+        pending.into_kind(),
+        Boundary::BorrowedClose(BorrowedTarget::YumarkFence(_))
+    ));
+}
+
+#[test]
+fn fixed_pattern_markers_keep_their_existing_multiline_layout_rule() {
+    let source = "f\n\n  as y";
+    let (green, exit) = run_pattern(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Err(Either::Right(_))));
+    assert!(
+        SyntaxNode::new_root(green)
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternAliasTail)
+    );
 }

@@ -185,6 +185,62 @@ fn binding(green: &GreenNode) -> SyntaxNode {
 }
 
 #[test]
+fn public_parser_binding_header_uses_pattern_ml_application_and_hands_off_equals() {
+    use std::sync::Arc;
+
+    let source: Arc<crate::SourceText> = Arc::from("my f x = x");
+    let header = Arc::new(crate::scan_header(Arc::clone(&source)));
+    let parsed = crate::parse_file(source, header, Arc::new(crate::SyntaxEnvironment::empty()));
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+    assert!(parsed.structural_recoveries().is_empty());
+    let declaration = binding(parsed.green());
+    let header = declaration.first_child().expect("BindingHeader");
+    let targets = header.children().collect::<Vec<_>>();
+    let [target] = targets.as_slice() else {
+        panic!("one Pattern target")
+    };
+    assert_eq!(target.kind(), SyntaxKind::Pattern);
+    assert_eq!(
+        target
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::PatternMlApplicationTail,
+        ]
+    );
+    let application = target.last_child().expect("PatternMlApplicationTail");
+    assert_eq!(
+        application
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Pattern]
+    );
+    assert_eq!(
+        application
+            .first_child()
+            .expect("argument Pattern")
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::IdentifierPattern]
+    );
+    let equals = header
+        .children_with_tokens()
+        .filter_map(|element| element.into_token())
+        .filter(|token| token.kind() == SyntaxKind::Equals)
+        .collect::<Vec<_>>();
+    assert_eq!(equals.len(), 1);
+    assert_eq!(usize::from(equals[0].text_range().start()), 7);
+    assert_eq!(
+        declaration.last_child().expect("BindingBody").to_string(),
+        " x"
+    );
+}
+
+#[test]
 fn binding_annotation_equals_stays_outside_type_recovery() {
     for source in [
         "my x: = value",

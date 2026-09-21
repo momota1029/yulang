@@ -286,6 +286,7 @@ pub enum SyntaxKind {
     PolymorphicVariantForeignClose,
     UseGroupForeignClose,
     TypeDelimitedForeignClose,
+    PatternMlApplicationTail,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -482,6 +483,9 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::PatternAliasTail as u16 => SyntaxKind::PatternAliasTail,
             value if value == SyntaxKind::PatternAlternationTail as u16 => {
                 SyntaxKind::PatternAlternationTail
+            }
+            value if value == SyntaxKind::PatternMlApplicationTail as u16 => {
+                SyntaxKind::PatternMlApplicationTail
             }
             value if value == SyntaxKind::PatternTypeAnnotation as u16 => {
                 SyntaxKind::PatternTypeAnnotation

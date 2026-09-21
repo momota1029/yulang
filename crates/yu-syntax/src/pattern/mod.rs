@@ -61,6 +61,10 @@ pub(super) const PATTERN_STOP_ARM_RECOVERY_SEPARATOR: PatternStops = 1 << 10;
 pub(super) const PATTERN_STOP_IN: PatternStops = 1 << 11;
 pub(super) const PATTERN_STOP_LBRACE: PatternStops = 1 << 12;
 pub(super) const PATTERN_STOP_PRIMARY_COLON: PatternStops = 1 << 13;
+/// The caller owns the next ordinary item rather than allowing it to begin a
+/// Pattern ML-application argument.
+pub(super) const PATTERN_STOP_ITEM: PatternStops = 1 << 14;
+const PATTERN_STOP_RECOVERED_PRIMARY: PatternStops = 1 << 15;
 
 #[cfg(test)]
 pub(super) const PATTERN_DEFAULT_STOPS: PatternStops = PATTERN_STOP_COMMA
@@ -163,6 +167,7 @@ enum PatternPrecedence {
     TypeAnnotation,
     Alternation,
     Alias,
+    MlApplication,
 }
 
 #[cfg(test)]
@@ -530,7 +535,7 @@ fn recover_pattern_primary_normalized(
             item,
             minimum,
             baseline,
-            stops,
+            stops | PATTERN_STOP_RECOVERED_PRIMARY,
             line_handoff,
             caller_closes,
             completion,
@@ -571,7 +576,7 @@ fn recover_pattern_primary_normalized(
             item,
             minimum,
             baseline,
-            stops,
+            stops | PATTERN_STOP_RECOVERED_PRIMARY,
             line_handoff,
             caller_closes,
             completion,
@@ -589,7 +594,7 @@ fn recover_pattern_primary_normalized(
         item,
         minimum,
         baseline,
-        stops,
+        stops | PATTERN_STOP_RECOVERED_PRIMARY,
         line_handoff,
         policy.recovered_primary_tail_stops,
         caller_closes,
@@ -768,6 +773,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             i.state.start_node(SyntaxKind::SymbolPattern.into());
             emit_token_item(&mut i, item);
             let entry = suffix_marker(i.rb());
+            let mut tail_stops = stops;
             if let Some(name) = i.token(scan_identifier) {
                 emit_token_item(
                     &mut i,
@@ -778,13 +784,14 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             } else {
                 emit_pattern_missing_at(&mut i, item_origin);
                 *completion = PatternCompletion::Incomplete;
+                tail_stops |= PATTERN_STOP_RECOVERED_PRIMARY;
             }
             i.state.finish_node();
             scan_pattern_tail_normalized(
                 i,
                 minimum,
                 baseline,
-                stops,
+                tail_stops,
                 line_handoff,
                 caller_closes,
                 completion,
@@ -972,10 +979,10 @@ fn pattern_tail_normalized(
     if item.payload_view().is_boundary() {
         return complete(handoff(item), line_entry);
     }
-    if implicit_delimited_newline(baseline, item.leading_view()) {
+    if is_pattern_tail_boundary(i.rb(), &item, stops) {
         return complete(handoff(item), line_entry);
     }
-    if is_pattern_tail_boundary(i.rb(), &item, stops) {
+    if implicit_delimited_newline(baseline, item.leading_view()) {
         return complete(handoff(item), line_entry);
     }
     if is_pattern_alias(&item) && minimum <= PatternPrecedence::Alias {
@@ -1088,6 +1095,49 @@ fn pattern_tail_normalized(
         );
         i.state.finish_node();
         return exit;
+    }
+    if stops & (PATTERN_STOP_ITEM | PATTERN_STOP_RECOVERED_PRIMARY) == 0
+        && minimum < PatternPrecedence::MlApplication
+        && item.leading_view().has_ordinary_trivia()
+        && item.leading_view().gml_continues_deeper_than(baseline)
+        && !is_current_pattern_tail(&item, stops)
+        && is_pattern_nud(&item, stops)
+    {
+        item.emit_all_remaining_leading(&mut *i.state);
+        i.state
+            .start_node(SyntaxKind::PatternMlApplicationTail.into());
+        *completion = PatternCompletion::Incomplete;
+        let entry = suffix_marker(i.rb());
+        let exit = pattern_from_item_recording_with_policy_normalized(
+            i.rb(),
+            item,
+            PatternPrecedence::MlApplication,
+            baseline,
+            stops,
+            line_handoff,
+            PatternMandatorySlotPolicy::default(),
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        item_origin = advanced_origin(item_origin, entry, i.rb());
+        i.state.finish_node();
+        return continue_pattern_tail_normalized(
+            i,
+            exit,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            caller_closes,
+            completion,
+            item_origin,
+            fence,
+            ambient,
+        );
     }
     complete(handoff(item), line_entry)
 }

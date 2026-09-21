@@ -24,6 +24,148 @@ fn token_count(node: &SyntaxNode, kind: SyntaxKind) -> usize {
         .count()
 }
 
+#[test]
+fn cast_pattern_keeps_its_following_item_for_the_cast_owner() {
+    use SyntaxKind::{CastPattern, Error, IdentifierPattern, LParen, Pattern, RParen, Whitespace};
+
+    let source = "cast(f x): A;";
+    let (green, exit, facts, remainder) = typed_cast(source, 0, 0, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    assert!(matches!(
+        exit,
+        Some(NormalizedExit::Complete(Err(Either::Right(_)), _))
+    ));
+    assert_eq!(facts, [structural_fact(StructuralKind::ErrorGroup, 7..8)]);
+    let root = SyntaxNode::new_root(green);
+    assert!(
+        !root
+            .descendants()
+            .any(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+    );
+    let cast_pattern = root
+        .descendants()
+        .find(|node| node.kind() == CastPattern)
+        .expect("CastPattern");
+    assert_eq!(
+        cast_pattern
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [LParen, Pattern, Whitespace, Error, RParen]
+    );
+    let direct_pattern = cast_pattern
+        .children()
+        .find(|node| node.kind() == Pattern)
+        .expect("direct Cast Pattern");
+    assert_eq!(
+        direct_pattern
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [IdentifierPattern]
+    );
+    let recovered_item = cast_pattern
+        .children_with_tokens()
+        .find(|child| child.kind() == Error)
+        .and_then(|child| child.into_token())
+        .expect("Cast-owned Item recovery");
+    assert_eq!(recovered_item.text(), "x");
+    assert_eq!(recovered_item.parent().as_ref(), Some(&cast_pattern));
+}
+
+#[test]
+fn cast_nested_pattern_is_the_delimiter_scoped_ml_application_witness() {
+    let source = "cast((f x)): A";
+    let (green, exit, _, remainder) = typed_cast(source, 0, 0, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    assert!(matches!(
+        exit,
+        Some(NormalizedExit::Complete(Err(Either::Right(_)), _))
+    ));
+    let declaration = declaration(&green);
+    let cast_pattern = declaration
+        .children()
+        .find(|node| node.kind() == SyntaxKind::CastPattern)
+        .expect("CastPattern");
+    assert_eq!(
+        usize::from(cast_pattern.text_range().start())
+            ..usize::from(cast_pattern.text_range().end()),
+        4..11
+    );
+    let outer_pattern = cast_pattern
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("outer Pattern");
+    assert_eq!(
+        outer_pattern
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::ParenthesizedPattern]
+    );
+    let parenthesized = outer_pattern.first_child().expect("ParenthesizedPattern");
+    assert_eq!(
+        parenthesized
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::LParen, SyntaxKind::Pattern, SyntaxKind::RParen,]
+    );
+    let inner_pattern = parenthesized
+        .children()
+        .find(|node| node.kind() == SyntaxKind::Pattern)
+        .expect("inner Pattern");
+    assert_eq!(
+        inner_pattern
+            .children_with_tokens()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [
+            SyntaxKind::IdentifierPattern,
+            SyntaxKind::Whitespace,
+            SyntaxKind::PatternMlApplicationTail,
+        ]
+    );
+    assert_eq!(
+        cast_pattern
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+            .count(),
+        1
+    );
+    assert_eq!(count(&cast_pattern, SyntaxKind::Missing), 0);
+    assert_eq!(count(&cast_pattern, SyntaxKind::Error), 0);
+    let application = cast_pattern
+        .descendants()
+        .find(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+        .expect("inner application");
+    assert_eq!(
+        application
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::Pattern]
+    );
+    let argument = application.first_child().expect("argument Pattern");
+    assert_eq!(
+        argument
+            .children()
+            .map(|node| node.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::IdentifierPattern]
+    );
+    assert_eq!(
+        declaration
+            .children()
+            .find(|node| node.kind() == SyntaxKind::CastTarget)
+            .expect("CastTarget")
+            .to_string(),
+        ": A"
+    );
+}
+
 fn pending_item(exit: Option<NormalizedExit>) -> Item {
     match exit {
         Some(NormalizedExit::Complete(Err(Either::Left(item)), _)) => item,
@@ -1261,6 +1403,76 @@ fn cast_pattern_close_direct_rowan_phase_and_boundary_ownership() {
 }
 
 #[test]
+fn cast_nested_ml_application_keeps_else_after_the_synthesized_outer_close() {
+    let source = "cast((f x) else tail";
+    let (green, exit, remainder) =
+        run_cast_declaration(source, STOP_ELSE, 0, LineEntry::InLine, None);
+    let node = declaration(&green);
+    assert_eq!(
+        node.descendants()
+            .filter(|child| child.kind() == SyntaxKind::PatternMlApplicationTail)
+            .count(),
+        1
+    );
+    assert_eq!(usize::from(node.text_range().end()), "cast((f x)".len());
+    assert_eq!(remainder, " tail");
+    let cast_pattern = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::CastPattern)
+        .expect("CastPattern");
+    assert_eq!(
+        cast_pattern
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::LParen, SyntaxKind::Pattern, SyntaxKind::Missing,]
+    );
+    assert_eq!(count(&node, SyntaxKind::Missing), 1);
+    assert_eq!(count(&node, SyntaxKind::Error), 0);
+    assert!(
+        !node
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.text() == "else")
+    );
+    let mut pending = pending_item(exit);
+    assert_eq!(pending.payload_view().spelling(), Some("else"));
+    assert_eq!(emit_pending_leading_text(&mut pending), " ");
+}
+
+#[test]
+fn cast_direct_pattern_stop_else_keeps_the_outer_item_pending() {
+    let source = "cast(x else tail";
+    let (green, exit, facts, remainder) = typed_cast(source, 0, STOP_ELSE, None);
+    assert_eq!(green.to_string(), "cast(x");
+    assert_eq!(remainder, " tail");
+    assert_eq!(facts, [structural_fact(StructuralKind::Missing, 6..6)]);
+    let node = declaration(&green);
+    let cast_pattern = node
+        .children()
+        .find(|child| child.kind() == SyntaxKind::CastPattern)
+        .expect("CastPattern");
+    assert_eq!(usize::from(cast_pattern.text_range().end()), 6);
+    assert_eq!(
+        cast_pattern
+            .children_with_tokens()
+            .map(|child| child.kind())
+            .collect::<Vec<_>>(),
+        [SyntaxKind::LParen, SyntaxKind::Pattern, SyntaxKind::Missing]
+    );
+    assert_eq!(count(&node, SyntaxKind::PatternMlApplicationTail), 0);
+    assert!(
+        !node
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .any(|token| token.text() == "else")
+    );
+    let mut pending = pending_item(exit);
+    assert_eq!(pending.payload_view().spelling(), Some("else"));
+    assert_eq!(emit_pending_leading_text(&mut pending), " ");
+}
+
+#[test]
 fn cast_pattern_close_exact_equals_preserves_form_and_body() {
     for malformed in ["@", "@ ==", "@ =>", "@ =>>"] {
         for body in ["", " value"] {
@@ -1878,6 +2090,34 @@ fn cast_private_owner_builds_bodyless_inline_and_indented_forms() {
         );
         assert_eq!(count(&declaration, SyntaxKind::Missing), 0, "{source:?}");
         assert_eq!(count(&declaration, SyntaxKind::Error), 0, "{source:?}");
+        if source == "cast(x: A): B;" {
+            let cast_pattern = declaration
+                .children()
+                .find(|child| child.kind() == SyntaxKind::CastPattern)
+                .expect("CastPattern");
+            let pattern = cast_pattern
+                .children()
+                .find(|child| child.kind() == SyntaxKind::Pattern)
+                .expect("direct Pattern");
+            assert_eq!(
+                pattern
+                    .children()
+                    .map(|child| child.kind())
+                    .collect::<Vec<_>>(),
+                [
+                    SyntaxKind::IdentifierPattern,
+                    SyntaxKind::PatternTypeAnnotation,
+                ]
+            );
+            assert_eq!(
+                declaration
+                    .children()
+                    .find(|child| child.kind() == SyntaxKind::CastTarget)
+                    .expect("CastTarget")
+                    .to_string(),
+                ": B"
+            );
+        }
     }
 
     let source = "pub cast(x: int): user_id = user_id { raw: x }";

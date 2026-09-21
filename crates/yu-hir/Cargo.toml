@@ -6,3 +6,6 @@ publish = false
 
 [dependencies]
 yu-syntax = { path = "../yu-syntax" }
+
+[dev-dependencies]
+serde = "1"

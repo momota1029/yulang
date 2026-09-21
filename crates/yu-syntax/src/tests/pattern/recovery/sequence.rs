@@ -512,7 +512,6 @@ fn parenthesized_and_list_separator_recovery_follows_direct_ordered_children() {
     use SyntaxKind::{Comma, Error, Missing, Newline, Pattern, Whitespace as W};
 
     for (interior, middle, recovery) in [
-        ("a b", vec![(W, " "), (Missing, "")], Some((3..3, false))),
         ("a; b", vec![(Error, ";"), (W, " ")], Some((2..3, true))),
         (
             "a @ ; b",

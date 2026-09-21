@@ -11,12 +11,6 @@ fn delimited_missing_slots_preserve_direct_cst_owners() {
                 PatternCompletion::Incomplete,
             ),
             (
-                "(a b)",
-                3,
-                SyntaxKind::ParenthesizedPattern,
-                PatternCompletion::Complete,
-            ),
-            (
                 "[,a]",
                 1,
                 SyntaxKind::Pattern,
@@ -33,12 +27,6 @@ fn delimited_missing_slots_preserve_direct_cst_owners() {
                 3,
                 SyntaxKind::Pattern,
                 PatternCompletion::Incomplete,
-            ),
-            (
-                "[a b]",
-                3,
-                SyntaxKind::ListPattern,
-                PatternCompletion::Complete,
             ),
             (
                 "{,a}",

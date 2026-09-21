@@ -1469,3 +1469,15 @@ Keep these regressions exact:
 Do not permit unparenthesized direct-depth ML application in Cast, case arms,
 catch handlers, or for patterns without a separately approved caller-recovery
 contract.
+
+## 42. Implementation status
+
+F5a is complete on 2026-09-22. It implements the shared Pattern ML-application
+CST/recovery contract, delimiter-scoped non-binding witness, one-parameter
+Lambda HIR and lexical parameter scope, private HIR-owned evaluation
+classification, and the F5a-only solver compatibility disposition. That
+disposition preserves Lambda body status but emits no Function facts, live
+variables, or scheme behavior; those remain F5b–F5d work. Focused syntax, HIR,
+solver, doctest, workspace-check, formatting, and whitespace verification are
+recorded in `tasks/current.md`; semantic, specification, and regression review
+are clean.

@@ -109,6 +109,58 @@ impl<'item> LeadingView<'item> {
             .any(|part| part.text.contains(['\r', '\n']))
     }
 
+    /// A Pattern ML application gap may cross layout only when every physical
+    /// line continuation stays deeper than the enclosing Pattern baseline.
+    ///
+    /// This deliberately scans the complete maximal trivia run rather than
+    /// observing only its final newline: a newline embedded in a block comment
+    /// is still a physical continuation that owns a layout decision.
+    pub(crate) fn gml_continues_deeper_than(self, baseline: usize) -> bool {
+        let mut after_newline = false;
+        let mut indentation = 0usize;
+        let mut previous_was_cr = false;
+
+        for part in self
+            .remaining_physical()
+            .filter(|part| part.kind != TriviaKind::YmQuotePrefix)
+        {
+            for character in part.text.chars() {
+                match character {
+                    '\r' => {
+                        if after_newline && indentation <= baseline {
+                            return false;
+                        }
+                        after_newline = true;
+                        indentation = 0;
+                        previous_was_cr = true;
+                    }
+                    '\n' if previous_was_cr => previous_was_cr = false,
+                    '\n' => {
+                        if after_newline && indentation <= baseline {
+                            return false;
+                        }
+                        after_newline = true;
+                        indentation = 0;
+                        previous_was_cr = false;
+                    }
+                    character if after_newline && character.is_whitespace() => {
+                        indentation += 1;
+                        previous_was_cr = false;
+                    }
+                    _ => {
+                        if after_newline && indentation <= baseline {
+                            return false;
+                        }
+                        after_newline = false;
+                        previous_was_cr = false;
+                    }
+                }
+            }
+        }
+
+        !after_newline || indentation > baseline
+    }
+
     pub(crate) fn remaining_physical_parts(self) -> usize {
         self.physical.len() - self.first_unemitted
     }

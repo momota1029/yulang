@@ -27,8 +27,9 @@ use crate::{
         yumark::FenceBoundary,
     },
     pattern::{
-        PATTERN_STOP_IN, PATTERN_STOP_LBRACE, PATTERN_STOP_PRIMARY_COLON, PatternCompletion,
-        pattern_from_entry_item_with_completion_normalized, pattern_stops_from_owner,
+        PATTERN_STOP_IN, PATTERN_STOP_ITEM, PATTERN_STOP_LBRACE, PATTERN_STOP_PRIMARY_COLON,
+        PatternCompletion, pattern_from_entry_item_with_completion_normalized,
+        pattern_stops_from_owner,
     },
     statement::{
         StatementLineHandoff, braced_statement_block_normalized,
@@ -166,7 +167,8 @@ fn pattern_slot_normalized(
     let stops = pattern_stops_from_owner(outer_stops)
         | PATTERN_STOP_PRIMARY_COLON
         | PATTERN_STOP_LBRACE
-        | PATTERN_STOP_IN;
+        | PATTERN_STOP_IN
+        | PATTERN_STOP_ITEM;
     let entry = suffix_marker(i.rb());
     let CurrentItem {
         mut item,

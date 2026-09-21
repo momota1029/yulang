@@ -545,6 +545,39 @@ impl ConstraintBatch {
                             batch.counters.collected_unresolved_name_bodies += 1;
                             CollectedBodyStatus::Error
                         }
+                        ResolvedExpr::Name {
+                            resolution: NameResolution::Parameter(_),
+                            ..
+                        } => CollectedBodyStatus::Error,
+                        // F5a retains the source Lambda in HIR, but Function
+                        // facts remain deliberately deferred to F5d. Its
+                        // owned body still determines the existing complete
+                        // versus error collection disposition.
+                        ResolvedExpr::Lambda { body, .. } => match body.as_ref() {
+                            ResolvedExpr::Integer { .. }
+                            | ResolvedExpr::Name {
+                                resolution:
+                                    NameResolution::Resolved(_) | NameResolution::Parameter(_),
+                                ..
+                            } => CollectedBodyStatus::Complete,
+                            ResolvedExpr::Name {
+                                resolution: NameResolution::Ambiguous,
+                                ..
+                            } => {
+                                batch.counters.collected_ambiguous_name_bodies += 1;
+                                CollectedBodyStatus::Error
+                            }
+                            ResolvedExpr::Name {
+                                resolution: NameResolution::Unresolved,
+                                ..
+                            } => {
+                                batch.counters.collected_unresolved_name_bodies += 1;
+                                CollectedBodyStatus::Error
+                            }
+                            ResolvedExpr::Lambda { .. } | ResolvedExpr::Error { .. } => {
+                                CollectedBodyStatus::Error
+                            }
+                        },
                         ResolvedExpr::Error { .. } => CollectedBodyStatus::Error,
                     };
                     match body_status {
@@ -8125,15 +8158,29 @@ mod tests {
     }
 
     #[test]
-    fn f4_function_surface_remains_outside_the_integer_scheme_gate() {
-        let hir = module("my f x = x", "f4-no-function-surface.yu");
-        assert!(matches!(
-            hir.items(),
-            [HirItem::Binding(binding)] if matches!(binding.value(), ResolvedExpr::Error { .. })
-        ));
-        assert!(
-            !hir.errors().is_empty(),
-            "the existing unsupported surface remains a negative-scope control"
+    fn f5a_lambda_is_retained_but_collector_emits_no_function_facts() {
+        let hir = module("my f x = x", "f5a-no-function-facts.yu");
+        let [HirItem::Binding(binding)] = hir.items() else {
+            panic!("one binding")
+        };
+        assert!(matches!(binding.value(), ResolvedExpr::Lambda { .. }));
+        assert!(hir.errors().is_empty());
+
+        let batch = collect(hir.clone());
+        assert_eq!(batch.definitions().len(), 1);
+        assert_eq!(
+            batch.definitions()[0].body_status(),
+            CollectedBodyStatus::Complete
+        );
+        assert_eq!(batch.definitions()[0].body_fact_range(), &(0..0));
+        assert!(batch.definition_uses().is_empty());
+        assert!(batch.occurrences().is_empty());
+
+        let solved = SolvedModule::solve(batch).expect("F5a Lambda remains solvable");
+        assert!(solved.store().facts().is_empty());
+        assert_eq!(
+            solved.root_value_for(binding.definition_root()),
+            Ok(SolvedValue::Never)
         );
     }
     #[test]

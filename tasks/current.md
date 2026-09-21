@@ -15,8 +15,13 @@ user approved the atomic gate on 2026-09-21, with rollback to the design if
 implementation contradicts it. The user also approved delimiter-scoped
 non-binding Pattern evidence: `cast((f x)): A` is the production shared-grammar
 witness, while direct Cast depth retains `PATTERN_STOP_ITEM` ownership. Immediate
-next action: finish F5a with that witness and its focused verification, then
-run review before F5b.
+next action: F5a is complete. Its focused syntax suite passed 1380 tests with
+one ignored; `yu-hir` passed 46 unit/integration tests and five compile-fail
+doctests; `yu-solver` passed 56 tests; workspace check, formatting, and diff
+checks passed. Compiler-referee, specification, and regression review are
+clean. F5b is next: migrate the public closed/fact-view API and introduce the
+live polarized constraint algebra, levels, and extrusion without wiring source
+Lambda Function facts until F5d.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.

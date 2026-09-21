@@ -35,8 +35,9 @@ use crate::{
     pattern::{
         PATTERN_STOP_ARM_GUARD_IF, PATTERN_STOP_ARM_GUARD_WHERE,
         PATTERN_STOP_ARM_RECOVERY_SEPARATOR, PATTERN_STOP_ARROW, PATTERN_STOP_COMMA,
-        PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET, PATTERN_STOP_RPAREN, PATTERN_STOP_SEMICOLON,
-        PatternStops, is_pattern_nud, pattern_from_entry_item_normalized, pattern_stops_from_owner,
+        PATTERN_STOP_ITEM, PATTERN_STOP_RBRACE, PATTERN_STOP_RBRACKET, PATTERN_STOP_RPAREN,
+        PATTERN_STOP_SEMICOLON, PatternStops, is_pattern_nud, pattern_from_entry_item_normalized,
+        pattern_stops_from_owner,
     },
     statement::{StatementLineHandoff, indented_statement_block_normalized},
 };
@@ -1020,7 +1021,10 @@ impl ArmSequencePolicy {
     }
 
     fn first_pattern_stops(self, outer_stops: Stops) -> PatternStops {
-        let common = PATTERN_STOP_ARROW | PATTERN_STOP_ARM_GUARD_IF | PATTERN_STOP_ARM_GUARD_WHERE;
+        let common = PATTERN_STOP_ARROW
+            | PATTERN_STOP_ARM_GUARD_IF
+            | PATTERN_STOP_ARM_GUARD_WHERE
+            | PATTERN_STOP_ITEM;
         let outer_stops = if matches!(self, Self::CatchBraced { .. }) {
             outer_stops | crate::lexical::stops::stops_for(TokenKind::RBrace)
         } else {
@@ -1379,6 +1383,7 @@ impl CaseLikeFamily {
                 PATTERN_STOP_ARROW
                     | PATTERN_STOP_ARM_GUARD_IF
                     | PATTERN_STOP_ARM_GUARD_WHERE
+                    | PATTERN_STOP_ITEM
                     | PATTERN_STOP_RPAREN
                     | PATTERN_STOP_RBRACKET
                     | PATTERN_STOP_RBRACE

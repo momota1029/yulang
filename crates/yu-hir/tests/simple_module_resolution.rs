@@ -509,6 +509,211 @@ fn admitted_definition_ids_survive_body_edits() {
 }
 
 #[test]
+fn one_identifier_pattern_parameter_lowers_to_a_local_lambda() {
+    let module = lower_module(
+        identity(),
+        &parsed("my f x = x; my k = x"),
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let [HirItem::Binding(f), HirItem::Binding(k)] = module.items() else {
+        panic!("two bindings")
+    };
+    let [parameter] = f.parameters() else {
+        panic!("one parameter")
+    };
+    assert_eq!(parameter.name().spelling(), "x");
+    assert_eq!(parameter.range(), &(5..6));
+    assert!(module.owns_parameter(parameter.id()));
+    let ResolvedExpr::Lambda {
+        occurrence,
+        parameter: lambda_parameter,
+        body,
+        ..
+    } = f.value()
+    else {
+        panic!("parameterized binding lowers to Lambda")
+    };
+    assert_eq!(lambda_parameter, parameter.id());
+    assert_eq!(occurrence.ordinal(), 0);
+    assert!(matches!(
+        body.as_ref(),
+        ResolvedExpr::Name {
+            occurrence,
+            resolution: NameResolution::Parameter(resolution),
+            ..
+        } if occurrence.ordinal() == 1 && resolution == parameter.id()
+    ));
+    assert!(matches!(
+        k.value(),
+        ResolvedExpr::Name {
+            resolution: NameResolution::Unresolved,
+            ..
+        }
+    ));
+
+    let second = lower_module(
+        identity(),
+        &parsed("my f x = x; my k = x"),
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let [HirItem::Binding(second_f), _] = second.items() else {
+        panic!("two bindings")
+    };
+    let [second_parameter] = second_f.parameters() else {
+        panic!("one parameter")
+    };
+    assert_eq!(module, second);
+    assert_ne!(parameter.id(), second_parameter.id());
+    assert!(!module.owns_parameter(second_parameter.id()));
+}
+
+#[test]
+fn parameter_scope_shadows_the_module_then_restores_it() {
+    let module = lower_module(
+        identity(),
+        &parsed("my x = 1; my f x = x; my y = x"),
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let [
+        HirItem::Binding(x),
+        HirItem::Binding(f),
+        HirItem::Binding(y),
+    ] = module.items()
+    else {
+        panic!("three bindings")
+    };
+    let [parameter] = f.parameters() else {
+        panic!("one parameter")
+    };
+    assert!(matches!(
+        f.value(),
+        ResolvedExpr::Lambda { body, .. }
+            if matches!(body.as_ref(), ResolvedExpr::Name {
+                resolution: NameResolution::Parameter(id), ..
+            } if id == parameter.id())
+    ));
+    assert!(matches!(
+        y.value(),
+        ResolvedExpr::Name {
+            resolution: NameResolution::Resolved(def), ..
+        } if def == x.id()
+    ));
+}
+
+#[test]
+fn only_one_recovery_free_identifier_parameter_is_admitted() {
+    let module = lower_module(
+        identity(),
+        &parsed("my f x y = x; my g x: T = x; my h (x) = x"),
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    assert!(
+        module
+            .items()
+            .iter()
+            .all(|item| matches!(item, HirItem::Error { .. }))
+    );
+    assert_eq!(
+        module
+            .errors()
+            .iter()
+            .filter(|error| error.kind() == HirErrorKind::UnsupportedTarget)
+            .count(),
+        3
+    );
+}
+
+#[test]
+fn admitted_parameter_header_keeps_lambda_for_an_error_body() {
+    let module = lower_module(
+        identity(),
+        &parsed("my f x = @; my y = x"),
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let [HirItem::Binding(f), HirItem::Binding(y)] = module.items() else {
+        panic!("two bindings")
+    };
+    assert!(matches!(
+        f.value(),
+        ResolvedExpr::Lambda { body, .. } if matches!(body.as_ref(), ResolvedExpr::Error { .. })
+    ));
+    assert!(matches!(
+        y.value(),
+        ResolvedExpr::Name {
+            resolution: NameResolution::Unresolved,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn admitted_parameter_header_keeps_lambda_for_unresolved_and_unsupported_bodies() {
+    let module = lower_module(
+        identity(),
+        &parsed("my f x = missing; my g y = h 1"),
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let [HirItem::Binding(f), HirItem::Binding(g)] = module.items() else {
+        panic!("two bindings")
+    };
+    assert!(matches!(
+        f.value(),
+        ResolvedExpr::Lambda { body, .. }
+            if matches!(body.as_ref(), ResolvedExpr::Name {
+                resolution: NameResolution::Unresolved, ..
+            })
+    ));
+    assert!(matches!(
+        g.value(),
+        ResolvedExpr::Lambda { body, .. } if matches!(body.as_ref(), ResolvedExpr::Error { .. })
+    ));
+    assert_eq!(f.parameters().len(), 1);
+    assert_eq!(g.parameters().len(), 1);
+    assert!(
+        module
+            .errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnresolvedName)
+    );
+    assert!(
+        module
+            .errors()
+            .iter()
+            .any(|error| error.kind() == HirErrorKind::UnsupportedExpression)
+    );
+}
+
+#[test]
+fn recovered_parameter_heads_and_arguments_are_not_admitted() {
+    let module = lower_module(
+        identity(),
+        &parsed("my @ x = x; my f (@) = x; my g (x) = x"),
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    assert!(
+        module
+            .items()
+            .iter()
+            .all(|item| matches!(item, HirItem::Error { .. }))
+    );
+    assert_eq!(
+        module
+            .errors()
+            .iter()
+            .filter(|error| error.kind() == HirErrorKind::UnsupportedTarget)
+            .count(),
+        3
+    );
+}
+
+#[test]
 fn recovery_lowering_is_deterministic() {
     let parsed = parsed("my x = @; my y = x");
     let first = lower_module(identity(), &parsed, SemanticImports::empty()).unwrap();

@@ -219,6 +219,81 @@ impl Hash for DefinitionRootId {
     }
 }
 
+/// An ordered parameter identity branded by the immutable HIR artifact that
+/// owns its definition root.
+///
+/// ```compile_fail
+/// use yu_hir::HirParameterId;
+/// let _ = HirParameterId { owner: todo!(), ordinal: 0 };
+/// ```
+///
+/// ```compile_fail
+/// use yu_hir::HirParameterId;
+/// fn requires_copy<T: Copy>() {}
+/// requires_copy::<HirParameterId>();
+/// ```
+///
+/// ```compile_fail
+/// use yu_hir::HirParameterId;
+/// fn requires_serialize<T: serde::Serialize>() {}
+/// requires_serialize::<HirParameterId>();
+/// ```
+///
+/// ```compile_fail
+/// use yu_hir::HirParameterId;
+/// let _ = HirParameterId::new(todo!(), 0);
+/// ```
+///
+/// ```compile_fail
+/// use yu_hir::HirParameterId;
+/// let left: HirParameterId = todo!();
+/// let right: HirParameterId = todo!();
+/// let _ = left < right;
+/// ```
+#[derive(Clone)]
+pub struct HirParameterId {
+    owner: DefinitionRootId,
+    ordinal: u32,
+}
+
+impl HirParameterId {
+    fn new(owner: DefinitionRootId, ordinal: u32) -> Self {
+        Self { owner, ordinal }
+    }
+
+    pub fn definition_root(&self) -> &DefinitionRootId {
+        &self.owner
+    }
+
+    pub const fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+}
+
+impl std::fmt::Debug for HirParameterId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("HirParameterId")
+            .field("ordinal", &self.ordinal)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for HirParameterId {
+    fn eq(&self, other: &Self) -> bool {
+        self.owner == other.owner && self.ordinal == other.ordinal
+    }
+}
+
+impl Eq for HirParameterId {}
+
+impl Hash for HirParameterId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.owner.hash(state);
+        self.ordinal.hash(state);
+    }
+}
+
 impl HirOccurrenceId {
     fn new(artifact: Arc<HirArtifactToken>, ordinal: u32) -> Self {
         Self { artifact, ordinal }
@@ -282,6 +357,35 @@ impl HirName {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct HirParameter {
+    id: HirParameterId,
+    name: HirName,
+    range: Range<usize>,
+}
+
+impl HirParameter {
+    pub fn id(&self) -> &HirParameterId {
+        &self.id
+    }
+
+    pub fn name(&self) -> &HirName {
+        &self.name
+    }
+
+    pub fn range(&self) -> &Range<usize> {
+        &self.range
+    }
+}
+
+impl PartialEq for HirParameter {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.range == other.range
+    }
+}
+
+impl Eq for HirParameter {}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HirVisibility {
     Private,
@@ -289,15 +393,43 @@ pub enum HirVisibility {
     Public,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum NameResolution {
     Resolved(DefId),
+    Parameter(HirParameterId),
     Ambiguous,
     Unresolved,
 }
 
+impl PartialEq for NameResolution {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Resolved(left), Self::Resolved(right)) => left == right,
+            (Self::Parameter(left), Self::Parameter(right)) => left.ordinal == right.ordinal,
+            (Self::Ambiguous, Self::Ambiguous) | (Self::Unresolved, Self::Unresolved) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for NameResolution {}
+
+/// Source-owned generalization eligibility frozen while lowering an admitted
+/// binding. F5a recognizes only values; later computation forms remain
+/// unclassified until their exact gate specifies them.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum EvaluationClass {
+    FetchValue,
+}
+
 #[derive(Clone, Debug)]
 pub enum ResolvedExpr {
+    Lambda {
+        occurrence: HirOccurrenceId,
+        parameter: HirParameterId,
+        body: Box<ResolvedExpr>,
+        range: Range<usize>,
+    },
     Integer {
         occurrence: HirOccurrenceId,
         spelling: String,
@@ -319,7 +451,8 @@ pub enum ResolvedExpr {
 impl ResolvedExpr {
     pub fn occurrence(&self) -> &HirOccurrenceId {
         match self {
-            Self::Integer { occurrence, .. }
+            Self::Lambda { occurrence, .. }
+            | Self::Integer { occurrence, .. }
             | Self::Name { occurrence, .. }
             | Self::Error { occurrence, .. } => occurrence,
         }
@@ -327,9 +460,10 @@ impl ResolvedExpr {
 
     pub fn range(&self) -> &Range<usize> {
         match self {
-            Self::Integer { range, .. } | Self::Name { range, .. } | Self::Error { range, .. } => {
-                range
-            }
+            Self::Lambda { range, .. }
+            | Self::Integer { range, .. }
+            | Self::Name { range, .. }
+            | Self::Error { range, .. } => range,
         }
     }
 }
@@ -340,6 +474,24 @@ impl ResolvedExpr {
 impl PartialEq for ResolvedExpr {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (
+                Self::Lambda {
+                    parameter: left_parameter,
+                    body: left_body,
+                    range: left_range,
+                    ..
+                },
+                Self::Lambda {
+                    parameter: right_parameter,
+                    body: right_body,
+                    range: right_range,
+                    ..
+                },
+            ) => {
+                left_parameter.ordinal == right_parameter.ordinal
+                    && left_body == right_body
+                    && left_range == right_range
+            }
             (
                 Self::Integer {
                     spelling: left_spelling,
@@ -395,8 +547,27 @@ pub struct HirBinding {
     definition_root: DefinitionRootId,
     visibility: HirVisibility,
     name: HirName,
+    parameters: Box<[HirParameter]>,
+    #[allow(dead_code, reason = "frozen for the later exact generalization gate")]
+    evaluation_class: Option<EvaluationClass>,
     value: ResolvedExpr,
     range: Range<usize>,
+}
+
+fn evaluation_class(value: &ResolvedExpr) -> Option<EvaluationClass> {
+    match value {
+        ResolvedExpr::Lambda { .. }
+        | ResolvedExpr::Integer { .. }
+        | ResolvedExpr::Name {
+            resolution: NameResolution::Resolved(_) | NameResolution::Parameter(_),
+            ..
+        } => Some(EvaluationClass::FetchValue),
+        ResolvedExpr::Name {
+            resolution: NameResolution::Ambiguous | NameResolution::Unresolved,
+            ..
+        }
+        | ResolvedExpr::Error { .. } => None,
+    }
 }
 
 impl HirBinding {
@@ -411,6 +582,9 @@ impl HirBinding {
     }
     pub fn name(&self) -> &HirName {
         &self.name
+    }
+    pub fn parameters(&self) -> &[HirParameter] {
+        &self.parameters
     }
     pub fn value(&self) -> &ResolvedExpr {
         &self.value
@@ -427,6 +601,7 @@ impl PartialEq for HirBinding {
         self.id == other.id
             && self.visibility == other.visibility
             && self.name == other.name
+            && self.parameters == other.parameters
             && self.value == other.value
             && self.range == other.range
     }
@@ -549,6 +724,15 @@ impl HirModule {
         Arc::ptr_eq(&self.artifact, &root.artifact)
     }
 
+    pub fn owns_parameter(&self, parameter: &HirParameterId) -> bool {
+        Arc::ptr_eq(&self.artifact, &parameter.owner.artifact)
+            && self.items.iter().any(|item| {
+                matches!(item, HirItem::Binding(binding)
+                    if binding.definition_root == parameter.owner
+                        && binding.parameters.iter().any(|candidate| candidate.id == *parameter))
+            })
+    }
+
     pub fn identity(&self) -> &ModuleIdentity {
         &self.identity
     }
@@ -628,8 +812,10 @@ fn lower_module_with_counters(
 
     let artifact = mint_artifact_token();
     let mut items = Vec::with_capacity(plans.len());
+    let mut next_occurrence_ordinal = 0u32;
+    let mut scope = ScopeStack::default();
     for (plan, errors) in plans.iter().zip(root_errors) {
-        let occurrence = HirOccurrenceId::new(artifact.clone(), plan.ordinal);
+        let occurrence = next_occurrence(&artifact, &mut next_occurrence_ordinal)?;
         let definition_root = match &plan.kind {
             RootPlanKind::Binding(admitted) => {
                 Some(DefinitionRootId::new(artifact.clone(), admitted.id.clone()))
@@ -649,6 +835,9 @@ fn lower_module_with_counters(
             counters,
             occurrence,
             definition_root,
+            &artifact,
+            &mut next_occurrence_ordinal,
+            &mut scope,
         )?);
     }
     Ok(HirModule {
@@ -663,6 +852,17 @@ fn lower_module_with_counters(
     })
 }
 
+fn next_occurrence(
+    artifact: &Arc<HirArtifactToken>,
+    ordinal: &mut u32,
+) -> Result<HirOccurrenceId, HirAvailabilityError> {
+    let current = *ordinal;
+    *ordinal = ordinal
+        .checked_add(1)
+        .ok_or(HirAvailabilityError::IdentityExhausted)?;
+    Ok(HirOccurrenceId::new(artifact.clone(), current))
+}
+
 #[derive(Default)]
 struct LoweringCounters {
     recovery_visits: usize,
@@ -670,6 +870,37 @@ struct LoweringCounters {
     copied_spelling_bytes: usize,
     definition_root_allocation_bytes: usize,
     definition_root_def_id_clone_bytes: usize,
+}
+
+#[derive(Default)]
+struct ScopeStack {
+    parameters: Vec<HirParameter>,
+}
+
+#[derive(Clone, Copy)]
+struct ScopeDepthGuard(usize);
+
+impl ScopeStack {
+    fn push_parameter(&mut self, parameter: HirParameter) -> ScopeDepthGuard {
+        let depth = ScopeDepthGuard(self.parameters.len());
+        self.parameters.push(parameter);
+        depth
+    }
+
+    fn root_guard(&self) -> ScopeDepthGuard {
+        ScopeDepthGuard(self.parameters.len())
+    }
+
+    fn restore(&mut self, guard: ScopeDepthGuard) {
+        self.parameters.truncate(guard.0);
+    }
+
+    fn parameter(&self, spelling: &str) -> Option<&HirParameter> {
+        self.parameters
+            .iter()
+            .rev()
+            .find(|parameter| parameter.name.spelling == spelling)
+    }
 }
 
 struct RecoveryPartition {
@@ -783,6 +1014,7 @@ struct Admitted {
     id: Arc<DefId>,
     visibility: HirVisibility,
     name: HirName,
+    parameter: Option<HirName>,
 }
 
 impl RootPlan {
@@ -825,7 +1057,7 @@ fn plan_root(
             kind: RootPlanKind::Unsupported(HirErrorKind::UnsupportedItem),
         });
     }
-    let Some((visibility, name)) = plain_binding_header(&node) else {
+    let Some((visibility, name, parameter)) = plain_binding_header(&node) else {
         return Ok(RootPlan {
             ordinal,
             node,
@@ -848,6 +1080,7 @@ fn plan_root(
             id,
             visibility,
             name,
+            parameter,
         }),
     })
 }
@@ -887,6 +1120,9 @@ fn lower_plan(
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
     definition_root: Option<DefinitionRootId>,
+    artifact: &Arc<HirArtifactToken>,
+    next_occurrence_ordinal: &mut u32,
+    scope: &mut ScopeStack,
 ) -> Result<HirItem, HirAvailabilityError> {
     let RootPlanKind::Binding(admitted) = &plan.kind else {
         return match &plan.kind {
@@ -898,6 +1134,7 @@ fn lower_plan(
                 sink,
                 counters,
                 occurrence,
+                scope,
             ),
             RootPlanKind::Unsupported(kind) => {
                 item_errors.push(sink.lowering(
@@ -914,7 +1151,29 @@ fn lower_plan(
         };
     };
     let id = admitted.id.clone();
-    let (value, body_semantic_error) = lower_body(
+    let definition_root = definition_root.expect("admitted binding has a definition root");
+    let parameters = admitted
+        .parameter
+        .as_ref()
+        .map(|name| {
+            vec![HirParameter {
+                id: HirParameterId::new(definition_root.clone(), 0),
+                name: name.clone(),
+                range: name.range.clone(),
+            }]
+            .into_boxed_slice()
+        })
+        .unwrap_or_default();
+    let body_occurrence = if parameters.is_empty() {
+        occurrence.clone()
+    } else {
+        next_occurrence(artifact, next_occurrence_ordinal)?
+    };
+    let guard = parameters
+        .first()
+        .map(|parameter| scope.push_parameter(parameter.clone()))
+        .unwrap_or_else(|| scope.root_guard());
+    let lowered = lower_body(
         plan,
         parsed,
         namespace,
@@ -922,8 +1181,11 @@ fn lower_plan(
         value_errors,
         sink,
         counters,
-        occurrence,
-    )?;
+        body_occurrence,
+        scope,
+    );
+    scope.restore(guard);
+    let (value, body_semantic_error) = lowered?;
     if id.same_name_ordinal > 0 {
         sink.lowering(
             HirErrorKind::DuplicateDefinition,
@@ -934,11 +1196,24 @@ fn lower_plan(
     if let Some((kind, range)) = body_semantic_error {
         sink.lowering(kind, HirErrorAttachment::Value((*id).clone()), range)?;
     }
+    let value = if let Some(parameter) = parameters.first() {
+        ResolvedExpr::Lambda {
+            occurrence,
+            parameter: parameter.id.clone(),
+            range: plan.range.clone(),
+            body: Box::new(value),
+        }
+    } else {
+        value
+    };
+    let evaluation_class = evaluation_class(&value);
     Ok(HirItem::Binding(HirBinding {
         id,
-        definition_root: definition_root.expect("admitted binding has a definition root"),
+        definition_root,
         visibility: admitted.visibility,
         name: admitted.name.clone(),
+        parameters,
+        evaluation_class,
         value,
         range: plan.range.clone(),
     }))
@@ -952,6 +1227,7 @@ fn lower_direct_root_expression(
     sink: &mut ErrorSink,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
+    scope: &ScopeStack,
 ) -> Result<HirItem, HirAvailabilityError> {
     if !causal_errors.is_empty() {
         return Ok(HirItem::Expression(ResolvedExpr::Error {
@@ -960,7 +1236,14 @@ fn lower_direct_root_expression(
             range: plan.range.clone(),
         }));
     }
-    match lower_simple_chain(parsed, &plan.node, namespace, counters, occurrence.clone())? {
+    match lower_simple_chain(
+        parsed,
+        &plan.node,
+        namespace,
+        counters,
+        occurrence.clone(),
+        scope,
+    )? {
         SimpleChainLowering::Resolved {
             expression,
             semantic_error,
@@ -998,6 +1281,7 @@ fn lower_body(
     sink: &mut ErrorSink,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
+    scope: &ScopeStack,
 ) -> Result<(ResolvedExpr, Option<(HirErrorKind, Range<usize>)>), HirAvailabilityError> {
     let Some(body) = plan
         .node
@@ -1075,7 +1359,14 @@ fn lower_body(
             None,
         ));
     }
-    match lower_simple_chain(parsed, chain, namespace, counters, occurrence.clone())? {
+    match lower_simple_chain(
+        parsed,
+        chain,
+        namespace,
+        counters,
+        occurrence.clone(),
+        scope,
+    )? {
         SimpleChainLowering::Resolved {
             expression,
             semantic_error,
@@ -1114,6 +1405,7 @@ fn lower_simple_chain(
     namespace: &HashMap<String, Vec<DefId>>,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
+    scope: &ScopeStack,
 ) -> Result<SimpleChainLowering, HirAvailabilityError> {
     let chain_range = range_of(chain);
     let (expression, atom) = associate_chain_owned(parsed, chain.clone())
@@ -1148,15 +1440,19 @@ fn lower_simple_chain(
                 spelling: atom.spelling,
                 range: atom.range.clone(),
             };
-            let (resolution, kind) = match namespace.get(&name.spelling) {
-                Some(definitions) if definitions.len() == 1 => {
-                    (NameResolution::Resolved(definitions[0].clone()), None)
+            let (resolution, kind) = if let Some(parameter) = scope.parameter(&name.spelling) {
+                (NameResolution::Parameter(parameter.id.clone()), None)
+            } else {
+                match namespace.get(&name.spelling) {
+                    Some(definitions) if definitions.len() == 1 => {
+                        (NameResolution::Resolved(definitions[0].clone()), None)
+                    }
+                    Some(_) => (NameResolution::Ambiguous, Some(HirErrorKind::AmbiguousName)),
+                    None => (
+                        NameResolution::Unresolved,
+                        Some(HirErrorKind::UnresolvedName),
+                    ),
                 }
-                Some(_) => (NameResolution::Ambiguous, Some(HirErrorKind::AmbiguousName)),
-                None => (
-                    NameResolution::Unresolved,
-                    Some(HirErrorKind::UnresolvedName),
-                ),
             };
             Ok(SimpleChainLowering::Resolved {
                 expression: ResolvedExpr::Name {
@@ -1172,7 +1468,7 @@ fn lower_simple_chain(
     }
 }
 
-fn plain_binding_header(node: &SyntaxNode) -> Option<(HirVisibility, HirName)> {
+fn plain_binding_header(node: &SyntaxNode) -> Option<(HirVisibility, HirName, Option<HirName>)> {
     let header = node
         .children()
         .find(|child| child.kind() == SyntaxKind::BindingHeader)?;
@@ -1193,9 +1489,34 @@ fn plain_binding_header(node: &SyntaxNode) -> Option<(HirVisibility, HirName)> {
         return None;
     }
     let pattern_children = target.children().collect::<Vec<_>>();
-    let [pattern] = pattern_children.as_slice() else {
-        return None;
+    let (head, parameter) = match pattern_children.as_slice() {
+        [head] => (identifier_pattern_name(head)?, None),
+        [head, tail] if tail.kind() == SyntaxKind::PatternMlApplicationTail => {
+            if has_recovery(tail) {
+                return None;
+            }
+            let arguments = tail.children().collect::<Vec<_>>();
+            let [argument] = arguments.as_slice() else {
+                return None;
+            };
+            if argument.kind() != SyntaxKind::Pattern || has_recovery(argument) {
+                return None;
+            }
+            let argument_children = argument.children().collect::<Vec<_>>();
+            let [argument] = argument_children.as_slice() else {
+                return None;
+            };
+            (
+                identifier_pattern_name(head)?,
+                Some(identifier_pattern_name(argument)?),
+            )
+        }
+        _ => return None,
     };
+    Some((visibility, head, parameter))
+}
+
+fn identifier_pattern_name(pattern: &SyntaxNode) -> Option<HirName> {
     if pattern.kind() != SyntaxKind::IdentifierPattern || has_recovery(pattern) {
         return None;
     }
@@ -1206,14 +1527,9 @@ fn plain_binding_header(node: &SyntaxNode) -> Option<(HirVisibility, HirName)> {
     let [token] = tokens.as_slice() else {
         return None;
     };
-    (token.kind() == SyntaxKind::Identifier).then(|| {
-        (
-            visibility,
-            HirName {
-                spelling: token.text().to_owned(),
-                range: token_range(token),
-            },
-        )
+    (token.kind() == SyntaxKind::Identifier).then(|| HirName {
+        spelling: token.text().to_owned(),
+        range: token_range(token),
     })
 }
 
@@ -1381,6 +1697,43 @@ mod tests {
         };
         assert_eq!(first.range(), second.range());
         assert_ne!(first.occurrence(), second.occurrence());
+    }
+
+    #[test]
+    fn parameter_id_has_the_exact_positive_trait_surface() {
+        fn assert_traits<T: Clone + std::fmt::Debug + Eq + Hash>() {}
+        assert_traits::<HirParameterId>();
+    }
+
+    #[test]
+    fn parameter_has_the_exact_positive_trait_surface() {
+        fn assert_traits<T: Clone + std::fmt::Debug + Eq>() {}
+        assert_traits::<HirParameter>();
+    }
+
+    #[test]
+    fn evaluation_classification_is_private_and_frozen_on_bindings() {
+        let module = lower_module(
+            identity(),
+            &parsed("my x = 1; my y = x; my f p = p; my missing = nope; my bad = @"),
+            SemanticImports::empty(),
+        )
+        .expect("lowering remains available");
+        let [
+            HirItem::Binding(x),
+            HirItem::Binding(y),
+            HirItem::Binding(f),
+            HirItem::Binding(missing),
+            HirItem::Binding(bad),
+        ] = module.items()
+        else {
+            panic!("five bindings")
+        };
+        assert_eq!(x.evaluation_class, Some(EvaluationClass::FetchValue));
+        assert_eq!(y.evaluation_class, Some(EvaluationClass::FetchValue));
+        assert_eq!(f.evaluation_class, Some(EvaluationClass::FetchValue));
+        assert_eq!(missing.evaluation_class, None);
+        assert_eq!(bad.evaluation_class, None);
     }
 
     #[test]
