@@ -200,6 +200,25 @@ blocking or major compiler-referee finding. The user approved the corrected
 complete gate on 2026-09-21; F4 is now Authoritative and its atomic
 implementation is active.
 
+F4 implementation reached a material performance rollback condition: the
+required 4,000-member unbounded-cycle debug witness remained active beyond 80
+seconds because every root recursively re-expanded the same cycle. The narrow
+draft addendum
+`notes/design/2026-09-21-f4-bound-membership-summary-addendum.md` proposes an
+exact `IntPositive` lower-bound membership bit owned and updated only by the
+canonical `constrain` path. It adds no graph/worklist or second type authority.
+Implementation of that summary was paused for M3 review and user approval; the
+safe F4 core and complete synthetic scale matrix remain uncommitted while the
+approved repair is applied.
+
+The remaining pair-cache decision is resolved: the user selected fixed-size
+session-local endpoint keys on 2026-09-21. The cache will use only integer leaf
+tags and dense value-row ordinals; `Term`, definition spelling, and module-path
+hash/equality are excluded. The addendum completed clean M3 semantic,
+specification, and performance review and is now Authoritative. Implementation
+may resume against the exact private classification, value-only counter split,
+peak accounting, and staged 1k/2k/4k measurement contract.
+
 Direct frozen-oracle inspection superseded the user-approved R2 executor model
 on 2026-09-21. R2's Failed/Blocked SCC outcomes, dependency blocking, generic
 backend, completed-session conversion, lifecycle query, added availability API,
