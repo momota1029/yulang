@@ -219,6 +219,18 @@ specification, and performance review and is now Authoritative. Implementation
 may resume against the exact private classification, value-only counter split,
 peak accounting, and staged 1k/2k/4k measurement contract.
 
+The authorized summary/key implementation hit its explicit rollback gate: the
+exact 1,000-definition unbounded-cycle test did not complete within 30 seconds,
+so 2k/4k and broad tests were not run. Static audit derived the owner as cubic
+opposite-row replay over an alternating 2N-row cycle, not summary or hashing.
+The new draft
+`notes/design/2026-09-21-f4-direct-bound-frontier-addendum.md` replaces only
+physical transitive Var-pair materialization with synchronous direct adjacency
+and generic atom-bound frontier transmission. Existing uncommitted F4 work is
+preserved. The addendum completed clean M3 semantic, specification, and
+performance review and now awaits user approval before the six public counter
+meanings, pair-cache population, and implementation change.
+
 Direct frozen-oracle inspection superseded the user-approved R2 executor model
 on 2026-09-21. R2's Failed/Blocked SCC outcomes, dependency blocking, generic
 backend, completed-session conversion, lifecycle query, added availability API,
