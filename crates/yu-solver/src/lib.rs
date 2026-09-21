@@ -12,7 +12,10 @@ use std::{
 use yu_hir::{
     DefId, DefinitionRootId, HirItem, HirModule, HirOccurrenceId, NameResolution, ResolvedExpr,
 };
-use yu_types::{ClosedPositiveValue, ClosedValueScheme, ComponentKind, Leaf};
+use yu_types::{
+    ClosedSchemeFinalization, ClosedTypeArena, ClosedTypeFinalizationSession,
+    ClosedTypeFinalizeError, ClosedValueScheme, ComponentKind, Leaf, PositiveValueView,
+};
 
 mod scc;
 use scc::{SccComponentId, SccPlan};
@@ -2792,12 +2795,18 @@ struct OccurrenceExactBounds {
     effect_upper_empty: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct DraftScheme(ClosedValueScheme);
 
 struct VerifiedSchemeDefinition<'a> {
     record: &'a CollectedDefinition,
     position: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum F4SchemeBody {
+    Bottom,
+    Int,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2891,6 +2900,7 @@ enum ResourceBoundary {
     SchemeInstall,
     IncomingRoute,
     StoreAccounting,
+    FinishOutputWithStaging,
     FinishOutput,
 }
 
@@ -2924,6 +2934,7 @@ impl IndependentResourceLedger {
         routed_use_positions: &HashSet<DefinitionUseId>,
         schemes: &Vec<Option<ClosedValueScheme>>,
         drafts: &Vec<DraftScheme>,
+        closed_type_retained_bytes: usize,
         frozen_constraint_class_capacity: usize,
         frozen_occurrence_row_capacity: usize,
         f2_batch_retained_bytes: usize,
@@ -2960,6 +2971,7 @@ impl IndependentResourceLedger {
                     drafts.capacity(),
                     "F4 independent draft scratch",
                 ),
+                closed_type_retained_bytes,
                 checked_capacity_bytes::<OccurrenceExactBounds>(
                     occurrence_exact_bounds.capacity(),
                     "F4 independent occurrence bounds",
@@ -3056,6 +3068,7 @@ pub struct SolvedModule {
     root_scheme_positions: HashMap<DefinitionRootId, usize>,
     root_scheme_identity_payload_bytes: Vec<usize>,
     schemes: Vec<Option<ClosedValueScheme>>,
+    closed_types: ClosedTypeArena,
     #[allow(
         dead_code,
         reason = "F4 retains exact route provenance for future explanation without adding a public lifecycle query"
@@ -3091,6 +3104,8 @@ struct InferenceSession {
     routed_uses: Vec<RoutedUseProvenance>,
     routed_use_positions: HashSet<DefinitionUseId>,
     schemes: Vec<Option<ClosedValueScheme>>,
+    finalization: Option<ClosedTypeFinalizationSession>,
+    current_closed_retained_bytes: usize,
     drafts: Vec<DraftScheme>,
     execution_counters: ProductionCounters,
     #[cfg(test)]
@@ -3100,6 +3115,10 @@ struct InferenceSession {
     #[cfg(test)]
     initial_value_pair_probes: usize,
     #[cfg(test)]
+    injected_finalization_failure_after: Option<usize>,
+    #[cfg(test)]
+    successful_finalizations: usize,
+    #[cfg(test)]
     ordering_observer: Option<OrderingObserver>,
     #[cfg(test)]
     resource_boundary_samples: usize,
@@ -3107,7 +3126,13 @@ struct InferenceSession {
     resource_ledger: IndependentResourceLedger,
 }
 impl InferenceSession {
+    #[cfg(test)]
     fn new(batch: ConstraintBatch) -> Self {
+        Self::try_new(batch)
+            .expect("test/internal session construction has available closed identity")
+    }
+
+    fn try_new(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
         let value_component_count = batch
             .root_component_positions
             .len()
@@ -3135,6 +3160,10 @@ impl InferenceSession {
             routed_uses: Vec::with_capacity(routed_capacity),
             routed_use_positions: HashSet::with_capacity(routed_capacity),
             schemes: (0..definition_count).map(|_| None).collect(),
+            finalization: Some(
+                ClosedTypeFinalizationSession::try_new().map_err(Self::map_finalization_error)?,
+            ),
+            current_closed_retained_bytes: 0,
             drafts: Vec::with_capacity(draft_capacity),
             execution_counters: ProductionCounters::default(),
             #[cfg(test)]
@@ -3143,6 +3172,10 @@ impl InferenceSession {
             summary_false_to_true_transitions: 0,
             #[cfg(test)]
             initial_value_pair_probes: 0,
+            #[cfg(test)]
+            injected_finalization_failure_after: None,
+            #[cfg(test)]
+            successful_finalizations: 0,
             #[cfg(test)]
             ordering_observer: None,
             #[cfg(test)]
@@ -3153,7 +3186,16 @@ impl InferenceSession {
         // Initial reservations coexist before any fact admission and are a
         // real resource boundary, not a final retained-byte alias.
         session.sample_f4_resources(ResourceBoundary::InitialReservation);
-        session
+        Ok(session)
+    }
+
+    fn map_finalization_error(error: ClosedTypeFinalizeError) -> SolveAvailabilityError {
+        match error {
+            ClosedTypeFinalizeError::IdentityExhausted => SolveAvailabilityError::IdentityExhausted,
+            ClosedTypeFinalizeError::InvalidDraft => {
+                panic!("F4 finalization draft is internally validated before publication")
+            }
+        }
     }
 
     #[cfg(test)]
@@ -3166,13 +3208,18 @@ impl InferenceSession {
         self.store.injected_provenance_failure = Some(error);
     }
 
+    #[cfg(test)]
+    fn inject_finalization_failure_after(&mut self, successful_finalizations: usize) {
+        self.injected_finalization_failure_after = Some(successful_finalizations);
+    }
+
     fn run(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
         self.admit_all_collected_facts()?;
         self.execute_scc_plan()?;
         self.sample_f4_resources(ResourceBoundary::StoreAccounting);
         self.store.finish_accounting();
         self.sample_f4_resources(ResourceBoundary::StoreAccounting);
-        Ok(self.finish())
+        self.finish()
     }
 
     #[cfg(test)]
@@ -3234,7 +3281,7 @@ impl InferenceSession {
                 .resource_ledger
                 .inference_session_peak_bytes,
         };
-        let solved = self.finish();
+        let solved = self.finish()?;
         summary.semantic_arena_retained_bytes = solved.counters.semantic_arena_retained_bytes;
         summary.semantic_arena_peak_bytes = solved.counters.semantic_arena_peak_bytes;
         summary.inference_session_retained_bytes = solved.counters.inference_session_retained_bytes;
@@ -3277,6 +3324,7 @@ impl InferenceSession {
             &self.routed_use_positions,
             &self.schemes,
             &self.drafts,
+            self.current_closed_retained_bytes,
             self.batch.frozen_constraint_classes.capacity(),
             self.batch.frozen_occurrence_bound_rows.capacity(),
             self.batch.counters.f2_batch_retained_bytes,
@@ -3309,6 +3357,7 @@ impl InferenceSession {
         routed_use_positions: &HashSet<DefinitionUseId>,
         schemes: &Vec<Option<ClosedValueScheme>>,
         drafts: &Vec<DraftScheme>,
+        closed_type_retained_bytes: usize,
         frozen_constraint_class_capacity: usize,
         frozen_occurrence_row_capacity: usize,
         f2_batch_retained_bytes: usize,
@@ -3335,6 +3384,7 @@ impl InferenceSession {
                 routed_use_positions,
                 schemes,
                 drafts,
+                closed_type_retained_bytes,
                 frozen_constraint_class_capacity,
                 frozen_occurrence_row_capacity,
                 f2_batch_retained_bytes,
@@ -3420,6 +3470,7 @@ impl InferenceSession {
                 scheme_bytes,
                 routes_bytes,
                 drafts_bytes,
+                closed_type_retained_bytes,
                 exact_bytes,
                 checked_capacity_bytes::<FrozenConstraintClass>(
                     frozen_constraint_class_capacity,
@@ -3733,6 +3784,7 @@ impl InferenceSession {
                     &self.routed_use_positions,
                     &self.schemes,
                     &self.drafts,
+                    self.current_closed_retained_bytes,
                     self.batch.frozen_constraint_classes.capacity(),
                     self.batch.frozen_occurrence_bound_rows.capacity(),
                     self.batch.counters.f2_batch_retained_bytes,
@@ -3799,11 +3851,68 @@ impl InferenceSession {
                 }
                 let old_capacity = self.drafts.capacity();
                 #[cfg(test)]
-                let draft =
-                    Self::generalize(&self.batch, &self.bounds, member, &mut self.summary_reads);
+                let inject_finalization_failure = if self.injected_finalization_failure_after
+                    == Some(self.successful_finalizations)
+                {
+                    self.injected_finalization_failure_after = None;
+                    true
+                } else {
+                    false
+                };
+                #[cfg(test)]
+                let finalized = Self::generalize(
+                    &self.batch,
+                    &self.bounds,
+                    self.finalization
+                        .as_mut()
+                        .expect("F4 finalization session remains live before finish"),
+                    member,
+                    &mut self.summary_reads,
+                    inject_finalization_failure,
+                )?;
                 #[cfg(not(test))]
-                let draft = Self::generalize(&self.batch, &self.bounds, member);
+                let finalized = Self::generalize(
+                    &self.batch,
+                    &self.bounds,
+                    self.finalization
+                        .as_mut()
+                        .expect("F4 finalization session remains live before finish"),
+                    member,
+                )?;
+                let (draft, checkpoint) = finalized.into_parts();
+                assert_eq!(
+                    checkpoint.retained_bytes_before(),
+                    self.current_closed_retained_bytes,
+                    "successful solver finalizations form one uninterrupted accounting epoch"
+                );
+                let semantic_without_closed = self
+                    .execution_counters
+                    .semantic_arena_retained_bytes
+                    .checked_sub(self.current_closed_retained_bytes)
+                    .expect("latest F4 semantic sample includes closed storage once");
+                let session_without_closed = self
+                    .execution_counters
+                    .inference_session_retained_bytes
+                    .checked_sub(self.current_closed_retained_bytes)
+                    .expect("latest F4 session sample includes closed storage once");
+                self.execution_counters.semantic_arena_peak_bytes =
+                    self.execution_counters.semantic_arena_peak_bytes.max(
+                        semantic_without_closed
+                            .checked_add(checkpoint.peak_bytes_during_call())
+                            .expect("F4 closed finalization semantic peak fits usize"),
+                    );
+                self.execution_counters.inference_session_peak_bytes =
+                    self.execution_counters.inference_session_peak_bytes.max(
+                        session_without_closed
+                            .checked_add(checkpoint.peak_bytes_during_call())
+                            .expect("F4 closed finalization session peak fits usize"),
+                    );
+                self.current_closed_retained_bytes = checkpoint.retained_bytes_after();
                 self.drafts.push(DraftScheme(draft));
+                #[cfg(test)]
+                {
+                    self.successful_finalizations += 1;
+                }
                 if self.drafts.capacity() != old_capacity {
                     self.execution_counters.draft_scratch_growths += 1;
                 }
@@ -3827,7 +3936,7 @@ impl InferenceSession {
                 let draft = self
                     .drafts
                     .get(ordinal)
-                    .copied()
+                    .cloned()
                     .expect("draft view is ordinal-indexed")
                     .0;
                 let verified = Self::verified_scheme_definition(&self.batch, member);
@@ -3856,12 +3965,16 @@ impl InferenceSession {
                     if observer.has_capacity() {
                         let use_record = self.batch.definition_use(id).expect("plan-owned use");
                         let position = use_record.target.ordinal() as usize;
-                        let kind = match self.schemes[position]
-                            .expect("incoming observes finalized component scheme")
-                            .body()
-                        {
-                            ClosedPositiveValue::Int => ObservedIncomingKind::Int,
-                            ClosedPositiveValue::Bottom => ObservedIncomingKind::BottomTrivial,
+                        let kind = match Self::f4_scheme_body(
+                            self.finalization
+                                .as_ref()
+                                .expect("F4 finalization session remains live before finish"),
+                            self.schemes[position]
+                                .as_ref()
+                                .expect("incoming observes finalized component scheme"),
+                        ) {
+                            F4SchemeBody::Int => ObservedIncomingKind::Int,
+                            F4SchemeBody::Bottom => ObservedIncomingKind::BottomTrivial,
                         };
                         observer.record(|| ExecutionEvent::IncomingUse(id.clone(), kind));
                     } else {
@@ -3877,6 +3990,9 @@ impl InferenceSession {
                     &mut self.frontier,
                     &mut self.routed_uses,
                     &mut self.routed_use_positions,
+                    self.finalization
+                        .as_ref()
+                        .expect("F4 finalization session remains live before finish"),
                     &self.schemes,
                     &mut self.execution_counters,
                     id,
@@ -3940,16 +4056,19 @@ impl InferenceSession {
         frontier: &mut DirectBoundFrontier,
         routed_uses: &mut Vec<RoutedUseProvenance>,
         routed_use_positions: &mut HashSet<DefinitionUseId>,
+        finalization: &ClosedTypeFinalizationSession,
         schemes: &[Option<ClosedValueScheme>],
         counters: &mut ProductionCounters,
         id: &DefinitionUseId,
     ) -> Result<usize, SolveAvailabilityError> {
         let use_record = Self::validated_route_use(batch, id)?;
         let position = use_record.target.ordinal() as usize;
-        let scheme = schemes[position].expect("incoming observes finalized component scheme");
+        let scheme = schemes[position]
+            .as_ref()
+            .expect("incoming observes finalized component scheme");
         let value = batch.components[use_record.use_value_component].clone();
-        match scheme.body() {
-            ClosedPositiveValue::Bottom => {
+        match Self::f4_scheme_body(finalization, scheme) {
+            F4SchemeBody::Bottom => {
                 counters.scc_execution_bottom_trivial_instantiations += 1;
                 assert!(
                     routed_use_positions.insert(id.clone()),
@@ -3966,7 +4085,7 @@ impl InferenceSession {
                 }
                 Ok(0)
             }
-            ClosedPositiveValue::Int => {
+            F4SchemeBody::Int => {
                 counters.scc_execution_int_instantiation_facts += 1;
                 Self::route(
                     store,
@@ -4063,21 +4182,51 @@ impl InferenceSession {
     fn generalize(
         batch: &ConstraintBatch,
         bounds: &[VariableBounds],
+        finalization: &mut ClosedTypeFinalizationSession,
         definition: &DefinitionOrderId,
         #[cfg(test)] summary_reads: &mut usize,
-    ) -> ClosedValueScheme {
+        #[cfg(test)] inject_finalization_failure: bool,
+    ) -> Result<ClosedSchemeFinalization, SolveAvailabilityError> {
         let verified = Self::verified_scheme_definition(batch, definition);
         let row = verified.record.root_value_row as usize;
         #[cfg(test)]
         {
             *summary_reads += 1;
         }
-        let body = if bounds[row].has_int_positive_lower {
-            ClosedPositiveValue::Int
-        } else {
-            ClosedPositiveValue::Bottom
-        };
-        ClosedValueScheme::new(body)
+        finalization
+            .finalize_scheme(|finalizer| {
+                #[cfg(test)]
+                if inject_finalization_failure {
+                    return Err(ClosedTypeFinalizeError::IdentityExhausted);
+                }
+                let predicate = if bounds[row].has_int_positive_lower {
+                    finalizer.positive_int()?
+                } else {
+                    finalizer.positive_bottom()?
+                };
+                finalizer.set_scheme(0, &[], predicate)
+            })
+            .map_err(Self::map_finalization_error)
+    }
+
+    fn f4_scheme_body(
+        finalization: &ClosedTypeFinalizationSession,
+        scheme: &ClosedValueScheme,
+    ) -> F4SchemeBody {
+        let view = finalization
+            .scheme_view(scheme)
+            .expect("session-owned F4 scheme has a valid arena handle");
+        match view.positive_value(view.predicate()) {
+            Ok(PositiveValueView::Bottom) => F4SchemeBody::Bottom,
+            Ok(PositiveValueView::Int) => F4SchemeBody::Int,
+            Ok(PositiveValueView::Quantified(_))
+            | Ok(PositiveValueView::Recursive(_))
+            | Ok(PositiveValueView::Function { .. })
+            | Ok(PositiveValueView::Union(_)) => {
+                panic!("F4 routes only its closed Bottom/Int schemes")
+            }
+            Err(_) => panic!("session-owned F4 scheme predicate remains valid"),
+        }
     }
 
     /// F2 member ordinals select dense storage, but they never become a
@@ -4110,7 +4259,7 @@ impl InferenceSession {
         VerifiedSchemeDefinition { record, position }
     }
 
-    fn finish(mut self) -> SolvedModule {
+    fn finish(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
         let mut projections = HashMap::with_capacity(self.batch.projection_order.len());
         let mut work = ProductionCounters::default();
         for (index, occurrence) in self.batch.projection_order.iter().enumerate() {
@@ -4147,9 +4296,29 @@ impl InferenceSession {
             ],
             "F4 finish scheme-root index",
         );
-        // The allocated finish output remains live until it moves into the
-        // result below. Sample that actual coexistence before ownership
-        // transfer; final retained accounting must not alias this peak.
+        // Projection allocation is a real coexistence boundary: the closed
+        // session and its reusable staging are still live here.
+        self.sample_f4_resources_with_finish_output(
+            ResourceBoundary::FinishOutputWithStaging,
+            work.solved_projection_retained_bytes,
+        );
+        // `finish` is fallible only for terminal closed-type accounting. Map it
+        // after the real pre-finish coexistence sample but before combining
+        // final counters or constructing the public result.
+        let finalization = self
+            .finalization
+            .take()
+            .expect("F4 finalization session is consumed exactly once by finish");
+        let (closed_types, receipt) = finalization
+            .finish()
+            .map_err(Self::map_finalization_error)?
+            .into_parts();
+        assert_eq!(
+            receipt.retained_bytes_before_finish(),
+            self.current_closed_retained_bytes,
+            "closed finalization receipt continues the solver-owned total"
+        );
+        self.current_closed_retained_bytes = receipt.retained_bytes_after_finish();
         self.sample_f4_resources_with_finish_output(
             ResourceBoundary::FinishOutput,
             work.solved_projection_retained_bytes,
@@ -4158,13 +4327,14 @@ impl InferenceSession {
         counters.combine(self.store.counters());
         counters.combine(&work);
         counters.combine(&self.execution_counters);
-        SolvedModule {
+        Ok(SolvedModule {
             hir: self.batch.hir,
             projection_order: self.batch.projection_order,
             projections,
             root_scheme_positions: self.batch.root_definition_positions,
             root_scheme_identity_payload_bytes: self.batch.root_scheme_identity_payload_bytes,
             schemes: self.schemes,
+            closed_types,
             routed_uses: self.routed_uses,
             errors: self.errors,
             store: self.store,
@@ -4177,12 +4347,12 @@ impl InferenceSession {
             resource_boundary_samples: self.resource_boundary_samples,
             #[cfg(test)]
             resource_ledger: self.resource_ledger,
-        }
+        })
     }
 }
 impl SolvedModule {
     pub fn solve(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
-        InferenceSession::new(batch).run()
+        InferenceSession::try_new(batch)?.run()
     }
     pub fn hir(&self) -> &Arc<HirModule> {
         &self.hir
@@ -4245,16 +4415,24 @@ impl SolvedModule {
             .fetch_add(identity_payload_bytes, Ordering::Relaxed);
         self.scheme_root_query_logical_successful_equality_byte_incidences
             .fetch_add(identity_payload_bytes, Ordering::Relaxed);
-        match self
-            .schemes
-            .get(position)
-            .copied()
-            .flatten()
-            .expect("every admitted root has a finalized scheme")
-            .body()
+        let view = self
+            .closed_types
+            .scheme_view(
+                self.schemes[position]
+                    .as_ref()
+                    .expect("every admitted root has a finalized scheme"),
+            )
+            .expect("solved module retains its exact finalized closed arena");
+        match view
+            .positive_value(view.predicate())
+            .expect("scheme predicate remains valid")
         {
-            ClosedPositiveValue::Int => Ok(SolvedValue::Int),
-            ClosedPositiveValue::Bottom => Ok(SolvedValue::Never),
+            PositiveValueView::Int => Ok(SolvedValue::Int),
+            PositiveValueView::Bottom => Ok(SolvedValue::Never),
+            PositiveValueView::Quantified(_)
+            | PositiveValueView::Recursive(_)
+            | PositiveValueView::Function { .. }
+            | PositiveValueView::Union(_) => Ok(SolvedValue::Unknown),
         }
     }
 }
@@ -4811,7 +4989,7 @@ mod tests {
                     witness.definitions, // one scheme install per member
                     witness.incoming_uses,
                     2, // before and after finish store accounting
-                    1, // finish output ownership transfer
+                    2, // output with live closed staging, then post-finish transfer
                 ],
                 "F4 scale resource boundary sample count",
             );
@@ -4822,7 +5000,7 @@ mod tests {
             );
             assert_eq!(
                 summary.resource_boundary_coverage,
-                7 + usize::from(witness.internal_uses != 0)
+                8 + usize::from(witness.internal_uses != 0)
                     + usize::from(witness.incoming_uses != 0),
                 "{} records every applicable named resource boundary exactly",
                 witness.name
@@ -5549,7 +5727,15 @@ mod tests {
             .get_mut(&root)
             .expect("collected definition owns a frozen scheme position") = 1;
         let mut summary_reads = 0;
-        let _ = InferenceSession::generalize(&batch, &[], &definition, &mut summary_reads);
+        let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
+        let _ = InferenceSession::generalize(
+            &batch,
+            &[],
+            &mut finalization,
+            &definition,
+            &mut summary_reads,
+            false,
+        );
     }
 
     #[test]
@@ -5694,7 +5880,7 @@ mod tests {
         assert!(session.routed_uses.is_empty());
         assert!(session.routed_use_positions.is_empty());
 
-        for scheme in [ClosedPositiveValue::Int, ClosedPositiveValue::Bottom] {
+        for scheme in [F4SchemeBody::Int, F4SchemeBody::Bottom] {
             let mut batch = collect(module(
                 "my source = 42; my sink = source",
                 "f4-cause-closed.yu",
@@ -5706,7 +5892,22 @@ mod tests {
             );
             batch.definition_uses[0].cause = DefinitionUseCause::for_use(unrelated);
             let mut session = InferenceSession::new(batch);
-            session.schemes[0] = Some(ClosedValueScheme::new(scheme));
+            session.schemes[0] = Some(
+                session
+                    .finalization
+                    .as_mut()
+                    .expect("test session has not finished")
+                    .finalize_scheme(|finalizer| {
+                        let predicate = match scheme {
+                            F4SchemeBody::Int => finalizer.positive_int()?,
+                            F4SchemeBody::Bottom => finalizer.positive_bottom()?,
+                        };
+                        finalizer.set_scheme(0, &[], predicate)
+                    })
+                    .unwrap()
+                    .into_parts()
+                    .0,
+            );
             let result = InferenceSession::route_incoming(
                 &session.batch,
                 &mut session.store,
@@ -5716,6 +5917,10 @@ mod tests {
                 &mut session.frontier,
                 &mut session.routed_uses,
                 &mut session.routed_use_positions,
+                session
+                    .finalization
+                    .as_ref()
+                    .expect("test session has not finished"),
                 &session.schemes,
                 &mut session.execution_counters,
                 &route_id,
@@ -5847,6 +6052,72 @@ mod tests {
             exhaustion_session.run(),
             Err(SolveAvailabilityError::IdentityExhausted)
         ));
+    }
+
+    #[test]
+    fn f5b_finalization_availability_exhaustion_returns_no_module_or_final_counter_work() {
+        let batch = || {
+            let batch = collect(module(
+                "my left = right; my right = left",
+                "f5b-finalization-atomic.yu",
+            ));
+            assert_eq!(batch.counters.scc_maximum_component_size, 2);
+            batch
+        };
+
+        // `run` owns the only route to a `SolvedModule`; the injected second
+        // finalization fails after the first succeeds, so it returns no
+        // partial module.
+        let mut run_session = InferenceSession::new(batch());
+        run_session.inject_finalization_failure_after(1);
+        assert!(matches!(
+            run_session.run(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+
+        // Inspect the same path before ownership is consumed. The earlier
+        // session scheme exists, but component publication begins only after
+        // every member draft has finalized successfully.
+        let mut session = InferenceSession::new(batch());
+        session.inject_finalization_failure_after(1);
+        session.admit_all_collected_facts().unwrap();
+        assert_eq!(
+            session.execute_scc_plan(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.successful_finalizations, 1);
+        assert_eq!(session.drafts.len(), 1);
+        assert!(session.schemes.iter().all(Option::is_none));
+        assert_eq!(session.execution_counters.finish_projection_visits, 0);
+        assert_eq!(
+            session.execution_counters.solved_projection_retained_bytes, 0,
+            "final counters are neither combined nor published after finalization availability failure"
+        );
+        assert!(
+            session
+                .finalization
+                .as_ref()
+                .expect("test session has not finished")
+                .scheme_view(&session.drafts[0].0)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn f5b_finalization_failure_keeps_the_f4_availability_boundary_exhaustive() {
+        // F5b may only reuse F4's exhaustion result. A malformed draft is an
+        // internal finalizer invariant, so it cannot manufacture a fifth
+        // solver availability result or a partially published module.
+        assert_eq!(
+            InferenceSession::map_finalization_error(ClosedTypeFinalizeError::IdentityExhausted),
+            SolveAvailabilityError::IdentityExhausted
+        );
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                InferenceSession::map_finalization_error(ClosedTypeFinalizeError::InvalidDraft)
+            }))
+            .is_err()
+        );
     }
 
     #[test]
