@@ -1,6 +1,23 @@
-# Current task: freeze `syntax-v0` and resume vertical implementation
+# Current task: F5 general Function scheme foundation
 
-Updated: 2026-09-17. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-21. Branch: `yulang3`; do not modify frozen `main`.
+
+## Active F5 gate
+
+The reviewed proposal is
+[`2026-09-21-f5-general-function-scheme-foundation-draft.md`](../notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md).
+It carries the production source witness `my f x = x` through shared Pattern ML
+application, one-parameter Lambda HIR, live polarized Function constraints,
+SCC generalization, disjoint Q/R closure, and fresh incoming instantiation.
+
+M3 architect, semantic, specification, and performance review is clean. The
+immediate next action is the user's approval or rejection of this one atomic
+design gate. Do not implement F5a–F5e before approval. On approval, record the
+decision in the design/index and implement the internal gates in order, with
+the focused verification and resource witnesses specified there.
+
+The older syntax-v0 vertical-implementation record below remains historical
+context and does not override this active F5 gate.
 
 ## Current user decision
 
