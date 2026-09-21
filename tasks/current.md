@@ -196,8 +196,9 @@ correction and direct Simple-Sub/Yulang2 audit rejected the intermediate
 lower/upper bounds and propagates canonical constraint pairs; only
 generalization performs positive coalescing, polar-variable elimination, and
 the final `Bottom | Int` simplification. The revised delta has no remaining
-blocking or major compiler-referee finding. The document is Reviewed but is not
-an implementation authority until the user accepts the corrected complete gate.
+blocking or major compiler-referee finding. The user approved the corrected
+complete gate on 2026-09-21; F4 is now Authoritative and its atomic
+implementation is active.
 
 Direct frozen-oracle inspection superseded the user-approved R2 executor model
 on 2026-09-21. R2's Failed/Blocked SCC outcomes, dependency blocking, generic

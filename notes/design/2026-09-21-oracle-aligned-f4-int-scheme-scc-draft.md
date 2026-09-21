@@ -1,12 +1,16 @@
 # Oracle-aligned F4: int scheme と静的 SCC 推論
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-21
 
 Drafted-by: primary agent
 
 Reviewed-by: compiler referee, specification auditor, performance auditor
+
+Approved-by: user
+
+Approved-at: 2026-09-21
 
 Scope: F0--F3b の構造を保ったまま、現在受理済みの binding-body
 `Integer` / resolved `Name` に対して、Yulang2 と同じ正方向の展開・簡約、
@@ -25,7 +29,6 @@ supersession は F0 `DefinitionUse` を持つ resolved binding-body Name、全 a
 root の generalization、finalized root result、新しい scheme/counter/API に限る。
 direct-root Name と既存 Integer occurrence の exact projection は保持する。
 
-この文書は user approval の後にのみ Authoritative になる。
 Function、application、parameter、annotation、import、method/role、Core IR は
 対象外とする。
 
