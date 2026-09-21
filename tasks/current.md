@@ -189,6 +189,16 @@ representation, recursive-cycle result,
 Function syntax/types, application, methods/roles, and Core IR remain later
 structure gates rather than fixture-specific extensions.
 
+The F4 candidate is now drafted in
+`notes/design/2026-09-21-oracle-aligned-f4-int-scheme-scc-draft.md`. A user
+correction and direct Simple-Sub/Yulang2 audit rejected the intermediate
+`Bottom | IntQueued | IntDrained` model: live inference retains exact
+lower/upper bounds and propagates canonical constraint pairs; only
+generalization performs positive coalescing, polar-variable elimination, and
+the final `Bottom | Int` simplification. The revised delta has no remaining
+blocking or major compiler-referee finding. The document is Reviewed but is not
+an implementation authority until the user accepts the corrected complete gate.
+
 Direct frozen-oracle inspection superseded the user-approved R2 executor model
 on 2026-09-21. R2's Failed/Blocked SCC outcomes, dependency blocking, generic
 backend, completed-session conversion, lifecycle query, added availability API,
