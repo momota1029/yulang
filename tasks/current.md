@@ -232,6 +232,22 @@ performance review. The user approved it on 2026-09-21, so it is now
 Authoritative; implementation, exhaustive reference evidence, and staged scale
 certification are active.
 
+F4 implementation and certification are complete on 2026-09-21. The solver
+now executes the frozen dependency-sink-first SCC plan with exact lower/upper
+Simple-Sub bounds, synchronous direct adjacency plus atom-frontier propagation,
+atomic component scheme publication, and incoming instantiation. Finalized
+definition roots project through their closed `Bottom | Int` schemes; resolved
+binding-body Name occurrences remain exact `(Unknown, Empty)`. `Never` remains
+ordinary bottom. The private fact-store rebuild lane contributes to the public
+aggregate without expanding the approved counter API.
+
+The final scale evidence uses isolated single-size 1k/2k/4k capped processes
+and a separate actual-observation ratio witness over all listed fields. Final
+semantic, specification, and performance reviews are clean. Immediate next
+action: select and design the next structure-first type-inference gate; do not
+extend F4 implicitly to direct-root Name, Function/application, local
+parameters, methods/roles, imports, Core IR, or dynamic dependencies.
+
 Direct frozen-oracle inspection superseded the user-approved R2 executor model
 on 2026-09-21. R2's Failed/Blocked SCC outcomes, dependency blocking, generic
 backend, completed-session conversion, lifecycle query, added availability API,
@@ -244,9 +260,9 @@ not an error sentinel. F3a safely archived and removed the uncommitted R2 code,
 restoring the exact F0-F2 solver baseline. F3b is complete: the unchanged solve
 state and admission/result-building path now live in one private concrete
 `InferenceSession`, with no component traversal, placeholder executor, public
-API change, or extra source-sized work. Immediate next action: design F4's
-scheme payload, occurrence components, generalization, and instantiation as one
-oracle-aligned semantic SCC gate under the fixed ordering obligations.
+API change, or extra source-sized work. F4 now implements the approved scheme
+payload, occurrence components, generalization, and instantiation under the
+fixed ordering obligations.
 
 The broader associated-expression type attachment question remains open in
 `notes/design/2026-09-18-hir-type-attachment-open-questions.md`; this foundation

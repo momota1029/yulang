@@ -26,6 +26,32 @@ pub enum Leaf {
     EmptyEffectNegative,
 }
 
+/// A closed positive value produced by component generalization.
+///
+/// This intentionally has no variables or error sentinel: the current F4
+/// integer slice only generalizes ordinary bottom and `Int`.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ClosedPositiveValue {
+    Bottom,
+    Int,
+}
+
+/// The canonical closed value scheme for one finalized definition root.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ClosedValueScheme {
+    body: ClosedPositiveValue,
+}
+
+impl ClosedValueScheme {
+    pub const fn new(body: ClosedPositiveValue) -> Self {
+        Self { body }
+    }
+
+    pub const fn body(self) -> ClosedPositiveValue {
+        self.body
+    }
+}
+
 impl Leaf {
     pub const fn component_kind(self) -> ComponentKind {
         match self {

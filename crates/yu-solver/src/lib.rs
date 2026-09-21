@@ -1,7 +1,7 @@
 //! Ordered directed-subtyping collection and deterministic reference solving.
 
 use std::{
-    collections::{HashMap, HashSet, hash_map::Entry},
+    collections::{HashMap, HashSet, VecDeque, hash_map::Entry},
     hash::{Hash, Hasher},
     sync::{
         Arc,
@@ -12,10 +12,25 @@ use std::{
 use yu_hir::{
     DefId, DefinitionRootId, HirItem, HirModule, HirOccurrenceId, NameResolution, ResolvedExpr,
 };
-use yu_types::{ComponentKind, Leaf};
+use yu_types::{ClosedPositiveValue, ClosedValueScheme, ComponentKind, Leaf};
 
 mod scc;
 use scc::{SccComponentId, SccPlan};
+
+/// Resource counters use the documented logical `capacity * size_of::<slot>()`
+/// model.  Overflow is an invariant violation, never a wrapped measurement.
+fn checked_capacity_bytes<T>(capacity: usize, label: &'static str) -> usize {
+    capacity
+        .checked_mul(std::mem::size_of::<T>())
+        .unwrap_or_else(|| panic!("{label}: capacity byte accounting fits usize"))
+}
+
+fn checked_usize_sum(lanes: impl IntoIterator<Item = usize>, label: &'static str) -> usize {
+    lanes
+        .into_iter()
+        .try_fold(0usize, |total, lane| total.checked_add(lane))
+        .unwrap_or_else(|| panic!("{label}: aggregate accounting fits usize"))
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ComponentId {
@@ -177,6 +192,9 @@ pub(crate) enum CollectedBodyStatus {
 pub(crate) struct CollectedDefinition {
     definition: DefinitionOrderId,
     root: DefinitionRootId,
+    /// Frozen during collection so F4 generalization never hashes a source
+    /// root to recover its value row.
+    root_value_row: u32,
     body_fact_range: std::ops::Range<usize>,
     body_status: CollectedBodyStatus,
 }
@@ -269,6 +287,16 @@ pub(crate) struct DefinitionUse {
     target: DefinitionOrderId,
     occurrence: HirOccurrenceId,
     cause: DefinitionUseCause,
+    /// Frozen F4 value-row endpoints. These are collection-owned ordinals,
+    /// not source identities, so routing never reconstructs them from HIR.
+    use_value_row: u32,
+    parent_root_row: u32,
+    target_root_row: u32,
+    /// Component-array positions are frozen with the route record.  They are
+    /// used only to reconstruct the existing public/store terms; execution
+    /// never re-queries source-bearing component maps.
+    use_value_component: usize,
+    target_root_component: usize,
 }
 #[cfg_attr(
     not(test),
@@ -343,6 +371,38 @@ impl Components {
 struct ComponentPositions {
     value: usize,
     effect: usize,
+    occurrence_bound_row: u32,
+    value_bound_row: u32,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct RootComponentPositions {
+    component: usize,
+    value_bound_row: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum ValueEndpointKey {
+    IntPositive,
+    IntNegative,
+    ValueRow(u32),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct CanonicalValuePairKey {
+    lower: ValueEndpointKey,
+    upper: ValueEndpointKey,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum FrozenConstraintClass {
+    Value(CanonicalValuePairKey),
+    Effect {
+        occurrence_bound_row: u32,
+        lower_is_bottom: bool,
+        upper_is_empty: bool,
+    },
+    CrossKind,
 }
 
 /// Ordered source occurrences and compact component indexes, never semantic facts.
@@ -360,8 +420,20 @@ pub struct ConstraintBatch {
     scc_plan: Option<SccPlan>,
     components: Vec<ComponentId>,
     occurrence_component_positions: HashMap<HirOccurrenceId, ComponentPositions>,
-    root_component_positions: HashMap<DefinitionRootId, usize>,
+    root_component_positions: HashMap<DefinitionRootId, RootComponentPositions>,
+    /// The F4 scheme slot key.  The ordinal is scheduling storage only; the
+    /// semantic key remains the artifact-branded definition root.
+    root_definition_positions: HashMap<DefinitionRootId, usize>,
+    /// Dynamic identity bytes retained beside the dense scheme position.  A
+    /// successful public root query charges this exact key payload, while
+    /// execution itself never hashes source-bearing roots.
+    root_scheme_identity_payload_bytes: Vec<usize>,
     occurrences: Vec<ConstraintOccurrence>,
+    /// One private, fixed-size admission class per public occurrence.
+    frozen_constraint_classes: Vec<FrozenConstraintClass>,
+    frozen_occurrence_bound_rows: Vec<u32>,
+    #[cfg(test)]
+    synthetic_seed_value_pair_probes: usize,
     counters: ProductionCounters,
     definition_query_probes: Arc<AtomicUsize>,
     definition_use_query_probes: Arc<AtomicUsize>,
@@ -389,7 +461,13 @@ impl ConstraintBatch {
             components: Vec::new(),
             occurrence_component_positions: HashMap::new(),
             root_component_positions: HashMap::new(),
+            root_definition_positions: HashMap::new(),
+            root_scheme_identity_payload_bytes: Vec::new(),
             occurrences: Vec::new(),
+            frozen_constraint_classes: Vec::new(),
+            frozen_occurrence_bound_rows: Vec::new(),
+            #[cfg(test)]
+            synthetic_seed_value_pair_probes: 0,
             definition_query_probes: Arc::new(AtomicUsize::new(0)),
             definition_use_query_probes: Arc::new(AtomicUsize::new(0)),
             scc_component_for_definition_query_probes: Arc::new(AtomicUsize::new(0)),
@@ -475,12 +553,33 @@ impl ConstraintBatch {
                         }
                         CollectedBodyStatus::Error => batch.counters.collected_error_bodies += 1,
                     }
+                    let root_value_row = batch
+                        .root_component_positions
+                        .get(binding.definition_root())
+                        .expect("new definition root has a frozen position")
+                        .value_bound_row;
                     batch.definitions.push(CollectedDefinition {
                         definition: definition.clone(),
                         root: binding.definition_root().clone(),
+                        root_value_row,
                         body_fact_range: fact_start..fact_start,
                         body_status,
                     });
+                    let old_capacity = batch.root_definition_positions.capacity();
+                    if batch
+                        .root_definition_positions
+                        .insert(binding.definition_root().clone(), definition_position)
+                        .is_some()
+                    {
+                        return Err(CollectionAvailabilityError::DuplicateDefinitionId);
+                    }
+                    if batch.root_definition_positions.capacity() != old_capacity {
+                        batch.counters.scheme_root_index_growths += 1;
+                        batch.counters.scheme_root_index_rebuilds += 1;
+                    }
+                    batch
+                        .root_scheme_identity_payload_bytes
+                        .push(binding.id().hash_eq_payload_bytes());
                     batch.counters.definition_registration_visits += 1;
                     batch.counters.collected_definitions += 1;
                     (
@@ -491,20 +590,32 @@ impl ConstraintBatch {
                 }
                 HirItem::Error { .. } => continue,
             };
+            let occurrence_bound_row = u32::try_from(batch.projection_order.len())
+                .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
             batch.projection_order.push(expression.occurrence().clone());
             batch.counters.occurrence_allocations += 1;
             if matches!(expression, ResolvedExpr::Integer { .. }) {
-                batch.emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
+                batch.emit_integer(
+                    expression.occurrence().clone(),
+                    definition_root.cloned(),
+                    occurrence_bound_row,
+                )?;
             }
             if let (
                 Some(parent),
+                Some(root),
                 ResolvedExpr::Name {
                     occurrence,
                     resolution: NameResolution::Resolved(target),
                     ..
                 },
-            ) = (definition.as_ref(), expression)
+            ) = (definition.as_ref(), definition_root.as_ref(), expression)
             {
+                batch.emit_resolved_binding_name(
+                    occurrence.clone(),
+                    (*root).clone(),
+                    occurrence_bound_row,
+                )?;
                 let old_capacity = pending_uses.capacity();
                 pending_uses.push(PendingDefinitionUse {
                     parent_ordinal: parent.ordinal(),
@@ -562,6 +673,31 @@ impl ConstraintBatch {
                 batch.collection_artifact.clone(),
                 pending.occurrence.clone(),
             );
+            let target_root_row = batch
+                .root_component_positions
+                .get(&batch.definitions[target.ordinal() as usize].root)
+                .expect("target root has frozen component position")
+                .value_bound_row;
+            let target_root_component = batch
+                .root_component_positions
+                .get(&batch.definitions[target.ordinal() as usize].root)
+                .expect("target root has frozen component position")
+                .component;
+            let parent_root_row = batch
+                .root_component_positions
+                .get(&batch.definitions[pending.parent_ordinal as usize].root)
+                .expect("parent root has frozen component position")
+                .value_bound_row;
+            let use_value_row = batch
+                .occurrence_component_positions
+                .get(&pending.occurrence)
+                .expect("resolved use has frozen component positions")
+                .value_bound_row;
+            let use_value_component = batch
+                .occurrence_component_positions
+                .get(&pending.occurrence)
+                .expect("resolved use has frozen component positions")
+                .value;
             let position = batch.definition_uses.len();
             batch.definition_uses.push(DefinitionUse {
                 cause: DefinitionUseCause::for_use(id.clone()),
@@ -569,6 +705,11 @@ impl ConstraintBatch {
                 parent,
                 target,
                 occurrence: pending.occurrence.clone(),
+                use_value_row,
+                parent_root_row,
+                target_root_row,
+                use_value_component,
+                target_root_component,
             });
             let old_capacity = batch.definition_use_positions.capacity();
             let Entry::Vacant(entry) = batch.definition_use_positions.entry(id) else {
@@ -582,37 +723,65 @@ impl ConstraintBatch {
             batch.counters.retained_definition_uses += 1;
         }
         batch.ensure_total_definition_use_map()?;
-        batch.counters.occurrence_retained_bytes =
-            batch.projection_order.capacity() * std::mem::size_of::<HirOccurrenceId>();
+        batch.counters.occurrence_retained_bytes = checked_capacity_bytes::<HirOccurrenceId>(
+            batch.projection_order.capacity(),
+            "F0 projection order",
+        );
         batch.counters.component_retained_bytes =
-            batch.components.capacity() * std::mem::size_of::<ComponentId>();
+            checked_capacity_bytes::<ComponentId>(batch.components.capacity(), "F0 components");
         batch.counters.occurrence_record_retained_bytes =
-            batch.occurrences.capacity() * std::mem::size_of::<ConstraintOccurrence>();
-        batch.counters.root_retained_bytes =
-            batch.root_order.capacity() * std::mem::size_of::<DefinitionRootId>();
+            checked_capacity_bytes::<ConstraintOccurrence>(
+                batch.occurrences.capacity(),
+                "F0 occurrence records",
+            );
+        debug_assert_eq!(
+            batch.occurrences.len(),
+            batch.frozen_constraint_classes.len()
+        );
+        debug_assert_eq!(
+            batch.occurrences.len(),
+            batch.frozen_occurrence_bound_rows.len()
+        );
+        batch.counters.root_retained_bytes = checked_capacity_bytes::<DefinitionRootId>(
+            batch.root_order.capacity(),
+            "F0 root order",
+        );
         batch.counters.occurrence_component_index_capacity =
             batch.occurrence_component_positions.capacity();
         batch.counters.occurrence_component_index_retained_bytes =
-            batch.occurrence_component_positions.capacity()
-                * std::mem::size_of::<(HirOccurrenceId, ComponentPositions)>();
+            checked_capacity_bytes::<(HirOccurrenceId, ComponentPositions)>(
+                batch.occurrence_component_positions.capacity(),
+                "F0 occurrence component index",
+            );
         batch.counters.root_component_index_capacity = batch.root_component_positions.capacity();
         batch.counters.root_component_index_retained_bytes =
-            batch.root_component_positions.capacity()
-                * std::mem::size_of::<(DefinitionRootId, usize)>();
+            checked_capacity_bytes::<(DefinitionRootId, RootComponentPositions)>(
+                batch.root_component_positions.capacity(),
+                "F0 root component index",
+            );
         batch.counters.index_capacity = batch.occurrence_component_positions.capacity()
             + batch.root_component_positions.capacity();
         batch.counters.definition_record_index_capacity = batch.definition_positions.capacity();
         batch.counters.definition_record_index_retained_bytes =
-            batch.definition_positions.capacity()
-                * std::mem::size_of::<(DefinitionOrderId, usize)>();
+            checked_capacity_bytes::<(DefinitionOrderId, usize)>(
+                batch.definition_positions.capacity(),
+                "F0 definition record index",
+            );
         batch.counters.definition_record_retained_bytes =
-            batch.definitions.capacity() * std::mem::size_of::<CollectedDefinition>();
-        batch.counters.definition_use_retained_bytes =
-            batch.definition_uses.capacity() * std::mem::size_of::<DefinitionUse>();
+            checked_capacity_bytes::<CollectedDefinition>(
+                batch.definitions.capacity(),
+                "F0 definition records",
+            );
+        batch.counters.definition_use_retained_bytes = checked_capacity_bytes::<DefinitionUse>(
+            batch.definition_uses.capacity(),
+            "F0 definition uses",
+        );
         batch.counters.definition_use_index_capacity = batch.definition_use_positions.capacity();
         batch.counters.definition_use_index_retained_bytes =
-            batch.definition_use_positions.capacity()
-                * std::mem::size_of::<(DefinitionUseId, usize)>();
+            checked_capacity_bytes::<(DefinitionUseId, usize)>(
+                batch.definition_use_positions.capacity(),
+                "F0 definition-use index",
+            );
         let definition_endpoint_index_capacity = definition_by_hir_id.capacity();
         let pending_endpoint_capacity = pending_uses.capacity();
         batch.finish_collection_accounting(
@@ -814,7 +983,7 @@ impl ConstraintBatch {
             .get(root)
             .copied()
             .ok_or(ArtifactMismatch)?;
-        Ok(self.components[position].clone())
+        Ok(self.components[position.component].clone())
     }
     fn add_definition_root(
         &mut self,
@@ -825,10 +994,16 @@ impl ConstraintBatch {
         }
         self.root_order.push(root.clone());
         self.counters.root_allocations += 1;
+        let value_bound_row = self.next_value_bound_row()?;
         let value = self.definition_value_component(root.clone());
         let old_capacity = self.root_component_positions.capacity();
-        self.root_component_positions
-            .insert(root, self.components.len() - 1);
+        self.root_component_positions.insert(
+            root,
+            RootComponentPositions {
+                component: self.components.len() - 1,
+                value_bound_row,
+            },
+        );
         if self.root_component_positions.capacity() != old_capacity {
             self.counters.index_rebuilds += 1;
         }
@@ -839,12 +1014,16 @@ impl ConstraintBatch {
         &mut self,
         occurrence: HirOccurrenceId,
         definition_root: Option<DefinitionRootId>,
+        occurrence_bound_row: u32,
     ) -> Result<(), CollectionAvailabilityError> {
+        let value_bound_row = self.next_value_bound_row()?;
         let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value);
         let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect);
         let positions = ComponentPositions {
             value: self.components.len() - 2,
             effect: self.components.len() - 1,
+            occurrence_bound_row,
+            value_bound_row,
         };
         let old_capacity = self.occurrence_component_positions.capacity();
         self.occurrence_component_positions
@@ -887,6 +1066,47 @@ impl ConstraintBatch {
         }
         Ok(())
     }
+    /// F4's resolved binding-body name surface has the occurrence itself as
+    /// the whole body result.  The dependency relation (slot 0) is admitted
+    /// only by SCC execution, because its endpoint is open or closed then.
+    fn emit_resolved_binding_name(
+        &mut self,
+        occurrence: HirOccurrenceId,
+        definition_root: DefinitionRootId,
+        occurrence_bound_row: u32,
+    ) -> Result<(), CollectionAvailabilityError> {
+        let value_bound_row = self.next_value_bound_row()?;
+        let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value);
+        let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect);
+        let positions = ComponentPositions {
+            value: self.components.len() - 2,
+            effect: self.components.len() - 1,
+            occurrence_bound_row,
+            value_bound_row,
+        };
+        if self
+            .occurrence_component_positions
+            .insert(occurrence.clone(), positions)
+            .is_some()
+        {
+            return Err(CollectionAvailabilityError::DuplicateDefinitionUseId);
+        }
+        let root = self.root_value_component_for_collect(&definition_root)?;
+        self.emit(
+            occurrence.clone(),
+            1,
+            Term::Leaf(Leaf::EffectBottomPositive),
+            Term::Component(effect.clone()),
+        );
+        self.emit(
+            occurrence.clone(),
+            2,
+            Term::Component(effect),
+            Term::Leaf(Leaf::EmptyEffectNegative),
+        );
+        self.emit(occurrence, 3, Term::Component(value), Term::Component(root));
+        Ok(())
+    }
     fn occurrence_component(
         &mut self,
         occurrence: HirOccurrenceId,
@@ -904,6 +1124,12 @@ impl ConstraintBatch {
         component
     }
     fn emit(&mut self, occurrence: HirOccurrenceId, local_slot: u8, lower: Term, upper: Term) {
+        let class = self.freeze_constraint_class(&lower, &upper);
+        let occurrence_bound_row = self
+            .occurrence_component_positions
+            .get(&occurrence)
+            .expect("emitted occurrence has frozen component positions")
+            .occurrence_bound_row;
         let id = ConstraintOccurrenceId::new(occurrence, local_slot);
         self.occurrences.push(ConstraintOccurrence {
             cause: CauseId::for_occurrence(id.clone()),
@@ -911,27 +1137,68 @@ impl ConstraintBatch {
             lower,
             upper,
         });
+        self.frozen_constraint_classes.push(class);
+        self.frozen_occurrence_bound_rows.push(occurrence_bound_row);
         self.counters.emitted_facts += 1;
         self.counters.generated_work_items += 1;
     }
-    fn component_position(
-        &self,
-        component: &ComponentId,
-        work: &mut ProductionCounters,
-    ) -> Option<usize> {
-        match component {
-            ComponentId::Occurrence { occurrence, kind } => {
-                work.occurrence_component_index_probes += 1;
-                let positions = self.occurrence_component_positions.get(occurrence)?;
-                Some(match kind {
-                    ComponentKind::Value => positions.value,
-                    ComponentKind::Effect => positions.effect,
-                })
+    fn next_value_bound_row(&self) -> Result<u32, CollectionAvailabilityError> {
+        let rows = self
+            .root_component_positions
+            .len()
+            .checked_add(self.occurrence_component_positions.len())
+            .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        u32::try_from(rows).map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)
+    }
+    fn freeze_constraint_class(&self, lower: &Term, upper: &Term) -> FrozenConstraintClass {
+        if lower.kind() != upper.kind() {
+            return FrozenConstraintClass::CrossKind;
+        }
+        match lower.kind() {
+            ComponentKind::Value => FrozenConstraintClass::Value(CanonicalValuePairKey {
+                lower: self.value_endpoint_key(lower),
+                upper: self.value_endpoint_key(upper),
+            }),
+            ComponentKind::Effect => {
+                let occurrence_bound_row = [lower, upper]
+                    .into_iter()
+                    .find_map(|term| match term {
+                        Term::Component(ComponentId::Occurrence { occurrence, .. }) => Some(
+                            self.occurrence_component_positions
+                                .get(occurrence)
+                                .expect("effect occurrence has a frozen position")
+                                .occurrence_bound_row,
+                        ),
+                        _ => None,
+                    })
+                    .expect("F4 effect facts have an occurrence endpoint");
+                FrozenConstraintClass::Effect {
+                    occurrence_bound_row,
+                    lower_is_bottom: matches!(lower, Term::Leaf(Leaf::EffectBottomPositive)),
+                    upper_is_empty: matches!(upper, Term::Leaf(Leaf::EmptyEffectNegative)),
+                }
             }
-            ComponentId::DefinitionValue { root } => {
-                work.root_component_index_probes += 1;
-                self.root_component_positions.get(root).copied()
+        }
+    }
+    fn value_endpoint_key(&self, term: &Term) -> ValueEndpointKey {
+        match term {
+            Term::Leaf(Leaf::IntPositive) => ValueEndpointKey::IntPositive,
+            Term::Leaf(Leaf::IntNegative) => ValueEndpointKey::IntNegative,
+            Term::Component(ComponentId::Occurrence { occurrence, .. }) => {
+                ValueEndpointKey::ValueRow(
+                    self.occurrence_component_positions
+                        .get(occurrence)
+                        .expect("value occurrence has a frozen position")
+                        .value_bound_row,
+                )
             }
+            Term::Component(ComponentId::DefinitionValue { root }) => ValueEndpointKey::ValueRow(
+                self.root_component_positions
+                    .get(root)
+                    .expect("definition root has a frozen position")
+                    .value_bound_row,
+            ),
+            Term::Leaf(_) => unreachable!("F4 value endpoint is an integer leaf"),
         }
     }
     fn require_owned(&self, occurrence: &HirOccurrenceId) -> Result<(), ArtifactMismatch> {
@@ -1000,21 +1267,49 @@ impl ConstraintBatch {
         root: &DefinitionRootId,
     ) -> Result<ComponentId, CollectionAvailabilityError> {
         self.counters.root_component_index_probes += 1;
-        let position = *self
+        let position = self
             .root_component_positions
             .get(root)
-            .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)?;
+            .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)?
+            .component;
         self.components
             .get(position)
             .cloned()
             .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)
     }
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "test-only scale builder reconstructs a real source term"
+        )
+    )]
+    fn root_value_component_for_session(&self, root: &DefinitionRootId) -> ComponentId {
+        let position = self
+            .root_component_positions
+            .get(root)
+            .expect("total definition root component map")
+            .component;
+        self.components
+            .get(position)
+            .cloned()
+            .expect("root component position")
+    }
     fn ensure_total_definition_maps(
         &self,
         definition_by_hir_id: &HashMap<&DefId, DefinitionOrderId>,
     ) -> Result<(), CollectionAvailabilityError> {
-        (self.definitions.len() == self.definition_positions.len()
+        ((self.definitions.len() == self.definition_positions.len()
             && self.definitions.len() == definition_by_hir_id.len())
+            && self.definitions.len() == self.root_definition_positions.len()
+            && self.definitions.len() == self.root_scheme_identity_payload_bytes.len()
+            && self
+                .definitions
+                .iter()
+                .enumerate()
+                .all(|(position, definition)| {
+                    self.root_definition_positions.get(&definition.root) == Some(&position)
+                }))
         .then_some(())
         .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)
     }
@@ -1029,22 +1324,46 @@ impl ConstraintBatch {
         pending_endpoint_capacity: usize,
     ) {
         self.counters.definition_endpoint_index_peak_bytes =
-            definition_endpoint_index_capacity * std::mem::size_of::<(&DefId, DefinitionOrderId)>();
+            checked_capacity_bytes::<(&DefId, DefinitionOrderId)>(
+                definition_endpoint_index_capacity,
+                "F0 definition endpoint index",
+            );
         self.counters.definition_use_endpoint_workspace_peak_bytes =
-            pending_endpoint_capacity * std::mem::size_of::<PendingDefinitionUse<'_>>();
-        self.counters.f0_collection_retained_bytes = self.counters.occurrence_retained_bytes
-            + self.counters.root_retained_bytes
-            + self.counters.definition_record_retained_bytes
-            + self.counters.definition_record_index_retained_bytes
-            + self.counters.definition_use_retained_bytes
-            + self.counters.definition_use_index_retained_bytes
-            + self.counters.component_retained_bytes
-            + self.counters.occurrence_component_index_retained_bytes
-            + self.counters.root_component_index_retained_bytes
-            + self.counters.occurrence_record_retained_bytes;
-        self.counters.f0_collection_peak_bytes = self.counters.f0_collection_retained_bytes
-            + self.counters.definition_endpoint_index_peak_bytes
-            + self.counters.definition_use_endpoint_workspace_peak_bytes;
+            checked_capacity_bytes::<PendingDefinitionUse<'_>>(
+                pending_endpoint_capacity,
+                "F0 pending definition uses",
+            );
+        self.counters.f0_collection_retained_bytes = checked_usize_sum(
+            [
+                self.counters.occurrence_retained_bytes,
+                self.counters.root_retained_bytes,
+                self.counters.definition_record_retained_bytes,
+                self.counters.definition_record_index_retained_bytes,
+                self.counters.definition_use_retained_bytes,
+                self.counters.definition_use_index_retained_bytes,
+                self.counters.component_retained_bytes,
+                self.counters.occurrence_component_index_retained_bytes,
+                self.counters.root_component_index_retained_bytes,
+                checked_capacity_bytes::<(DefinitionRootId, usize)>(
+                    self.root_definition_positions.capacity(),
+                    "F0 scheme-root positions",
+                ),
+                checked_capacity_bytes::<usize>(
+                    self.root_scheme_identity_payload_bytes.capacity(),
+                    "F0 scheme-root identity payload",
+                ),
+                self.counters.occurrence_record_retained_bytes,
+            ],
+            "F0 collection retained bytes",
+        );
+        self.counters.f0_collection_peak_bytes = checked_usize_sum(
+            [
+                self.counters.f0_collection_retained_bytes,
+                self.counters.definition_endpoint_index_peak_bytes,
+                self.counters.definition_use_endpoint_workspace_peak_bytes,
+            ],
+            "F0 collection peak bytes",
+        );
     }
     fn finish_scc_plan_accounting(&mut self) {
         let f1_input_bytes = scc::f1_input_retained_bytes(&self.definitions, &self.definition_uses);
@@ -1052,15 +1371,26 @@ impl ConstraintBatch {
             .counters
             .scc_f1_graph_input_plan_peak_known_bytes
             .saturating_sub(f1_input_bytes);
-        self.counters.f2_batch_retained_bytes = self.counters.f0_collection_retained_bytes
-            + self.counters.scc_plan_retained_payload_bytes;
+        self.counters.f2_batch_retained_bytes = checked_usize_sum(
+            [
+                self.counters.f0_collection_retained_bytes,
+                self.counters.scc_plan_retained_payload_bytes,
+            ],
+            "F2 batch retained bytes",
+        );
         // The endpoint workspaces peak before the retained plan exists.  SCC
         // construction instead co-resides with the retained F0 batch, so add
         // only its non-input workspace to avoid charging F0 records twice.
-        self.counters.f2_batch_plan_peak_bytes = self
-            .counters
-            .f0_collection_peak_bytes
-            .max(self.counters.f0_collection_retained_bytes + scc_temporary_or_plan_bytes);
+        self.counters.f2_batch_plan_peak_bytes =
+            self.counters
+                .f0_collection_peak_bytes
+                .max(checked_usize_sum(
+                    [
+                        self.counters.f0_collection_retained_bytes,
+                        scc_temporary_or_plan_bytes,
+                    ],
+                    "F2 batch-plan peak bytes",
+                ));
     }
 }
 
@@ -1275,7 +1605,80 @@ pub struct ProductionCounters {
     solver_error_workspace_capacity: usize,
     solver_error_workspace_retained_bytes: usize,
     eager_explanation_builds: usize,
-    maximum_fan_out: usize,
+    scc_execution_component_visits: usize,
+    scc_execution_internal_use_connections: usize,
+    scc_execution_draft_members: usize,
+    scc_execution_drafts_visible_barriers: usize,
+    scc_execution_finalized_members: usize,
+    scc_execution_installed_members: usize,
+    scc_execution_incoming_instantiations: usize,
+    scc_execution_int_instantiation_facts: usize,
+    scc_execution_bottom_trivial_instantiations: usize,
+    scc_execution_draft_lookups: usize,
+    scc_execution_cross_draft_visits: usize,
+    constraint_pair_admissions: usize,
+    constraint_pair_duplicates: usize,
+    lower_bound_insertions: usize,
+    upper_bound_insertions: usize,
+    lower_bound_replays: usize,
+    upper_bound_replays: usize,
+    scheme_table_len: usize,
+    scheme_table_capacity: usize,
+    scheme_table_retained_bytes: usize,
+    scheme_table_rebuilds: usize,
+    scheme_root_query_probes: usize,
+    scheme_root_index_capacity: usize,
+    scheme_root_index_retained_bytes: usize,
+    scheme_root_index_growths: usize,
+    scheme_root_index_rebuilds: usize,
+    scheme_root_query_identity_hash_byte_incidences: usize,
+    scheme_root_query_logical_successful_equality_byte_incidences: usize,
+    draft_scratch_max_len: usize,
+    draft_scratch_capacity: usize,
+    draft_scratch_retained_bytes: usize,
+    draft_scratch_growths: usize,
+    bound_table_retained_bytes: usize,
+    bound_table_capacity: usize,
+    bound_table_growths: usize,
+    bound_table_rebuilds: usize,
+    bound_table_peak_bytes: usize,
+    constraint_pair_cache_retained_bytes: usize,
+    constraint_pair_cache_capacity: usize,
+    constraint_pair_cache_growths: usize,
+    constraint_pair_cache_rebuilds: usize,
+    constraint_pair_cache_peak_bytes: usize,
+    semantic_arena_retained_bytes: usize,
+    semantic_arena_peak_bytes: usize,
+    routed_use_provenance_len: usize,
+    routed_use_provenance_capacity: usize,
+    routed_use_provenance_retained_bytes: usize,
+    routed_use_provenance_growths: usize,
+    occurrence_bound_state_retained_bytes: usize,
+    occurrence_bound_state_len: usize,
+    occurrence_bound_state_capacity: usize,
+    occurrence_bound_state_growths: usize,
+    finish_projection_visits: usize,
+    inference_session_retained_bytes: usize,
+    inference_session_peak_bytes: usize,
+    constraint_store_requested_capacity: usize,
+    constraint_store_actual_capacity: usize,
+    constraint_store_growths: usize,
+    constraint_store_rebuilds: usize,
+    fact_store_requested_capacity: usize,
+    fact_store_actual_capacity: usize,
+    fact_store_growths: usize,
+    fact_store_rebuilds: usize,
+    canonical_map_requested_capacity: usize,
+    canonical_map_actual_capacity: usize,
+    canonical_map_growths: usize,
+    provenance_requested_capacity: usize,
+    provenance_actual_capacity: usize,
+    provenance_growths: usize,
+    provenance_rebuilds: usize,
+    consumed_receipt_requested_capacity: usize,
+    consumed_receipt_actual_capacity: usize,
+    consumed_receipt_growths: usize,
+    consumed_receipt_rebuilds: usize,
     scc_count: usize,
 }
 macro_rules! access { ($($field:ident),+ $(,)?) => {$(pub const fn $field(&self) -> usize { self.$field })+}; }
@@ -1392,15 +1795,10 @@ impl ProductionCounters {
         consumed_receipt_index_probes,
         consumed_receipt_index_capacity,
         consumed_receipt_index_retained_bytes,
-        solved_root_index_probes,
-        solved_root_index_capacity,
-        solved_root_index_retained_bytes,
         solved_root_query_probes,
         generated_work_items,
         accepted_work_items,
         duplicate_work_items,
-        adjacency_appends,
-        adjacency_visits,
         component_allocations,
         component_retained_bytes,
         fact_allocations,
@@ -1417,19 +1815,144 @@ impl ProductionCounters {
         provenance_edges,
         provenance_retained_bytes,
         solved_projection_retained_bytes,
-        solver_workspace_retained_bytes,
-        bounds_workspace_capacity,
-        bounds_workspace_retained_bytes,
-        fanout_index_capacity,
-        fanout_index_retained_bytes,
-        failed_component_workspace_capacity,
-        failed_component_workspace_retained_bytes,
         solver_error_workspace_capacity,
         solver_error_workspace_retained_bytes,
         eager_explanation_builds,
-        maximum_fan_out,
+        scc_execution_component_visits,
+        scc_execution_internal_use_connections,
+        scc_execution_draft_members,
+        scc_execution_drafts_visible_barriers,
+        scc_execution_finalized_members,
+        scc_execution_installed_members,
+        scc_execution_incoming_instantiations,
+        scc_execution_int_instantiation_facts,
+        scc_execution_bottom_trivial_instantiations,
+        scc_execution_draft_lookups,
+        scc_execution_cross_draft_visits,
+        constraint_pair_admissions,
+        constraint_pair_duplicates,
+        lower_bound_insertions,
+        upper_bound_insertions,
+        lower_bound_replays,
+        upper_bound_replays,
+        scheme_table_len,
+        scheme_table_capacity,
+        scheme_table_retained_bytes,
+        scheme_table_rebuilds,
+        scheme_root_query_probes,
+        scheme_root_index_capacity,
+        scheme_root_index_retained_bytes,
+        scheme_root_index_growths,
+        scheme_root_index_rebuilds,
+        scheme_root_query_identity_hash_byte_incidences,
+        scheme_root_query_logical_successful_equality_byte_incidences,
+        draft_scratch_max_len,
+        draft_scratch_capacity,
+        draft_scratch_retained_bytes,
+        draft_scratch_growths,
+        bound_table_retained_bytes,
+        bound_table_capacity,
+        bound_table_growths,
+        bound_table_rebuilds,
+        bound_table_peak_bytes,
+        constraint_pair_cache_retained_bytes,
+        constraint_pair_cache_capacity,
+        constraint_pair_cache_growths,
+        constraint_pair_cache_rebuilds,
+        constraint_pair_cache_peak_bytes,
+        semantic_arena_retained_bytes,
+        semantic_arena_peak_bytes,
+        routed_use_provenance_len,
+        routed_use_provenance_capacity,
+        routed_use_provenance_retained_bytes,
+        routed_use_provenance_growths,
+        occurrence_bound_state_retained_bytes,
+        occurrence_bound_state_len,
+        occurrence_bound_state_capacity,
+        occurrence_bound_state_growths,
+        finish_projection_visits,
+        inference_session_retained_bytes,
+        inference_session_peak_bytes,
+        constraint_store_requested_capacity,
+        constraint_store_actual_capacity,
+        constraint_store_growths,
+        constraint_store_rebuilds,
+        fact_store_requested_capacity,
+        fact_store_actual_capacity,
+        fact_store_growths,
+        canonical_map_requested_capacity,
+        canonical_map_actual_capacity,
+        canonical_map_growths,
+        provenance_requested_capacity,
+        provenance_actual_capacity,
+        provenance_growths,
+        provenance_rebuilds,
+        consumed_receipt_requested_capacity,
+        consumed_receipt_actual_capacity,
+        consumed_receipt_growths,
+        consumed_receipt_rebuilds,
         scc_count
     );
+    #[deprecated(
+        note = "F4 removed the finish-time adjacency projector; retained for compatibility"
+    )]
+    pub const fn adjacency_appends(&self) -> usize {
+        0
+    }
+    #[deprecated(
+        note = "F4 removed the finish-time adjacency projector; retained for compatibility"
+    )]
+    pub const fn adjacency_visits(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the finish-time fanout index; retained for compatibility")]
+    pub const fn maximum_fan_out(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the solved-root result map; retained for compatibility")]
+    pub const fn solved_root_index_probes(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the solved-root result map; retained for compatibility")]
+    pub const fn solved_root_index_capacity(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the solved-root result map; retained for compatibility")]
+    pub const fn solved_root_index_retained_bytes(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the finish-time bounds workspace; retained for compatibility")]
+    pub const fn bounds_workspace_capacity(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the finish-time bounds workspace; retained for compatibility")]
+    pub const fn bounds_workspace_retained_bytes(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the finish-time fanout index; retained for compatibility")]
+    pub const fn fanout_index_capacity(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the finish-time fanout index; retained for compatibility")]
+    pub const fn fanout_index_retained_bytes(&self) -> usize {
+        0
+    }
+    #[deprecated(note = "F4 removed the finish-time solver workspace; retained for compatibility")]
+    pub const fn solver_workspace_retained_bytes(&self) -> usize {
+        0
+    }
+    #[deprecated(
+        note = "F4 removed the finish-time cross-kind workspace; retained for compatibility"
+    )]
+    pub const fn failed_component_workspace_capacity(&self) -> usize {
+        0
+    }
+    #[deprecated(
+        note = "F4 removed the finish-time cross-kind workspace; retained for compatibility"
+    )]
+    pub const fn failed_component_workspace_retained_bytes(&self) -> usize {
+        0
+    }
     fn combine(&mut self, other: &Self) {
         macro_rules! add { ($($field:ident),+) => {$(self.$field += other.$field;)+}; }
         add!(
@@ -1579,9 +2102,82 @@ impl ProductionCounters {
             solver_error_workspace_capacity,
             solver_error_workspace_retained_bytes,
             eager_explanation_builds,
+            scc_execution_component_visits,
+            scc_execution_internal_use_connections,
+            scc_execution_draft_members,
+            scc_execution_drafts_visible_barriers,
+            scc_execution_finalized_members,
+            scc_execution_installed_members,
+            scc_execution_incoming_instantiations,
+            scc_execution_int_instantiation_facts,
+            scc_execution_bottom_trivial_instantiations,
+            scc_execution_draft_lookups,
+            scc_execution_cross_draft_visits,
+            constraint_pair_admissions,
+            constraint_pair_duplicates,
+            lower_bound_insertions,
+            upper_bound_insertions,
+            lower_bound_replays,
+            upper_bound_replays,
+            scheme_table_len,
+            scheme_table_capacity,
+            scheme_table_retained_bytes,
+            scheme_table_rebuilds,
+            scheme_root_query_probes,
+            scheme_root_index_capacity,
+            scheme_root_index_retained_bytes,
+            scheme_root_index_growths,
+            scheme_root_index_rebuilds,
+            scheme_root_query_identity_hash_byte_incidences,
+            scheme_root_query_logical_successful_equality_byte_incidences,
+            draft_scratch_max_len,
+            draft_scratch_capacity,
+            draft_scratch_retained_bytes,
+            draft_scratch_growths,
+            bound_table_retained_bytes,
+            bound_table_capacity,
+            bound_table_growths,
+            bound_table_rebuilds,
+            bound_table_peak_bytes,
+            constraint_pair_cache_retained_bytes,
+            constraint_pair_cache_capacity,
+            constraint_pair_cache_growths,
+            constraint_pair_cache_rebuilds,
+            constraint_pair_cache_peak_bytes,
+            semantic_arena_retained_bytes,
+            semantic_arena_peak_bytes,
+            routed_use_provenance_len,
+            routed_use_provenance_capacity,
+            routed_use_provenance_retained_bytes,
+            routed_use_provenance_growths,
+            occurrence_bound_state_retained_bytes,
+            occurrence_bound_state_len,
+            occurrence_bound_state_capacity,
+            occurrence_bound_state_growths,
+            finish_projection_visits,
+            inference_session_retained_bytes,
+            inference_session_peak_bytes,
+            constraint_store_requested_capacity,
+            constraint_store_actual_capacity,
+            constraint_store_growths,
+            constraint_store_rebuilds,
+            fact_store_requested_capacity,
+            fact_store_actual_capacity,
+            fact_store_growths,
+            fact_store_rebuilds,
+            canonical_map_requested_capacity,
+            canonical_map_actual_capacity,
+            canonical_map_growths,
+            provenance_requested_capacity,
+            provenance_actual_capacity,
+            provenance_growths,
+            provenance_rebuilds,
+            consumed_receipt_requested_capacity,
+            consumed_receipt_actual_capacity,
+            consumed_receipt_growths,
+            consumed_receipt_rebuilds,
             scc_count
         );
-        self.maximum_fan_out = self.maximum_fan_out.max(other.maximum_fan_out);
     }
 }
 
@@ -1668,19 +2264,42 @@ pub struct ConstraintStore {
     provenance: Vec<ProvenanceEdge>,
     comparisons: Arc<AtomicUsize>,
     counters: ProductionCounters,
+    #[cfg(test)]
+    injected_admission_failure: Option<ConstraintError>,
+    #[cfg(test)]
+    injected_provenance_failure: Option<ConstraintError>,
 }
 impl ConstraintStore {
     pub fn new(hir: Arc<HirModule>) -> Self {
+        Self::with_capacity(hir, 0)
+    }
+    /// F4 reserves every store lane before initial admission.  The public
+    /// constructor intentionally remains unreserved for standalone store use.
+    fn with_capacity(hir: Arc<HirModule>, requested_capacity: usize) -> Self {
+        let facts = Vec::with_capacity(requested_capacity);
+        let canonical = HashMap::with_capacity(requested_capacity);
+        let provenance = Vec::with_capacity(requested_capacity);
+        let consumed_receipts = HashSet::with_capacity(requested_capacity);
         Self {
             hir,
             receipt_token: Arc::new(StoreReceiptToken),
             next_receipt: 0,
-            consumed_receipts: HashSet::new(),
-            facts: Vec::new(),
-            canonical: HashMap::new(),
-            provenance: Vec::new(),
+            consumed_receipts,
+            facts,
+            canonical,
+            provenance,
             comparisons: Arc::new(AtomicUsize::new(0)),
-            counters: ProductionCounters::default(),
+            counters: ProductionCounters {
+                fact_store_requested_capacity: requested_capacity,
+                canonical_map_requested_capacity: requested_capacity,
+                provenance_requested_capacity: requested_capacity,
+                consumed_receipt_requested_capacity: requested_capacity,
+                ..ProductionCounters::default()
+            },
+            #[cfg(test)]
+            injected_admission_failure: None,
+            #[cfg(test)]
+            injected_provenance_failure: None,
         }
     }
     pub fn transaction(&mut self) -> ConstraintTransaction<'_> {
@@ -1700,17 +2319,33 @@ impl ConstraintStore {
         {
             return Err(ConstraintError::ReceiptMismatch);
         }
+        #[cfg(test)]
+        if let Some(error) = self.injected_provenance_failure.take() {
+            return Err(error);
+        }
         self.counters.consumed_receipt_index_probes += 1;
+        let old_capacity = self.consumed_receipts.capacity();
         if !self.consumed_receipts.insert(receipt.serial) {
             return Err(ConstraintError::ReceiptConsumed);
         }
+        if self.consumed_receipts.capacity() != old_capacity {
+            self.counters.consumed_receipt_growths += 1;
+            self.counters.consumed_receipt_rebuilds += 1;
+        }
+        let old_capacity = self.provenance.capacity();
         self.provenance.push(ProvenanceEdge {
             cause: receipt.cause,
             fact: receipt.fact,
         });
+        if self.provenance.capacity() != old_capacity {
+            self.counters.provenance_growths += 1;
+            self.counters.provenance_rebuilds += 1;
+        }
         self.counters.provenance_edges += 1;
-        self.counters.provenance_retained_bytes =
-            self.provenance.capacity() * std::mem::size_of::<ProvenanceEdge>();
+        self.counters.provenance_retained_bytes = checked_capacity_bytes::<ProvenanceEdge>(
+            self.provenance.capacity(),
+            "constraint-store provenance",
+        );
         Ok(())
     }
     pub fn facts(&self) -> &[SemanticFact] {
@@ -1740,14 +2375,58 @@ impl ConstraintStore {
     }
     fn finish_accounting(&mut self) {
         self.counters.fact_retained_bytes =
-            self.facts.capacity() * std::mem::size_of::<SemanticFact>();
+            checked_capacity_bytes::<SemanticFact>(self.facts.capacity(), "constraint-store facts");
+        self.counters.fact_store_actual_capacity = self.facts.capacity();
         self.counters.canonical_map_capacity = self.canonical.capacity();
-        self.counters.canonical_map_retained_bytes =
-            self.canonical.capacity() * std::mem::size_of::<(FactKey, FactId)>();
+        self.counters.canonical_map_actual_capacity = self.canonical.capacity();
+        self.counters.canonical_map_retained_bytes = checked_capacity_bytes::<(FactKey, FactId)>(
+            self.canonical.capacity(),
+            "constraint-store canonical map",
+        );
         self.counters.canonical_map_probes = self.comparisons.load(Ordering::Relaxed);
         self.counters.consumed_receipt_index_capacity = self.consumed_receipts.capacity();
-        self.counters.consumed_receipt_index_retained_bytes =
-            self.consumed_receipts.capacity() * std::mem::size_of::<u64>();
+        self.counters.consumed_receipt_actual_capacity = self.consumed_receipts.capacity();
+        self.counters.provenance_actual_capacity = self.provenance.capacity();
+        self.counters.constraint_store_requested_capacity = checked_usize_sum(
+            [
+                self.counters.fact_store_requested_capacity,
+                self.counters.canonical_map_requested_capacity,
+                self.counters.provenance_requested_capacity,
+                self.counters.consumed_receipt_requested_capacity,
+            ],
+            "constraint-store requested capacity",
+        );
+        self.counters.constraint_store_actual_capacity = checked_usize_sum(
+            [
+                self.counters.fact_store_actual_capacity,
+                self.counters.canonical_map_actual_capacity,
+                self.counters.provenance_actual_capacity,
+                self.counters.consumed_receipt_actual_capacity,
+            ],
+            "constraint-store actual capacity",
+        );
+        self.counters.constraint_store_growths = checked_usize_sum(
+            [
+                self.counters.fact_store_growths,
+                self.counters.canonical_map_growths,
+                self.counters.provenance_growths,
+                self.counters.consumed_receipt_growths,
+            ],
+            "constraint-store growth",
+        );
+        self.counters.constraint_store_rebuilds = checked_usize_sum(
+            [
+                self.counters.fact_store_rebuilds,
+                self.counters.canonical_map_rebuilds,
+                self.counters.provenance_rebuilds,
+                self.counters.consumed_receipt_rebuilds,
+            ],
+            "constraint-store rebuild",
+        );
+        self.counters.consumed_receipt_index_retained_bytes = checked_capacity_bytes::<u64>(
+            self.consumed_receipts.capacity(),
+            "constraint-store consumed receipts",
+        );
     }
 }
 pub struct ConstraintTransaction<'a> {
@@ -1773,6 +2452,10 @@ impl ConstraintTransaction<'_> {
                 upper: occurrence.upper.kind(),
             });
         }
+        #[cfg(test)]
+        if let Some(error) = self.store.injected_admission_failure.take() {
+            return Err(error);
+        }
         let key = FactKey::new(
             occurrence.lower.clone(),
             occurrence.upper.clone(),
@@ -1787,15 +2470,21 @@ impl ConstraintTransaction<'_> {
                 u32::try_from(self.store.facts.len())
                     .map_err(|_| ConstraintError::IdentityExhausted)?,
             );
+            let old_fact_capacity = self.store.facts.capacity();
             self.store.facts.push(SemanticFact {
                 id: fact,
                 lower: occurrence.lower.clone(),
                 upper: occurrence.upper.clone(),
             });
+            if self.store.facts.capacity() != old_fact_capacity {
+                self.store.counters.fact_store_growths += 1;
+                self.store.counters.fact_store_rebuilds += 1;
+            }
             let old_capacity = self.store.canonical.capacity();
             self.store.canonical.insert(key, fact);
             if self.store.canonical.capacity() != old_capacity {
                 self.store.counters.canonical_map_rebuilds += 1;
+                self.store.counters.canonical_map_growths += 1;
             }
             self.store.counters.admitted_facts += 1;
             self.store.counters.accepted_work_items += 1;
@@ -1864,6 +2553,7 @@ impl Hash for FactKey {
 pub enum SolvedValue {
     Int,
     Unknown,
+    Never,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SolvedEffect {
@@ -1928,12 +2618,399 @@ impl From<ConstraintError> for SolveAvailabilityError {
         }
     }
 }
+#[derive(Clone, Default)]
+struct VariableBounds {
+    /// The two row lists are the paired physical representation of one direct
+    /// variable edge.  They deliberately do not encode transitive reachability.
+    direct_lower_rows: Vec<u32>,
+    direct_upper_rows: Vec<u32>,
+    exact_non_variable_lowers: Vec<ValueEndpointKey>,
+    exact_non_variable_uppers: Vec<ValueEndpointKey>,
+    has_int_positive_lower: bool,
+}
+
+/// The source-free, session-local execution frontier.  It carries only the
+/// same fixed keys accepted by the canonical value-pair cache; it is neither a
+/// second type authority nor a persistent reachability label.
+struct DirectBoundFrontier {
+    queue: VecDeque<CanonicalValuePairKey>,
+    peak_bytes: usize,
+    #[cfg(test)]
+    pushes: usize,
+    #[cfg(test)]
+    pops: usize,
+    #[cfg(test)]
+    maximum_live: usize,
+    #[cfg(test)]
+    capacity_growths: usize,
+    #[cfg(test)]
+    direct_edges: usize,
+    #[cfg(test)]
+    exact_lower_memberships: usize,
+    #[cfg(test)]
+    exact_upper_memberships: usize,
+    #[cfg(test)]
+    transmission_attempts: usize,
+    #[cfg(test)]
+    same_row_atom_intersections: usize,
+}
+
+impl DirectBoundFrontier {
+    fn with_capacity(capacity: usize) -> Self {
+        let queue = VecDeque::with_capacity(capacity);
+        let peak_bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
+            queue.capacity(),
+            "F4 direct frontier initial queue",
+        );
+        Self {
+            queue,
+            peak_bytes,
+            #[cfg(test)]
+            pushes: 0,
+            #[cfg(test)]
+            pops: 0,
+            #[cfg(test)]
+            maximum_live: 0,
+            #[cfg(test)]
+            capacity_growths: 0,
+            #[cfg(test)]
+            direct_edges: 0,
+            #[cfg(test)]
+            exact_lower_memberships: 0,
+            #[cfg(test)]
+            exact_upper_memberships: 0,
+            #[cfg(test)]
+            transmission_attempts: 0,
+            #[cfg(test)]
+            same_row_atom_intersections: 0,
+        }
+    }
+
+    fn push(&mut self, key: CanonicalValuePairKey) {
+        let old_capacity = self.queue.capacity();
+        self.queue.push_back(key);
+        let bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
+            self.queue.capacity(),
+            "F4 direct frontier queue",
+        );
+        self.peak_bytes = self.peak_bytes.max(bytes);
+        #[cfg(test)]
+        {
+            self.pushes += 1;
+            self.maximum_live = self.maximum_live.max(self.queue.len());
+            if self.queue.capacity() != old_capacity {
+                self.capacity_growths += 1;
+            }
+        }
+        #[cfg(not(test))]
+        let _ = old_capacity;
+    }
+
+    fn pop(&mut self) -> Option<CanonicalValuePairKey> {
+        let value = self.queue.pop_front();
+        #[cfg(test)]
+        if value.is_some() {
+            self.pops += 1;
+        }
+        value
+    }
+
+    #[cfg(test)]
+    fn direct_edge_installed(&mut self) {
+        self.direct_edges += 1;
+    }
+    #[cfg(not(test))]
+    fn direct_edge_installed(&mut self) {}
+
+    #[cfg(test)]
+    fn exact_lower_membership_installed(&mut self) {
+        self.exact_lower_memberships += 1;
+    }
+    #[cfg(not(test))]
+    fn exact_lower_membership_installed(&mut self) {}
+
+    #[cfg(test)]
+    fn exact_upper_membership_installed(&mut self) {
+        self.exact_upper_memberships += 1;
+    }
+    #[cfg(not(test))]
+    fn exact_upper_membership_installed(&mut self) {}
+
+    #[cfg(test)]
+    fn transmission_attempted(&mut self) {
+        self.transmission_attempts += 1;
+    }
+    #[cfg(not(test))]
+    fn transmission_attempted(&mut self) {}
+
+    #[cfg(test)]
+    fn same_row_intersection(&mut self) {
+        self.same_row_atom_intersections += 1;
+    }
+    #[cfg(not(test))]
+    fn same_row_intersection(&mut self) {}
+}
+
 #[derive(Clone, Copy, Default)]
-struct Bounds {
-    int_lower: bool,
-    int_upper: bool,
-    effect_lower: bool,
-    effect_upper: bool,
+struct OccurrenceExactBounds {
+    value_lower_int: bool,
+    value_upper_int: bool,
+    effect_lower_bottom: bool,
+    effect_upper_empty: bool,
+}
+
+#[derive(Clone, Copy)]
+struct DraftScheme(ClosedValueScheme);
+
+struct VerifiedSchemeDefinition<'a> {
+    record: &'a CollectedDefinition,
+    position: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RoutedUseKind {
+    Internal,
+    IncomingInt,
+    IncomingBottomTrivial,
+}
+
+#[allow(
+    dead_code,
+    reason = "F4 retains exact private route provenance without a public query"
+)]
+#[derive(Debug)]
+struct RoutedUseProvenance {
+    use_id: DefinitionUseId,
+    fact: Option<FactId>,
+    kind: RoutedUseKind,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ObservedIncomingKind {
+    Int,
+    BottomTrivial,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ExecutionEvent {
+    InternalUse(DefinitionUseId),
+    Drafted(DefinitionOrderId),
+    DraftsVisible(SccComponentId, usize),
+    Installed(DefinitionRootId),
+    IncomingUse(DefinitionUseId, ObservedIncomingKind),
+}
+
+#[cfg(test)]
+#[derive(Debug)]
+struct OrderingObserver {
+    capacity: usize,
+    events: Vec<ExecutionEvent>,
+    omitted: usize,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct SummaryObservation {
+    ordinary_initial_value_pair_probes: usize,
+    synthetic_seed_value_pair_probes: usize,
+    reads: usize,
+    false_to_true_transitions: usize,
+    frontier_pushes: usize,
+    frontier_pops: usize,
+    frontier_maximum_live: usize,
+    frontier_capacity: usize,
+    frontier_capacity_growths: usize,
+    frontier_retained_bytes: usize,
+    frontier_peak_bytes: usize,
+    direct_edges: usize,
+    exact_lower_memberships: usize,
+    exact_upper_memberships: usize,
+    transmission_attempts: usize,
+    same_row_atom_intersections: usize,
+    semantic_arena_retained_bytes: usize,
+    semantic_arena_peak_bytes: usize,
+    inference_session_retained_bytes: usize,
+    inference_session_peak_bytes: usize,
+    resource_boundary_samples: usize,
+    resource_boundary_coverage: usize,
+    independent_queue_retained_bytes: usize,
+    independent_finish_output_retained_bytes: usize,
+    independent_semantic_arena_retained_bytes: usize,
+    independent_inference_session_retained_bytes: usize,
+    independent_semantic_arena_peak_bytes: usize,
+    independent_inference_session_peak_bytes: usize,
+}
+
+#[allow(
+    dead_code,
+    reason = "the named boundary ledger is cfg(test); production keeps the same sampling call sites"
+)]
+#[derive(Clone, Copy, Debug)]
+enum ResourceBoundary {
+    InitialReservation,
+    InitialAdmission,
+    CrossKind,
+    InternalRoute,
+    DraftScratchClear,
+    DraftMember,
+    SchemeInstall,
+    IncomingRoute,
+    StoreAccounting,
+    FinishOutput,
+}
+
+#[cfg(test)]
+#[derive(Debug, Default)]
+struct IndependentResourceLedger {
+    coverage: u16,
+    samples: usize,
+    queue_retained_bytes: usize,
+    semantic_arena_retained_bytes: usize,
+    inference_session_retained_bytes: usize,
+    finish_output_retained_bytes: usize,
+    semantic_arena_peak_bytes: usize,
+    inference_session_peak_bytes: usize,
+}
+
+#[cfg(test)]
+impl IndependentResourceLedger {
+    fn record(
+        &mut self,
+        boundary: ResourceBoundary,
+        store: &ConstraintStore,
+        errors: &Vec<SolverError>,
+        cross_kind_components: &HashSet<ComponentId>,
+        bounds: &Vec<VariableBounds>,
+        bound_payload_bytes: usize,
+        occurrence_exact_bounds: &Vec<OccurrenceExactBounds>,
+        constraint_pairs: &HashSet<CanonicalValuePairKey>,
+        frontier: &DirectBoundFrontier,
+        routed_uses: &Vec<RoutedUseProvenance>,
+        routed_use_positions: &HashSet<DefinitionUseId>,
+        schemes: &Vec<Option<ClosedValueScheme>>,
+        drafts: &Vec<DraftScheme>,
+        frozen_constraint_class_capacity: usize,
+        frozen_occurrence_row_capacity: usize,
+        f2_batch_retained_bytes: usize,
+        finish_output_retained_bytes: usize,
+    ) {
+        self.coverage |= 1 << (boundary as u8);
+        self.samples += 1;
+        let queue_bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
+            frontier.queue.capacity(),
+            "F4 independent frontier queue",
+        );
+        let semantic = checked_usize_sum(
+            [
+                checked_capacity_bytes::<VariableBounds>(
+                    bounds.capacity(),
+                    "F4 independent bound rows",
+                )
+                .checked_add(bound_payload_bytes)
+                .expect("F4 independent bound payload byte accounting fits usize"),
+                checked_capacity_bytes::<CanonicalValuePairKey>(
+                    constraint_pairs.capacity(),
+                    "F4 independent pair cache",
+                ),
+                queue_bytes,
+                checked_capacity_bytes::<Option<ClosedValueScheme>>(
+                    schemes.capacity(),
+                    "F4 independent scheme table",
+                ),
+                checked_capacity_bytes::<RoutedUseProvenance>(
+                    routed_uses.capacity(),
+                    "F4 independent routed-use provenance",
+                ),
+                checked_capacity_bytes::<DraftScheme>(
+                    drafts.capacity(),
+                    "F4 independent draft scratch",
+                ),
+                checked_capacity_bytes::<OccurrenceExactBounds>(
+                    occurrence_exact_bounds.capacity(),
+                    "F4 independent occurrence bounds",
+                ),
+                checked_capacity_bytes::<FrozenConstraintClass>(
+                    frozen_constraint_class_capacity,
+                    "F4 independent frozen constraint classes",
+                ),
+                checked_capacity_bytes::<u32>(
+                    frozen_occurrence_row_capacity,
+                    "F4 independent frozen occurrence rows",
+                ),
+            ],
+            "F4 independent semantic ledger",
+        );
+        let session = checked_usize_sum(
+            [
+                semantic,
+                checked_capacity_bytes::<SemanticFact>(
+                    store.facts.capacity(),
+                    "F4 independent facts",
+                ),
+                checked_capacity_bytes::<(FactKey, FactId)>(
+                    store.canonical.capacity(),
+                    "F4 independent canonical map",
+                ),
+                checked_capacity_bytes::<ProvenanceEdge>(
+                    store.provenance.capacity(),
+                    "F4 independent provenance",
+                ),
+                checked_capacity_bytes::<u64>(
+                    store.consumed_receipts.capacity(),
+                    "F4 independent consumed receipts",
+                ),
+                checked_capacity_bytes::<SolverError>(errors.capacity(), "F4 independent errors"),
+                checked_capacity_bytes::<ComponentId>(
+                    cross_kind_components.capacity(),
+                    "F4 independent cross-kind components",
+                ),
+                checked_capacity_bytes::<DefinitionUseId>(
+                    routed_use_positions.capacity(),
+                    "F4 independent routed-use index",
+                ),
+                f2_batch_retained_bytes,
+            ],
+            "F4 independent session ledger",
+        );
+        let full_session = session
+            .checked_add(finish_output_retained_bytes)
+            .expect("independent finish-output session ledger fits usize");
+        self.queue_retained_bytes = queue_bytes;
+        self.semantic_arena_retained_bytes = semantic;
+        self.inference_session_retained_bytes = session;
+        self.finish_output_retained_bytes = finish_output_retained_bytes;
+        self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(semantic);
+        self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(full_session);
+    }
+}
+
+#[cfg(test)]
+impl OrderingObserver {
+    fn new(capacity: usize) -> Self {
+        Self {
+            capacity,
+            events: Vec::with_capacity(capacity),
+            omitted: 0,
+        }
+    }
+
+    fn has_capacity(&self) -> bool {
+        self.events.len() < self.capacity
+    }
+
+    fn omit(&mut self) {
+        self.omitted += 1;
+    }
+
+    fn record(&mut self, event: impl FnOnce() -> ExecutionEvent) {
+        if !self.has_capacity() {
+            self.omit();
+            return;
+        }
+        self.events.push(event());
+    }
 }
 
 /// A total artifact-bound frozen solve result. Local relation errors do not
@@ -1943,11 +3020,25 @@ pub struct SolvedModule {
     hir: Arc<HirModule>,
     projection_order: Vec<HirOccurrenceId>,
     projections: HashMap<HirOccurrenceId, SolvedProjection>,
-    root_values: HashMap<DefinitionRootId, SolvedValue>,
+    root_scheme_positions: HashMap<DefinitionRootId, usize>,
+    root_scheme_identity_payload_bytes: Vec<usize>,
+    schemes: Vec<Option<ClosedValueScheme>>,
+    #[allow(
+        dead_code,
+        reason = "F4 retains exact route provenance for future explanation without adding a public lifecycle query"
+    )]
+    routed_uses: Vec<RoutedUseProvenance>,
     errors: Vec<SolverError>,
     store: ConstraintStore,
     counters: ProductionCounters,
     solved_root_query_probes: AtomicUsize,
+    scheme_root_query_probes: AtomicUsize,
+    scheme_root_query_identity_hash_byte_incidences: AtomicUsize,
+    scheme_root_query_logical_successful_equality_byte_incidences: AtomicUsize,
+    #[cfg(test)]
+    resource_boundary_samples: usize,
+    #[cfg(test)]
+    resource_ledger: IndependentResourceLedger,
 }
 
 /// Private owner for one concrete inference attempt.
@@ -1959,33 +3050,443 @@ struct InferenceSession {
     store: ConstraintStore,
     errors: Vec<SolverError>,
     cross_kind_components: HashSet<ComponentId>,
+    bounds: Vec<VariableBounds>,
+    bound_payload_bytes: usize,
+    occurrence_exact_bounds: Vec<OccurrenceExactBounds>,
+    constraint_pairs: HashSet<CanonicalValuePairKey>,
+    frontier: DirectBoundFrontier,
+    routed_uses: Vec<RoutedUseProvenance>,
+    routed_use_positions: HashSet<DefinitionUseId>,
+    schemes: Vec<Option<ClosedValueScheme>>,
+    drafts: Vec<DraftScheme>,
+    execution_counters: ProductionCounters,
+    #[cfg(test)]
+    summary_reads: usize,
+    #[cfg(test)]
+    summary_false_to_true_transitions: usize,
+    #[cfg(test)]
+    initial_value_pair_probes: usize,
+    #[cfg(test)]
+    ordering_observer: Option<OrderingObserver>,
+    #[cfg(test)]
+    resource_boundary_samples: usize,
+    #[cfg(test)]
+    resource_ledger: IndependentResourceLedger,
 }
 impl InferenceSession {
     fn new(batch: ConstraintBatch) -> Self {
-        Self {
-            store: ConstraintStore::new(batch.hir.clone()),
+        let value_component_count = batch
+            .root_component_positions
+            .len()
+            .checked_add(batch.occurrence_component_positions.len())
+            .expect("F4 value-row capacity");
+        let occurrence_count = batch.projection_order.len();
+        let definition_count = batch.definitions.len();
+        let fact_capacity = batch
+            .occurrences
+            .len()
+            .checked_add(batch.definition_uses.len())
+            .expect("F4 fact capacity");
+        let draft_capacity = batch.counters.scc_maximum_component_size;
+        let routed_capacity = batch.definition_uses.len();
+        let mut session = Self {
+            store: ConstraintStore::with_capacity(batch.hir.clone(), fact_capacity),
             batch,
-            errors: Vec::new(),
-            cross_kind_components: HashSet::new(),
-        }
+            errors: Vec::with_capacity(fact_capacity),
+            cross_kind_components: HashSet::with_capacity(value_component_count),
+            bounds: vec![VariableBounds::default(); value_component_count],
+            bound_payload_bytes: 0,
+            occurrence_exact_bounds: vec![OccurrenceExactBounds::default(); occurrence_count],
+            constraint_pairs: HashSet::with_capacity(fact_capacity),
+            frontier: DirectBoundFrontier::with_capacity(fact_capacity),
+            routed_uses: Vec::with_capacity(routed_capacity),
+            routed_use_positions: HashSet::with_capacity(routed_capacity),
+            schemes: (0..definition_count).map(|_| None).collect(),
+            drafts: Vec::with_capacity(draft_capacity),
+            execution_counters: ProductionCounters::default(),
+            #[cfg(test)]
+            summary_reads: 0,
+            #[cfg(test)]
+            summary_false_to_true_transitions: 0,
+            #[cfg(test)]
+            initial_value_pair_probes: 0,
+            #[cfg(test)]
+            ordering_observer: None,
+            #[cfg(test)]
+            resource_boundary_samples: 0,
+            #[cfg(test)]
+            resource_ledger: IndependentResourceLedger::default(),
+        };
+        // Initial reservations coexist before any fact admission and are a
+        // real resource boundary, not a final retained-byte alias.
+        session.sample_f4_resources(ResourceBoundary::InitialReservation);
+        session
+    }
+
+    #[cfg(test)]
+    fn inject_next_admission_failure(&mut self, error: ConstraintError) {
+        self.store.injected_admission_failure = Some(error);
+    }
+
+    #[cfg(test)]
+    fn inject_next_provenance_failure(&mut self, error: ConstraintError) {
+        self.store.injected_provenance_failure = Some(error);
     }
 
     fn run(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
         self.admit_all_collected_facts()?;
+        self.execute_scc_plan()?;
+        self.sample_f4_resources(ResourceBoundary::StoreAccounting);
+        self.store.finish_accounting();
+        self.sample_f4_resources(ResourceBoundary::StoreAccounting);
         Ok(self.finish())
     }
 
+    #[cfg(test)]
+    fn run_with_observer(
+        mut self,
+        capacity: usize,
+    ) -> Result<(SolvedModule, OrderingObserver, SummaryObservation), SolveAvailabilityError> {
+        self.ordering_observer = Some(OrderingObserver::new(capacity));
+        self.admit_all_collected_facts()?;
+        self.execute_scc_plan()?;
+        self.sample_f4_resources(ResourceBoundary::StoreAccounting);
+        self.store.finish_accounting();
+        self.sample_f4_resources(ResourceBoundary::StoreAccounting);
+        let observer = self
+            .ordering_observer
+            .take()
+            .expect("test observer installed");
+        let mut summary = SummaryObservation {
+            ordinary_initial_value_pair_probes: self.initial_value_pair_probes
+                - self.batch.synthetic_seed_value_pair_probes,
+            synthetic_seed_value_pair_probes: self.batch.synthetic_seed_value_pair_probes,
+            reads: self.summary_reads,
+            false_to_true_transitions: self.summary_false_to_true_transitions,
+            frontier_pushes: self.frontier.pushes,
+            frontier_pops: self.frontier.pops,
+            frontier_maximum_live: self.frontier.maximum_live,
+            frontier_capacity: self.frontier.queue.capacity(),
+            frontier_capacity_growths: self.frontier.capacity_growths,
+            frontier_retained_bytes: checked_capacity_bytes::<CanonicalValuePairKey>(
+                self.frontier.queue.capacity(),
+                "F4 observed frontier queue",
+            ),
+            frontier_peak_bytes: self.frontier.peak_bytes,
+            direct_edges: self.frontier.direct_edges,
+            exact_lower_memberships: self.frontier.exact_lower_memberships,
+            exact_upper_memberships: self.frontier.exact_upper_memberships,
+            transmission_attempts: self.frontier.transmission_attempts,
+            same_row_atom_intersections: self.frontier.same_row_atom_intersections,
+            semantic_arena_retained_bytes: self.execution_counters.semantic_arena_retained_bytes,
+            semantic_arena_peak_bytes: self.execution_counters.semantic_arena_peak_bytes,
+            inference_session_retained_bytes: self
+                .execution_counters
+                .inference_session_retained_bytes,
+            inference_session_peak_bytes: self.execution_counters.inference_session_peak_bytes,
+            resource_boundary_samples: self.resource_boundary_samples,
+            resource_boundary_coverage: self.resource_ledger.coverage.count_ones() as usize,
+            independent_queue_retained_bytes: self.resource_ledger.queue_retained_bytes,
+            independent_finish_output_retained_bytes: self
+                .resource_ledger
+                .finish_output_retained_bytes,
+            independent_semantic_arena_retained_bytes: self
+                .resource_ledger
+                .semantic_arena_retained_bytes,
+            independent_inference_session_retained_bytes: self
+                .resource_ledger
+                .inference_session_retained_bytes,
+            independent_semantic_arena_peak_bytes: self.resource_ledger.semantic_arena_peak_bytes,
+            independent_inference_session_peak_bytes: self
+                .resource_ledger
+                .inference_session_peak_bytes,
+        };
+        let solved = self.finish();
+        summary.semantic_arena_retained_bytes = solved.counters.semantic_arena_retained_bytes;
+        summary.semantic_arena_peak_bytes = solved.counters.semantic_arena_peak_bytes;
+        summary.inference_session_retained_bytes = solved.counters.inference_session_retained_bytes;
+        summary.inference_session_peak_bytes = solved.counters.inference_session_peak_bytes;
+        summary.resource_boundary_samples = solved.resource_boundary_samples;
+        summary.resource_boundary_coverage = solved.resource_ledger.coverage.count_ones() as usize;
+        summary.independent_queue_retained_bytes = solved.resource_ledger.queue_retained_bytes;
+        summary.independent_finish_output_retained_bytes =
+            solved.resource_ledger.finish_output_retained_bytes;
+        summary.independent_semantic_arena_retained_bytes =
+            solved.resource_ledger.semantic_arena_retained_bytes;
+        summary.independent_inference_session_retained_bytes =
+            solved.resource_ledger.inference_session_retained_bytes;
+        summary.independent_semantic_arena_peak_bytes =
+            solved.resource_ledger.semantic_arena_peak_bytes;
+        summary.independent_inference_session_peak_bytes =
+            solved.resource_ledger.inference_session_peak_bytes;
+        Ok((solved, observer, summary))
+    }
+
+    fn sample_f4_resources(&mut self, _boundary: ResourceBoundary) {
+        self.sample_f4_resources_with_finish_output(_boundary, 0);
+    }
+
+    fn sample_f4_resources_with_finish_output(
+        &mut self,
+        _boundary: ResourceBoundary,
+        finish_output_retained_bytes: usize,
+    ) {
+        Self::sample_f4_resource_parts(
+            &self.store,
+            &self.errors,
+            &self.cross_kind_components,
+            &self.bounds,
+            self.bound_payload_bytes,
+            &self.occurrence_exact_bounds,
+            &self.constraint_pairs,
+            &self.frontier,
+            &self.routed_uses,
+            &self.routed_use_positions,
+            &self.schemes,
+            &self.drafts,
+            self.batch.frozen_constraint_classes.capacity(),
+            self.batch.frozen_occurrence_bound_rows.capacity(),
+            self.batch.counters.f2_batch_retained_bytes,
+            finish_output_retained_bytes,
+            &mut self.execution_counters,
+            #[cfg(test)]
+            &mut self.resource_boundary_samples,
+            #[cfg(test)]
+            _boundary,
+            #[cfg(test)]
+            &mut self.resource_ledger,
+        );
+    }
+
+    /// This is a constant-size capacity snapshot.  It deliberately receives
+    /// only already-owned containers, so a route can sample immediately after
+    /// an allocation, reuse, or ownership-transfer boundary without scanning
+    /// the batch, bound rows, or pair table.
+    #[allow(clippy::too_many_arguments)]
+    fn sample_f4_resource_parts(
+        store: &ConstraintStore,
+        errors: &Vec<SolverError>,
+        cross_kind_components: &HashSet<ComponentId>,
+        bounds: &Vec<VariableBounds>,
+        bound_payload_bytes: usize,
+        occurrence_exact_bounds: &Vec<OccurrenceExactBounds>,
+        constraint_pairs: &HashSet<CanonicalValuePairKey>,
+        frontier: &DirectBoundFrontier,
+        routed_uses: &Vec<RoutedUseProvenance>,
+        routed_use_positions: &HashSet<DefinitionUseId>,
+        schemes: &Vec<Option<ClosedValueScheme>>,
+        drafts: &Vec<DraftScheme>,
+        frozen_constraint_class_capacity: usize,
+        frozen_occurrence_row_capacity: usize,
+        f2_batch_retained_bytes: usize,
+        finish_output_retained_bytes: usize,
+        counters: &mut ProductionCounters,
+        #[cfg(test)] resource_boundary_samples: &mut usize,
+        #[cfg(test)] boundary: ResourceBoundary,
+        #[cfg(test)] resource_ledger: &mut IndependentResourceLedger,
+    ) {
+        #[cfg(test)]
+        {
+            *resource_boundary_samples += 1;
+            resource_ledger.record(
+                boundary,
+                store,
+                errors,
+                cross_kind_components,
+                bounds,
+                bound_payload_bytes,
+                occurrence_exact_bounds,
+                constraint_pairs,
+                frontier,
+                routed_uses,
+                routed_use_positions,
+                schemes,
+                drafts,
+                frozen_constraint_class_capacity,
+                frozen_occurrence_row_capacity,
+                f2_batch_retained_bytes,
+                finish_output_retained_bytes,
+            );
+        }
+        let bounds_rows_bytes =
+            checked_capacity_bytes::<VariableBounds>(bounds.capacity(), "F4 production bound rows");
+        let bounds_bytes = bounds_rows_bytes
+            .checked_add(bound_payload_bytes)
+            .expect("F4 bounds byte accounting fits usize");
+        let pair_bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
+            constraint_pairs.capacity(),
+            "F4 production pair cache",
+        );
+        let frontier_bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
+            frontier.queue.capacity(),
+            "F4 production frontier queue",
+        );
+        let exact_bytes = checked_capacity_bytes::<OccurrenceExactBounds>(
+            occurrence_exact_bounds.capacity(),
+            "F4 production occurrence bounds",
+        );
+        let scheme_bytes = checked_capacity_bytes::<Option<ClosedValueScheme>>(
+            schemes.capacity(),
+            "F4 production scheme table",
+        );
+        let routes_bytes = checked_capacity_bytes::<RoutedUseProvenance>(
+            routed_uses.capacity(),
+            "F4 production routed-use provenance",
+        );
+        let drafts_bytes =
+            checked_capacity_bytes::<DraftScheme>(drafts.capacity(), "F4 production draft scratch");
+        let store_bytes = checked_usize_sum(
+            [
+                checked_capacity_bytes::<SemanticFact>(
+                    store.facts.capacity(),
+                    "F4 production facts",
+                ),
+                checked_capacity_bytes::<(FactKey, FactId)>(
+                    store.canonical.capacity(),
+                    "F4 production canonical map",
+                ),
+                checked_capacity_bytes::<ProvenanceEdge>(
+                    store.provenance.capacity(),
+                    "F4 production provenance",
+                ),
+                checked_capacity_bytes::<u64>(
+                    store.consumed_receipts.capacity(),
+                    "F4 production consumed receipts",
+                ),
+            ],
+            "F4 production store",
+        );
+        counters.draft_scratch_capacity = drafts.capacity();
+        counters.draft_scratch_retained_bytes = drafts_bytes;
+        counters.bound_table_capacity = bounds.capacity();
+        counters.bound_table_retained_bytes = bounds_bytes;
+        counters.bound_table_peak_bytes = counters.bound_table_peak_bytes.max(bounds_bytes);
+        counters.constraint_pair_cache_capacity = constraint_pairs.capacity();
+        counters.constraint_pair_cache_retained_bytes = pair_bytes;
+        counters.constraint_pair_cache_peak_bytes =
+            counters.constraint_pair_cache_peak_bytes.max(pair_bytes);
+        counters.scheme_table_len = schemes.len();
+        counters.scheme_table_capacity = schemes.capacity();
+        counters.scheme_table_retained_bytes = scheme_bytes;
+        counters.routed_use_provenance_len = routed_uses.len();
+        counters.routed_use_provenance_capacity = routed_uses.capacity();
+        counters.routed_use_provenance_retained_bytes = routes_bytes;
+        counters.occurrence_bound_state_len = occurrence_exact_bounds.len();
+        counters.occurrence_bound_state_capacity = occurrence_exact_bounds.capacity();
+        counters.occurrence_bound_state_retained_bytes = exact_bytes;
+        // Solver errors remain live session storage after F4.  Unlike removed
+        // finish-only workspaces, this is a retained diagnostic boundary.
+        counters.solver_error_workspace_capacity = errors.capacity();
+        counters.solver_error_workspace_retained_bytes =
+            checked_capacity_bytes::<SolverError>(errors.capacity(), "F4 production solver errors");
+        counters.semantic_arena_retained_bytes = checked_usize_sum(
+            [
+                bounds_bytes,
+                pair_bytes,
+                frontier_bytes,
+                scheme_bytes,
+                routes_bytes,
+                drafts_bytes,
+                exact_bytes,
+                checked_capacity_bytes::<FrozenConstraintClass>(
+                    frozen_constraint_class_capacity,
+                    "F4 production frozen constraint classes",
+                ),
+                checked_capacity_bytes::<u32>(
+                    frozen_occurrence_row_capacity,
+                    "F4 production frozen occurrence rows",
+                ),
+            ],
+            "F4 production semantic arena",
+        );
+        counters.semantic_arena_peak_bytes = counters
+            .semantic_arena_peak_bytes
+            .max(counters.semantic_arena_retained_bytes);
+        counters.inference_session_retained_bytes = checked_usize_sum(
+            [
+                counters.semantic_arena_retained_bytes,
+                store_bytes,
+                checked_capacity_bytes::<SolverError>(
+                    errors.capacity(),
+                    "F4 production solver errors",
+                ),
+                checked_capacity_bytes::<ComponentId>(
+                    cross_kind_components.capacity(),
+                    "F4 production cross-kind components",
+                ),
+                checked_capacity_bytes::<DefinitionUseId>(
+                    routed_use_positions.capacity(),
+                    "F4 production routed-use index",
+                ),
+                f2_batch_retained_bytes,
+            ],
+            "F4 production session",
+        );
+        let full_session_bytes = counters
+            .inference_session_retained_bytes
+            .checked_add(finish_output_retained_bytes)
+            .expect("F4 finish-output session accounting fits usize");
+        counters.inference_session_peak_bytes = counters
+            .inference_session_peak_bytes
+            .max(full_session_bytes);
+    }
+
     fn admit_all_collected_facts(&mut self) -> Result<(), SolveAvailabilityError> {
-        for occurrence in self.batch.occurrences() {
+        for occurrence_index in 0..self.batch.occurrences().len() {
+            let occurrence = self.batch.occurrences()[occurrence_index].clone();
+            let class = self.batch.frozen_constraint_classes[occurrence_index];
+            let occurrence_bound_row = self.batch.frozen_occurrence_bound_rows[occurrence_index];
             let result = {
                 let mut transaction = self.store.transaction();
-                transaction.admit(occurrence)
+                transaction.admit(&occurrence)
             };
             match result {
-                Ok(receipt) => self
-                    .store
-                    .record_provenance(receipt)
-                    .map_err(SolveAvailabilityError::from)?,
+                Ok(receipt) => {
+                    self.store
+                        .record_provenance(receipt)
+                        .map_err(SolveAvailabilityError::from)?;
+                    match class {
+                        FrozenConstraintClass::Value(key) => {
+                            #[cfg(test)]
+                            {
+                                self.initial_value_pair_probes += 1;
+                            }
+                            let exact =
+                                &mut self.occurrence_exact_bounds[occurrence_bound_row as usize];
+                            exact.value_lower_int |= key.lower == ValueEndpointKey::IntPositive;
+                            exact.value_upper_int |= key.upper == ValueEndpointKey::IntNegative;
+                            let transitions = Self::constrain(
+                                &mut self.bounds,
+                                &mut self.bound_payload_bytes,
+                                &mut self.constraint_pairs,
+                                &mut self.frontier,
+                                &mut self.execution_counters,
+                                key,
+                            );
+                            #[cfg(test)]
+                            {
+                                self.summary_false_to_true_transitions += transitions;
+                            }
+                            #[cfg(not(test))]
+                            let _ = transitions;
+                            self.sample_f4_resources(ResourceBoundary::InitialAdmission);
+                        }
+                        FrozenConstraintClass::Effect {
+                            occurrence_bound_row,
+                            lower_is_bottom,
+                            upper_is_empty,
+                        } => {
+                            let exact =
+                                &mut self.occurrence_exact_bounds[occurrence_bound_row as usize];
+                            exact.effect_lower_bottom |= lower_is_bottom;
+                            exact.effect_upper_empty |= upper_is_empty;
+                            self.sample_f4_resources(ResourceBoundary::InitialAdmission);
+                        }
+                        FrozenConstraintClass::CrossKind => {
+                            unreachable!("store classifies cross-kind fact")
+                        }
+                    }
+                }
                 Err(ConstraintError::CrossKind { lower, upper }) => {
                     self.errors.push(SolverError {
                         occurrence: occurrence.id.clone(),
@@ -1997,123 +3498,652 @@ impl InferenceSession {
                             self.cross_kind_components.insert(component.clone());
                         }
                     }
+                    self.sample_f4_resources(ResourceBoundary::CrossKind);
                 }
                 Err(error) => return Err(error.into()),
             }
         }
-        self.store.finish_accounting();
         Ok(())
     }
 
-    fn finish(self) -> SolvedModule {
-        let mut projections = HashMap::with_capacity(self.batch.projection_order.len());
-        for occurrence in &self.batch.projection_order {
-            projections.insert(
-                occurrence.clone(),
-                SolvedProjection {
-                    value: SolvedValue::Unknown,
-                    effect: SolvedEffect::Unknown,
-                },
-            );
-        }
-        let mut root_values = HashMap::with_capacity(self.batch.root_order.len());
-        for root in &self.batch.root_order {
-            root_values.insert(root.clone(), SolvedValue::Unknown);
-        }
-        let mut bounds = vec![Bounds::default(); self.batch.components.len()];
-        let mut fanout = HashMap::<Term, usize>::new();
-        let mut work = ProductionCounters::default();
-        for fact in self.store.facts() {
-            for endpoint in [fact.lower(), fact.upper()] {
-                let old_capacity = fanout.capacity();
-                *fanout.entry(endpoint.clone()).or_default() += 1;
-                if fanout.capacity() != old_capacity {
-                    work.index_rebuilds += 1;
-                }
-                work.adjacency_appends += 1;
-                work.adjacency_visits += 1;
-            }
-            match (fact.lower(), fact.upper()) {
-                (Term::Leaf(Leaf::IntPositive), Term::Component(component)) => {
-                    if let Some(index) = self.batch.component_position(component, &mut work) {
-                        bounds[index].int_lower = true;
-                    }
-                }
-                (Term::Component(component), Term::Leaf(Leaf::IntNegative)) => {
-                    if let Some(index) = self.batch.component_position(component, &mut work) {
-                        bounds[index].int_upper = true;
-                    }
-                }
-                (Term::Leaf(Leaf::EffectBottomPositive), Term::Component(component)) => {
-                    if let Some(index) = self.batch.component_position(component, &mut work) {
-                        bounds[index].effect_lower = true;
-                    }
-                }
-                (Term::Component(component), Term::Leaf(Leaf::EmptyEffectNegative)) => {
-                    if let Some(index) = self.batch.component_position(component, &mut work) {
-                        bounds[index].effect_upper = true;
-                    }
-                }
-                _ => {}
-            }
-        }
-        work.index_capacity = fanout.capacity();
-        work.solved_projection_retained_bytes =
-            projections.capacity() * std::mem::size_of::<(HirOccurrenceId, SolvedProjection)>();
-        work.solved_root_index_capacity = root_values.capacity();
-        work.solved_root_index_retained_bytes =
-            root_values.capacity() * std::mem::size_of::<(DefinitionRootId, SolvedValue)>();
-        work.bounds_workspace_capacity = bounds.capacity();
-        work.bounds_workspace_retained_bytes = bounds.capacity() * std::mem::size_of::<Bounds>();
-        work.fanout_index_capacity = fanout.capacity();
-        work.fanout_index_retained_bytes = fanout.capacity() * std::mem::size_of::<(Term, usize)>();
-        work.failed_component_workspace_capacity = self.cross_kind_components.capacity();
-        work.failed_component_workspace_retained_bytes =
-            self.cross_kind_components.capacity() * std::mem::size_of::<ComponentId>();
-        work.solver_error_workspace_capacity = self.errors.capacity();
-        work.solver_error_workspace_retained_bytes =
-            self.errors.capacity() * std::mem::size_of::<SolverError>();
-        work.solver_workspace_retained_bytes = bounds.capacity() * std::mem::size_of::<Bounds>()
-            + fanout.capacity() * std::mem::size_of::<(Term, usize)>()
-            + self.cross_kind_components.capacity() * std::mem::size_of::<ComponentId>()
-            + self.errors.capacity() * std::mem::size_of::<SolverError>();
-        for count in fanout.values() {
-            work.maximum_fan_out = work.maximum_fan_out.max(*count);
-        }
-        for (index, component) in self.batch.components.iter().enumerate() {
-            if self.cross_kind_components.contains(component) {
+    fn constrain(
+        bounds: &mut [VariableBounds],
+        bound_payload_bytes: &mut usize,
+        constraint_pairs: &mut HashSet<CanonicalValuePairKey>,
+        frontier: &mut DirectBoundFrontier,
+        counters: &mut ProductionCounters,
+        key: CanonicalValuePairKey,
+    ) -> usize {
+        assert!(
+            frontier.queue.is_empty(),
+            "each public constrain drains the direct-bound frontier synchronously"
+        );
+        let mut transitions = 0;
+        frontier.push(key);
+        while let Some(key) = frontier.pop() {
+            let old_capacity = constraint_pairs.capacity();
+            if !constraint_pairs.insert(key) {
+                counters.constraint_pair_duplicates += 1;
                 continue;
             }
-            let Some(occurrence) = component.occurrence() else {
-                continue;
+            if constraint_pairs.capacity() != old_capacity {
+                counters.constraint_pair_cache_growths += 1;
+                counters.constraint_pair_cache_rebuilds += 1;
+            }
+            counters.constraint_pair_admissions += 1;
+            match (key.lower, key.upper) {
+                (ValueEndpointKey::ValueRow(lower), ValueEndpointKey::ValueRow(upper)) => {
+                    frontier.direct_edge_installed();
+                    let lower_index = lower as usize;
+                    let upper_index = upper as usize;
+                    let old_lower_capacity = bounds[upper_index].direct_lower_rows.capacity();
+                    bounds[upper_index].direct_lower_rows.push(lower);
+                    Self::record_bound_capacity_growth(
+                        bound_payload_bytes,
+                        counters,
+                        old_lower_capacity,
+                        bounds[upper_index].direct_lower_rows.capacity(),
+                        std::mem::size_of::<u32>(),
+                    );
+                    counters.lower_bound_insertions += 1;
+                    let old_upper_capacity = bounds[lower_index].direct_upper_rows.capacity();
+                    bounds[lower_index].direct_upper_rows.push(upper);
+                    Self::record_bound_capacity_growth(
+                        bound_payload_bytes,
+                        counters,
+                        old_upper_capacity,
+                        bounds[lower_index].direct_upper_rows.capacity(),
+                        std::mem::size_of::<u32>(),
+                    );
+                    counters.upper_bound_insertions += 1;
+
+                    let lower_len = bounds[lower_index].exact_non_variable_lowers.len();
+                    for index in 0..lower_len {
+                        counters.lower_bound_replays += 1;
+                        frontier.transmission_attempted();
+                        frontier.push(CanonicalValuePairKey {
+                            lower: bounds[lower_index].exact_non_variable_lowers[index],
+                            upper: ValueEndpointKey::ValueRow(upper),
+                        });
+                    }
+                    let upper_len = bounds[upper_index].exact_non_variable_uppers.len();
+                    for index in 0..upper_len {
+                        counters.upper_bound_replays += 1;
+                        frontier.transmission_attempted();
+                        frontier.push(CanonicalValuePairKey {
+                            lower: ValueEndpointKey::ValueRow(lower),
+                            upper: bounds[upper_index].exact_non_variable_uppers[index],
+                        });
+                    }
+                }
+                (atom, ValueEndpointKey::ValueRow(row)) => {
+                    let index = row as usize;
+                    let old_capacity = bounds[index].exact_non_variable_lowers.capacity();
+                    bounds[index].exact_non_variable_lowers.push(atom);
+                    Self::record_bound_capacity_growth(
+                        bound_payload_bytes,
+                        counters,
+                        old_capacity,
+                        bounds[index].exact_non_variable_lowers.capacity(),
+                        std::mem::size_of::<ValueEndpointKey>(),
+                    );
+                    counters.lower_bound_insertions += 1;
+                    frontier.exact_lower_membership_installed();
+                    if atom == ValueEndpointKey::IntPositive
+                        && !std::mem::replace(&mut bounds[index].has_int_positive_lower, true)
+                    {
+                        transitions += 1;
+                    }
+                    let upper_atoms = bounds[index].exact_non_variable_uppers.len();
+                    for upper_index in 0..upper_atoms {
+                        // Same-row atom intersections are owned by the lower
+                        // side regardless of which insertion arrived second.
+                        counters.lower_bound_replays += 1;
+                        frontier.same_row_intersection();
+                        frontier.push(CanonicalValuePairKey {
+                            lower: atom,
+                            upper: bounds[index].exact_non_variable_uppers[upper_index],
+                        });
+                    }
+                    let upper_rows = bounds[index].direct_upper_rows.len();
+                    for upper_index in 0..upper_rows {
+                        counters.lower_bound_replays += 1;
+                        frontier.transmission_attempted();
+                        frontier.push(CanonicalValuePairKey {
+                            lower: atom,
+                            upper: ValueEndpointKey::ValueRow(
+                                bounds[index].direct_upper_rows[upper_index],
+                            ),
+                        });
+                    }
+                }
+                (ValueEndpointKey::ValueRow(row), atom) => {
+                    let index = row as usize;
+                    let old_capacity = bounds[index].exact_non_variable_uppers.capacity();
+                    bounds[index].exact_non_variable_uppers.push(atom);
+                    Self::record_bound_capacity_growth(
+                        bound_payload_bytes,
+                        counters,
+                        old_capacity,
+                        bounds[index].exact_non_variable_uppers.capacity(),
+                        std::mem::size_of::<ValueEndpointKey>(),
+                    );
+                    counters.upper_bound_insertions += 1;
+                    frontier.exact_upper_membership_installed();
+                    let lower_atoms = bounds[index].exact_non_variable_lowers.len();
+                    for lower_index in 0..lower_atoms {
+                        counters.lower_bound_replays += 1;
+                        frontier.same_row_intersection();
+                        frontier.push(CanonicalValuePairKey {
+                            lower: bounds[index].exact_non_variable_lowers[lower_index],
+                            upper: atom,
+                        });
+                    }
+                    let lower_rows = bounds[index].direct_lower_rows.len();
+                    for lower_index in 0..lower_rows {
+                        counters.upper_bound_replays += 1;
+                        frontier.transmission_attempted();
+                        frontier.push(CanonicalValuePairKey {
+                            lower: ValueEndpointKey::ValueRow(
+                                bounds[index].direct_lower_rows[lower_index],
+                            ),
+                            upper: atom,
+                        });
+                    }
+                }
+                // The existing terminal rule is the successful canonical
+                // admission itself.  This closed integer slice has no extra
+                // terminal bound mutation.
+                (_, _) => {}
+            }
+        }
+        debug_assert!(frontier.queue.is_empty());
+        transitions
+    }
+
+    fn record_bound_capacity_growth(
+        payload_bytes: &mut usize,
+        counters: &mut ProductionCounters,
+        old_capacity: usize,
+        new_capacity: usize,
+        slot_size: usize,
+    ) {
+        if new_capacity != old_capacity {
+            let delta = new_capacity
+                .checked_sub(old_capacity)
+                .and_then(|slots| slots.checked_mul(slot_size))
+                .expect("F4 bound capacity growth fits usize");
+            *payload_bytes = payload_bytes
+                .checked_add(delta)
+                .expect("F4 bound payload byte accounting fits usize");
+            counters.bound_table_growths += 1;
+            counters.bound_table_rebuilds += 1;
+        }
+    }
+
+    fn execute_scc_plan(&mut self) -> Result<(), SolveAvailabilityError> {
+        // The F2 plan is dependency-sink-first.  All three partition slices
+        // stay borrowed for their complete phase; only durable route records
+        // copy their identity after admission.
+        macro_rules! sample_boundary {
+            ($boundary:expr) => {
+                Self::sample_f4_resource_parts(
+                    &self.store,
+                    &self.errors,
+                    &self.cross_kind_components,
+                    &self.bounds,
+                    self.bound_payload_bytes,
+                    &self.occurrence_exact_bounds,
+                    &self.constraint_pairs,
+                    &self.frontier,
+                    &self.routed_uses,
+                    &self.routed_use_positions,
+                    &self.schemes,
+                    &self.drafts,
+                    self.batch.frozen_constraint_classes.capacity(),
+                    self.batch.frozen_occurrence_bound_rows.capacity(),
+                    self.batch.counters.f2_batch_retained_bytes,
+                    0,
+                    &mut self.execution_counters,
+                    #[cfg(test)]
+                    &mut self.resource_boundary_samples,
+                    #[cfg(test)]
+                    $boundary,
+                    #[cfg(test)]
+                    &mut self.resource_ledger,
+                )
             };
-            let projection = projections
-                .get_mut(occurrence)
-                .expect("batch owns component");
-            match component.kind() {
-                ComponentKind::Value if bounds[index].int_lower && bounds[index].int_upper => {
-                    projection.value = SolvedValue::Int
+        }
+        let components = self.batch.scc_components_in_dependency_first_order();
+        for component in components {
+            self.execution_counters.scc_execution_component_visits += 1;
+            let internal_uses = self
+                .batch
+                .scc_component_internal_uses(component)
+                .expect("plan-owned component");
+            for use_index in 0..internal_uses.len() {
+                let id = &internal_uses[use_index];
+                #[cfg(test)]
+                if let Some(observer) = self.ordering_observer.as_mut() {
+                    observer.record(|| ExecutionEvent::InternalUse(id.clone()));
                 }
-                ComponentKind::Effect
-                    if bounds[index].effect_lower && bounds[index].effect_upper =>
+                let transitions = Self::route_internal(
+                    &self.batch,
+                    &mut self.store,
+                    &mut self.bounds,
+                    &mut self.bound_payload_bytes,
+                    &mut self.constraint_pairs,
+                    &mut self.frontier,
+                    &mut self.routed_uses,
+                    &mut self.routed_use_positions,
+                    &mut self.execution_counters,
+                    id,
+                )?;
+                self.execution_counters
+                    .scc_execution_internal_use_connections += 1;
+                #[cfg(test)]
                 {
-                    projection.effect = SolvedEffect::Empty
+                    self.summary_false_to_true_transitions += transitions;
                 }
-                _ => {}
+                #[cfg(not(test))]
+                let _ = transitions;
+                sample_boundary!(ResourceBoundary::InternalRoute);
+            }
+            let members = self
+                .batch
+                .scc_component_members(component)
+                .expect("plan-owned component");
+            self.drafts.clear();
+            // `clear` is a reuse boundary: it changes live draft ownership
+            // without changing capacity, so sample it independently.
+            sample_boundary!(ResourceBoundary::DraftScratchClear);
+            for member_index in 0..members.len() {
+                let member = &members[member_index];
+                self.execution_counters.scc_execution_draft_members += 1;
+                #[cfg(test)]
+                if let Some(observer) = self.ordering_observer.as_mut() {
+                    observer.record(|| ExecutionEvent::Drafted(member.clone()));
+                }
+                let old_capacity = self.drafts.capacity();
+                #[cfg(test)]
+                let draft =
+                    Self::generalize(&self.batch, &self.bounds, member, &mut self.summary_reads);
+                #[cfg(not(test))]
+                let draft = Self::generalize(&self.batch, &self.bounds, member);
+                self.drafts.push(DraftScheme(draft));
+                if self.drafts.capacity() != old_capacity {
+                    self.execution_counters.draft_scratch_growths += 1;
+                }
+                sample_boundary!(ResourceBoundary::DraftMember);
+            }
+            self.execution_counters.draft_scratch_max_len = self
+                .execution_counters
+                .draft_scratch_max_len
+                .max(self.drafts.len());
+            self.execution_counters
+                .scc_execution_drafts_visible_barriers += 1;
+            #[cfg(test)]
+            if let Some(observer) = self.ordering_observer.as_mut() {
+                observer
+                    .record(|| ExecutionEvent::DraftsVisible(component.clone(), self.drafts.len()));
+            }
+            for (ordinal, member) in members.iter().enumerate() {
+                self.execution_counters.scc_execution_draft_lookups += 1;
+                self.execution_counters.scc_execution_finalized_members += 1;
+                self.execution_counters.scc_execution_installed_members += 1;
+                let draft = self
+                    .drafts
+                    .get(ordinal)
+                    .copied()
+                    .expect("draft view is ordinal-indexed")
+                    .0;
+                let verified = Self::verified_scheme_definition(&self.batch, member);
+                assert!(
+                    self.schemes[verified.position].replace(draft).is_none(),
+                    "scheme installed once"
+                );
+                #[cfg(test)]
+                if let Some(observer) = self.ordering_observer.as_mut() {
+                    observer.record(|| ExecutionEvent::Installed(verified.record.root.clone()));
+                }
+                // Finalized schemes and drafts coexist at each direct move.
+                sample_boundary!(ResourceBoundary::SchemeInstall);
+            }
+            let incoming_uses = self
+                .batch
+                .scc_component_incoming_uses(component)
+                .expect("plan-owned component");
+            for use_index in 0..incoming_uses.len() {
+                let id = &incoming_uses[use_index];
+                #[cfg(test)]
+                if let Some(observer) = self.ordering_observer.as_mut() {
+                    // The scale observer has capacity zero.  Do not perform a
+                    // test-only batch lookup, scheme read, or event build for
+                    // an omitted event: production route probes are I + X.
+                    if observer.has_capacity() {
+                        let use_record = self.batch.definition_use(id).expect("plan-owned use");
+                        let position = use_record.target.ordinal() as usize;
+                        let kind = match self.schemes[position]
+                            .expect("incoming observes finalized component scheme")
+                            .body()
+                        {
+                            ClosedPositiveValue::Int => ObservedIncomingKind::Int,
+                            ClosedPositiveValue::Bottom => ObservedIncomingKind::BottomTrivial,
+                        };
+                        observer.record(|| ExecutionEvent::IncomingUse(id.clone(), kind));
+                    } else {
+                        observer.omit();
+                    }
+                }
+                let transitions = Self::route_incoming(
+                    &self.batch,
+                    &mut self.store,
+                    &mut self.bounds,
+                    &mut self.bound_payload_bytes,
+                    &mut self.constraint_pairs,
+                    &mut self.frontier,
+                    &mut self.routed_uses,
+                    &mut self.routed_use_positions,
+                    &self.schemes,
+                    &mut self.execution_counters,
+                    id,
+                )?;
+                self.execution_counters
+                    .scc_execution_incoming_instantiations += 1;
+                #[cfg(test)]
+                {
+                    self.summary_false_to_true_transitions += transitions;
+                }
+                #[cfg(not(test))]
+                let _ = transitions;
+                sample_boundary!(ResourceBoundary::IncomingRoute);
             }
         }
+        Ok(())
+    }
+
+    fn route_internal(
+        batch: &ConstraintBatch,
+        store: &mut ConstraintStore,
+        bounds: &mut [VariableBounds],
+        bound_payload_bytes: &mut usize,
+        constraint_pairs: &mut HashSet<CanonicalValuePairKey>,
+        frontier: &mut DirectBoundFrontier,
+        routed_uses: &mut Vec<RoutedUseProvenance>,
+        routed_use_positions: &mut HashSet<DefinitionUseId>,
+        counters: &mut ProductionCounters,
+        id: &DefinitionUseId,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let use_record = Self::validated_route_use(batch, id)?;
+        let root = batch.components[use_record.target_root_component].clone();
+        let value = batch.components[use_record.use_value_component].clone();
+        Self::route(
+            store,
+            bounds,
+            bound_payload_bytes,
+            constraint_pairs,
+            frontier,
+            routed_uses,
+            routed_use_positions,
+            counters,
+            id,
+            use_record,
+            Term::Component(root),
+            Term::Component(value),
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(use_record.target_root_row),
+                upper: ValueEndpointKey::ValueRow(use_record.use_value_row),
+            },
+            RoutedUseKind::Internal,
+        )
+    }
+
+    fn route_incoming(
+        batch: &ConstraintBatch,
+        store: &mut ConstraintStore,
+        bounds: &mut [VariableBounds],
+        bound_payload_bytes: &mut usize,
+        constraint_pairs: &mut HashSet<CanonicalValuePairKey>,
+        frontier: &mut DirectBoundFrontier,
+        routed_uses: &mut Vec<RoutedUseProvenance>,
+        routed_use_positions: &mut HashSet<DefinitionUseId>,
+        schemes: &[Option<ClosedValueScheme>],
+        counters: &mut ProductionCounters,
+        id: &DefinitionUseId,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let use_record = Self::validated_route_use(batch, id)?;
+        let position = use_record.target.ordinal() as usize;
+        let scheme = schemes[position].expect("incoming observes finalized component scheme");
+        let value = batch.components[use_record.use_value_component].clone();
+        match scheme.body() {
+            ClosedPositiveValue::Bottom => {
+                counters.scc_execution_bottom_trivial_instantiations += 1;
+                assert!(
+                    routed_use_positions.insert(id.clone()),
+                    "each use routes once"
+                );
+                let old_capacity = routed_uses.capacity();
+                routed_uses.push(RoutedUseProvenance {
+                    use_id: id.clone(),
+                    fact: None,
+                    kind: RoutedUseKind::IncomingBottomTrivial,
+                });
+                if routed_uses.capacity() != old_capacity {
+                    counters.routed_use_provenance_growths += 1;
+                }
+                Ok(0)
+            }
+            ClosedPositiveValue::Int => {
+                counters.scc_execution_int_instantiation_facts += 1;
+                Self::route(
+                    store,
+                    bounds,
+                    bound_payload_bytes,
+                    constraint_pairs,
+                    frontier,
+                    routed_uses,
+                    routed_use_positions,
+                    counters,
+                    id,
+                    use_record,
+                    Term::Leaf(Leaf::IntPositive),
+                    Term::Component(value),
+                    CanonicalValuePairKey {
+                        lower: ValueEndpointKey::IntPositive,
+                        upper: ValueEndpointKey::ValueRow(use_record.use_value_row),
+                    },
+                    RoutedUseKind::IncomingInt,
+                )
+            }
+        }
+    }
+
+    fn route(
+        store: &mut ConstraintStore,
+        bounds: &mut [VariableBounds],
+        bound_payload_bytes: &mut usize,
+        constraint_pairs: &mut HashSet<CanonicalValuePairKey>,
+        frontier: &mut DirectBoundFrontier,
+        routed_uses: &mut Vec<RoutedUseProvenance>,
+        routed_use_positions: &mut HashSet<DefinitionUseId>,
+        counters: &mut ProductionCounters,
+        id: &DefinitionUseId,
+        use_record: &DefinitionUse,
+        lower: Term,
+        upper: Term,
+        key: CanonicalValuePairKey,
+        kind: RoutedUseKind,
+    ) -> Result<usize, SolveAvailabilityError> {
+        assert!(
+            routed_use_positions.insert(id.clone()),
+            "each use routes once"
+        );
+        let occurrence_id = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
+        let occurrence = ConstraintOccurrence {
+            cause: CauseId::for_occurrence(occurrence_id.clone()),
+            id: occurrence_id,
+            lower: lower.clone(),
+            upper: upper.clone(),
+        };
+        let receipt = {
+            let mut transaction = store.transaction();
+            transaction.admit(&occurrence)
+        }
+        .map_err(SolveAvailabilityError::from)?;
+        let fact = receipt.fact();
+        store
+            .record_provenance(receipt)
+            .map_err(SolveAvailabilityError::from)?;
+        let transitions = Self::constrain(
+            bounds,
+            bound_payload_bytes,
+            constraint_pairs,
+            frontier,
+            counters,
+            key,
+        );
+        let old_capacity = routed_uses.capacity();
+        routed_uses.push(RoutedUseProvenance {
+            use_id: id.clone(),
+            fact: Some(fact),
+            kind,
+        });
+        if routed_uses.capacity() != old_capacity {
+            counters.routed_use_provenance_growths += 1;
+        }
+        Ok(transitions)
+    }
+
+    /// Route provenance is an atomic admission precondition.  It must be
+    /// checked before route uniqueness, counters, facts, bounds, or durable
+    /// provenance can observe the use.
+    fn validated_route_use<'a>(
+        batch: &'a ConstraintBatch,
+        id: &DefinitionUseId,
+    ) -> Result<&'a DefinitionUse, SolveAvailabilityError> {
+        let use_record = batch.definition_use(id).expect("plan-owned use");
+        (use_record.cause.id() == id)
+            .then_some(use_record)
+            .ok_or(SolveAvailabilityError::CauseMismatch)
+    }
+
+    fn generalize(
+        batch: &ConstraintBatch,
+        bounds: &[VariableBounds],
+        definition: &DefinitionOrderId,
+        #[cfg(test)] summary_reads: &mut usize,
+    ) -> ClosedValueScheme {
+        let verified = Self::verified_scheme_definition(batch, definition);
+        let row = verified.record.root_value_row as usize;
+        #[cfg(test)]
+        {
+            *summary_reads += 1;
+        }
+        let body = if bounds[row].has_int_positive_lower {
+            ClosedPositiveValue::Int
+        } else {
+            ClosedPositiveValue::Bottom
+        };
+        ClosedValueScheme::new(body)
+    }
+
+    /// F2 member ordinals select dense storage, but they never become a
+    /// semantic identity.  Validate the exact frozen member before reading a
+    /// scheme slot or the definition-root row carried by that record.
+    fn verified_scheme_definition<'a>(
+        batch: &'a ConstraintBatch,
+        member: &DefinitionOrderId,
+    ) -> VerifiedSchemeDefinition<'a> {
+        let position = member.ordinal() as usize;
+        let record = batch
+            .definitions
+            .get(position)
+            .expect("F4 scheme member ordinal is a valid dense definition slot");
+        assert_eq!(
+            &record.definition, member,
+            "F4 scheme member exactly matches its frozen F2 definition slot"
+        );
+        let root = &record.root;
+        assert_eq!(
+            batch.root_order.get(position),
+            Some(root),
+            "F4 scheme member carries its exact collected definition root"
+        );
+        assert_eq!(
+            batch.root_definition_positions.get(root),
+            Some(&position),
+            "F4 scheme root maps to its exact dense definition position"
+        );
+        VerifiedSchemeDefinition { record, position }
+    }
+
+    fn finish(mut self) -> SolvedModule {
+        let mut projections = HashMap::with_capacity(self.batch.projection_order.len());
+        let mut work = ProductionCounters::default();
+        for (index, occurrence) in self.batch.projection_order.iter().enumerate() {
+            work.finish_projection_visits += 1;
+            let exact = self.occurrence_exact_bounds[index];
+            let value = if exact.value_lower_int && exact.value_upper_int {
+                SolvedValue::Int
+            } else {
+                SolvedValue::Unknown
+            };
+            let effect = if exact.effect_lower_bottom && exact.effect_upper_empty {
+                SolvedEffect::Empty
+            } else {
+                SolvedEffect::Unknown
+            };
+            projections.insert(occurrence.clone(), SolvedProjection { value, effect });
+        }
+        work.solved_projection_retained_bytes =
+            checked_capacity_bytes::<(HirOccurrenceId, SolvedProjection)>(
+                projections.capacity(),
+                "F4 finish projection output",
+            );
+        work.scheme_root_index_capacity = self.batch.root_definition_positions.capacity();
+        work.scheme_root_index_retained_bytes = checked_usize_sum(
+            [
+                checked_capacity_bytes::<(DefinitionRootId, usize)>(
+                    self.batch.root_definition_positions.capacity(),
+                    "F4 finish scheme-root index",
+                ),
+                checked_capacity_bytes::<usize>(
+                    self.batch.root_scheme_identity_payload_bytes.capacity(),
+                    "F4 finish scheme-root identity payload",
+                ),
+            ],
+            "F4 finish scheme-root index",
+        );
+        // The allocated finish output remains live until it moves into the
+        // result below. Sample that actual coexistence before ownership
+        // transfer; final retained accounting must not alias this peak.
+        self.sample_f4_resources_with_finish_output(
+            ResourceBoundary::FinishOutput,
+            work.solved_projection_retained_bytes,
+        );
         let mut counters = self.batch.counters();
         counters.combine(self.store.counters());
         counters.combine(&work);
+        counters.combine(&self.execution_counters);
         SolvedModule {
             hir: self.batch.hir,
             projection_order: self.batch.projection_order,
             projections,
-            root_values,
+            root_scheme_positions: self.batch.root_definition_positions,
+            root_scheme_identity_payload_bytes: self.batch.root_scheme_identity_payload_bytes,
+            schemes: self.schemes,
+            routed_uses: self.routed_uses,
             errors: self.errors,
             store: self.store,
             counters,
             solved_root_query_probes: AtomicUsize::new(0),
+            scheme_root_query_probes: AtomicUsize::new(0),
+            scheme_root_query_identity_hash_byte_incidences: AtomicUsize::new(0),
+            scheme_root_query_logical_successful_equality_byte_incidences: AtomicUsize::new(0),
+            #[cfg(test)]
+            resource_boundary_samples: self.resource_boundary_samples,
+            #[cfg(test)]
+            resource_ledger: self.resource_ledger,
         }
     }
 }
@@ -2136,6 +4166,14 @@ impl SolvedModule {
     pub fn counters(&self) -> ProductionCounters {
         let mut counters = self.counters.clone();
         counters.solved_root_query_probes += self.solved_root_query_probes.load(Ordering::Relaxed);
+        let scheme_queries = self.scheme_root_query_probes.load(Ordering::Relaxed);
+        counters.scheme_root_query_probes += scheme_queries;
+        counters.scheme_root_query_identity_hash_byte_incidences += self
+            .scheme_root_query_identity_hash_byte_incidences
+            .load(Ordering::Relaxed);
+        counters.scheme_root_query_logical_successful_equality_byte_incidences += self
+            .scheme_root_query_logical_successful_equality_byte_incidences
+            .load(Ordering::Relaxed);
         counters
     }
     pub fn projection_for(
@@ -2159,14 +4197,37 @@ impl SolvedModule {
         }
         self.solved_root_query_probes
             .fetch_add(1, Ordering::Relaxed);
-        Ok(*self
-            .root_values
+        self.scheme_root_query_probes
+            .fetch_add(1, Ordering::Relaxed);
+        let position = *self
+            .root_scheme_positions
             .get(root)
-            .expect("every admitted root has a solved projection"))
+            .expect("every admitted root has a scheme position");
+        let identity_payload_bytes = self.root_scheme_identity_payload_bytes[position];
+        // This successful public root-index lookup is the only F4 path that
+        // charges source-bearing identity work.  The dense side table was
+        // frozen with the same root position during collection, so it records
+        // the actual retained spelling/path payload rather than handle size.
+        self.scheme_root_query_identity_hash_byte_incidences
+            .fetch_add(identity_payload_bytes, Ordering::Relaxed);
+        self.scheme_root_query_logical_successful_equality_byte_incidences
+            .fetch_add(identity_payload_bytes, Ordering::Relaxed);
+        match self
+            .schemes
+            .get(position)
+            .copied()
+            .flatten()
+            .expect("every admitted root has a finalized scheme")
+            .body()
+        {
+            ClosedPositiveValue::Int => Ok(SolvedValue::Int),
+            ClosedPositiveValue::Bottom => Ok(SolvedValue::Never),
+        }
     }
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
     use std::sync::Arc;
@@ -2191,6 +4252,21 @@ mod tests {
     fn collect(hir: Arc<HirModule>) -> ConstraintBatch {
         ConstraintBatch::collect(hir).unwrap()
     }
+    fn retain_batch_occurrences(
+        batch: &mut ConstraintBatch,
+        keep: impl Fn(&ConstraintOccurrence) -> bool,
+    ) {
+        let occurrences = std::mem::take(&mut batch.occurrences);
+        let classes = std::mem::take(&mut batch.frozen_constraint_classes);
+        let rows = std::mem::take(&mut batch.frozen_occurrence_bound_rows);
+        for ((occurrence, class), row) in occurrences.into_iter().zip(classes).zip(rows) {
+            if keep(&occurrence) {
+                batch.occurrences.push(occurrence);
+                batch.frozen_constraint_classes.push(class);
+                batch.frozen_occurrence_bound_rows.push(row);
+            }
+        }
+    }
     fn root(module: &HirModule, index: usize) -> &ResolvedExpr {
         match &module.items()[index] {
             HirItem::Expression(value) => value,
@@ -2206,6 +4282,2281 @@ mod tests {
             }
         };
         (leaf(item.lower()), leaf(item.upper()))
+    }
+
+    /// Builds an artifact-valid F4 batch from real collection/F2 output, then
+    /// injects only an `Int+` seed through the normal store transaction path.
+    /// This is deliberately test-only: source syntax cannot express all SCC
+    /// witness shapes needed by the F4 resource contract.
+    fn synthetic_semantic_batch(
+        source: &str,
+        path: &str,
+        seeded_roots: &[usize],
+    ) -> ConstraintBatch {
+        let hir = module(source, path);
+        let mut batch = collect(hir.clone());
+        for &index in seeded_roots {
+            let HirItem::Binding(binding) = &hir.items()[index] else {
+                panic!("synthetic seed names a binding");
+            };
+            let root = batch
+                .root_value_component(binding.definition_root())
+                .unwrap();
+            batch.emit(
+                binding.value().occurrence().clone(),
+                127,
+                Term::Leaf(Leaf::IntPositive),
+                Term::Component(root),
+            );
+            batch.synthetic_seed_value_pair_probes += 1;
+        }
+        batch
+    }
+
+    /// A source-independent F4 execution witness.  Its HIR and collection
+    /// artifact are real, but its definition-use graph is assembled here so
+    /// the scale matrix can cover semantic shapes that the current one-Name
+    /// binding body surface cannot express (notably wide fan-out and several
+    /// distinct use IDs on one graph arc).
+    struct SyntheticScaleWitness {
+        name: &'static str,
+        /// C: frozen F2 components.
+        components: usize,
+        /// D: finalized definition roots.
+        definitions: usize,
+        /// I: component-internal definition uses.
+        internal_uses: usize,
+        /// X: dependency-closed incoming definition uses.
+        incoming_uses: usize,
+        /// M: ordinary initial slot-3 value-pair inputs.
+        ordinary_initial_value_pair_probes: usize,
+        /// S: test-only synthetic `Int+` seed inputs.
+        synthetic_seed_value_pair_probes: usize,
+        /// Exact direct-frontier physical work for this fixture.
+        direct_edges: usize,
+        exact_lower_memberships: usize,
+        exact_upper_memberships: usize,
+        transmission_attempts: usize,
+        same_row_atom_intersections: usize,
+        /// R = lower/upper replay attempts, exactly T + J for every scale
+        /// witness under the direct-frontier contract.
+        replay_attempts: usize,
+        /// Exact pair-cache outcomes.  Their sum is the total P probe count:
+        /// `A + T + J`, including duplicates.
+        constraint_pair_admissions: usize,
+        constraint_pair_duplicates: usize,
+        edges: Vec<(usize, usize)>,
+        seeded_roots: Vec<usize>,
+        pair_work_is_linear: bool,
+    }
+
+    /// A doubling baseline is always an actual preceding solve.  It never
+    /// stores synthetic values in production counter fields.
+    struct ScaleRatioBaseline {
+        counters: ProductionCounters,
+        summary: SummaryObservation,
+        pair_work_is_linear: bool,
+    }
+
+    /// The isolated measurement must satisfy every exact unbounded-cycle field
+    /// at its own named size.  Actual doubling evidence is separate.
+    fn assert_unbounded_cycle_exact_scale_fields(
+        witness: &SyntheticScaleWitness,
+        counters: &ProductionCounters,
+        summary: SummaryObservation,
+    ) {
+        if witness.name != "unbounded-cycle" {
+            return;
+        }
+        let n = witness.definitions;
+        let twice = n
+            .checked_mul(2)
+            .expect("F4 unbounded-cycle exact 2N fits usize");
+        let fourfold = n
+            .checked_mul(4)
+            .expect("F4 unbounded-cycle exact 4N fits usize");
+        assert_eq!(counters.definition_use_query_probes(), n);
+        assert_eq!(counters.scc_component_members_query_probes(), 1);
+        assert_eq!(counters.scc_component_internal_uses_query_probes(), 1);
+        assert_eq!(counters.scc_component_incoming_uses_query_probes(), 1);
+        assert_eq!(counters.scc_plan_component_index_probes(), 1);
+        assert_eq!(counters.scc_plan_definition_index_probes(), n);
+        assert_eq!(counters.scc_execution_component_visits(), 1);
+        assert_eq!(counters.scc_execution_internal_use_connections(), n);
+        assert_eq!(counters.scc_execution_draft_members(), n);
+        assert_eq!(counters.scc_execution_drafts_visible_barriers(), 1);
+        assert_eq!(counters.scc_execution_finalized_members(), n);
+        assert_eq!(counters.scc_execution_installed_members(), n);
+        assert_eq!(counters.scc_execution_incoming_instantiations(), 0);
+        assert_eq!(counters.scc_execution_int_instantiation_facts(), 0);
+        assert_eq!(counters.scc_execution_bottom_trivial_instantiations(), 0);
+        assert_eq!(counters.scc_execution_draft_lookups(), n);
+        assert_eq!(counters.scc_execution_cross_draft_visits(), 0);
+        assert_eq!(counters.constraint_pair_admissions(), fourfold);
+        assert_eq!(counters.constraint_pair_duplicates(), 1);
+        assert_eq!(counters.lower_bound_insertions(), fourfold);
+        assert_eq!(counters.upper_bound_insertions(), twice);
+        assert_eq!(counters.lower_bound_replays(), twice);
+        assert_eq!(counters.upper_bound_replays(), 0);
+        assert_eq!(counters.scheme_table_len(), n);
+        assert_eq!(counters.scheme_root_query_probes(), n);
+        assert_eq!(counters.draft_scratch_max_len(), n);
+        assert_eq!(counters.routed_use_provenance_len(), n);
+        assert_eq!(counters.occurrence_bound_state_len(), twice);
+        assert_eq!(counters.finish_projection_visits(), twice);
+        assert_eq!(summary.frontier_maximum_live, 1);
+    }
+
+    fn synthetic_scale_batch(witness: &SyntheticScaleWitness, path: &str) -> ConstraintBatch {
+        assert!(witness.definitions > 0);
+        assert!(
+            witness
+                .edges
+                .iter()
+                .all(|&(parent, target)| parent < witness.definitions
+                    && target < witness.definitions)
+        );
+        assert!(
+            witness
+                .seeded_roots
+                .iter()
+                .all(|&root| root < witness.definitions)
+        );
+
+        let mut source = (0..witness.definitions)
+            .map(|index| format!("my n{index} = missing"))
+            .collect::<Vec<_>>();
+        source.extend(
+            witness
+                .edges
+                .iter()
+                .map(|&(_, target)| format!("n{target}")),
+        );
+        let hir = module(&source.join("; "), path);
+        let mut batch = collect(hir.clone());
+        // The synthetic fixture owns this one ordinal index.  Later edge and
+        // seed construction reads it in O(1), never by a per-edge scan of the
+        // source-sized projection order.
+        let occurrence_bound_rows = batch
+            .projection_order
+            .iter()
+            .enumerate()
+            .map(|(row, occurrence)| {
+                (
+                    occurrence.clone(),
+                    u32::try_from(row).expect("synthetic occurrence row fits u32"),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        let use_occurrences = hir
+            .items()
+            .iter()
+            .skip(witness.definitions)
+            .map(|item| match item {
+                HirItem::Expression(ResolvedExpr::Name {
+                    occurrence,
+                    resolution: NameResolution::Resolved(_),
+                    ..
+                }) => occurrence.clone(),
+                _ => panic!("synthetic source contributes one resolved Name per use"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(use_occurrences.len(), witness.edges.len());
+
+        // Replace the empty source-level use set with artifact-valid semantic
+        // records.  Every record retains a unique real HIR occurrence, and
+        // the normal F2 constructor seals the resulting total index.
+        batch.definition_uses = Vec::with_capacity(witness.edges.len());
+        batch.definition_use_positions = HashMap::with_capacity(witness.edges.len());
+        for (position, (&(parent, target), occurrence)) in
+            witness.edges.iter().zip(&use_occurrences).enumerate()
+        {
+            let parent_definition = batch.definitions[parent].definition.clone();
+            let parent_root = batch.definitions[parent].root.clone();
+            let target_definition = batch.definitions[target].definition.clone();
+            let occurrence_bound_row = *occurrence_bound_rows
+                .get(occurrence)
+                .expect("synthetic occurrence is in the owned ordinal index");
+            batch
+                .emit_resolved_binding_name(occurrence.clone(), parent_root, occurrence_bound_row)
+                .expect("synthetic occurrence and root share the real artifact");
+            let id = DefinitionUseId::new(batch.collection_artifact.clone(), occurrence.clone());
+            assert!(
+                batch
+                    .definition_use_positions
+                    .insert(id.clone(), position)
+                    .is_none(),
+                "each synthetic use has a distinct real occurrence ID"
+            );
+            batch.definition_uses.push(DefinitionUse {
+                cause: DefinitionUseCause::for_use(id.clone()),
+                id,
+                parent: parent_definition,
+                target: target_definition,
+                occurrence: occurrence.clone(),
+                use_value_row: batch
+                    .occurrence_component_positions
+                    .get(occurrence)
+                    .expect("synthetic occurrence has a value row")
+                    .value_bound_row,
+                parent_root_row: batch
+                    .root_component_positions
+                    .get(&batch.definitions[parent].root)
+                    .expect("synthetic parent has a value row")
+                    .value_bound_row,
+                target_root_row: batch
+                    .root_component_positions
+                    .get(&batch.definitions[target].root)
+                    .expect("synthetic target has a value row")
+                    .value_bound_row,
+                use_value_component: batch
+                    .occurrence_component_positions
+                    .get(occurrence)
+                    .expect("synthetic occurrence has a value component")
+                    .value,
+                target_root_component: batch
+                    .root_component_positions
+                    .get(&batch.definitions[target].root)
+                    .expect("synthetic target has a value component")
+                    .component,
+            });
+        }
+        batch
+            .ensure_total_definition_use_map()
+            .expect("synthetic use index is total");
+
+        for &root_index in &witness.seeded_roots {
+            let HirItem::Binding(binding) = &hir.items()[root_index] else {
+                panic!("synthetic seed names a binding");
+            };
+            let root = batch.root_value_component_for_session(binding.definition_root());
+            let occurrence = binding.value().occurrence().clone();
+            let occurrence_bound_row = *occurrence_bound_rows
+                .get(&occurrence)
+                .expect("synthetic seed occurrence is in the owned ordinal index");
+            let root_row = batch
+                .root_component_positions
+                .get(binding.definition_root())
+                .expect("synthetic seed root has a value row")
+                .value_bound_row;
+            let id = ConstraintOccurrenceId::new(occurrence, 127);
+            batch.occurrences.push(ConstraintOccurrence {
+                cause: CauseId::for_occurrence(id.clone()),
+                id,
+                lower: Term::Leaf(Leaf::IntPositive),
+                upper: Term::Component(root),
+            });
+            batch
+                .frozen_constraint_classes
+                .push(FrozenConstraintClass::Value(CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                }));
+            batch
+                .frozen_occurrence_bound_rows
+                .push(occurrence_bound_row);
+            batch.counters.emitted_facts += 1;
+            batch.counters.generated_work_items += 1;
+            batch.synthetic_seed_value_pair_probes += 1;
+        }
+
+        // The F4 resource counters below include the synthetic semantic state
+        // rather than the source's intentionally empty Name-use graph.
+        batch.counters.component_retained_bytes = checked_capacity_bytes::<ComponentId>(
+            batch.components.capacity(),
+            "F4 synthetic components",
+        );
+        batch.counters.occurrence_record_retained_bytes =
+            checked_capacity_bytes::<ConstraintOccurrence>(
+                batch.occurrences.capacity(),
+                "F4 synthetic occurrences",
+            );
+        batch.counters.occurrence_component_index_capacity =
+            batch.occurrence_component_positions.capacity();
+        batch.counters.occurrence_component_index_retained_bytes =
+            checked_capacity_bytes::<(HirOccurrenceId, ComponentPositions)>(
+                batch.occurrence_component_positions.capacity(),
+                "F4 synthetic occurrence component index",
+            );
+        batch.counters.definition_use_retained_bytes = checked_capacity_bytes::<DefinitionUse>(
+            batch.definition_uses.capacity(),
+            "F4 synthetic definition uses",
+        );
+        batch.counters.definition_use_index_capacity = batch.definition_use_positions.capacity();
+        batch.counters.definition_use_index_retained_bytes =
+            checked_capacity_bytes::<(DefinitionUseId, usize)>(
+                batch.definition_use_positions.capacity(),
+                "F4 synthetic definition-use index",
+            );
+        batch.counters.retained_definition_uses = batch.definition_uses.len();
+        batch.counters.index_capacity = batch.occurrence_component_positions.capacity()
+            + batch.root_component_positions.capacity();
+        batch.finish_collection_accounting(0, 0);
+
+        let mut plan_counters = ProductionCounters::default();
+        let plan = SccPlan::build(
+            &batch.collection_artifact,
+            &batch.definitions,
+            &batch.definition_uses,
+            &mut plan_counters,
+        )
+        .expect("synthetic definitions and uses are artifact-valid and total");
+        batch.scc_plan = Some(plan);
+        // These are the F1 outputs consumed by F4 allocation/accounting.  The
+        // source collection's empty plan is intentionally not the semantic
+        // plan under test.
+        batch.counters.scc_maximum_component_size = plan_counters.scc_maximum_component_size;
+        batch.counters.scc_plan_component_index_probes =
+            plan_counters.scc_plan_component_index_probes;
+        batch.counters.scc_plan_definition_index_probes =
+            plan_counters.scc_plan_definition_index_probes;
+        batch.counters.scc_plan_retained_payload_bytes =
+            plan_counters.scc_plan_retained_payload_bytes;
+        batch.counters.scc_f1_graph_input_plan_peak_known_bytes =
+            plan_counters.scc_f1_graph_input_plan_peak_known_bytes;
+        batch.finish_scc_plan_accounting();
+        batch
+    }
+
+    fn assert_f4_scale_witness(witnesses: impl IntoIterator<Item = SyntheticScaleWitness>) {
+        let mut previous: Option<ScaleRatioBaseline> = None;
+        for witness in witnesses {
+            let path = format!("f4-scale-{}-{}.yu", witness.name, witness.definitions);
+            let batch = synthetic_scale_batch(&witness, &path);
+            let (solved, observer, summary) =
+                InferenceSession::new(batch).run_with_observer(0).unwrap();
+            assert!(observer.events.is_empty());
+            assert_eq!(
+                observer.omitted,
+                witness.internal_uses
+                    + witness.definitions
+                    + witness.components
+                    + witness.definitions
+                    + witness.incoming_uses,
+                "{} has the declared bounded execution event count",
+                witness.name
+            );
+            assert_eq!(summary.reads, witness.definitions);
+            assert_eq!(
+                summary.false_to_true_transitions, witness.exact_lower_memberships,
+                "{} records exactly one Int-positive summary transition for every exact lower membership",
+                witness.name
+            );
+            assert_eq!(
+                summary.ordinary_initial_value_pair_probes,
+                witness.ordinary_initial_value_pair_probes,
+                "{} preserves the causal M input class",
+                witness.name
+            );
+            assert_eq!(
+                summary.synthetic_seed_value_pair_probes, witness.synthetic_seed_value_pair_probes,
+                "{} preserves the causal S input class",
+                witness.name
+            );
+            let pair_probe_inputs = witness
+                .ordinary_initial_value_pair_probes
+                .checked_add(witness.internal_uses)
+                .and_then(|value| value.checked_add(witness.incoming_uses))
+                .and_then(|value| value.checked_add(witness.synthetic_seed_value_pair_probes))
+                .expect("F4 scale A fits usize");
+            assert_eq!(
+                summary.frontier_pushes,
+                pair_probe_inputs
+                    + witness.transmission_attempts
+                    + witness.same_row_atom_intersections,
+                "{} preserves A = M + I_p + X_p + S and exact replay probes",
+                witness.name
+            );
+            assert_eq!(summary.frontier_pushes, summary.frontier_pops);
+            assert_eq!(summary.frontier_peak_bytes, summary.frontier_retained_bytes);
+            assert!(summary.frontier_maximum_live <= summary.frontier_capacity);
+            assert_eq!(summary.frontier_capacity_growths, 0);
+            let direct_edge_transmission_limit = summary
+                .direct_edges
+                .checked_mul(2)
+                .expect("F4 scale direct-edge transmission bound fits usize");
+            assert!(summary.transmission_attempts <= direct_edge_transmission_limit);
+            assert_eq!(summary.direct_edges, witness.direct_edges);
+            assert_eq!(
+                summary.exact_lower_memberships,
+                witness.exact_lower_memberships
+            );
+            assert_eq!(
+                summary.exact_upper_memberships,
+                witness.exact_upper_memberships
+            );
+            assert_eq!(summary.transmission_attempts, witness.transmission_attempts);
+            assert_eq!(
+                summary.same_row_atom_intersections,
+                witness.same_row_atom_intersections
+            );
+
+            // Query every root once.  The counter is logical handle work, so
+            // it stays deterministic across randomized HashMap hash seeds and
+            // does not claim bucket-collision comparisons.
+            for item in solved.hir().items().iter().take(witness.definitions) {
+                let HirItem::Binding(binding) = item else {
+                    panic!("synthetic definitions remain bindings");
+                };
+                assert_eq!(
+                    solved.root_value_for(binding.definition_root()),
+                    Ok(SolvedValue::Int),
+                    "{} has its fixture-defined Int scheme",
+                    witness.name
+                );
+            }
+            let counters = solved.counters();
+            assert_eq!(counters.definition_query_probes(), 0);
+            let expected_definition_use_queries = witness
+                .internal_uses
+                .checked_add(witness.incoming_uses)
+                .expect("F4 scale DefinitionUse query count fits usize");
+            assert_eq!(
+                counters.definition_use_query_probes(),
+                expected_definition_use_queries,
+                "{} counts only production internal and incoming route probes when the scale observer has zero capacity",
+                witness.name
+            );
+            assert_eq!(counters.scc_component_for_definition_query_probes(), 0);
+            assert_eq!(
+                counters.scc_component_members_query_probes(),
+                witness.components,
+                "{} borrows each F2 member slice exactly once",
+                witness.name
+            );
+            assert_eq!(
+                counters.scc_component_internal_uses_query_probes(),
+                witness.components,
+                "{} borrows each F2 internal-use slice exactly once",
+                witness.name
+            );
+            assert_eq!(
+                counters.scc_component_incoming_uses_query_probes(),
+                witness.components,
+                "{} borrows each F2 incoming-use slice exactly once",
+                witness.name
+            );
+            assert_eq!(
+                counters.scc_plan_component_index_probes(),
+                witness.components,
+                "{} retains one frozen F2 component-index insertion probe per component",
+                witness.name
+            );
+            assert_eq!(
+                counters.scc_plan_definition_index_probes(),
+                witness.definitions,
+                "{} retains one frozen F2 definition-index insertion probe per member",
+                witness.name
+            );
+            let replay_attempts = counters
+                .lower_bound_replays()
+                .checked_add(counters.upper_bound_replays())
+                .expect("F4 replay count fits usize");
+            assert_eq!(replay_attempts, witness.replay_attempts);
+            assert_eq!(
+                replay_attempts,
+                witness
+                    .transmission_attempts
+                    .checked_add(witness.same_row_atom_intersections)
+                    .expect("F4 T + J fits usize"),
+                "{} preserves R = T + J",
+                witness.name
+            );
+            let initial_admission_samples = witness
+                .edges
+                .len()
+                .checked_mul(3)
+                .and_then(|count| count.checked_add(witness.synthetic_seed_value_pair_probes))
+                .expect("F4 scale initial-admission sample count fits usize");
+            let expected_resource_samples = checked_usize_sum(
+                [
+                    1, // initial reservation
+                    initial_admission_samples,
+                    witness.internal_uses,
+                    witness.components, // one scratch clear per component
+                    witness.definitions,
+                    witness.definitions, // one scheme install per member
+                    witness.incoming_uses,
+                    2, // before and after finish store accounting
+                    1, // finish output ownership transfer
+                ],
+                "F4 scale resource boundary sample count",
+            );
+            assert_eq!(
+                summary.resource_boundary_samples, expected_resource_samples,
+                "{} samples every causal F4 resource boundary exactly",
+                witness.name
+            );
+            assert_eq!(
+                summary.resource_boundary_coverage,
+                7 + usize::from(witness.internal_uses != 0)
+                    + usize::from(witness.incoming_uses != 0),
+                "{} records every applicable named resource boundary exactly",
+                witness.name
+            );
+            assert_eq!(
+                summary.independent_queue_retained_bytes, summary.frontier_retained_bytes,
+                "{} independently records the frontier queue contribution",
+                witness.name
+            );
+            assert_eq!(
+                summary.independent_semantic_arena_retained_bytes,
+                counters.semantic_arena_retained_bytes(),
+                "{} independent boundary ledger agrees with the production semantic aggregate",
+                witness.name
+            );
+            assert_eq!(
+                summary.independent_semantic_arena_peak_bytes,
+                counters.semantic_arena_peak_bytes(),
+                "{} independent boundary ledger agrees with the production semantic peak",
+                witness.name
+            );
+            assert_eq!(
+                summary.independent_inference_session_retained_bytes,
+                counters.inference_session_retained_bytes(),
+                "{} independent boundary ledger agrees with the production session aggregate",
+                witness.name
+            );
+            assert_eq!(
+                summary.independent_finish_output_retained_bytes,
+                counters.solved_projection_retained_bytes(),
+                "{} independently retains the finish output through result construction",
+                witness.name
+            );
+            assert_eq!(
+                summary.independent_inference_session_peak_bytes,
+                counters.inference_session_peak_bytes(),
+                "{} independently checked full session peak, including finish output coexistence, agrees with production",
+                witness.name
+            );
+            assert!(
+                summary.semantic_arena_retained_bytes >= summary.frontier_retained_bytes,
+                "{} semantic aggregate includes the source-free frontier queue contribution",
+                witness.name
+            );
+            assert_eq!(
+                counters.constraint_pair_admissions(),
+                witness.constraint_pair_admissions,
+                "{} has the fixture-defined accepted direct/exact pair count",
+                witness.name
+            );
+            assert_eq!(
+                counters.constraint_pair_duplicates(),
+                witness.constraint_pair_duplicates,
+                "{} has the fixture-defined duplicate direct/frontier pair count",
+                witness.name
+            );
+            assert_eq!(
+                counters.constraint_pair_admissions() + counters.constraint_pair_duplicates(),
+                pair_probe_inputs
+                    + witness.transmission_attempts
+                    + witness.same_row_atom_intersections,
+                "{} counts every input, transmission, and intersection probe exactly once",
+                witness.name
+            );
+            if witness.name == "unbounded-cycle" {
+                eprintln!(
+                    "f4-direct-frontier n={} E={} L={} U={} T={} J={} queue_peak={} queue_capacity={} queue_bytes={} queue_peak_bytes={} P={} replays={} semantic_peak={} session_peak={}",
+                    witness.definitions,
+                    summary.direct_edges,
+                    summary.exact_lower_memberships,
+                    summary.exact_upper_memberships,
+                    summary.transmission_attempts,
+                    summary.same_row_atom_intersections,
+                    summary.frontier_maximum_live,
+                    summary.frontier_capacity,
+                    summary.frontier_retained_bytes,
+                    summary.frontier_peak_bytes,
+                    counters.constraint_pair_admissions() + counters.constraint_pair_duplicates(),
+                    counters.lower_bound_replays() + counters.upper_bound_replays(),
+                    counters.semantic_arena_peak_bytes(),
+                    counters.inference_session_peak_bytes(),
+                );
+            }
+            assert_eq!(
+                counters.scc_execution_component_visits(),
+                witness.components
+            );
+            assert_eq!(counters.scc_execution_draft_members(), witness.definitions);
+            assert_eq!(
+                counters.scc_execution_finalized_members(),
+                witness.definitions
+            );
+            assert_eq!(
+                counters.scc_execution_installed_members(),
+                witness.definitions
+            );
+            assert_eq!(
+                counters.scc_execution_internal_use_connections(),
+                witness.internal_uses
+            );
+            assert_eq!(
+                counters.scc_execution_incoming_instantiations(),
+                witness.incoming_uses
+            );
+            assert_eq!(
+                counters.scc_execution_int_instantiation_facts()
+                    + counters.scc_execution_bottom_trivial_instantiations(),
+                witness.incoming_uses,
+                "{} gives every incoming use exactly one closed route",
+                witness.name
+            );
+            assert_eq!(
+                counters.routed_use_provenance_len(),
+                witness.internal_uses + witness.incoming_uses,
+                "{} retains one route record for every distinct DefinitionUseId",
+                witness.name
+            );
+            assert_eq!(counters.constraint_store_growths(), 0);
+            assert_eq!(counters.constraint_store_rebuilds(), 0);
+            assert_eq!(counters.fact_store_growths(), 0);
+            assert_eq!(counters.fact_store_rebuilds, 0);
+            assert_eq!(counters.canonical_map_growths(), 0);
+            assert_eq!(counters.canonical_map_rebuilds(), 0);
+            assert_eq!(counters.provenance_growths(), 0);
+            assert_eq!(counters.provenance_rebuilds(), 0);
+            assert_eq!(counters.consumed_receipt_growths(), 0);
+            assert_eq!(counters.consumed_receipt_rebuilds(), 0);
+            assert_eq!(counters.routed_use_provenance_growths(), 0);
+            let store_sum = |lanes: [usize; 4]| {
+                lanes
+                    .into_iter()
+                    .try_fold(0usize, |total, lane| total.checked_add(lane))
+                    .expect("scale store aggregate fits usize")
+            };
+            assert_eq!(
+                counters.constraint_store_requested_capacity(),
+                store_sum([
+                    counters.fact_store_requested_capacity(),
+                    counters.canonical_map_requested_capacity(),
+                    counters.provenance_requested_capacity(),
+                    counters.consumed_receipt_requested_capacity(),
+                ]),
+                "{} keeps the named requested-capacity ledger exact",
+                witness.name
+            );
+            assert_eq!(
+                counters.constraint_store_actual_capacity(),
+                store_sum([
+                    counters.fact_store_actual_capacity(),
+                    counters.canonical_map_actual_capacity(),
+                    counters.provenance_actual_capacity(),
+                    counters.consumed_receipt_actual_capacity(),
+                ]),
+                "{} keeps the named actual-capacity ledger exact",
+                witness.name
+            );
+            assert_eq!(
+                counters.constraint_store_growths(),
+                store_sum([
+                    counters.fact_store_growths(),
+                    counters.canonical_map_growths(),
+                    counters.provenance_growths(),
+                    counters.consumed_receipt_growths(),
+                ])
+            );
+            assert_eq!(
+                counters.constraint_store_rebuilds(),
+                store_sum([
+                    counters.fact_store_rebuilds,
+                    counters.canonical_map_rebuilds(),
+                    counters.provenance_rebuilds(),
+                    counters.consumed_receipt_rebuilds(),
+                ])
+            );
+
+            assert_unbounded_cycle_exact_scale_fields(&witness, &counters, summary);
+
+            // Only an actual preceding solve can be a doubling baseline.
+            // The separately named non-timed unbounded-cycle ratio witness
+            // supplies all three measurements in one process; each capped
+            // named-size witness remains intentionally self-contained.
+            if let Some(previous) = previous.as_ref() {
+                let previous_counters = &previous.counters;
+                let previous_summary = previous.summary;
+                let previous_pair_work_is_linear = previous.pair_work_is_linear;
+                let mut linear_fields = vec![
+                    (
+                        "definition-use queries",
+                        counters.definition_use_query_probes(),
+                        previous_counters.definition_use_query_probes(),
+                    ),
+                    (
+                        "F2 member-slice queries",
+                        counters.scc_component_members_query_probes(),
+                        previous_counters.scc_component_members_query_probes(),
+                    ),
+                    (
+                        "F2 internal-use-slice queries",
+                        counters.scc_component_internal_uses_query_probes(),
+                        previous_counters.scc_component_internal_uses_query_probes(),
+                    ),
+                    (
+                        "F2 incoming-use-slice queries",
+                        counters.scc_component_incoming_uses_query_probes(),
+                        previous_counters.scc_component_incoming_uses_query_probes(),
+                    ),
+                    (
+                        "F2 component-index probes",
+                        counters.scc_plan_component_index_probes(),
+                        previous_counters.scc_plan_component_index_probes(),
+                    ),
+                    (
+                        "F2 definition-index probes",
+                        counters.scc_plan_definition_index_probes(),
+                        previous_counters.scc_plan_definition_index_probes(),
+                    ),
+                    (
+                        "component visits",
+                        counters.scc_execution_component_visits(),
+                        previous_counters.scc_execution_component_visits(),
+                    ),
+                    (
+                        "internal use connections",
+                        counters.scc_execution_internal_use_connections(),
+                        previous_counters.scc_execution_internal_use_connections(),
+                    ),
+                    (
+                        "draft members",
+                        counters.scc_execution_draft_members(),
+                        previous_counters.scc_execution_draft_members(),
+                    ),
+                    (
+                        "draft barriers",
+                        counters.scc_execution_drafts_visible_barriers(),
+                        previous_counters.scc_execution_drafts_visible_barriers(),
+                    ),
+                    (
+                        "finalized members",
+                        counters.scc_execution_finalized_members(),
+                        previous_counters.scc_execution_finalized_members(),
+                    ),
+                    (
+                        "installed members",
+                        counters.scc_execution_installed_members(),
+                        previous_counters.scc_execution_installed_members(),
+                    ),
+                    (
+                        "incoming instantiations",
+                        counters.scc_execution_incoming_instantiations(),
+                        previous_counters.scc_execution_incoming_instantiations(),
+                    ),
+                    (
+                        "scheme table length",
+                        counters.scheme_table_len(),
+                        previous_counters.scheme_table_len(),
+                    ),
+                    (
+                        "scheme table capacity",
+                        counters.scheme_table_capacity(),
+                        previous_counters.scheme_table_capacity(),
+                    ),
+                    (
+                        "scheme table retained bytes",
+                        counters.scheme_table_retained_bytes(),
+                        previous_counters.scheme_table_retained_bytes(),
+                    ),
+                    (
+                        "scheme root index capacity",
+                        counters.scheme_root_index_capacity(),
+                        previous_counters.scheme_root_index_capacity(),
+                    ),
+                    (
+                        "scheme root index retained bytes",
+                        counters.scheme_root_index_retained_bytes(),
+                        previous_counters.scheme_root_index_retained_bytes(),
+                    ),
+                    (
+                        "draft scratch capacity",
+                        counters.draft_scratch_capacity(),
+                        previous_counters.draft_scratch_capacity(),
+                    ),
+                    (
+                        "draft scratch retained bytes",
+                        counters.draft_scratch_retained_bytes(),
+                        previous_counters.draft_scratch_retained_bytes(),
+                    ),
+                    (
+                        "bound table capacity",
+                        counters.bound_table_capacity(),
+                        previous_counters.bound_table_capacity(),
+                    ),
+                    (
+                        "routed-use provenance length",
+                        counters.routed_use_provenance_len(),
+                        previous_counters.routed_use_provenance_len(),
+                    ),
+                    (
+                        "routed-use provenance capacity",
+                        counters.routed_use_provenance_capacity(),
+                        previous_counters.routed_use_provenance_capacity(),
+                    ),
+                    (
+                        "routed-use provenance retained bytes",
+                        counters.routed_use_provenance_retained_bytes(),
+                        previous_counters.routed_use_provenance_retained_bytes(),
+                    ),
+                    (
+                        "occurrence bound-state length",
+                        counters.occurrence_bound_state_len(),
+                        previous_counters.occurrence_bound_state_len(),
+                    ),
+                    (
+                        "occurrence bound-state capacity",
+                        counters.occurrence_bound_state_capacity(),
+                        previous_counters.occurrence_bound_state_capacity(),
+                    ),
+                    (
+                        "finish projection visits",
+                        counters.finish_projection_visits(),
+                        previous_counters.finish_projection_visits(),
+                    ),
+                    (
+                        "scheme root query probes",
+                        counters.scheme_root_query_probes(),
+                        previous_counters.scheme_root_query_probes(),
+                    ),
+                    (
+                        "scheme root identity hash-byte incidences",
+                        counters.scheme_root_query_identity_hash_byte_incidences(),
+                        previous_counters.scheme_root_query_identity_hash_byte_incidences(),
+                    ),
+                    (
+                        "scheme root logical equality-byte incidences",
+                        counters.scheme_root_query_logical_successful_equality_byte_incidences(),
+                        previous_counters
+                            .scheme_root_query_logical_successful_equality_byte_incidences(),
+                    ),
+                    (
+                        "summary false-to-true transitions",
+                        summary.false_to_true_transitions,
+                        previous_summary.false_to_true_transitions,
+                    ),
+                    (
+                        "frontier maximum live",
+                        summary.frontier_maximum_live,
+                        previous_summary.frontier_maximum_live,
+                    ),
+                    (
+                        "frontier capacity",
+                        summary.frontier_capacity,
+                        previous_summary.frontier_capacity,
+                    ),
+                    (
+                        "frontier retained bytes",
+                        summary.frontier_retained_bytes,
+                        previous_summary.frontier_retained_bytes,
+                    ),
+                    (
+                        "frontier peak bytes",
+                        summary.frontier_peak_bytes,
+                        previous_summary.frontier_peak_bytes,
+                    ),
+                    (
+                        "solved projection retained bytes",
+                        counters.solved_projection_retained_bytes(),
+                        previous_counters.solved_projection_retained_bytes(),
+                    ),
+                ];
+                // Every fixed F4 count/capacity/retained/peak/probe field is
+                // part of the declared doubling contract.  A field that is
+                // structurally zero for a witness must remain zero; no hidden
+                // scale-only allocation or observer work is exempted.
+                linear_fields.extend([
+                    (
+                        "int instantiation facts",
+                        counters.scc_execution_int_instantiation_facts(),
+                        previous_counters.scc_execution_int_instantiation_facts(),
+                    ),
+                    (
+                        "Bottom trivial instantiations",
+                        counters.scc_execution_bottom_trivial_instantiations(),
+                        previous_counters.scc_execution_bottom_trivial_instantiations(),
+                    ),
+                    (
+                        "draft lookups",
+                        counters.scc_execution_draft_lookups(),
+                        previous_counters.scc_execution_draft_lookups(),
+                    ),
+                    (
+                        "cross-draft visits",
+                        counters.scc_execution_cross_draft_visits(),
+                        previous_counters.scc_execution_cross_draft_visits(),
+                    ),
+                    (
+                        "constraint pair duplicates",
+                        counters.constraint_pair_duplicates(),
+                        previous_counters.constraint_pair_duplicates(),
+                    ),
+                    (
+                        "lower insertions",
+                        counters.lower_bound_insertions(),
+                        previous_counters.lower_bound_insertions(),
+                    ),
+                    (
+                        "upper insertions",
+                        counters.upper_bound_insertions(),
+                        previous_counters.upper_bound_insertions(),
+                    ),
+                    (
+                        "lower replays",
+                        counters.lower_bound_replays(),
+                        previous_counters.lower_bound_replays(),
+                    ),
+                    (
+                        "upper replays",
+                        counters.upper_bound_replays(),
+                        previous_counters.upper_bound_replays(),
+                    ),
+                    (
+                        "total replays",
+                        replay_attempts,
+                        previous_counters.lower_bound_replays()
+                            + previous_counters.upper_bound_replays(),
+                    ),
+                    (
+                        "scheme table rebuilds",
+                        counters.scheme_table_rebuilds(),
+                        previous_counters.scheme_table_rebuilds(),
+                    ),
+                    (
+                        "scheme root index growths",
+                        counters.scheme_root_index_growths(),
+                        previous_counters.scheme_root_index_growths(),
+                    ),
+                    (
+                        "scheme root index rebuilds",
+                        counters.scheme_root_index_rebuilds(),
+                        previous_counters.scheme_root_index_rebuilds(),
+                    ),
+                    (
+                        "draft scratch maximum",
+                        counters.draft_scratch_max_len(),
+                        previous_counters.draft_scratch_max_len(),
+                    ),
+                    (
+                        "draft scratch growths",
+                        counters.draft_scratch_growths(),
+                        previous_counters.draft_scratch_growths(),
+                    ),
+                    (
+                        "bound table retained bytes",
+                        counters.bound_table_retained_bytes(),
+                        previous_counters.bound_table_retained_bytes(),
+                    ),
+                    (
+                        "bound table growths",
+                        counters.bound_table_growths(),
+                        previous_counters.bound_table_growths(),
+                    ),
+                    (
+                        "bound table rebuilds",
+                        counters.bound_table_rebuilds(),
+                        previous_counters.bound_table_rebuilds(),
+                    ),
+                    (
+                        "bound table peak bytes",
+                        counters.bound_table_peak_bytes(),
+                        previous_counters.bound_table_peak_bytes(),
+                    ),
+                    (
+                        "pair cache growths",
+                        counters.constraint_pair_cache_growths(),
+                        previous_counters.constraint_pair_cache_growths(),
+                    ),
+                    (
+                        "pair cache rebuilds",
+                        counters.constraint_pair_cache_rebuilds(),
+                        previous_counters.constraint_pair_cache_rebuilds(),
+                    ),
+                    (
+                        "pair cache peak bytes",
+                        counters.constraint_pair_cache_peak_bytes(),
+                        previous_counters.constraint_pair_cache_peak_bytes(),
+                    ),
+                    (
+                        "routed-use provenance growths",
+                        counters.routed_use_provenance_growths(),
+                        previous_counters.routed_use_provenance_growths(),
+                    ),
+                    (
+                        "occurrence bound-state retained bytes",
+                        counters.occurrence_bound_state_retained_bytes(),
+                        previous_counters.occurrence_bound_state_retained_bytes(),
+                    ),
+                    (
+                        "occurrence bound-state growths",
+                        counters.occurrence_bound_state_growths(),
+                        previous_counters.occurrence_bound_state_growths(),
+                    ),
+                    (
+                        "solver error capacity",
+                        counters.solver_error_workspace_capacity(),
+                        previous_counters.solver_error_workspace_capacity(),
+                    ),
+                    (
+                        "solver error retained bytes",
+                        counters.solver_error_workspace_retained_bytes(),
+                        previous_counters.solver_error_workspace_retained_bytes(),
+                    ),
+                    (
+                        "store requested capacity",
+                        counters.constraint_store_requested_capacity(),
+                        previous_counters.constraint_store_requested_capacity(),
+                    ),
+                    (
+                        "store actual capacity",
+                        counters.constraint_store_actual_capacity(),
+                        previous_counters.constraint_store_actual_capacity(),
+                    ),
+                    (
+                        "store growths",
+                        counters.constraint_store_growths(),
+                        previous_counters.constraint_store_growths(),
+                    ),
+                    (
+                        "store rebuilds",
+                        counters.constraint_store_rebuilds(),
+                        previous_counters.constraint_store_rebuilds(),
+                    ),
+                    (
+                        "fact requested capacity",
+                        counters.fact_store_requested_capacity(),
+                        previous_counters.fact_store_requested_capacity(),
+                    ),
+                    (
+                        "fact actual capacity",
+                        counters.fact_store_actual_capacity(),
+                        previous_counters.fact_store_actual_capacity(),
+                    ),
+                    (
+                        "fact growths",
+                        counters.fact_store_growths(),
+                        previous_counters.fact_store_growths(),
+                    ),
+                    (
+                        "canonical requested capacity",
+                        counters.canonical_map_requested_capacity(),
+                        previous_counters.canonical_map_requested_capacity(),
+                    ),
+                    (
+                        "canonical actual capacity",
+                        counters.canonical_map_actual_capacity(),
+                        previous_counters.canonical_map_actual_capacity(),
+                    ),
+                    (
+                        "canonical growths",
+                        counters.canonical_map_growths(),
+                        previous_counters.canonical_map_growths(),
+                    ),
+                    (
+                        "canonical rebuilds",
+                        counters.canonical_map_rebuilds(),
+                        previous_counters.canonical_map_rebuilds(),
+                    ),
+                    (
+                        "provenance requested capacity",
+                        counters.provenance_requested_capacity(),
+                        previous_counters.provenance_requested_capacity(),
+                    ),
+                    (
+                        "provenance actual capacity",
+                        counters.provenance_actual_capacity(),
+                        previous_counters.provenance_actual_capacity(),
+                    ),
+                    (
+                        "provenance growths",
+                        counters.provenance_growths(),
+                        previous_counters.provenance_growths(),
+                    ),
+                    (
+                        "provenance rebuilds",
+                        counters.provenance_rebuilds(),
+                        previous_counters.provenance_rebuilds(),
+                    ),
+                    (
+                        "receipt requested capacity",
+                        counters.consumed_receipt_requested_capacity(),
+                        previous_counters.consumed_receipt_requested_capacity(),
+                    ),
+                    (
+                        "receipt actual capacity",
+                        counters.consumed_receipt_actual_capacity(),
+                        previous_counters.consumed_receipt_actual_capacity(),
+                    ),
+                    (
+                        "receipt growths",
+                        counters.consumed_receipt_growths(),
+                        previous_counters.consumed_receipt_growths(),
+                    ),
+                    (
+                        "receipt rebuilds",
+                        counters.consumed_receipt_rebuilds(),
+                        previous_counters.consumed_receipt_rebuilds(),
+                    ),
+                ]);
+                if witness.pair_work_is_linear && previous_pair_work_is_linear {
+                    linear_fields.extend([
+                        (
+                            "constraint pair admissions",
+                            counters.constraint_pair_admissions(),
+                            previous_counters.constraint_pair_admissions(),
+                        ),
+                        (
+                            "constraint pair probes",
+                            counters.constraint_pair_admissions()
+                                + counters.constraint_pair_duplicates(),
+                            previous_counters.constraint_pair_admissions()
+                                + previous_counters.constraint_pair_duplicates(),
+                        ),
+                        (
+                            "constraint pair cache capacity",
+                            counters.constraint_pair_cache_capacity(),
+                            previous_counters.constraint_pair_cache_capacity(),
+                        ),
+                        (
+                            "constraint pair cache retained bytes",
+                            counters.constraint_pair_cache_retained_bytes(),
+                            previous_counters.constraint_pair_cache_retained_bytes(),
+                        ),
+                        (
+                            "semantic arena retained bytes",
+                            counters.semantic_arena_retained_bytes(),
+                            previous_counters.semantic_arena_retained_bytes(),
+                        ),
+                        (
+                            "semantic arena peak bytes",
+                            counters.semantic_arena_peak_bytes(),
+                            previous_counters.semantic_arena_peak_bytes(),
+                        ),
+                        (
+                            "inference-session retained bytes",
+                            counters.inference_session_retained_bytes(),
+                            previous_counters.inference_session_retained_bytes(),
+                        ),
+                        (
+                            "inference-session peak bytes",
+                            counters.inference_session_peak_bytes(),
+                            previous_counters.inference_session_peak_bytes(),
+                        ),
+                    ]);
+                }
+                for (name, current, prior) in linear_fields {
+                    if prior != 0 {
+                        let doubled = current
+                            .checked_mul(2)
+                            .expect("F4 scale current doubling comparison fits usize");
+                        let fivefold = prior
+                            .checked_mul(5)
+                            .expect("F4 scale prior ratio comparison fits usize");
+                        assert!(
+                            doubled < fivefold,
+                            "{} {} exceeded the declared <2.5x doubling bound",
+                            witness.name,
+                            name
+                        );
+                    } else {
+                        assert_eq!(current, 0, "{} {} grew from zero", witness.name, name);
+                    }
+                }
+            }
+            previous = Some(ScaleRatioBaseline {
+                counters,
+                summary,
+                pair_work_is_linear: witness.pair_work_is_linear,
+            });
+        }
+    }
+
+    #[test]
+    fn f4_orders_internal_drafts_installs_and_incoming_with_a_bounded_observer() {
+        let batch = collect(module("my a = b; my b = a; my c = a", "f4-order.yu"));
+        let (solved, observer, _) = InferenceSession::new(batch).run_with_observer(32).unwrap();
+        assert_eq!(observer.omitted, 0);
+        let barrier = observer
+            .events
+            .iter()
+            .position(|event| matches!(event, ExecutionEvent::DraftsVisible(_, 2)))
+            .expect("mutual component barrier");
+        assert!(
+            observer.events[..barrier]
+                .iter()
+                .any(|event| matches!(event, ExecutionEvent::InternalUse(_)))
+        );
+        assert_eq!(
+            observer.events[..barrier]
+                .iter()
+                .filter(|event| matches!(event, ExecutionEvent::Drafted(_)))
+                .count(),
+            2
+        );
+        let first_incoming = observer
+            .events
+            .iter()
+            .position(|event| matches!(event, ExecutionEvent::IncomingUse(_, _)))
+            .expect("closed incoming use");
+        assert!(
+            observer.events[..first_incoming]
+                .iter()
+                .filter(|event| matches!(event, ExecutionEvent::Installed(_)))
+                .count()
+                >= 2
+        );
+        assert!(solved.errors().is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "F4 scheme root maps to its exact dense definition position")]
+    fn f4_generalization_rejects_a_member_with_a_mismatched_frozen_root_position() {
+        let mut batch = collect(module("my only = 42", "f4-root-position.yu"));
+        let definition = batch.definitions[0].definition.clone();
+        let root = batch.definitions[0].root.clone();
+        *batch
+            .root_definition_positions
+            .get_mut(&root)
+            .expect("collected definition owns a frozen scheme position") = 1;
+        let mut summary_reads = 0;
+        let _ = InferenceSession::generalize(&batch, &[], &definition, &mut summary_reads);
+    }
+
+    #[test]
+    fn f4_synthetic_seeded_internal_cycle_coalesces_to_int_and_retains_use_provenance() {
+        let batch = synthetic_semantic_batch(
+            "my left = right; my right = left",
+            "f4-seeded-cycle.yu",
+            &[0],
+        );
+        let (solved, _, summary) = InferenceSession::new(batch).run_with_observer(0).unwrap();
+        for item in solved.hir().items() {
+            let HirItem::Binding(binding) = item else {
+                continue;
+            };
+            assert_eq!(
+                solved.root_value_for(binding.definition_root()),
+                Ok(SolvedValue::Int)
+            );
+        }
+        let counters = solved.counters();
+        assert_eq!(counters.scc_execution_internal_use_connections(), 2);
+        assert_eq!(counters.scc_execution_incoming_instantiations(), 0);
+        assert_eq!(counters.routed_use_provenance_len(), 2);
+        assert_eq!(counters.constraint_store_growths(), 0);
+        assert_eq!(counters.constraint_store_rebuilds(), 0);
+        assert_eq!(
+            summary.false_to_true_transitions, 4,
+            "the one Int seed reaches the two root and two Name-value rows only through canonical lower-bound insertion"
+        );
+    }
+
+    #[test]
+    fn f4_error_and_complete_unconstrained_roots_both_generalize_to_never() {
+        let hir = module(
+            "my broken = @; my empty = missing; my integer = 42",
+            "f4-errors.yu",
+        );
+        let solved = SolvedModule::solve(collect(hir.clone())).unwrap();
+        let roots = hir
+            .items()
+            .iter()
+            .filter_map(|item| match item {
+                HirItem::Binding(binding) => Some(binding),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            solved.root_value_for(roots[0].definition_root()),
+            Ok(SolvedValue::Never)
+        );
+        assert_eq!(
+            solved.root_value_for(roots[1].definition_root()),
+            Ok(SolvedValue::Never)
+        );
+        assert_eq!(
+            solved.root_value_for(roots[2].definition_root()),
+            Ok(SolvedValue::Int)
+        );
+    }
+
+    #[test]
+    fn f4_incoming_int_routes_keep_the_exact_definition_use_cause() {
+        let batch = collect(module(
+            "my source = 42; my sink = source",
+            "f4-provenance.yu",
+        ));
+        let use_record = batch.definition_uses()[0].clone();
+        let (solved, _, summary) = InferenceSession::new(batch).run_with_observer(0).unwrap();
+        let slot_zero = ConstraintOccurrenceId::new(use_record.occurrence().clone(), 0);
+        assert!(
+            solved
+                .store()
+                .provenance()
+                .iter()
+                .any(|edge| { edge.cause() == &CauseId::for_occurrence(slot_zero.clone()) })
+        );
+        assert_eq!(solved.counters().scc_execution_int_instantiation_facts(), 1);
+        assert_eq!(
+            summary.false_to_true_transitions, 4,
+            "the incoming Int reaches the sink value/root through canonical lower-bound insertion after the source literal/root transitions"
+        );
+    }
+
+    #[test]
+    fn f4_bottom_incoming_route_is_trivial_and_retains_no_slot_zero_fact() {
+        let hir = module(
+            "my bottom = missing; my sink = bottom",
+            "f4-bottom-route.yu",
+        );
+        let batch = collect(hir.clone());
+        let initial_facts = batch.occurrences().len();
+        let (solved, _, summary) = InferenceSession::new(batch).run_with_observer(0).unwrap();
+        assert_eq!(solved.store().facts().len(), initial_facts);
+        assert_eq!(
+            solved
+                .counters()
+                .scc_execution_bottom_trivial_instantiations(),
+            1
+        );
+        assert_eq!(solved.counters().scc_execution_int_instantiation_facts(), 0);
+        let HirItem::Binding(sink) = &hir.items()[1] else {
+            panic!("sink remains a binding")
+        };
+        assert_eq!(
+            solved.root_value_for(sink.definition_root()),
+            Ok(SolvedValue::Never),
+            "a Bottom predecessor finalizes its dependent root as Bottom/Never"
+        );
+        assert_eq!(
+            summary.false_to_true_transitions, 0,
+            "Bottom routing has no value-bound predecessor or summary transition"
+        );
+    }
+
+    #[test]
+    fn f4_route_cause_mismatch_is_atomic_for_internal_and_closed_routes() {
+        let mut internal = collect(module(
+            "my left = right; my right = left",
+            "f4-cause-internal.yu",
+        ));
+        let internal_id = internal.definition_uses()[0].id.clone();
+        let other_id = internal.definition_uses()[1].id.clone();
+        internal.definition_uses[0].cause = DefinitionUseCause::for_use(other_id);
+        let mut session = InferenceSession::new(internal);
+        let result = InferenceSession::route_internal(
+            &session.batch,
+            &mut session.store,
+            &mut session.bounds,
+            &mut session.bound_payload_bytes,
+            &mut session.constraint_pairs,
+            &mut session.frontier,
+            &mut session.routed_uses,
+            &mut session.routed_use_positions,
+            &mut session.execution_counters,
+            &internal_id,
+        );
+        assert_eq!(result, Err(SolveAvailabilityError::CauseMismatch));
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.constraint_pairs.is_empty());
+        assert!(session.frontier.queue.is_empty());
+        assert!(session.routed_uses.is_empty());
+        assert!(session.routed_use_positions.is_empty());
+
+        for scheme in [ClosedPositiveValue::Int, ClosedPositiveValue::Bottom] {
+            let mut batch = collect(module(
+                "my source = 42; my sink = source",
+                "f4-cause-closed.yu",
+            ));
+            let route_id = batch.definition_uses()[0].id.clone();
+            let unrelated = DefinitionUseId::new(
+                batch.collection_artifact.clone(),
+                batch.projection_order[0].clone(),
+            );
+            batch.definition_uses[0].cause = DefinitionUseCause::for_use(unrelated);
+            let mut session = InferenceSession::new(batch);
+            session.schemes[0] = Some(ClosedValueScheme::new(scheme));
+            let result = InferenceSession::route_incoming(
+                &session.batch,
+                &mut session.store,
+                &mut session.bounds,
+                &mut session.bound_payload_bytes,
+                &mut session.constraint_pairs,
+                &mut session.frontier,
+                &mut session.routed_uses,
+                &mut session.routed_use_positions,
+                &session.schemes,
+                &mut session.execution_counters,
+                &route_id,
+            );
+            assert_eq!(result, Err(SolveAvailabilityError::CauseMismatch));
+            assert!(session.store.facts().is_empty());
+            assert!(session.store.provenance().is_empty());
+            assert!(session.constraint_pairs.is_empty());
+            assert!(session.frontier.queue.is_empty());
+            assert!(session.routed_uses.is_empty());
+            assert!(session.routed_use_positions.is_empty());
+            assert_eq!(
+                session
+                    .execution_counters
+                    .scc_execution_int_instantiation_facts(),
+                0
+            );
+            assert_eq!(
+                session
+                    .execution_counters
+                    .scc_execution_bottom_trivial_instantiations(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn f4_solve_rejects_foreign_artifacts_before_any_partial_result_exists() {
+        let local_hir = module("my local = 42", "f4-foreign-local.yu");
+        let foreign_hir = module("my foreign = 42", "f4-foreign-other.yu");
+        let HirItem::Binding(foreign_binding) = &foreign_hir.items()[0] else {
+            panic!("one foreign binding")
+        };
+        let foreign_occurrence = |mut batch: ConstraintBatch| {
+            let local = batch.occurrences[0].clone();
+            batch.occurrences[0] = ConstraintOccurrence {
+                id: local.id.clone(),
+                cause: local.cause.clone(),
+                lower: Term::Component(ComponentId::DefinitionValue {
+                    root: foreign_binding.definition_root().clone(),
+                }),
+                upper: local.upper,
+            };
+            batch
+        };
+
+        let mut session = InferenceSession::new(foreign_occurrence(collect(local_hir.clone())));
+        assert_eq!(
+            session.admit_all_collected_facts(),
+            Err(SolveAvailabilityError::ArtifactMismatch)
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.constraint_pairs.is_empty());
+        assert!(session.frontier.queue.is_empty());
+        assert!(session.routed_uses.is_empty());
+
+        assert!(matches!(
+            SolvedModule::solve(foreign_occurrence(collect(local_hir))),
+            Err(SolveAvailabilityError::ArtifactMismatch)
+        ));
+    }
+
+    #[test]
+    fn f4_cross_kind_is_local_and_mutates_no_value_or_route_state() {
+        let cross_kind_batch = || {
+            let hir = module("42", "f4-cross-kind-atomic.yu");
+            let mut batch = collect(hir);
+            retain_batch_occurrences(&mut batch, |occurrence| occurrence.id.local_slot == 0);
+            batch.occurrences[0].lower = Term::Leaf(Leaf::EffectBottomPositive);
+            batch
+        };
+
+        let mut session = InferenceSession::new(cross_kind_batch());
+        session.admit_all_collected_facts().unwrap();
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.constraint_pairs.is_empty());
+        assert!(session.frontier.queue.is_empty());
+        assert!(session.routed_uses.is_empty());
+        assert!(session.routed_use_positions.is_empty());
+        assert!(session.bounds.iter().all(|bounds| {
+            bounds.direct_lower_rows.is_empty()
+                && bounds.direct_upper_rows.is_empty()
+                && bounds.exact_non_variable_lowers.is_empty()
+                && bounds.exact_non_variable_uppers.is_empty()
+                && !bounds.has_int_positive_lower
+        }));
+        assert!(session.occurrence_exact_bounds.iter().all(|exact| {
+            !exact.value_lower_int
+                && !exact.value_upper_int
+                && !exact.effect_lower_bottom
+                && !exact.effect_upper_empty
+        }));
+        assert!(matches!(
+            session.errors.as_slice(),
+            [SolverError {
+                kind: SolverErrorKind::CrossKind { .. },
+                ..
+            }]
+        ));
+
+        // CrossKind is deliberately a successful, local diagnostic path.  A
+        // completed solve retains that diagnostic rather than manufacturing a
+        // partial availability result.
+        let solved = SolvedModule::solve(cross_kind_batch()).unwrap();
+        assert_eq!(solved.errors().len(), 1);
+        assert!(solved.store().facts().is_empty());
+        assert!(solved.counters().solver_error_workspace_capacity() >= solved.errors().len());
+    }
+
+    #[test]
+    fn f4_real_session_receipt_and_identity_failures_are_atomic() {
+        // These cfg(test)-only seams sit at the existing store owners.  The
+        // real session executes normal collection/solve setup, then maps the
+        // exact availability failure without exposing a partial result.
+        let mut receipt_session =
+            InferenceSession::new(collect(module("42", "f4-receipt-atomic.yu")));
+        receipt_session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
+        assert!(matches!(
+            receipt_session.run(),
+            Err(SolveAvailabilityError::ReceiptMismatch)
+        ));
+
+        let mut exhaustion_session =
+            InferenceSession::new(collect(module("42", "f4-exhaustion-atomic.yu")));
+        exhaustion_session.inject_next_admission_failure(ConstraintError::IdentityExhausted);
+        assert!(matches!(
+            exhaustion_session.run(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+    }
+
+    #[test]
+    fn f4_all_obsolete_finish_only_accessors_are_documented_zeroes() {
+        let counters = SolvedModule::solve(collect(module("42", "f4-deprecated-zeroes.yu")))
+            .unwrap()
+            .counters();
+        assert_eq!(counters.adjacency_appends(), 0);
+        assert_eq!(counters.adjacency_visits(), 0);
+        assert_eq!(counters.maximum_fan_out(), 0);
+        assert_eq!(counters.solved_root_index_probes(), 0);
+        assert_eq!(counters.solved_root_index_capacity(), 0);
+        assert_eq!(counters.solved_root_index_retained_bytes(), 0);
+        assert_eq!(counters.bounds_workspace_capacity(), 0);
+        assert_eq!(counters.bounds_workspace_retained_bytes(), 0);
+        assert_eq!(counters.fanout_index_capacity(), 0);
+        assert_eq!(counters.fanout_index_retained_bytes(), 0);
+        assert_eq!(counters.solver_workspace_retained_bytes(), 0);
+        assert_eq!(counters.failed_component_workspace_capacity(), 0);
+        assert_eq!(counters.failed_component_workspace_retained_bytes(), 0);
+        assert!(counters.solver_error_workspace_capacity() > 0);
+        assert_eq!(
+            counters.solver_error_workspace_retained_bytes(),
+            checked_capacity_bytes::<SolverError>(
+                counters.solver_error_workspace_capacity(),
+                "F4 solver error workspace witness",
+            )
+        );
+    }
+
+    #[test]
+    fn f4_forward_and_backward_source_chains_generalize_each_root() {
+        for (source, path) in [
+            ("my head = tail; my tail = 42", "f4-forward-chain.yu"),
+            ("my tail = 42; my head = tail", "f4-backward-chain.yu"),
+        ] {
+            let hir = module(source, path);
+            let solved = SolvedModule::solve(collect(hir.clone())).unwrap();
+            for item in hir.items() {
+                let HirItem::Binding(binding) = item else {
+                    continue;
+                };
+                assert_eq!(
+                    solved.root_value_for(binding.definition_root()),
+                    Ok(SolvedValue::Int),
+                    "{path} generalizes every chain member"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn f4_execution_uses_frozen_ordinals_not_definition_spelling_or_path() {
+        let short_hir = module("my a = 42; my b = a", "a.yu");
+        let long_hir = module(
+            "my extraordinarily_long_source_binding_name = 42; my extraordinarily_long_sink_binding_name = extraordinarily_long_source_binding_name",
+            "nested/a/much/longer/module/path/for/f4-ordinal-routing.yu",
+        );
+        let short = SolvedModule::solve(collect(short_hir.clone())).unwrap();
+        let long = SolvedModule::solve(collect(long_hir.clone())).unwrap();
+        for solved in [&short, &long] {
+            for item in solved.hir().items() {
+                let HirItem::Binding(binding) = item else {
+                    continue;
+                };
+                assert_eq!(
+                    solved.root_value_for(binding.definition_root()),
+                    Ok(SolvedValue::Int)
+                );
+            }
+        }
+        let comparable = |counters: &ProductionCounters| {
+            (
+                counters.scc_execution_component_visits(),
+                counters.scc_execution_internal_use_connections(),
+                counters.scc_execution_incoming_instantiations(),
+                counters.constraint_pair_admissions(),
+                counters.constraint_pair_duplicates(),
+                counters.lower_bound_insertions(),
+                counters.upper_bound_insertions(),
+                counters.lower_bound_replays(),
+                counters.upper_bound_replays(),
+            )
+        };
+        assert_eq!(comparable(&short.counters()), comparable(&long.counters()));
+        // Query accounting remains at the public root-query boundary; F4
+        // execution itself cannot charge source identity hash/equality work.
+        assert_eq!(short.counters().scheme_root_query_probes(), 2);
+        assert_eq!(long.counters().scheme_root_query_probes(), 2);
+        assert!(
+            long.counters()
+                .scheme_root_query_identity_hash_byte_incidences()
+                > short
+                    .counters()
+                    .scheme_root_query_identity_hash_byte_incidences(),
+            "successful public root queries charge their actual retained identity payload"
+        );
+        assert!(
+            long.counters()
+                .scheme_root_query_logical_successful_equality_byte_incidences()
+                > short
+                    .counters()
+                    .scheme_root_query_logical_successful_equality_byte_incidences()
+        );
+    }
+
+    #[test]
+    fn f4_unseeded_self_and_mutual_cycles_generalize_to_never() {
+        for (source, path) in [
+            ("my self_ref = self_ref", "f4-unseeded-self.yu"),
+            ("my left = right; my right = left", "f4-unseeded-mutual.yu"),
+        ] {
+            let hir = module(source, path);
+            let solved = SolvedModule::solve(collect(hir.clone())).unwrap();
+            for item in hir.items() {
+                let HirItem::Binding(binding) = item else {
+                    continue;
+                };
+                assert_eq!(
+                    solved.root_value_for(binding.definition_root()),
+                    Ok(SolvedValue::Never),
+                    "{path} remains unseeded"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn f4_resolved_name_keeps_slots_one_to_three_and_routes_slot_zero_in_store_order() {
+        let hir = module("my source = 42; my sink = source", "f4-name-slots.yu");
+        let batch = collect(hir.clone());
+        let use_record = batch.definition_uses()[0].clone();
+        let use_occurrence = use_record.occurrence().clone();
+        assert_eq!(
+            batch
+                .occurrences()
+                .iter()
+                .filter(|fact| fact.id().occurrence() == &use_occurrence)
+                .map(|fact| fact.id().local_slot())
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3],
+        );
+        let initial_facts = batch.occurrences().len();
+        let solved = SolvedModule::solve(batch).unwrap();
+        let route_id = ConstraintOccurrenceId::new(use_occurrence, 0);
+        assert_eq!(solved.store().facts().len(), initial_facts + 1);
+        assert_eq!(
+            solved.store().facts().last().unwrap().id().index(),
+            initial_facts as u32
+        );
+        assert_eq!(
+            solved.store().provenance().last().unwrap().cause(),
+            &CauseId::for_occurrence(route_id)
+        );
+        let projection = solved
+            .projection_for(match &hir.items()[1] {
+                HirItem::Binding(binding) => binding.value().occurrence(),
+                _ => panic!("sink binding"),
+            })
+            .unwrap();
+        assert_eq!(
+            (projection.value(), projection.effect()),
+            (SolvedValue::Unknown, SolvedEffect::Empty),
+            "a resolved binding-body Name retains its exact occurrence projection"
+        );
+    }
+
+    #[test]
+    fn f4_chain_scale_matrix_is_linear() {
+        assert_f4_scale_witness([1_000, 2_000, 4_000].map(|n| SyntheticScaleWitness {
+            name: "chain",
+            // M/I/X/S; E/L/U/T/J = n-1/0/n-1/1; n-1/2n-1/0/n-1/0.
+            components: n,
+            definitions: n,
+            internal_uses: 0,
+            incoming_uses: n - 1,
+            ordinary_initial_value_pair_probes: n - 1,
+            synthetic_seed_value_pair_probes: 1,
+            direct_edges: n - 1,
+            exact_lower_memberships: 2 * n - 1,
+            exact_upper_memberships: 0,
+            transmission_attempts: n - 1,
+            same_row_atom_intersections: 0,
+            replay_attempts: n - 1,
+            constraint_pair_admissions: 3 * n - 2,
+            constraint_pair_duplicates: 0,
+            edges: (1..n).map(|index| (index, index - 1)).collect(),
+            seeded_roots: vec![0],
+            pair_work_is_linear: true,
+        }));
+    }
+
+    #[test]
+    fn f4_diamond_scale_matrix_is_linear() {
+        assert_f4_scale_witness([1_000, 2_000, 4_000].map(|n| {
+            SyntheticScaleWitness {
+                name: "diamond",
+                // M/I/X/S; E/L/U/T/J = n/0/n/n/4; n/2n/0/n/0.
+                components: n,
+                definitions: n,
+                internal_uses: 0,
+                incoming_uses: n,
+                ordinary_initial_value_pair_probes: n,
+                synthetic_seed_value_pair_probes: n / 4,
+                direct_edges: n,
+                exact_lower_memberships: 2 * n,
+                exact_upper_memberships: 0,
+                transmission_attempts: n,
+                same_row_atom_intersections: 0,
+                replay_attempts: n,
+                constraint_pair_admissions: 3 * n,
+                constraint_pair_duplicates: n / 4,
+                edges: (0..n / 4)
+                    .flat_map(|group| {
+                        let base = group * 4;
+                        [
+                            (base, base + 1),
+                            (base, base + 2),
+                            (base + 1, base + 3),
+                            (base + 2, base + 3),
+                        ]
+                    })
+                    .collect(),
+                seeded_roots: (0..n / 4).map(|group| group * 4 + 3).collect(),
+                pair_work_is_linear: true,
+            }
+        }));
+    }
+
+    #[test]
+    fn f4_bounded_cycle_scale_matrix_is_linear() {
+        assert_f4_scale_witness([1_000, 2_000, 4_000].map(|n| {
+            SyntheticScaleWitness {
+                name: "bounded-cycle",
+                // M/I/X/S; E/L/U/T/J = n/n/0/n/2; 2n/2n/0/2n/0.
+                components: n / 2,
+                definitions: n,
+                internal_uses: n,
+                incoming_uses: 0,
+                ordinary_initial_value_pair_probes: n,
+                synthetic_seed_value_pair_probes: n / 2,
+                direct_edges: 2 * n,
+                exact_lower_memberships: 2 * n,
+                exact_upper_memberships: 0,
+                transmission_attempts: 2 * n,
+                same_row_atom_intersections: 0,
+                replay_attempts: 2 * n,
+                constraint_pair_admissions: 4 * n,
+                constraint_pair_duplicates: n / 2,
+                edges: (0..n / 2)
+                    .flat_map(|pair| [(pair * 2, pair * 2 + 1), (pair * 2 + 1, pair * 2)])
+                    .collect(),
+                seeded_roots: (0..n / 2).map(|pair| pair * 2).collect(),
+                pair_work_is_linear: true,
+            }
+        }));
+    }
+
+    fn unbounded_cycle_witness(n: usize) -> SyntheticScaleWitness {
+        SyntheticScaleWitness {
+            name: "unbounded-cycle",
+            // M/I/X/S; E/L/U/T/J = n/n/0/1; 2n/2n/0/2n/0.
+            components: 1,
+            definitions: n,
+            internal_uses: n,
+            incoming_uses: 0,
+            ordinary_initial_value_pair_probes: n,
+            synthetic_seed_value_pair_probes: 1,
+            direct_edges: 2 * n,
+            exact_lower_memberships: 2 * n,
+            exact_upper_memberships: 0,
+            transmission_attempts: 2 * n,
+            same_row_atom_intersections: 0,
+            replay_attempts: 2 * n,
+            constraint_pair_admissions: 4 * n,
+            constraint_pair_duplicates: 1,
+            edges: (0..n).map(|index| (index, (index + 1) % n)).collect(),
+            seeded_roots: vec![0],
+            pair_work_is_linear: true,
+        }
+    }
+
+    #[test]
+    fn f4_unbounded_cycle_scale_1k_keeps_direct_frontier_linear() {
+        assert_f4_scale_witness(std::iter::once(unbounded_cycle_witness(1_000)));
+    }
+
+    #[test]
+    fn f4_unbounded_cycle_scale_ratio_evidence_1k_2k_4k() {
+        // This is the sole unbounded-cycle ratio witness.  Unlike the three
+        // named-size timing witnesses below, it deliberately performs the
+        // complete actual 1k/2k/4k sequence in one non-timed process so every
+        // capacity, retained/peak, probe, growth, and resource field compares
+        // against a real prior ProductionCounters observation.
+        assert_f4_scale_witness([1_000, 2_000, 4_000].map(unbounded_cycle_witness));
+    }
+
+    #[test]
+    fn f4_unbounded_cycle_scale_2k_keeps_direct_frontier_linear() {
+        // This capped timing process solves only its named size.  Exact per-N
+        // E/L/U/T/J and resource assertions remain in the shared witness.
+        assert_f4_scale_witness(std::iter::once(unbounded_cycle_witness(2_000)));
+    }
+
+    #[test]
+    fn f4_unbounded_cycle_scale_4k_keeps_direct_frontier_linear() {
+        // This capped timing process solves only its named size; actual
+        // doubling evidence belongs to the dedicated non-timed test above.
+        assert_f4_scale_witness(std::iter::once(unbounded_cycle_witness(4_000)));
+    }
+
+    #[test]
+    fn f4_wide_internal_fanout_scale_matrix_keeps_direct_frontier_linear() {
+        assert_f4_scale_witness([1_000, 2_000, 4_000].map(|n| SyntheticScaleWitness {
+            name: "wide-internal-fanout",
+            // M/I/X/S; E/L/U/T/J = 2n-2/2n-2/0/1; 4n-4/3n-2/0/4n-4/0.
+            components: 1,
+            definitions: n,
+            internal_uses: 2 * n - 2,
+            incoming_uses: 0,
+            ordinary_initial_value_pair_probes: 2 * n - 2,
+            synthetic_seed_value_pair_probes: 1,
+            direct_edges: 4 * n - 4,
+            exact_lower_memberships: 3 * n - 2,
+            exact_upper_memberships: 0,
+            transmission_attempts: 4 * n - 4,
+            same_row_atom_intersections: 0,
+            replay_attempts: 4 * n - 4,
+            constraint_pair_admissions: 7 * n - 6,
+            constraint_pair_duplicates: n - 1,
+            edges: (1..n).flat_map(|index| [(0, index), (index, 0)]).collect(),
+            seeded_roots: vec![0],
+            pair_work_is_linear: true,
+        }));
+    }
+
+    #[test]
+    fn f4_distinct_use_routes_share_one_source_scheme_scale_matrix_is_linear() {
+        assert_f4_scale_witness([1_000, 2_000, 4_000].map(|n| SyntheticScaleWitness {
+            name: "distinct-use-routes-share-one-source-scheme",
+            // M/I/X/S; E/L/U/T/J = n/0/n/1; n/n+2/0/n/0.
+            components: 2,
+            definitions: 2,
+            internal_uses: 0,
+            incoming_uses: n,
+            ordinary_initial_value_pair_probes: n,
+            synthetic_seed_value_pair_probes: 1,
+            direct_edges: n,
+            exact_lower_memberships: n + 2,
+            exact_upper_memberships: 0,
+            transmission_attempts: n,
+            same_row_atom_intersections: 0,
+            replay_attempts: n,
+            constraint_pair_admissions: 2 * n + 2,
+            constraint_pair_duplicates: n - 1,
+            edges: vec![(0, 1); n],
+            seeded_roots: vec![1],
+            pair_work_is_linear: true,
+        }));
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    struct FrontierReferenceSnapshot {
+        variable_reachability: HashSet<CanonicalValuePairKey>,
+        exact_lowers: Vec<HashSet<ValueEndpointKey>>,
+        exact_uppers: Vec<HashSet<ValueEndpointKey>>,
+        terminal_pairs: HashSet<CanonicalValuePairKey>,
+        int_lower_summary: Vec<bool>,
+    }
+
+    fn reference_frontier_closure(
+        rows: usize,
+        inputs: &[CanonicalValuePairKey],
+    ) -> FrontierReferenceSnapshot {
+        let mut lower = vec![HashSet::new(); rows];
+        let mut upper = vec![HashSet::new(); rows];
+        let mut pairs = HashSet::new();
+        let mut pending = VecDeque::from(inputs.to_vec());
+        while let Some(key) = pending.pop_front() {
+            if !pairs.insert(key) {
+                continue;
+            }
+            if let ValueEndpointKey::ValueRow(row) = key.lower {
+                let row = row as usize;
+                if upper[row].insert(key.upper) {
+                    pending.extend(
+                        lower[row]
+                            .iter()
+                            .copied()
+                            .map(|lower| CanonicalValuePairKey {
+                                lower,
+                                upper: key.upper,
+                            }),
+                    );
+                }
+            }
+            if let ValueEndpointKey::ValueRow(row) = key.upper {
+                let row = row as usize;
+                if lower[row].insert(key.lower) {
+                    pending.extend(
+                        upper[row]
+                            .iter()
+                            .copied()
+                            .map(|upper| CanonicalValuePairKey {
+                                lower: key.lower,
+                                upper,
+                            }),
+                    );
+                }
+            }
+        }
+        let variable_reachability = pairs
+            .iter()
+            .copied()
+            .filter(|key| {
+                matches!(key.lower, ValueEndpointKey::ValueRow(_))
+                    && matches!(key.upper, ValueEndpointKey::ValueRow(_))
+            })
+            .collect();
+        let terminal_pairs = pairs
+            .iter()
+            .copied()
+            .filter(|key| {
+                !matches!(key.lower, ValueEndpointKey::ValueRow(_))
+                    && !matches!(key.upper, ValueEndpointKey::ValueRow(_))
+            })
+            .collect();
+        let int_lower_summary = lower
+            .iter()
+            .map(|bounds| bounds.contains(&ValueEndpointKey::IntPositive))
+            .collect();
+        FrontierReferenceSnapshot {
+            variable_reachability,
+            exact_lowers: lower
+                .into_iter()
+                .map(|bounds| {
+                    bounds
+                        .into_iter()
+                        .filter(|key| !matches!(key, ValueEndpointKey::ValueRow(_)))
+                        .collect()
+                })
+                .collect(),
+            exact_uppers: upper
+                .into_iter()
+                .map(|bounds| {
+                    bounds
+                        .into_iter()
+                        .filter(|key| !matches!(key, ValueEndpointKey::ValueRow(_)))
+                        .collect()
+                })
+                .collect(),
+            terminal_pairs,
+            int_lower_summary,
+        }
+    }
+
+    fn direct_frontier_snapshot(
+        rows: usize,
+        inputs: &[CanonicalValuePairKey],
+    ) -> (
+        FrontierReferenceSnapshot,
+        SummaryObservation,
+        ProductionCounters,
+    ) {
+        let mut bounds = vec![VariableBounds::default(); rows];
+        let mut bound_payload_bytes = 0;
+        let mut pairs = HashSet::new();
+        let mut frontier = DirectBoundFrontier::with_capacity(inputs.len());
+        let mut counters = ProductionCounters::default();
+        for &key in inputs {
+            InferenceSession::constrain(
+                &mut bounds,
+                &mut bound_payload_bytes,
+                &mut pairs,
+                &mut frontier,
+                &mut counters,
+                key,
+            );
+        }
+        assert!(frontier.queue.is_empty());
+        let mut variable_reachability = HashSet::new();
+        for row in 0..rows {
+            let mut pending = VecDeque::from([row as u32]);
+            let mut visited = HashSet::new();
+            while let Some(current) = pending.pop_front() {
+                if !visited.insert(current) {
+                    continue;
+                }
+                for &upper in &bounds[current as usize].direct_upper_rows {
+                    variable_reachability.insert(CanonicalValuePairKey {
+                        lower: ValueEndpointKey::ValueRow(row as u32),
+                        upper: ValueEndpointKey::ValueRow(upper),
+                    });
+                    pending.push_back(upper);
+                }
+            }
+        }
+        let snapshot = FrontierReferenceSnapshot {
+            variable_reachability,
+            exact_lowers: bounds
+                .iter()
+                .map(|row| row.exact_non_variable_lowers.iter().copied().collect())
+                .collect(),
+            exact_uppers: bounds
+                .iter()
+                .map(|row| row.exact_non_variable_uppers.iter().copied().collect())
+                .collect(),
+            terminal_pairs: pairs
+                .iter()
+                .copied()
+                .filter(|key| {
+                    !matches!(key.lower, ValueEndpointKey::ValueRow(_))
+                        && !matches!(key.upper, ValueEndpointKey::ValueRow(_))
+                })
+                .collect(),
+            int_lower_summary: bounds
+                .iter()
+                .map(|row| row.has_int_positive_lower)
+                .collect(),
+        };
+        let observation = SummaryObservation {
+            ordinary_initial_value_pair_probes: 0,
+            synthetic_seed_value_pair_probes: 0,
+            reads: 0,
+            false_to_true_transitions: 0,
+            frontier_pushes: frontier.pushes,
+            frontier_pops: frontier.pops,
+            frontier_maximum_live: frontier.maximum_live,
+            frontier_capacity: frontier.queue.capacity(),
+            frontier_capacity_growths: frontier.capacity_growths,
+            frontier_retained_bytes: checked_capacity_bytes::<CanonicalValuePairKey>(
+                frontier.queue.capacity(),
+                "F4 reference frontier queue",
+            ),
+            frontier_peak_bytes: frontier.peak_bytes,
+            direct_edges: frontier.direct_edges,
+            exact_lower_memberships: frontier.exact_lower_memberships,
+            exact_upper_memberships: frontier.exact_upper_memberships,
+            transmission_attempts: frontier.transmission_attempts,
+            same_row_atom_intersections: frontier.same_row_atom_intersections,
+            semantic_arena_retained_bytes: 0,
+            semantic_arena_peak_bytes: 0,
+            inference_session_retained_bytes: 0,
+            inference_session_peak_bytes: 0,
+            resource_boundary_samples: 0,
+            resource_boundary_coverage: 0,
+            independent_queue_retained_bytes: 0,
+            independent_finish_output_retained_bytes: 0,
+            independent_semantic_arena_retained_bytes: 0,
+            independent_inference_session_retained_bytes: 0,
+            independent_semantic_arena_peak_bytes: 0,
+            independent_inference_session_peak_bytes: 0,
+        };
+        (snapshot, observation, counters)
+    }
+
+    #[test]
+    fn f4_direct_frontier_exhaustively_matches_reference_for_zero_to_three_rows() {
+        for rows in 0..=3 {
+            let edge_count = rows * rows;
+            for graph_bits in 0..(1usize << edge_count) {
+                let edges = (0..rows)
+                    .flat_map(|lower| {
+                        (0..rows).filter_map(move |upper| {
+                            (graph_bits & (1usize << (lower * rows + upper)) != 0).then_some(
+                                CanonicalValuePairKey {
+                                    lower: ValueEndpointKey::ValueRow(lower as u32),
+                                    upper: ValueEndpointKey::ValueRow(upper as u32),
+                                },
+                            )
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                for lower_bits in 0..(1usize << rows) {
+                    for upper_bits in 0..(1usize << rows) {
+                        let lowers = (0..rows)
+                            .filter_map(|row| {
+                                (lower_bits & (1usize << row) != 0).then_some(
+                                    CanonicalValuePairKey {
+                                        lower: ValueEndpointKey::IntPositive,
+                                        upper: ValueEndpointKey::ValueRow(row as u32),
+                                    },
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        let uppers = (0..rows)
+                            .filter_map(|row| {
+                                (upper_bits & (1usize << row) != 0).then_some(
+                                    CanonicalValuePairKey {
+                                        lower: ValueEndpointKey::ValueRow(row as u32),
+                                        upper: ValueEndpointKey::IntNegative,
+                                    },
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        let orders = [
+                            [&edges[..], &lowers[..], &uppers[..]],
+                            [&lowers[..], &edges[..], &uppers[..]],
+                            [&uppers[..], &edges[..], &lowers[..]],
+                            [&uppers[..], &lowers[..], &edges[..]],
+                        ];
+                        let reference_inputs = [&edges[..], &lowers[..], &uppers[..]].concat();
+                        let reference = reference_frontier_closure(rows, &reference_inputs);
+                        for ordered_parts in orders {
+                            let inputs = ordered_parts.concat();
+                            let (actual, observation, counters) =
+                                direct_frontier_snapshot(rows, &inputs);
+                            assert_eq!(actual, reference);
+                            let expected_edges = edges.len();
+                            let expected_lowers = reference
+                                .exact_lowers
+                                .iter()
+                                .map(HashSet::len)
+                                .sum::<usize>();
+                            let expected_uppers = reference
+                                .exact_uppers
+                                .iter()
+                                .map(HashSet::len)
+                                .sum::<usize>();
+                            let expected_intersections = reference
+                                .exact_lowers
+                                .iter()
+                                .zip(&reference.exact_uppers)
+                                .filter(|(lower, upper)| !lower.is_empty() && !upper.is_empty())
+                                .count();
+                            let expected_transmissions = edges
+                                .iter()
+                                .filter(|edge| {
+                                    reference.exact_lowers[match edge.lower {
+                                        ValueEndpointKey::ValueRow(row) => row as usize,
+                                        _ => unreachable!(),
+                                    }]
+                                    .len()
+                                        > 0
+                                })
+                                .count()
+                                + edges
+                                    .iter()
+                                    .filter(|edge| {
+                                        reference.exact_uppers[match edge.upper {
+                                            ValueEndpointKey::ValueRow(row) => row as usize,
+                                            _ => unreachable!(),
+                                        }]
+                                        .len()
+                                            > 0
+                                    })
+                                    .count();
+                            assert_eq!(observation.direct_edges, expected_edges);
+                            assert_eq!(observation.exact_lower_memberships, expected_lowers);
+                            assert_eq!(observation.exact_upper_memberships, expected_uppers);
+                            assert_eq!(observation.transmission_attempts, expected_transmissions);
+                            assert_eq!(
+                                observation.same_row_atom_intersections,
+                                expected_intersections
+                            );
+                            let direct_edge_transmission_limit =
+                                expected_edges.checked_mul(2).expect(
+                                    "F4 exhaustive direct-frontier transmission bound fits usize",
+                                );
+                            assert!(
+                                observation.transmission_attempts <= direct_edge_transmission_limit
+                            );
+                            assert_eq!(observation.frontier_pushes, observation.frontier_pops);
+                            assert_eq!(
+                                observation.frontier_peak_bytes,
+                                observation.frontier_retained_bytes
+                            );
+                            assert_eq!(
+                                observation.frontier_pushes,
+                                inputs.len()
+                                    + observation.transmission_attempts
+                                    + observation.same_row_atom_intersections
+                            );
+                            assert_eq!(
+                                counters.constraint_pair_admissions()
+                                    + counters.constraint_pair_duplicates(),
+                                inputs.len()
+                                    + observation.transmission_attempts
+                                    + observation.same_row_atom_intersections,
+                                "every direct input, frontier transmission, and atom intersection probes the cache once"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn f4_direct_frontier_intersects_same_row_atoms_in_both_insertion_orders() {
+        let lower = CanonicalValuePairKey {
+            lower: ValueEndpointKey::IntPositive,
+            upper: ValueEndpointKey::ValueRow(0),
+        };
+        let upper = CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(0),
+            upper: ValueEndpointKey::IntNegative,
+        };
+        for inputs in [[lower, upper], [upper, lower]] {
+            let (snapshot, observation, counters) = direct_frontier_snapshot(1, &inputs);
+            assert_eq!(snapshot.int_lower_summary, vec![true]);
+            assert_eq!(
+                snapshot.terminal_pairs,
+                HashSet::from([CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::IntNegative,
+                }])
+            );
+            assert_eq!(observation.exact_lower_memberships, 1);
+            assert_eq!(observation.exact_upper_memberships, 1);
+            assert_eq!(observation.same_row_atom_intersections, 1);
+            assert_eq!(counters.lower_bound_replays(), 1);
+            assert_eq!(counters.upper_bound_replays(), 0);
+        }
+    }
+
+    #[test]
+    fn f4_direct_frontier_transmits_a_seeded_chain_to_its_terminal_upper() {
+        let inputs = [
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::IntPositive,
+                upper: ValueEndpointKey::ValueRow(0),
+            },
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(0),
+                upper: ValueEndpointKey::ValueRow(1),
+            },
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(1),
+                upper: ValueEndpointKey::ValueRow(2),
+            },
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(2),
+                upper: ValueEndpointKey::IntNegative,
+            },
+        ];
+        let (snapshot, observation, counters) = direct_frontier_snapshot(3, &inputs);
+        assert_eq!(snapshot.int_lower_summary, vec![true, true, true]);
+        assert_eq!(observation.direct_edges, 2);
+        assert_eq!(observation.transmission_attempts, 4);
+        assert_eq!(observation.same_row_atom_intersections, 3);
+        assert_eq!(counters.lower_bound_replays(), 5);
+        assert_eq!(counters.upper_bound_replays(), 2);
     }
 
     #[test]
@@ -2282,7 +6633,7 @@ mod tests {
         }
     }
     #[test]
-    fn binding_bodies_attach_only_to_unknown_definition_roots() {
+    fn f4_binding_bodies_feed_finalized_definition_roots() {
         let hir = module("my x = 42", "binding.yu");
         let [HirItem::Binding(binding)] = hir.items() else {
             panic!("one binding")
@@ -2327,7 +6678,7 @@ mod tests {
         );
         assert_eq!(
             solved.root_value_for(binding.definition_root()).unwrap(),
-            SolvedValue::Unknown
+            SolvedValue::Int
         );
         let counters = solved.counters();
         assert_eq!(counters.occurrence_component_query_probes(), 1);
@@ -2364,10 +6715,10 @@ mod tests {
                 })
                 .collect::<Vec<_>>(),
             vec![
-                (0..0, CollectedBodyStatus::Complete),
-                (0..5, CollectedBodyStatus::Complete),
-                (5..5, CollectedBodyStatus::Complete),
-                (5..5, CollectedBodyStatus::Error),
+                (0..3, CollectedBodyStatus::Complete),
+                (3..8, CollectedBodyStatus::Complete),
+                (8..11, CollectedBodyStatus::Complete),
+                (11..11, CollectedBodyStatus::Error),
             ]
         );
         assert_eq!(
@@ -2551,6 +6902,11 @@ mod tests {
                     parent: synthetic_definitions[parent].clone(),
                     target: synthetic_definitions[target].clone(),
                     occurrence: occurrences[edge_index].clone(),
+                    use_value_row: 0,
+                    parent_root_row: 0,
+                    target_root_row: 0,
+                    use_value_component: 0,
+                    target_root_component: 0,
                 }
             })
             .collect::<Vec<_>>();
@@ -3057,27 +7413,9 @@ mod tests {
                 (6, vec![6], vec![], vec![]),
             ]
         );
-        let solved = SolvedModule::solve(batch).unwrap();
-        let user_occurrence = match &hir.items()[1] {
-            HirItem::Binding(binding) => binding.value().occurrence(),
-            _ => panic!("second item is the user binding"),
-        };
-        assert_eq!(solved.store().facts().len(), 15);
-        assert_eq!(
-            solved.projection_for(user_occurrence).unwrap(),
-            SolvedProjection {
-                value: SolvedValue::Unknown,
-                effect: SolvedEffect::Unknown,
-            }
-        );
-        assert_eq!(
-            solved.projection_for(root(&hir, 7).occurrence()).unwrap(),
-            SolvedProjection {
-                value: SolvedValue::Unknown,
-                effect: SolvedEffect::Unknown,
-            }
-        );
-        assert_eq!(solved.counters().scc_count(), 7);
+        // F2 owns only the frozen topology and exclusions.  F4 Name/root
+        // result behavior is witnessed in its dedicated tests above.
+        assert_eq!(batch.counters().scc_count(), 7);
     }
     #[test]
     fn f1_static_scaling_keeps_graph_work_linear_and_ordering_budget_separate() {
@@ -3681,10 +8019,6 @@ mod tests {
                     effect: SolvedEffect::Empty,
                 }
             );
-            assert_eq!(
-                solved.root_value_for(binding.definition_root()).unwrap(),
-                SolvedValue::Unknown
-            );
         }
         assert_eq!(
             solved
@@ -3695,7 +8029,7 @@ mod tests {
         );
         let hir = module("42", "under.yu");
         let mut batch = collect(hir.clone());
-        batch.occurrences.retain(|item| item.id.local_slot != 1);
+        retain_batch_occurrences(&mut batch, |item| item.id.local_slot != 1);
         assert_eq!(
             SolvedModule::solve(batch)
                 .unwrap()
@@ -3707,7 +8041,7 @@ mod tests {
             }
         );
         let mut batch = collect(hir.clone());
-        batch.occurrences.retain(|item| item.id.local_slot != 3);
+        retain_batch_occurrences(&mut batch, |item| item.id.local_slot != 3);
         assert_eq!(
             SolvedModule::solve(batch)
                 .unwrap()
@@ -3722,7 +8056,7 @@ mod tests {
     #[test]
     fn duplicate_malformed_and_name_bodies_keep_distinct_roots_without_relations() {
         let hir = module(
-            "my x = 1; my x = 2; my broken = @; my named = x; my good = 42",
+            "my x = 1; my x = 1; my broken = @; my named = x; my good = 42",
             "roots.yu",
         );
         let bindings = hir
@@ -3755,20 +8089,51 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
-        let solved = SolvedModule::solve(batch).unwrap();
-        assert_eq!(solved.root_values.len(), bindings.len());
-        for binding in &bindings {
-            assert_eq!(
-                solved.root_value_for(binding.definition_root()).unwrap(),
-                SolvedValue::Unknown
-            );
-        }
+        // This F2/direct-root fixture owns only the frozen root/component
+        // topology.  Final scheme and Name behavior remains in F4 witnesses.
+    }
+
+    #[test]
+    fn f4_finalizes_distinct_duplicate_malformed_and_name_body_root_schemes() {
+        let hir = module(
+            "my x = 1; my x = 1; my broken = @; my named = x; my good = 42",
+            "f4-root-schemes.yu",
+        );
+        let bindings = hir
+            .items()
+            .iter()
+            .map(|item| match item {
+                HirItem::Binding(binding) => binding,
+                _ => panic!("admitted binding"),
+            })
+            .collect::<Vec<_>>();
+        let solved = SolvedModule::solve(collect(hir.clone())).unwrap();
+        assert_eq!(solved.schemes.len(), bindings.len());
         assert_eq!(
-            solved
-                .projection_for(bindings[4].value().occurrence())
-                .unwrap()
-                .value(),
-            SolvedValue::Int
+            bindings
+                .iter()
+                .map(|binding| solved.root_value_for(binding.definition_root()))
+                .collect::<Vec<_>>(),
+            vec![
+                Ok(SolvedValue::Int),
+                Ok(SolvedValue::Int),
+                Ok(SolvedValue::Never),
+                Ok(SolvedValue::Never),
+                Ok(SolvedValue::Int),
+            ]
+        );
+    }
+
+    #[test]
+    fn f4_function_surface_remains_outside_the_integer_scheme_gate() {
+        let hir = module("my f x = x", "f4-no-function-surface.yu");
+        assert!(matches!(
+            hir.items(),
+            [HirItem::Binding(binding)] if matches!(binding.value(), ResolvedExpr::Error { .. })
+        ));
+        assert!(
+            !hir.errors().is_empty(),
+            "the existing unsupported surface remains a negative-scope control"
         );
     }
     #[test]
@@ -3908,9 +8273,9 @@ mod tests {
             assert_eq!(c.generated_work_items(), 4 * n);
             assert_eq!(c.accepted_work_items(), 4 * n);
             assert_eq!(c.duplicate_work_items(), 0);
-            assert_eq!(c.adjacency_appends(), 8 * n);
-            assert_eq!(c.adjacency_visits(), 8 * n);
-            assert_eq!(c.maximum_fan_out(), n);
+            assert_eq!(c.adjacency_appends(), 0);
+            assert_eq!(c.adjacency_visits(), 0);
+            assert_eq!(c.maximum_fan_out(), 0);
             assert_eq!(c.root_allocations(), 0);
             assert_eq!(c.duplicate_facts(), 0);
             assert_eq!(c.cst_traversals(), 0);
@@ -3966,6 +8331,16 @@ mod tests {
         let a = SolvedModule::solve(collect(module(&source(1000), "n.yu"))).unwrap();
         let b = SolvedModule::solve(collect(module(&source(2000), "2n.yu"))).unwrap();
         for (n, solved) in [(1000, &a), (2000, &b)] {
+            for item in solved.hir().items() {
+                let HirItem::Binding(binding) = item else {
+                    panic!("integer-only scale fixture contains bindings");
+                };
+                assert_eq!(
+                    solved.root_value_for(binding.definition_root()),
+                    Ok(SolvedValue::Int),
+                    "every integer binding has its exact finalized Int root result"
+                );
+            }
             let c = solved.counters();
             assert_eq!(c.hir_traversals(), 1);
             assert_eq!(c.body_pass_visits(), n);
@@ -3990,9 +8365,9 @@ mod tests {
             assert_eq!(c.generated_work_items(), 5 * n);
             assert_eq!(c.accepted_work_items(), 5 * n);
             assert_eq!(c.duplicate_work_items(), 0);
-            assert_eq!(c.adjacency_appends(), 10 * n);
-            assert_eq!(c.adjacency_visits(), 10 * n);
-            assert_eq!(c.maximum_fan_out(), n);
+            assert_eq!(c.adjacency_appends(), 0);
+            assert_eq!(c.adjacency_visits(), 0);
+            assert_eq!(c.maximum_fan_out(), 0);
             assert_eq!(c.duplicate_facts(), 0);
             assert_eq!(c.cst_traversals(), 0);
             assert_eq!(c.cst_rescans(), 0);
@@ -4002,19 +8377,30 @@ mod tests {
             assert_eq!(c.definition_root_def_id_clone_bytes(), 0);
             assert_eq!(c.eager_explanation_builds(), 0);
             assert_eq!(c.scc_count(), n);
+            assert_eq!(c.definition_query_probes(), 0);
+            assert_eq!(c.definition_use_query_probes(), 0);
+            assert_eq!(c.scc_component_for_definition_query_probes(), 0);
+            assert_eq!(c.scc_component_members_query_probes(), n);
+            assert_eq!(c.scc_component_internal_uses_query_probes(), n);
+            assert_eq!(c.scc_component_incoming_uses_query_probes(), n);
+            assert_eq!(c.scc_plan_component_index_probes(), n);
+            assert_eq!(c.scc_plan_definition_index_probes(), n);
+            assert_eq!(c.scc_execution_component_visits(), n);
+            assert_eq!(c.scc_execution_internal_use_connections(), 0);
+            assert_eq!(c.scc_execution_draft_members(), n);
+            assert_eq!(c.scc_execution_drafts_visible_barriers(), n);
+            assert_eq!(c.scc_execution_finalized_members(), n);
+            assert_eq!(c.scc_execution_installed_members(), n);
+            assert_eq!(c.scc_execution_incoming_instantiations(), 0);
+            assert_eq!(c.scc_execution_int_instantiation_facts(), 0);
+            assert_eq!(c.scc_execution_bottom_trivial_instantiations(), 0);
+            assert_eq!(c.scc_execution_draft_lookups(), n);
+            assert_eq!(c.scc_execution_cross_draft_visits(), 0);
+            assert_eq!(c.scheme_table_len(), n);
+            assert_eq!(c.finish_projection_visits(), n);
+            assert_eq!(c.solved_root_query_probes(), n);
+            assert_eq!(c.scheme_root_query_probes(), n);
         }
-        for solved in [&a, &b] {
-            for item in solved.hir().items() {
-                if let HirItem::Binding(binding) = item {
-                    assert_eq!(
-                        solved.root_value_for(binding.definition_root()).unwrap(),
-                        SolvedValue::Unknown
-                    );
-                }
-            }
-        }
-        assert_eq!(a.counters().solved_root_query_probes(), 1000);
-        assert_eq!(b.counters().solved_root_query_probes(), 2000);
         let x = a.counters();
         let y = b.counters();
         for (large, small) in [
@@ -4114,6 +8500,52 @@ mod tests {
                 y.definition_record_index_capacity(),
                 x.definition_record_index_capacity(),
             ),
+            (
+                y.scc_component_members_query_probes(),
+                x.scc_component_members_query_probes(),
+            ),
+            (
+                y.scc_component_internal_uses_query_probes(),
+                x.scc_component_internal_uses_query_probes(),
+            ),
+            (
+                y.scc_component_incoming_uses_query_probes(),
+                x.scc_component_incoming_uses_query_probes(),
+            ),
+            (
+                y.scc_plan_component_index_probes(),
+                x.scc_plan_component_index_probes(),
+            ),
+            (
+                y.scc_plan_definition_index_probes(),
+                x.scc_plan_definition_index_probes(),
+            ),
+            (
+                y.scc_execution_component_visits(),
+                x.scc_execution_component_visits(),
+            ),
+            (
+                y.scc_execution_draft_members(),
+                x.scc_execution_draft_members(),
+            ),
+            (
+                y.scc_execution_drafts_visible_barriers(),
+                x.scc_execution_drafts_visible_barriers(),
+            ),
+            (
+                y.scc_execution_finalized_members(),
+                x.scc_execution_finalized_members(),
+            ),
+            (
+                y.scc_execution_installed_members(),
+                x.scc_execution_installed_members(),
+            ),
+            (
+                y.scc_execution_draft_lookups(),
+                x.scc_execution_draft_lookups(),
+            ),
+            (y.scheme_table_len(), x.scheme_table_len()),
+            (y.finish_projection_visits(), x.finish_projection_visits()),
         ] {
             assert!(large < small * 5 / 2 + 1);
         }
@@ -4132,6 +8564,7 @@ mod tests {
                 x.consumed_receipt_index_probes(),
             ),
             (y.solved_root_query_probes(), x.solved_root_query_probes()),
+            (y.scheme_root_query_probes(), x.scheme_root_query_probes()),
         ] {
             assert!(large < small.saturating_mul(5) / 2 + 1);
         }
