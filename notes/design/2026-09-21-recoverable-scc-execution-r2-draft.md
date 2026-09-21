@@ -1,6 +1,6 @@
 # Recoverable SCC execution R2
 
-Status: Authoritative
+Status: Superseded; withdrawn as implementation candidate
 
 Date: 2026-09-21
 
@@ -19,6 +19,13 @@ Reviewed-by: compiler-referee, specification, and performance M3 reviews on
 2026-09-21; clean after three bounded repair rounds
 
 Supersedes: `2026-09-21-scc-lifecycle-executor-r1-draft.md` upon approval.
+
+Superseded-by:
+`2026-09-21-oracle-aligned-static-scc-inference-session-draft.md` in the full
+R2 authority scope on 2026-09-21. Direct inspection of the frozen Yulang2
+oracle showed that its recoverable inference closes and generalizes erroneous
+definitions normally; it does not use Failed/Blocked SCC outcomes or a generic
+publication executor. Retain this document as rejected design history only.
 
 ## Approved direction
 

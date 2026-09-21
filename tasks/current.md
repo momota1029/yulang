@@ -189,15 +189,18 @@ representation, recursive-cycle result,
 Function syntax/types, application, methods/roles, and Core IR remain later
 structure gates rather than fixture-specific extensions.
 
-The user selected recoverable type inference on 2026-09-21. Terminal-failure R1
-is withdrawn. The active Draft is
-`notes/design/2026-09-21-recoverable-scc-execution-r2-draft.md`: semantic errors
-commit whole-SCC Failed/Blocked outcomes inside `Ok(SolvedModule)`, preserve
-independent published facts, suppress dependent cascade diagnostics, and reserve
-whole-session `ExecutionUnavailable` for structural failures. Fresh M3 review
-is clean and the user approved R2 on 2026-09-21. Immediate next action: implement
-the structural R2 executor and recovery outcome machinery without schemes,
-Name facts, generalization, or other deferred semantic payloads.
+Direct frozen-oracle inspection superseded the user-approved R2 executor model
+on 2026-09-21. R2's Failed/Blocked SCC outcomes, dependency blocking, generic
+backend, completed-session conversion, lifecycle query, added availability API,
+and tests are withdrawn in full. The Authoritative successor is
+`notes/design/2026-09-21-oracle-aligned-static-scc-inference-session-draft.md`:
+Yulang3 will use one concrete inference session, retain F2 as the static
+dependency-sink-first scheduler, and continue erroneous definitions through
+ordinary SCC closure/generalization as Yulang2 does. `Never` is ordinary bottom,
+not an error sentinel. F3a safely archived and removed the uncommitted R2 code,
+restoring the exact F0-F2 solver baseline. Immediate next action: F3b, a
+zero-observable-change extraction of the current solve state into private
+`InferenceSession`; no component traversal or placeholder executor is allowed.
 
 The broader associated-expression type attachment question remains open in
 `notes/design/2026-09-18-hir-type-attachment-open-questions.md`; this foundation
