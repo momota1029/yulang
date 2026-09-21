@@ -228,8 +228,9 @@ The new draft
 physical transitive Var-pair materialization with synchronous direct adjacency
 and generic atom-bound frontier transmission. Existing uncommitted F4 work is
 preserved. The addendum completed clean M3 semantic, specification, and
-performance review and now awaits user approval before the six public counter
-meanings, pair-cache population, and implementation change.
+performance review. The user approved it on 2026-09-21, so it is now
+Authoritative; implementation, exhaustive reference evidence, and staged scale
+certification are active.
 
 Direct frozen-oracle inspection superseded the user-approved R2 executor model
 on 2026-09-21. R2's Failed/Blocked SCC outcomes, dependency blocking, generic

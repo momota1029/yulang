@@ -1,6 +1,6 @@
 # F4 direct-bound frontier addendum
 
-Status: Reviewed
+Status: Authoritative
 
 Date: 2026-09-21
 
@@ -11,6 +11,10 @@ direct Var adjacencyとnon-variable bound frontierへ置き換え、それに伴
 Drafted-by: architect, recorded by primary agent
 
 Reviewed-by: compiler referee, specification auditor, performance auditor
+
+Approved-by: user
+
+Approved-at: 2026-09-21
 
 Supersedes/adds:
 
