@@ -1,6 +1,6 @@
 # Oracle-aligned static SCC inference session
 
-Status: Authoritative
+Status: Authoritative; F3a and F3b complete
 
 Date: 2026-09-21
 
@@ -208,6 +208,11 @@ expectation or semantic test name may change. F3a synchronizes the successor,
 R2, `notes/design/INDEX.md`, and `tasks/current.md` statuses.
 
 ### F3b -- concrete session extraction
+
+Status: complete on 2026-09-21. The private concrete `InferenceSession` owns
+the unchanged admission and result-building path. Two-revision semantic tests,
+rustdoc public-path comparison, downstream exhaustive API probes, independent
+specification/regression review, and the workspace all-target check are clean.
 
 - Move mutable work currently performed by `SolvedModule::solve` into a private
   concrete `InferenceSession`.

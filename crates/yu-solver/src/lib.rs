@@ -1949,38 +1949,65 @@ pub struct SolvedModule {
     counters: ProductionCounters,
     solved_root_query_probes: AtomicUsize,
 }
-impl SolvedModule {
-    pub fn solve(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
-        let mut store = ConstraintStore::new(batch.hir.clone());
-        let mut errors = Vec::new();
-        let mut failed_components = HashSet::new();
-        for occurrence in batch.occurrences() {
+
+/// Private owner for one concrete inference attempt.
+///
+/// F3b preserves the frozen F0--F2 admission and projection behavior while
+/// placing its mutable state behind the future SCC-closure boundary.
+struct InferenceSession {
+    batch: ConstraintBatch,
+    store: ConstraintStore,
+    errors: Vec<SolverError>,
+    cross_kind_components: HashSet<ComponentId>,
+}
+impl InferenceSession {
+    fn new(batch: ConstraintBatch) -> Self {
+        Self {
+            store: ConstraintStore::new(batch.hir.clone()),
+            batch,
+            errors: Vec::new(),
+            cross_kind_components: HashSet::new(),
+        }
+    }
+
+    fn run(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
+        self.admit_all_collected_facts()?;
+        Ok(self.finish())
+    }
+
+    fn admit_all_collected_facts(&mut self) -> Result<(), SolveAvailabilityError> {
+        for occurrence in self.batch.occurrences() {
             let result = {
-                let mut transaction = store.transaction();
+                let mut transaction = self.store.transaction();
                 transaction.admit(occurrence)
             };
             match result {
-                Ok(receipt) => store
+                Ok(receipt) => self
+                    .store
                     .record_provenance(receipt)
                     .map_err(SolveAvailabilityError::from)?,
                 Err(ConstraintError::CrossKind { lower, upper }) => {
-                    errors.push(SolverError {
+                    self.errors.push(SolverError {
                         occurrence: occurrence.id.clone(),
                         cause: occurrence.cause.clone(),
                         kind: SolverErrorKind::CrossKind { lower, upper },
                     });
                     for term in [&occurrence.lower, &occurrence.upper] {
                         if let Term::Component(component) = term {
-                            failed_components.insert(component.clone());
+                            self.cross_kind_components.insert(component.clone());
                         }
                     }
                 }
                 Err(error) => return Err(error.into()),
             }
         }
-        store.finish_accounting();
-        let mut projections = HashMap::with_capacity(batch.projection_order.len());
-        for occurrence in &batch.projection_order {
+        self.store.finish_accounting();
+        Ok(())
+    }
+
+    fn finish(self) -> SolvedModule {
+        let mut projections = HashMap::with_capacity(self.batch.projection_order.len());
+        for occurrence in &self.batch.projection_order {
             projections.insert(
                 occurrence.clone(),
                 SolvedProjection {
@@ -1989,14 +2016,14 @@ impl SolvedModule {
                 },
             );
         }
-        let mut root_values = HashMap::with_capacity(batch.root_order.len());
-        for root in &batch.root_order {
+        let mut root_values = HashMap::with_capacity(self.batch.root_order.len());
+        for root in &self.batch.root_order {
             root_values.insert(root.clone(), SolvedValue::Unknown);
         }
-        let mut bounds = vec![Bounds::default(); batch.components.len()];
+        let mut bounds = vec![Bounds::default(); self.batch.components.len()];
         let mut fanout = HashMap::<Term, usize>::new();
         let mut work = ProductionCounters::default();
-        for fact in store.facts() {
+        for fact in self.store.facts() {
             for endpoint in [fact.lower(), fact.upper()] {
                 let old_capacity = fanout.capacity();
                 *fanout.entry(endpoint.clone()).or_default() += 1;
@@ -2008,22 +2035,22 @@ impl SolvedModule {
             }
             match (fact.lower(), fact.upper()) {
                 (Term::Leaf(Leaf::IntPositive), Term::Component(component)) => {
-                    if let Some(index) = batch.component_position(component, &mut work) {
+                    if let Some(index) = self.batch.component_position(component, &mut work) {
                         bounds[index].int_lower = true;
                     }
                 }
                 (Term::Component(component), Term::Leaf(Leaf::IntNegative)) => {
-                    if let Some(index) = batch.component_position(component, &mut work) {
+                    if let Some(index) = self.batch.component_position(component, &mut work) {
                         bounds[index].int_upper = true;
                     }
                 }
                 (Term::Leaf(Leaf::EffectBottomPositive), Term::Component(component)) => {
-                    if let Some(index) = batch.component_position(component, &mut work) {
+                    if let Some(index) = self.batch.component_position(component, &mut work) {
                         bounds[index].effect_lower = true;
                     }
                 }
                 (Term::Component(component), Term::Leaf(Leaf::EmptyEffectNegative)) => {
-                    if let Some(index) = batch.component_position(component, &mut work) {
+                    if let Some(index) = self.batch.component_position(component, &mut work) {
                         bounds[index].effect_upper = true;
                     }
                 }
@@ -2040,21 +2067,21 @@ impl SolvedModule {
         work.bounds_workspace_retained_bytes = bounds.capacity() * std::mem::size_of::<Bounds>();
         work.fanout_index_capacity = fanout.capacity();
         work.fanout_index_retained_bytes = fanout.capacity() * std::mem::size_of::<(Term, usize)>();
-        work.failed_component_workspace_capacity = failed_components.capacity();
+        work.failed_component_workspace_capacity = self.cross_kind_components.capacity();
         work.failed_component_workspace_retained_bytes =
-            failed_components.capacity() * std::mem::size_of::<ComponentId>();
-        work.solver_error_workspace_capacity = errors.capacity();
+            self.cross_kind_components.capacity() * std::mem::size_of::<ComponentId>();
+        work.solver_error_workspace_capacity = self.errors.capacity();
         work.solver_error_workspace_retained_bytes =
-            errors.capacity() * std::mem::size_of::<SolverError>();
+            self.errors.capacity() * std::mem::size_of::<SolverError>();
         work.solver_workspace_retained_bytes = bounds.capacity() * std::mem::size_of::<Bounds>()
             + fanout.capacity() * std::mem::size_of::<(Term, usize)>()
-            + failed_components.capacity() * std::mem::size_of::<ComponentId>()
-            + errors.capacity() * std::mem::size_of::<SolverError>();
+            + self.cross_kind_components.capacity() * std::mem::size_of::<ComponentId>()
+            + self.errors.capacity() * std::mem::size_of::<SolverError>();
         for count in fanout.values() {
             work.maximum_fan_out = work.maximum_fan_out.max(*count);
         }
-        for (index, component) in batch.components.iter().enumerate() {
-            if failed_components.contains(component) {
+        for (index, component) in self.batch.components.iter().enumerate() {
+            if self.cross_kind_components.contains(component) {
                 continue;
             }
             let Some(occurrence) = component.occurrence() else {
@@ -2075,19 +2102,24 @@ impl SolvedModule {
                 _ => {}
             }
         }
-        let mut counters = batch.counters();
-        counters.combine(store.counters());
+        let mut counters = self.batch.counters();
+        counters.combine(self.store.counters());
         counters.combine(&work);
-        Ok(Self {
-            hir: batch.hir,
-            projection_order: batch.projection_order,
+        SolvedModule {
+            hir: self.batch.hir,
+            projection_order: self.batch.projection_order,
             projections,
             root_values,
-            errors,
-            store,
+            errors: self.errors,
+            store: self.store,
             counters,
             solved_root_query_probes: AtomicUsize::new(0),
-        })
+        }
+    }
+}
+impl SolvedModule {
+    pub fn solve(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
+        InferenceSession::new(batch).run()
     }
     pub fn hir(&self) -> &Arc<HirModule> {
         &self.hir

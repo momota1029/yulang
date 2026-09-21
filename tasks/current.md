@@ -198,9 +198,12 @@ Yulang3 will use one concrete inference session, retain F2 as the static
 dependency-sink-first scheduler, and continue erroneous definitions through
 ordinary SCC closure/generalization as Yulang2 does. `Never` is ordinary bottom,
 not an error sentinel. F3a safely archived and removed the uncommitted R2 code,
-restoring the exact F0-F2 solver baseline. Immediate next action: F3b, a
-zero-observable-change extraction of the current solve state into private
-`InferenceSession`; no component traversal or placeholder executor is allowed.
+restoring the exact F0-F2 solver baseline. F3b is complete: the unchanged solve
+state and admission/result-building path now live in one private concrete
+`InferenceSession`, with no component traversal, placeholder executor, public
+API change, or extra source-sized work. Immediate next action: design F4's
+scheme payload, occurrence components, generalization, and instantiation as one
+oracle-aligned semantic SCC gate under the fixed ordering obligations.
 
 The broader associated-expression type attachment question remains open in
 `notes/design/2026-09-18-hir-type-attachment-open-questions.md`; this foundation
