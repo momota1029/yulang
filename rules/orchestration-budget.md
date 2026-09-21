@@ -1,7 +1,7 @@
 # Orchestration budget and operating modes
 
-This file controls default reviewer activation, reviewer count, repair rounds,
-delta-review scope, verification/measurement budgets, and progress-record
+This file controls default reviewer activation, reviewer count, review
+convergence, delta-review scope, verification/measurement budgets, and progress-record
 ownership. Role responsibilities remain in `rules/agent-orchestration.md`.
 
 When an older routing table says several reviewers are mandatory, read it as a
@@ -33,7 +33,8 @@ Budget:
 - deterministic checks only;
 - zero reviewers by default, at most one when scope or reference integrity is
   uncertain;
-- no architect and no repeat round.
+- no architect and no repeat review without an accepted `BLOCKING` or `major`
+  finding; reclassify work if a new risk expands M0 scope.
 
 ### M1 — local implementation
 
@@ -46,9 +47,9 @@ Examples:
 
 Budget:
 
-- one `implementer` pass;
+- one `implementer` pass per repair round;
 - one relevant reviewer;
-- one repair pass;
+- one batched repair pass at a time;
 - a second reviewer only when the diff changes two genuinely independent risk
   domains.
 
@@ -72,9 +73,8 @@ Examples:
 Budget:
 
 - `architect` only when the decision is not already resolved;
-- one `implementer` pass;
-- at most two reviewers in one round;
-- at most two review/repair rounds.
+- one `implementer` pass per repair round;
+- at most two reviewers in one round.
 
 Choose the two reviewers that cover the changed risks. Do not add a third merely
 for reassurance.
@@ -93,12 +93,15 @@ Examples:
 Budget:
 
 - reviewed design and user approval when a new decision exists;
-- one `implementer` pass per round;
-- at most three reviewers per round;
-- at most three review/repair rounds.
+- one `implementer` pass per repair round;
+- at most three reviewers per round.
 
-If M3 does not converge in three rounds, return to the design or user decision.
-Do not keep adding reviewers or measurements.
+Continue review and batched repair while the latest required review has an
+accepted `BLOCKING` or `major` finding and each round makes concrete progress.
+Return to the design or user decision only when a finding exposes missing
+authority or a missing decision, a semantic contradiction, a false premise, a
+required scope expansion, or a repair round that makes no material progress.
+Do not add reviewers or measurements merely for reassurance.
 
 ## Routing reinterpretation
 
@@ -145,7 +148,7 @@ shared dispatch, soundness, or release certification.
 Every reviewer reports closure scope and uninspected scope. This makes a narrow
 review honest without paying for a complete reread.
 
-## Finding batching and round control
+## Finding batching and convergence control
 
 - Wait for all assigned reviewers, adjudicate their findings, then send one
   repair bundle to one fresh `implementer`.
@@ -153,10 +156,18 @@ review honest without paying for a complete reread.
 - Minor findings may be closed with a reason.
 - A minor-only textual/test-comment repair that changes no semantics can close
   with primary diff inspection and focused deterministic checks.
-- A heavier finding in the next round signals divergence. Revisit the repair or
-  design instead of increasing the panel.
-- Exceeding the mode's reviewer or round budget requires a written statement of
-  what new decision the extra work can resolve.
+- Start another repair round only for an accepted `BLOCKING` or `major`
+  finding. Adjudicate a newly exposed concrete risk before it can trigger a
+  repair round.
+- Keep using delta review for the accepted finding, changed lines, and direct
+  dependency cone. Do not restart a whole-artifact review without a global
+  architecture, public-contract, soundness, or release-certification reason.
+- Continue only while each round closes or materially narrows concrete
+  findings. A repair round that makes no material progress requires root-cause
+  or design reconsideration, not another repair round.
+- Reviewer-count limits remain active. Adding a reviewer beyond the selected
+  mode requires a written statement of the independent risk the reviewer can
+  resolve.
 
 ## Verification budget
 

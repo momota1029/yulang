@@ -131,7 +131,7 @@ Use severities:
 - `major`: hidden assumption, wrong owner, contract deviation, likely regression, or substantial performance/resource risk.
 - `minor`: local clarity, naming, organization, or low-risk coverage issue that does not change correctness.
 
-The primary agent verifies each finding and records accepted/rejected status with reason. A fresh `implementer` repairs accepted findings. A fresh reviewer verifies the repaired artifact. Do not let a reviewer edit its own finding.
+The primary agent verifies each finding and records accepted/rejected status with reason. Accepted `BLOCKING` and `major` findings are batched into one repair pass by a fresh `implementer`, then a fresh reviewer performs the focused delta review defined by `rules/orchestration-budget.md`. Minor-only work follows the primary-inspection exception there. Do not let a reviewer edit its own finding.
 
 Completion requires no accepted `BLOCKING` or `major` finding in the latest required review round, and no artifact change after that round except review-record updates.
 

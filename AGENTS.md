@@ -44,7 +44,7 @@ without concrete contradictory evidence.
 ## Task routing
 
 Read `rules/orchestration-budget.md` before the role matrix. It controls the
-default operating mode, reviewer count, repair rounds, delta-review scope,
+default operating mode, reviewer count, review convergence, delta-review scope,
 measurement budget, and progress-record ownership. Broader reviewer lists in
 older rules describe eligible specialists, not an automatic panel.
 
@@ -53,11 +53,11 @@ Role boundaries and the full matrix are in `rules/agent-orchestration.md`.
 Proactively delegate bounded work when task classification identifies a concrete
 role-shaped unit for exploration, production, or independent review; do not
 wait for the user to request delegation. Keep every assignment within the
-selected M0–M3 reviewer and round budget, and give it an explicit objective,
-scope, inputs, stop condition, and required report. Proactive use is not
-automatic fan-out: invoke only roles justified by required production or a
-named risk, parallelize only independent read-only work, and never run more
-than one write-capable agent in the same working tree.
+selected M0–M3 reviewer budget and convergence criteria, and give it an
+explicit objective, scope, inputs, stop condition, and required report.
+Proactive use is not automatic fan-out: invoke only roles justified by required
+production or a named risk, parallelize only independent read-only work, and
+never run more than one write-capable agent in the same working tree.
 
 - Use built-in `explorer` for read-heavy repository mapping.
 - Use `architect` for new decisions, uncertain behavior, and cross-layer work.
@@ -82,10 +82,10 @@ branch. Push by default only when that whole range is intended and coherent;
 otherwise defer with the concrete safety blocker. Never force-push without
 explicit user instruction.
 
-Before work, choose the lightest sufficient M0–M3 mode and set reviewer,
-round, verification, and measurement budgets. The role catalog is not a
-mandatory panel. Adjudicate all assigned findings before sending one batched
-repair bundle to one implementer.
+Before work, choose the lightest sufficient M0–M3 mode, set reviewer,
+verification, and measurement budgets, and state the convergence criteria. The
+role catalog is not a mandatory panel. Adjudicate all assigned findings before
+sending one batched repair bundle to one implementer.
 
 The primary's own reread does not count as independent review. A producer never
 certifies its own output. Subagents do not stage, commit, push, rewrite history,
@@ -130,7 +130,8 @@ work, makes safe integration impossible, or requires a genuine user decision.
 ## Rule routing
 
 - overall rule index: `rules/INDEX.md`
-- operating modes, reviewer/round limits, delta review, measurement and record budgets: `rules/orchestration-budget.md`
+- operating modes, reviewer limits, review convergence, delta review,
+  measurement and record budgets: `rules/orchestration-budget.md`
 - workflow and handoffs: `rules/workflow.md`
 - compiler structure and diagnostics: `rules/compiler-engineering.md`
 - chasa parser idioms: `rules/parser-chasa.md`

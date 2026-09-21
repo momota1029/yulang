@@ -283,7 +283,11 @@ An unmapped catalog row by itself is not a trigger.
 
 Do not measure progress by schema coverage percentage during this phase. Do not select a new owner merely because the previous owner closed cleanly. Each syntax/recovery investigation must name what concrete implementation/release work it unblocks.
 
-Use the lightest existing M0-M3 mode that covers the actual change. Repeated non-convergence returns to design under the existing round limit; it does not justify an expanding reviewer panel or an expanding malformed-input permutation table.
+Use the lightest existing M0-M3 mode that covers the actual change. A repair
+round that makes no material progress returns to root-cause or design
+reconsideration; it does not justify an expanding reviewer panel or an
+expanding malformed-input permutation table. Numeric review/repair round
+limits do not apply.
 
 ## Historical navigation
 

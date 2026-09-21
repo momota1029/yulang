@@ -15,7 +15,8 @@ Do not reread a giant design document indiscriminately when the index or task id
 ## Select an operating mode
 
 Before choosing roles, read `rules/orchestration-budget.md` and select M0, M1,
-M2, or M3. State the concrete changed risk domains and the reviewer/round budget.
+M2, or M3. State the concrete changed risk domains, reviewer budget, and
+convergence criteria.
 The role matrix lists eligible specialists; it is not a command to run every
 listed reviewer.
 
@@ -41,7 +42,7 @@ Classify the task before writing:
 - scope: local or cross-layer;
 - performance: cold, hot, or unknown;
 - surface: internal, public, or documentation;
-- operating mode and its reviewer/round budget.
+- operating mode, reviewer budget, and convergence criteria.
 
 Name the intended files, checks, record updates, and stop condition. Do not expand a bug fix into unrelated cleanup, rename, formatting, or abstraction work. One coherent change should correspond to one cause or one confirmed gate.
 

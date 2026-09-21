@@ -5,7 +5,7 @@
 ## Authority and orchestration
 
 - [`design-authority.md`](design-authority.md) — authority order, design status, approval, supersession, and legacy provenance.
-- [`orchestration-budget.md`](orchestration-budget.md) — lightweight operating modes, reviewer/round limits, delta review, measurement/verification budgets, and progress-record ownership. It is authoritative over broader reviewer-count wording elsewhere.
+- [`orchestration-budget.md`](orchestration-budget.md) — lightweight operating modes, reviewer limits, review convergence, delta review, measurement/verification budgets, and progress-record ownership. It is authoritative over broader reviewer-count wording elsewhere.
 - [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
 - [`legacy-compatibility.md`](legacy-compatibility.md) — interpretation of historical Claude/Codex/Fable/Level terminology without reviving retired policy.
 - [`workflow.md`](workflow.md) — task context, handoffs, scoped execution, progress records, decision points, and completion reports.
