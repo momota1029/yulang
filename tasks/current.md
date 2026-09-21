@@ -11,10 +11,10 @@ application, one-parameter Lambda HIR, live polarized Function constraints,
 SCC generalization, disjoint Q/R closure, and fresh incoming instantiation.
 
 M3 architect, semantic, specification, and performance review is clean. The
-immediate next action is the user's approval or rejection of this one atomic
-design gate. Do not implement F5a–F5e before approval. On approval, record the
-decision in the design/index and implement the internal gates in order, with
-the focused verification and resource witnesses specified there.
+user approved the atomic gate on 2026-09-21, with rollback to the design if
+implementation contradicts it. Immediate next action: implement F5a, the
+shared Pattern ML-application CST and exact one-parameter HIR/source contract,
+then run its focused syntax/HIR verification before F5b.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.

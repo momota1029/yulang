@@ -1,14 +1,14 @@
 # F5 general Function scheme foundation
 
-Status: Reviewed; pending user approval
+Status: Authoritative; implementation in progress
 Scope: canonical one-parameter Function source/HIR, live inference variables,
 polarized closed schemes, quantification, recursive bounds, and fresh incoming
 instantiation
-Approved-by: pending user decision
-Approved-at: pending
+Approved-by: user
+Approved-at: 2026-09-21
 Drafted-by: architect and primary agent
 Reviewed-by: architect, compiler_referee, spec_auditor, performance_auditor
-Supersedes: pending approval; only the enumerated F4 closed-scheme, fixed-row,
+Supersedes: only the enumerated F4 closed-scheme, fixed-row,
 Name-body shortcut, and structured-endpoint exclusions
 
 ## 1. Purpose and completion boundary
