@@ -33,9 +33,14 @@ before its implementation may start:
    Select removal/privatization, a batch-bound constructor, or an explicit
    transfer/share capability.
 
-Do not begin F5b live-algebra implementation until the user selects both
-durable API boundaries. The remaining F5b plan preserves F5a's zero source
-Function-fact invariant until F5d.
+The user selected sealed finalization and a batch-bound store on 2026-09-22,
+then approved logical Term-lineage clone ownership and fixed 256-slot Term
+pages. The now-Authoritative amendment at
+`notes/design/2026-09-22-f5b-closed-finalization-term-owner-draft.md` specifies
+sparse branch storage, reusable closed-finalization staging, and deterministic
+failure injection after clean M3 review. Immediate next action: implement the
+F5b API/lifecycle migration in its approved sequence. The remaining F5b plan
+preserves F5a's zero source Function-fact invariant until F5d.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.
