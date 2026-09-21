@@ -1,6 +1,6 @@
 # Current task: F5 general Function scheme foundation
 
-Updated: 2026-09-21. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-22. Branch: `yulang3`; do not modify frozen `main`.
 
 ## Active F5 gate
 
@@ -48,7 +48,8 @@ pages and standalone HIR-only store construction is removed. Immediate next
 action: implement the remaining approved F5b live-variable, level, and
 batch-recipe translation structure from the F5 foundation, preserving F5a's
 zero source Function-fact invariant until F5d. Detailed resource counters and
-F5e measurement remain deferred.
+F5e measurement remain deferred. Read the continuation handoff before starting
+that work: [`2026-09-22 F5b live-port handoff`](../notes/handoffs/2026-09-22-f5b-live-port-handoff.md).
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.
