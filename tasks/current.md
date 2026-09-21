@@ -38,14 +38,17 @@ then approved logical Term-lineage clone ownership and fixed 256-slot Term
 pages. The now-Authoritative amendment at
 `notes/design/2026-09-22-f5b-closed-finalization-term-owner-draft.md` specifies
 sparse branch storage, reusable closed-finalization staging, and deterministic
-failure injection after clean M3 review. The closed-finalization/accounting
-substage is complete: `yu-types` owns the sealed generative finalizer,
-transactional exact-capacity accounting, and fallible terminal finish;
-`yu-solver` maps only the existing aggregate counters and publishes no partial
-result on finalization failure. Immediate next action: implement the separately
-approved fixed-page TermArena and batch-bound ConstraintStore transfer substage.
-The remaining F5b plan preserves F5a's zero source Function-fact invariant
-until F5d; detailed resource counters and F5e measurement remain deferred.
+failure injection after clean M3 review. The independently authorized F5b
+lifecycle substage is complete: `yu-types` owns the sealed generative
+finalizer, transactional exact-capacity accounting, and fallible terminal
+finish; `yu-solver` maps only the existing aggregate counters and publishes no
+partial result on finalization failure. Collected `Term`s are now opaque,
+batch/store-owned lineage handles; clone branches use disjoint sparse fixed
+pages and standalone HIR-only store construction is removed. Immediate next
+action: implement the remaining approved F5b live-variable, level, and
+batch-recipe translation structure from the F5 foundation, preserving F5a's
+zero source Function-fact invariant until F5d. Detailed resource counters and
+F5e measurement remain deferred.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.

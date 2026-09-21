@@ -1,6 +1,6 @@
 # F5b closed-finalization accounting boundary amendment
 
-Status: Authoritative; implementation pending
+Status: Authoritative; implementation complete
 Scope: result-attached byte accounting from yu-types closed finalization to the
 existing F4 aggregate counters in yu-solver
 Approved-by: user, 2026-09-22

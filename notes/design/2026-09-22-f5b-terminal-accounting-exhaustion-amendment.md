@@ -1,6 +1,6 @@
 # F5b terminal accounting-exhaustion amendment
 
-Status: Authoritative; implementation pending
+Status: Authoritative; implementation complete
 Scope: only the closed-finalization accounting state required to report an
 unrepresentable exact capacity total without partial publication
 Approved-by: user, 2026-09-22

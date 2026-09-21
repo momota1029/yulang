@@ -1,6 +1,6 @@
 # F5b terminal-finish evidence boundary addendum
 
-Status: Authoritative; implementation pending
+Status: Authoritative; implementation complete
 Scope: terminal accounting-exhaustion test evidence only
 Approved-by: user, 2026-09-22
 Decision: do not add a cross-crate test API or feature solely to drive a

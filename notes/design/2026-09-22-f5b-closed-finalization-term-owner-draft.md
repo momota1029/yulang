@@ -1,6 +1,6 @@
 # F5b closed finalization and Term-owner lifecycle amendment
 
-Status: Authoritative; implementation in progress
+Status: Authoritative; implementation complete
 Scope: F5b inter-crate closed-type construction and ConstraintStore/TermArena
 ownership only
 Approved-by: user-selected sealed finalization, batch-bound store, logical

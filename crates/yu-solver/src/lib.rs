@@ -19,6 +19,11 @@ use yu_types::{
 
 mod scc;
 use scc::{SccComponentId, SccPlan};
+mod term;
+#[cfg(test)]
+use term::TERM_PAGE_SLOTS;
+use term::{BranchTermArena, TermBuilder, TermLineage, TermNode, kind_prefix, view_prefix};
+pub use term::{LiveVariableView, Polarity, Term, TermLookupError, TermView};
 
 /// Resource counters use the documented logical `capacity * size_of::<slot>()`
 /// model.  Overflow is an invariant violation, never a wrapped measurement.
@@ -61,20 +66,6 @@ impl ComponentId {
         match self {
             Self::Occurrence { kind, .. } => *kind,
             Self::DefinitionValue { .. } => ComponentKind::Value,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum Term {
-    Leaf(Leaf),
-    Component(ComponentId),
-}
-impl Term {
-    pub const fn kind(&self) -> ComponentKind {
-        match self {
-            Self::Leaf(leaf) => leaf.component_kind(),
-            Self::Component(component) => component.kind(),
         }
     }
 }
@@ -128,11 +119,11 @@ impl ConstraintOccurrence {
     pub fn id(&self) -> &ConstraintOccurrenceId {
         &self.id
     }
-    pub fn lower(&self) -> &Term {
-        &self.lower
+    pub const fn lower(&self) -> Term {
+        self.lower
     }
-    pub fn upper(&self) -> &Term {
-        &self.upper
+    pub const fn upper(&self) -> Term {
+        self.upper
     }
     pub fn cause(&self) -> &CauseId {
         &self.cause
@@ -422,6 +413,18 @@ pub struct ConstraintBatch {
     /// Frozen once, after F0 endpoint resolution and both total-map checks.
     scc_plan: Option<SccPlan>,
     components: Vec<ComponentId>,
+    /// Exact collected handles parallel to `components`; route recipes retain
+    /// these identities instead of reconstructing endpoint terms at solve.
+    component_terms: Vec<Term>,
+    leaf_terms: HashMap<Leaf, Term>,
+    term_builder: Option<TermBuilder>,
+    term_arena: Option<Arc<TermLineage>>,
+    #[cfg(test)]
+    /// Synthetic F4 scale witnesses extend their own unobservable batch after
+    /// collection. Production drops the builder at seal.
+    test_term_builder: Option<TermBuilder>,
+    #[cfg(test)]
+    test_term_arena_dirty: bool,
     occurrence_component_positions: HashMap<HirOccurrenceId, ComponentPositions>,
     root_component_positions: HashMap<DefinitionRootId, RootComponentPositions>,
     /// The F4 scheme slot key.  The ordinal is scheduling storage only; the
@@ -462,6 +465,14 @@ impl ConstraintBatch {
             definition_use_positions: HashMap::new(),
             scc_plan: None,
             components: Vec::new(),
+            component_terms: Vec::new(),
+            leaf_terms: HashMap::new(),
+            term_builder: Some(TermBuilder::new()?),
+            term_arena: None,
+            #[cfg(test)]
+            test_term_builder: None,
+            #[cfg(test)]
+            test_term_arena_dirty: false,
             occurrence_component_positions: HashMap::new(),
             root_component_positions: HashMap::new(),
             root_definition_positions: HashMap::new(),
@@ -487,6 +498,15 @@ impl ConstraintBatch {
             },
         };
         let hir = batch.hir.clone();
+        #[cfg(test)]
+        for leaf in [
+            Leaf::IntPositive,
+            Leaf::IntNegative,
+            Leaf::EffectBottomPositive,
+            Leaf::EmptyEffectNegative,
+        ] {
+            batch.term_for_leaf(leaf)?;
+        }
         // This spelling-bearing index borrows HIR and is discarded after the
         // endpoint pass; the immutable batch retains only order identities.
         let mut definition_by_hir_id = HashMap::<&DefId, DefinitionOrderId>::new();
@@ -759,6 +779,19 @@ impl ConstraintBatch {
             batch.counters.retained_definition_uses += 1;
         }
         batch.ensure_total_definition_use_map()?;
+        // Alignment belongs to collection: a failed seal returns no partially
+        // observable batch and maps through the established component category.
+        let builder = batch
+            .term_builder
+            .take()
+            .expect("term collection builder remains live until seal");
+        #[cfg(test)]
+        let test_term_builder = builder.clone();
+        batch.term_arena = Some(builder.seal()?);
+        #[cfg(test)]
+        {
+            batch.test_term_builder = Some(test_term_builder);
+        }
         batch.counters.occurrence_retained_bytes = checked_capacity_bytes::<HirOccurrenceId>(
             batch.projection_order.capacity(),
             "F0 projection order",
@@ -845,6 +878,22 @@ impl ConstraintBatch {
     }
     pub fn occurrences(&self) -> &[ConstraintOccurrence] {
         &self.occurrences
+    }
+    pub fn term_view(&self, term: Term) -> Result<TermView<'_>, TermLookupError> {
+        view_prefix(
+            self.term_arena
+                .as_deref()
+                .expect("observable batch has a sealed term arena"),
+            term,
+        )
+    }
+    pub fn term_kind(&self, term: Term) -> Result<ComponentKind, TermLookupError> {
+        kind_prefix(
+            self.term_arena
+                .as_deref()
+                .expect("observable batch has a sealed term arena"),
+            term,
+        )
     }
     #[cfg_attr(
         not(test),
@@ -1031,7 +1080,7 @@ impl ConstraintBatch {
         self.root_order.push(root.clone());
         self.counters.root_allocations += 1;
         let value_bound_row = self.next_value_bound_row()?;
-        let value = self.definition_value_component(root.clone());
+        let value = self.definition_value_component(root.clone())?;
         let old_capacity = self.root_component_positions.capacity();
         self.root_component_positions.insert(
             root,
@@ -1053,8 +1102,8 @@ impl ConstraintBatch {
         occurrence_bound_row: u32,
     ) -> Result<(), CollectionAvailabilityError> {
         let value_bound_row = self.next_value_bound_row()?;
-        let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value);
-        let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect);
+        let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value)?;
+        let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
         let positions = ComponentPositions {
             value: self.components.len() - 2,
             effect: self.components.len() - 1,
@@ -1067,38 +1116,42 @@ impl ConstraintBatch {
         if self.occurrence_component_positions.capacity() != old_capacity {
             self.counters.index_rebuilds += 1;
         }
+        let int_positive = self.term_for_leaf(Leaf::IntPositive)?;
+        let int_negative = self.term_for_leaf(Leaf::IntNegative)?;
+        let effect_bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+        let effect_empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
         self.emit(
             occurrence.clone(),
             0,
-            Term::Leaf(Leaf::IntPositive),
-            Term::Component(value.clone()),
-        );
+            int_positive,
+            self.term_for_component(&value),
+        )?;
         self.emit(
             occurrence.clone(),
             1,
-            Term::Component(value.clone()),
-            Term::Leaf(Leaf::IntNegative),
-        );
+            self.term_for_component(&value),
+            int_negative,
+        )?;
         self.emit(
             occurrence.clone(),
             2,
-            Term::Leaf(Leaf::EffectBottomPositive),
-            Term::Component(effect.clone()),
-        );
+            effect_bottom,
+            self.term_for_component(&effect),
+        )?;
         self.emit(
             occurrence.clone(),
             3,
-            Term::Component(effect),
-            Term::Leaf(Leaf::EmptyEffectNegative),
-        );
+            self.term_for_component(&effect),
+            effect_empty,
+        )?;
         if let Some(root) = definition_root {
             let definition_value = self.root_value_component_for_collect(&root)?;
             self.emit(
                 occurrence,
                 4,
-                Term::Component(value),
-                Term::Component(definition_value),
-            );
+                self.term_for_component(&value),
+                self.term_for_component(&definition_value),
+            )?;
         }
         Ok(())
     }
@@ -1112,8 +1165,8 @@ impl ConstraintBatch {
         occurrence_bound_row: u32,
     ) -> Result<(), CollectionAvailabilityError> {
         let value_bound_row = self.next_value_bound_row()?;
-        let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value);
-        let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect);
+        let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value)?;
+        let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
         let positions = ComponentPositions {
             value: self.components.len() - 2,
             effect: self.components.len() - 1,
@@ -1128,38 +1181,149 @@ impl ConstraintBatch {
             return Err(CollectionAvailabilityError::DuplicateDefinitionUseId);
         }
         let root = self.root_value_component_for_collect(&definition_root)?;
+        let effect_bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+        let effect_empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
         self.emit(
             occurrence.clone(),
             1,
-            Term::Leaf(Leaf::EffectBottomPositive),
-            Term::Component(effect.clone()),
-        );
+            effect_bottom,
+            self.term_for_component(&effect),
+        )?;
         self.emit(
             occurrence.clone(),
             2,
-            Term::Component(effect),
-            Term::Leaf(Leaf::EmptyEffectNegative),
-        );
-        self.emit(occurrence, 3, Term::Component(value), Term::Component(root));
+            self.term_for_component(&effect),
+            effect_empty,
+        )?;
+        self.emit(
+            occurrence,
+            3,
+            self.term_for_component(&value),
+            self.term_for_component(&root),
+        )?;
         Ok(())
     }
     fn occurrence_component(
         &mut self,
         occurrence: HirOccurrenceId,
         kind: ComponentKind,
-    ) -> ComponentId {
+    ) -> Result<ComponentId, CollectionAvailabilityError> {
         let component = ComponentId::Occurrence { occurrence, kind };
         self.components.push(component.clone());
+        #[cfg(test)]
+        if self.term_builder.is_none() {
+            self.test_term_arena_dirty = true;
+        }
+        let term = self
+            .active_term_builder()
+            .intern(TermNode::Component(component.clone()))?;
+        self.component_terms.push(term);
         self.counters.component_allocations += 1;
-        component
+        Ok(component)
     }
-    fn definition_value_component(&mut self, root: DefinitionRootId) -> ComponentId {
+    fn definition_value_component(
+        &mut self,
+        root: DefinitionRootId,
+    ) -> Result<ComponentId, CollectionAvailabilityError> {
         let component = ComponentId::DefinitionValue { root };
         self.components.push(component.clone());
+        #[cfg(test)]
+        if self.term_builder.is_none() {
+            self.test_term_arena_dirty = true;
+        }
+        let term = self
+            .active_term_builder()
+            .intern(TermNode::Component(component.clone()))?;
+        self.component_terms.push(term);
         self.counters.component_allocations += 1;
-        component
+        Ok(component)
     }
-    fn emit(&mut self, occurrence: HirOccurrenceId, local_slot: u8, lower: Term, upper: Term) {
+    fn term_for_component(&self, component: &ComponentId) -> Term {
+        let position = match component {
+            ComponentId::Occurrence { occurrence, kind } => {
+                let positions = self
+                    .occurrence_component_positions
+                    .get(occurrence)
+                    .expect("every collected occurrence component has frozen positions");
+                match kind {
+                    ComponentKind::Value => positions.value,
+                    ComponentKind::Effect => positions.effect,
+                }
+            }
+            ComponentId::DefinitionValue { root } => {
+                self.root_component_positions
+                    .get(root)
+                    .expect("every collected definition component has a frozen position")
+                    .component
+            }
+        };
+        self.component_term_at(position)
+    }
+    fn component_term_at(&self, position: usize) -> Term {
+        self.component_terms[position]
+    }
+    fn collected_leaf_term(&self, leaf: Leaf) -> Term {
+        *self
+            .leaf_terms
+            .get(&leaf)
+            .expect("every F4 route leaf was interned during collection")
+    }
+    fn term_lineage(&self) -> Arc<TermLineage> {
+        #[cfg(test)]
+        if self.test_term_arena_dirty {
+            let builder = self
+                .test_term_builder
+                .as_ref()
+                .expect("only synthetic test batches extend a sealed prefix");
+            return builder
+                .clone()
+                .seal()
+                .expect("synthetic test collection term identities remain representable");
+        }
+        self.term_arena
+            .as_ref()
+            .expect("observable batch has a sealed term arena")
+            .clone()
+    }
+    fn term_for_leaf(&mut self, leaf: Leaf) -> Result<Term, CollectionAvailabilityError> {
+        if let Some(term) = self.leaf_terms.get(&leaf).copied() {
+            return Ok(term);
+        }
+        #[cfg(test)]
+        if self.term_builder.is_none() {
+            self.test_term_arena_dirty = true;
+        }
+        let term = self.active_term_builder().intern(TermNode::Leaf(leaf))?;
+        self.leaf_terms.insert(leaf, term);
+        Ok(term)
+    }
+    fn collecting_term_node(&self, term: Term) -> &TermNode {
+        if let Some(builder) = &self.term_builder {
+            return builder.node(term);
+        }
+        #[cfg(test)]
+        if let Some(builder) = &self.test_term_builder {
+            return builder.node(term);
+        }
+        panic!("constraint classes freeze during collection")
+    }
+    fn active_term_builder(&mut self) -> &mut TermBuilder {
+        if let Some(builder) = &mut self.term_builder {
+            return builder;
+        }
+        #[cfg(test)]
+        if let Some(builder) = &mut self.test_term_builder {
+            return builder;
+        }
+        panic!("production collection builder is sealed before batch observation")
+    }
+    fn emit(
+        &mut self,
+        occurrence: HirOccurrenceId,
+        local_slot: u8,
+        lower: Term,
+        upper: Term,
+    ) -> Result<(), CollectionAvailabilityError> {
         let class = self.freeze_constraint_class(&lower, &upper);
         let occurrence_bound_row = self
             .occurrence_component_positions
@@ -1177,6 +1341,7 @@ impl ConstraintBatch {
         self.frozen_occurrence_bound_rows.push(occurrence_bound_row);
         self.counters.emitted_facts += 1;
         self.counters.generated_work_items += 1;
+        Ok(())
     }
     fn next_value_bound_row(&self) -> Result<u32, CollectionAvailabilityError> {
         let rows = self
@@ -1187,10 +1352,10 @@ impl ConstraintBatch {
         u32::try_from(rows).map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)
     }
     fn freeze_constraint_class(&self, lower: &Term, upper: &Term) -> FrozenConstraintClass {
-        if lower.kind() != upper.kind() {
+        if self.collecting_term_node(*lower).kind() != self.collecting_term_node(*upper).kind() {
             return FrozenConstraintClass::CrossKind;
         }
-        match lower.kind() {
+        match self.collecting_term_node(*lower).kind() {
             ComponentKind::Value => FrozenConstraintClass::Value(CanonicalValuePairKey {
                 lower: self.value_endpoint_key(lower),
                 upper: self.value_endpoint_key(upper),
@@ -1198,8 +1363,8 @@ impl ConstraintBatch {
             ComponentKind::Effect => {
                 let occurrence_bound_row = [lower, upper]
                     .into_iter()
-                    .find_map(|term| match term {
-                        Term::Component(ComponentId::Occurrence { occurrence, .. }) => Some(
+                    .find_map(|term| match self.collecting_term_node(*term) {
+                        TermNode::Component(ComponentId::Occurrence { occurrence, .. }) => Some(
                             self.occurrence_component_positions
                                 .get(occurrence)
                                 .expect("effect occurrence has a frozen position")
@@ -1210,17 +1375,23 @@ impl ConstraintBatch {
                     .expect("F4 effect facts have an occurrence endpoint");
                 FrozenConstraintClass::Effect {
                     occurrence_bound_row,
-                    lower_is_bottom: matches!(lower, Term::Leaf(Leaf::EffectBottomPositive)),
-                    upper_is_empty: matches!(upper, Term::Leaf(Leaf::EmptyEffectNegative)),
+                    lower_is_bottom: matches!(
+                        self.collecting_term_node(*lower),
+                        TermNode::Leaf(Leaf::EffectBottomPositive)
+                    ),
+                    upper_is_empty: matches!(
+                        self.collecting_term_node(*upper),
+                        TermNode::Leaf(Leaf::EmptyEffectNegative)
+                    ),
                 }
             }
         }
     }
     fn value_endpoint_key(&self, term: &Term) -> ValueEndpointKey {
-        match term {
-            Term::Leaf(Leaf::IntPositive) => ValueEndpointKey::IntPositive,
-            Term::Leaf(Leaf::IntNegative) => ValueEndpointKey::IntNegative,
-            Term::Component(ComponentId::Occurrence { occurrence, .. }) => {
+        match self.collecting_term_node(*term) {
+            TermNode::Leaf(Leaf::IntPositive) => ValueEndpointKey::IntPositive,
+            TermNode::Leaf(Leaf::IntNegative) => ValueEndpointKey::IntNegative,
+            TermNode::Component(ComponentId::Occurrence { occurrence, .. }) => {
                 ValueEndpointKey::ValueRow(
                     self.occurrence_component_positions
                         .get(occurrence)
@@ -1228,13 +1399,16 @@ impl ConstraintBatch {
                         .value_bound_row,
                 )
             }
-            Term::Component(ComponentId::DefinitionValue { root }) => ValueEndpointKey::ValueRow(
-                self.root_component_positions
-                    .get(root)
-                    .expect("definition root has a frozen position")
-                    .value_bound_row,
-            ),
-            Term::Leaf(_) => unreachable!("F4 value endpoint is an integer leaf"),
+            TermNode::Component(ComponentId::DefinitionValue { root }) => {
+                ValueEndpointKey::ValueRow(
+                    self.root_component_positions
+                        .get(root)
+                        .expect("definition root has a frozen position")
+                        .value_bound_row,
+                )
+            }
+            TermNode::Leaf(_) => unreachable!("F4 value endpoint is an integer leaf"),
+            _ => unreachable!("F5b collects only F4 term endpoint shapes"),
         }
     }
     fn require_owned(&self, occurrence: &HirOccurrenceId) -> Result<(), ArtifactMismatch> {
@@ -2279,11 +2453,11 @@ impl SemanticFact {
     pub const fn id(&self) -> FactId {
         self.id
     }
-    pub fn lower(&self) -> &Term {
-        &self.lower
+    pub const fn lower(&self) -> Term {
+        self.lower
     }
-    pub fn upper(&self) -> &Term {
-        &self.upper
+    pub const fn upper(&self) -> Term {
+        self.upper
     }
 }
 
@@ -2292,6 +2466,7 @@ impl SemanticFact {
 #[derive(Debug)]
 pub struct ConstraintStore {
     hir: Arc<HirModule>,
+    terms: BranchTermArena,
     receipt_token: Arc<StoreReceiptToken>,
     next_receipt: u64,
     consumed_receipts: HashSet<u64>,
@@ -2306,18 +2481,24 @@ pub struct ConstraintStore {
     injected_provenance_failure: Option<ConstraintError>,
 }
 impl ConstraintStore {
-    pub fn new(hir: Arc<HirModule>) -> Self {
-        Self::with_capacity(hir, 0)
+    pub fn from_batch(batch: ConstraintBatch) -> Self {
+        let lineage = batch.term_lineage();
+        Self::with_capacity(batch.hir, lineage, 0)
     }
-    /// F4 reserves every store lane before initial admission.  The public
-    /// constructor intentionally remains unreserved for standalone store use.
-    fn with_capacity(hir: Arc<HirModule>, requested_capacity: usize) -> Self {
+    /// F4 reserves every store lane before initial admission; the public
+    /// batch-transfer constructor deliberately requests zero fact capacity.
+    fn with_capacity(
+        hir: Arc<HirModule>,
+        lineage: Arc<TermLineage>,
+        requested_capacity: usize,
+    ) -> Self {
         let facts = Vec::with_capacity(requested_capacity);
         let canonical = HashMap::with_capacity(requested_capacity);
         let provenance = Vec::with_capacity(requested_capacity);
         let consumed_receipts = HashSet::with_capacity(requested_capacity);
         Self {
             hir,
+            terms: BranchTermArena::new(lineage),
             receipt_token: Arc::new(StoreReceiptToken),
             next_receipt: 0,
             consumed_receipts,
@@ -2340,6 +2521,22 @@ impl ConstraintStore {
     }
     pub fn transaction(&mut self) -> ConstraintTransaction<'_> {
         ConstraintTransaction { store: self }
+    }
+    pub fn term_view(&self, term: Term) -> Result<TermView<'_>, TermLookupError> {
+        self.terms.term_view(term)
+    }
+    pub fn term_kind(&self, term: Term) -> Result<ComponentKind, TermLookupError> {
+        self.terms.term_kind(term)
+    }
+    #[cfg(test)]
+    fn push_test_branch_term(&mut self, node: TermNode) -> Term {
+        self.terms
+            .push(node)
+            .expect("private term-arena evidence has available identity")
+    }
+    #[cfg(test)]
+    fn term_page_observations(&self) -> term::TermPageObservations {
+        self.terms.observations()
     }
     pub fn record_provenance(&mut self, receipt: AdmissionReceipt) -> Result<(), ConstraintError> {
         if !Arc::ptr_eq(&self.receipt_token, &receipt.store_token) {
@@ -2398,16 +2595,6 @@ impl ConstraintStore {
             .owns_occurrence(occurrence)
             .then_some(())
             .ok_or(ConstraintError::ArtifactMismatch)
-    }
-    fn require_owned_component(&self, component: &ComponentId) -> Result<(), ConstraintError> {
-        match component {
-            ComponentId::Occurrence { occurrence, .. } => self.require_owned(occurrence),
-            ComponentId::DefinitionValue { root } => self
-                .hir
-                .owns_definition_root(root)
-                .then_some(())
-                .ok_or(ConstraintError::ArtifactMismatch),
-        }
     }
     fn finish_accounting(&mut self) {
         self.counters.fact_retained_bytes =
@@ -2473,19 +2660,16 @@ impl ConstraintTransaction<'_> {
         &mut self,
         occurrence: &ConstraintOccurrence,
     ) -> Result<AdmissionReceipt, ConstraintError> {
+        let lower_kind = self.validate_term(occurrence.lower)?;
+        let upper_kind = self.validate_term(occurrence.upper)?;
         self.store.require_owned(occurrence.id.occurrence())?;
         if occurrence.cause.occurrence != occurrence.id {
             return Err(ConstraintError::CauseMismatch);
         }
-        for term in [&occurrence.lower, &occurrence.upper] {
-            if let Term::Component(component) = term {
-                self.store.require_owned_component(component)?;
-            }
-        }
-        if occurrence.lower.kind() != occurrence.upper.kind() {
+        if lower_kind != upper_kind {
             return Err(ConstraintError::CrossKind {
-                lower: occurrence.lower.kind(),
-                upper: occurrence.upper.kind(),
+                lower: lower_kind,
+                upper: upper_kind,
             });
         }
         #[cfg(test)]
@@ -2541,6 +2725,15 @@ impl ConstraintTransaction<'_> {
             fact,
             delta,
         })
+    }
+    fn validate_term(&self, term: Term) -> Result<ComponentKind, ConstraintError> {
+        match self.store.term_kind(term) {
+            Ok(kind) => Ok(kind),
+            Err(TermLookupError::ArenaMismatch) => Err(ConstraintError::ArtifactMismatch),
+            Err(TermLookupError::InvalidHandle) => {
+                panic!("same-lineage term missing from this store branch before admission")
+            }
+        }
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -3148,7 +3341,14 @@ impl InferenceSession {
         let draft_capacity = batch.counters.scc_maximum_component_size;
         let routed_capacity = batch.definition_uses.len();
         let mut session = Self {
-            store: ConstraintStore::with_capacity(batch.hir.clone(), fact_capacity),
+            // The solve branch receives the collected lineage directly.  The
+            // retained batch is only F2 plan/recipe state; it never owns a
+            // second mutable term arena or rebuilds a handle from HIR.
+            store: ConstraintStore::with_capacity(
+                batch.hir.clone(),
+                batch.term_lineage(),
+                fact_capacity,
+            ),
             batch,
             errors: Vec::with_capacity(fact_capacity),
             cross_kind_components: HashSet::with_capacity(value_component_count),
@@ -3577,8 +3777,8 @@ impl InferenceSession {
                         cause: occurrence.cause.clone(),
                         kind: SolverErrorKind::CrossKind { lower, upper },
                     });
-                    for term in [&occurrence.lower, &occurrence.upper] {
-                        if let Term::Component(component) = term {
+                    for term in [occurrence.lower, occurrence.upper] {
+                        if let Ok(TermView::Component(component)) = self.store.term_view(term) {
                             self.cross_kind_components.insert(component.clone());
                         }
                     }
@@ -4024,8 +4224,8 @@ impl InferenceSession {
         id: &DefinitionUseId,
     ) -> Result<usize, SolveAvailabilityError> {
         let use_record = Self::validated_route_use(batch, id)?;
-        let root = batch.components[use_record.target_root_component].clone();
-        let value = batch.components[use_record.use_value_component].clone();
+        let root = batch.component_term_at(use_record.target_root_component);
+        let value = batch.component_term_at(use_record.use_value_component);
         Self::route(
             store,
             bounds,
@@ -4037,8 +4237,8 @@ impl InferenceSession {
             counters,
             id,
             use_record,
-            Term::Component(root),
-            Term::Component(value),
+            root,
+            value,
             CanonicalValuePairKey {
                 lower: ValueEndpointKey::ValueRow(use_record.target_root_row),
                 upper: ValueEndpointKey::ValueRow(use_record.use_value_row),
@@ -4066,7 +4266,7 @@ impl InferenceSession {
         let scheme = schemes[position]
             .as_ref()
             .expect("incoming observes finalized component scheme");
-        let value = batch.components[use_record.use_value_component].clone();
+        let value = batch.component_term_at(use_record.use_value_component);
         match Self::f4_scheme_body(finalization, scheme) {
             F4SchemeBody::Bottom => {
                 counters.scc_execution_bottom_trivial_instantiations += 1;
@@ -4098,8 +4298,8 @@ impl InferenceSession {
                     counters,
                     id,
                     use_record,
-                    Term::Leaf(Leaf::IntPositive),
-                    Term::Component(value),
+                    batch.collected_leaf_term(Leaf::IntPositive),
+                    value,
                     CanonicalValuePairKey {
                         lower: ValueEndpointKey::IntPositive,
                         upper: ValueEndpointKey::ValueRow(use_record.use_value_row),
@@ -4484,13 +4684,10 @@ mod tests {
             _ => panic!("root expression"),
         }
     }
-    fn shape(item: &ConstraintOccurrence) -> (Option<Leaf>, Option<Leaf>) {
-        let leaf = |term: &Term| {
-            if let Term::Leaf(leaf) = term {
-                Some(*leaf)
-            } else {
-                None
-            }
+    fn shape(batch: &ConstraintBatch, item: &ConstraintOccurrence) -> (Option<Leaf>, Option<Leaf>) {
+        let leaf = |term: Term| match batch.term_view(term) {
+            Ok(TermView::Leaf(leaf)) => Some(leaf),
+            _ => None,
         };
         (leaf(item.lower()), leaf(item.upper()))
     }
@@ -4513,12 +4710,32 @@ mod tests {
             let root = batch
                 .root_value_component(binding.definition_root())
                 .unwrap();
-            batch.emit(
-                binding.value().occurrence().clone(),
-                127,
-                Term::Leaf(Leaf::IntPositive),
-                Term::Component(root),
-            );
+            let id = ConstraintOccurrenceId::new(binding.value().occurrence().clone(), 127);
+            let root_row = batch
+                .root_component_positions
+                .get(binding.definition_root())
+                .expect("synthetic root has a frozen row")
+                .value_bound_row;
+            batch.occurrences.push(ConstraintOccurrence {
+                cause: CauseId::for_occurrence(id.clone()),
+                id,
+                lower: batch.collected_leaf_term(Leaf::IntPositive),
+                upper: batch.term_for_component(&root),
+            });
+            batch
+                .frozen_constraint_classes
+                .push(FrozenConstraintClass::Value(CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                }));
+            let row = batch
+                .occurrence_component_positions
+                .get(binding.value().occurrence())
+                .expect("synthetic occurrence has a frozen row")
+                .occurrence_bound_row;
+            batch.frozen_occurrence_bound_rows.push(row);
+            batch.counters.emitted_facts += 1;
+            batch.counters.generated_work_items += 1;
             batch.synthetic_seed_value_pair_probes += 1;
         }
         batch
@@ -4754,8 +4971,8 @@ mod tests {
             batch.occurrences.push(ConstraintOccurrence {
                 cause: CauseId::for_occurrence(id.clone()),
                 id,
-                lower: Term::Leaf(Leaf::IntPositive),
-                upper: Term::Component(root),
+                lower: batch.collected_leaf_term(Leaf::IntPositive),
+                upper: batch.term_for_component(&root),
             });
             batch
                 .frozen_constraint_classes
@@ -5951,17 +6168,14 @@ mod tests {
     fn f4_solve_rejects_foreign_artifacts_before_any_partial_result_exists() {
         let local_hir = module("my local = 42", "f4-foreign-local.yu");
         let foreign_hir = module("my foreign = 42", "f4-foreign-other.yu");
-        let HirItem::Binding(foreign_binding) = &foreign_hir.items()[0] else {
-            panic!("one foreign binding")
-        };
+        let foreign_batch = collect(foreign_hir.clone());
+        let foreign_term = foreign_batch.occurrences()[0].upper();
         let foreign_occurrence = |mut batch: ConstraintBatch| {
             let local = batch.occurrences[0].clone();
             batch.occurrences[0] = ConstraintOccurrence {
                 id: local.id.clone(),
                 cause: local.cause.clone(),
-                lower: Term::Component(ComponentId::DefinitionValue {
-                    root: foreign_binding.definition_root().clone(),
-                }),
+                lower: foreign_term,
                 upper: local.upper,
             };
             batch
@@ -5990,7 +6204,7 @@ mod tests {
             let hir = module("42", "f4-cross-kind-atomic.yu");
             let mut batch = collect(hir);
             retain_batch_occurrences(&mut batch, |occurrence| occurrence.id.local_slot == 0);
-            batch.occurrences[0].lower = Term::Leaf(Leaf::EffectBottomPositive);
+            batch.occurrences[0].lower = batch.collected_leaf_term(Leaf::EffectBottomPositive);
             batch
         };
 
@@ -6874,7 +7088,7 @@ mod tests {
                 .map(|item| (
                     item.id().source_ordinal(),
                     item.id().local_slot(),
-                    shape(item)
+                    shape(&batch, item)
                 ))
                 .collect::<Vec<_>>(),
             vec![
@@ -6908,7 +7122,7 @@ mod tests {
                     (
                         item.id().source_ordinal(),
                         item.id().local_slot(),
-                        shape(item),
+                        shape(batch, item),
                     )
                 })
                 .collect::<Vec<_>>()
@@ -6959,7 +7173,7 @@ mod tests {
             batch
                 .occurrences()
                 .iter()
-                .map(|item| (item.id().local_slot(), shape(item)))
+                .map(|item| (item.id().local_slot(), shape(&batch, item)))
                 .collect::<Vec<_>>(),
             vec![
                 (0, (Some(Leaf::IntPositive), None)),
@@ -6970,8 +7184,8 @@ mod tests {
             ]
         );
         let fifth = &batch.occurrences()[4];
-        assert_eq!(fifth.lower(), &Term::Component(body.value().clone()));
-        assert_eq!(fifth.upper(), &Term::Component(root));
+        assert_eq!(fifth.lower(), batch.term_for_component(body.value()));
+        assert_eq!(fifth.upper(), batch.term_for_component(&root));
         let solved = SolvedModule::solve(batch).unwrap();
         assert_eq!(
             solved.projection_for(binding.value().occurrence()).unwrap(),
@@ -8480,13 +8694,11 @@ mod tests {
         let foreign_definition_endpoint = ConstraintOccurrence {
             id: bad_id.clone(),
             cause: CauseId::for_occurrence(bad_id),
-            lower: Term::Component(ComponentId::DefinitionValue {
-                root: second_binding.definition_root().clone(),
-            }),
-            upper: local.upper.clone(),
+            lower: second_batch.occurrences()[0].upper(),
+            upper: local.upper(),
         };
         assert!(matches!(
-            ConstraintStore::new(first.clone())
+            ConstraintStore::from_batch(first_batch.clone())
                 .transaction()
                 .admit(&foreign_definition_endpoint),
             Err(ConstraintError::ArtifactMismatch)
@@ -8496,6 +8708,100 @@ mod tests {
             solved.root_value_for(second_binding.definition_root()),
             Err(ArtifactMismatch)
         ));
+    }
+    #[test]
+    fn f5b_batch_lookup_transfer_and_aliases_preserve_collected_terms() {
+        let batch = collect(module("42", "f5b-term-transfer.yu"));
+        let alias = batch.clone();
+        let term = batch.occurrences()[0].lower();
+        assert_eq!(batch.term_view(term), alias.term_view(term));
+        let store = ConstraintStore::from_batch(batch);
+        assert!(matches!(
+            store.term_view(term),
+            Ok(TermView::Leaf(Leaf::IntPositive))
+        ));
+        assert!(matches!(
+            alias.term_view(term),
+            Ok(TermView::Leaf(Leaf::IntPositive))
+        ));
+
+        let foreign = collect(module("42", "f5b-term-foreign.yu"));
+        assert_eq!(
+            store.term_view(foreign.occurrences()[0].lower()),
+            Err(TermLookupError::ArenaMismatch)
+        );
+    }
+    #[test]
+    fn f5b_collection_prefix_alignment_exhaustion_returns_no_batch() {
+        let maximum_aligned_length = u32::MAX - (TERM_PAGE_SLOTS - 1);
+        let maximum = {
+            let _override = term::override_seal_collected_length(maximum_aligned_length);
+            ConstraintBatch::collect(module("42", "f5b-term-prefix-maximum.yu"))
+        };
+        let maximum = maximum.expect("maximum aligned collected length seals a batch");
+        assert!(matches!(
+            maximum.term_view(maximum.occurrences()[0].lower()),
+            Ok(TermView::Leaf(Leaf::IntPositive))
+        ));
+
+        let overflowing = {
+            let _override = term::override_seal_collected_length(u32::MAX);
+            ConstraintBatch::collect(module("42", "f5b-term-prefix-overflow.yu"))
+        };
+        assert!(matches!(
+            overflowing,
+            Err(CollectionAvailabilityError::ComponentIdentityExhausted)
+        ));
+    }
+    #[test]
+    fn f5b_same_lineage_missing_term_panics_before_admission_state_changes() {
+        let batch = collect(module("42", "f5b-term-invalid-handle.yu"));
+        let mut allocating_branch = ConstraintStore::from_batch(batch.clone());
+        let branch_only =
+            allocating_branch.push_test_branch_term(TermNode::Leaf(Leaf::IntPositive));
+        let foreign_batch = collect(module("42", "f5b-term-invalid-owner.yu"));
+        let mut sibling_branch = ConstraintStore::from_batch(batch.clone());
+        let mut occurrence = foreign_batch.occurrences()[0].clone();
+        occurrence.lower = branch_only;
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            sibling_branch.transaction().admit(&occurrence)
+        }));
+        assert!(result.is_err());
+        assert!(sibling_branch.facts().is_empty());
+        assert!(sibling_branch.provenance().is_empty());
+        assert_eq!(sibling_branch.counters().admitted_facts(), 0);
+        assert_eq!(sibling_branch.counters().accepted_work_items(), 0);
+    }
+    #[test]
+    fn f5b_consumed_batch_aliases_claim_disjoint_sparse_postprefix_pages() {
+        let batch = collect(module("42", "f5b-term-clone-pages.yu"));
+        let mut first = ConstraintStore::from_batch(batch.clone());
+        let mut second = ConstraintStore::from_batch(batch.clone());
+
+        let first_term = first.push_test_branch_term(TermNode::Leaf(Leaf::IntPositive));
+        let second_term = second.push_test_branch_term(TermNode::Leaf(Leaf::IntNegative));
+        assert_eq!(
+            second_term.test_index(),
+            first_term.test_index() + TERM_PAGE_SLOTS
+        );
+        assert_eq!(first.term_page_observations().claims, 1);
+        assert_eq!(first.term_page_observations().committed_nodes, 1);
+        assert_eq!(
+            first.term_page_observations().reserved_slots,
+            TERM_PAGE_SLOTS as usize
+        );
+        assert_eq!(second.term_page_observations().claims, 1);
+        assert_eq!(second.term_page_observations().committed_nodes, 1);
+        assert_eq!(second.term_page_observations().slack_slots, 255);
+        assert_eq!(
+            first.term_view(second_term),
+            Err(TermLookupError::InvalidHandle)
+        );
+        assert_eq!(
+            second.term_view(first_term),
+            Err(TermLookupError::InvalidHandle)
+        );
     }
     #[test]
     fn brands_receipts_and_local_failure_are_isolated() {
@@ -8509,7 +8815,7 @@ mod tests {
             other.occurrences()[0].cause()
         );
         assert!(matches!(
-            ConstraintStore::new(first.clone())
+            ConstraintStore::from_batch(batch.clone())
                 .transaction()
                 .admit(&other.occurrences()[0]),
             Err(ConstraintError::ArtifactMismatch)
@@ -8524,7 +8830,7 @@ mod tests {
             lower: first_item.lower.clone(),
             upper: first_item.upper.clone(),
         };
-        let mut store = ConstraintStore::new(first.clone());
+        let mut store = ConstraintStore::from_batch(batch.clone());
         let r1 = store.transaction().admit(&first_item).unwrap();
         let r2 = store.transaction().admit(&duplicate).unwrap();
         assert_eq!(r1.fact(), r2.fact());
@@ -8534,7 +8840,7 @@ mod tests {
         store.record_provenance(r2).unwrap();
         assert_ne!(store.provenance()[0].cause(), store.provenance()[1].cause());
         let receipt = store.transaction().admit(&first_item).unwrap();
-        let mut alien_store = ConstraintStore::new(first.clone());
+        let mut alien_store = ConstraintStore::from_batch(batch.clone());
         assert!(matches!(
             alien_store.record_provenance(receipt.clone()),
             Err(ConstraintError::AlienReceipt)
@@ -8548,8 +8854,8 @@ mod tests {
         failure.occurrences[0] = ConstraintOccurrence {
             id: failure.occurrences[0].id.clone(),
             cause: failure.occurrences[0].cause.clone(),
-            lower: Term::Leaf(Leaf::EffectBottomPositive),
-            upper: failure.occurrences[0].upper.clone(),
+            lower: failure.collected_leaf_term(Leaf::EffectBottomPositive),
+            upper: failure.occurrences[0].upper(),
         };
         let solved = SolvedModule::solve(failure).unwrap();
         assert!(matches!(
