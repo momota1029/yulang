@@ -120,7 +120,9 @@ use yu_hir::{
 };
 use yu_types::{
     ClosedSchemeFinalization, ClosedTypeArena, ClosedTypeFinalizationSession,
-    ClosedTypeFinalizeError, ClosedValueScheme, ComponentKind, Leaf, PositiveValueView,
+    ClosedTypeFinalizeError, ClosedTypeFinalizer, ClosedValueScheme, ComponentKind,
+    DraftNegativeValueId, DraftPositiveValueId, Leaf, NegativeValueView, NeutralValueView,
+    PositiveValueView,
 };
 
 mod scc;
@@ -2991,11 +2993,544 @@ struct OccurrenceExactBounds {
 #[derive(Clone)]
 struct DraftScheme(ClosedValueScheme);
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum F5cPositive {
+    Bottom,
+    Int,
+    Variable(u32),
+    Quantified(u32),
+    Recursive(u32),
+    Union(Vec<F5cPositive>),
+    Function {
+        argument: Box<F5cNegative>,
+        argument_effect: F5cNegativeEffect,
+        result_effect: F5cPositiveEffect,
+        result: Box<F5cPositive>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum F5cPositiveEffect {
+    Bottom,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum F5cNegativeEffect {
+    Empty,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum F5cNegative {
+    Top,
+    Bottom,
+    Int,
+    Variable(u32),
+    Quantified(u32),
+    Recursive(u32),
+    Intersection(Vec<F5cNegative>),
+    Function {
+        argument: Box<F5cPositive>,
+        argument_effect: F5cPositiveEffect,
+        result_effect: F5cNegativeEffect,
+        result: Box<F5cNegative>,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct F5cRecursiveBound {
+    ordinal: u32,
+    lower: F5cPositive,
+    upper: F5cNegative,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct GeneralizationDraft {
+    quantifier_count: u32,
+    recursive_bounds: Vec<F5cRecursiveBound>,
+    predicate: F5cPositive,
+}
+
+/// Root-local F5c expansion state.  Collected rows remain immutable recipes;
+/// this walker is the sole owner of polarity incidence, active-path re-entry,
+/// and the Q/R decision for one draft.
+struct F5cGeneralizer<'a> {
+    session: &'a InferenceSession,
+    active: Vec<(u32, Polarity)>,
+    active_set: HashSet<(u32, Polarity)>,
+    function_depth: usize,
+    /// Completed acyclic row expansions are reused within one root draft.
+    /// Active re-entries deliberately bypass these maps so guarded paths keep
+    /// their owner-local R witness.
+    positive_cache: HashMap<u32, F5cPositive>,
+    negative_cache: HashMap<u32, F5cNegative>,
+    positive_seen: HashSet<u32>,
+    negative_seen: HashSet<u32>,
+    order: Vec<u32>,
+    order_seen: HashSet<u32>,
+    reentries: Vec<u32>,
+    reentry_set: HashSet<u32>,
+    invalid_effects: bool,
+}
+
+impl<'a> F5cGeneralizer<'a> {
+    fn new(session: &'a InferenceSession) -> Self {
+        Self {
+            session,
+            active: Vec::new(),
+            active_set: HashSet::new(),
+            function_depth: 0,
+            positive_cache: HashMap::new(),
+            negative_cache: HashMap::new(),
+            positive_seen: HashSet::new(),
+            negative_seen: HashSet::new(),
+            order: Vec::new(),
+            order_seen: HashSet::new(),
+            reentries: Vec::new(),
+            reentry_set: HashSet::new(),
+            invalid_effects: false,
+        }
+    }
+
+    fn mark(&mut self, ordinal: u32, polarity: Polarity) {
+        let seen = match polarity {
+            Polarity::Positive => &mut self.positive_seen,
+            Polarity::Negative => &mut self.negative_seen,
+        };
+        if seen.insert(ordinal) && self.order_seen.insert(ordinal) {
+            self.order.push(ordinal);
+        }
+    }
+
+    fn active(&self, ordinal: u32, polarity: Polarity) -> bool {
+        self.active_set.contains(&(ordinal, polarity))
+    }
+
+    fn active_any(&self, ordinal: u32) -> bool {
+        self.active_set.contains(&(ordinal, Polarity::Positive))
+            || self.active_set.contains(&(ordinal, Polarity::Negative))
+    }
+
+    fn cacheable_positive(value: &F5cPositive) -> bool {
+        match value {
+            F5cPositive::Variable(_) => false,
+            F5cPositive::Function {
+                argument, result, ..
+            } => Self::cacheable_negative(argument) && Self::cacheable_positive(result),
+            F5cPositive::Union(values) => values.iter().all(Self::cacheable_positive),
+            _ => true,
+        }
+    }
+
+    fn cacheable_negative(value: &F5cNegative) -> bool {
+        match value {
+            F5cNegative::Variable(_) => false,
+            F5cNegative::Function {
+                argument, result, ..
+            } => Self::cacheable_positive(argument) && Self::cacheable_negative(result),
+            F5cNegative::Intersection(values) => values.iter().all(Self::cacheable_negative),
+            _ => true,
+        }
+    }
+
+    fn positive_row(&mut self, ordinal: u32, root: bool) -> F5cPositive {
+        if self.active(ordinal, Polarity::Positive) {
+            if self.function_depth > 0 && self.reentry_set.insert(ordinal) {
+                self.reentries.push(ordinal);
+            }
+            self.mark(ordinal, Polarity::Positive);
+            return F5cPositive::Variable(ordinal);
+        }
+        if self.function_depth > 0 && self.active_any(ordinal) && self.reentry_set.insert(ordinal) {
+            self.reentries.push(ordinal);
+        }
+        if !root {
+            if let Some(value) = self.positive_cache.get(&ordinal).cloned() {
+                self.mark(ordinal, Polarity::Positive);
+                return value;
+            }
+        }
+        self.mark(ordinal, Polarity::Positive);
+        self.active.push((ordinal, Polarity::Positive));
+        self.active_set.insert((ordinal, Polarity::Positive));
+        let bounds = self
+            .session
+            .bounds
+            .get(ordinal as usize)
+            .cloned()
+            .unwrap_or_default();
+        let mut members = Vec::new();
+        for endpoint in bounds.exact_non_variable_lowers {
+            let member = self.positive_endpoint(endpoint);
+            if !members.contains(&member) {
+                members.push(member);
+            }
+        }
+        // Exact propagation already carries every structural lower reachable
+        // through a direct row.  Only an otherwise open non-root variable
+        // needs the row census; an open root is the normative Bottom case.
+        if members.is_empty() && !root {
+            let mut work = bounds.direct_lower_rows.clone();
+            let mut visited = HashSet::new();
+            while let Some(lower) = work.pop() {
+                if !visited.insert(lower) {
+                    continue;
+                }
+                let member = self.positive_row(lower, false);
+                if !members.contains(&member) {
+                    members.push(member);
+                }
+            }
+        }
+        let value = match members.len() {
+            0 if root => F5cPositive::Bottom,
+            0 => F5cPositive::Variable(ordinal),
+            1 => members.pop().expect("one lower member"),
+            _ => F5cPositive::Union(members),
+        };
+        self.active.pop();
+        self.active_set.remove(&(ordinal, Polarity::Positive));
+        if !root && Self::cacheable_positive(&value) {
+            self.positive_cache.insert(ordinal, value.clone());
+        }
+        value
+    }
+
+    fn negative_row(&mut self, ordinal: u32) -> F5cNegative {
+        if self.active(ordinal, Polarity::Negative) {
+            if self.function_depth > 0 && self.reentry_set.insert(ordinal) {
+                self.reentries.push(ordinal);
+            }
+            self.mark(ordinal, Polarity::Negative);
+            return F5cNegative::Variable(ordinal);
+        }
+        if self.function_depth > 0 && self.active_any(ordinal) && self.reentry_set.insert(ordinal) {
+            self.reentries.push(ordinal);
+        }
+        if let Some(value) = self.negative_cache.get(&ordinal).cloned() {
+            self.mark(ordinal, Polarity::Negative);
+            return value;
+        }
+        self.mark(ordinal, Polarity::Negative);
+        self.active.push((ordinal, Polarity::Negative));
+        self.active_set.insert((ordinal, Polarity::Negative));
+        let bounds = self
+            .session
+            .bounds
+            .get(ordinal as usize)
+            .cloned()
+            .unwrap_or_default();
+        let mut members = Vec::new();
+        for endpoint in bounds.exact_non_variable_uppers {
+            let member = self.negative_endpoint(endpoint);
+            if !members.contains(&member) {
+                members.push(member);
+            }
+        }
+        if members.is_empty() {
+            let mut work = bounds.direct_upper_rows.clone();
+            let mut visited = HashSet::new();
+            while let Some(upper) = work.pop() {
+                if !visited.insert(upper) {
+                    continue;
+                }
+                let member = self.negative_row(upper);
+                if !members.contains(&member) {
+                    members.push(member);
+                }
+            }
+        }
+        let value = match members.len() {
+            0 => F5cNegative::Variable(ordinal),
+            1 => members.pop().expect("one upper member"),
+            _ => F5cNegative::Intersection(members),
+        };
+        self.active.pop();
+        self.active_set.remove(&(ordinal, Polarity::Negative));
+        if Self::cacheable_negative(&value) {
+            self.negative_cache.insert(ordinal, value.clone());
+        }
+        value
+    }
+
+    fn positive_endpoint(&mut self, endpoint: ValueEndpointKey) -> F5cPositive {
+        match endpoint {
+            ValueEndpointKey::IntPositive => F5cPositive::Int,
+            ValueEndpointKey::BottomPositive => F5cPositive::Bottom,
+            ValueEndpointKey::ValueRow(ordinal) => self.positive_row(ordinal, false),
+            ValueEndpointKey::PositiveFunction(term) => self.positive_term(term),
+            _ => F5cPositive::Bottom,
+        }
+    }
+
+    fn negative_endpoint(&mut self, endpoint: ValueEndpointKey) -> F5cNegative {
+        match endpoint {
+            ValueEndpointKey::IntNegative => F5cNegative::Int,
+            ValueEndpointKey::TopNegative => F5cNegative::Top,
+            ValueEndpointKey::BottomNegative => F5cNegative::Bottom,
+            ValueEndpointKey::ValueRow(ordinal) => self.negative_row(ordinal),
+            ValueEndpointKey::NegativeFunction(term) => self.negative_term(term),
+            _ => F5cNegative::Top,
+        }
+    }
+
+    fn positive_term(&mut self, term: Term) -> F5cPositive {
+        match self
+            .session
+            .store
+            .term_view(term)
+            .expect("F5c term remains owned")
+        {
+            TermView::Leaf(Leaf::IntPositive) => F5cPositive::Int,
+            TermView::LiveVariable(view) => {
+                debug_assert_eq!(view.polarity(), Polarity::Positive);
+                self.positive_row(view.ordinal(), false)
+            }
+            TermView::PositiveBottom => F5cPositive::Bottom,
+            TermView::PositiveFunction {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } => {
+                // F5c closes the pure subset authorized by the current closed
+                // effect algebra.  A non-extreme live effect cannot be erased.
+                if !matches!(
+                    self.session.store.term_view(argument_effect),
+                    Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
+                ) || !matches!(
+                    self.session.store.term_view(result_effect),
+                    Ok(TermView::Leaf(Leaf::EffectBottomPositive))
+                ) {
+                    self.invalid_effects = true;
+                }
+                self.function_depth += 1;
+                let value = F5cPositive::Function {
+                    argument: Box::new(self.negative_term(argument)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(self.positive_term(result)),
+                };
+                self.function_depth -= 1;
+                value
+            }
+            TermView::Leaf(_)
+            | TermView::Component(_)
+            | TermView::NegativeTop
+            | TermView::NegativeBottom
+            | TermView::NegativeFunction { .. } => F5cPositive::Bottom,
+        }
+    }
+
+    fn negative_term(&mut self, term: Term) -> F5cNegative {
+        match self
+            .session
+            .store
+            .term_view(term)
+            .expect("F5c term remains owned")
+        {
+            TermView::Leaf(Leaf::IntNegative) => F5cNegative::Int,
+            TermView::LiveVariable(view) => {
+                debug_assert_eq!(view.polarity(), Polarity::Negative);
+                self.negative_row(view.ordinal())
+            }
+            TermView::NegativeTop => F5cNegative::Top,
+            TermView::NegativeBottom => F5cNegative::Bottom,
+            TermView::NegativeFunction {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } => {
+                if !matches!(
+                    self.session.store.term_view(argument_effect),
+                    Ok(TermView::Leaf(Leaf::EffectBottomPositive))
+                ) || !matches!(
+                    self.session.store.term_view(result_effect),
+                    Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
+                ) {
+                    self.invalid_effects = true;
+                }
+                self.function_depth += 1;
+                let value = F5cNegative::Function {
+                    argument: Box::new(self.positive_term(argument)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(self.negative_term(result)),
+                };
+                self.function_depth -= 1;
+                value
+            }
+            TermView::Leaf(_)
+            | TermView::Component(_)
+            | TermView::PositiveBottom
+            | TermView::PositiveFunction { .. } => F5cNegative::Top,
+        }
+    }
+
+    fn build(mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+        let predicate = self.positive_row(root, true);
+        if self.invalid_effects {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let mut recursive_owners = self.reentries.clone();
+        let order_positions = self
+            .order
+            .iter()
+            .enumerate()
+            .map(|(position, ordinal)| (*ordinal, position))
+            .collect::<HashMap<_, _>>();
+        recursive_owners.sort_unstable_by_key(|ordinal| {
+            order_positions.get(ordinal).copied().unwrap_or(usize::MAX)
+        });
+        recursive_owners.dedup();
+        let recursive_set = recursive_owners.iter().copied().collect::<HashSet<_>>();
+        let mut q = HashMap::new();
+        for ordinal in &self.order {
+            let eligible = self
+                .session
+                .value_levels
+                .get(*ordinal as usize)
+                .is_some_and(|level| *level > 0)
+                && !self
+                    .session
+                    .value_metadata
+                    .get(*ordinal as usize)
+                    .is_some_and(|metadata| metadata.non_generic);
+            if !recursive_set.contains(ordinal)
+                && self.positive_seen.contains(ordinal)
+                && self.negative_seen.contains(ordinal)
+                && eligible
+            {
+                let next = q.len() as u32;
+                q.insert(*ordinal, next);
+            }
+        }
+        let q_count = q.len() as u32;
+        let r = recursive_owners
+            .iter()
+            .enumerate()
+            .map(|(index, ordinal)| (*ordinal, q_count + index as u32))
+            .collect::<HashMap<_, _>>();
+        for ordinal in &self.order {
+            let eligible_for_elimination =
+                self.session.value_levels.get(*ordinal as usize).is_some()
+                    && !self
+                        .session
+                        .value_metadata
+                        .get(*ordinal as usize)
+                        .is_some_and(|metadata| metadata.non_generic);
+            if !eligible_for_elimination
+                && !recursive_set.contains(ordinal)
+                && !q.contains_key(ordinal)
+            {
+                panic!("F5c draft retains an unclosed non-generic live variable");
+            }
+        }
+        fn positive(
+            value: F5cPositive,
+            q: &HashMap<u32, u32>,
+            r: &HashMap<u32, u32>,
+        ) -> F5cPositive {
+            match value {
+                F5cPositive::Variable(ordinal) => r
+                    .get(&ordinal)
+                    .copied()
+                    .map(F5cPositive::Recursive)
+                    .or_else(|| q.get(&ordinal).copied().map(F5cPositive::Quantified))
+                    .unwrap_or(F5cPositive::Bottom),
+                F5cPositive::Function {
+                    argument, result, ..
+                } => F5cPositive::Function {
+                    argument: Box::new(negative(*argument, q, r)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(positive(*result, q, r)),
+                },
+                F5cPositive::Union(values) => F5cPositive::Union(
+                    values
+                        .into_iter()
+                        .map(|value| positive(value, q, r))
+                        .collect(),
+                ),
+                other => other,
+            }
+        }
+        fn negative(
+            value: F5cNegative,
+            q: &HashMap<u32, u32>,
+            r: &HashMap<u32, u32>,
+        ) -> F5cNegative {
+            match value {
+                F5cNegative::Variable(ordinal) => r
+                    .get(&ordinal)
+                    .copied()
+                    .map(F5cNegative::Recursive)
+                    .or_else(|| q.get(&ordinal).copied().map(F5cNegative::Quantified))
+                    .unwrap_or(F5cNegative::Top),
+                F5cNegative::Function {
+                    argument, result, ..
+                } => F5cNegative::Function {
+                    argument: Box::new(positive(*argument, q, r)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(negative(*result, q, r)),
+                },
+                F5cNegative::Intersection(values) => F5cNegative::Intersection(
+                    values
+                        .into_iter()
+                        .map(|value| negative(value, q, r))
+                        .collect(),
+                ),
+                other => other,
+            }
+        }
+        let predicate = positive(predicate, &q, &r);
+        let recursive_bounds = recursive_owners
+            .iter()
+            .filter_map(|ordinal| {
+                r.get(ordinal).copied().map(|binder| F5cRecursiveBound {
+                    ordinal: binder,
+                    lower: if self
+                        .session
+                        .bounds
+                        .get(*ordinal as usize)
+                        .is_some_and(|bounds| {
+                            bounds.exact_non_variable_lowers.is_empty()
+                                && bounds.direct_lower_rows.is_empty()
+                        }) {
+                        F5cPositive::Bottom
+                    } else {
+                        positive(self.positive_row(*ordinal, false), &q, &r)
+                    },
+                    upper: if self
+                        .session
+                        .bounds
+                        .get(*ordinal as usize)
+                        .is_some_and(|bounds| {
+                            bounds.exact_non_variable_uppers.is_empty()
+                                && bounds.direct_upper_rows.is_empty()
+                        }) {
+                        F5cNegative::Top
+                    } else {
+                        negative(self.negative_row(*ordinal), &q, &r)
+                    },
+                })
+            })
+            .collect();
+        Ok(GeneralizationDraft {
+            quantifier_count: q_count,
+            recursive_bounds,
+            predicate,
+        })
+    }
+}
+
 struct VerifiedSchemeDefinition<'a> {
     record: &'a CollectedDefinition,
     position: usize,
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum F4SchemeBody {
     Bottom,
@@ -3007,6 +3542,7 @@ enum RoutedUseKind {
     Internal,
     IncomingInt,
     IncomingBottomTrivial,
+    IncomingStructured,
 }
 
 #[allow(
@@ -3025,6 +3561,7 @@ struct RoutedUseProvenance {
 enum ObservedIncomingKind {
     Int,
     BottomTrivial,
+    Structured,
 }
 
 #[cfg(test)]
@@ -3958,6 +4495,27 @@ impl InferenceSession {
             .map_err(SolveAvailabilityError::from)
     }
 
+    fn positive_bottom_term(&mut self) -> Result<Term, SolveAvailabilityError> {
+        self.store
+            .terms
+            .positive_bottom()
+            .map_err(SolveAvailabilityError::from)
+    }
+
+    fn negative_top_term(&mut self) -> Result<Term, SolveAvailabilityError> {
+        self.store
+            .terms
+            .negative_top()
+            .map_err(SolveAvailabilityError::from)
+    }
+
+    fn negative_bottom_term(&mut self) -> Result<Term, SolveAvailabilityError> {
+        self.store
+            .terms
+            .negative_bottom()
+            .map_err(SolveAvailabilityError::from)
+    }
+
     #[allow(
         dead_code,
         reason = "F5b private Function witnesses construct opaque live terms"
@@ -4611,6 +5169,9 @@ impl InferenceSession {
                 assert_eq!(view.polarity(), polarity);
                 ValueEndpointKey::ValueRow(view.ordinal())
             }
+            TermView::PositiveBottom => ValueEndpointKey::BottomPositive,
+            TermView::NegativeTop => ValueEndpointKey::TopNegative,
+            TermView::NegativeBottom => ValueEndpointKey::BottomNegative,
             TermView::PositiveFunction { .. } => {
                 assert_eq!(polarity, Polarity::Positive);
                 ValueEndpointKey::PositiveFunction(term)
@@ -4639,6 +5200,9 @@ impl InferenceSession {
                 assert_eq!(view.kind(), ComponentKind::Effect);
                 assert_eq!(view.polarity(), polarity);
                 EffectEndpointKey::EffectRow(view.ordinal())
+            }
+            TermView::PositiveBottom | TermView::NegativeTop | TermView::NegativeBottom => {
+                panic!("value extreme cannot translate as an effect endpoint")
             }
             _ => panic!("value term cannot translate as an effect endpoint"),
         }
@@ -6295,10 +6859,15 @@ impl InferenceSession {
                 .batch
                 .scc_component_members(&component)
                 .expect("plan-owned component");
+            #[cfg(test)]
+            {
+                self.summary_reads += members.len();
+            }
             self.drafts.clear();
             // `clear` is a reuse boundary: it changes live draft ownership
             // without changing capacity, so sample it independently.
             sample_boundary!(ResourceBoundary::DraftScratchClear);
+            let mut generalization_drafts = Vec::with_capacity(members.len());
             for member_index in 0..members.len() {
                 let member = &members[member_index];
                 self.execution_counters.scc_execution_draft_members += 1;
@@ -6306,6 +6875,17 @@ impl InferenceSession {
                 if let Some(observer) = self.ordering_observer.as_mut() {
                     observer.record(|| ExecutionEvent::Drafted(member.clone()));
                 }
+                generalization_drafts.push(self.generalization_draft(member)?);
+            }
+            self.execution_counters
+                .scc_execution_drafts_visible_barriers += 1;
+            #[cfg(test)]
+            if let Some(observer) = self.ordering_observer.as_mut() {
+                observer.record(|| {
+                    ExecutionEvent::DraftsVisible(component.clone(), generalization_drafts.len())
+                });
+            }
+            for plan in &generalization_drafts {
                 let old_capacity = self.drafts.capacity();
                 #[cfg(test)]
                 let inject_finalization_failure = if self.injected_finalization_failure_after
@@ -6317,26 +6897,19 @@ impl InferenceSession {
                     false
                 };
                 #[cfg(test)]
-                let finalized = Self::generalize(
-                    &self.batch,
-                    &self.bounds,
-                    &self.live_components,
+                let finalized = Self::finalize_generalization_draft(
                     self.finalization
                         .as_mut()
                         .expect("F4 finalization session remains live before finish"),
-                    member,
-                    &mut self.summary_reads,
+                    plan,
                     inject_finalization_failure,
                 )?;
                 #[cfg(not(test))]
-                let finalized = Self::generalize(
-                    &self.batch,
-                    &self.bounds,
-                    &self.live_components,
+                let finalized = Self::finalize_generalization_draft(
                     self.finalization
                         .as_mut()
                         .expect("F4 finalization session remains live before finish"),
-                    member,
+                    plan,
                 )?;
                 let (draft, checkpoint) = finalized.into_parts();
                 assert_eq!(
@@ -6381,13 +6954,6 @@ impl InferenceSession {
                 .execution_counters
                 .draft_scratch_max_len
                 .max(self.drafts.len());
-            self.execution_counters
-                .scc_execution_drafts_visible_barriers += 1;
-            #[cfg(test)]
-            if let Some(observer) = self.ordering_observer.as_mut() {
-                observer
-                    .record(|| ExecutionEvent::DraftsVisible(component.clone(), self.drafts.len()));
-            }
             for (ordinal, member) in members.iter().enumerate() {
                 self.execution_counters.scc_execution_draft_lookups += 1;
                 self.execution_counters.scc_execution_finalized_members += 1;
@@ -6425,7 +6991,7 @@ impl InferenceSession {
                     if observer.has_capacity() {
                         let use_record = self.batch.definition_use(&id).expect("plan-owned use");
                         let position = use_record.target.ordinal() as usize;
-                        let kind = match Self::f4_scheme_body(
+                        let kind = match Self::decode_closed_scheme(
                             self.finalization
                                 .as_ref()
                                 .expect("F4 finalization session remains live before finish"),
@@ -6433,8 +6999,16 @@ impl InferenceSession {
                                 .as_ref()
                                 .expect("incoming observes finalized component scheme"),
                         ) {
-                            F4SchemeBody::Int => ObservedIncomingKind::Int,
-                            F4SchemeBody::Bottom => ObservedIncomingKind::BottomTrivial,
+                            Ok(GeneralizationDraft {
+                                predicate: F5cPositive::Int,
+                                ..
+                            }) => ObservedIncomingKind::Int,
+                            Ok(GeneralizationDraft {
+                                predicate: F5cPositive::Bottom,
+                                ..
+                            }) => ObservedIncomingKind::BottomTrivial,
+                            Ok(_) => ObservedIncomingKind::Structured,
+                            Err(_) => panic!("session-owned scheme remains decodable"),
                         };
                         observer.record(|| ExecutionEvent::IncomingUse(id.clone(), kind));
                     } else {
@@ -6473,6 +7047,310 @@ impl InferenceSession {
         self.route(id, &use_record, root, value, key, RoutedUseKind::Internal)
     }
 
+    fn decode_positive_scheme(
+        view: yu_types::ClosedValueSchemeView<'_>,
+        id: yu_types::PositiveValueId,
+    ) -> Result<F5cPositive, SolveAvailabilityError> {
+        match view
+            .positive_value(id)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
+        {
+            PositiveValueView::Bottom => Ok(F5cPositive::Bottom),
+            PositiveValueView::Int => Ok(F5cPositive::Int),
+            PositiveValueView::Quantified(q) => Ok(F5cPositive::Quantified(q.ordinal())),
+            PositiveValueView::Recursive(r) => Ok(F5cPositive::Recursive(r.ordinal())),
+            PositiveValueView::Function {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } => Ok(F5cPositive::Function {
+                argument: Box::new(Self::decode_negative_scheme(view, argument)?),
+                argument_effect: match view.negative_effect(argument_effect) {
+                    Ok(yu_types::NegativeEffectView::Empty) => F5cNegativeEffect::Empty,
+                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
+                },
+                result_effect: match view.positive_effect(result_effect) {
+                    Ok(yu_types::PositiveEffectView::Bottom) => F5cPositiveEffect::Bottom,
+                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
+                },
+                result: Box::new(Self::decode_positive_scheme(view, result)?),
+            }),
+            PositiveValueView::Union(values) => values
+                .iter()
+                .map(|value| Self::decode_positive_scheme(view, *value))
+                .collect::<Result<Vec<_>, _>>()
+                .map(F5cPositive::Union),
+        }
+    }
+
+    fn decode_negative_scheme(
+        view: yu_types::ClosedValueSchemeView<'_>,
+        id: yu_types::NegativeValueId,
+    ) -> Result<F5cNegative, SolveAvailabilityError> {
+        match view
+            .negative_value(id)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
+        {
+            NegativeValueView::Top => Ok(F5cNegative::Top),
+            NegativeValueView::Bottom => Ok(F5cNegative::Bottom),
+            NegativeValueView::Int => Ok(F5cNegative::Int),
+            NegativeValueView::Quantified(q) => Ok(F5cNegative::Quantified(q.ordinal())),
+            NegativeValueView::Recursive(r) => Ok(F5cNegative::Recursive(r.ordinal())),
+            NegativeValueView::Function {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } => Ok(F5cNegative::Function {
+                argument: Box::new(Self::decode_positive_scheme(view, argument)?),
+                argument_effect: match view.positive_effect(argument_effect) {
+                    Ok(yu_types::PositiveEffectView::Bottom) => F5cPositiveEffect::Bottom,
+                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
+                },
+                result_effect: match view.negative_effect(result_effect) {
+                    Ok(yu_types::NegativeEffectView::Empty) => F5cNegativeEffect::Empty,
+                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
+                },
+                result: Box::new(Self::decode_negative_scheme(view, result)?),
+            }),
+            NegativeValueView::Intersection(values) => values
+                .iter()
+                .map(|value| Self::decode_negative_scheme(view, *value))
+                .collect::<Result<Vec<_>, _>>()
+                .map(F5cNegative::Intersection),
+        }
+    }
+
+    fn decode_closed_scheme(
+        finalization: &ClosedTypeFinalizationSession,
+        scheme: &ClosedValueScheme,
+    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+        let view = finalization
+            .scheme_view(scheme)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let quantifier_count = view.quantifier_count();
+        let predicate = Self::decode_positive_scheme(view, view.predicate())?;
+        let mut recursive_bounds = Vec::with_capacity(view.recursive_bounds().len());
+        for bound in view.recursive_bounds() {
+            let NeutralValueView::Bounds { lower, upper } = view
+                .neutral_value(bound.bounds())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            recursive_bounds.push(F5cRecursiveBound {
+                ordinal: bound.binder().ordinal(),
+                lower: Self::decode_positive_scheme(view, lower)?,
+                upper: Self::decode_negative_scheme(view, upper)?,
+            });
+        }
+        Ok(GeneralizationDraft {
+            quantifier_count,
+            recursive_bounds,
+            predicate,
+        })
+    }
+
+    fn instantiate_positive(
+        &mut self,
+        value: &F5cPositive,
+        substitution: &HashMap<u32, u32>,
+    ) -> Result<Term, SolveAvailabilityError> {
+        match value {
+            F5cPositive::Bottom => self.positive_bottom_term(),
+            F5cPositive::Int => Ok(self.batch.collected_leaf_term(Leaf::IntPositive)),
+            F5cPositive::Quantified(ordinal) | F5cPositive::Recursive(ordinal) => {
+                let row = substitution
+                    .get(ordinal)
+                    .copied()
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.live_value_term(Polarity::Positive, row)
+            }
+            F5cPositive::Variable(_) => Err(SolveAvailabilityError::IdentityExhausted),
+            F5cPositive::Union(_) => Err(SolveAvailabilityError::IdentityExhausted),
+            F5cPositive::Function {
+                argument, result, ..
+            } => {
+                let argument = self.instantiate_negative(argument, substitution)?;
+                let result = self.instantiate_positive(result, substitution)?;
+                let argument_effect = self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+                let result_effect = self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
+                self.positive_function_term(argument, argument_effect, result_effect, result)
+            }
+        }
+    }
+
+    fn instantiate_positive_parts(
+        &mut self,
+        value: &F5cPositive,
+        substitution: &HashMap<u32, u32>,
+    ) -> Result<Vec<Term>, SolveAvailabilityError> {
+        match value {
+            F5cPositive::Union(values) => {
+                values
+                    .iter()
+                    .try_fold(Vec::with_capacity(values.len()), |mut terms, value| {
+                        terms.extend(self.instantiate_positive_parts(value, substitution)?);
+                        Ok(terms)
+                    })
+            }
+            _ => Ok(vec![self.instantiate_positive(value, substitution)?]),
+        }
+    }
+
+    fn instantiate_negative(
+        &mut self,
+        value: &F5cNegative,
+        substitution: &HashMap<u32, u32>,
+    ) -> Result<Term, SolveAvailabilityError> {
+        match value {
+            F5cNegative::Top => self.negative_top_term(),
+            F5cNegative::Bottom => self.negative_bottom_term(),
+            F5cNegative::Int => Ok(self.batch.collected_leaf_term(Leaf::IntNegative)),
+            F5cNegative::Quantified(ordinal) | F5cNegative::Recursive(ordinal) => {
+                let row = substitution
+                    .get(ordinal)
+                    .copied()
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.live_value_term(Polarity::Negative, row)
+            }
+            F5cNegative::Variable(_) => Err(SolveAvailabilityError::IdentityExhausted),
+            F5cNegative::Intersection(_) => Err(SolveAvailabilityError::IdentityExhausted),
+            F5cNegative::Function {
+                argument, result, ..
+            } => {
+                let argument = self.instantiate_positive(argument, substitution)?;
+                let result = self.instantiate_negative(result, substitution)?;
+                let argument_effect = self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
+                let result_effect = self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+                self.negative_function_term(argument, argument_effect, result_effect, result)
+            }
+        }
+    }
+
+    fn instantiate_negative_parts(
+        &mut self,
+        value: &F5cNegative,
+        substitution: &HashMap<u32, u32>,
+    ) -> Result<Vec<Term>, SolveAvailabilityError> {
+        match value {
+            F5cNegative::Intersection(values) => {
+                values
+                    .iter()
+                    .try_fold(Vec::with_capacity(values.len()), |mut terms, value| {
+                        terms.extend(self.instantiate_negative_parts(value, substitution)?);
+                        Ok(terms)
+                    })
+            }
+            _ => Ok(vec![self.instantiate_negative(value, substitution)?]),
+        }
+    }
+
+    /// A closed positive union has no single live Term representation in the
+    /// F5c arena.  Its lower-bound relation is equivalent to admitting each
+    /// normalized member below the use value, while retaining one route
+    /// provenance record for the source use.
+    fn route_many(
+        &mut self,
+        id: &DefinitionUseId,
+        use_record: &DefinitionUse,
+        lowers: Vec<Term>,
+        upper: Term,
+        kind: RoutedUseKind,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let mut lowers = lowers.into_iter();
+        let first = lowers
+            .next()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let key = CanonicalValuePairKey {
+            lower: self.value_endpoint(first, Polarity::Positive),
+            upper: ValueEndpointKey::ValueRow(
+                self.live_components[use_record.use_value_component].ordinal,
+            ),
+        };
+        // The source use owns one public route/fact. Remaining normalized
+        // members are private decomposition edges under that same cause.
+        let mut transitions = self.route(id, use_record, first, upper, key, kind)?;
+        let occurrence_id = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
+        let cause = CauseId::for_occurrence(occurrence_id.clone());
+        for lower in lowers {
+            let key = CanonicalValuePairKey {
+                lower: self.value_endpoint(lower, Polarity::Positive),
+                upper: ValueEndpointKey::ValueRow(
+                    self.live_components[use_record.use_value_component].ordinal,
+                ),
+            };
+            transitions += self.constrain_live_value(key, &occurrence_id, &cause)?;
+        }
+        Ok(transitions)
+    }
+
+    fn instantiate_and_route(
+        &mut self,
+        id: &DefinitionUseId,
+        use_record: &DefinitionUse,
+        draft: &GeneralizationDraft,
+        value: Term,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let mut substitution = HashMap::new();
+        for ordinal in 0..draft.quantifier_count {
+            let fresh = self.fresh_value_at_level(use_record.use_level)?;
+            substitution.insert(ordinal, fresh);
+        }
+        for bound in &draft.recursive_bounds {
+            if !substitution.contains_key(&bound.ordinal) {
+                let fresh = self.fresh_value_at_level(use_record.use_level)?;
+                substitution.insert(bound.ordinal, fresh);
+            }
+        }
+        let occurrence_id = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
+        let cause = CauseId::for_occurrence(occurrence_id.clone());
+        for bound in &draft.recursive_bounds {
+            let row = substitution
+                .get(&bound.ordinal)
+                .copied()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            for lower in self.instantiate_positive_parts(&bound.lower, &substitution)? {
+                let lower_key = CanonicalValuePairKey {
+                    lower: self.value_endpoint(lower, Polarity::Positive),
+                    upper: ValueEndpointKey::ValueRow(row),
+                };
+                self.constrain_live_value(lower_key, &occurrence_id, &cause)?;
+            }
+            for upper in self.instantiate_negative_parts(&bound.upper, &substitution)? {
+                let upper_key = CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(row),
+                    upper: self.value_endpoint(upper, Polarity::Negative),
+                };
+                self.constrain_live_value(upper_key, &occurrence_id, &cause)?;
+            }
+        }
+        let predicates = self.instantiate_positive_parts(&draft.predicate, &substitution)?;
+        if predicates.len() == 1 {
+            let predicate = predicates.into_iter().next().expect("one predicate");
+            let key = CanonicalValuePairKey {
+                lower: self.value_endpoint(predicate, Polarity::Positive),
+                upper: ValueEndpointKey::ValueRow(
+                    self.live_components[use_record.use_value_component].ordinal,
+                ),
+            };
+            self.route(
+                id,
+                use_record,
+                predicate,
+                value,
+                key,
+                RoutedUseKind::IncomingStructured,
+            )
+        } else {
+            self.route_many(
+                id,
+                use_record,
+                predicates,
+                value,
+                RoutedUseKind::IncomingStructured,
+            )
+        }
+    }
+
     fn route_incoming(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
         let use_record = Self::validated_route_use(&self.batch, id)?.clone();
         let position = use_record.target.ordinal() as usize;
@@ -6481,13 +7359,14 @@ impl InferenceSession {
             .expect("incoming observes finalized component scheme")
             .clone();
         let value = self.batch.component_term_at(use_record.use_value_component);
-        match Self::f4_scheme_body(
+        let draft = Self::decode_closed_scheme(
             self.finalization
                 .as_ref()
                 .expect("finalization remains live"),
             &scheme,
-        ) {
-            F4SchemeBody::Bottom => {
+        )?;
+        match draft.predicate.clone() {
+            F5cPositive::Bottom => {
                 self.execution_counters
                     .scc_execution_bottom_trivial_instantiations += 1;
                 reserve_f5b(
@@ -6511,7 +7390,7 @@ impl InferenceSession {
                 }
                 Ok(0)
             }
-            F4SchemeBody::Int => {
+            F5cPositive::Int => {
                 self.execution_counters
                     .scc_execution_int_instantiation_facts += 1;
                 let lower = self.batch.collected_leaf_term(Leaf::IntPositive);
@@ -6529,6 +7408,13 @@ impl InferenceSession {
                     key,
                     RoutedUseKind::IncomingInt,
                 )
+            }
+            F5cPositive::Function { .. }
+            | F5cPositive::Quantified(_)
+            | F5cPositive::Recursive(_)
+            | F5cPositive::Union(_)
+            | F5cPositive::Variable(_) => {
+                self.instantiate_and_route(id, &use_record, &draft, value)
             }
         }
     }
@@ -6551,7 +7437,7 @@ impl InferenceSession {
         )?;
         reserve_f5b(&mut self.routed_uses, 1, F5bCapacityLane::RoutedUses)?;
         assert!(
-            self.routed_use_positions.insert(id.clone()),
+            !self.routed_use_positions.contains(id),
             "each use routes once"
         );
         let occurrence_id = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
@@ -6571,6 +7457,10 @@ impl InferenceSession {
             .record_provenance(receipt)
             .map_err(SolveAvailabilityError::from)?;
         let transitions = self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
+        assert!(
+            self.routed_use_positions.insert(id.clone()),
+            "each use routes once"
+        );
         let old_capacity = self.routed_uses.capacity();
         self.routed_uses.push(RoutedUseProvenance {
             use_id: id.clone(),
@@ -6596,6 +7486,136 @@ impl InferenceSession {
             .ok_or(SolveAvailabilityError::CauseMismatch)
     }
 
+    fn generalization_draft(
+        &self,
+        definition: &DefinitionOrderId,
+    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+        let verified = Self::verified_scheme_definition(&self.batch, definition);
+        let component = self
+            .batch
+            .root_component_positions
+            .get(&verified.record.root)
+            .expect("definition root retains its immutable component recipe")
+            .component;
+        let row = self.live_components[component].ordinal as usize;
+        F5cGeneralizer::new(self).build(row as u32)
+    }
+
+    fn finalize_generalization_draft(
+        finalization: &mut ClosedTypeFinalizationSession,
+        draft: &GeneralizationDraft,
+        #[cfg(test)] inject_finalization_failure: bool,
+    ) -> Result<ClosedSchemeFinalization, SolveAvailabilityError> {
+        fn positive<'tx>(
+            finalizer: &mut ClosedTypeFinalizer<'tx>,
+            value: &F5cPositive,
+            quantifiers: &[yu_types::DraftQuantifierId<'tx>],
+            recursive_binders: &[yu_types::DraftRecursiveBinderId<'tx>],
+        ) -> Result<DraftPositiveValueId<'tx>, ClosedTypeFinalizeError> {
+            match value {
+                F5cPositive::Bottom => finalizer.positive_bottom(),
+                F5cPositive::Int => finalizer.positive_int(),
+                F5cPositive::Variable(_) => Err(ClosedTypeFinalizeError::InvalidDraft),
+                F5cPositive::Quantified(ordinal) => {
+                    finalizer.positive_quantified(quantifiers[*ordinal as usize])
+                }
+                F5cPositive::Recursive(ordinal) => {
+                    let index = (*ordinal - quantifiers.len() as u32) as usize;
+                    finalizer.positive_recursive(recursive_binders[index])
+                }
+                F5cPositive::Union(values) => {
+                    let values = values
+                        .iter()
+                        .map(|value| positive(finalizer, value, quantifiers, recursive_binders))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    finalizer.positive_union(&values)
+                }
+                F5cPositive::Function {
+                    argument, result, ..
+                } => {
+                    let argument = negative(finalizer, argument, quantifiers, recursive_binders)?;
+                    let argument_effect = finalizer.negative_effect_empty()?;
+                    let result_effect = finalizer.positive_effect_bottom()?;
+                    let result = positive(finalizer, result, quantifiers, recursive_binders)?;
+                    finalizer.positive_function(argument, argument_effect, result_effect, result)
+                }
+            }
+        }
+        fn negative<'tx>(
+            finalizer: &mut ClosedTypeFinalizer<'tx>,
+            value: &F5cNegative,
+            quantifiers: &[yu_types::DraftQuantifierId<'tx>],
+            recursive_binders: &[yu_types::DraftRecursiveBinderId<'tx>],
+        ) -> Result<DraftNegativeValueId<'tx>, ClosedTypeFinalizeError> {
+            match value {
+                F5cNegative::Top => finalizer.negative_top(),
+                F5cNegative::Bottom => finalizer.negative_bottom(),
+                F5cNegative::Int => finalizer.negative_int(),
+                F5cNegative::Variable(_) => Err(ClosedTypeFinalizeError::InvalidDraft),
+                F5cNegative::Quantified(ordinal) => {
+                    finalizer.negative_quantified(quantifiers[*ordinal as usize])
+                }
+                F5cNegative::Recursive(ordinal) => {
+                    let index = (*ordinal - quantifiers.len() as u32) as usize;
+                    finalizer.negative_recursive(recursive_binders[index])
+                }
+                F5cNegative::Intersection(values) => {
+                    let values = values
+                        .iter()
+                        .map(|value| negative(finalizer, value, quantifiers, recursive_binders))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    finalizer.negative_intersection(&values)
+                }
+                F5cNegative::Function {
+                    argument, result, ..
+                } => {
+                    let argument = positive(finalizer, argument, quantifiers, recursive_binders)?;
+                    let argument_effect = finalizer.positive_effect_bottom()?;
+                    let result_effect = finalizer.negative_effect_empty()?;
+                    let result = negative(finalizer, result, quantifiers, recursive_binders)?;
+                    finalizer.negative_function(argument, argument_effect, result_effect, result)
+                }
+            }
+        }
+
+        finalization
+            .finalize_scheme(|finalizer| {
+                #[cfg(test)]
+                if inject_finalization_failure {
+                    return Err(ClosedTypeFinalizeError::IdentityExhausted);
+                }
+                // The finalizer validates dense Q ordinals and disjoint R
+                // ordinals.  R occupies the numeric range immediately after Q.
+                let quantifiers = (0..draft.quantifier_count)
+                    .map(|ordinal| finalizer.quantifier(ordinal))
+                    .collect::<Vec<_>>();
+                let recursive_binders = draft
+                    .recursive_bounds
+                    .iter()
+                    .map(|bound| finalizer.recursive_binder(bound.ordinal))
+                    .collect::<Vec<_>>();
+                let mut recursive_bounds = Vec::with_capacity(draft.recursive_bounds.len());
+                for bound in &draft.recursive_bounds {
+                    let binder = recursive_binders[recursive_bounds.len()];
+                    let lower =
+                        positive(finalizer, &bound.lower, &quantifiers, &recursive_binders)?;
+                    let upper =
+                        negative(finalizer, &bound.upper, &quantifiers, &recursive_binders)?;
+                    let neutral = finalizer.neutral_bounds(lower, upper)?;
+                    recursive_bounds.push(finalizer.recursive_bound(binder, neutral)?);
+                }
+                let predicate = positive(
+                    finalizer,
+                    &draft.predicate,
+                    &quantifiers,
+                    &recursive_binders,
+                )?;
+                finalizer.set_scheme(draft.quantifier_count, &recursive_bounds, predicate)
+            })
+            .map_err(Self::map_finalization_error)
+    }
+
+    #[cfg(test)]
     fn generalize(
         batch: &ConstraintBatch,
         bounds: &[VariableBounds],
@@ -6630,26 +7650,6 @@ impl InferenceSession {
                 finalizer.set_scheme(0, &[], predicate)
             })
             .map_err(Self::map_finalization_error)
-    }
-
-    fn f4_scheme_body(
-        finalization: &ClosedTypeFinalizationSession,
-        scheme: &ClosedValueScheme,
-    ) -> F4SchemeBody {
-        let view = finalization
-            .scheme_view(scheme)
-            .expect("session-owned F4 scheme has a valid arena handle");
-        match view.positive_value(view.predicate()) {
-            Ok(PositiveValueView::Bottom) => F4SchemeBody::Bottom,
-            Ok(PositiveValueView::Int) => F4SchemeBody::Int,
-            Ok(PositiveValueView::Quantified(_))
-            | Ok(PositiveValueView::Recursive(_))
-            | Ok(PositiveValueView::Function { .. })
-            | Ok(PositiveValueView::Union(_)) => {
-                panic!("F4 routes only its closed Bottom/Int schemes")
-            }
-            Err(_) => panic!("session-owned F4 scheme predicate remains valid"),
-        }
     }
 
     /// F2 member ordinals select dense storage, but they never become a
@@ -12846,5 +13846,277 @@ mod tests {
             errors_after_derived,
             "same derived source deduplicates"
         );
+    }
+
+    #[test]
+    fn f5c_generalization_census_assigns_one_quantifier_to_a_bipolar_function_variable() {
+        let batch = collect(module("my f = 1", "f5c-identity"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let variable = session.fresh_value_at_level(1).unwrap();
+        let argument = session
+            .live_value_term(Polarity::Negative, variable)
+            .unwrap();
+        let result = session
+            .live_value_term(Polarity::Positive, variable)
+            .unwrap();
+        let argument_effect = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+        let result_effect = session
+            .batch
+            .collected_leaf_term(Leaf::EffectBottomPositive);
+        let function = session
+            .positive_function_term(argument, argument_effect, result_effect, result)
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 200);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.quantifier_count, 1);
+        assert!(draft.recursive_bounds.is_empty());
+        let F5cPositive::Function {
+            argument, result, ..
+        } = &draft.predicate
+        else {
+            panic!("identity predicate remains a Function");
+        };
+        assert_eq!(**argument, F5cNegative::Quantified(0));
+        assert_eq!(**result, F5cPositive::Quantified(0));
+
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let (scheme, _) = finalized.into_parts();
+        let decoded =
+            InferenceSession::decode_closed_scheme(session.finalization.as_ref().unwrap(), &scheme)
+                .unwrap();
+        assert_eq!(decoded, draft);
+    }
+
+    #[test]
+    fn f5c_generalization_expands_direct_rows_and_multiple_exact_lowers() {
+        let batch = collect(module("my f = 1", "f5c-bounds"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let lower_row = session.fresh_value_at_level(1).unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 201);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(lower_row),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::ValueRow(lower_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.predicate, F5cPositive::Int);
+
+        let function_argument = session.negative_top_term().unwrap();
+        let function_result = session
+            .live_value_term(Polarity::Positive, lower_row)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                function_argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                function_result,
+            )
+            .unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        let draft = session.generalization_draft(&definition).unwrap();
+        let F5cPositive::Union(values) = draft.predicate else {
+            panic!("direct row and Function lower are normalized together");
+        };
+        assert_eq!(values.len(), 2);
+    }
+
+    #[test]
+    fn f5c_generalization_retains_guarded_self_as_one_recursive_bound() {
+        let batch = collect(module("my f = 1", "f5c-self"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let function_argument = session.negative_top_term().unwrap();
+        let argument_effect = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+        let result_effect = session
+            .batch
+            .collected_leaf_term(Leaf::EffectBottomPositive);
+        let function_result = session
+            .live_value_term(Polarity::Positive, root_row)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                function_argument,
+                argument_effect,
+                result_effect,
+                function_result,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 202);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.quantifier_count, 0);
+        assert_eq!(draft.recursive_bounds.len(), 1);
+        let F5cPositive::Function {
+            argument, result, ..
+        } = &draft.predicate
+        else {
+            panic!("guarded self predicate remains a Function");
+        };
+        assert_eq!(**argument, F5cNegative::Top);
+        assert_eq!(**result, F5cPositive::Recursive(0));
+        let bound = &draft.recursive_bounds[0];
+        assert_eq!(bound.ordinal, 0);
+        assert!(matches!(bound.upper, F5cNegative::Top));
+        let F5cPositive::Function { result, .. } = &bound.lower else {
+            panic!("recursive lower side keeps the guarded Function");
+        };
+        assert_eq!(**result, F5cPositive::Recursive(0));
+    }
+
+    #[test]
+    fn f5c_guarded_opposite_polarity_reentry_owns_one_recursive_binder() {
+        let batch = collect(module("my f = 1", "f5c-opposite-polarity"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let argument = session
+            .live_value_term(Polarity::Negative, root_row)
+            .unwrap();
+        let result = session.batch.collected_leaf_term(Leaf::IntPositive);
+        let function = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 203);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.quantifier_count, 0);
+        assert_eq!(draft.recursive_bounds.len(), 1);
+        let F5cPositive::Function {
+            argument, result, ..
+        } = &draft.predicate
+        else {
+            panic!("opposite-polarity guarded predicate remains a Function");
+        };
+        assert_eq!(**argument, F5cNegative::Recursive(0));
+        assert_eq!(**result, F5cPositive::Int);
+    }
+
+    #[test]
+    fn f5c_incoming_union_routes_each_normalized_member() {
+        let batch = collect(module("my source = 1; my sink = source", "f5c-union-route"));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Int),
+                },
+            ]),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+
+        session.route_incoming(&route_id).unwrap();
+        assert_eq!(session.routed_uses.len(), 1);
+        assert_eq!(session.store.facts().len(), 1);
+        assert_eq!(session.routed_use_positions.len(), 1);
     }
 }

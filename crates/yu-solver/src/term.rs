@@ -150,6 +150,7 @@ pub enum Polarity {
 /// fn observe(view: TermView<'_>) {
 ///     match view {
 ///         TermView::Leaf(_) | TermView::Component(_) | TermView::LiveVariable(_) => {}
+///         TermView::PositiveBottom | TermView::NegativeTop | TermView::NegativeBottom => {}
 ///         TermView::PositiveFunction { .. } | TermView::NegativeFunction { .. } => {}
 ///     }
 /// }
@@ -159,6 +160,9 @@ pub enum TermView<'a> {
     Leaf(Leaf),
     Component(&'a ComponentId),
     LiveVariable(LiveVariableView),
+    PositiveBottom,
+    NegativeTop,
+    NegativeBottom,
     PositiveFunction {
         argument: Term,
         argument_effect: Term,
@@ -182,6 +186,9 @@ pub(crate) enum TermNode {
     Leaf(Leaf),
     Component(ComponentId),
     LiveVariable(LiveVariableView),
+    PositiveBottom,
+    NegativeTop,
+    NegativeBottom,
     PositiveFunction {
         argument: Term,
         argument_effect: Term,
@@ -201,6 +208,7 @@ impl TermNode {
             Self::Leaf(leaf) => leaf.component_kind(),
             Self::Component(component) => component.kind(),
             Self::LiveVariable(view) => view.kind,
+            Self::PositiveBottom | Self::NegativeTop | Self::NegativeBottom => ComponentKind::Value,
             // Function collection is a later F5 gate.  These variants exist
             // solely because the approved observation algebra already names
             // them; no F5b path constructs one.
@@ -212,6 +220,9 @@ impl TermNode {
             Self::Leaf(leaf) => TermView::Leaf(*leaf),
             Self::Component(component) => TermView::Component(component),
             Self::LiveVariable(view) => TermView::LiveVariable(*view),
+            Self::PositiveBottom => TermView::PositiveBottom,
+            Self::NegativeTop => TermView::NegativeTop,
+            Self::NegativeBottom => TermView::NegativeBottom,
             Self::PositiveFunction {
                 argument,
                 argument_effect,
@@ -568,6 +579,18 @@ impl BranchTermArena {
         }))
     }
 
+    pub(crate) fn positive_bottom(&mut self) -> Result<Term, crate::ConstraintError> {
+        self.intern(TermNode::PositiveBottom)
+    }
+
+    pub(crate) fn negative_top(&mut self) -> Result<Term, crate::ConstraintError> {
+        self.intern(TermNode::NegativeTop)
+    }
+
+    pub(crate) fn negative_bottom(&mut self) -> Result<Term, crate::ConstraintError> {
+        self.intern(TermNode::NegativeBottom)
+    }
+
     pub(crate) fn positive_function(
         &mut self,
         argument: Term,
@@ -678,7 +701,10 @@ impl BranchTermArena {
 fn matches_endpoint(node: &TermNode, kind: ComponentKind, polarity: Polarity) -> bool {
     match (kind, polarity, node) {
         (ComponentKind::Value, Polarity::Positive, TermNode::Leaf(Leaf::IntPositive))
+        | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveBottom)
         | (ComponentKind::Value, Polarity::Negative, TermNode::Leaf(Leaf::IntNegative))
+        | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeTop)
+        | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeBottom)
         | (ComponentKind::Effect, Polarity::Positive, TermNode::Leaf(Leaf::EffectBottomPositive))
         | (ComponentKind::Effect, Polarity::Negative, TermNode::Leaf(Leaf::EmptyEffectNegative)) => {
             true

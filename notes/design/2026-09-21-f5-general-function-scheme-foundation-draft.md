@@ -1481,3 +1481,18 @@ variables, or scheme behavior; those remain F5b–F5d work. Focused syntax, HIR,
 solver, doctest, workspace-check, formatting, and whitespace verification are
 recorded in `tasks/current.md`; semantic, specification, and regression review
 are clean.
+
+## 43. F5c closed-extreme Term amendment
+
+The user approved this F5c amendment on 2026-09-22. Closed `Top` and `Bottom`
+may occur as Function children during incoming scheme instantiation, while
+the live `Term` grammar has no ordinary variable-free value nodes for those
+extremes. The private inference-term arena therefore adds closed-extreme
+nodes and extends the exact `TermView` surface with `PositiveBottom`,
+`NegativeTop`, and `NegativeBottom`.
+
+These nodes are structural values, not fresh live variables. Instantiation
+must preserve them directly, so a closed extreme allocates zero fresh Q/R
+rows and remains compatible with the constant-scheme allocation contract.
+The amendment is private to F5c closure; public structured observation,
+resource-family exposure, and scale certification remain deferred to F5e.

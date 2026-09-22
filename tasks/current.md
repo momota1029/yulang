@@ -52,11 +52,25 @@ and fallible workspace growth. `ConstraintBatch` retains immutable recipes
 only, while final projections derive from live rows. The M3 semantic,
 specification, and performance delta reviews are clean; retained F4 facts,
 ordering, no-mutation, counter, and production-frontier contracts remain
-covered. Next action: start the already-approved F5c general-scheme closure
+covered. Next action: continue the already-approved F5c general-scheme closure
 (polarity census, eligibility, Q/R closure, transactional component
-publication, and fresh incoming instantiation). F5a continues to emit no
-source Function facts until F5d. F5e's detailed public resource families and
-1k/2k/4k certification remain deferred.
+publication, and fresh incoming instantiation). The F5c blocker around closed
+`Top`/`Bottom` children is resolved by the user's choice on 2026-09-22:
+introduce private closed-extreme Term nodes and extend the exact §32 TermView
+surface as needed, preserving zero fresh Q/R allocation for structural
+extremes. F5a continues to emit no source Function facts until F5d. F5e's
+detailed public resource families and 1k/2k/4k certification remain deferred.
+
+The current F5c implementation slice now has private closed-extreme Terms,
+whole exact-bound Union/Intersection drafts, guarded self/opposite-polarity R
+coverage, transactional all-member draft visibility, fresh R lower/upper
+restoration, structured incoming routing with one public source route for a
+normalized union, and focused closure/round-trip tests.
+The gate remains open: component-scoped iterative summary sharing, complete
+ineligible-variable rejection, non-pure effect closure, full closed-DAG
+instantiation memoization, and end-to-end per-use failure rollback still need
+implementation before F5c can be marked complete. F5e public observation and
+scale/resource certification stay deferred.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.
