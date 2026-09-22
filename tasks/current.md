@@ -65,7 +65,10 @@ The current F5c implementation slice now has private closed-extreme Terms,
 whole exact-bound Union/Intersection drafts, guarded self/opposite-polarity R
 coverage, transactional all-member draft visibility, fresh R lower/upper
 restoration, structured incoming routing with one public source route for a
-normalized union, and focused closure/round-trip tests.
+normalized union whose public fact uses the canonical first-member
+representative, and focused closure/round-trip tests. The user approved this
+representative-fact policy on 2026-09-22; route publication still needs the
+transactional rollback closure required by the amended design.
 The gate remains open: component-scoped iterative summary sharing, complete
 ineligible-variable rejection, non-pure effect closure, full closed-DAG
 instantiation memoization, and end-to-end per-use failure rollback still need

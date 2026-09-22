@@ -1496,3 +1496,23 @@ must preserve them directly, so a closed extreme allocates zero fresh Q/R
 rows and remains compatible with the constant-scheme allocation contract.
 The amendment is private to F5c closure; public structured observation,
 resource-family exposure, and scale certification remain deferred to F5e.
+
+## 44. F5c normalized-union representative source fact
+
+The user approved this F5c amendment on 2026-09-22. A positive incoming
+predicate may be a closed normalized Union, while the live `Term` surface has
+no Union endpoint and §22 continues to forbid Union as a live input term. For
+this F5c slice, the source use therefore retains exactly one public route,
+receipt, provenance record, and `SemanticFact`: its lower endpoint is the
+first member of the canonical normalized Union order from §25. The remaining
+members are admitted as private live decomposition constraints under the same
+source occurrence and cause; they create no additional public facts or
+explanation nodes.
+
+The representative is an intentional public projection of the source route,
+not a claim that the Union has been reduced to that member. Canonical
+normalization makes the projection independent of source/admission order, and
+the private members preserve the full relation. Representative-fact
+publication and all private member constraints remain one transactional route
+operation; a later member failure must not leave the representative fact,
+receipt, provenance, or route marker installed.

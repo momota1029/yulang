@@ -7245,9 +7245,9 @@ impl InferenceSession {
     }
 
     /// A closed positive union has no single live Term representation in the
-    /// F5c arena.  Its lower-bound relation is equivalent to admitting each
-    /// normalized member below the use value, while retaining one route
-    /// provenance record for the source use.
+    /// F5c arena. Its canonical first member is therefore the intentional
+    /// public representative fact; every remaining normalized member is a
+    /// private lower-bound edge under the same source route and provenance.
     fn route_many(
         &mut self,
         id: &DefinitionUseId,
