@@ -2604,6 +2604,58 @@ impl ConstraintStore {
         );
         Ok(())
     }
+
+    /// Admit and consume one source receipt as a single public-store
+    /// transaction. Admission can append the fact before provenance
+    /// injection reports an availability failure, so the accepted fact and
+    /// its canonical key are removed again on that error path.
+    fn admit_and_record_provenance(
+        &mut self,
+        occurrence: &ConstraintOccurrence,
+    ) -> Result<FactId, ConstraintError> {
+        let facts_len = self.facts.len();
+        let provenance_len = self.provenance.len();
+        let consumed_len = self.consumed_receipts.len();
+        let next_receipt = self.next_receipt;
+        let admission = {
+            let mut transaction = self.transaction();
+            transaction.admit(occurrence)
+        };
+        let receipt = match admission {
+            Ok(receipt) => receipt,
+            Err(error) => {
+                if self.facts.len() > facts_len {
+                    let fact = self.facts.last().expect("admitted fact remains present").id;
+                    let key =
+                        FactKey::new(occurrence.lower, occurrence.upper, self.comparisons.clone());
+                    assert_eq!(self.canonical.remove(&key), Some(fact));
+                }
+                self.facts.truncate(facts_len);
+                self.provenance.truncate(provenance_len);
+                self.next_receipt = next_receipt;
+                return Err(error);
+            }
+        };
+        let fact = receipt.fact();
+        let delta = receipt.delta();
+        let serial = receipt.serial;
+        if let Err(error) = self.record_provenance(receipt) {
+            if delta == AdmissionDelta::Accepted {
+                let key =
+                    FactKey::new(occurrence.lower, occurrence.upper, self.comparisons.clone());
+                assert_eq!(self.canonical.remove(&key), Some(fact));
+                assert_eq!(self.facts.len(), facts_len + 1);
+            }
+            self.facts.truncate(facts_len);
+            self.provenance.truncate(provenance_len);
+            if self.consumed_receipts.len() != consumed_len {
+                assert!(self.consumed_receipts.remove(&serial));
+            }
+            self.next_receipt = next_receipt;
+            return Err(error);
+        }
+        Ok(fact)
+    }
     pub fn facts(&self) -> &[SemanticFact] {
         &self.facts
     }
@@ -7260,26 +7312,37 @@ impl InferenceSession {
         let first = lowers
             .next()
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let key = CanonicalValuePairKey {
-            lower: self.value_endpoint(first, Polarity::Positive),
-            upper: ValueEndpointKey::ValueRow(
-                self.live_components[use_record.use_value_component].ordinal,
-            ),
-        };
-        // The source use owns one public route/fact. Remaining normalized
-        // members are private decomposition edges under that same cause.
-        let mut transitions = self.route(id, use_record, first, upper, key, kind)?;
         let occurrence_id = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
         let cause = CauseId::for_occurrence(occurrence_id.clone());
+        let upper_row = ValueEndpointKey::ValueRow(
+            self.live_components[use_record.use_value_component].ordinal,
+        );
+        // Admit all decomposition edges before the representative public
+        // route. A later private-member failure therefore cannot leave the
+        // representative fact, receipt, or route marker visible.
+        let mut transitions = self.constrain_live_value(
+            CanonicalValuePairKey {
+                lower: self.value_endpoint(first, Polarity::Positive),
+                upper: upper_row,
+            },
+            &occurrence_id,
+            &cause,
+        )?;
         for lower in lowers {
             let key = CanonicalValuePairKey {
                 lower: self.value_endpoint(lower, Polarity::Positive),
-                upper: ValueEndpointKey::ValueRow(
-                    self.live_components[use_record.use_value_component].ordinal,
-                ),
+                upper: upper_row,
             };
             transitions += self.constrain_live_value(key, &occurrence_id, &cause)?;
         }
+        let key = CanonicalValuePairKey {
+            lower: self.value_endpoint(first, Polarity::Positive),
+            upper: upper_row,
+        };
+        // The source use owns one public route/fact. The representative's
+        // live edge is already admitted above, so route() replays it as a
+        // duplicate and only publishes the public source projection.
+        let _ = self.route(id, use_record, first, upper, key, kind)?;
         Ok(transitions)
     }
 
@@ -7447,14 +7510,9 @@ impl InferenceSession {
             lower: lower.clone(),
             upper: upper.clone(),
         };
-        let receipt = {
-            let mut transaction = self.store.transaction();
-            transaction.admit(&occurrence)
-        }
-        .map_err(SolveAvailabilityError::from)?;
-        let fact = receipt.fact();
-        self.store
-            .record_provenance(receipt)
+        let fact = self
+            .store
+            .admit_and_record_provenance(&occurrence)
             .map_err(SolveAvailabilityError::from)?;
         let transitions = self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
         assert!(
@@ -14118,5 +14176,46 @@ mod tests {
         assert_eq!(session.routed_uses.len(), 1);
         assert_eq!(session.store.facts().len(), 1);
         assert_eq!(session.routed_use_positions.len(), 1);
+    }
+
+    #[test]
+    fn f5c_incoming_union_representative_failure_has_no_public_route() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-union-route-failure",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Int),
+                },
+            ]),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+        session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
+
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::ReceiptMismatch)
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.routed_uses.is_empty());
+        assert!(session.routed_use_positions.is_empty());
     }
 }

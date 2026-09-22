@@ -67,8 +67,10 @@ coverage, transactional all-member draft visibility, fresh R lower/upper
 restoration, structured incoming routing with one public source route for a
 normalized union whose public fact uses the canonical first-member
 representative, and focused closure/round-trip tests. The user approved this
-representative-fact policy on 2026-09-22; route publication still needs the
-transactional rollback closure required by the amended design.
+representative-fact policy on 2026-09-22. The first rollback repair now admits
+all private union members before public publication and removes an accepted
+representative fact if provenance fails; full per-use rollback of private live
+state and every availability lane remains open.
 The gate remains open: component-scoped iterative summary sharing, complete
 ineligible-variable rejection, non-pure effect closure, full closed-DAG
 instantiation memoization, and end-to-end per-use failure rollback still need
