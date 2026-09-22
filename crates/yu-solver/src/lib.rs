@@ -7244,6 +7244,32 @@ impl InferenceSession {
                         Ok(terms)
                     })
             }
+            F5cPositive::Function {
+                argument, result, ..
+            } => {
+                let arguments = self.instantiate_negative_parts(argument, substitution)?;
+                let results = self.instantiate_positive_parts(result, substitution)?;
+                let capacity = arguments
+                    .len()
+                    .checked_mul(results.len())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let mut terms = Vec::with_capacity(capacity);
+                for argument in arguments {
+                    for result in &results {
+                        let argument_effect =
+                            self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+                        let result_effect =
+                            self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
+                        terms.push(self.positive_function_term(
+                            argument,
+                            argument_effect,
+                            result_effect,
+                            *result,
+                        )?);
+                    }
+                }
+                Ok(terms)
+            }
             _ => Ok(vec![self.instantiate_positive(value, substitution)?]),
         }
     }
@@ -7291,6 +7317,32 @@ impl InferenceSession {
                         terms.extend(self.instantiate_negative_parts(value, substitution)?);
                         Ok(terms)
                     })
+            }
+            F5cNegative::Function {
+                argument, result, ..
+            } => {
+                let arguments = self.instantiate_positive_parts(argument, substitution)?;
+                let results = self.instantiate_negative_parts(result, substitution)?;
+                let capacity = arguments
+                    .len()
+                    .checked_mul(results.len())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let mut terms = Vec::with_capacity(capacity);
+                for argument in arguments {
+                    for result in &results {
+                        let argument_effect =
+                            self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
+                        let result_effect =
+                            self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+                        terms.push(self.negative_function_term(
+                            argument,
+                            argument_effect,
+                            result_effect,
+                            *result,
+                        )?);
+                    }
+                }
+                Ok(terms)
             }
             _ => Ok(vec![self.instantiate_negative(value, substitution)?]),
         }
@@ -14162,6 +14214,45 @@ mod tests {
                     result: Box::new(F5cPositive::Int),
                 },
             ]),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+
+        session.route_incoming(&route_id).unwrap();
+        assert_eq!(session.routed_uses.len(), 1);
+        assert_eq!(session.store.facts().len(), 1);
+        assert_eq!(session.routed_use_positions.len(), 1);
+    }
+
+    #[test]
+    fn f5c_incoming_nested_products_expand_to_closed_function_terms() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-nested-route",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Function {
+                argument: Box::new(F5cNegative::Intersection(vec![
+                    F5cNegative::Top,
+                    F5cNegative::Bottom,
+                ])),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Union(vec![
+                    F5cPositive::Int,
+                    F5cPositive::Bottom,
+                ])),
+            },
         };
         let finalized = InferenceSession::finalize_generalization_draft(
             session.finalization.as_mut().unwrap(),

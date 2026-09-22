@@ -70,7 +70,9 @@ representative, and focused closure/round-trip tests. The user approved this
 representative-fact policy on 2026-09-22. The first rollback repair now admits
 all private union members before public publication and removes an accepted
 representative fact if provenance fails; full per-use rollback of private live
-state and every availability lane remains open.
+state and every availability lane remains open. Nested Union/Intersection
+products now expand through closed Function children; closed-DAG memoization
+and resource certification remain open.
 The gate remains open: component-scoped iterative summary sharing, complete
 ineligible-variable rejection, non-pure effect closure, full closed-DAG
 instantiation memoization, and end-to-end per-use failure rollback still need
