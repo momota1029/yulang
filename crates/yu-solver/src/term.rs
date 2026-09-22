@@ -19,7 +19,7 @@ use std::{cell::Cell, sync::atomic::AtomicUsize};
 
 use yu_types::{ComponentKind, Leaf};
 
-use crate::ComponentId;
+use crate::{ComponentId, F5bCapacityLane, reserve_f5b};
 
 pub(crate) const TERM_PAGE_SLOTS: u32 = 256;
 const TERM_PAGE_MASK: u32 = TERM_PAGE_SLOTS - 1;
@@ -303,11 +303,6 @@ impl TermBuilder {
         Ok(term)
     }
 
-    pub(crate) fn node(&self, term: Term) -> &TermNode {
-        debug_assert_eq!(term.brand, self.brand);
-        &self.nodes[term.index as usize]
-    }
-
     pub(crate) fn seal(self) -> Result<Arc<TermLineage>, crate::CollectionAvailabilityError> {
         let collected_len = u32::try_from(self.nodes.len())
             .map_err(|_| crate::CollectionAvailabilityError::ComponentIdentityExhausted)?;
@@ -399,6 +394,10 @@ pub(crate) struct BranchTermArena {
     lineage: Arc<TermLineage>,
     pages: Vec<TermPage>,
     page_positions: HashMap<u32, usize>,
+    /// Solve-time terms are a branch-local, source-free extension of the
+    /// immutable collected prefix.  Reusing an equal node is required for the
+    /// typed pair memo to have one stable structural handle per branch.
+    positions: HashMap<TermNode, Term>,
     #[cfg(test)]
     directory_probes: AtomicUsize,
 }
@@ -412,6 +411,7 @@ impl BranchTermArena {
             lineage,
             pages: Vec::new(),
             page_positions: HashMap::new(),
+            positions: HashMap::new(),
             #[cfg(test)]
             directory_probes: AtomicUsize::new(0),
         }
@@ -450,6 +450,66 @@ impl BranchTermArena {
         self.lookup(term).map(TermNode::kind)
     }
 
+    /// O(1) logical retained-byte observation for the branch-owned inference
+    /// Term arena.  The fixed pages are counted by page descriptors, not by a
+    /// traversal of initialized nodes.
+    pub(crate) fn retained_bytes(&self) -> usize {
+        let page_slots = self
+            .pages
+            .len()
+            .checked_mul(std::mem::size_of::<
+                [MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize],
+            >())
+            .expect("F5b Term page storage fits usize");
+        [
+            page_slots,
+            self.pages
+                .capacity()
+                .checked_mul(std::mem::size_of::<TermPage>())
+                .expect("F5b Term page descriptors fit usize"),
+            self.page_positions
+                .capacity()
+                .checked_mul(std::mem::size_of::<(u32, usize)>())
+                .expect("F5b Term page index fits usize"),
+            self.positions
+                .capacity()
+                .checked_mul(std::mem::size_of::<(TermNode, Term)>())
+                .expect("F5b Term interner fits usize"),
+        ]
+        .into_iter()
+        .try_fold(0usize, |total, lane| total.checked_add(lane))
+        .expect("F5b Term arena aggregate fits usize")
+    }
+
+    #[cfg(test)]
+    pub(crate) fn independent_retained_bytes(&self) -> usize {
+        let fixed_page_bytes = self
+            .pages
+            .len()
+            .checked_mul(std::mem::size_of::<
+                [MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize],
+            >())
+            .expect("independent Term fixed pages fit usize");
+        [
+            fixed_page_bytes,
+            self.pages
+                .capacity()
+                .checked_mul(std::mem::size_of::<TermPage>())
+                .expect("independent Term descriptors fit usize"),
+            self.page_positions
+                .capacity()
+                .checked_mul(std::mem::size_of::<(u32, usize)>())
+                .expect("independent Term directory fits usize"),
+            self.positions
+                .capacity()
+                .checked_mul(std::mem::size_of::<(TermNode, Term)>())
+                .expect("independent Term memo fits usize"),
+        ]
+        .into_iter()
+        .try_fold(0usize, usize::checked_add)
+        .expect("independent Term storage fits usize")
+    }
+
     /// Allocate only a page needed by this branch.  Descriptor and directory
     /// reservations precede the checked page claim, so ordinary allocation
     /// failure cannot consume a lineage index.
@@ -459,12 +519,12 @@ impl BranchTermArena {
             .last()
             .is_none_or(|page| page.initialized == TERM_PAGE_SLOTS as u16);
         if needs_page {
-            self.pages
-                .try_reserve(1)
-                .map_err(|_| crate::ConstraintError::IdentityExhausted)?;
-            self.page_positions
-                .try_reserve(1)
-                .map_err(|_| crate::ConstraintError::IdentityExhausted)?;
+            reserve_f5b(&mut self.pages, 1, F5bCapacityLane::TermPages)?;
+            reserve_f5b(
+                &mut self.page_positions,
+                1,
+                F5bCapacityLane::TermPagePositions,
+            )?;
             let mut page =
                 TermPage::try_new().map_err(|_| crate::ConstraintError::IdentityExhausted)?;
             let base = self.claim_page()?;
@@ -480,6 +540,93 @@ impl BranchTermArena {
             brand: self.lineage.brand,
             index,
         })
+    }
+
+    pub(crate) fn intern(&mut self, node: TermNode) -> Result<Term, crate::ConstraintError> {
+        if let Some(term) = self.positions.get(&node).copied() {
+            return Ok(term);
+        }
+        // The dedup directory is part of publication.  Reserve it before a
+        // page can be claimed so a failed map growth cannot leave a committed
+        // node which a later equal request fails to observe.
+        reserve_f5b(&mut self.positions, 1, F5bCapacityLane::TermInterner)?;
+        let term = self.push(node.clone())?;
+        self.positions.insert(node, term);
+        Ok(term)
+    }
+
+    pub(crate) fn live_variable(
+        &mut self,
+        kind: ComponentKind,
+        polarity: Polarity,
+        ordinal: u32,
+    ) -> Result<Term, crate::ConstraintError> {
+        self.intern(TermNode::LiveVariable(LiveVariableView {
+            kind,
+            polarity,
+            ordinal,
+        }))
+    }
+
+    pub(crate) fn positive_function(
+        &mut self,
+        argument: Term,
+        argument_effect: Term,
+        result_effect: Term,
+        result: Term,
+    ) -> Result<Term, crate::ConstraintError> {
+        self.require_function_children([
+            (argument, ComponentKind::Value, Polarity::Negative),
+            (argument_effect, ComponentKind::Effect, Polarity::Negative),
+            (result_effect, ComponentKind::Effect, Polarity::Positive),
+            (result, ComponentKind::Value, Polarity::Positive),
+        ])?;
+        self.intern(TermNode::PositiveFunction {
+            argument,
+            argument_effect,
+            result_effect,
+            result,
+        })
+    }
+
+    pub(crate) fn negative_function(
+        &mut self,
+        argument: Term,
+        argument_effect: Term,
+        result_effect: Term,
+        result: Term,
+    ) -> Result<Term, crate::ConstraintError> {
+        self.require_function_children([
+            (argument, ComponentKind::Value, Polarity::Positive),
+            (argument_effect, ComponentKind::Effect, Polarity::Positive),
+            (result_effect, ComponentKind::Effect, Polarity::Negative),
+            (result, ComponentKind::Value, Polarity::Negative),
+        ])?;
+        self.intern(TermNode::NegativeFunction {
+            argument,
+            argument_effect,
+            result_effect,
+            result,
+        })
+    }
+
+    /// Function construction is the sole post-prefix structural constructor.
+    /// Validate lineage, kind, and polarity before `intern` can reserve or
+    /// publish a node.  The existing artifact error is the boundary for a
+    /// foreign, absent, or ill-polarized private handle.
+    fn require_function_children(
+        &self,
+        children: [(Term, ComponentKind, Polarity); 4],
+    ) -> Result<(), crate::ConstraintError> {
+        for (term, kind, polarity) in children {
+            let node = self
+                .lookup(term)
+                .map_err(|_| crate::ConstraintError::ArtifactMismatch)?;
+            if !matches_endpoint(node, kind, polarity) {
+                return Err(crate::ConstraintError::ArtifactMismatch);
+            }
+        }
+        Ok(())
     }
 
     fn claim_page(&self) -> Result<u32, crate::ConstraintError> {
@@ -525,6 +672,29 @@ impl BranchTermArena {
                 .cas_attempts
                 .load(Ordering::Relaxed),
         }
+    }
+}
+
+fn matches_endpoint(node: &TermNode, kind: ComponentKind, polarity: Polarity) -> bool {
+    match (kind, polarity, node) {
+        (ComponentKind::Value, Polarity::Positive, TermNode::Leaf(Leaf::IntPositive))
+        | (ComponentKind::Value, Polarity::Negative, TermNode::Leaf(Leaf::IntNegative))
+        | (ComponentKind::Effect, Polarity::Positive, TermNode::Leaf(Leaf::EffectBottomPositive))
+        | (ComponentKind::Effect, Polarity::Negative, TermNode::Leaf(Leaf::EmptyEffectNegative)) => {
+            true
+        }
+        (
+            _,
+            _,
+            TermNode::LiveVariable(LiveVariableView {
+                kind: node_kind,
+                polarity: node_polarity,
+                ..
+            }),
+        ) if *node_kind == kind && *node_polarity == polarity => true,
+        (ComponentKind::Value, Polarity::Positive, TermNode::PositiveFunction { .. })
+        | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeFunction { .. }) => true,
+        _ => false,
     }
 }
 
@@ -749,6 +919,104 @@ mod tests {
         assert_eq!(
             second_branch.lookup(first_term),
             Err(TermLookupError::InvalidHandle)
+        );
+    }
+
+    #[test]
+    fn live_and_function_interning_are_idempotent_and_reject_children_before_publication() {
+        let lineage = TermBuilder::new().unwrap().seal().unwrap();
+        let mut branch = BranchTermArena::new(lineage.clone());
+        let argument = branch
+            .live_variable(ComponentKind::Value, Polarity::Negative, 7)
+            .unwrap();
+        assert_eq!(
+            argument,
+            branch
+                .live_variable(ComponentKind::Value, Polarity::Negative, 7)
+                .unwrap()
+        );
+        let argument_effect = branch
+            .live_variable(ComponentKind::Effect, Polarity::Negative, 8)
+            .unwrap();
+        let result_effect = branch
+            .live_variable(ComponentKind::Effect, Polarity::Positive, 8)
+            .unwrap();
+        let result = branch
+            .live_variable(ComponentKind::Value, Polarity::Positive, 7)
+            .unwrap();
+        let function = branch
+            .positive_function(argument, argument_effect, result_effect, result)
+            .unwrap();
+        assert_eq!(
+            function,
+            branch
+                .positive_function(argument, argument_effect, result_effect, result)
+                .unwrap()
+        );
+        let before = branch.observations().committed_nodes;
+        let mut foreign = BranchTermArena::new(TermBuilder::new().unwrap().seal().unwrap());
+        let foreign_argument = foreign
+            .live_variable(ComponentKind::Value, Polarity::Negative, 7)
+            .unwrap();
+        assert_eq!(
+            branch.positive_function(foreign_argument, argument_effect, result_effect, result),
+            Err(crate::ConstraintError::ArtifactMismatch)
+        );
+        assert_eq!(
+            branch.positive_function(argument_effect, argument_effect, result_effect, result),
+            Err(crate::ConstraintError::ArtifactMismatch)
+        );
+        assert_eq!(
+            branch.positive_function(result, argument_effect, result_effect, result),
+            Err(crate::ConstraintError::ArtifactMismatch)
+        );
+        assert_eq!(branch.observations().committed_nodes, before);
+
+        let sibling = BranchTermArena::new(lineage);
+        assert_eq!(
+            sibling.term_view(function),
+            Err(TermLookupError::InvalidHandle)
+        );
+        assert!(matches!(
+            branch.term_view(function),
+            Ok(TermView::PositiveFunction { .. })
+        ));
+    }
+
+    #[test]
+    fn f5b_term_reserve_failures_do_not_publish_a_node_and_retry_keeps_the_prior_handle() {
+        let lineage = TermBuilder::new().unwrap().seal().unwrap();
+        let mut branch = BranchTermArena::new(lineage);
+        let committed = branch
+            .live_variable(ComponentKind::Value, Polarity::Positive, 1)
+            .unwrap();
+        let before = branch.observations();
+        crate::inject_next_f5b_reserve_failure(crate::F5bCapacityLane::TermInterner);
+        assert_eq!(
+            branch.live_variable(ComponentKind::Value, Polarity::Positive, 2),
+            Err(crate::ConstraintError::IdentityExhausted)
+        );
+        assert_eq!(
+            branch.observations().committed_nodes,
+            before.committed_nodes
+        );
+        assert!(branch.term_view(committed).is_ok());
+        let retry = branch
+            .live_variable(ComponentKind::Value, Polarity::Positive, 2)
+            .unwrap();
+        assert!(branch.term_view(retry).is_ok());
+
+        let mut fresh_branch = BranchTermArena::new(TermBuilder::new().unwrap().seal().unwrap());
+        crate::inject_next_f5b_reserve_failure(crate::F5bCapacityLane::TermPages);
+        assert_eq!(
+            fresh_branch.live_variable(ComponentKind::Value, Polarity::Positive, 3),
+            Err(crate::ConstraintError::IdentityExhausted)
+        );
+        assert_eq!(fresh_branch.observations().committed_nodes, 0);
+        assert!(
+            fresh_branch
+                .live_variable(ComponentKind::Value, Polarity::Positive, 3)
+                .is_ok()
         );
     }
 }

@@ -9,6 +9,112 @@ use std::{
     },
 };
 
+/// Every fallible F5b growth goes through this small seam.  Besides keeping
+/// allocation failure at the existing availability boundary, it makes the
+/// otherwise non-deterministic allocator failure path observable by the
+/// private lane-by-lane tests.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum F5bCapacityLane {
+    LiveComponents,
+    ValueBounds,
+    EffectBounds,
+    ValueLevels,
+    EffectLevels,
+    ValueMetadata,
+    EffectMetadata,
+    ExtrusionStack,
+    ExtrusionValueMarks,
+    ExtrusionEffectMarks,
+    TypedPairs,
+    TypedWorklist,
+    DiagnosticDelta,
+    DiagnosticDeltaIndices,
+    DiagnosticReverseOffsets,
+    DiagnosticReverseEdges,
+    DiagnosticReverseCursors,
+    DiagnosticDfsStack,
+    DiagnosticFinishOrder,
+    DiagnosticSccIndices,
+    DiagnosticSccNodes,
+    DiagnosticSccOffsets,
+    DiagnosticSccPendingChildren,
+    DiagnosticSccWorklist,
+    DiagnosticBucketHeads,
+    DiagnosticBucketTails,
+    DiagnosticBucketCandidates,
+    DiagnosticNodeWitnesses,
+    ValueDirectLower,
+    ValueDirectUpper,
+    ValueExactLower,
+    ValueExactUpper,
+    EffectDirectLower,
+    EffectDirectUpper,
+    EffectExactLower,
+    EffectExactUpper,
+    DiagnosticEdges,
+    Errors,
+    ReportedErrors,
+    CrossKindComponents,
+    RoutedUses,
+    RoutedUsePositions,
+    Schemes,
+    Drafts,
+    TermPages,
+    TermPagePositions,
+    TermInterner,
+}
+
+pub(crate) trait F5bReservable {
+    fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()>;
+}
+impl<T> F5bReservable for Vec<T> {
+    fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()> {
+        self.try_reserve(additional).map_err(|_| ())
+    }
+}
+impl<T> F5bReservable for VecDeque<T> {
+    fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()> {
+        self.try_reserve(additional).map_err(|_| ())
+    }
+}
+impl<K: Eq + Hash, V, S: std::hash::BuildHasher> F5bReservable for HashMap<K, V, S> {
+    fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()> {
+        self.try_reserve(additional).map_err(|_| ())
+    }
+}
+impl<T: Eq + Hash, S: std::hash::BuildHasher> F5bReservable for HashSet<T, S> {
+    fn reserve_f5b(&mut self, additional: usize) -> Result<(), ()> {
+        self.try_reserve(additional).map_err(|_| ())
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static F5B_INJECTED_RESERVE_FAILURE: std::cell::Cell<Option<F5bCapacityLane>> = const { std::cell::Cell::new(None) };
+}
+
+pub(crate) fn reserve_f5b<T: F5bReservable>(
+    target: &mut T,
+    additional: usize,
+    lane: F5bCapacityLane,
+) -> Result<(), ConstraintError> {
+    #[cfg(not(test))]
+    let _ = lane;
+    #[cfg(test)]
+    if F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get() == Some(lane)) {
+        F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.set(None));
+        return Err(ConstraintError::IdentityExhausted);
+    }
+    target
+        .reserve_f5b(additional)
+        .map_err(|_| ConstraintError::IdentityExhausted)
+}
+
+#[cfg(test)]
+fn inject_next_f5b_reserve_failure(lane: F5bCapacityLane) {
+    F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.set(Some(lane)));
+}
+
 use yu_hir::{
     DefId, DefinitionRootId, HirItem, HirModule, HirOccurrenceId, NameResolution, ResolvedExpr,
 };
@@ -186,9 +292,6 @@ pub(crate) enum CollectedBodyStatus {
 pub(crate) struct CollectedDefinition {
     definition: DefinitionOrderId,
     root: DefinitionRootId,
-    /// Frozen during collection so F4 generalization never hashes a source
-    /// root to recover its value row.
-    root_value_row: u32,
     body_fact_range: std::ops::Range<usize>,
     body_status: CollectedBodyStatus,
 }
@@ -281,11 +384,9 @@ pub(crate) struct DefinitionUse {
     target: DefinitionOrderId,
     occurrence: HirOccurrenceId,
     cause: DefinitionUseCause,
-    /// Frozen F4 value-row endpoints. These are collection-owned ordinals,
-    /// not source identities, so routing never reconstructs them from HIR.
-    use_value_row: u32,
-    parent_root_row: u32,
-    target_root_row: u32,
+    /// The consuming definition body's level is frozen during collection.
+    /// F5c incoming instantiation consumes this recipe without inspecting HIR.
+    use_level: u32,
     /// Component-array positions are frozen with the route record.  They are
     /// used only to reconstruct the existing public/store terms; execution
     /// never re-queries source-bearing component maps.
@@ -365,21 +466,28 @@ impl Components {
 struct ComponentPositions {
     value: usize,
     effect: usize,
-    occurrence_bound_row: u32,
-    value_bound_row: u32,
 }
 
 #[derive(Clone, Copy, Debug)]
 struct RootComponentPositions {
     component: usize,
-    value_bound_row: u32,
 }
 
+#[allow(
+    dead_code,
+    reason = "Bottom/Top are F5b live algebra endpoints; source construction is deferred to F5d"
+)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum ValueEndpointKey {
+    BottomPositive,
+    BottomNegative,
+    TopNegative,
     IntPositive,
     IntNegative,
+    /// This ordinal is allocated by `InferenceSession`, never by collection.
     ValueRow(u32),
+    PositiveFunction(Term),
+    NegativeFunction(Term),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -388,15 +496,42 @@ struct CanonicalValuePairKey {
     upper: ValueEndpointKey,
 }
 
-#[derive(Clone, Copy, Debug)]
-enum FrozenConstraintClass {
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum EffectEndpointKey {
+    BottomPositive,
+    EmptyNegative,
+    /// This ordinal is allocated by `InferenceSession`, never by collection.
+    EffectRow(u32),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum TypedPairKey {
     Value(CanonicalValuePairKey),
     Effect {
-        occurrence_bound_row: u32,
-        lower_is_bottom: bool,
-        upper_is_empty: bool,
+        lower: EffectEndpointKey,
+        upper: EffectEndpointKey,
     },
-    CrossKind,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct LiveComponentEndpoint {
+    kind: ComponentKind,
+    ordinal: u32,
+}
+
+/// Session-local eligibility metadata is allocated with every dense live row.
+/// Source handles select an initial recipe only; they never become this
+/// identity or its origin.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum LiveVariableOrigin {
+    Collected,
+    Fresh,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct LiveVariableMetadata {
+    origin: LiveVariableOrigin,
+    non_generic: bool,
 }
 
 /// Ordered source occurrences and compact component indexes, never semantic facts.
@@ -416,6 +551,10 @@ pub struct ConstraintBatch {
     /// Exact collected handles parallel to `components`; route recipes retain
     /// these identities instead of reconstructing endpoint terms at solve.
     component_terms: Vec<Term>,
+    /// Frozen recipe lookup only: collected terms select their session-local
+    /// live endpoint during one startup translation.  It is never a live
+    /// variable identity or a solve-time bound table.
+    component_term_positions: HashMap<Term, usize>,
     leaf_terms: HashMap<Leaf, Term>,
     term_builder: Option<TermBuilder>,
     term_arena: Option<Arc<TermLineage>>,
@@ -435,9 +574,6 @@ pub struct ConstraintBatch {
     /// execution itself never hashes source-bearing roots.
     root_scheme_identity_payload_bytes: Vec<usize>,
     occurrences: Vec<ConstraintOccurrence>,
-    /// One private, fixed-size admission class per public occurrence.
-    frozen_constraint_classes: Vec<FrozenConstraintClass>,
-    frozen_occurrence_bound_rows: Vec<u32>,
     #[cfg(test)]
     synthetic_seed_value_pair_probes: usize,
     counters: ProductionCounters,
@@ -466,6 +602,7 @@ impl ConstraintBatch {
             scc_plan: None,
             components: Vec::new(),
             component_terms: Vec::new(),
+            component_term_positions: HashMap::new(),
             leaf_terms: HashMap::new(),
             term_builder: Some(TermBuilder::new()?),
             term_arena: None,
@@ -478,8 +615,6 @@ impl ConstraintBatch {
             root_definition_positions: HashMap::new(),
             root_scheme_identity_payload_bytes: Vec::new(),
             occurrences: Vec::new(),
-            frozen_constraint_classes: Vec::new(),
-            frozen_occurrence_bound_rows: Vec::new(),
             #[cfg(test)]
             synthetic_seed_value_pair_probes: 0,
             definition_query_probes: Arc::new(AtomicUsize::new(0)),
@@ -609,15 +744,9 @@ impl ConstraintBatch {
                         }
                         CollectedBodyStatus::Error => batch.counters.collected_error_bodies += 1,
                     }
-                    let root_value_row = batch
-                        .root_component_positions
-                        .get(binding.definition_root())
-                        .expect("new definition root has a frozen position")
-                        .value_bound_row;
                     batch.definitions.push(CollectedDefinition {
                         definition: definition.clone(),
                         root: binding.definition_root().clone(),
-                        root_value_row,
                         body_fact_range: fact_start..fact_start,
                         body_status,
                     });
@@ -646,16 +775,10 @@ impl ConstraintBatch {
                 }
                 HirItem::Error { .. } => continue,
             };
-            let occurrence_bound_row = u32::try_from(batch.projection_order.len())
-                .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
             batch.projection_order.push(expression.occurrence().clone());
             batch.counters.occurrence_allocations += 1;
             if matches!(expression, ResolvedExpr::Integer { .. }) {
-                batch.emit_integer(
-                    expression.occurrence().clone(),
-                    definition_root.cloned(),
-                    occurrence_bound_row,
-                )?;
+                batch.emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
             }
             if let (
                 Some(parent),
@@ -667,11 +790,7 @@ impl ConstraintBatch {
                 },
             ) = (definition.as_ref(), definition_root.as_ref(), expression)
             {
-                batch.emit_resolved_binding_name(
-                    occurrence.clone(),
-                    (*root).clone(),
-                    occurrence_bound_row,
-                )?;
+                batch.emit_resolved_binding_name(occurrence.clone(), (*root).clone())?;
                 let old_capacity = pending_uses.capacity();
                 pending_uses.push(PendingDefinitionUse {
                     parent_ordinal: parent.ordinal(),
@@ -729,26 +848,11 @@ impl ConstraintBatch {
                 batch.collection_artifact.clone(),
                 pending.occurrence.clone(),
             );
-            let target_root_row = batch
-                .root_component_positions
-                .get(&batch.definitions[target.ordinal() as usize].root)
-                .expect("target root has frozen component position")
-                .value_bound_row;
             let target_root_component = batch
                 .root_component_positions
                 .get(&batch.definitions[target.ordinal() as usize].root)
                 .expect("target root has frozen component position")
                 .component;
-            let parent_root_row = batch
-                .root_component_positions
-                .get(&batch.definitions[pending.parent_ordinal as usize].root)
-                .expect("parent root has frozen component position")
-                .value_bound_row;
-            let use_value_row = batch
-                .occurrence_component_positions
-                .get(&pending.occurrence)
-                .expect("resolved use has frozen component positions")
-                .value_bound_row;
             let use_value_component = batch
                 .occurrence_component_positions
                 .get(&pending.occurrence)
@@ -761,9 +865,7 @@ impl ConstraintBatch {
                 parent,
                 target,
                 occurrence: pending.occurrence.clone(),
-                use_value_row,
-                parent_root_row,
-                target_root_row,
+                use_level: 1,
                 use_value_component,
                 target_root_component,
             });
@@ -803,14 +905,6 @@ impl ConstraintBatch {
                 batch.occurrences.capacity(),
                 "F0 occurrence records",
             );
-        debug_assert_eq!(
-            batch.occurrences.len(),
-            batch.frozen_constraint_classes.len()
-        );
-        debug_assert_eq!(
-            batch.occurrences.len(),
-            batch.frozen_occurrence_bound_rows.len()
-        );
         batch.counters.root_retained_bytes = checked_capacity_bytes::<DefinitionRootId>(
             batch.root_order.capacity(),
             "F0 root order",
@@ -1079,14 +1173,12 @@ impl ConstraintBatch {
         }
         self.root_order.push(root.clone());
         self.counters.root_allocations += 1;
-        let value_bound_row = self.next_value_bound_row()?;
         let value = self.definition_value_component(root.clone())?;
         let old_capacity = self.root_component_positions.capacity();
         self.root_component_positions.insert(
             root,
             RootComponentPositions {
                 component: self.components.len() - 1,
-                value_bound_row,
             },
         );
         if self.root_component_positions.capacity() != old_capacity {
@@ -1099,16 +1191,12 @@ impl ConstraintBatch {
         &mut self,
         occurrence: HirOccurrenceId,
         definition_root: Option<DefinitionRootId>,
-        occurrence_bound_row: u32,
     ) -> Result<(), CollectionAvailabilityError> {
-        let value_bound_row = self.next_value_bound_row()?;
         let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value)?;
         let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
         let positions = ComponentPositions {
             value: self.components.len() - 2,
             effect: self.components.len() - 1,
-            occurrence_bound_row,
-            value_bound_row,
         };
         let old_capacity = self.occurrence_component_positions.capacity();
         self.occurrence_component_positions
@@ -1162,16 +1250,12 @@ impl ConstraintBatch {
         &mut self,
         occurrence: HirOccurrenceId,
         definition_root: DefinitionRootId,
-        occurrence_bound_row: u32,
     ) -> Result<(), CollectionAvailabilityError> {
-        let value_bound_row = self.next_value_bound_row()?;
         let value = self.occurrence_component(occurrence.clone(), ComponentKind::Value)?;
         let effect = self.occurrence_component(occurrence.clone(), ComponentKind::Effect)?;
         let positions = ComponentPositions {
             value: self.components.len() - 2,
             effect: self.components.len() - 1,
-            occurrence_bound_row,
-            value_bound_row,
         };
         if self
             .occurrence_component_positions
@@ -1217,7 +1301,13 @@ impl ConstraintBatch {
         let term = self
             .active_term_builder()
             .intern(TermNode::Component(component.clone()))?;
+        let position = self.component_terms.len();
         self.component_terms.push(term);
+        debug_assert!(
+            self.component_term_positions
+                .insert(term, position)
+                .is_none()
+        );
         self.counters.component_allocations += 1;
         Ok(component)
     }
@@ -1234,7 +1324,13 @@ impl ConstraintBatch {
         let term = self
             .active_term_builder()
             .intern(TermNode::Component(component.clone()))?;
+        let position = self.component_terms.len();
         self.component_terms.push(term);
+        debug_assert!(
+            self.component_term_positions
+                .insert(term, position)
+                .is_none()
+        );
         self.counters.component_allocations += 1;
         Ok(component)
     }
@@ -1297,16 +1393,6 @@ impl ConstraintBatch {
         self.leaf_terms.insert(leaf, term);
         Ok(term)
     }
-    fn collecting_term_node(&self, term: Term) -> &TermNode {
-        if let Some(builder) = &self.term_builder {
-            return builder.node(term);
-        }
-        #[cfg(test)]
-        if let Some(builder) = &self.test_term_builder {
-            return builder.node(term);
-        }
-        panic!("constraint classes freeze during collection")
-    }
     fn active_term_builder(&mut self) -> &mut TermBuilder {
         if let Some(builder) = &mut self.term_builder {
             return builder;
@@ -1324,12 +1410,6 @@ impl ConstraintBatch {
         lower: Term,
         upper: Term,
     ) -> Result<(), CollectionAvailabilityError> {
-        let class = self.freeze_constraint_class(&lower, &upper);
-        let occurrence_bound_row = self
-            .occurrence_component_positions
-            .get(&occurrence)
-            .expect("emitted occurrence has frozen component positions")
-            .occurrence_bound_row;
         let id = ConstraintOccurrenceId::new(occurrence, local_slot);
         self.occurrences.push(ConstraintOccurrence {
             cause: CauseId::for_occurrence(id.clone()),
@@ -1337,79 +1417,9 @@ impl ConstraintBatch {
             lower,
             upper,
         });
-        self.frozen_constraint_classes.push(class);
-        self.frozen_occurrence_bound_rows.push(occurrence_bound_row);
         self.counters.emitted_facts += 1;
         self.counters.generated_work_items += 1;
         Ok(())
-    }
-    fn next_value_bound_row(&self) -> Result<u32, CollectionAvailabilityError> {
-        let rows = self
-            .root_component_positions
-            .len()
-            .checked_add(self.occurrence_component_positions.len())
-            .ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?;
-        u32::try_from(rows).map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)
-    }
-    fn freeze_constraint_class(&self, lower: &Term, upper: &Term) -> FrozenConstraintClass {
-        if self.collecting_term_node(*lower).kind() != self.collecting_term_node(*upper).kind() {
-            return FrozenConstraintClass::CrossKind;
-        }
-        match self.collecting_term_node(*lower).kind() {
-            ComponentKind::Value => FrozenConstraintClass::Value(CanonicalValuePairKey {
-                lower: self.value_endpoint_key(lower),
-                upper: self.value_endpoint_key(upper),
-            }),
-            ComponentKind::Effect => {
-                let occurrence_bound_row = [lower, upper]
-                    .into_iter()
-                    .find_map(|term| match self.collecting_term_node(*term) {
-                        TermNode::Component(ComponentId::Occurrence { occurrence, .. }) => Some(
-                            self.occurrence_component_positions
-                                .get(occurrence)
-                                .expect("effect occurrence has a frozen position")
-                                .occurrence_bound_row,
-                        ),
-                        _ => None,
-                    })
-                    .expect("F4 effect facts have an occurrence endpoint");
-                FrozenConstraintClass::Effect {
-                    occurrence_bound_row,
-                    lower_is_bottom: matches!(
-                        self.collecting_term_node(*lower),
-                        TermNode::Leaf(Leaf::EffectBottomPositive)
-                    ),
-                    upper_is_empty: matches!(
-                        self.collecting_term_node(*upper),
-                        TermNode::Leaf(Leaf::EmptyEffectNegative)
-                    ),
-                }
-            }
-        }
-    }
-    fn value_endpoint_key(&self, term: &Term) -> ValueEndpointKey {
-        match self.collecting_term_node(*term) {
-            TermNode::Leaf(Leaf::IntPositive) => ValueEndpointKey::IntPositive,
-            TermNode::Leaf(Leaf::IntNegative) => ValueEndpointKey::IntNegative,
-            TermNode::Component(ComponentId::Occurrence { occurrence, .. }) => {
-                ValueEndpointKey::ValueRow(
-                    self.occurrence_component_positions
-                        .get(occurrence)
-                        .expect("value occurrence has a frozen position")
-                        .value_bound_row,
-                )
-            }
-            TermNode::Component(ComponentId::DefinitionValue { root }) => {
-                ValueEndpointKey::ValueRow(
-                    self.root_component_positions
-                        .get(root)
-                        .expect("definition root has a frozen position")
-                        .value_bound_row,
-                )
-            }
-            TermNode::Leaf(_) => unreachable!("F4 value endpoint is an integer leaf"),
-            _ => unreachable!("F5b collects only F4 term endpoint shapes"),
-        }
     }
     fn require_owned(&self, occurrence: &HirOccurrenceId) -> Result<(), ArtifactMismatch> {
         self.hir
@@ -1552,6 +1562,10 @@ impl ConstraintBatch {
                 self.counters.definition_use_retained_bytes,
                 self.counters.definition_use_index_retained_bytes,
                 self.counters.component_retained_bytes,
+                checked_capacity_bytes::<(Term, usize)>(
+                    self.component_term_positions.capacity(),
+                    "F5b collected component-term recipe index",
+                ),
                 self.counters.occurrence_component_index_retained_bytes,
                 self.counters.root_component_index_retained_bytes,
                 checked_capacity_bytes::<(DefinitionRootId, usize)>(
@@ -2528,6 +2542,13 @@ impl ConstraintStore {
     pub fn term_kind(&self, term: Term) -> Result<ComponentKind, TermLookupError> {
         self.terms.term_kind(term)
     }
+    fn inference_term_retained_bytes(&self) -> usize {
+        self.terms.retained_bytes()
+    }
+    #[cfg(test)]
+    fn independent_inference_term_retained_bytes(&self) -> usize {
+        self.terms.independent_retained_bytes()
+    }
     #[cfg(test)]
     fn push_test_branch_term(&mut self, node: TermNode) -> Term {
         self.terms
@@ -2802,12 +2823,23 @@ impl SolvedProjection {
         self.effect
     }
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SolverErrorKind {
     CrossKind {
         lower: ComponentKind,
         upper: ComponentKind,
     },
+    IncompatibleValue {
+        lower: ValueShape,
+        upper: ValueShape,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ValueShape {
+    Bottom,
+    Int,
+    Function,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SolverError {
@@ -2847,7 +2879,7 @@ impl From<ConstraintError> for SolveAvailabilityError {
         }
     }
 }
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct VariableBounds {
     /// The two row lists are the paired physical representation of one direct
     /// variable edge.  They deliberately do not encode transitive reachability.
@@ -2858,129 +2890,97 @@ struct VariableBounds {
     has_int_positive_lower: bool,
 }
 
-/// The source-free, session-local execution frontier.  It carries only the
-/// same fixed keys accepted by the canonical value-pair cache; it is neither a
-/// second type authority nor a persistent reachability label.
-struct DirectBoundFrontier {
-    queue: VecDeque<CanonicalValuePairKey>,
-    peak_bytes: usize,
-    #[cfg(test)]
-    pushes: usize,
-    #[cfg(test)]
-    pops: usize,
-    #[cfg(test)]
-    maximum_live: usize,
-    #[cfg(test)]
-    capacity_growths: usize,
-    #[cfg(test)]
-    direct_edges: usize,
-    #[cfg(test)]
-    exact_lower_memberships: usize,
-    #[cfg(test)]
-    exact_upper_memberships: usize,
-    #[cfg(test)]
-    transmission_attempts: usize,
-    #[cfg(test)]
-    same_row_atom_intersections: usize,
+#[derive(Clone, Default)]
+struct EffectBounds {
+    direct_lower_rows: Vec<u32>,
+    direct_upper_rows: Vec<u32>,
+    exact_non_variable_lowers: Vec<EffectEndpointKey>,
+    exact_non_variable_uppers: Vec<EffectEndpointKey>,
+    has_bottom_lower: bool,
+    has_empty_upper: bool,
 }
 
-impl DirectBoundFrontier {
-    fn with_capacity(capacity: usize) -> Self {
-        let queue = VecDeque::with_capacity(capacity);
-        let peak_bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
-            queue.capacity(),
-            "F4 direct frontier initial queue",
-        );
-        Self {
-            queue,
-            peak_bytes,
-            #[cfg(test)]
-            pushes: 0,
-            #[cfg(test)]
-            pops: 0,
-            #[cfg(test)]
-            maximum_live: 0,
-            #[cfg(test)]
-            capacity_growths: 0,
-            #[cfg(test)]
-            direct_edges: 0,
-            #[cfg(test)]
-            exact_lower_memberships: 0,
-            #[cfg(test)]
-            exact_upper_memberships: 0,
-            #[cfg(test)]
-            transmission_attempts: 0,
-            #[cfg(test)]
-            same_row_atom_intersections: 0,
-        }
-    }
+#[derive(Clone, Copy)]
+enum LiveConstraintTask {
+    Value(CanonicalValuePairKey),
+    Effect(EffectEndpointKey, EffectEndpointKey),
+}
 
-    fn push(&mut self, key: CanonicalValuePairKey) {
-        let old_capacity = self.queue.capacity();
-        self.queue.push_back(key);
-        let bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
-            self.queue.capacity(),
-            "F4 direct frontier queue",
-        );
-        self.peak_bytes = self.peak_bytes.max(bytes);
-        #[cfg(test)]
-        {
-            self.pushes += 1;
-            self.maximum_live = self.maximum_live.max(self.queue.len());
-            if self.queue.capacity() != old_capacity {
-                self.capacity_growths += 1;
-            }
-        }
-        #[cfg(not(test))]
-        let _ = old_capacity;
-    }
+struct TypedWorkItem {
+    task: LiveConstraintTask,
+}
 
-    fn pop(&mut self) -> Option<CanonicalValuePairKey> {
-        let value = self.queue.pop_front();
-        #[cfg(test)]
-        if value.is_some() {
-            self.pops += 1;
-        }
-        value
-    }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DiagnosticWitness {
+    terminal: CanonicalValuePairKey,
+    kind: SolverErrorKind,
+    distance: u32,
+    first_field: Option<FunctionField>,
+}
 
-    #[cfg(test)]
-    fn direct_edge_installed(&mut self) {
-        self.direct_edges += 1;
-    }
-    #[cfg(not(test))]
-    fn direct_edge_installed(&mut self) {}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DiagnosticEdge {
+    child: CanonicalValuePairKey,
+    field: Option<FunctionField>,
+}
 
-    #[cfg(test)]
-    fn exact_lower_membership_installed(&mut self) {
-        self.exact_lower_memberships += 1;
-    }
-    #[cfg(not(test))]
-    fn exact_lower_membership_installed(&mut self) {}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DiagnosticReverseEdge {
+    parent: usize,
+    field: Option<FunctionField>,
+}
 
-    #[cfg(test)]
-    fn exact_upper_membership_installed(&mut self) {
-        self.exact_upper_memberships += 1;
-    }
-    #[cfg(not(test))]
-    fn exact_upper_membership_installed(&mut self) {}
+/// One call-local FIFO link.  Pair memo entries deliberately never retain
+/// completion routing state: these nodes exist only while one §39 delta is
+/// being condensed and settled.
+#[derive(Clone, Copy, Debug)]
+struct DiagnosticBucketCandidate {
+    node: usize,
+    witness: DiagnosticWitness,
+    next: Option<usize>,
+}
 
-    #[cfg(test)]
-    fn transmission_attempted(&mut self) {
-        self.transmission_attempts += 1;
-    }
-    #[cfg(not(test))]
-    fn transmission_attempted(&mut self) {}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DiagnosticCompletion {
+    Pending,
+    Complete(Option<DiagnosticWitness>),
+}
 
-    #[cfg(test)]
-    fn same_row_intersection(&mut self) {
-        self.same_row_atom_intersections += 1;
-    }
-    #[cfg(not(test))]
-    fn same_row_intersection(&mut self) {}
+/// The session-wide typed memo is the sole semantic pair authority.  A value
+/// pair retains only one finite canonical witness; diagnostics never retain a
+/// descendant list, route, or per-cause waiter state.
+#[derive(Clone)]
+enum TypedPairMemo {
+    Effect,
+    Value {
+        children: Vec<DiagnosticEdge>,
+        /// A direct incompatibility is a completion seed, not a completed
+        /// summary.  The call-local SCC pass is the only place that changes a
+        /// Pending entry into Complete.
+        direct_witness: Option<DiagnosticWitness>,
+        completion: DiagnosticCompletion,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FunctionField {
+    Argument,
+    ArgumentEffect,
+    ResultEffect,
+    Result,
+}
+
+#[derive(Clone, Copy)]
+enum ExtrusionEndpoint {
+    Value(ValueEndpointKey),
+    Effect(EffectEndpointKey),
 }
 
 #[derive(Clone, Copy, Default)]
+#[allow(
+    dead_code,
+    reason = "deprecated F4 occurrence-bound compatibility fields remain zero; live rows own semantics"
+)]
 struct OccurrenceExactBounds {
     value_lower_int: bool,
     value_upper_int: bool,
@@ -3111,47 +3111,220 @@ struct IndependentResourceLedger {
 }
 
 #[cfg(test)]
+#[derive(Debug, Default)]
+struct IndependentNestedCapacityLedger {
+    value_direct_lower: usize,
+    value_direct_upper: usize,
+    value_exact_lower: usize,
+    value_exact_upper: usize,
+    effect_direct_lower: usize,
+    effect_direct_upper: usize,
+    effect_exact_lower: usize,
+    effect_exact_upper: usize,
+    diagnostic_edges: usize,
+}
+
+#[cfg(test)]
+impl IndependentNestedCapacityLedger {
+    fn total_bound_bytes(&self) -> usize {
+        checked_usize_sum(
+            [
+                self.value_direct_lower,
+                self.value_direct_upper,
+                self.value_exact_lower,
+                self.value_exact_upper,
+                self.effect_direct_lower,
+                self.effect_direct_upper,
+                self.effect_exact_lower,
+                self.effect_exact_upper,
+            ],
+            "independent nested bound lanes",
+        )
+    }
+}
+
+#[cfg(test)]
 impl IndependentResourceLedger {
     fn record(
         &mut self,
         boundary: ResourceBoundary,
         store: &ConstraintStore,
         errors: &Vec<SolverError>,
+        reported_errors: &HashSet<(ConstraintOccurrenceId, SolverErrorKind)>,
         cross_kind_components: &HashSet<ComponentId>,
+        live_components: &Vec<LiveComponentEndpoint>,
         bounds: &Vec<VariableBounds>,
-        bound_payload_bytes: usize,
+        effect_bounds: &Vec<EffectBounds>,
+        value_levels: &Vec<u32>,
+        effect_levels: &Vec<u32>,
+        value_metadata: &Vec<LiveVariableMetadata>,
+        effect_metadata: &Vec<LiveVariableMetadata>,
+        extrusion_stack: &Vec<ExtrusionEndpoint>,
+        extrusion_value_marks: &Vec<u32>,
+        extrusion_effect_marks: &Vec<u32>,
         occurrence_exact_bounds: &Vec<OccurrenceExactBounds>,
-        constraint_pairs: &HashSet<CanonicalValuePairKey>,
-        frontier: &DirectBoundFrontier,
+        typed_pairs: &HashMap<TypedPairKey, TypedPairMemo>,
+        typed_worklist: &VecDeque<TypedWorkItem>,
+        diagnostic_delta: &Vec<CanonicalValuePairKey>,
+        diagnostic_delta_indices: &HashMap<CanonicalValuePairKey, usize>,
+        diagnostic_reverse_offsets: &Vec<usize>,
+        diagnostic_reverse_edges: &Vec<DiagnosticReverseEdge>,
+        diagnostic_reverse_cursors: &Vec<usize>,
+        diagnostic_dfs_stack: &Vec<(usize, usize)>,
+        diagnostic_finish_order: &Vec<usize>,
+        diagnostic_scc_indices: &Vec<usize>,
+        diagnostic_scc_nodes: &Vec<usize>,
+        diagnostic_scc_offsets: &Vec<usize>,
+        diagnostic_scc_pending_children: &Vec<usize>,
+        diagnostic_scc_worklist: &VecDeque<usize>,
+        diagnostic_bucket_heads: &Vec<Option<usize>>,
+        diagnostic_bucket_tails: &Vec<Option<usize>>,
+        diagnostic_bucket_candidates: &Vec<DiagnosticBucketCandidate>,
+        diagnostic_node_witnesses: &Vec<Option<DiagnosticWitness>>,
         routed_uses: &Vec<RoutedUseProvenance>,
         routed_use_positions: &HashSet<DefinitionUseId>,
         schemes: &Vec<Option<ClosedValueScheme>>,
         drafts: &Vec<DraftScheme>,
         closed_type_retained_bytes: usize,
-        frozen_constraint_class_capacity: usize,
-        frozen_occurrence_row_capacity: usize,
         f2_batch_retained_bytes: usize,
+        component_term_positions_capacity: usize,
         finish_output_retained_bytes: usize,
+        nested_capacities: &IndependentNestedCapacityLedger,
     ) {
         self.coverage |= 1 << (boundary as u8);
         self.samples += 1;
-        let queue_bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
-            frontier.queue.capacity(),
-            "F4 independent frontier queue",
+        let queue_bytes = checked_capacity_bytes::<TypedWorkItem>(
+            typed_worklist.capacity(),
+            "F5b independent typed frontier queue",
         );
         let semantic = checked_usize_sum(
             [
-                checked_capacity_bytes::<VariableBounds>(
-                    bounds.capacity(),
-                    "F4 independent bound rows",
-                )
-                .checked_add(bound_payload_bytes)
-                .expect("F4 independent bound payload byte accounting fits usize"),
-                checked_capacity_bytes::<CanonicalValuePairKey>(
-                    constraint_pairs.capacity(),
-                    "F4 independent pair cache",
+                checked_usize_sum(
+                    [
+                        checked_capacity_bytes::<LiveComponentEndpoint>(
+                            live_components.capacity(),
+                            "F5b independent live translation",
+                        ),
+                        checked_capacity_bytes::<VariableBounds>(
+                            bounds.capacity(),
+                            "F5b independent value rows",
+                        ),
+                        checked_capacity_bytes::<EffectBounds>(
+                            effect_bounds.capacity(),
+                            "F5b independent effect rows",
+                        ),
+                        checked_capacity_bytes::<u32>(
+                            value_levels.capacity(),
+                            "F5b independent value levels",
+                        ),
+                        checked_capacity_bytes::<u32>(
+                            effect_levels.capacity(),
+                            "F5b independent effect levels",
+                        ),
+                        checked_capacity_bytes::<LiveVariableMetadata>(
+                            value_metadata.capacity(),
+                            "F5b independent value metadata",
+                        ),
+                        checked_capacity_bytes::<LiveVariableMetadata>(
+                            effect_metadata.capacity(),
+                            "F5b independent effect metadata",
+                        ),
+                        checked_capacity_bytes::<ExtrusionEndpoint>(
+                            extrusion_stack.capacity(),
+                            "F5b independent extrusion stack",
+                        ),
+                        checked_capacity_bytes::<u32>(
+                            extrusion_value_marks.capacity(),
+                            "F5b independent extrusion value marks",
+                        ),
+                        checked_capacity_bytes::<u32>(
+                            extrusion_effect_marks.capacity(),
+                            "F5b independent extrusion effect marks",
+                        ),
+                        nested_capacities.total_bound_bytes(),
+                    ],
+                    "F5b independent bounds",
+                ),
+                checked_usize_sum(
+                    [
+                        checked_capacity_bytes::<(TypedPairKey, TypedPairMemo)>(
+                            typed_pairs.capacity(),
+                            "F5b independent typed pair memo",
+                        ),
+                        nested_capacities.diagnostic_edges,
+                    ],
+                    "F5b independent typed pair memo including diagnostic edges",
                 ),
                 queue_bytes,
+                checked_usize_sum(
+                    [
+                        checked_capacity_bytes::<CanonicalValuePairKey>(
+                            diagnostic_delta.capacity(),
+                            "F5b independent diagnostic delta",
+                        ),
+                        checked_capacity_bytes::<(CanonicalValuePairKey, usize)>(
+                            diagnostic_delta_indices.capacity(),
+                            "F5b independent diagnostic delta index",
+                        ),
+                        checked_capacity_bytes::<usize>(
+                            diagnostic_reverse_offsets.capacity(),
+                            "F5b independent reverse offsets",
+                        ),
+                        checked_capacity_bytes::<DiagnosticReverseEdge>(
+                            diagnostic_reverse_edges.capacity(),
+                            "F5b independent reverse edges",
+                        ),
+                        checked_capacity_bytes::<usize>(
+                            diagnostic_reverse_cursors.capacity(),
+                            "F5b independent reverse cursors",
+                        ),
+                        checked_capacity_bytes::<(usize, usize)>(
+                            diagnostic_dfs_stack.capacity(),
+                            "F5b independent DFS",
+                        ),
+                        checked_capacity_bytes::<usize>(
+                            diagnostic_finish_order.capacity(),
+                            "F5b independent finish order",
+                        ),
+                        checked_capacity_bytes::<usize>(
+                            diagnostic_scc_indices.capacity(),
+                            "F5b independent SCC indices",
+                        ),
+                        checked_capacity_bytes::<usize>(
+                            diagnostic_scc_nodes.capacity(),
+                            "F5b independent SCC nodes",
+                        ),
+                        checked_capacity_bytes::<usize>(
+                            diagnostic_scc_offsets.capacity(),
+                            "F5b independent SCC offsets",
+                        ),
+                        checked_capacity_bytes::<usize>(
+                            diagnostic_scc_pending_children.capacity(),
+                            "F5b independent SCC pending",
+                        ),
+                        checked_capacity_bytes::<usize>(
+                            diagnostic_scc_worklist.capacity(),
+                            "F5b independent SCC worklist",
+                        ),
+                        checked_capacity_bytes::<Option<usize>>(
+                            diagnostic_bucket_heads.capacity(),
+                            "F5b independent bucket heads",
+                        ),
+                        checked_capacity_bytes::<Option<usize>>(
+                            diagnostic_bucket_tails.capacity(),
+                            "F5b independent bucket tails",
+                        ),
+                        checked_capacity_bytes::<DiagnosticBucketCandidate>(
+                            diagnostic_bucket_candidates.capacity(),
+                            "F5b independent bucket candidates",
+                        ),
+                        checked_capacity_bytes::<Option<DiagnosticWitness>>(
+                            diagnostic_node_witnesses.capacity(),
+                            "F5b independent node witnesses",
+                        ),
+                    ],
+                    "F5b independent diagnostic scratch",
+                ),
                 checked_capacity_bytes::<Option<ClosedValueScheme>>(
                     schemes.capacity(),
                     "F4 independent scheme table",
@@ -3169,17 +3342,17 @@ impl IndependentResourceLedger {
                     occurrence_exact_bounds.capacity(),
                     "F4 independent occurrence bounds",
                 ),
-                checked_capacity_bytes::<FrozenConstraintClass>(
-                    frozen_constraint_class_capacity,
-                    "F4 independent frozen constraint classes",
-                ),
-                checked_capacity_bytes::<u32>(
-                    frozen_occurrence_row_capacity,
-                    "F4 independent frozen occurrence rows",
-                ),
+                store.independent_inference_term_retained_bytes(),
             ],
             "F4 independent semantic ledger",
         );
+        let component_term_position_bytes = checked_capacity_bytes::<(Term, usize)>(
+            component_term_positions_capacity,
+            "F5b independent collected component-term recipe index",
+        );
+        let f2_batch_without_component_term_positions = f2_batch_retained_bytes
+            .checked_sub(component_term_position_bytes)
+            .expect("F5b component-term recipe index is included once in the F2 batch total");
         let session = checked_usize_sum(
             [
                 semantic,
@@ -3200,6 +3373,10 @@ impl IndependentResourceLedger {
                     "F4 independent consumed receipts",
                 ),
                 checked_capacity_bytes::<SolverError>(errors.capacity(), "F4 independent errors"),
+                checked_capacity_bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(
+                    reported_errors.capacity(),
+                    "F5b independent reported-error index",
+                ),
                 checked_capacity_bytes::<ComponentId>(
                     cross_kind_components.capacity(),
                     "F4 independent cross-kind components",
@@ -3208,7 +3385,8 @@ impl IndependentResourceLedger {
                     routed_use_positions.capacity(),
                     "F4 independent routed-use index",
                 ),
-                f2_batch_retained_bytes,
+                f2_batch_without_component_term_positions,
+                component_term_position_bytes,
             ],
             "F4 independent session ledger",
         );
@@ -3288,12 +3466,82 @@ struct InferenceSession {
     batch: ConstraintBatch,
     store: ConstraintStore,
     errors: Vec<SolverError>,
+    reported_errors: HashSet<(ConstraintOccurrenceId, SolverErrorKind)>,
     cross_kind_components: HashSet<ComponentId>,
+    /// One injective startup translation for immutable collected component
+    /// recipes.  These dense entries are live-session identity, not source
+    /// component/root/occurrence identity.
+    live_components: Vec<LiveComponentEndpoint>,
     bounds: Vec<VariableBounds>,
+    effect_bounds: Vec<EffectBounds>,
+    value_levels: Vec<u32>,
+    effect_levels: Vec<u32>,
+    value_metadata: Vec<LiveVariableMetadata>,
+    effect_metadata: Vec<LiveVariableMetadata>,
+    extrusion_stack: Vec<ExtrusionEndpoint>,
+    extrusion_value_marks: Vec<u32>,
+    extrusion_effect_marks: Vec<u32>,
+    extrusion_generation: u32,
     bound_payload_bytes: usize,
+    /// Retained only as an F4 compatibility/resource field.  It is always
+    /// empty; projections are derived from the live rows below.
     occurrence_exact_bounds: Vec<OccurrenceExactBounds>,
-    constraint_pairs: HashSet<CanonicalValuePairKey>,
-    frontier: DirectBoundFrontier,
+    typed_pairs: HashMap<TypedPairKey, TypedPairMemo>,
+    /// Heap capacity owned by `TypedPairMemo::Value.children`. The map slot
+    /// stores only each Vec header, so this tracks the nested diagnostic-edge
+    /// lane without turning O(1) resource samples into memo scans.
+    typed_pair_payload_bytes: usize,
+    typed_worklist: VecDeque<TypedWorkItem>,
+    /// The current synchronous call's newly admitted value pairs.  Completion
+    /// reads old Complete children but never reopens or revisits them.
+    diagnostic_delta: Vec<CanonicalValuePairKey>,
+    diagnostic_delta_indices: HashMap<CanonicalValuePairKey, usize>,
+    /// Reused only within one synchronous diagnostic completion.  Pair memo
+    /// entries retain outgoing edges; reverse edges and SCC state do not leak
+    /// beyond the fallible availability boundary of this session scratch.
+    diagnostic_reverse_offsets: Vec<usize>,
+    diagnostic_reverse_edges: Vec<DiagnosticReverseEdge>,
+    diagnostic_reverse_cursors: Vec<usize>,
+    diagnostic_dfs_stack: Vec<(usize, usize)>,
+    diagnostic_finish_order: Vec<usize>,
+    diagnostic_scc_indices: Vec<usize>,
+    diagnostic_scc_nodes: Vec<usize>,
+    diagnostic_scc_offsets: Vec<usize>,
+    diagnostic_scc_pending_children: Vec<usize>,
+    diagnostic_scc_worklist: VecDeque<usize>,
+    /// Per-SCC canonical-witness propagation is a checked, intrusive FIFO
+    /// bucket table.  The key is §40's `(distance - d0, kind, first field)`;
+    /// no route, predecessor, heap, or improvement queue survives the call.
+    diagnostic_bucket_heads: Vec<Option<usize>>,
+    diagnostic_bucket_tails: Vec<Option<usize>>,
+    diagnostic_bucket_candidates: Vec<DiagnosticBucketCandidate>,
+    diagnostic_node_witnesses: Vec<Option<DiagnosticWitness>>,
+    #[cfg(test)]
+    diagnostic_settle_visits: usize,
+    #[cfg(test)]
+    diagnostic_internal_reverse_edge_visits: usize,
+    #[cfg(test)]
+    diagnostic_scc_member_seed_scans: usize,
+    #[cfg(test)]
+    typed_pair_worklist_pushes: usize,
+    #[cfg(test)]
+    typed_pair_worklist_pops: usize,
+    #[cfg(test)]
+    typed_pair_worklist_maximum_live: usize,
+    #[cfg(test)]
+    typed_pair_worklist_capacity_growths: usize,
+    #[cfg(test)]
+    typed_pair_worklist_peak_bytes: usize,
+    #[cfg(test)]
+    typed_direct_edges: usize,
+    #[cfg(test)]
+    typed_exact_lower_memberships: usize,
+    #[cfg(test)]
+    typed_exact_upper_memberships: usize,
+    #[cfg(test)]
+    typed_transmission_attempts: usize,
+    #[cfg(test)]
+    typed_same_row_atom_intersections: usize,
     routed_uses: Vec<RoutedUseProvenance>,
     routed_use_positions: HashSet<DefinitionUseId>,
     schemes: Vec<Option<ClosedValueScheme>>,
@@ -3317,6 +3565,8 @@ struct InferenceSession {
     resource_boundary_samples: usize,
     #[cfg(test)]
     resource_ledger: IndependentResourceLedger,
+    #[cfg(test)]
+    independent_nested_capacities: IndependentNestedCapacityLedger,
 }
 impl InferenceSession {
     #[cfg(test)]
@@ -3327,11 +3577,16 @@ impl InferenceSession {
 
     fn try_new(batch: ConstraintBatch) -> Result<Self, SolveAvailabilityError> {
         let value_component_count = batch
-            .root_component_positions
-            .len()
-            .checked_add(batch.occurrence_component_positions.len())
-            .expect("F4 value-row capacity");
-        let occurrence_count = batch.projection_order.len();
+            .components
+            .iter()
+            .filter(|component| component.kind() == ComponentKind::Value)
+            .count();
+        let effect_component_count = batch
+            .components
+            .iter()
+            .filter(|component| component.kind() == ComponentKind::Effect)
+            .count();
+        let component_count = batch.components.len();
         let definition_count = batch.definitions.len();
         let fact_capacity = batch
             .occurrences
@@ -3350,21 +3605,75 @@ impl InferenceSession {
                 fact_capacity,
             ),
             batch,
-            errors: Vec::with_capacity(fact_capacity),
-            cross_kind_components: HashSet::with_capacity(value_component_count),
-            bounds: vec![VariableBounds::default(); value_component_count],
+            errors: Vec::new(),
+            reported_errors: HashSet::new(),
+            cross_kind_components: HashSet::new(),
+            live_components: Vec::new(),
+            bounds: Vec::new(),
+            effect_bounds: Vec::new(),
+            value_levels: Vec::new(),
+            effect_levels: Vec::new(),
+            value_metadata: Vec::new(),
+            effect_metadata: Vec::new(),
+            extrusion_stack: Vec::new(),
+            extrusion_value_marks: Vec::new(),
+            extrusion_effect_marks: Vec::new(),
+            extrusion_generation: 0,
             bound_payload_bytes: 0,
-            occurrence_exact_bounds: vec![OccurrenceExactBounds::default(); occurrence_count],
-            constraint_pairs: HashSet::with_capacity(fact_capacity),
-            frontier: DirectBoundFrontier::with_capacity(fact_capacity),
-            routed_uses: Vec::with_capacity(routed_capacity),
-            routed_use_positions: HashSet::with_capacity(routed_capacity),
-            schemes: (0..definition_count).map(|_| None).collect(),
+            occurrence_exact_bounds: Vec::new(),
+            typed_pairs: HashMap::new(),
+            typed_pair_payload_bytes: 0,
+            typed_worklist: VecDeque::new(),
+            diagnostic_delta: Vec::new(),
+            diagnostic_delta_indices: HashMap::new(),
+            diagnostic_reverse_offsets: Vec::new(),
+            diagnostic_reverse_edges: Vec::new(),
+            diagnostic_reverse_cursors: Vec::new(),
+            diagnostic_dfs_stack: Vec::new(),
+            diagnostic_finish_order: Vec::new(),
+            diagnostic_scc_indices: Vec::new(),
+            diagnostic_scc_nodes: Vec::new(),
+            diagnostic_scc_offsets: Vec::new(),
+            diagnostic_scc_pending_children: Vec::new(),
+            diagnostic_scc_worklist: VecDeque::new(),
+            diagnostic_bucket_heads: Vec::new(),
+            diagnostic_bucket_tails: Vec::new(),
+            diagnostic_bucket_candidates: Vec::new(),
+            diagnostic_node_witnesses: Vec::new(),
+            #[cfg(test)]
+            diagnostic_settle_visits: 0,
+            #[cfg(test)]
+            diagnostic_internal_reverse_edge_visits: 0,
+            #[cfg(test)]
+            diagnostic_scc_member_seed_scans: 0,
+            #[cfg(test)]
+            typed_pair_worklist_pushes: 0,
+            #[cfg(test)]
+            typed_pair_worklist_pops: 0,
+            #[cfg(test)]
+            typed_pair_worklist_maximum_live: 0,
+            #[cfg(test)]
+            typed_pair_worklist_capacity_growths: 0,
+            #[cfg(test)]
+            typed_pair_worklist_peak_bytes: 0,
+            #[cfg(test)]
+            typed_direct_edges: 0,
+            #[cfg(test)]
+            typed_exact_lower_memberships: 0,
+            #[cfg(test)]
+            typed_exact_upper_memberships: 0,
+            #[cfg(test)]
+            typed_transmission_attempts: 0,
+            #[cfg(test)]
+            typed_same_row_atom_intersections: 0,
+            routed_uses: Vec::new(),
+            routed_use_positions: HashSet::new(),
+            schemes: Vec::new(),
             finalization: Some(
                 ClosedTypeFinalizationSession::try_new().map_err(Self::map_finalization_error)?,
             ),
             current_closed_retained_bytes: 0,
-            drafts: Vec::with_capacity(draft_capacity),
+            drafts: Vec::new(),
             execution_counters: ProductionCounters::default(),
             #[cfg(test)]
             summary_reads: 0,
@@ -3382,7 +3691,167 @@ impl InferenceSession {
             resource_boundary_samples: 0,
             #[cfg(test)]
             resource_ledger: IndependentResourceLedger::default(),
+            #[cfg(test)]
+            independent_nested_capacities: IndependentNestedCapacityLedger::default(),
         };
+        // Every F5b live table and diagnostic workspace acquires capacity
+        // before startup can publish a live identity or mutate a row.
+        let extrusion_capacity = value_component_count
+            .checked_add(effect_component_count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        macro_rules! reserve_startup {
+            ($field:ident, $additional:expr, $lane:ident) => {
+                reserve_f5b(&mut session.$field, $additional, F5bCapacityLane::$lane)
+                    .map_err(SolveAvailabilityError::from)?;
+            };
+        }
+        reserve_startup!(live_components, component_count, LiveComponents);
+        reserve_startup!(bounds, value_component_count, ValueBounds);
+        reserve_startup!(effect_bounds, effect_component_count, EffectBounds);
+        reserve_startup!(value_levels, value_component_count, ValueLevels);
+        reserve_startup!(effect_levels, effect_component_count, EffectLevels);
+        reserve_startup!(value_metadata, value_component_count, ValueMetadata);
+        reserve_startup!(effect_metadata, effect_component_count, EffectMetadata);
+        reserve_startup!(extrusion_stack, extrusion_capacity, ExtrusionStack);
+        reserve_startup!(
+            extrusion_value_marks,
+            value_component_count,
+            ExtrusionValueMarks
+        );
+        reserve_startup!(
+            extrusion_effect_marks,
+            effect_component_count,
+            ExtrusionEffectMarks
+        );
+        reserve_startup!(typed_pairs, fact_capacity, TypedPairs);
+        reserve_startup!(typed_worklist, fact_capacity, TypedWorklist);
+        #[cfg(test)]
+        {
+            session.typed_pair_worklist_peak_bytes = checked_capacity_bytes::<TypedWorkItem>(
+                session.typed_worklist.capacity(),
+                "initial typed worklist capacity",
+            );
+        }
+        reserve_startup!(diagnostic_delta, fact_capacity, DiagnosticDelta);
+        reserve_startup!(
+            diagnostic_delta_indices,
+            fact_capacity,
+            DiagnosticDeltaIndices
+        );
+        reserve_startup!(
+            diagnostic_reverse_offsets,
+            fact_capacity,
+            DiagnosticReverseOffsets
+        );
+        reserve_startup!(
+            diagnostic_reverse_edges,
+            fact_capacity,
+            DiagnosticReverseEdges
+        );
+        reserve_startup!(
+            diagnostic_reverse_cursors,
+            fact_capacity,
+            DiagnosticReverseCursors
+        );
+        reserve_startup!(diagnostic_dfs_stack, fact_capacity, DiagnosticDfsStack);
+        reserve_startup!(
+            diagnostic_finish_order,
+            fact_capacity,
+            DiagnosticFinishOrder
+        );
+        reserve_startup!(diagnostic_scc_indices, fact_capacity, DiagnosticSccIndices);
+        reserve_startup!(diagnostic_scc_nodes, fact_capacity, DiagnosticSccNodes);
+        reserve_startup!(diagnostic_scc_offsets, fact_capacity, DiagnosticSccOffsets);
+        reserve_startup!(
+            diagnostic_scc_pending_children,
+            fact_capacity,
+            DiagnosticSccPendingChildren
+        );
+        reserve_startup!(
+            diagnostic_scc_worklist,
+            fact_capacity,
+            DiagnosticSccWorklist
+        );
+        reserve_startup!(
+            diagnostic_bucket_heads,
+            fact_capacity,
+            DiagnosticBucketHeads
+        );
+        reserve_startup!(
+            diagnostic_bucket_tails,
+            fact_capacity,
+            DiagnosticBucketTails
+        );
+        reserve_startup!(
+            diagnostic_bucket_candidates,
+            fact_capacity,
+            DiagnosticBucketCandidates
+        );
+        reserve_startup!(
+            diagnostic_node_witnesses,
+            fact_capacity,
+            DiagnosticNodeWitnesses
+        );
+        reserve_startup!(errors, fact_capacity, Errors);
+        reserve_startup!(reported_errors, fact_capacity, ReportedErrors);
+        reserve_startup!(
+            cross_kind_components,
+            value_component_count,
+            CrossKindComponents
+        );
+        reserve_startup!(routed_uses, routed_capacity, RoutedUses);
+        reserve_startup!(routed_use_positions, routed_capacity, RoutedUsePositions);
+        reserve_startup!(schemes, definition_count, Schemes);
+        reserve_startup!(drafts, draft_capacity, Drafts);
+        session
+            .extrusion_value_marks
+            .resize(value_component_count, 0);
+        session
+            .extrusion_effect_marks
+            .resize(effect_component_count, 0);
+        session.schemes.resize(definition_count, None);
+        // Collection IDs are frozen recipe positions only.  Every component,
+        // including effect components, receives exactly one checked dense live
+        // ordinal at level one before any fact admission.
+        let mut next_value = 0u32;
+        let mut next_effect = 0u32;
+        for component in &session.batch.components {
+            let endpoint = match component.kind() {
+                ComponentKind::Value => {
+                    let ordinal = next_value;
+                    next_value = next_value
+                        .checked_add(1)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    session.bounds.push(VariableBounds::default());
+                    session.value_levels.push(1);
+                    session.value_metadata.push(LiveVariableMetadata {
+                        origin: LiveVariableOrigin::Collected,
+                        non_generic: false,
+                    });
+                    LiveComponentEndpoint {
+                        kind: ComponentKind::Value,
+                        ordinal,
+                    }
+                }
+                ComponentKind::Effect => {
+                    let ordinal = next_effect;
+                    next_effect = next_effect
+                        .checked_add(1)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    session.effect_bounds.push(EffectBounds::default());
+                    session.effect_levels.push(1);
+                    session.effect_metadata.push(LiveVariableMetadata {
+                        origin: LiveVariableOrigin::Collected,
+                        non_generic: false,
+                    });
+                    LiveComponentEndpoint {
+                        kind: ComponentKind::Effect,
+                        ordinal,
+                    }
+                }
+            };
+            session.live_components.push(endpoint);
+        }
         // Initial reservations coexist before any fact admission and are a
         // real resource boundary, not a final retained-byte alias.
         session.sample_f4_resources(ResourceBoundary::InitialReservation);
@@ -3396,6 +3865,131 @@ impl InferenceSession {
                 panic!("F4 finalization draft is internally validated before publication")
             }
         }
+    }
+
+    #[allow(
+        dead_code,
+        reason = "F5b private Function witnesses allocate incoming live variables"
+    )]
+    fn fresh_value_at_level(&mut self, level: u32) -> Result<u32, SolveAvailabilityError> {
+        let ordinal = u32::try_from(self.bounds.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        reserve_f5b(&mut self.bounds, 1, F5bCapacityLane::ValueBounds)?;
+        reserve_f5b(&mut self.value_levels, 1, F5bCapacityLane::ValueLevels)?;
+        reserve_f5b(&mut self.value_metadata, 1, F5bCapacityLane::ValueMetadata)?;
+        reserve_f5b(
+            &mut self.extrusion_value_marks,
+            1,
+            F5bCapacityLane::ExtrusionValueMarks,
+        )?;
+        self.bounds.push(VariableBounds::default());
+        self.value_levels.push(level);
+        self.value_metadata.push(LiveVariableMetadata {
+            origin: LiveVariableOrigin::Fresh,
+            non_generic: false,
+        });
+        self.extrusion_value_marks.push(0);
+        Ok(ordinal)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "F5b private Function witnesses allocate incoming live variables"
+    )]
+    fn fresh_effect_at_level(&mut self, level: u32) -> Result<u32, SolveAvailabilityError> {
+        let ordinal = u32::try_from(self.effect_bounds.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        reserve_f5b(&mut self.effect_bounds, 1, F5bCapacityLane::EffectBounds)?;
+        reserve_f5b(&mut self.effect_levels, 1, F5bCapacityLane::EffectLevels)?;
+        reserve_f5b(
+            &mut self.effect_metadata,
+            1,
+            F5bCapacityLane::EffectMetadata,
+        )?;
+        reserve_f5b(
+            &mut self.extrusion_effect_marks,
+            1,
+            F5bCapacityLane::ExtrusionEffectMarks,
+        )?;
+        self.effect_bounds.push(EffectBounds::default());
+        self.effect_levels.push(level);
+        self.effect_metadata.push(LiveVariableMetadata {
+            origin: LiveVariableOrigin::Fresh,
+            non_generic: false,
+        });
+        self.extrusion_effect_marks.push(0);
+        Ok(ordinal)
+    }
+
+    #[allow(dead_code, reason = "nested live allocation is deferred to F5c/F5d")]
+    fn child_level(level: u32) -> Result<u32, SolveAvailabilityError> {
+        level
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "F5b private Function witnesses construct opaque live terms"
+    )]
+    fn live_value_term(
+        &mut self,
+        polarity: Polarity,
+        ordinal: u32,
+    ) -> Result<Term, SolveAvailabilityError> {
+        self.store
+            .terms
+            .live_variable(ComponentKind::Value, polarity, ordinal)
+            .map_err(SolveAvailabilityError::from)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "F5b private Function witnesses construct opaque live terms"
+    )]
+    fn live_effect_term(
+        &mut self,
+        polarity: Polarity,
+        ordinal: u32,
+    ) -> Result<Term, SolveAvailabilityError> {
+        self.store
+            .terms
+            .live_variable(ComponentKind::Effect, polarity, ordinal)
+            .map_err(SolveAvailabilityError::from)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "F5b private Function witnesses construct opaque live terms"
+    )]
+    fn positive_function_term(
+        &mut self,
+        argument: Term,
+        argument_effect: Term,
+        result_effect: Term,
+        result: Term,
+    ) -> Result<Term, SolveAvailabilityError> {
+        self.store
+            .terms
+            .positive_function(argument, argument_effect, result_effect, result)
+            .map_err(SolveAvailabilityError::from)
+    }
+
+    #[allow(
+        dead_code,
+        reason = "F5b private Function witnesses construct opaque live terms"
+    )]
+    fn negative_function_term(
+        &mut self,
+        argument: Term,
+        argument_effect: Term,
+        result_effect: Term,
+        result: Term,
+    ) -> Result<Term, SolveAvailabilityError> {
+        self.store
+            .terms
+            .negative_function(argument, argument_effect, result_effect, result)
+            .map_err(SolveAvailabilityError::from)
     }
 
     #[cfg(test)]
@@ -3443,21 +4037,21 @@ impl InferenceSession {
             synthetic_seed_value_pair_probes: self.batch.synthetic_seed_value_pair_probes,
             reads: self.summary_reads,
             false_to_true_transitions: self.summary_false_to_true_transitions,
-            frontier_pushes: self.frontier.pushes,
-            frontier_pops: self.frontier.pops,
-            frontier_maximum_live: self.frontier.maximum_live,
-            frontier_capacity: self.frontier.queue.capacity(),
-            frontier_capacity_growths: self.frontier.capacity_growths,
-            frontier_retained_bytes: checked_capacity_bytes::<CanonicalValuePairKey>(
-                self.frontier.queue.capacity(),
-                "F4 observed frontier queue",
+            frontier_pushes: self.typed_pair_worklist_pushes,
+            frontier_pops: self.typed_pair_worklist_pops,
+            frontier_maximum_live: self.typed_pair_worklist_maximum_live,
+            frontier_capacity: self.typed_worklist.capacity(),
+            frontier_capacity_growths: self.typed_pair_worklist_capacity_growths,
+            frontier_retained_bytes: checked_capacity_bytes::<TypedWorkItem>(
+                self.typed_worklist.capacity(),
+                "F5b observed typed frontier queue",
             ),
-            frontier_peak_bytes: self.frontier.peak_bytes,
-            direct_edges: self.frontier.direct_edges,
-            exact_lower_memberships: self.frontier.exact_lower_memberships,
-            exact_upper_memberships: self.frontier.exact_upper_memberships,
-            transmission_attempts: self.frontier.transmission_attempts,
-            same_row_atom_intersections: self.frontier.same_row_atom_intersections,
+            frontier_peak_bytes: self.typed_pair_worklist_peak_bytes,
+            direct_edges: self.typed_direct_edges,
+            exact_lower_memberships: self.typed_exact_lower_memberships,
+            exact_upper_memberships: self.typed_exact_upper_memberships,
+            transmission_attempts: self.typed_transmission_attempts,
+            same_row_atom_intersections: self.typed_same_row_atom_intersections,
             semantic_arena_retained_bytes: self.execution_counters.semantic_arena_retained_bytes,
             semantic_arena_peak_bytes: self.execution_counters.semantic_arena_peak_bytes,
             inference_session_retained_bytes: self
@@ -3514,20 +4108,46 @@ impl InferenceSession {
         Self::sample_f4_resource_parts(
             &self.store,
             &self.errors,
+            &self.reported_errors,
             &self.cross_kind_components,
+            &self.live_components,
             &self.bounds,
+            &self.effect_bounds,
+            &self.value_levels,
+            &self.effect_levels,
+            &self.value_metadata,
+            &self.effect_metadata,
+            &self.extrusion_stack,
+            &self.extrusion_value_marks,
+            &self.extrusion_effect_marks,
             self.bound_payload_bytes,
             &self.occurrence_exact_bounds,
-            &self.constraint_pairs,
-            &self.frontier,
+            &self.typed_pairs,
+            self.typed_pair_payload_bytes,
+            &self.typed_worklist,
+            &self.diagnostic_delta,
+            &self.diagnostic_delta_indices,
+            &self.diagnostic_reverse_offsets,
+            &self.diagnostic_reverse_edges,
+            &self.diagnostic_reverse_cursors,
+            &self.diagnostic_dfs_stack,
+            &self.diagnostic_finish_order,
+            &self.diagnostic_scc_indices,
+            &self.diagnostic_scc_nodes,
+            &self.diagnostic_scc_offsets,
+            &self.diagnostic_scc_pending_children,
+            &self.diagnostic_scc_worklist,
+            &self.diagnostic_bucket_heads,
+            &self.diagnostic_bucket_tails,
+            &self.diagnostic_bucket_candidates,
+            &self.diagnostic_node_witnesses,
             &self.routed_uses,
             &self.routed_use_positions,
             &self.schemes,
             &self.drafts,
             self.current_closed_retained_bytes,
-            self.batch.frozen_constraint_classes.capacity(),
-            self.batch.frozen_occurrence_bound_rows.capacity(),
             self.batch.counters.f2_batch_retained_bytes,
+            self.batch.component_term_positions.capacity(),
             finish_output_retained_bytes,
             &mut self.execution_counters,
             #[cfg(test)]
@@ -3536,6 +4156,8 @@ impl InferenceSession {
             _boundary,
             #[cfg(test)]
             &mut self.resource_ledger,
+            #[cfg(test)]
+            &self.independent_nested_capacities,
         );
     }
 
@@ -3547,26 +4169,55 @@ impl InferenceSession {
     fn sample_f4_resource_parts(
         store: &ConstraintStore,
         errors: &Vec<SolverError>,
+        reported_errors: &HashSet<(ConstraintOccurrenceId, SolverErrorKind)>,
         cross_kind_components: &HashSet<ComponentId>,
+        live_components: &Vec<LiveComponentEndpoint>,
         bounds: &Vec<VariableBounds>,
+        effect_bounds: &Vec<EffectBounds>,
+        value_levels: &Vec<u32>,
+        effect_levels: &Vec<u32>,
+        value_metadata: &Vec<LiveVariableMetadata>,
+        effect_metadata: &Vec<LiveVariableMetadata>,
+        extrusion_stack: &Vec<ExtrusionEndpoint>,
+        extrusion_value_marks: &Vec<u32>,
+        extrusion_effect_marks: &Vec<u32>,
         bound_payload_bytes: usize,
         occurrence_exact_bounds: &Vec<OccurrenceExactBounds>,
-        constraint_pairs: &HashSet<CanonicalValuePairKey>,
-        frontier: &DirectBoundFrontier,
+        typed_pairs: &HashMap<TypedPairKey, TypedPairMemo>,
+        typed_pair_payload_bytes: usize,
+        typed_worklist: &VecDeque<TypedWorkItem>,
+        diagnostic_delta: &Vec<CanonicalValuePairKey>,
+        diagnostic_delta_indices: &HashMap<CanonicalValuePairKey, usize>,
+        diagnostic_reverse_offsets: &Vec<usize>,
+        diagnostic_reverse_edges: &Vec<DiagnosticReverseEdge>,
+        diagnostic_reverse_cursors: &Vec<usize>,
+        diagnostic_dfs_stack: &Vec<(usize, usize)>,
+        diagnostic_finish_order: &Vec<usize>,
+        diagnostic_scc_indices: &Vec<usize>,
+        diagnostic_scc_nodes: &Vec<usize>,
+        diagnostic_scc_offsets: &Vec<usize>,
+        diagnostic_scc_pending_children: &Vec<usize>,
+        diagnostic_scc_worklist: &VecDeque<usize>,
+        diagnostic_bucket_heads: &Vec<Option<usize>>,
+        diagnostic_bucket_tails: &Vec<Option<usize>>,
+        diagnostic_bucket_candidates: &Vec<DiagnosticBucketCandidate>,
+        diagnostic_node_witnesses: &Vec<Option<DiagnosticWitness>>,
         routed_uses: &Vec<RoutedUseProvenance>,
         routed_use_positions: &HashSet<DefinitionUseId>,
         schemes: &Vec<Option<ClosedValueScheme>>,
         drafts: &Vec<DraftScheme>,
         closed_type_retained_bytes: usize,
-        frozen_constraint_class_capacity: usize,
-        frozen_occurrence_row_capacity: usize,
         f2_batch_retained_bytes: usize,
+        component_term_positions_capacity: usize,
         finish_output_retained_bytes: usize,
         counters: &mut ProductionCounters,
         #[cfg(test)] resource_boundary_samples: &mut usize,
         #[cfg(test)] boundary: ResourceBoundary,
         #[cfg(test)] resource_ledger: &mut IndependentResourceLedger,
+        #[cfg(test)] independent_nested_capacities: &IndependentNestedCapacityLedger,
     ) {
+        #[cfg(not(test))]
+        let _ = component_term_positions_capacity;
         #[cfg(test)]
         {
             *resource_boundary_samples += 1;
@@ -3574,35 +4225,164 @@ impl InferenceSession {
                 boundary,
                 store,
                 errors,
+                reported_errors,
                 cross_kind_components,
+                live_components,
                 bounds,
-                bound_payload_bytes,
+                effect_bounds,
+                value_levels,
+                effect_levels,
+                value_metadata,
+                effect_metadata,
+                extrusion_stack,
+                extrusion_value_marks,
+                extrusion_effect_marks,
                 occurrence_exact_bounds,
-                constraint_pairs,
-                frontier,
+                typed_pairs,
+                typed_worklist,
+                diagnostic_delta,
+                diagnostic_delta_indices,
+                diagnostic_reverse_offsets,
+                diagnostic_reverse_edges,
+                diagnostic_reverse_cursors,
+                diagnostic_dfs_stack,
+                diagnostic_finish_order,
+                diagnostic_scc_indices,
+                diagnostic_scc_nodes,
+                diagnostic_scc_offsets,
+                diagnostic_scc_pending_children,
+                diagnostic_scc_worklist,
+                diagnostic_bucket_heads,
+                diagnostic_bucket_tails,
+                diagnostic_bucket_candidates,
+                diagnostic_node_witnesses,
                 routed_uses,
                 routed_use_positions,
                 schemes,
                 drafts,
                 closed_type_retained_bytes,
-                frozen_constraint_class_capacity,
-                frozen_occurrence_row_capacity,
                 f2_batch_retained_bytes,
+                component_term_positions_capacity,
                 finish_output_retained_bytes,
+                independent_nested_capacities,
             );
         }
-        let bounds_rows_bytes =
-            checked_capacity_bytes::<VariableBounds>(bounds.capacity(), "F4 production bound rows");
-        let bounds_bytes = bounds_rows_bytes
-            .checked_add(bound_payload_bytes)
-            .expect("F4 bounds byte accounting fits usize");
-        let pair_bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
-            constraint_pairs.capacity(),
-            "F4 production pair cache",
+        let bounds_bytes = checked_usize_sum(
+            [
+                checked_capacity_bytes::<LiveComponentEndpoint>(
+                    live_components.capacity(),
+                    "F5b live translation",
+                ),
+                checked_capacity_bytes::<VariableBounds>(bounds.capacity(), "F5b value bound rows"),
+                checked_capacity_bytes::<EffectBounds>(
+                    effect_bounds.capacity(),
+                    "F5b effect bound rows",
+                ),
+                checked_capacity_bytes::<u32>(value_levels.capacity(), "F5b value levels"),
+                checked_capacity_bytes::<u32>(effect_levels.capacity(), "F5b effect levels"),
+                checked_capacity_bytes::<LiveVariableMetadata>(
+                    value_metadata.capacity(),
+                    "F5b value metadata",
+                ),
+                checked_capacity_bytes::<LiveVariableMetadata>(
+                    effect_metadata.capacity(),
+                    "F5b effect metadata",
+                ),
+                checked_capacity_bytes::<ExtrusionEndpoint>(
+                    extrusion_stack.capacity(),
+                    "F5b extrusion stack",
+                ),
+                checked_capacity_bytes::<u32>(
+                    extrusion_value_marks.capacity(),
+                    "F5b extrusion value marks",
+                ),
+                checked_capacity_bytes::<u32>(
+                    extrusion_effect_marks.capacity(),
+                    "F5b extrusion effect marks",
+                ),
+                bound_payload_bytes,
+            ],
+            "F5b live bound tables",
         );
-        let frontier_bytes = checked_capacity_bytes::<CanonicalValuePairKey>(
-            frontier.queue.capacity(),
-            "F4 production frontier queue",
+        let pair_bytes = checked_usize_sum(
+            [
+                checked_capacity_bytes::<(TypedPairKey, TypedPairMemo)>(
+                    typed_pairs.capacity(),
+                    "F5b typed pair memo",
+                ),
+                typed_pair_payload_bytes,
+            ],
+            "F5b typed pair memo including diagnostic edges",
+        );
+        let frontier_bytes = checked_capacity_bytes::<TypedWorkItem>(
+            typed_worklist.capacity(),
+            "F5b typed frontier queue",
+        );
+        let diagnostic_scratch_bytes = checked_usize_sum(
+            [
+                checked_capacity_bytes::<CanonicalValuePairKey>(
+                    diagnostic_delta.capacity(),
+                    "F5b diagnostic delta",
+                ),
+                checked_capacity_bytes::<(CanonicalValuePairKey, usize)>(
+                    diagnostic_delta_indices.capacity(),
+                    "F5b diagnostic delta index",
+                ),
+                checked_capacity_bytes::<usize>(
+                    diagnostic_reverse_offsets.capacity(),
+                    "F5b reverse offsets",
+                ),
+                checked_capacity_bytes::<DiagnosticReverseEdge>(
+                    diagnostic_reverse_edges.capacity(),
+                    "F5b reverse edges",
+                ),
+                checked_capacity_bytes::<usize>(
+                    diagnostic_reverse_cursors.capacity(),
+                    "F5b reverse cursors",
+                ),
+                checked_capacity_bytes::<(usize, usize)>(
+                    diagnostic_dfs_stack.capacity(),
+                    "F5b diagnostic DFS",
+                ),
+                checked_capacity_bytes::<usize>(
+                    diagnostic_finish_order.capacity(),
+                    "F5b finish order",
+                ),
+                checked_capacity_bytes::<usize>(
+                    diagnostic_scc_indices.capacity(),
+                    "F5b SCC indices",
+                ),
+                checked_capacity_bytes::<usize>(diagnostic_scc_nodes.capacity(), "F5b SCC nodes"),
+                checked_capacity_bytes::<usize>(
+                    diagnostic_scc_offsets.capacity(),
+                    "F5b SCC offsets",
+                ),
+                checked_capacity_bytes::<usize>(
+                    diagnostic_scc_pending_children.capacity(),
+                    "F5b SCC pending",
+                ),
+                checked_capacity_bytes::<usize>(
+                    diagnostic_scc_worklist.capacity(),
+                    "F5b SCC worklist",
+                ),
+                checked_capacity_bytes::<Option<usize>>(
+                    diagnostic_bucket_heads.capacity(),
+                    "F5b bucket heads",
+                ),
+                checked_capacity_bytes::<Option<usize>>(
+                    diagnostic_bucket_tails.capacity(),
+                    "F5b bucket tails",
+                ),
+                checked_capacity_bytes::<DiagnosticBucketCandidate>(
+                    diagnostic_bucket_candidates.capacity(),
+                    "F5b bucket candidates",
+                ),
+                checked_capacity_bytes::<Option<DiagnosticWitness>>(
+                    diagnostic_node_witnesses.capacity(),
+                    "F5b node witnesses",
+                ),
+            ],
+            "F5b diagnostic scratch",
         );
         let exact_bytes = checked_capacity_bytes::<OccurrenceExactBounds>(
             occurrence_exact_bounds.capacity(),
@@ -3641,10 +4421,28 @@ impl InferenceSession {
         );
         counters.draft_scratch_capacity = drafts.capacity();
         counters.draft_scratch_retained_bytes = drafts_bytes;
-        counters.bound_table_capacity = bounds.capacity();
+        // Compatibility accessor: aggregate the dense live-table lanes rather
+        // than reporting one value-row Vec while retained bytes cover the
+        // complete value/effect table family. Nested row storage is
+        // heterogeneous and remains represented exactly by retained bytes.
+        counters.bound_table_capacity = checked_usize_sum(
+            [
+                live_components.capacity(),
+                bounds.capacity(),
+                effect_bounds.capacity(),
+                value_levels.capacity(),
+                effect_levels.capacity(),
+                value_metadata.capacity(),
+                effect_metadata.capacity(),
+                extrusion_stack.capacity(),
+                extrusion_value_marks.capacity(),
+                extrusion_effect_marks.capacity(),
+            ],
+            "F5b aggregate live-table capacity",
+        );
         counters.bound_table_retained_bytes = bounds_bytes;
         counters.bound_table_peak_bytes = counters.bound_table_peak_bytes.max(bounds_bytes);
-        counters.constraint_pair_cache_capacity = constraint_pairs.capacity();
+        counters.constraint_pair_cache_capacity = typed_pairs.capacity();
         counters.constraint_pair_cache_retained_bytes = pair_bytes;
         counters.constraint_pair_cache_peak_bytes =
             counters.constraint_pair_cache_peak_bytes.max(pair_bytes);
@@ -3667,19 +4465,13 @@ impl InferenceSession {
                 bounds_bytes,
                 pair_bytes,
                 frontier_bytes,
+                diagnostic_scratch_bytes,
                 scheme_bytes,
                 routes_bytes,
                 drafts_bytes,
                 closed_type_retained_bytes,
                 exact_bytes,
-                checked_capacity_bytes::<FrozenConstraintClass>(
-                    frozen_constraint_class_capacity,
-                    "F4 production frozen constraint classes",
-                ),
-                checked_capacity_bytes::<u32>(
-                    frozen_occurrence_row_capacity,
-                    "F4 production frozen occurrence rows",
-                ),
+                store.inference_term_retained_bytes(),
             ],
             "F4 production semantic arena",
         );
@@ -3693,6 +4485,10 @@ impl InferenceSession {
                 checked_capacity_bytes::<SolverError>(
                     errors.capacity(),
                     "F4 production solver errors",
+                ),
+                checked_capacity_bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(
+                    reported_errors.capacity(),
+                    "F5b production reported-error index",
                 ),
                 checked_capacity_bytes::<ComponentId>(
                     cross_kind_components.capacity(),
@@ -3718,8 +4514,6 @@ impl InferenceSession {
     fn admit_all_collected_facts(&mut self) -> Result<(), SolveAvailabilityError> {
         for occurrence_index in 0..self.batch.occurrences().len() {
             let occurrence = self.batch.occurrences()[occurrence_index].clone();
-            let class = self.batch.frozen_constraint_classes[occurrence_index];
-            let occurrence_bound_row = self.batch.frozen_occurrence_bound_rows[occurrence_index];
             let result = {
                 let mut transaction = self.store.transaction();
                 transaction.admit(&occurrence)
@@ -3729,24 +4523,22 @@ impl InferenceSession {
                     self.store
                         .record_provenance(receipt)
                         .map_err(SolveAvailabilityError::from)?;
-                    match class {
-                        FrozenConstraintClass::Value(key) => {
+                    match self
+                        .store
+                        .term_kind(occurrence.lower)
+                        .expect("admitted term remains valid")
+                    {
+                        ComponentKind::Value => {
                             #[cfg(test)]
                             {
                                 self.initial_value_pair_probes += 1;
                             }
-                            let exact =
-                                &mut self.occurrence_exact_bounds[occurrence_bound_row as usize];
-                            exact.value_lower_int |= key.lower == ValueEndpointKey::IntPositive;
-                            exact.value_upper_int |= key.upper == ValueEndpointKey::IntNegative;
-                            let transitions = Self::constrain(
-                                &mut self.bounds,
-                                &mut self.bound_payload_bytes,
-                                &mut self.constraint_pairs,
-                                &mut self.frontier,
-                                &mut self.execution_counters,
-                                key,
-                            );
+                            let key = CanonicalValuePairKey {
+                                lower: self.value_endpoint(occurrence.lower, Polarity::Positive),
+                                upper: self.value_endpoint(occurrence.upper, Polarity::Negative),
+                            };
+                            let transitions =
+                                self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
                             #[cfg(test)]
                             {
                                 self.summary_false_to_true_transitions += transitions;
@@ -3755,23 +4547,26 @@ impl InferenceSession {
                             let _ = transitions;
                             self.sample_f4_resources(ResourceBoundary::InitialAdmission);
                         }
-                        FrozenConstraintClass::Effect {
-                            occurrence_bound_row,
-                            lower_is_bottom,
-                            upper_is_empty,
-                        } => {
-                            let exact =
-                                &mut self.occurrence_exact_bounds[occurrence_bound_row as usize];
-                            exact.effect_lower_bottom |= lower_is_bottom;
-                            exact.effect_upper_empty |= upper_is_empty;
+                        ComponentKind::Effect => {
+                            let lower = self.effect_endpoint(occurrence.lower, Polarity::Positive);
+                            let upper = self.effect_endpoint(occurrence.upper, Polarity::Negative);
+                            self.constrain_live_effect(
+                                lower,
+                                upper,
+                                &occurrence.id,
+                                &occurrence.cause,
+                            )?;
                             self.sample_f4_resources(ResourceBoundary::InitialAdmission);
-                        }
-                        FrozenConstraintClass::CrossKind => {
-                            unreachable!("store classifies cross-kind fact")
                         }
                     }
                 }
                 Err(ConstraintError::CrossKind { lower, upper }) => {
+                    reserve_f5b(&mut self.errors, 1, F5bCapacityLane::Errors)?;
+                    reserve_f5b(
+                        &mut self.cross_kind_components,
+                        2,
+                        F5bCapacityLane::CrossKindComponents,
+                    )?;
                     self.errors.push(SolverError {
                         occurrence: occurrence.id.clone(),
                         cause: occurrence.cause.clone(),
@@ -3790,163 +4585,1597 @@ impl InferenceSession {
         Ok(())
     }
 
-    fn constrain(
-        bounds: &mut [VariableBounds],
-        bound_payload_bytes: &mut usize,
-        constraint_pairs: &mut HashSet<CanonicalValuePairKey>,
-        frontier: &mut DirectBoundFrontier,
-        counters: &mut ProductionCounters,
-        key: CanonicalValuePairKey,
-    ) -> usize {
-        assert!(
-            frontier.queue.is_empty(),
-            "each public constrain drains the direct-bound frontier synchronously"
-        );
-        let mut transitions = 0;
-        frontier.push(key);
-        while let Some(key) = frontier.pop() {
-            let old_capacity = constraint_pairs.capacity();
-            if !constraint_pairs.insert(key) {
-                counters.constraint_pair_duplicates += 1;
-                continue;
-            }
-            if constraint_pairs.capacity() != old_capacity {
-                counters.constraint_pair_cache_growths += 1;
-                counters.constraint_pair_cache_rebuilds += 1;
-            }
-            counters.constraint_pair_admissions += 1;
-            match (key.lower, key.upper) {
-                (ValueEndpointKey::ValueRow(lower), ValueEndpointKey::ValueRow(upper)) => {
-                    frontier.direct_edge_installed();
-                    let lower_index = lower as usize;
-                    let upper_index = upper as usize;
-                    let old_lower_capacity = bounds[upper_index].direct_lower_rows.capacity();
-                    bounds[upper_index].direct_lower_rows.push(lower);
-                    Self::record_bound_capacity_growth(
-                        bound_payload_bytes,
-                        counters,
-                        old_lower_capacity,
-                        bounds[upper_index].direct_lower_rows.capacity(),
-                        std::mem::size_of::<u32>(),
-                    );
-                    counters.lower_bound_insertions += 1;
-                    let old_upper_capacity = bounds[lower_index].direct_upper_rows.capacity();
-                    bounds[lower_index].direct_upper_rows.push(upper);
-                    Self::record_bound_capacity_growth(
-                        bound_payload_bytes,
-                        counters,
-                        old_upper_capacity,
-                        bounds[lower_index].direct_upper_rows.capacity(),
-                        std::mem::size_of::<u32>(),
-                    );
-                    counters.upper_bound_insertions += 1;
+    fn component_endpoint(&self, term: Term) -> LiveComponentEndpoint {
+        let position = *self
+            .batch
+            .component_term_positions
+            .get(&term)
+            .expect("collected component term has one immutable recipe position");
+        self.live_components[position]
+    }
 
-                    let lower_len = bounds[lower_index].exact_non_variable_lowers.len();
-                    for index in 0..lower_len {
-                        counters.lower_bound_replays += 1;
-                        frontier.transmission_attempted();
-                        frontier.push(CanonicalValuePairKey {
-                            lower: bounds[lower_index].exact_non_variable_lowers[index],
-                            upper: ValueEndpointKey::ValueRow(upper),
-                        });
+    fn value_endpoint(&self, term: Term, polarity: Polarity) -> ValueEndpointKey {
+        match self
+            .store
+            .term_view(term)
+            .expect("collected value term is visible in its solve branch")
+        {
+            TermView::Leaf(Leaf::IntPositive) => ValueEndpointKey::IntPositive,
+            TermView::Leaf(Leaf::IntNegative) => ValueEndpointKey::IntNegative,
+            TermView::Component(component) => {
+                debug_assert_eq!(component.kind(), ComponentKind::Value);
+                ValueEndpointKey::ValueRow(self.component_endpoint(term).ordinal)
+            }
+            TermView::LiveVariable(view) => {
+                assert_eq!(view.kind(), ComponentKind::Value);
+                assert_eq!(view.polarity(), polarity);
+                ValueEndpointKey::ValueRow(view.ordinal())
+            }
+            TermView::PositiveFunction { .. } => {
+                assert_eq!(polarity, Polarity::Positive);
+                ValueEndpointKey::PositiveFunction(term)
+            }
+            TermView::NegativeFunction { .. } => {
+                assert_eq!(polarity, Polarity::Negative);
+                ValueEndpointKey::NegativeFunction(term)
+            }
+            TermView::Leaf(_) => panic!("effect leaf cannot translate as a value endpoint"),
+        }
+    }
+
+    fn effect_endpoint(&self, term: Term, polarity: Polarity) -> EffectEndpointKey {
+        match self
+            .store
+            .term_view(term)
+            .expect("collected effect term is visible in its solve branch")
+        {
+            TermView::Leaf(Leaf::EffectBottomPositive) => EffectEndpointKey::BottomPositive,
+            TermView::Leaf(Leaf::EmptyEffectNegative) => EffectEndpointKey::EmptyNegative,
+            TermView::Component(component) => {
+                debug_assert_eq!(component.kind(), ComponentKind::Effect);
+                EffectEndpointKey::EffectRow(self.component_endpoint(term).ordinal)
+            }
+            TermView::LiveVariable(view) => {
+                assert_eq!(view.kind(), ComponentKind::Effect);
+                assert_eq!(view.polarity(), polarity);
+                EffectEndpointKey::EffectRow(view.ordinal())
+            }
+            _ => panic!("value term cannot translate as an effect endpoint"),
+        }
+    }
+
+    /// Lower reachable younger variables with reusable generation marks.  The
+    /// traversal follows only installed exact structure and direct adjacency;
+    /// it neither allocates per pair nor materializes transitive relations.
+    fn extrude_value_endpoint(
+        &mut self,
+        endpoint: ValueEndpointKey,
+        target_level: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.extrude(ExtrusionEndpoint::Value(endpoint), target_level)
+    }
+
+    /// Every growth of the iterative traversal is fallible.  In particular,
+    /// Function children are not bounded by the startup component count: a
+    /// private F5b witness or later fresh instantiation can be arbitrarily
+    /// deep.
+    fn extrude(
+        &mut self,
+        initial: ExtrusionEndpoint,
+        target_level: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.extrusion_generation = self.extrusion_generation.wrapping_add(1);
+        if self.extrusion_generation == 0 {
+            self.extrusion_value_marks.fill(0);
+            self.extrusion_effect_marks.fill(0);
+            self.extrusion_generation = 1;
+        }
+        let generation = self.extrusion_generation;
+        self.extrusion_stack.clear();
+        self.push_extrusion(initial)?;
+        while let Some(endpoint) = self.extrusion_stack.pop() {
+            match endpoint {
+                ExtrusionEndpoint::Value(endpoint) => match endpoint {
+                    ValueEndpointKey::ValueRow(ordinal) => {
+                        let index = ordinal as usize;
+                        if self.extrusion_value_marks[index] == generation
+                            || self.value_levels[index] <= target_level
+                        {
+                            continue;
+                        }
+                        self.extrusion_value_marks[index] = generation;
+                        self.value_levels[index] = target_level;
+                        for item_index in 0..self.bounds[index].exact_non_variable_lowers.len() {
+                            self.push_extrusion(ExtrusionEndpoint::Value(
+                                self.bounds[index].exact_non_variable_lowers[item_index],
+                            ))?;
+                        }
+                        for item_index in 0..self.bounds[index].exact_non_variable_uppers.len() {
+                            self.push_extrusion(ExtrusionEndpoint::Value(
+                                self.bounds[index].exact_non_variable_uppers[item_index],
+                            ))?;
+                        }
+                        for row_index in 0..self.bounds[index].direct_lower_rows.len() {
+                            self.push_extrusion(ExtrusionEndpoint::Value(
+                                ValueEndpointKey::ValueRow(
+                                    self.bounds[index].direct_lower_rows[row_index],
+                                ),
+                            ))?;
+                        }
+                        for row_index in 0..self.bounds[index].direct_upper_rows.len() {
+                            self.push_extrusion(ExtrusionEndpoint::Value(
+                                ValueEndpointKey::ValueRow(
+                                    self.bounds[index].direct_upper_rows[row_index],
+                                ),
+                            ))?;
+                        }
                     }
-                    let upper_len = bounds[upper_index].exact_non_variable_uppers.len();
-                    for index in 0..upper_len {
-                        counters.upper_bound_replays += 1;
-                        frontier.transmission_attempted();
-                        frontier.push(CanonicalValuePairKey {
-                            lower: ValueEndpointKey::ValueRow(lower),
-                            upper: bounds[upper_index].exact_non_variable_uppers[index],
-                        });
+                    ValueEndpointKey::PositiveFunction(term) => {
+                        let TermView::PositiveFunction {
+                            argument,
+                            argument_effect,
+                            result_effect,
+                            result,
+                        } = self
+                            .store
+                            .term_view(term)
+                            .expect("live Function remains branch-owned")
+                        else {
+                            unreachable!("positive Function endpoint retains its constructor");
+                        };
+                        // Reverse push preserves the normative pop/decomposition order.
+                        self.push_extrusion(ExtrusionEndpoint::Value(
+                            self.value_endpoint(result, Polarity::Positive),
+                        ))?;
+                        self.push_extrusion(ExtrusionEndpoint::Effect(
+                            self.effect_endpoint(result_effect, Polarity::Positive),
+                        ))?;
+                        self.push_extrusion(ExtrusionEndpoint::Effect(
+                            self.effect_endpoint(argument_effect, Polarity::Negative),
+                        ))?;
+                        self.push_extrusion(ExtrusionEndpoint::Value(
+                            self.value_endpoint(argument, Polarity::Negative),
+                        ))?;
                     }
-                }
-                (atom, ValueEndpointKey::ValueRow(row)) => {
-                    let index = row as usize;
-                    let old_capacity = bounds[index].exact_non_variable_lowers.capacity();
-                    bounds[index].exact_non_variable_lowers.push(atom);
-                    Self::record_bound_capacity_growth(
-                        bound_payload_bytes,
-                        counters,
-                        old_capacity,
-                        bounds[index].exact_non_variable_lowers.capacity(),
-                        std::mem::size_of::<ValueEndpointKey>(),
-                    );
-                    counters.lower_bound_insertions += 1;
-                    frontier.exact_lower_membership_installed();
-                    if atom == ValueEndpointKey::IntPositive
-                        && !std::mem::replace(&mut bounds[index].has_int_positive_lower, true)
+                    ValueEndpointKey::NegativeFunction(term) => {
+                        let TermView::NegativeFunction {
+                            argument,
+                            argument_effect,
+                            result_effect,
+                            result,
+                        } = self
+                            .store
+                            .term_view(term)
+                            .expect("live Function remains branch-owned")
+                        else {
+                            unreachable!("negative Function endpoint retains its constructor");
+                        };
+                        self.push_extrusion(ExtrusionEndpoint::Value(
+                            self.value_endpoint(result, Polarity::Negative),
+                        ))?;
+                        self.push_extrusion(ExtrusionEndpoint::Effect(
+                            self.effect_endpoint(result_effect, Polarity::Negative),
+                        ))?;
+                        self.push_extrusion(ExtrusionEndpoint::Effect(
+                            self.effect_endpoint(argument_effect, Polarity::Positive),
+                        ))?;
+                        self.push_extrusion(ExtrusionEndpoint::Value(
+                            self.value_endpoint(argument, Polarity::Positive),
+                        ))?;
+                    }
+                    _ => {}
+                },
+                ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(ordinal)) => {
+                    let index = ordinal as usize;
+                    if self.extrusion_effect_marks[index] == generation
+                        || self.effect_levels[index] <= target_level
                     {
-                        transitions += 1;
+                        continue;
                     }
-                    let upper_atoms = bounds[index].exact_non_variable_uppers.len();
-                    for upper_index in 0..upper_atoms {
-                        // Same-row atom intersections are owned by the lower
-                        // side regardless of which insertion arrived second.
-                        counters.lower_bound_replays += 1;
-                        frontier.same_row_intersection();
-                        frontier.push(CanonicalValuePairKey {
-                            lower: atom,
-                            upper: bounds[index].exact_non_variable_uppers[upper_index],
-                        });
+                    self.extrusion_effect_marks[index] = generation;
+                    self.effect_levels[index] = target_level;
+                    for item_index in 0..self.effect_bounds[index].exact_non_variable_lowers.len() {
+                        self.push_extrusion(ExtrusionEndpoint::Effect(
+                            self.effect_bounds[index].exact_non_variable_lowers[item_index],
+                        ))?;
                     }
-                    let upper_rows = bounds[index].direct_upper_rows.len();
-                    for upper_index in 0..upper_rows {
-                        counters.lower_bound_replays += 1;
-                        frontier.transmission_attempted();
-                        frontier.push(CanonicalValuePairKey {
-                            lower: atom,
-                            upper: ValueEndpointKey::ValueRow(
-                                bounds[index].direct_upper_rows[upper_index],
+                    for item_index in 0..self.effect_bounds[index].exact_non_variable_uppers.len() {
+                        self.push_extrusion(ExtrusionEndpoint::Effect(
+                            self.effect_bounds[index].exact_non_variable_uppers[item_index],
+                        ))?;
+                    }
+                    for row_index in 0..self.effect_bounds[index].direct_lower_rows.len() {
+                        self.push_extrusion(ExtrusionEndpoint::Effect(
+                            EffectEndpointKey::EffectRow(
+                                self.effect_bounds[index].direct_lower_rows[row_index],
                             ),
-                        });
+                        ))?;
+                    }
+                    for row_index in 0..self.effect_bounds[index].direct_upper_rows.len() {
+                        self.push_extrusion(ExtrusionEndpoint::Effect(
+                            EffectEndpointKey::EffectRow(
+                                self.effect_bounds[index].direct_upper_rows[row_index],
+                            ),
+                        ))?;
                     }
                 }
-                (ValueEndpointKey::ValueRow(row), atom) => {
-                    let index = row as usize;
-                    let old_capacity = bounds[index].exact_non_variable_uppers.capacity();
-                    bounds[index].exact_non_variable_uppers.push(atom);
-                    Self::record_bound_capacity_growth(
-                        bound_payload_bytes,
-                        counters,
-                        old_capacity,
-                        bounds[index].exact_non_variable_uppers.capacity(),
-                        std::mem::size_of::<ValueEndpointKey>(),
-                    );
-                    counters.upper_bound_insertions += 1;
-                    frontier.exact_upper_membership_installed();
-                    let lower_atoms = bounds[index].exact_non_variable_lowers.len();
-                    for lower_index in 0..lower_atoms {
-                        counters.lower_bound_replays += 1;
-                        frontier.same_row_intersection();
-                        frontier.push(CanonicalValuePairKey {
-                            lower: bounds[index].exact_non_variable_lowers[lower_index],
-                            upper: atom,
-                        });
-                    }
-                    let lower_rows = bounds[index].direct_lower_rows.len();
-                    for lower_index in 0..lower_rows {
-                        counters.upper_bound_replays += 1;
-                        frontier.transmission_attempted();
-                        frontier.push(CanonicalValuePairKey {
-                            lower: ValueEndpointKey::ValueRow(
-                                bounds[index].direct_lower_rows[lower_index],
-                            ),
-                            upper: atom,
-                        });
-                    }
-                }
-                // The existing terminal rule is the successful canonical
-                // admission itself.  This closed integer slice has no extra
-                // terminal bound mutation.
-                (_, _) => {}
+                ExtrusionEndpoint::Effect(_) => {}
             }
         }
-        debug_assert!(frontier.queue.is_empty());
-        transitions
+        Ok(())
+    }
+
+    fn push_extrusion(
+        &mut self,
+        endpoint: ExtrusionEndpoint,
+    ) -> Result<(), SolveAvailabilityError> {
+        reserve_f5b(
+            &mut self.extrusion_stack,
+            1,
+            F5bCapacityLane::ExtrusionStack,
+        )?;
+        self.extrusion_stack.push(endpoint);
+        Ok(())
+    }
+
+    /// Effect constraints share the one session worklist and typed memo with
+    /// values.  Every replay keeps the inducing direct occurrence and cause.
+    fn constrain_live_effect(
+        &mut self,
+        lower: EffectEndpointKey,
+        upper: EffectEndpointKey,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+    ) -> Result<usize, SolveAvailabilityError> {
+        self.constrain_live(LiveConstraintTask::Effect(lower, upper), occurrence, cause)
+    }
+
+    fn apply_effect_task(
+        &mut self,
+        lower: EffectEndpointKey,
+        upper: EffectEndpointKey,
+    ) -> Result<(), SolveAvailabilityError> {
+        match (lower, upper) {
+            (EffectEndpointKey::EffectRow(a), EffectEndpointKey::EffectRow(b)) => {
+                let minimum = self.effect_levels[a as usize].min(self.effect_levels[b as usize]);
+                self.extrude(
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(a)),
+                    minimum,
+                )?;
+                self.extrude(
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(b)),
+                    minimum,
+                )?;
+                let old_lower_capacity =
+                    self.effect_bounds[b as usize].direct_lower_rows.capacity();
+                let old_upper_capacity =
+                    self.effect_bounds[a as usize].direct_upper_rows.capacity();
+                reserve_f5b(
+                    &mut self.effect_bounds[b as usize].direct_lower_rows,
+                    1,
+                    F5bCapacityLane::EffectDirectLower,
+                )?;
+                reserve_f5b(
+                    &mut self.effect_bounds[a as usize].direct_upper_rows,
+                    1,
+                    F5bCapacityLane::EffectDirectUpper,
+                )?;
+                self.effect_bounds[b as usize].direct_lower_rows.push(a);
+                self.effect_bounds[a as usize].direct_upper_rows.push(b);
+                Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.effect_direct_lower,
+                    &mut self.execution_counters,
+                    old_lower_capacity,
+                    self.effect_bounds[b as usize].direct_lower_rows.capacity(),
+                    std::mem::size_of::<u32>(),
+                );
+                Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.effect_direct_upper,
+                    &mut self.execution_counters,
+                    old_upper_capacity,
+                    self.effect_bounds[a as usize].direct_upper_rows.capacity(),
+                    std::mem::size_of::<u32>(),
+                );
+                let lower_len = self.effect_bounds[a as usize]
+                    .exact_non_variable_lowers
+                    .len();
+                for index in 0..lower_len {
+                    self.enqueue_task(LiveConstraintTask::Effect(
+                        self.effect_bounds[a as usize].exact_non_variable_lowers[index],
+                        EffectEndpointKey::EffectRow(b),
+                    ))?;
+                }
+                let upper_len = self.effect_bounds[b as usize]
+                    .exact_non_variable_uppers
+                    .len();
+                for index in 0..upper_len {
+                    self.enqueue_task(LiveConstraintTask::Effect(
+                        EffectEndpointKey::EffectRow(a),
+                        self.effect_bounds[b as usize].exact_non_variable_uppers[index],
+                    ))?;
+                }
+            }
+            (item, EffectEndpointKey::EffectRow(row)) => {
+                let index = row as usize;
+                self.extrude(ExtrusionEndpoint::Effect(item), self.effect_levels[index])?;
+                let old_capacity = self.effect_bounds[index]
+                    .exact_non_variable_lowers
+                    .capacity();
+                reserve_f5b(
+                    &mut self.effect_bounds[index].exact_non_variable_lowers,
+                    1,
+                    F5bCapacityLane::EffectExactLower,
+                )?;
+                self.effect_bounds[index]
+                    .exact_non_variable_lowers
+                    .push(item);
+                Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.effect_exact_lower,
+                    &mut self.execution_counters,
+                    old_capacity,
+                    self.effect_bounds[index]
+                        .exact_non_variable_lowers
+                        .capacity(),
+                    std::mem::size_of::<EffectEndpointKey>(),
+                );
+                self.effect_bounds[index].has_bottom_lower |=
+                    item == EffectEndpointKey::BottomPositive;
+                let upper_len = self.effect_bounds[index].exact_non_variable_uppers.len();
+                for upper_index in 0..upper_len {
+                    self.enqueue_task(LiveConstraintTask::Effect(
+                        item,
+                        self.effect_bounds[index].exact_non_variable_uppers[upper_index],
+                    ))?;
+                }
+                let row_len = self.effect_bounds[index].direct_upper_rows.len();
+                for row_index in 0..row_len {
+                    self.enqueue_task(LiveConstraintTask::Effect(
+                        item,
+                        EffectEndpointKey::EffectRow(
+                            self.effect_bounds[index].direct_upper_rows[row_index],
+                        ),
+                    ))?;
+                }
+            }
+            (EffectEndpointKey::EffectRow(row), item) => {
+                let index = row as usize;
+                self.extrude(ExtrusionEndpoint::Effect(item), self.effect_levels[index])?;
+                let old_capacity = self.effect_bounds[index]
+                    .exact_non_variable_uppers
+                    .capacity();
+                reserve_f5b(
+                    &mut self.effect_bounds[index].exact_non_variable_uppers,
+                    1,
+                    F5bCapacityLane::EffectExactUpper,
+                )?;
+                self.effect_bounds[index]
+                    .exact_non_variable_uppers
+                    .push(item);
+                Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.effect_exact_upper,
+                    &mut self.execution_counters,
+                    old_capacity,
+                    self.effect_bounds[index]
+                        .exact_non_variable_uppers
+                        .capacity(),
+                    std::mem::size_of::<EffectEndpointKey>(),
+                );
+                self.effect_bounds[index].has_empty_upper |=
+                    item == EffectEndpointKey::EmptyNegative;
+                let lower_len = self.effect_bounds[index].exact_non_variable_lowers.len();
+                for lower_index in 0..lower_len {
+                    self.enqueue_task(LiveConstraintTask::Effect(
+                        self.effect_bounds[index].exact_non_variable_lowers[lower_index],
+                        item,
+                    ))?;
+                }
+                let row_len = self.effect_bounds[index].direct_lower_rows.len();
+                for row_index in 0..row_len {
+                    self.enqueue_task(LiveConstraintTask::Effect(
+                        EffectEndpointKey::EffectRow(
+                            self.effect_bounds[index].direct_lower_rows[row_index],
+                        ),
+                        item,
+                    ))?;
+                }
+            }
+            (EffectEndpointKey::BottomPositive, EffectEndpointKey::EmptyNegative) => {}
+            _ => unreachable!("effect endpoints are polarized before constraining"),
+        }
+        Ok(())
+    }
+
+    /// The full F5b algebra owns one typed worklist and one typed memo for the
+    /// lifetime of the session.  Direct-bound replay and Function children are
+    /// ordinary work items; there is no value-only cache or frontier.
+    fn constrain_live_value(
+        &mut self,
+        initial: CanonicalValuePairKey,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+    ) -> Result<usize, SolveAvailabilityError> {
+        self.constrain_live(LiveConstraintTask::Value(initial), occurrence, cause)
+    }
+
+    fn constrain_live(
+        &mut self,
+        initial: LiveConstraintTask,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+    ) -> Result<usize, SolveAvailabilityError> {
+        assert!(
+            self.typed_worklist.is_empty(),
+            "constrain begins with an empty worklist"
+        );
+        self.clear_diagnostic_scratch();
+        let mut transitions = 0;
+        self.enqueue_task(initial)?;
+        while let Some(item) = self.typed_worklist.pop_front() {
+            #[cfg(test)]
+            if matches!(item.task, LiveConstraintTask::Value(_)) {
+                self.typed_pair_worklist_pops += 1;
+            }
+            match item.task {
+                LiveConstraintTask::Effect(lower, upper) => {
+                    let key = TypedPairKey::Effect { lower, upper };
+                    if self.typed_pairs.contains_key(&key) {
+                        self.execution_counters.constraint_pair_duplicates += 1;
+                    } else {
+                        self.record_typed_pair_admission(key, TypedPairMemo::Effect)?;
+                        self.apply_effect_task(lower, upper)?;
+                    }
+                }
+                LiveConstraintTask::Value(key) => {
+                    let memo_key = TypedPairKey::Value(key);
+                    if self.typed_pairs.contains_key(&memo_key) {
+                        self.execution_counters.constraint_pair_duplicates += 1;
+                        continue;
+                    }
+                    if let Some((lower, upper)) = Self::incompatible_value_shapes(key) {
+                        self.record_typed_pair_admission(
+                            memo_key,
+                            TypedPairMemo::Value {
+                                children: Vec::new(),
+                                direct_witness: Some(DiagnosticWitness {
+                                    terminal: key,
+                                    kind: SolverErrorKind::IncompatibleValue { lower, upper },
+                                    distance: 0,
+                                    first_field: None,
+                                }),
+                                completion: DiagnosticCompletion::Pending,
+                            },
+                        )?;
+                        continue;
+                    }
+                    if matches!(key.lower, ValueEndpointKey::BottomPositive)
+                        || matches!(key.upper, ValueEndpointKey::TopNegative)
+                    {
+                        self.record_typed_pair_admission(
+                            memo_key,
+                            TypedPairMemo::Value {
+                                children: Vec::new(),
+                                direct_witness: None,
+                                completion: DiagnosticCompletion::Pending,
+                            },
+                        )?;
+                        continue;
+                    }
+                    let (Some(lower), Some(upper)) = (
+                        Self::positive_function_children(&self.store, key.lower),
+                        Self::negative_function_children(&self.store, key.upper),
+                    ) else {
+                        // Atoms and structured constructors have no live
+                        // level.  Only a structural bound is extruded into
+                        // its receiving variable; Var/Var aging belongs to
+                        // the direct-row transition below.
+                        match (key.lower, key.upper) {
+                            (lower, ValueEndpointKey::ValueRow(row))
+                                if !matches!(lower, ValueEndpointKey::ValueRow(_)) =>
+                            {
+                                self.extrude_value_endpoint(
+                                    lower,
+                                    self.value_levels[row as usize],
+                                )?;
+                            }
+                            (ValueEndpointKey::ValueRow(row), upper)
+                                if !matches!(upper, ValueEndpointKey::ValueRow(_)) =>
+                            {
+                                self.extrude_value_endpoint(
+                                    upper,
+                                    self.value_levels[row as usize],
+                                )?;
+                            }
+                            _ => {}
+                        }
+                        self.record_typed_pair_admission(
+                            memo_key,
+                            TypedPairMemo::Value {
+                                children: Vec::new(),
+                                direct_witness: None,
+                                completion: DiagnosticCompletion::Pending,
+                            },
+                        )?;
+                        transitions += self.apply_value_task(key)?;
+                        continue;
+                    };
+                    let children = [
+                        (
+                            FunctionField::Argument,
+                            TypedPairKey::Value(CanonicalValuePairKey {
+                                lower: self.value_endpoint(upper.0, Polarity::Positive),
+                                upper: self.value_endpoint(lower.0, Polarity::Negative),
+                            }),
+                        ),
+                        (
+                            FunctionField::ArgumentEffect,
+                            TypedPairKey::Effect {
+                                lower: self.effect_endpoint(upper.1, Polarity::Positive),
+                                upper: self.effect_endpoint(lower.1, Polarity::Negative),
+                            },
+                        ),
+                        (
+                            FunctionField::ResultEffect,
+                            TypedPairKey::Effect {
+                                lower: self.effect_endpoint(lower.2, Polarity::Positive),
+                                upper: self.effect_endpoint(upper.2, Polarity::Negative),
+                            },
+                        ),
+                        (
+                            FunctionField::Result,
+                            TypedPairKey::Value(CanonicalValuePairKey {
+                                lower: self.value_endpoint(lower.3, Polarity::Positive),
+                                upper: self.value_endpoint(upper.3, Polarity::Negative),
+                            }),
+                        ),
+                    ];
+                    self.record_typed_pair_admission(
+                        memo_key,
+                        TypedPairMemo::Value {
+                            children: Vec::new(),
+                            direct_witness: None,
+                            completion: DiagnosticCompletion::Pending,
+                        },
+                    )?;
+                    for (field, child) in children {
+                        if let TypedPairKey::Value(child) = child {
+                            self.record_diagnostic_edge(key, child, Some(field))?;
+                        }
+                    }
+                    for (_, child) in children.into_iter().rev() {
+                        self.enqueue_front(match child {
+                            TypedPairKey::Value(value) => LiveConstraintTask::Value(value),
+                            TypedPairKey::Effect { lower, upper } => {
+                                LiveConstraintTask::Effect(lower, upper)
+                            }
+                        })?;
+                    }
+                }
+            }
+        }
+        self.complete_diagnostic_delta()?;
+        if let LiveConstraintTask::Value(root) = initial {
+            self.replay_witness(root, occurrence, cause)?;
+        }
+        self.clear_diagnostic_scratch();
+        debug_assert!(
+            self.typed_worklist.is_empty(),
+            "constrain drains its worklist before return"
+        );
+        Ok(transitions)
+    }
+
+    fn enqueue_task(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
+        reserve_f5b(&mut self.typed_worklist, 1, F5bCapacityLane::TypedWorklist)?;
+        let old_capacity = self.typed_worklist.capacity();
+        self.typed_worklist.push_back(TypedWorkItem { task });
+        #[cfg(test)]
+        self.record_typed_worklist_push(task, old_capacity);
+        #[cfg(not(test))]
+        let _ = old_capacity;
+        Ok(())
+    }
+
+    fn enqueue_front(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
+        reserve_f5b(&mut self.typed_worklist, 1, F5bCapacityLane::TypedWorklist)?;
+        let old_capacity = self.typed_worklist.capacity();
+        self.typed_worklist.push_front(TypedWorkItem { task });
+        #[cfg(test)]
+        self.record_typed_worklist_push(task, old_capacity);
+        #[cfg(not(test))]
+        let _ = old_capacity;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn record_typed_worklist_push(&mut self, task: LiveConstraintTask, old_capacity: usize) {
+        if matches!(task, LiveConstraintTask::Value(_)) {
+            self.typed_pair_worklist_pushes += 1;
+        }
+        self.typed_pair_worklist_maximum_live = self
+            .typed_pair_worklist_maximum_live
+            .max(self.typed_worklist.len());
+        if self.typed_worklist.capacity() != old_capacity {
+            self.typed_pair_worklist_capacity_growths += 1;
+        }
+        self.typed_pair_worklist_peak_bytes =
+            self.typed_pair_worklist_peak_bytes
+                .max(checked_capacity_bytes::<TypedWorkItem>(
+                    self.typed_worklist.capacity(),
+                    "typed worklist capacity",
+                ));
+    }
+
+    fn record_typed_pair_admission(
+        &mut self,
+        key: TypedPairKey,
+        entry: TypedPairMemo,
+    ) -> Result<(), SolveAvailabilityError> {
+        // Reserve every persistent memo/delta lane before the first admission
+        // makes the pair semantically visible.  The session is discardable on
+        // availability failure, but no unreserved logical edge is published.
+        reserve_f5b(&mut self.typed_pairs, 1, F5bCapacityLane::TypedPairs)?;
+        if matches!(key, TypedPairKey::Value(_)) {
+            reserve_f5b(
+                &mut self.diagnostic_delta,
+                1,
+                F5bCapacityLane::DiagnosticDelta,
+            )?;
+            reserve_f5b(
+                &mut self.diagnostic_delta_indices,
+                1,
+                F5bCapacityLane::DiagnosticDeltaIndices,
+            )?;
+        }
+        let old_capacity = self.typed_pairs.capacity();
+        assert!(
+            self.typed_pairs.insert(key, entry).is_none(),
+            "pair admitted once"
+        );
+        self.execution_counters.constraint_pair_admissions += 1;
+        if let TypedPairKey::Value(value) = key {
+            let index = self.diagnostic_delta.len();
+            self.diagnostic_delta.push(value);
+            assert!(
+                self.diagnostic_delta_indices.insert(value, index).is_none(),
+                "a newly admitted value pair enters one diagnostic delta"
+            );
+        }
+        if self.typed_pairs.capacity() != old_capacity {
+            self.execution_counters.constraint_pair_cache_growths += 1;
+            self.execution_counters.constraint_pair_cache_rebuilds += 1;
+        }
+        Ok(())
+    }
+
+    fn record_diagnostic_edge(
+        &mut self,
+        parent: CanonicalValuePairKey,
+        child: CanonicalValuePairKey,
+        field: Option<FunctionField>,
+    ) -> Result<(), SolveAvailabilityError> {
+        let parent_edge = DiagnosticEdge { child, field };
+        let Some(TypedPairMemo::Value { children, .. }) =
+            self.typed_pairs.get_mut(&TypedPairKey::Value(parent))
+        else {
+            unreachable!("a semantic value pair owns its diagnostic children");
+        };
+        let old_capacity = children.capacity();
+        reserve_f5b(children, 1, F5bCapacityLane::DiagnosticEdges)?;
+        children.push(parent_edge);
+        if children.capacity() != old_capacity {
+            let added = children
+                .capacity()
+                .checked_sub(old_capacity)
+                .and_then(|slots| slots.checked_mul(std::mem::size_of::<DiagnosticEdge>()))
+                .expect("F5b diagnostic edge capacity fits usize");
+            self.typed_pair_payload_bytes = self
+                .typed_pair_payload_bytes
+                .checked_add(added)
+                .expect("F5b typed-pair payload accounting fits usize");
+            #[cfg(test)]
+            {
+                self.independent_nested_capacities.diagnostic_edges = self
+                    .independent_nested_capacities
+                    .diagnostic_edges
+                    .checked_add(added)
+                    .expect("independent diagnostic-edge accounting fits usize");
+            }
+        }
+        Ok(())
+    }
+
+    fn complete_diagnostic_delta(&mut self) -> Result<(), SolveAvailabilityError> {
+        // §39 owns this phase.  Persistent entries retain only fixed outgoing
+        // edges.  Reverse edges, SCC membership, and pending counts are
+        // call-local scratch, so an old Complete child is only an O(1) seed.
+        let pair_count = self.diagnostic_delta.len();
+        if pair_count == 0 {
+            return Ok(());
+        }
+        #[cfg(test)]
+        {
+            self.diagnostic_settle_visits = 0;
+            self.diagnostic_internal_reverse_edge_visits = 0;
+            self.diagnostic_scc_member_seed_scans = 0;
+        }
+        let mut edge_count = 0usize;
+        for &key in &self.diagnostic_delta {
+            let children = match self.typed_pairs.get(&TypedPairKey::Value(key)) {
+                Some(TypedPairMemo::Value { children, .. }) => children,
+                _ => unreachable!("diagnostic delta names value pairs"),
+            };
+            edge_count = edge_count
+                .checked_add(
+                    children
+                        .iter()
+                        .filter(|edge| self.diagnostic_delta_indices.contains_key(&edge.child))
+                        .count(),
+                )
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        self.prepare_diagnostic_scratch(pair_count, edge_count)?;
+
+        self.diagnostic_reverse_offsets.resize(pair_count + 1, 0);
+        for &parent_key in &self.diagnostic_delta {
+            let children = match self.typed_pairs.get(&TypedPairKey::Value(parent_key)) {
+                Some(TypedPairMemo::Value { children, .. }) => children,
+                _ => unreachable!("diagnostic parent remains a value pair"),
+            };
+            for edge in children {
+                if let Some(&child) = self.diagnostic_delta_indices.get(&edge.child) {
+                    self.diagnostic_reverse_offsets[child + 1] += 1;
+                }
+            }
+        }
+        for index in 1..=pair_count {
+            self.diagnostic_reverse_offsets[index] += self.diagnostic_reverse_offsets[index - 1];
+        }
+        self.diagnostic_reverse_cursors
+            .extend_from_slice(&self.diagnostic_reverse_offsets[..pair_count]);
+        self.diagnostic_reverse_edges.resize(
+            edge_count,
+            DiagnosticReverseEdge {
+                parent: 0,
+                field: None,
+            },
+        );
+        for (parent, &parent_key) in self.diagnostic_delta.iter().enumerate() {
+            let children = match self.typed_pairs.get(&TypedPairKey::Value(parent_key)) {
+                Some(TypedPairMemo::Value { children, .. }) => children,
+                _ => unreachable!("diagnostic parent remains a value pair"),
+            };
+            for edge in children {
+                if let Some(&child) = self.diagnostic_delta_indices.get(&edge.child) {
+                    let cursor = self.diagnostic_reverse_cursors[child];
+                    self.diagnostic_reverse_edges[cursor] = DiagnosticReverseEdge {
+                        parent,
+                        field: edge.field,
+                    };
+                    self.diagnostic_reverse_cursors[child] += 1;
+                }
+            }
+        }
+
+        // Iterative Kosaraju: first discover postorder over only delta edges,
+        // then walk the scratch reverse graph.  No old entry participates.
+        self.diagnostic_scc_indices.resize(pair_count, usize::MAX);
+        self.diagnostic_reverse_cursors.clear();
+        self.diagnostic_reverse_cursors.resize(pair_count, 0);
+        for root in 0..pair_count {
+            if self.diagnostic_reverse_cursors[root] != 0 {
+                continue;
+            }
+            self.diagnostic_reverse_cursors[root] = 1;
+            self.diagnostic_dfs_stack.push((root, 0));
+            while let Some((node, child_position)) = self.diagnostic_dfs_stack.pop() {
+                let key = self.diagnostic_delta[node];
+                let children = match self.typed_pairs.get(&TypedPairKey::Value(key)) {
+                    Some(TypedPairMemo::Value { children, .. }) => children,
+                    _ => unreachable!("diagnostic DFS names value pairs"),
+                };
+                if child_position == children.len() {
+                    self.diagnostic_finish_order.push(node);
+                    continue;
+                }
+                self.diagnostic_dfs_stack.push((node, child_position + 1));
+                if let Some(&child) = self
+                    .diagnostic_delta_indices
+                    .get(&children[child_position].child)
+                {
+                    if self.diagnostic_reverse_cursors[child] == 0 {
+                        self.diagnostic_reverse_cursors[child] = 1;
+                        self.diagnostic_dfs_stack.push((child, 0));
+                    }
+                }
+            }
+        }
+        for &root in self.diagnostic_finish_order.iter().rev() {
+            if self.diagnostic_scc_indices[root] != usize::MAX {
+                continue;
+            }
+            let scc = self.diagnostic_scc_offsets.len();
+            self.diagnostic_scc_offsets
+                .push(self.diagnostic_scc_nodes.len());
+            self.diagnostic_scc_indices[root] = scc;
+            self.diagnostic_dfs_stack.push((root, 0));
+            while let Some((node, reverse_position)) = self.diagnostic_dfs_stack.pop() {
+                let start = self.diagnostic_reverse_offsets[node];
+                let end = self.diagnostic_reverse_offsets[node + 1];
+                if reverse_position == 0 {
+                    self.diagnostic_scc_nodes.push(node);
+                }
+                if start + reverse_position == end {
+                    continue;
+                }
+                self.diagnostic_dfs_stack.push((node, reverse_position + 1));
+                let parent = self.diagnostic_reverse_edges[start + reverse_position].parent;
+                if self.diagnostic_scc_indices[parent] == usize::MAX {
+                    self.diagnostic_scc_indices[parent] = scc;
+                    self.diagnostic_dfs_stack.push((parent, 0));
+                }
+            }
+        }
+        self.diagnostic_scc_offsets
+            .push(self.diagnostic_scc_nodes.len());
+        let scc_count = self.diagnostic_scc_offsets.len() - 1;
+
+        // Kosaraju discovers members in graph-walk order. Rebuild its output
+        // once into per-SCC slices ordered by dense delta index. The later
+        // seed pass visits only the current SCC's members and never rescans
+        // all delta pairs for every SCC.
+        self.diagnostic_scc_offsets.clear();
+        self.diagnostic_scc_offsets.resize(scc_count + 1, 0);
+        for &scc in &self.diagnostic_scc_indices {
+            self.diagnostic_scc_offsets[scc + 1] += 1;
+        }
+        for index in 1..=scc_count {
+            self.diagnostic_scc_offsets[index] += self.diagnostic_scc_offsets[index - 1];
+        }
+        self.diagnostic_reverse_cursors.clear();
+        self.diagnostic_reverse_cursors
+            .extend_from_slice(&self.diagnostic_scc_offsets[..scc_count]);
+        self.diagnostic_scc_nodes.clear();
+        self.diagnostic_scc_nodes.resize(pair_count, 0);
+        for node in 0..pair_count {
+            let scc = self.diagnostic_scc_indices[node];
+            let position = self.diagnostic_reverse_cursors[scc];
+            self.diagnostic_scc_nodes[position] = node;
+            self.diagnostic_reverse_cursors[scc] += 1;
+        }
+        self.diagnostic_scc_pending_children.resize(scc_count, 0);
+        for parent in 0..pair_count {
+            let parent_scc = self.diagnostic_scc_indices[parent];
+            let key = self.diagnostic_delta[parent];
+            let children = match self.typed_pairs.get(&TypedPairKey::Value(key)) {
+                Some(TypedPairMemo::Value { children, .. }) => children,
+                _ => unreachable!("diagnostic SCC names value pairs"),
+            };
+            for edge in children {
+                if let Some(&child) = self.diagnostic_delta_indices.get(&edge.child) {
+                    if self.diagnostic_scc_indices[child] != parent_scc {
+                        self.diagnostic_scc_pending_children[parent_scc] += 1;
+                    }
+                }
+            }
+        }
+        for scc in 0..scc_count {
+            if self.diagnostic_scc_pending_children[scc] == 0 {
+                self.diagnostic_scc_worklist.push_back(scc);
+            }
+        }
+
+        // Condensed children are completed before their parents.  Within one
+        // SCC §39 settles a member on its *first* bucket arrival.  Thus every
+        // internal reverse edge expands at most once; there is no improving
+        // witness/requeue path.  We retain every direct/external seed because
+        // a single SCC-global seed is not sufficient for member-local minima.
+        while let Some(scc) = self.diagnostic_scc_worklist.pop_front() {
+            let start = self.diagnostic_scc_offsets[scc];
+            let end = self.diagnostic_scc_offsets[scc + 1];
+            let member_count = end - start;
+            self.diagnostic_node_witnesses.resize(pair_count, None);
+
+            // Scan this deterministic member slice exactly once. Direct and
+            // external seeds are retained transiently until their shared d0
+            // is known; the candidate lane grows at each insertion because
+            // external/replay seed cardinality is not a startup invariant.
+            self.diagnostic_bucket_candidates.clear();
+            let mut minimum_seed_distance = None;
+            for member_position in start..end {
+                let node = self.diagnostic_scc_nodes[member_position];
+                #[cfg(test)]
+                {
+                    self.diagnostic_scc_member_seed_scans += 1;
+                }
+                let key = self.diagnostic_delta[node];
+                let direct_witness = match self.typed_pairs.get(&TypedPairKey::Value(key)) {
+                    Some(TypedPairMemo::Value { direct_witness, .. }) => *direct_witness,
+                    _ => unreachable!("diagnostic SCC names value pairs"),
+                };
+                if let Some(witness) = direct_witness {
+                    self.push_diagnostic_seed(node, witness)?;
+                    minimum_seed_distance = Some(
+                        minimum_seed_distance.map_or(witness.distance, |current: u32| {
+                            current.min(witness.distance)
+                        }),
+                    );
+                }
+                let child_count = match self.typed_pairs.get(&TypedPairKey::Value(key)) {
+                    Some(TypedPairMemo::Value { children, .. }) => children.len(),
+                    _ => unreachable!("diagnostic SCC names value pairs"),
+                };
+                for child_index in 0..child_count {
+                    let edge = match self.typed_pairs.get(&TypedPairKey::Value(key)) {
+                        Some(TypedPairMemo::Value { children, .. }) => children[child_index],
+                        _ => unreachable!("diagnostic SCC names value pairs"),
+                    };
+                    if let Some(&child_node) = self.diagnostic_delta_indices.get(&edge.child) {
+                        if self.diagnostic_scc_indices[child_node] == scc {
+                            continue;
+                        }
+                    }
+                    let child = match self.typed_pairs.get(&TypedPairKey::Value(edge.child)) {
+                        Some(TypedPairMemo::Value {
+                            completion: DiagnosticCompletion::Complete(witness),
+                            ..
+                        }) => *witness,
+                        Some(TypedPairMemo::Value {
+                            completion: DiagnosticCompletion::Pending,
+                            ..
+                        }) => unreachable!("old pending pair cannot cross constrain boundary"),
+                        _ => unreachable!("diagnostic edge names an admitted value pair"),
+                    };
+                    if let Some(witness) = child
+                        .map(|witness| Self::extend_witness(witness, edge))
+                        .transpose()?
+                    {
+                        self.push_diagnostic_seed(node, witness)?;
+                        minimum_seed_distance = Some(
+                            minimum_seed_distance.map_or(witness.distance, |current: u32| {
+                                current.min(witness.distance)
+                            }),
+                        );
+                    }
+                }
+            }
+            if let Some(d0) = minimum_seed_distance {
+                // A simple path through an n-member SCC has at most n - 1
+                // internal edges.  Anything farther cannot be the first
+                // arrival of an unsettled member and is discarded before it
+                // enters the bounded scratch FIFO.
+                let maximum_distance = d0
+                    .checked_add(
+                        u32::try_from(member_count.saturating_sub(1))
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                    )
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let bucket_count = member_count
+                    .checked_mul(45)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.prepare_diagnostic_buckets(bucket_count)?;
+                let seed_count = self.diagnostic_bucket_candidates.len();
+                for seed in 0..seed_count {
+                    self.link_diagnostic_bucket_candidate(seed, d0, maximum_distance)?;
+                }
+
+                for bucket in 0..bucket_count {
+                    while let Some(candidate) = self.pop_diagnostic_bucket(bucket) {
+                        if self.diagnostic_node_witnesses[candidate.node].is_some() {
+                            continue;
+                        }
+                        self.diagnostic_node_witnesses[candidate.node] = Some(candidate.witness);
+                        #[cfg(test)]
+                        {
+                            self.diagnostic_settle_visits += 1;
+                        }
+                        let reverse_start = self.diagnostic_reverse_offsets[candidate.node];
+                        let reverse_end = self.diagnostic_reverse_offsets[candidate.node + 1];
+                        for edge_index in reverse_start..reverse_end {
+                            let reverse_edge = self.diagnostic_reverse_edges[edge_index];
+                            if self.diagnostic_scc_indices[reverse_edge.parent] != scc {
+                                continue;
+                            }
+                            #[cfg(test)]
+                            {
+                                self.diagnostic_internal_reverse_edge_visits += 1;
+                            }
+                            let witness = Self::extend_witness(
+                                candidate.witness,
+                                DiagnosticEdge {
+                                    child: self.diagnostic_delta[candidate.node],
+                                    field: reverse_edge.field,
+                                },
+                            )?;
+                            self.push_diagnostic_bucket(
+                                reverse_edge.parent,
+                                witness,
+                                d0,
+                                maximum_distance,
+                            )?;
+                        }
+                    }
+                }
+            }
+            for member_position in start..end {
+                let node = self.diagnostic_scc_nodes[member_position];
+                let key = self.diagnostic_delta[node];
+                let Some(TypedPairMemo::Value { completion, .. }) =
+                    self.typed_pairs.get_mut(&TypedPairKey::Value(key))
+                else {
+                    unreachable!("diagnostic SCC writes value pairs");
+                };
+                *completion = DiagnosticCompletion::Complete(self.diagnostic_node_witnesses[node]);
+            }
+            for member_position in start..end {
+                let child = self.diagnostic_scc_nodes[member_position];
+                for edge in self.diagnostic_reverse_offsets[child]
+                    ..self.diagnostic_reverse_offsets[child + 1]
+                {
+                    let parent_scc =
+                        self.diagnostic_scc_indices[self.diagnostic_reverse_edges[edge].parent];
+                    if parent_scc == scc {
+                        continue;
+                    }
+                    let pending = &mut self.diagnostic_scc_pending_children[parent_scc];
+                    *pending -= 1;
+                    if *pending == 0 {
+                        self.diagnostic_scc_worklist.push_back(parent_scc);
+                    }
+                }
+            }
+        }
+        assert!(
+            self.diagnostic_scc_pending_children
+                .iter()
+                .all(|pending| *pending == 0),
+            "the delta condensation completes every new diagnostic entry"
+        );
+        self.clear_diagnostic_scratch();
+        Ok(())
+    }
+
+    fn prepare_diagnostic_scratch(
+        &mut self,
+        pair_count: usize,
+        edge_count: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let offset_count = pair_count
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        macro_rules! reserve_scratch {
+            ($field:ident, $additional:expr, $lane:ident) => {
+                reserve_f5b(&mut self.$field, $additional, F5bCapacityLane::$lane)?;
+            };
+        }
+        reserve_scratch!(
+            diagnostic_reverse_offsets,
+            offset_count,
+            DiagnosticReverseOffsets
+        );
+        reserve_scratch!(diagnostic_reverse_edges, edge_count, DiagnosticReverseEdges);
+        reserve_scratch!(
+            diagnostic_reverse_cursors,
+            pair_count,
+            DiagnosticReverseCursors
+        );
+        reserve_scratch!(diagnostic_dfs_stack, pair_count, DiagnosticDfsStack);
+        reserve_scratch!(diagnostic_finish_order, pair_count, DiagnosticFinishOrder);
+        reserve_scratch!(diagnostic_scc_indices, pair_count, DiagnosticSccIndices);
+        reserve_scratch!(diagnostic_scc_nodes, pair_count, DiagnosticSccNodes);
+        reserve_scratch!(diagnostic_scc_offsets, offset_count, DiagnosticSccOffsets);
+        reserve_scratch!(
+            diagnostic_scc_pending_children,
+            pair_count,
+            DiagnosticSccPendingChildren
+        );
+        reserve_scratch!(diagnostic_scc_worklist, pair_count, DiagnosticSccWorklist);
+        reserve_scratch!(diagnostic_bucket_heads, pair_count, DiagnosticBucketHeads);
+        reserve_scratch!(diagnostic_bucket_tails, pair_count, DiagnosticBucketTails);
+        reserve_scratch!(
+            diagnostic_node_witnesses,
+            pair_count,
+            DiagnosticNodeWitnesses
+        );
+        self.clear_diagnostic_completion_scratch();
+        Ok(())
+    }
+
+    fn clear_diagnostic_scratch(&mut self) {
+        self.diagnostic_delta.clear();
+        self.diagnostic_delta_indices.clear();
+        self.clear_diagnostic_completion_scratch();
+    }
+
+    fn clear_diagnostic_completion_scratch(&mut self) {
+        self.diagnostic_reverse_offsets.clear();
+        self.diagnostic_reverse_edges.clear();
+        self.diagnostic_reverse_cursors.clear();
+        self.diagnostic_dfs_stack.clear();
+        self.diagnostic_finish_order.clear();
+        self.diagnostic_scc_indices.clear();
+        self.diagnostic_scc_nodes.clear();
+        self.diagnostic_scc_offsets.clear();
+        self.diagnostic_scc_pending_children.clear();
+        self.diagnostic_scc_worklist.clear();
+        self.diagnostic_bucket_heads.clear();
+        self.diagnostic_bucket_tails.clear();
+        self.diagnostic_bucket_candidates.clear();
+        self.diagnostic_node_witnesses.clear();
+    }
+
+    fn prepare_diagnostic_buckets(
+        &mut self,
+        bucket_count: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        reserve_f5b(
+            &mut self.diagnostic_bucket_heads,
+            bucket_count,
+            F5bCapacityLane::DiagnosticBucketHeads,
+        )?;
+        reserve_f5b(
+            &mut self.diagnostic_bucket_tails,
+            bucket_count,
+            F5bCapacityLane::DiagnosticBucketTails,
+        )?;
+        self.diagnostic_bucket_heads.clear();
+        self.diagnostic_bucket_tails.clear();
+        self.diagnostic_bucket_heads.resize(bucket_count, None);
+        self.diagnostic_bucket_tails.resize(bucket_count, None);
+        Ok(())
+    }
+
+    fn push_diagnostic_seed(
+        &mut self,
+        node: usize,
+        witness: DiagnosticWitness,
+    ) -> Result<(), SolveAvailabilityError> {
+        reserve_f5b(
+            &mut self.diagnostic_bucket_candidates,
+            1,
+            F5bCapacityLane::DiagnosticBucketCandidates,
+        )?;
+        self.diagnostic_bucket_candidates
+            .push(DiagnosticBucketCandidate {
+                node,
+                witness,
+                next: None,
+            });
+        Ok(())
+    }
+
+    fn link_diagnostic_bucket_candidate(
+        &mut self,
+        candidate: usize,
+        d0: u32,
+        maximum_distance: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        let witness = self.diagnostic_bucket_candidates[candidate].witness;
+        if witness.distance > maximum_distance {
+            return Ok(());
+        }
+        let bucket = Self::diagnostic_bucket(witness, d0)?;
+        self.diagnostic_bucket_candidates[candidate].next = None;
+        if let Some(tail) = self.diagnostic_bucket_tails[bucket] {
+            self.diagnostic_bucket_candidates[tail].next = Some(candidate);
+        } else {
+            self.diagnostic_bucket_heads[bucket] = Some(candidate);
+        }
+        self.diagnostic_bucket_tails[bucket] = Some(candidate);
+        Ok(())
+    }
+
+    /// Add one event to its stable FIFO bucket.  Buckets are selected only by
+    /// the observable §40 comparator; dense pair order is the insertion tie.
+    fn push_diagnostic_bucket(
+        &mut self,
+        node: usize,
+        witness: DiagnosticWitness,
+        d0: u32,
+        maximum_distance: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        if witness.distance > maximum_distance {
+            return Ok(());
+        }
+        let candidate = self.diagnostic_bucket_candidates.len();
+        self.push_diagnostic_seed(node, witness)?;
+        self.link_diagnostic_bucket_candidate(candidate, d0, maximum_distance)
+    }
+
+    fn diagnostic_bucket(
+        witness: DiagnosticWitness,
+        d0: u32,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let distance = usize::try_from(witness.distance - d0)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let kind = Self::error_rank(witness.kind);
+        let kind = usize::from(kind.0)
+            .checked_mul(3)
+            .and_then(|rank| rank.checked_add(usize::from(kind.1)))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        distance
+            .checked_mul(45)
+            .and_then(|offset| offset.checked_add(kind.checked_mul(5)?))
+            .and_then(|offset| {
+                offset.checked_add(usize::from(Self::field_rank(witness.first_field)))
+            })
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn pop_diagnostic_bucket(&mut self, bucket: usize) -> Option<DiagnosticBucketCandidate> {
+        let head = self.diagnostic_bucket_heads[bucket]?;
+        let candidate = self.diagnostic_bucket_candidates[head];
+        self.diagnostic_bucket_heads[bucket] = candidate.next;
+        if candidate.next.is_none() {
+            self.diagnostic_bucket_tails[bucket] = None;
+        }
+        Some(candidate)
+    }
+
+    fn extend_witness(
+        witness: DiagnosticWitness,
+        edge: DiagnosticEdge,
+    ) -> Result<DiagnosticWitness, SolveAvailabilityError> {
+        Ok(DiagnosticWitness {
+            terminal: witness.terminal,
+            kind: witness.kind,
+            distance: witness
+                .distance
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            first_field: edge.field.or(witness.first_field),
+        })
+    }
+
+    fn error_rank(kind: SolverErrorKind) -> (u8, u8) {
+        let SolverErrorKind::IncompatibleValue { lower, upper } = kind else {
+            return (u8::MAX, u8::MAX);
+        };
+        (Self::shape_rank(lower), Self::shape_rank(upper))
+    }
+
+    const fn shape_rank(shape: ValueShape) -> u8 {
+        match shape {
+            ValueShape::Bottom => 0,
+            ValueShape::Int => 1,
+            ValueShape::Function => 2,
+        }
+    }
+
+    const fn field_rank(field: Option<FunctionField>) -> u8 {
+        match field {
+            Some(FunctionField::Argument) => 0,
+            Some(FunctionField::ArgumentEffect) => 1,
+            Some(FunctionField::ResultEffect) => 2,
+            Some(FunctionField::Result) => 3,
+            None => 4,
+        }
+    }
+
+    fn replay_witness(
+        &mut self,
+        key: CanonicalValuePairKey,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+    ) -> Result<(), SolveAvailabilityError> {
+        let Some(TypedPairMemo::Value {
+            completion: DiagnosticCompletion::Complete(witness),
+            ..
+        }) = self.typed_pairs.get(&TypedPairKey::Value(key))
+        else {
+            unreachable!("constrain completes every root value pair");
+        };
+        if let Some(DiagnosticWitness {
+            kind: SolverErrorKind::IncompatibleValue { lower, upper },
+            ..
+        }) = witness
+        {
+            self.report_incompatible(occurrence, cause, *lower, *upper)?;
+        }
+        Ok(())
+    }
+
+    fn apply_value_task(
+        &mut self,
+        key: CanonicalValuePairKey,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let mut transitions = 0;
+        match (key.lower, key.upper) {
+            (ValueEndpointKey::ValueRow(lower), ValueEndpointKey::ValueRow(upper)) => {
+                let lower_index = lower as usize;
+                let upper_index = upper as usize;
+                let minimum = self.value_levels[lower_index].min(self.value_levels[upper_index]);
+                self.extrude_value_endpoint(ValueEndpointKey::ValueRow(lower), minimum)?;
+                self.extrude_value_endpoint(ValueEndpointKey::ValueRow(upper), minimum)?;
+                #[cfg(test)]
+                {
+                    self.typed_direct_edges += 1;
+                }
+                let old_lower_capacity = self.bounds[upper_index].direct_lower_rows.capacity();
+                let old_upper_capacity = self.bounds[lower_index].direct_upper_rows.capacity();
+                reserve_f5b(
+                    &mut self.bounds[upper_index].direct_lower_rows,
+                    1,
+                    F5bCapacityLane::ValueDirectLower,
+                )?;
+                reserve_f5b(
+                    &mut self.bounds[lower_index].direct_upper_rows,
+                    1,
+                    F5bCapacityLane::ValueDirectUpper,
+                )?;
+                self.bounds[upper_index].direct_lower_rows.push(lower);
+                Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.value_direct_lower,
+                    &mut self.execution_counters,
+                    old_lower_capacity,
+                    self.bounds[upper_index].direct_lower_rows.capacity(),
+                    std::mem::size_of::<u32>(),
+                );
+                self.execution_counters.lower_bound_insertions += 1;
+                self.bounds[lower_index].direct_upper_rows.push(upper);
+                Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.value_direct_upper,
+                    &mut self.execution_counters,
+                    old_upper_capacity,
+                    self.bounds[lower_index].direct_upper_rows.capacity(),
+                    std::mem::size_of::<u32>(),
+                );
+                self.execution_counters.upper_bound_insertions += 1;
+                let lower_len = self.bounds[lower_index].exact_non_variable_lowers.len();
+                for item_index in 0..lower_len {
+                    let item = self.bounds[lower_index].exact_non_variable_lowers[item_index];
+                    self.execution_counters.lower_bound_replays += 1;
+                    #[cfg(test)]
+                    {
+                        self.typed_transmission_attempts += 1;
+                    }
+                    let child = CanonicalValuePairKey {
+                        lower: item,
+                        upper: ValueEndpointKey::ValueRow(upper),
+                    };
+                    self.record_diagnostic_edge(key, child, None)?;
+                    self.enqueue_task(LiveConstraintTask::Value(child))?;
+                }
+                let upper_len = self.bounds[upper_index].exact_non_variable_uppers.len();
+                for item_index in 0..upper_len {
+                    let item = self.bounds[upper_index].exact_non_variable_uppers[item_index];
+                    self.execution_counters.upper_bound_replays += 1;
+                    #[cfg(test)]
+                    {
+                        self.typed_transmission_attempts += 1;
+                    }
+                    let child = CanonicalValuePairKey {
+                        lower: ValueEndpointKey::ValueRow(lower),
+                        upper: item,
+                    };
+                    self.record_diagnostic_edge(key, child, None)?;
+                    self.enqueue_task(LiveConstraintTask::Value(child))?;
+                }
+            }
+            (atom, ValueEndpointKey::ValueRow(row)) => {
+                let index = row as usize;
+                let old_capacity = self.bounds[index].exact_non_variable_lowers.capacity();
+                reserve_f5b(
+                    &mut self.bounds[index].exact_non_variable_lowers,
+                    1,
+                    F5bCapacityLane::ValueExactLower,
+                )?;
+                self.bounds[index].exact_non_variable_lowers.push(atom);
+                Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.value_exact_lower,
+                    &mut self.execution_counters,
+                    old_capacity,
+                    self.bounds[index].exact_non_variable_lowers.capacity(),
+                    std::mem::size_of::<ValueEndpointKey>(),
+                );
+                self.execution_counters.lower_bound_insertions += 1;
+                #[cfg(test)]
+                {
+                    self.typed_exact_lower_memberships += 1;
+                }
+                if atom == ValueEndpointKey::IntPositive
+                    && !std::mem::replace(&mut self.bounds[index].has_int_positive_lower, true)
+                {
+                    transitions += 1;
+                }
+                let upper_len = self.bounds[index].exact_non_variable_uppers.len();
+                for item_index in 0..upper_len {
+                    let item = self.bounds[index].exact_non_variable_uppers[item_index];
+                    self.execution_counters.lower_bound_replays += 1;
+                    #[cfg(test)]
+                    {
+                        self.typed_same_row_atom_intersections += 1;
+                    }
+                    let child = CanonicalValuePairKey {
+                        lower: atom,
+                        upper: item,
+                    };
+                    self.record_diagnostic_edge(key, child, None)?;
+                    self.enqueue_task(LiveConstraintTask::Value(child))?;
+                }
+                let row_len = self.bounds[index].direct_upper_rows.len();
+                for row_index in 0..row_len {
+                    let upper = self.bounds[index].direct_upper_rows[row_index];
+                    self.execution_counters.lower_bound_replays += 1;
+                    #[cfg(test)]
+                    {
+                        self.typed_transmission_attempts += 1;
+                    }
+                    let child = CanonicalValuePairKey {
+                        lower: atom,
+                        upper: ValueEndpointKey::ValueRow(upper),
+                    };
+                    self.record_diagnostic_edge(key, child, None)?;
+                    self.enqueue_task(LiveConstraintTask::Value(child))?;
+                }
+            }
+            (ValueEndpointKey::ValueRow(row), atom) => {
+                let index = row as usize;
+                let old_capacity = self.bounds[index].exact_non_variable_uppers.capacity();
+                reserve_f5b(
+                    &mut self.bounds[index].exact_non_variable_uppers,
+                    1,
+                    F5bCapacityLane::ValueExactUpper,
+                )?;
+                self.bounds[index].exact_non_variable_uppers.push(atom);
+                Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.value_exact_upper,
+                    &mut self.execution_counters,
+                    old_capacity,
+                    self.bounds[index].exact_non_variable_uppers.capacity(),
+                    std::mem::size_of::<ValueEndpointKey>(),
+                );
+                self.execution_counters.upper_bound_insertions += 1;
+                #[cfg(test)]
+                {
+                    self.typed_exact_upper_memberships += 1;
+                }
+                let lower_len = self.bounds[index].exact_non_variable_lowers.len();
+                for item_index in 0..lower_len {
+                    let item = self.bounds[index].exact_non_variable_lowers[item_index];
+                    self.execution_counters.lower_bound_replays += 1;
+                    #[cfg(test)]
+                    {
+                        self.typed_same_row_atom_intersections += 1;
+                    }
+                    let child = CanonicalValuePairKey {
+                        lower: item,
+                        upper: atom,
+                    };
+                    self.record_diagnostic_edge(key, child, None)?;
+                    self.enqueue_task(LiveConstraintTask::Value(child))?;
+                }
+                let row_len = self.bounds[index].direct_lower_rows.len();
+                for row_index in 0..row_len {
+                    let lower = self.bounds[index].direct_lower_rows[row_index];
+                    self.execution_counters.upper_bound_replays += 1;
+                    #[cfg(test)]
+                    {
+                        self.typed_transmission_attempts += 1;
+                    }
+                    let child = CanonicalValuePairKey {
+                        lower: ValueEndpointKey::ValueRow(lower),
+                        upper: atom,
+                    };
+                    self.record_diagnostic_edge(key, child, None)?;
+                    self.enqueue_task(LiveConstraintTask::Value(child))?;
+                }
+            }
+            _ => {}
+        }
+        Ok(transitions)
+    }
+
+    fn positive_function_children(
+        store: &ConstraintStore,
+        endpoint: ValueEndpointKey,
+    ) -> Option<(Term, Term, Term, Term)> {
+        let ValueEndpointKey::PositiveFunction(term) = endpoint else {
+            return None;
+        };
+        match store
+            .term_view(term)
+            .expect("live Function remains branch-owned")
+        {
+            TermView::PositiveFunction {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } => Some((argument, argument_effect, result_effect, result)),
+            _ => unreachable!("positive endpoint preserves its Function tag"),
+        }
+    }
+
+    fn negative_function_children(
+        store: &ConstraintStore,
+        endpoint: ValueEndpointKey,
+    ) -> Option<(Term, Term, Term, Term)> {
+        let ValueEndpointKey::NegativeFunction(term) = endpoint else {
+            return None;
+        };
+        match store
+            .term_view(term)
+            .expect("live Function remains branch-owned")
+        {
+            TermView::NegativeFunction {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } => Some((argument, argument_effect, result_effect, result)),
+            _ => unreachable!("negative endpoint preserves its Function tag"),
+        }
+    }
+
+    fn incompatible_value_shapes(key: CanonicalValuePairKey) -> Option<(ValueShape, ValueShape)> {
+        let lower = match key.lower {
+            ValueEndpointKey::IntPositive => ValueShape::Int,
+            ValueEndpointKey::PositiveFunction(_) => ValueShape::Function,
+            ValueEndpointKey::BottomPositive => ValueShape::Bottom,
+            _ => return None,
+        };
+        let upper = match key.upper {
+            ValueEndpointKey::TopNegative => return None,
+            ValueEndpointKey::IntNegative => ValueShape::Int,
+            ValueEndpointKey::NegativeFunction(_) => ValueShape::Function,
+            ValueEndpointKey::BottomNegative => ValueShape::Bottom,
+            _ => return None,
+        };
+        matches!(
+            (lower, upper),
+            (ValueShape::Int, ValueShape::Bottom)
+                | (ValueShape::Int, ValueShape::Function)
+                | (ValueShape::Function, ValueShape::Bottom)
+                | (ValueShape::Function, ValueShape::Int)
+        )
+        .then_some((lower, upper))
+    }
+
+    fn report_incompatible(
+        &mut self,
+        occurrence: &ConstraintOccurrenceId,
+        cause: &CauseId,
+        lower: ValueShape,
+        upper: ValueShape,
+    ) -> Result<(), SolveAvailabilityError> {
+        let kind = SolverErrorKind::IncompatibleValue { lower, upper };
+        let key = (occurrence.clone(), kind);
+        if !self.reported_errors.contains(&key) {
+            reserve_f5b(
+                &mut self.reported_errors,
+                1,
+                F5bCapacityLane::ReportedErrors,
+            )?;
+            reserve_f5b(&mut self.errors, 1, F5bCapacityLane::Errors)?;
+            assert!(self.reported_errors.insert(key));
+            self.errors.push(SolverError {
+                occurrence: occurrence.clone(),
+                cause: cause.clone(),
+                kind,
+            });
+        }
+        Ok(())
     }
 
     fn record_bound_capacity_growth(
         payload_bytes: &mut usize,
+        #[cfg(test)] independent_lane_bytes: &mut usize,
         counters: &mut ProductionCounters,
         old_capacity: usize,
         new_capacity: usize,
@@ -3960,6 +6189,12 @@ impl InferenceSession {
             *payload_bytes = payload_bytes
                 .checked_add(delta)
                 .expect("F4 bound payload byte accounting fits usize");
+            #[cfg(test)]
+            {
+                *independent_lane_bytes = independent_lane_bytes
+                    .checked_add(delta)
+                    .expect("independent bound lane accounting fits usize");
+            }
             counters.bound_table_growths += 1;
             counters.bound_table_rebuilds += 1;
         }
@@ -3974,20 +6209,46 @@ impl InferenceSession {
                 Self::sample_f4_resource_parts(
                     &self.store,
                     &self.errors,
+                    &self.reported_errors,
                     &self.cross_kind_components,
+                    &self.live_components,
                     &self.bounds,
+                    &self.effect_bounds,
+                    &self.value_levels,
+                    &self.effect_levels,
+                    &self.value_metadata,
+                    &self.effect_metadata,
+                    &self.extrusion_stack,
+                    &self.extrusion_value_marks,
+                    &self.extrusion_effect_marks,
                     self.bound_payload_bytes,
                     &self.occurrence_exact_bounds,
-                    &self.constraint_pairs,
-                    &self.frontier,
+                    &self.typed_pairs,
+                    self.typed_pair_payload_bytes,
+                    &self.typed_worklist,
+                    &self.diagnostic_delta,
+                    &self.diagnostic_delta_indices,
+                    &self.diagnostic_reverse_offsets,
+                    &self.diagnostic_reverse_edges,
+                    &self.diagnostic_reverse_cursors,
+                    &self.diagnostic_dfs_stack,
+                    &self.diagnostic_finish_order,
+                    &self.diagnostic_scc_indices,
+                    &self.diagnostic_scc_nodes,
+                    &self.diagnostic_scc_offsets,
+                    &self.diagnostic_scc_pending_children,
+                    &self.diagnostic_scc_worklist,
+                    &self.diagnostic_bucket_heads,
+                    &self.diagnostic_bucket_tails,
+                    &self.diagnostic_bucket_candidates,
+                    &self.diagnostic_node_witnesses,
                     &self.routed_uses,
                     &self.routed_use_positions,
                     &self.schemes,
                     &self.drafts,
                     self.current_closed_retained_bytes,
-                    self.batch.frozen_constraint_classes.capacity(),
-                    self.batch.frozen_occurrence_bound_rows.capacity(),
                     self.batch.counters.f2_batch_retained_bytes,
+                    self.batch.component_term_positions.capacity(),
                     0,
                     &mut self.execution_counters,
                     #[cfg(test)]
@@ -3996,34 +6257,30 @@ impl InferenceSession {
                     $boundary,
                     #[cfg(test)]
                     &mut self.resource_ledger,
+                    #[cfg(test)]
+                    &self.independent_nested_capacities,
                 )
             };
         }
-        let components = self.batch.scc_components_in_dependency_first_order();
+        let components = self
+            .batch
+            .scc_components_in_dependency_first_order()
+            .cloned()
+            .collect::<Vec<_>>();
         for component in components {
             self.execution_counters.scc_execution_component_visits += 1;
             let internal_uses = self
                 .batch
-                .scc_component_internal_uses(component)
-                .expect("plan-owned component");
+                .scc_component_internal_uses(&component)
+                .expect("plan-owned component")
+                .to_vec();
             for use_index in 0..internal_uses.len() {
-                let id = &internal_uses[use_index];
+                let id = internal_uses[use_index].clone();
                 #[cfg(test)]
                 if let Some(observer) = self.ordering_observer.as_mut() {
                     observer.record(|| ExecutionEvent::InternalUse(id.clone()));
                 }
-                let transitions = Self::route_internal(
-                    &self.batch,
-                    &mut self.store,
-                    &mut self.bounds,
-                    &mut self.bound_payload_bytes,
-                    &mut self.constraint_pairs,
-                    &mut self.frontier,
-                    &mut self.routed_uses,
-                    &mut self.routed_use_positions,
-                    &mut self.execution_counters,
-                    id,
-                )?;
+                let transitions = self.route_internal(&id)?;
                 self.execution_counters
                     .scc_execution_internal_use_connections += 1;
                 #[cfg(test)]
@@ -4036,7 +6293,7 @@ impl InferenceSession {
             }
             let members = self
                 .batch
-                .scc_component_members(component)
+                .scc_component_members(&component)
                 .expect("plan-owned component");
             self.drafts.clear();
             // `clear` is a reuse boundary: it changes live draft ownership
@@ -4063,6 +6320,7 @@ impl InferenceSession {
                 let finalized = Self::generalize(
                     &self.batch,
                     &self.bounds,
+                    &self.live_components,
                     self.finalization
                         .as_mut()
                         .expect("F4 finalization session remains live before finish"),
@@ -4074,6 +6332,7 @@ impl InferenceSession {
                 let finalized = Self::generalize(
                     &self.batch,
                     &self.bounds,
+                    &self.live_components,
                     self.finalization
                         .as_mut()
                         .expect("F4 finalization session remains live before finish"),
@@ -4153,17 +6412,18 @@ impl InferenceSession {
             }
             let incoming_uses = self
                 .batch
-                .scc_component_incoming_uses(component)
-                .expect("plan-owned component");
+                .scc_component_incoming_uses(&component)
+                .expect("plan-owned component")
+                .to_vec();
             for use_index in 0..incoming_uses.len() {
-                let id = &incoming_uses[use_index];
+                let id = incoming_uses[use_index].clone();
                 #[cfg(test)]
                 if let Some(observer) = self.ordering_observer.as_mut() {
                     // The scale observer has capacity zero.  Do not perform a
                     // test-only batch lookup, scheme read, or event build for
                     // an omitted event: production route probes are I + X.
                     if observer.has_capacity() {
-                        let use_record = self.batch.definition_use(id).expect("plan-owned use");
+                        let use_record = self.batch.definition_use(&id).expect("plan-owned use");
                         let position = use_record.target.ordinal() as usize;
                         let kind = match Self::f4_scheme_body(
                             self.finalization
@@ -4181,22 +6441,7 @@ impl InferenceSession {
                         observer.omit();
                     }
                 }
-                let transitions = Self::route_incoming(
-                    &self.batch,
-                    &mut self.store,
-                    &mut self.bounds,
-                    &mut self.bound_payload_bytes,
-                    &mut self.constraint_pairs,
-                    &mut self.frontier,
-                    &mut self.routed_uses,
-                    &mut self.routed_use_positions,
-                    self.finalization
-                        .as_ref()
-                        .expect("F4 finalization session remains live before finish"),
-                    &self.schemes,
-                    &mut self.execution_counters,
-                    id,
-                )?;
+                let transitions = self.route_incoming(&id)?;
                 self.execution_counters
                     .scc_execution_incoming_instantiations += 1;
                 #[cfg(test)]
@@ -4211,99 +6456,77 @@ impl InferenceSession {
         Ok(())
     }
 
-    fn route_internal(
-        batch: &ConstraintBatch,
-        store: &mut ConstraintStore,
-        bounds: &mut [VariableBounds],
-        bound_payload_bytes: &mut usize,
-        constraint_pairs: &mut HashSet<CanonicalValuePairKey>,
-        frontier: &mut DirectBoundFrontier,
-        routed_uses: &mut Vec<RoutedUseProvenance>,
-        routed_use_positions: &mut HashSet<DefinitionUseId>,
-        counters: &mut ProductionCounters,
-        id: &DefinitionUseId,
-    ) -> Result<usize, SolveAvailabilityError> {
-        let use_record = Self::validated_route_use(batch, id)?;
-        let root = batch.component_term_at(use_record.target_root_component);
-        let value = batch.component_term_at(use_record.use_value_component);
-        Self::route(
-            store,
-            bounds,
-            bound_payload_bytes,
-            constraint_pairs,
-            frontier,
-            routed_uses,
-            routed_use_positions,
-            counters,
-            id,
-            use_record,
-            root,
-            value,
-            CanonicalValuePairKey {
-                lower: ValueEndpointKey::ValueRow(use_record.target_root_row),
-                upper: ValueEndpointKey::ValueRow(use_record.use_value_row),
-            },
-            RoutedUseKind::Internal,
-        )
+    fn route_internal(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
+        let use_record = Self::validated_route_use(&self.batch, id)?.clone();
+        let root = self
+            .batch
+            .component_term_at(use_record.target_root_component);
+        let value = self.batch.component_term_at(use_record.use_value_component);
+        let key = CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(
+                self.live_components[use_record.target_root_component].ordinal,
+            ),
+            upper: ValueEndpointKey::ValueRow(
+                self.live_components[use_record.use_value_component].ordinal,
+            ),
+        };
+        self.route(id, &use_record, root, value, key, RoutedUseKind::Internal)
     }
 
-    fn route_incoming(
-        batch: &ConstraintBatch,
-        store: &mut ConstraintStore,
-        bounds: &mut [VariableBounds],
-        bound_payload_bytes: &mut usize,
-        constraint_pairs: &mut HashSet<CanonicalValuePairKey>,
-        frontier: &mut DirectBoundFrontier,
-        routed_uses: &mut Vec<RoutedUseProvenance>,
-        routed_use_positions: &mut HashSet<DefinitionUseId>,
-        finalization: &ClosedTypeFinalizationSession,
-        schemes: &[Option<ClosedValueScheme>],
-        counters: &mut ProductionCounters,
-        id: &DefinitionUseId,
-    ) -> Result<usize, SolveAvailabilityError> {
-        let use_record = Self::validated_route_use(batch, id)?;
+    fn route_incoming(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
+        let use_record = Self::validated_route_use(&self.batch, id)?.clone();
         let position = use_record.target.ordinal() as usize;
-        let scheme = schemes[position]
+        let scheme = self.schemes[position]
             .as_ref()
-            .expect("incoming observes finalized component scheme");
-        let value = batch.component_term_at(use_record.use_value_component);
-        match Self::f4_scheme_body(finalization, scheme) {
+            .expect("incoming observes finalized component scheme")
+            .clone();
+        let value = self.batch.component_term_at(use_record.use_value_component);
+        match Self::f4_scheme_body(
+            self.finalization
+                .as_ref()
+                .expect("finalization remains live"),
+            &scheme,
+        ) {
             F4SchemeBody::Bottom => {
-                counters.scc_execution_bottom_trivial_instantiations += 1;
+                self.execution_counters
+                    .scc_execution_bottom_trivial_instantiations += 1;
+                reserve_f5b(
+                    &mut self.routed_use_positions,
+                    1,
+                    F5bCapacityLane::RoutedUsePositions,
+                )?;
+                reserve_f5b(&mut self.routed_uses, 1, F5bCapacityLane::RoutedUses)?;
                 assert!(
-                    routed_use_positions.insert(id.clone()),
+                    self.routed_use_positions.insert(id.clone()),
                     "each use routes once"
                 );
-                let old_capacity = routed_uses.capacity();
-                routed_uses.push(RoutedUseProvenance {
+                let old_capacity = self.routed_uses.capacity();
+                self.routed_uses.push(RoutedUseProvenance {
                     use_id: id.clone(),
                     fact: None,
                     kind: RoutedUseKind::IncomingBottomTrivial,
                 });
-                if routed_uses.capacity() != old_capacity {
-                    counters.routed_use_provenance_growths += 1;
+                if self.routed_uses.capacity() != old_capacity {
+                    self.execution_counters.routed_use_provenance_growths += 1;
                 }
                 Ok(0)
             }
             F4SchemeBody::Int => {
-                counters.scc_execution_int_instantiation_facts += 1;
-                Self::route(
-                    store,
-                    bounds,
-                    bound_payload_bytes,
-                    constraint_pairs,
-                    frontier,
-                    routed_uses,
-                    routed_use_positions,
-                    counters,
+                self.execution_counters
+                    .scc_execution_int_instantiation_facts += 1;
+                let lower = self.batch.collected_leaf_term(Leaf::IntPositive);
+                let key = CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::ValueRow(
+                        self.live_components[use_record.use_value_component].ordinal,
+                    ),
+                };
+                self.route(
                     id,
-                    use_record,
-                    batch.collected_leaf_term(Leaf::IntPositive),
+                    &use_record,
+                    lower,
                     value,
-                    CanonicalValuePairKey {
-                        lower: ValueEndpointKey::IntPositive,
-                        upper: ValueEndpointKey::ValueRow(use_record.use_value_row),
-                    },
+                    key,
                     RoutedUseKind::IncomingInt,
                 )
             }
@@ -4311,14 +6534,7 @@ impl InferenceSession {
     }
 
     fn route(
-        store: &mut ConstraintStore,
-        bounds: &mut [VariableBounds],
-        bound_payload_bytes: &mut usize,
-        constraint_pairs: &mut HashSet<CanonicalValuePairKey>,
-        frontier: &mut DirectBoundFrontier,
-        routed_uses: &mut Vec<RoutedUseProvenance>,
-        routed_use_positions: &mut HashSet<DefinitionUseId>,
-        counters: &mut ProductionCounters,
+        &mut self,
         id: &DefinitionUseId,
         use_record: &DefinitionUse,
         lower: Term,
@@ -4326,8 +6542,16 @@ impl InferenceSession {
         key: CanonicalValuePairKey,
         kind: RoutedUseKind,
     ) -> Result<usize, SolveAvailabilityError> {
+        // Route provenance is logically coupled to fact admission: reserve
+        // both durable route lanes before the transaction can publish a fact.
+        reserve_f5b(
+            &mut self.routed_use_positions,
+            1,
+            F5bCapacityLane::RoutedUsePositions,
+        )?;
+        reserve_f5b(&mut self.routed_uses, 1, F5bCapacityLane::RoutedUses)?;
         assert!(
-            routed_use_positions.insert(id.clone()),
+            self.routed_use_positions.insert(id.clone()),
             "each use routes once"
         );
         let occurrence_id = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
@@ -4338,30 +6562,23 @@ impl InferenceSession {
             upper: upper.clone(),
         };
         let receipt = {
-            let mut transaction = store.transaction();
+            let mut transaction = self.store.transaction();
             transaction.admit(&occurrence)
         }
         .map_err(SolveAvailabilityError::from)?;
         let fact = receipt.fact();
-        store
+        self.store
             .record_provenance(receipt)
             .map_err(SolveAvailabilityError::from)?;
-        let transitions = Self::constrain(
-            bounds,
-            bound_payload_bytes,
-            constraint_pairs,
-            frontier,
-            counters,
-            key,
-        );
-        let old_capacity = routed_uses.capacity();
-        routed_uses.push(RoutedUseProvenance {
+        let transitions = self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
+        let old_capacity = self.routed_uses.capacity();
+        self.routed_uses.push(RoutedUseProvenance {
             use_id: id.clone(),
             fact: Some(fact),
             kind,
         });
-        if routed_uses.capacity() != old_capacity {
-            counters.routed_use_provenance_growths += 1;
+        if self.routed_uses.capacity() != old_capacity {
+            self.execution_counters.routed_use_provenance_growths += 1;
         }
         Ok(transitions)
     }
@@ -4382,13 +6599,19 @@ impl InferenceSession {
     fn generalize(
         batch: &ConstraintBatch,
         bounds: &[VariableBounds],
+        live_components: &[LiveComponentEndpoint],
         finalization: &mut ClosedTypeFinalizationSession,
         definition: &DefinitionOrderId,
         #[cfg(test)] summary_reads: &mut usize,
         #[cfg(test)] inject_finalization_failure: bool,
     ) -> Result<ClosedSchemeFinalization, SolveAvailabilityError> {
         let verified = Self::verified_scheme_definition(batch, definition);
-        let row = verified.record.root_value_row as usize;
+        let component = batch
+            .root_component_positions
+            .get(&verified.record.root)
+            .expect("definition root retains its immutable component recipe")
+            .component;
+        let row = live_components[component].ordinal as usize;
         #[cfg(test)]
         {
             *summary_reads += 1;
@@ -4462,18 +6685,34 @@ impl InferenceSession {
     fn finish(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
         let mut projections = HashMap::with_capacity(self.batch.projection_order.len());
         let mut work = ProductionCounters::default();
-        for (index, occurrence) in self.batch.projection_order.iter().enumerate() {
+        for occurrence in &self.batch.projection_order {
             work.finish_projection_visits += 1;
-            let exact = self.occurrence_exact_bounds[index];
-            let value = if exact.value_lower_int && exact.value_upper_int {
-                SolvedValue::Int
+            let (value, effect) = if let Some(positions) =
+                self.batch.occurrence_component_positions.get(occurrence)
+            {
+                let value_live = self.live_components[positions.value].ordinal as usize;
+                let effect_live = self.live_components[positions.effect].ordinal as usize;
+                let value_row = &self.bounds[value_live];
+                let effect_row = &self.effect_bounds[effect_live];
+                (
+                    if value_row.has_int_positive_lower
+                        && value_row
+                            .exact_non_variable_uppers
+                            .contains(&ValueEndpointKey::IntNegative)
+                    {
+                        SolvedValue::Int
+                    } else {
+                        SolvedValue::Unknown
+                    },
+                    if effect_row.has_bottom_lower && effect_row.has_empty_upper {
+                        SolvedEffect::Empty
+                    } else {
+                        SolvedEffect::Unknown
+                    },
+                )
             } else {
-                SolvedValue::Unknown
-            };
-            let effect = if exact.effect_lower_bottom && exact.effect_upper_empty {
-                SolvedEffect::Empty
-            } else {
-                SolvedEffect::Unknown
+                // Expressions without a component retain F4's Unknown view.
+                (SolvedValue::Unknown, SolvedEffect::Unknown)
             };
             projections.insert(occurrence.clone(), SolvedProjection { value, effect });
         }
@@ -4668,13 +6907,9 @@ mod tests {
         keep: impl Fn(&ConstraintOccurrence) -> bool,
     ) {
         let occurrences = std::mem::take(&mut batch.occurrences);
-        let classes = std::mem::take(&mut batch.frozen_constraint_classes);
-        let rows = std::mem::take(&mut batch.frozen_occurrence_bound_rows);
-        for ((occurrence, class), row) in occurrences.into_iter().zip(classes).zip(rows) {
+        for occurrence in occurrences {
             if keep(&occurrence) {
                 batch.occurrences.push(occurrence);
-                batch.frozen_constraint_classes.push(class);
-                batch.frozen_occurrence_bound_rows.push(row);
             }
         }
     }
@@ -4711,29 +6946,12 @@ mod tests {
                 .root_value_component(binding.definition_root())
                 .unwrap();
             let id = ConstraintOccurrenceId::new(binding.value().occurrence().clone(), 127);
-            let root_row = batch
-                .root_component_positions
-                .get(binding.definition_root())
-                .expect("synthetic root has a frozen row")
-                .value_bound_row;
             batch.occurrences.push(ConstraintOccurrence {
                 cause: CauseId::for_occurrence(id.clone()),
                 id,
                 lower: batch.collected_leaf_term(Leaf::IntPositive),
                 upper: batch.term_for_component(&root),
             });
-            batch
-                .frozen_constraint_classes
-                .push(FrozenConstraintClass::Value(CanonicalValuePairKey {
-                    lower: ValueEndpointKey::IntPositive,
-                    upper: ValueEndpointKey::ValueRow(root_row),
-                }));
-            let row = batch
-                .occurrence_component_positions
-                .get(binding.value().occurrence())
-                .expect("synthetic occurrence has a frozen row")
-                .occurrence_bound_row;
-            batch.frozen_occurrence_bound_rows.push(row);
             batch.counters.emitted_facts += 1;
             batch.counters.generated_work_items += 1;
             batch.synthetic_seed_value_pair_probes += 1;
@@ -4772,7 +6990,12 @@ mod tests {
         /// Exact pair-cache outcomes.  Their sum is the total P probe count:
         /// `A + T + J`, including duplicates.
         constraint_pair_admissions: usize,
+        /// F5 §34 extends the retained pair counter to the effect half of the
+        /// typed memo.  This is an independently derived exact addition to
+        /// the original value-only frontier ledger.
+        typed_effect_pair_admissions: usize,
         constraint_pair_duplicates: usize,
+        typed_effect_pair_duplicates: usize,
         edges: Vec<(usize, usize)>,
         seeded_roots: Vec<usize>,
         pair_work_is_linear: bool,
@@ -4820,8 +7043,8 @@ mod tests {
         assert_eq!(counters.scc_execution_bottom_trivial_instantiations(), 0);
         assert_eq!(counters.scc_execution_draft_lookups(), n);
         assert_eq!(counters.scc_execution_cross_draft_visits(), 0);
-        assert_eq!(counters.constraint_pair_admissions(), fourfold);
-        assert_eq!(counters.constraint_pair_duplicates(), 1);
+        assert_eq!(counters.constraint_pair_admissions(), fourfold * 3 / 2 + 1);
+        assert_eq!(counters.constraint_pair_duplicates(), n);
         assert_eq!(counters.lower_bound_insertions(), fourfold);
         assert_eq!(counters.upper_bound_insertions(), twice);
         assert_eq!(counters.lower_bound_replays(), twice);
@@ -4830,7 +7053,11 @@ mod tests {
         assert_eq!(counters.scheme_root_query_probes(), n);
         assert_eq!(counters.draft_scratch_max_len(), n);
         assert_eq!(counters.routed_use_provenance_len(), n);
-        assert_eq!(counters.occurrence_bound_state_len(), twice);
+        assert_eq!(
+            counters.occurrence_bound_state_len(),
+            0,
+            "F5 §35 deprecates occurrence-bound summary storage"
+        );
         assert_eq!(counters.finish_projection_visits(), twice);
         assert_eq!(summary.frontier_maximum_live, 1);
     }
@@ -4862,20 +7089,6 @@ mod tests {
         );
         let hir = module(&source.join("; "), path);
         let mut batch = collect(hir.clone());
-        // The synthetic fixture owns this one ordinal index.  Later edge and
-        // seed construction reads it in O(1), never by a per-edge scan of the
-        // source-sized projection order.
-        let occurrence_bound_rows = batch
-            .projection_order
-            .iter()
-            .enumerate()
-            .map(|(row, occurrence)| {
-                (
-                    occurrence.clone(),
-                    u32::try_from(row).expect("synthetic occurrence row fits u32"),
-                )
-            })
-            .collect::<HashMap<_, _>>();
         let use_occurrences = hir
             .items()
             .iter()
@@ -4902,11 +7115,8 @@ mod tests {
             let parent_definition = batch.definitions[parent].definition.clone();
             let parent_root = batch.definitions[parent].root.clone();
             let target_definition = batch.definitions[target].definition.clone();
-            let occurrence_bound_row = *occurrence_bound_rows
-                .get(occurrence)
-                .expect("synthetic occurrence is in the owned ordinal index");
             batch
-                .emit_resolved_binding_name(occurrence.clone(), parent_root, occurrence_bound_row)
+                .emit_resolved_binding_name(occurrence.clone(), parent_root)
                 .expect("synthetic occurrence and root share the real artifact");
             let id = DefinitionUseId::new(batch.collection_artifact.clone(), occurrence.clone());
             assert!(
@@ -4922,21 +7132,7 @@ mod tests {
                 parent: parent_definition,
                 target: target_definition,
                 occurrence: occurrence.clone(),
-                use_value_row: batch
-                    .occurrence_component_positions
-                    .get(occurrence)
-                    .expect("synthetic occurrence has a value row")
-                    .value_bound_row,
-                parent_root_row: batch
-                    .root_component_positions
-                    .get(&batch.definitions[parent].root)
-                    .expect("synthetic parent has a value row")
-                    .value_bound_row,
-                target_root_row: batch
-                    .root_component_positions
-                    .get(&batch.definitions[target].root)
-                    .expect("synthetic target has a value row")
-                    .value_bound_row,
+                use_level: 1,
                 use_value_component: batch
                     .occurrence_component_positions
                     .get(occurrence)
@@ -4959,14 +7155,6 @@ mod tests {
             };
             let root = batch.root_value_component_for_session(binding.definition_root());
             let occurrence = binding.value().occurrence().clone();
-            let occurrence_bound_row = *occurrence_bound_rows
-                .get(&occurrence)
-                .expect("synthetic seed occurrence is in the owned ordinal index");
-            let root_row = batch
-                .root_component_positions
-                .get(binding.definition_root())
-                .expect("synthetic seed root has a value row")
-                .value_bound_row;
             let id = ConstraintOccurrenceId::new(occurrence, 127);
             batch.occurrences.push(ConstraintOccurrence {
                 cause: CauseId::for_occurrence(id.clone()),
@@ -4974,15 +7162,6 @@ mod tests {
                 lower: batch.collected_leaf_term(Leaf::IntPositive),
                 upper: batch.term_for_component(&root),
             });
-            batch
-                .frozen_constraint_classes
-                .push(FrozenConstraintClass::Value(CanonicalValuePairKey {
-                    lower: ValueEndpointKey::IntPositive,
-                    upper: ValueEndpointKey::ValueRow(root_row),
-                }));
-            batch
-                .frozen_occurrence_bound_rows
-                .push(occurrence_bound_row);
             batch.counters.emitted_facts += 1;
             batch.counters.generated_work_items += 1;
             batch.synthetic_seed_value_pair_probes += 1;
@@ -5264,22 +7443,24 @@ mod tests {
             );
             assert_eq!(
                 counters.constraint_pair_admissions(),
-                witness.constraint_pair_admissions,
-                "{} has the fixture-defined accepted direct/exact pair count",
+                witness.constraint_pair_admissions + witness.typed_effect_pair_admissions,
+                "{} retains F4's pair name while F5 §34 counts every typed value/effect memo admission",
                 witness.name
             );
             assert_eq!(
                 counters.constraint_pair_duplicates(),
-                witness.constraint_pair_duplicates,
-                "{} has the fixture-defined duplicate direct/frontier pair count",
+                witness.constraint_pair_duplicates + witness.typed_effect_pair_duplicates,
+                "{} retains F4's pair name while F5 §34 counts every typed value/effect memo duplicate",
                 witness.name
             );
             assert_eq!(
                 counters.constraint_pair_admissions() + counters.constraint_pair_duplicates(),
                 pair_probe_inputs
                     + witness.transmission_attempts
-                    + witness.same_row_atom_intersections,
-                "{} counts every input, transmission, and intersection probe exactly once",
+                    + witness.same_row_atom_intersections
+                    + witness.typed_effect_pair_admissions
+                    + witness.typed_effect_pair_duplicates,
+                "{} counts every value frontier probe plus the F5 §34 effect typed-memo admissions exactly once",
                 witness.name
             );
             if witness.name == "unbounded-cycle" {
@@ -5948,6 +8129,7 @@ mod tests {
         let _ = InferenceSession::generalize(
             &batch,
             &[],
+            &[],
             &mut finalization,
             &definition,
             &mut summary_reads,
@@ -6077,23 +8259,12 @@ mod tests {
         let other_id = internal.definition_uses()[1].id.clone();
         internal.definition_uses[0].cause = DefinitionUseCause::for_use(other_id);
         let mut session = InferenceSession::new(internal);
-        let result = InferenceSession::route_internal(
-            &session.batch,
-            &mut session.store,
-            &mut session.bounds,
-            &mut session.bound_payload_bytes,
-            &mut session.constraint_pairs,
-            &mut session.frontier,
-            &mut session.routed_uses,
-            &mut session.routed_use_positions,
-            &mut session.execution_counters,
-            &internal_id,
-        );
+        let result = session.route_internal(&internal_id);
         assert_eq!(result, Err(SolveAvailabilityError::CauseMismatch));
         assert!(session.store.facts().is_empty());
         assert!(session.store.provenance().is_empty());
-        assert!(session.constraint_pairs.is_empty());
-        assert!(session.frontier.queue.is_empty());
+        assert!(session.typed_pairs.is_empty());
+        assert!(session.typed_worklist.is_empty());
         assert!(session.routed_uses.is_empty());
         assert!(session.routed_use_positions.is_empty());
 
@@ -6125,28 +8296,12 @@ mod tests {
                     .into_parts()
                     .0,
             );
-            let result = InferenceSession::route_incoming(
-                &session.batch,
-                &mut session.store,
-                &mut session.bounds,
-                &mut session.bound_payload_bytes,
-                &mut session.constraint_pairs,
-                &mut session.frontier,
-                &mut session.routed_uses,
-                &mut session.routed_use_positions,
-                session
-                    .finalization
-                    .as_ref()
-                    .expect("test session has not finished"),
-                &session.schemes,
-                &mut session.execution_counters,
-                &route_id,
-            );
+            let result = session.route_incoming(&route_id);
             assert_eq!(result, Err(SolveAvailabilityError::CauseMismatch));
             assert!(session.store.facts().is_empty());
             assert!(session.store.provenance().is_empty());
-            assert!(session.constraint_pairs.is_empty());
-            assert!(session.frontier.queue.is_empty());
+            assert!(session.typed_pairs.is_empty());
+            assert!(session.typed_worklist.is_empty());
             assert!(session.routed_uses.is_empty());
             assert!(session.routed_use_positions.is_empty());
             assert_eq!(
@@ -6188,8 +8343,8 @@ mod tests {
         );
         assert!(session.store.facts().is_empty());
         assert!(session.store.provenance().is_empty());
-        assert!(session.constraint_pairs.is_empty());
-        assert!(session.frontier.queue.is_empty());
+        assert!(session.typed_pairs.is_empty());
+        assert!(session.typed_worklist.is_empty());
         assert!(session.routed_uses.is_empty());
 
         assert!(matches!(
@@ -6212,8 +8367,8 @@ mod tests {
         session.admit_all_collected_facts().unwrap();
         assert!(session.store.facts().is_empty());
         assert!(session.store.provenance().is_empty());
-        assert!(session.constraint_pairs.is_empty());
-        assert!(session.frontier.queue.is_empty());
+        assert!(session.typed_pairs.is_empty());
+        assert!(session.typed_worklist.is_empty());
         assert!(session.routed_uses.is_empty());
         assert!(session.routed_use_positions.is_empty());
         assert!(session.bounds.iter().all(|bounds| {
@@ -6517,7 +8672,9 @@ mod tests {
             same_row_atom_intersections: 0,
             replay_attempts: n - 1,
             constraint_pair_admissions: 3 * n - 2,
+            typed_effect_pair_admissions: 2 * n - 1,
             constraint_pair_duplicates: 0,
+            typed_effect_pair_duplicates: n - 2,
             edges: (1..n).map(|index| (index, index - 1)).collect(),
             seeded_roots: vec![0],
             pair_work_is_linear: true,
@@ -6543,7 +8700,9 @@ mod tests {
                 same_row_atom_intersections: 0,
                 replay_attempts: n,
                 constraint_pair_admissions: 3 * n,
+                typed_effect_pair_admissions: 2 * n + 1,
                 constraint_pair_duplicates: n / 4,
+                typed_effect_pair_duplicates: n - 1,
                 edges: (0..n / 4)
                     .flat_map(|group| {
                         let base = group * 4;
@@ -6580,7 +8739,9 @@ mod tests {
                 same_row_atom_intersections: 0,
                 replay_attempts: 2 * n,
                 constraint_pair_admissions: 4 * n,
+                typed_effect_pair_admissions: 2 * n + 1,
                 constraint_pair_duplicates: n / 2,
+                typed_effect_pair_duplicates: n - 1,
                 edges: (0..n / 2)
                     .flat_map(|pair| [(pair * 2, pair * 2 + 1), (pair * 2 + 1, pair * 2)])
                     .collect(),
@@ -6607,7 +8768,9 @@ mod tests {
             same_row_atom_intersections: 0,
             replay_attempts: 2 * n,
             constraint_pair_admissions: 4 * n,
+            typed_effect_pair_admissions: 2 * n + 1,
             constraint_pair_duplicates: 1,
+            typed_effect_pair_duplicates: n - 1,
             edges: (0..n).map(|index| (index, (index + 1) % n)).collect(),
             seeded_roots: vec![0],
             pair_work_is_linear: true,
@@ -6661,7 +8824,9 @@ mod tests {
             same_row_atom_intersections: 0,
             replay_attempts: 4 * n - 4,
             constraint_pair_admissions: 7 * n - 6,
+            typed_effect_pair_admissions: 4 * n - 3,
             constraint_pair_duplicates: n - 1,
+            typed_effect_pair_duplicates: 2 * n - 3,
             edges: (1..n).flat_map(|index| [(0, index), (index, 0)]).collect(),
             seeded_roots: vec![0],
             pair_work_is_linear: true,
@@ -6686,7 +8851,9 @@ mod tests {
             same_row_atom_intersections: 0,
             replay_attempts: n,
             constraint_pair_admissions: 2 * n + 2,
+            typed_effect_pair_admissions: 2 * n + 1,
             constraint_pair_duplicates: n - 1,
+            typed_effect_pair_duplicates: n - 1,
             edges: vec![(0, 1); n],
             seeded_roots: vec![1],
             pair_work_is_linear: true,
@@ -6789,6 +8956,7 @@ mod tests {
     }
 
     fn direct_frontier_snapshot(
+        batch: &ConstraintBatch,
         rows: usize,
         inputs: &[CanonicalValuePairKey],
     ) -> (
@@ -6796,33 +8964,41 @@ mod tests {
         SummaryObservation,
         ProductionCounters,
     ) {
-        let mut bounds = vec![VariableBounds::default(); rows];
-        let mut bound_payload_bytes = 0;
-        let mut pairs = HashSet::new();
-        let mut frontier = DirectBoundFrontier::with_capacity(inputs.len());
-        let mut counters = ProductionCounters::default();
-        for &key in inputs {
-            InferenceSession::constrain(
-                &mut bounds,
-                &mut bound_payload_bytes,
-                &mut pairs,
-                &mut frontier,
-                &mut counters,
-                key,
-            );
+        // This is intentionally a production harness, not a second closure.
+        // The exhaustive test below compares its extracted session state to
+        // `reference_frontier_closure`; keeping the two routes independent is
+        // the regression contract F5 §35 retains from F4.
+        let mut session = InferenceSession::try_new(batch.clone())
+            .expect("the tiny production harness has capacity");
+        while session.bounds.len() < rows {
+            session
+                .fresh_value_at_level(1)
+                .expect("tiny production harness has live identity");
         }
-        assert!(frontier.queue.is_empty());
+        let occurrence = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 0);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        for &input in inputs {
+            session
+                .constrain_live_value(input, &occurrence, &cause)
+                .expect("tiny production frontier has capacity");
+        }
         let mut variable_reachability = HashSet::new();
-        for row in 0..rows {
-            let mut pending = VecDeque::from([row as u32]);
-            let mut visited = HashSet::new();
-            while let Some(current) = pending.pop_front() {
-                if !visited.insert(current) {
-                    continue;
-                }
-                for &upper in &bounds[current as usize].direct_upper_rows {
+        // The production memo intentionally has no transitive Var/Var pairs
+        // (F5 §5).  Extract the reachability observation from the production
+        // direct rows instead of mistaking memo membership for the old F4
+        // closure representation.
+        for source in 0..rows {
+            let mut seen = vec![false; rows];
+            let mut pending = VecDeque::new();
+            pending.push_back(source as u32);
+            while let Some(lower) = pending.pop_front() {
+                for &upper in &session.bounds[lower as usize].direct_upper_rows {
+                    if seen[upper as usize] {
+                        continue;
+                    }
+                    seen[upper as usize] = true;
                     variable_reachability.insert(CanonicalValuePairKey {
-                        lower: ValueEndpointKey::ValueRow(row as u32),
+                        lower: ValueEndpointKey::ValueRow(source as u32),
                         upper: ValueEndpointKey::ValueRow(upper),
                     });
                     pending.push_back(upper);
@@ -6831,23 +9007,28 @@ mod tests {
         }
         let snapshot = FrontierReferenceSnapshot {
             variable_reachability,
-            exact_lowers: bounds
+            exact_lowers: session.bounds[..rows]
                 .iter()
                 .map(|row| row.exact_non_variable_lowers.iter().copied().collect())
                 .collect(),
-            exact_uppers: bounds
+            exact_uppers: session.bounds[..rows]
                 .iter()
                 .map(|row| row.exact_non_variable_uppers.iter().copied().collect())
                 .collect(),
-            terminal_pairs: pairs
-                .iter()
-                .copied()
-                .filter(|key| {
-                    !matches!(key.lower, ValueEndpointKey::ValueRow(_))
-                        && !matches!(key.upper, ValueEndpointKey::ValueRow(_))
+            terminal_pairs: session
+                .typed_pairs
+                .keys()
+                .filter_map(|key| match *key {
+                    TypedPairKey::Value(pair)
+                        if !matches!(pair.lower, ValueEndpointKey::ValueRow(_))
+                            && !matches!(pair.upper, ValueEndpointKey::ValueRow(_)) =>
+                    {
+                        Some(pair)
+                    }
+                    _ => None,
                 })
                 .collect(),
-            int_lower_summary: bounds
+            int_lower_summary: session.bounds[..rows]
                 .iter()
                 .map(|row| row.has_int_positive_lower)
                 .collect(),
@@ -6857,21 +9038,21 @@ mod tests {
             synthetic_seed_value_pair_probes: 0,
             reads: 0,
             false_to_true_transitions: 0,
-            frontier_pushes: frontier.pushes,
-            frontier_pops: frontier.pops,
-            frontier_maximum_live: frontier.maximum_live,
-            frontier_capacity: frontier.queue.capacity(),
-            frontier_capacity_growths: frontier.capacity_growths,
-            frontier_retained_bytes: checked_capacity_bytes::<CanonicalValuePairKey>(
-                frontier.queue.capacity(),
-                "F4 reference frontier queue",
+            frontier_pushes: session.typed_pair_worklist_pushes,
+            frontier_pops: session.typed_pair_worklist_pops,
+            frontier_maximum_live: session.typed_pair_worklist_maximum_live,
+            frontier_capacity: session.typed_worklist.capacity(),
+            frontier_capacity_growths: session.typed_pair_worklist_capacity_growths,
+            frontier_retained_bytes: checked_capacity_bytes::<TypedWorkItem>(
+                session.typed_worklist.capacity(),
+                "F5b production typed frontier queue",
             ),
-            frontier_peak_bytes: frontier.peak_bytes,
-            direct_edges: frontier.direct_edges,
-            exact_lower_memberships: frontier.exact_lower_memberships,
-            exact_upper_memberships: frontier.exact_upper_memberships,
-            transmission_attempts: frontier.transmission_attempts,
-            same_row_atom_intersections: frontier.same_row_atom_intersections,
+            frontier_peak_bytes: session.typed_pair_worklist_peak_bytes,
+            direct_edges: session.typed_direct_edges,
+            exact_lower_memberships: session.typed_exact_lower_memberships,
+            exact_upper_memberships: session.typed_exact_upper_memberships,
+            transmission_attempts: session.typed_transmission_attempts,
+            same_row_atom_intersections: session.typed_same_row_atom_intersections,
             semantic_arena_retained_bytes: 0,
             semantic_arena_peak_bytes: 0,
             inference_session_retained_bytes: 0,
@@ -6885,11 +9066,13 @@ mod tests {
             independent_semantic_arena_peak_bytes: 0,
             independent_inference_session_peak_bytes: 0,
         };
-        (snapshot, observation, counters)
+        (snapshot, observation, session.execution_counters)
     }
 
     #[test]
     fn f4_direct_frontier_exhaustively_matches_reference_for_zero_to_three_rows() {
+        let batch = ConstraintBatch::collect(module("1", "f4-direct-frontier-production"))
+            .expect("the tiny production harness collects");
         for rows in 0..=3 {
             let edge_count = rows * rows;
             for graph_bits in 0..(1usize << edge_count) {
@@ -6938,7 +9121,7 @@ mod tests {
                         for ordered_parts in orders {
                             let inputs = ordered_parts.concat();
                             let (actual, observation, counters) =
-                                direct_frontier_snapshot(rows, &inputs);
+                                direct_frontier_snapshot(&batch, rows, &inputs);
                             assert_eq!(actual, reference);
                             let expected_edges = edges.len();
                             let expected_lowers = reference
@@ -7022,6 +9205,8 @@ mod tests {
 
     #[test]
     fn f4_direct_frontier_intersects_same_row_atoms_in_both_insertion_orders() {
+        let batch = ConstraintBatch::collect(module("1", "f4-direct-frontier-production"))
+            .expect("the tiny production harness collects");
         let lower = CanonicalValuePairKey {
             lower: ValueEndpointKey::IntPositive,
             upper: ValueEndpointKey::ValueRow(0),
@@ -7031,7 +9216,7 @@ mod tests {
             upper: ValueEndpointKey::IntNegative,
         };
         for inputs in [[lower, upper], [upper, lower]] {
-            let (snapshot, observation, counters) = direct_frontier_snapshot(1, &inputs);
+            let (snapshot, observation, counters) = direct_frontier_snapshot(&batch, 1, &inputs);
             assert_eq!(snapshot.int_lower_summary, vec![true]);
             assert_eq!(
                 snapshot.terminal_pairs,
@@ -7050,6 +9235,8 @@ mod tests {
 
     #[test]
     fn f4_direct_frontier_transmits_a_seeded_chain_to_its_terminal_upper() {
+        let batch = ConstraintBatch::collect(module("1", "f4-direct-frontier-production"))
+            .expect("the tiny production harness collects");
         let inputs = [
             CanonicalValuePairKey {
                 lower: ValueEndpointKey::IntPositive,
@@ -7068,7 +9255,7 @@ mod tests {
                 upper: ValueEndpointKey::IntNegative,
             },
         ];
-        let (snapshot, observation, counters) = direct_frontier_snapshot(3, &inputs);
+        let (snapshot, observation, counters) = direct_frontier_snapshot(&batch, 3, &inputs);
         assert_eq!(snapshot.int_lower_summary, vec![true, true, true]);
         assert_eq!(observation.direct_edges, 2);
         assert_eq!(observation.transmission_attempts, 4);
@@ -7420,9 +9607,7 @@ mod tests {
                     parent: synthetic_definitions[parent].clone(),
                     target: synthetic_definitions[target].clone(),
                     occurrence: occurrences[edge_index].clone(),
-                    use_value_row: 0,
-                    parent_root_row: 0,
-                    target_root_row: 0,
+                    use_level: 1,
                     use_value_component: 0,
                     target_root_component: 0,
                 }
@@ -9192,5 +11377,1474 @@ mod tests {
         ] {
             assert!(large < small.saturating_mul(5) / 2 + 1);
         }
+    }
+
+    #[test]
+    fn f5b_live_rows_translate_injectively_and_drive_f4_projection() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-live-rows")).unwrap();
+        let component_count = batch.components.len();
+        let value_count = batch
+            .components
+            .iter()
+            .filter(|component| component.kind() == ComponentKind::Value)
+            .count();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        assert_eq!(session.live_components.len(), component_count);
+        assert_eq!(session.bounds.len(), value_count);
+        assert!(session.value_levels.iter().all(|&level| level == 1));
+        assert!(session.effect_levels.iter().all(|&level| level == 1));
+        let values = session
+            .live_components
+            .iter()
+            .filter(|endpoint| endpoint.kind == ComponentKind::Value)
+            .map(|endpoint| endpoint.ordinal)
+            .collect::<Vec<_>>();
+        let effects = session
+            .live_components
+            .iter()
+            .filter(|endpoint| endpoint.kind == ComponentKind::Effect)
+            .map(|endpoint| endpoint.ordinal)
+            .collect::<Vec<_>>();
+        assert_eq!(values, (0..value_count as u32).collect::<Vec<_>>());
+        assert_eq!(effects, (0..effects.len() as u32).collect::<Vec<_>>());
+        session.admit_all_collected_facts().unwrap();
+        assert!(session.occurrence_exact_bounds.is_empty());
+        let occurrence = session.batch.projection_order[0].clone();
+        let positions = session.batch.occurrence_component_positions[&occurrence];
+        let value = session.live_components[positions.value].ordinal as usize;
+        let effect = session.live_components[positions.effect].ordinal as usize;
+        assert!(session.bounds[value].has_int_positive_lower);
+        assert!(
+            session.bounds[value]
+                .exact_non_variable_uppers
+                .contains(&ValueEndpointKey::IntNegative)
+        );
+        assert!(session.effect_bounds[effect].has_bottom_lower);
+        assert!(session.effect_bounds[effect].has_empty_upper);
+    }
+
+    #[test]
+    fn f5b_resolved_use_recipes_freeze_level_and_translate_with_metadata() {
+        let batch = ConstraintBatch::collect(module(
+            "my source = 42; my sink = source",
+            "f5b-live-recipe-evidence.yu",
+        ))
+        .unwrap();
+        assert_eq!(batch.definition_uses.len(), 1);
+        let use_record = &batch.definition_uses[0];
+        assert_eq!(use_record.use_level, 1);
+        let use_positions = batch.occurrence_component_positions[&use_record.occurrence];
+        let target_position = use_record.target_root_component;
+        assert_eq!(use_record.use_value_component, use_positions.value);
+        assert_ne!(use_positions.value, use_positions.effect);
+        assert_ne!(use_positions.value, target_position);
+
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let use_value = session.live_components[use_positions.value];
+        let use_effect = session.live_components[use_positions.effect];
+        let target_root = session.live_components[target_position];
+        assert_eq!(use_value.kind, ComponentKind::Value);
+        assert_eq!(use_effect.kind, ComponentKind::Effect);
+        assert_eq!(target_root.kind, ComponentKind::Value);
+        assert_ne!(use_value.ordinal, target_root.ordinal);
+        assert_eq!(session.value_levels[use_value.ordinal as usize], 1);
+        assert_eq!(session.effect_levels[use_effect.ordinal as usize], 1);
+        assert_eq!(session.value_levels[target_root.ordinal as usize], 1);
+        assert_eq!(
+            session.value_metadata[use_value.ordinal as usize],
+            LiveVariableMetadata {
+                origin: LiveVariableOrigin::Collected,
+                non_generic: false
+            }
+        );
+        assert_eq!(
+            session.effect_metadata[use_effect.ordinal as usize],
+            LiveVariableMetadata {
+                origin: LiveVariableOrigin::Collected,
+                non_generic: false
+            }
+        );
+
+        let fresh_value = session.fresh_value_at_level(2).unwrap() as usize;
+        let fresh_effect = session.fresh_effect_at_level(3).unwrap() as usize;
+        assert_eq!(session.value_levels[fresh_value], 2);
+        assert_eq!(session.effect_levels[fresh_effect], 3);
+        assert_eq!(
+            session.value_metadata[fresh_value].origin,
+            LiveVariableOrigin::Fresh
+        );
+        assert_eq!(
+            session.effect_metadata[fresh_effect].origin,
+            LiveVariableOrigin::Fresh
+        );
+        assert!(!session.value_metadata[fresh_value].non_generic);
+        assert!(!session.effect_metadata[fresh_effect].non_generic);
+    }
+
+    #[test]
+    fn f5b_function_decomposition_ages_variables_and_preserves_incompatible_rows() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-function-table")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let left = session.fresh_value_at_level(2).unwrap();
+        let right = session.fresh_value_at_level(3).unwrap();
+        let left_effect = session.fresh_effect_at_level(2).unwrap();
+        let right_effect = session.fresh_effect_at_level(3).unwrap();
+        let left_arg = session.live_value_term(Polarity::Negative, left).unwrap();
+        let left_argument_effect = session
+            .live_effect_term(Polarity::Negative, left_effect)
+            .unwrap();
+        let left_result_effect = session
+            .live_effect_term(Polarity::Positive, left_effect)
+            .unwrap();
+        let left_result = session.live_value_term(Polarity::Positive, left).unwrap();
+        let positive = session
+            .positive_function_term(
+                left_arg,
+                left_argument_effect,
+                left_result_effect,
+                left_result,
+            )
+            .unwrap();
+        let right_arg = session.live_value_term(Polarity::Positive, right).unwrap();
+        let right_argument_effect = session
+            .live_effect_term(Polarity::Positive, right_effect)
+            .unwrap();
+        let right_result_effect = session
+            .live_effect_term(Polarity::Negative, right_effect)
+            .unwrap();
+        let right_result = session.live_value_term(Polarity::Negative, right).unwrap();
+        let negative = session
+            .negative_function_term(
+                right_arg,
+                right_argument_effect,
+                right_result_effect,
+                right_result,
+            )
+            .unwrap();
+        let occurrence = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 91);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(positive),
+                    upper: ValueEndpointKey::NegativeFunction(negative),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        assert!(
+            session.bounds[left as usize]
+                .direct_lower_rows
+                .contains(&right)
+        );
+        assert!(
+            session.bounds[left as usize]
+                .direct_upper_rows
+                .contains(&right)
+        );
+        assert_eq!(session.value_levels[left as usize], 2);
+        assert_eq!(session.value_levels[right as usize], 2);
+        let before = session.bounds.clone();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::BottomNegative,
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        assert_eq!(session.bounds, before);
+        assert!(matches!(
+            session.errors.last().map(SolverError::kind),
+            Some(SolverErrorKind::IncompatibleValue {
+                lower: ValueShape::Int,
+                upper: ValueShape::Bottom,
+            })
+        ));
+    }
+
+    #[test]
+    fn f5b_structured_variable_extrusion_lowers_value_and_effect_children_in_both_directions() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-structured-extrusion")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let positive_value = session.fresh_value_at_level(2).unwrap();
+        let positive_effect = session.fresh_effect_at_level(2).unwrap();
+        let negative_value = session.fresh_value_at_level(2).unwrap();
+        let negative_effect = session.fresh_effect_at_level(2).unwrap();
+        let receiver = session.fresh_value_at_level(1).unwrap();
+        let sender = session.fresh_value_at_level(1).unwrap();
+        let positive_children = (
+            session
+                .live_value_term(Polarity::Negative, positive_value)
+                .unwrap(),
+            session
+                .live_effect_term(Polarity::Negative, positive_effect)
+                .unwrap(),
+            session
+                .live_effect_term(Polarity::Positive, positive_effect)
+                .unwrap(),
+            session
+                .live_value_term(Polarity::Positive, positive_value)
+                .unwrap(),
+        );
+        let positive = session
+            .positive_function_term(
+                positive_children.0,
+                positive_children.1,
+                positive_children.2,
+                positive_children.3,
+            )
+            .unwrap();
+        let negative_children = (
+            session
+                .live_value_term(Polarity::Positive, negative_value)
+                .unwrap(),
+            session
+                .live_effect_term(Polarity::Positive, negative_effect)
+                .unwrap(),
+            session
+                .live_effect_term(Polarity::Negative, negative_effect)
+                .unwrap(),
+            session
+                .live_value_term(Polarity::Negative, negative_value)
+                .unwrap(),
+        );
+        let negative = session
+            .negative_function_term(
+                negative_children.0,
+                negative_children.1,
+                negative_children.2,
+                negative_children.3,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 125);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(positive),
+                    upper: ValueEndpointKey::ValueRow(receiver),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(sender),
+                    upper: ValueEndpointKey::NegativeFunction(negative),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        for value in [positive_value, negative_value] {
+            assert_eq!(session.value_levels[value as usize], 1);
+        }
+        for effect in [positive_effect, negative_effect] {
+            assert_eq!(session.effect_levels[effect as usize], 1);
+        }
+    }
+
+    #[test]
+    fn f5b_structured_duplicate_replays_one_canonical_witness_for_its_new_source() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-duplicate-summary")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let negative_leaf_function = session
+            .negative_function_term(
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+            )
+            .unwrap();
+        let positive_leaf_function = session
+            .positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+            )
+            .unwrap();
+        let lower = session
+            .positive_function_term(
+                negative_leaf_function,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                positive_leaf_function,
+            )
+            .unwrap();
+        let upper = session
+            .negative_function_term(
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+            )
+            .unwrap();
+        let key = CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveFunction(lower),
+            upper: ValueEndpointKey::NegativeFunction(upper),
+        };
+        let first = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 92);
+        let first_cause = CauseId::for_occurrence(first.clone());
+        session
+            .constrain_live_value(key, &first, &first_cause)
+            .unwrap();
+        assert_eq!(
+            std::mem::size_of::<TypedWorkItem>(),
+            std::mem::size_of::<LiveConstraintTask>(),
+            "typed transmission storage carries no occurrence/cause identity"
+        );
+        assert!(session.typed_pair_worklist_pushes > 1);
+        let after_first_pairs = session.typed_pairs.len();
+        let after_first_bounds = session.bounds.clone();
+        assert_eq!(
+            session
+                .errors
+                .iter()
+                .map(SolverError::kind)
+                .collect::<Vec<_>>(),
+            vec![SolverErrorKind::IncompatibleValue {
+                lower: ValueShape::Int,
+                upper: ValueShape::Function,
+            },]
+        );
+        session
+            .constrain_live_value(key, &first, &first_cause)
+            .unwrap();
+        assert_eq!(session.errors.len(), 1, "same source stays deduplicated");
+        let replay = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 93);
+        let replay_cause = CauseId::for_occurrence(replay.clone());
+        session
+            .constrain_live_value(key, &replay, &replay_cause)
+            .unwrap();
+        assert_eq!(session.typed_pairs.len(), after_first_pairs);
+        assert_eq!(session.bounds, after_first_bounds);
+        assert_eq!(
+            &session.errors[1..],
+            [SolverError {
+                occurrence: replay.clone(),
+                cause: replay_cause.clone(),
+                kind: SolverErrorKind::IncompatibleValue {
+                    lower: ValueShape::Int,
+                    upper: ValueShape::Function,
+                },
+            },]
+        );
+        assert!(session.typed_worklist.is_empty());
+    }
+
+    #[test]
+    fn f5b_variable_mediated_int_function_incompatibility_is_order_independent() {
+        for function_first in [false, true] {
+            let batch =
+                ConstraintBatch::collect(module("1", "f5b-mediated-incompatibility")).unwrap();
+            let mut session = InferenceSession::try_new(batch).unwrap();
+            let variable = session.fresh_value_at_level(1).unwrap();
+            let negative_function = session
+                .negative_function_term(
+                    session.batch.collected_leaf_term(Leaf::IntPositive),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session.batch.collected_leaf_term(Leaf::IntNegative),
+                )
+                .unwrap();
+            let function = CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(variable),
+                upper: ValueEndpointKey::NegativeFunction(negative_function),
+            };
+            let integer = CanonicalValuePairKey {
+                lower: ValueEndpointKey::IntPositive,
+                upper: ValueEndpointKey::ValueRow(variable),
+            };
+            let first = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 94);
+            let second = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 95);
+            let first_cause = CauseId::for_occurrence(first.clone());
+            let second_cause = CauseId::for_occurrence(second.clone());
+            let (first_key, second_key) = if function_first {
+                (function, integer)
+            } else {
+                (integer, function)
+            };
+            session
+                .constrain_live_value(first_key, &first, &first_cause)
+                .unwrap();
+            assert!(session.errors.is_empty());
+            session
+                .constrain_live_value(second_key, &second, &second_cause)
+                .unwrap();
+            assert_eq!(
+                session.errors.as_slice(),
+                [SolverError {
+                    occurrence: second.clone(),
+                    cause: second_cause,
+                    kind: SolverErrorKind::IncompatibleValue {
+                        lower: ValueShape::Int,
+                        upper: ValueShape::Function,
+                    },
+                }],
+                "the second direct fact induces the replay in either insertion order"
+            );
+            assert!(session.typed_worklist.is_empty());
+            assert!(session.typed_pairs.contains_key(&TypedPairKey::Value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::NegativeFunction(negative_function),
+                }
+            )));
+        }
+    }
+
+    #[test]
+    fn f5b_cyclic_witness_completes_and_later_duplicate_replays_once() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-cyclic-witness")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let lower_row = session.fresh_value_at_level(1).unwrap();
+        let upper_row = session.fresh_value_at_level(1).unwrap();
+        let argument_function = session
+            .positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+            )
+            .unwrap();
+        let lower_result = session
+            .live_value_term(Polarity::Positive, lower_row)
+            .unwrap();
+        let upper_result = session
+            .live_value_term(Polarity::Negative, upper_row)
+            .unwrap();
+        let lower = session
+            .positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                lower_result,
+            )
+            .unwrap();
+        let upper = session
+            .negative_function_term(
+                argument_function,
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                upper_result,
+            )
+            .unwrap();
+        let first = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 97);
+        let first_cause = CauseId::for_occurrence(first.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(lower),
+                    upper: ValueEndpointKey::ValueRow(lower_row),
+                },
+                &first,
+                &first_cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(upper_row),
+                    upper: ValueEndpointKey::NegativeFunction(upper),
+                },
+                &first,
+                &first_cause,
+            )
+            .unwrap();
+        let root = CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(lower_row),
+            upper: ValueEndpointKey::ValueRow(upper_row),
+        };
+        session
+            .constrain_live_value(root, &first, &first_cause)
+            .unwrap();
+        assert_eq!(
+            session.errors.last().map(SolverError::kind),
+            Some(SolverErrorKind::IncompatibleValue {
+                lower: ValueShape::Function,
+                upper: ValueShape::Int,
+            })
+        );
+        assert!(session.typed_worklist.is_empty());
+        assert!(session.diagnostic_delta.is_empty());
+        assert!(session.diagnostic_scc_worklist.is_empty());
+        let pair_count = session.typed_pairs.len();
+        let replay = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 98);
+        let replay_cause = CauseId::for_occurrence(replay.clone());
+        session
+            .constrain_live_value(root, &replay, &replay_cause)
+            .unwrap();
+        assert_eq!(session.typed_pairs.len(), pair_count);
+        assert_eq!(
+            session.errors.last(),
+            Some(&SolverError {
+                occurrence: replay,
+                cause: replay_cause,
+                kind: SolverErrorKind::IncompatibleValue {
+                    lower: ValueShape::Function,
+                    upper: ValueShape::Int,
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn f5b_canonical_witness_orders_kind_before_argument_result_field() {
+        for reverse_allocation in [false, true] {
+            let batch = ConstraintBatch::collect(module("1", "f5b-witness-order")).unwrap();
+            let mut session = InferenceSession::try_new(batch).unwrap();
+            let make_argument = |session: &mut InferenceSession| {
+                session
+                    .positive_function_term(
+                        session.batch.collected_leaf_term(Leaf::IntNegative),
+                        session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                        session
+                            .batch
+                            .collected_leaf_term(Leaf::EffectBottomPositive),
+                        session.batch.collected_leaf_term(Leaf::IntPositive),
+                    )
+                    .unwrap()
+            };
+            let make_result = |session: &mut InferenceSession| {
+                session
+                    .negative_function_term(
+                        session.batch.collected_leaf_term(Leaf::IntPositive),
+                        session
+                            .batch
+                            .collected_leaf_term(Leaf::EffectBottomPositive),
+                        session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                        session.batch.collected_leaf_term(Leaf::IntNegative),
+                    )
+                    .unwrap()
+            };
+            let (argument_function, result_function) = if reverse_allocation {
+                let result = make_result(&mut session);
+                let argument = make_argument(&mut session);
+                (argument, result)
+            } else {
+                let argument = make_argument(&mut session);
+                let result = make_result(&mut session);
+                (argument, result)
+            };
+            let lower = session
+                .positive_function_term(
+                    session.batch.collected_leaf_term(Leaf::IntNegative),
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    session.batch.collected_leaf_term(Leaf::IntPositive),
+                )
+                .unwrap();
+            let upper = session
+                .negative_function_term(
+                    argument_function,
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    result_function,
+                )
+                .unwrap();
+            let argument_child = CanonicalValuePairKey {
+                lower: ValueEndpointKey::PositiveFunction(argument_function),
+                upper: ValueEndpointKey::IntNegative,
+            };
+            let result_child = CanonicalValuePairKey {
+                lower: ValueEndpointKey::IntPositive,
+                upper: ValueEndpointKey::NegativeFunction(result_function),
+            };
+            let child_occurrence = ConstraintOccurrenceId::new(
+                session.batch.projection_order[0].clone(),
+                if reverse_allocation { 101 } else { 100 },
+            );
+            let child_cause = CauseId::for_occurrence(child_occurrence.clone());
+            let children = if reverse_allocation {
+                [result_child, argument_child]
+            } else {
+                [argument_child, result_child]
+            };
+            for child in children {
+                session
+                    .constrain_live_value(child, &child_occurrence, &child_cause)
+                    .unwrap();
+            }
+            let occurrence = ConstraintOccurrenceId::new(
+                session.batch.projection_order[0].clone(),
+                if reverse_allocation { 103 } else { 102 },
+            );
+            let cause = CauseId::for_occurrence(occurrence.clone());
+            session
+                .constrain_live_value(
+                    CanonicalValuePairKey {
+                        lower: ValueEndpointKey::PositiveFunction(lower),
+                        upper: ValueEndpointKey::NegativeFunction(upper),
+                    },
+                    &occurrence,
+                    &cause,
+                )
+                .unwrap();
+            assert_eq!(
+                session.errors.last().map(SolverError::kind),
+                Some(SolverErrorKind::IncompatibleValue {
+                    lower: ValueShape::Int,
+                    upper: ValueShape::Function,
+                }),
+                "the lower-ranked kind wins despite the Result field"
+            );
+        }
+    }
+
+    #[test]
+    fn f5b_cyclic_multi_seed_witnesses_choose_each_members_nearest_terminal() {
+        for reverse_admission_and_allocation in [false, true] {
+            let batch = ConstraintBatch::collect(module("1", "f5b-cyclic-multi-seed")).unwrap();
+            let mut session = InferenceSession::try_new(batch).unwrap();
+            let (first_row, second_row) = if reverse_admission_and_allocation {
+                let second = session.fresh_value_at_level(1).unwrap();
+                let first = session.fresh_value_at_level(1).unwrap();
+                (first, second)
+            } else {
+                let first = session.fresh_value_at_level(1).unwrap();
+                let second = session.fresh_value_at_level(1).unwrap();
+                (first, second)
+            };
+            let first = CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(first_row),
+                upper: ValueEndpointKey::ValueRow(second_row),
+            };
+            let second = CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(second_row),
+                upper: ValueEndpointKey::ValueRow(first_row),
+            };
+            let first_terminal = CanonicalValuePairKey {
+                lower: ValueEndpointKey::IntPositive,
+                upper: ValueEndpointKey::BottomNegative,
+            };
+            let positive_function = session
+                .positive_function_term(
+                    session.batch.collected_leaf_term(Leaf::IntNegative),
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    session.batch.collected_leaf_term(Leaf::IntPositive),
+                )
+                .unwrap();
+            let second_terminal = CanonicalValuePairKey {
+                lower: ValueEndpointKey::PositiveFunction(positive_function),
+                upper: ValueEndpointKey::IntNegative,
+            };
+            let terminal_memo = |terminal, kind| TypedPairMemo::Value {
+                children: Vec::new(),
+                direct_witness: Some(DiagnosticWitness {
+                    terminal,
+                    kind,
+                    distance: 0,
+                    first_field: None,
+                }),
+                completion: DiagnosticCompletion::Complete(Some(DiagnosticWitness {
+                    terminal,
+                    kind,
+                    distance: 0,
+                    first_field: None,
+                })),
+            };
+            session.typed_pairs.insert(
+                TypedPairKey::Value(first_terminal),
+                terminal_memo(
+                    first_terminal,
+                    SolverErrorKind::IncompatibleValue {
+                        lower: ValueShape::Int,
+                        upper: ValueShape::Bottom,
+                    },
+                ),
+            );
+            session.typed_pairs.insert(
+                TypedPairKey::Value(second_terminal),
+                terminal_memo(
+                    second_terminal,
+                    SolverErrorKind::IncompatibleValue {
+                        lower: ValueShape::Function,
+                        upper: ValueShape::Int,
+                    },
+                ),
+            );
+            let node_memo = |children| TypedPairMemo::Value {
+                children,
+                direct_witness: None,
+                completion: DiagnosticCompletion::Pending,
+            };
+            // Each SCC entry has its own one-edge external seed.  The
+            // internal edges make a two-node cycle, so a one-global-seed
+            // traversal would incorrectly give one member a distance-two
+            // witness from its neighbour.
+            session.typed_pairs.insert(
+                TypedPairKey::Value(first),
+                node_memo(vec![
+                    DiagnosticEdge {
+                        child: second,
+                        field: Some(FunctionField::Argument),
+                    },
+                    DiagnosticEdge {
+                        child: first_terminal,
+                        field: Some(FunctionField::Result),
+                    },
+                ]),
+            );
+            session.typed_pairs.insert(
+                TypedPairKey::Value(second),
+                node_memo(vec![
+                    DiagnosticEdge {
+                        child: first,
+                        field: Some(FunctionField::Argument),
+                    },
+                    DiagnosticEdge {
+                        child: second_terminal,
+                        field: Some(FunctionField::Result),
+                    },
+                ]),
+            );
+            let delta = if reverse_admission_and_allocation {
+                [second, first]
+            } else {
+                [first, second]
+            };
+            session.diagnostic_delta.extend(delta);
+            for (index, key) in delta.into_iter().enumerate() {
+                session.diagnostic_delta_indices.insert(key, index);
+            }
+            session.complete_diagnostic_delta().unwrap();
+            let witness_for = |key| match session.typed_pairs[&TypedPairKey::Value(key)] {
+                TypedPairMemo::Value {
+                    completion: DiagnosticCompletion::Complete(Some(witness)),
+                    ..
+                } => witness,
+                _ => unreachable!("each cyclic entry completes"),
+            };
+            let first_witness = witness_for(first);
+            let second_witness = witness_for(second);
+            assert_eq!(first_witness.terminal, first_terminal);
+            assert_eq!(second_witness.terminal, second_terminal);
+            assert_eq!(first_witness.distance, 1);
+            assert_eq!(second_witness.distance, 1);
+            assert_eq!(first_witness.first_field, Some(FunctionField::Result));
+            assert_eq!(second_witness.first_field, Some(FunctionField::Result));
+            assert_eq!(session.diagnostic_settle_visits, 2);
+            assert_eq!(session.diagnostic_internal_reverse_edge_visits, 2);
+            assert_eq!(
+                session.diagnostic_scc_member_seed_scans, 2,
+                "the two-member delta is scanned once through its SCC member slice"
+            );
+            assert!(session.diagnostic_delta.is_empty());
+            assert!(session.diagnostic_reverse_edges.is_empty());
+        }
+    }
+
+    #[test]
+    fn f5b_seedless_diagnostic_cycle_completes_none_without_settle_or_edge_visit() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-seedless-cycle")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let first_row = session.fresh_value_at_level(1).unwrap();
+        let second_row = session.fresh_value_at_level(1).unwrap();
+        let first = CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(first_row),
+            upper: ValueEndpointKey::ValueRow(second_row),
+        };
+        let second = CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(second_row),
+            upper: ValueEndpointKey::ValueRow(first_row),
+        };
+        let pending = |child, field| TypedPairMemo::Value {
+            children: vec![DiagnosticEdge { child, field }],
+            direct_witness: None,
+            completion: DiagnosticCompletion::Pending,
+        };
+        session.typed_pairs.insert(
+            TypedPairKey::Value(first),
+            pending(second, Some(FunctionField::Argument)),
+        );
+        session.typed_pairs.insert(
+            TypedPairKey::Value(second),
+            pending(first, Some(FunctionField::Result)),
+        );
+        for (index, key) in [first, second].into_iter().enumerate() {
+            session.diagnostic_delta.push(key);
+            session.diagnostic_delta_indices.insert(key, index);
+        }
+        session.complete_diagnostic_delta().unwrap();
+        for key in [first, second] {
+            assert!(matches!(
+                session.typed_pairs[&TypedPairKey::Value(key)],
+                TypedPairMemo::Value {
+                    completion: DiagnosticCompletion::Complete(None),
+                    ..
+                }
+            ));
+        }
+        assert_eq!(session.diagnostic_settle_visits, 0);
+        assert_eq!(session.diagnostic_internal_reverse_edge_visits, 0);
+        assert!(session.diagnostic_delta.is_empty());
+        assert!(session.diagnostic_reverse_edges.is_empty());
+    }
+
+    #[test]
+    fn f5b_singleton_scc_seed_scan_is_one_dense_delta_member() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-singleton-scc-scan")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let key = CanonicalValuePairKey {
+            lower: ValueEndpointKey::IntPositive,
+            upper: ValueEndpointKey::BottomNegative,
+        };
+        let witness = DiagnosticWitness {
+            terminal: key,
+            kind: SolverErrorKind::IncompatibleValue {
+                lower: ValueShape::Int,
+                upper: ValueShape::Bottom,
+            },
+            distance: 0,
+            first_field: None,
+        };
+        session.typed_pairs.insert(
+            TypedPairKey::Value(key),
+            TypedPairMemo::Value {
+                children: Vec::new(),
+                direct_witness: Some(witness),
+                completion: DiagnosticCompletion::Pending,
+            },
+        );
+        session.diagnostic_delta.push(key);
+        session.diagnostic_delta_indices.insert(key, 0);
+        session.complete_diagnostic_delta().unwrap();
+        assert_eq!(session.diagnostic_scc_member_seed_scans, 1);
+    }
+
+    #[test]
+    fn f5b_disjoint_admissions_leave_old_complete_entries_out_of_delta_work() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-disjoint-delta")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let positive = session
+            .positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+            )
+            .unwrap();
+        let negative = session
+            .negative_function_term(
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+            )
+            .unwrap();
+        let first_key = CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveFunction(positive),
+            upper: ValueEndpointKey::IntNegative,
+        };
+        let second_key = CanonicalValuePairKey {
+            lower: ValueEndpointKey::IntPositive,
+            upper: ValueEndpointKey::NegativeFunction(negative),
+        };
+        let first = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 104);
+        let first_cause = CauseId::for_occurrence(first.clone());
+        session
+            .constrain_live_value(first_key, &first, &first_cause)
+            .unwrap();
+        let first_witness = match session.typed_pairs[&TypedPairKey::Value(first_key)] {
+            TypedPairMemo::Value {
+                completion: DiagnosticCompletion::Complete(witness),
+                ..
+            } => witness,
+            _ => unreachable!("the first synchronous delta completed"),
+        };
+        assert_eq!(session.typed_pairs.len(), 1);
+        let second = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 105);
+        let second_cause = CauseId::for_occurrence(second.clone());
+        session
+            .constrain_live_value(second_key, &second, &second_cause)
+            .unwrap();
+        assert_eq!(session.typed_pairs.len(), 2);
+        assert_eq!(
+            match session.typed_pairs[&TypedPairKey::Value(first_key)] {
+                TypedPairMemo::Value {
+                    completion: DiagnosticCompletion::Complete(witness),
+                    ..
+                } => witness,
+                _ => unreachable!("old entries stay Complete"),
+            },
+            first_witness
+        );
+        assert!(session.diagnostic_delta.is_empty());
+        assert!(session.diagnostic_reverse_edges.is_empty());
+        assert!(session.diagnostic_scc_worklist.is_empty());
+    }
+
+    #[test]
+    fn f5b_bottom_and_top_identity_rows_leave_live_rows_and_levels_unchanged() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-identity-rows")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let value = session.fresh_value_at_level(3).unwrap();
+        let occurrence = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 96);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let before_bounds = session.bounds.clone();
+        let before_levels = session.value_levels.clone();
+        for key in [
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::BottomPositive,
+                upper: ValueEndpointKey::ValueRow(value),
+            },
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(value),
+                upper: ValueEndpointKey::TopNegative,
+            },
+        ] {
+            session
+                .constrain_live_value(key, &occurrence, &cause)
+                .unwrap();
+        }
+        assert_eq!(session.bounds, before_bounds);
+        assert_eq!(session.value_levels, before_levels);
+        assert!(session.errors.is_empty());
+    }
+
+    #[test]
+    fn f5b_reserve_lanes_fail_before_publication_and_clean_retry_preserves_committed_handles() {
+        // Startup owns all coupled live/diagnostic lanes.  Each deterministic
+        // lane failure occurs before a session can publish a SolvedModule.
+        for lane in [
+            F5bCapacityLane::LiveComponents,
+            F5bCapacityLane::ValueBounds,
+            F5bCapacityLane::EffectBounds,
+            F5bCapacityLane::ValueLevels,
+            F5bCapacityLane::EffectLevels,
+            F5bCapacityLane::ValueMetadata,
+            F5bCapacityLane::EffectMetadata,
+            F5bCapacityLane::ExtrusionStack,
+            F5bCapacityLane::ExtrusionValueMarks,
+            F5bCapacityLane::ExtrusionEffectMarks,
+            F5bCapacityLane::TypedPairs,
+            F5bCapacityLane::TypedWorklist,
+            F5bCapacityLane::DiagnosticDelta,
+            F5bCapacityLane::DiagnosticDeltaIndices,
+            F5bCapacityLane::DiagnosticReverseOffsets,
+            F5bCapacityLane::DiagnosticReverseEdges,
+            F5bCapacityLane::DiagnosticReverseCursors,
+            F5bCapacityLane::DiagnosticDfsStack,
+            F5bCapacityLane::DiagnosticFinishOrder,
+            F5bCapacityLane::DiagnosticSccIndices,
+            F5bCapacityLane::DiagnosticSccNodes,
+            F5bCapacityLane::DiagnosticSccOffsets,
+            F5bCapacityLane::DiagnosticSccPendingChildren,
+            F5bCapacityLane::DiagnosticSccWorklist,
+            F5bCapacityLane::DiagnosticBucketHeads,
+            F5bCapacityLane::DiagnosticBucketTails,
+            F5bCapacityLane::DiagnosticNodeWitnesses,
+            F5bCapacityLane::Errors,
+            F5bCapacityLane::ReportedErrors,
+            F5bCapacityLane::CrossKindComponents,
+            F5bCapacityLane::RoutedUses,
+            F5bCapacityLane::RoutedUsePositions,
+            F5bCapacityLane::Schemes,
+            F5bCapacityLane::Drafts,
+        ] {
+            inject_next_f5b_reserve_failure(lane);
+            assert!(
+                matches!(
+                    InferenceSession::try_new(
+                        ConstraintBatch::collect(module("1", "f5b-reserve")).unwrap()
+                    ),
+                    Err(SolveAvailabilityError::IdentityExhausted)
+                ),
+                "{lane:?} fails before session publication"
+            );
+        }
+
+        let mut session = InferenceSession::try_new(
+            ConstraintBatch::collect(module("1", "f5b-reserve-retry")).unwrap(),
+        )
+        .unwrap();
+        let committed = session.fresh_value_at_level(1).unwrap();
+        inject_next_f5b_reserve_failure(F5bCapacityLane::ValueBounds);
+        assert_eq!(
+            session.fresh_value_at_level(2),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.value_levels[committed as usize], 1);
+        let retry = session.fresh_value_at_level(2).unwrap();
+        assert_eq!(session.value_levels[retry as usize], 2);
+    }
+
+    #[test]
+    fn f5b_runtime_reserve_failures_remain_availability_and_do_not_publish_a_module() {
+        let make_occurrence = |session: &InferenceSession, ordinal| {
+            let occurrence =
+                ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), ordinal);
+            let cause = CauseId::for_occurrence(occurrence.clone());
+            (occurrence, cause)
+        };
+
+        // Deep Function extrusion grows at operation time, not only at startup.
+        let mut session = InferenceSession::try_new(
+            ConstraintBatch::collect(module("1", "f5b-deep-extrusion")).unwrap(),
+        )
+        .unwrap();
+        let younger = session.fresh_value_at_level(2).unwrap();
+        let younger_term = session
+            .live_value_term(Polarity::Positive, younger)
+            .unwrap();
+        let mut nested = younger_term;
+        for _ in 0..32 {
+            nested = session
+                .positive_function_term(
+                    session.batch.collected_leaf_term(Leaf::IntNegative),
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    nested,
+                )
+                .unwrap();
+        }
+        let target = session.fresh_value_at_level(1).unwrap();
+        let (occurrence, cause) = make_occurrence(&session, 122);
+        let before_levels = session.value_levels.clone();
+        inject_next_f5b_reserve_failure(F5bCapacityLane::ExtrusionStack);
+        assert_eq!(
+            session.constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(nested),
+                    upper: ValueEndpointKey::ValueRow(target),
+                },
+                &occurrence,
+                &cause,
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.value_levels, before_levels);
+        assert!(session.typed_pairs.is_empty());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(nested),
+                    upper: ValueEndpointKey::ValueRow(target),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        assert_eq!(session.value_levels[younger as usize], 1);
+
+        // Exact rows, direct rows, and Function diagnostic edges all expose
+        // the retained availability error rather than silently allocating.
+        for lane in [
+            F5bCapacityLane::ValueExactLower,
+            F5bCapacityLane::ValueDirectLower,
+            F5bCapacityLane::ValueDirectUpper,
+        ] {
+            let mut attempt = InferenceSession::try_new(
+                ConstraintBatch::collect(module("1", "f5b-runtime-reserve")).unwrap(),
+            )
+            .unwrap();
+            let lower = attempt.fresh_value_at_level(1).unwrap();
+            let upper = attempt.fresh_value_at_level(1).unwrap();
+            let (occurrence, cause) = make_occurrence(&attempt, 123);
+            inject_next_f5b_reserve_failure(lane);
+            let key = match lane {
+                F5bCapacityLane::ValueExactLower => CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::ValueRow(upper),
+                },
+                F5bCapacityLane::ValueDirectLower | F5bCapacityLane::ValueDirectUpper => {
+                    CanonicalValuePairKey {
+                        lower: ValueEndpointKey::ValueRow(lower),
+                        upper: ValueEndpointKey::ValueRow(upper),
+                    }
+                }
+                _ => unreachable!("the witness names only value-row reserve lanes"),
+            };
+            assert_eq!(
+                attempt.constrain_live_value(key, &occurrence, &cause),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+            assert!(attempt.errors.is_empty());
+        }
+        let mut effect_attempt = InferenceSession::try_new(
+            ConstraintBatch::collect(module("1", "f5b-effect-runtime-reserve")).unwrap(),
+        )
+        .unwrap();
+        let effect_row = effect_attempt.fresh_effect_at_level(1).unwrap();
+        let (occurrence, cause) = make_occurrence(&effect_attempt, 126);
+        inject_next_f5b_reserve_failure(F5bCapacityLane::EffectExactLower);
+        assert_eq!(
+            effect_attempt.constrain_live_effect(
+                EffectEndpointKey::BottomPositive,
+                EffectEndpointKey::EffectRow(effect_row),
+                &occurrence,
+                &cause,
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(effect_attempt.errors.is_empty());
+        assert!(effect_attempt.typed_worklist.is_empty());
+        let mut diagnostic_attempt = InferenceSession::try_new(
+            ConstraintBatch::collect(module("1", "f5b-diagnostic-reserve")).unwrap(),
+        )
+        .unwrap();
+        let (occurrence, cause) = make_occurrence(&diagnostic_attempt, 124);
+        inject_next_f5b_reserve_failure(F5bCapacityLane::DiagnosticBucketCandidates);
+        assert_eq!(
+            diagnostic_attempt.constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::BottomNegative,
+                },
+                &occurrence,
+                &cause,
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(diagnostic_attempt.errors.is_empty());
+        let mut edge_attempt = InferenceSession::try_new(
+            ConstraintBatch::collect(module("1", "f5b-diagnostic-edge-reserve")).unwrap(),
+        )
+        .unwrap();
+        let positive = edge_attempt
+            .positive_function_term(
+                edge_attempt.batch.collected_leaf_term(Leaf::IntNegative),
+                edge_attempt
+                    .batch
+                    .collected_leaf_term(Leaf::EmptyEffectNegative),
+                edge_attempt
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                edge_attempt.batch.collected_leaf_term(Leaf::IntPositive),
+            )
+            .unwrap();
+        let negative = edge_attempt
+            .negative_function_term(
+                edge_attempt.batch.collected_leaf_term(Leaf::IntPositive),
+                edge_attempt
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                edge_attempt
+                    .batch
+                    .collected_leaf_term(Leaf::EmptyEffectNegative),
+                edge_attempt.batch.collected_leaf_term(Leaf::IntNegative),
+            )
+            .unwrap();
+        let (occurrence, cause) = make_occurrence(&edge_attempt, 125);
+        inject_next_f5b_reserve_failure(F5bCapacityLane::DiagnosticEdges);
+        assert_eq!(
+            edge_attempt.constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(positive),
+                    upper: ValueEndpointKey::NegativeFunction(negative),
+                },
+                &occurrence,
+                &cause,
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(edge_attempt.errors.is_empty());
+        assert!(
+            SolvedModule::solve(
+                ConstraintBatch::collect(module("1", "f5b-diagnostic-retry")).unwrap()
+            )
+            .is_ok(),
+            "a discarded failed attempt leaves a clean batch retry path"
+        );
+        assert_eq!(
+            InferenceSession::child_level(u32::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn f5b_live_effect_function_and_diagnostic_growth_reconcile_independent_aggregates() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-aggregate")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let value = session.fresh_value_at_level(2).unwrap();
+        let effect = session.fresh_effect_at_level(2).unwrap();
+        let negative_value = session.live_value_term(Polarity::Negative, value).unwrap();
+        let positive_value = session.live_value_term(Polarity::Positive, value).unwrap();
+        let negative_effect = session
+            .live_effect_term(Polarity::Negative, effect)
+            .unwrap();
+        let positive_effect = session
+            .live_effect_term(Polarity::Positive, effect)
+            .unwrap();
+        let positive = session
+            .positive_function_term(
+                negative_value,
+                negative_effect,
+                positive_effect,
+                positive_value,
+            )
+            .unwrap();
+        let negative = session
+            .negative_function_term(
+                positive_value,
+                positive_effect,
+                negative_effect,
+                negative_value,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 119);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(positive),
+                    upper: ValueEndpointKey::NegativeFunction(negative),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        let second_value = session.fresh_value_at_level(2).unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(value),
+                    upper: ValueEndpointKey::ValueRow(second_value),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::IntPositive,
+                    upper: ValueEndpointKey::ValueRow(value),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(second_value),
+                    upper: ValueEndpointKey::IntNegative,
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        let second_effect = session.fresh_effect_at_level(2).unwrap();
+        session
+            .constrain_live_effect(
+                EffectEndpointKey::EffectRow(effect),
+                EffectEndpointKey::EffectRow(second_effect),
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_effect(
+                EffectEndpointKey::BottomPositive,
+                EffectEndpointKey::EffectRow(effect),
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_effect(
+                EffectEndpointKey::EffectRow(second_effect),
+                EffectEndpointKey::EmptyNegative,
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(positive),
+                    upper: ValueEndpointKey::BottomNegative,
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session.sample_f4_resources(ResourceBoundary::InternalRoute);
+        let lanes = &session.independent_nested_capacities;
+        assert!(lanes.value_direct_lower > 0);
+        assert!(lanes.value_direct_upper > 0);
+        assert!(lanes.value_exact_lower > 0);
+        assert!(lanes.value_exact_upper > 0);
+        assert!(lanes.effect_direct_lower > 0);
+        assert!(lanes.effect_direct_upper > 0);
+        assert!(lanes.effect_exact_lower > 0);
+        assert!(lanes.effect_exact_upper > 0);
+        assert!(lanes.diagnostic_edges > 0);
+        assert_eq!(lanes.total_bound_bytes(), session.bound_payload_bytes);
+        assert!(session.execution_counters.bound_table_capacity() >= session.bounds.capacity());
+        assert!(session.execution_counters.bound_table_retained_bytes() > 0);
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.execution_counters.semantic_arena_retained_bytes()
+        );
+        assert_eq!(
+            session.resource_ledger.inference_session_retained_bytes,
+            session
+                .execution_counters
+                .inference_session_retained_bytes()
+        );
+        assert_eq!(session.errors.len(), 1);
+    }
+
+    #[test]
+    fn f5b_all_incompatible_shapes_include_function_bottom_direct_and_derived_duplicates() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-incompatible-shapes")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let value = session.fresh_value_at_level(1).unwrap();
+        let effect = session.fresh_effect_at_level(1).unwrap();
+        let negative_value = session.live_value_term(Polarity::Negative, value).unwrap();
+        let positive_value = session.live_value_term(Polarity::Positive, value).unwrap();
+        let negative_effect = session
+            .live_effect_term(Polarity::Negative, effect)
+            .unwrap();
+        let positive_effect = session
+            .live_effect_term(Polarity::Positive, effect)
+            .unwrap();
+        let positive = session
+            .positive_function_term(
+                negative_value,
+                negative_effect,
+                positive_effect,
+                positive_value,
+            )
+            .unwrap();
+        let negative = session
+            .negative_function_term(
+                positive_value,
+                positive_effect,
+                negative_effect,
+                negative_value,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 120);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        for key in [
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::IntPositive,
+                upper: ValueEndpointKey::BottomNegative,
+            },
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::IntPositive,
+                upper: ValueEndpointKey::NegativeFunction(negative),
+            },
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::PositiveFunction(positive),
+                upper: ValueEndpointKey::BottomNegative,
+            },
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::PositiveFunction(positive),
+                upper: ValueEndpointKey::IntNegative,
+            },
+        ] {
+            let before = session.bounds.clone();
+            session
+                .constrain_live_value(key, &occurrence, &cause)
+                .unwrap();
+            assert_eq!(
+                session.bounds, before,
+                "incompatible pair does not mutate a bound row"
+            );
+        }
+        let errors_after_direct = session.errors.len();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(positive),
+                    upper: ValueEndpointKey::BottomNegative,
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        assert_eq!(
+            session.errors.len(),
+            errors_after_direct,
+            "same direct source deduplicates"
+        );
+
+        let derived_row = session.fresh_value_at_level(1).unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(positive),
+                    upper: ValueEndpointKey::ValueRow(derived_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        let derived = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 121);
+        let derived_cause = CauseId::for_occurrence(derived.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(derived_row),
+                    upper: ValueEndpointKey::BottomNegative,
+                },
+                &derived,
+                &derived_cause,
+            )
+            .unwrap();
+        assert_eq!(
+            session.bounds[derived_row as usize].exact_non_variable_lowers,
+            vec![ValueEndpointKey::PositiveFunction(positive)],
+            "the derived incompatible child leaves its already-installed lower unchanged"
+        );
+        let errors_after_derived = session.errors.len();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(derived_row),
+                    upper: ValueEndpointKey::BottomNegative,
+                },
+                &derived,
+                &derived_cause,
+            )
+            .unwrap();
+        assert_eq!(
+            session.errors.len(),
+            errors_after_derived,
+            "same derived source deduplicates"
+        );
     }
 }
