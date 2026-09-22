@@ -59,6 +59,12 @@ Proactive use is not automatic fan-out: invoke only roles justified by required
 production or a named risk, parallelize only independent read-only work, and
 never run more than one write-capable agent in the same working tree.
 
+Use subagents as the primary working mechanism for bounded exploration,
+implementation, and independent review whenever a role-shaped unit exists.
+The primary agent retains authority resolution, user interaction, finding
+adjudication, repository-state synchronization, and git integration; using a
+subagent does not transfer those responsibilities.
+
 - Use built-in `explorer` for read-heavy repository mapping.
 - Use `architect` for new decisions, uncertain behavior, and cross-layer work.
 - Use `implementer` for confirmed code changes.

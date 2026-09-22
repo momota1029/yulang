@@ -2,6 +2,8 @@
 
 Updated: 2026-09-22. Branch: `yulang3`; do not modify frozen `main`.
 
+Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
+
 ## Active F5 gate
 
 The reviewed proposal is
