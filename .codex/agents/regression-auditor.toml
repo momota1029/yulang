@@ -1,7 +1,7 @@
 name = "regression_auditor"
 description = "Read-only regression auditor for sibling cases, public call sites, fixtures, CST/AST parity, diagnostics, and unintended surface changes."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "high"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "low"
 sandbox_mode = "read-only"
 developer_instructions = """
 Remain read-only. Review before/after state, affected public and internal call sites, sibling mechanisms, tests, fixtures, diagnostics, and generated or serialized surfaces where relevant.

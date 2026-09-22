@@ -1,7 +1,7 @@
 name = "performance_auditor"
 description = "Read-only performance and resource auditor for traversals, allocation, clones, caches, worklists, parallelism, and heavy verification."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "high"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "low"
 sandbox_mode = "read-only"
 developer_instructions = """
 Remain read-only. Read rules/performance.md and rules/testing.md, then inspect the changed path, ownership and call frequency, surrounding loops/worklists, and available measurements.
