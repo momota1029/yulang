@@ -505,8 +505,22 @@ fn independent_post_rollback_value_row_resources(
         &session.bounds,
         &session.effect_bounds,
     );
-    assert_eq!(session.independent_nested_capacities.diagnostic_edges, 0);
-    nested.diagnostic_edges = session.independent_nested_capacities.diagnostic_edges;
+    let diagnostic_edges: usize = session
+        .typed_pairs
+        .values()
+        .map(|memo| match memo {
+            TypedPairMemo::Value { children, .. } => {
+                children.capacity() * std::mem::size_of::<DiagnosticEdge>()
+            }
+            TypedPairMemo::Effect => 0,
+        })
+        .sum();
+    assert_eq!(session.typed_pair_payload_bytes, diagnostic_edges);
+    assert_eq!(
+        session.independent_nested_capacities.diagnostic_edges,
+        diagnostic_edges
+    );
+    nested.diagnostic_edges = diagnostic_edges;
     let mut ledger = IndependentResourceLedger::default();
     ledger.semantic_arena_peak_bytes = semantic_peak_before;
     ledger.inference_session_peak_bytes = session_peak_before;
@@ -578,6 +592,10 @@ enum DiagnosticReserveLane {
     DeltaIndices,
     ReverseOffsets,
     ReverseCursors,
+    ReverseEdges,
+    BucketHeads,
+    BucketTails,
+    BucketCandidates,
     DfsStack,
     FinishOrder,
     SccIndices,
@@ -617,6 +635,34 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
             "DiagnosticReverseCursors",
             F5bCapacityLane::DiagnosticReverseCursors,
             std::mem::size_of::<usize>(),
+        ),
+        DiagnosticReserveLane::ReverseEdges => (
+            "f5c-diagnostic-reverse-edges-route",
+            "diagnostic-reverse-edges-route",
+            "DiagnosticReverseEdges",
+            F5bCapacityLane::DiagnosticReverseEdges,
+            std::mem::size_of::<DiagnosticReverseEdge>(),
+        ),
+        DiagnosticReserveLane::BucketHeads => (
+            "f5c-diagnostic-bucket-heads-route",
+            "diagnostic-bucket-heads-route",
+            "DiagnosticBucketHeads",
+            F5bCapacityLane::DiagnosticBucketHeads,
+            std::mem::size_of::<Option<usize>>(),
+        ),
+        DiagnosticReserveLane::BucketTails => (
+            "f5c-diagnostic-bucket-tails-route",
+            "diagnostic-bucket-tails-route",
+            "DiagnosticBucketTails",
+            F5bCapacityLane::DiagnosticBucketTails,
+            std::mem::size_of::<Option<usize>>(),
+        ),
+        DiagnosticReserveLane::BucketCandidates => (
+            "f5c-diagnostic-bucket-candidates-route",
+            "diagnostic-bucket-candidates-route",
+            "DiagnosticBucketCandidates",
+            F5bCapacityLane::DiagnosticBucketCandidates,
+            std::mem::size_of::<DiagnosticBucketCandidate>(),
         ),
         DiagnosticReserveLane::DfsStack => (
             "f5c-diagnostic-dfs-stack-route",
@@ -681,7 +727,25 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
     let draft = GeneralizationDraft {
         quantifier_count: 1,
         recursive_bounds: Vec::new(),
-        predicate: F5cPositive::Quantified(0),
+        predicate: if matches!(
+            lane,
+            DiagnosticReserveLane::ReverseEdges
+                | DiagnosticReserveLane::BucketHeads
+                | DiagnosticReserveLane::BucketTails
+                | DiagnosticReserveLane::BucketCandidates
+        ) {
+            F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Quantified(0)),
+                },
+            ])
+        } else {
+            F5cPositive::Quantified(0)
+        },
     };
     let finalized = InferenceSession::finalize_generalization_draft(
         session.finalization.as_mut().unwrap(),
@@ -690,7 +754,59 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
     )
     .unwrap();
     let target = session.batch.definition_uses()[0].target.ordinal() as usize;
-    session.schemes[target] = Some(finalized.into_parts().0);
+    let scheme = finalized.into_parts().0;
+    let union_fixture = matches!(
+        lane,
+        DiagnosticReserveLane::ReverseEdges
+            | DiagnosticReserveLane::BucketHeads
+            | DiagnosticReserveLane::BucketTails
+            | DiagnosticReserveLane::BucketCandidates
+    );
+    if union_fixture {
+        let view = session
+            .finalization
+            .as_ref()
+            .unwrap()
+            .scheme_view(&scheme)
+            .unwrap();
+        let PositiveValueView::Union(children) = view.positive_value(view.predicate()).unwrap()
+        else {
+            panic!("finalized predicate must be a normalized Union");
+        };
+        assert!(!children.is_empty());
+        assert!(matches!(
+            view.positive_value(children[0]).unwrap(),
+            PositiveValueView::Int
+        ));
+    }
+    session.schemes[target] = Some(scheme);
+    if union_fixture {
+        let use_row =
+            session.live_components[session.batch.definition_uses()[0].use_value_component].ordinal;
+        let negative_function = session
+            .negative_function_term(
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 204);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(use_row),
+                    upper: ValueEndpointKey::NegativeFunction(negative_function),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+    }
     session.typed_pairs.try_reserve(1).unwrap();
     match lane {
         DiagnosticReserveLane::Delta => {
@@ -760,6 +876,12 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
             assert!(session.diagnostic_reverse_offsets.capacity() >= required_offset_count);
             assert!(session.diagnostic_delta.capacity() > 0);
             assert!(session.diagnostic_delta_indices.capacity() > 0);
+        }
+        DiagnosticReserveLane::ReverseEdges => session.diagnostic_reverse_edges = Vec::new(),
+        DiagnosticReserveLane::BucketHeads => session.diagnostic_bucket_heads = Vec::new(),
+        DiagnosticReserveLane::BucketTails => session.diagnostic_bucket_tails = Vec::new(),
+        DiagnosticReserveLane::BucketCandidates => {
+            session.diagnostic_bucket_candidates = Vec::new()
         }
         DiagnosticReserveLane::DfsStack => session.diagnostic_dfs_stack = Vec::new(),
         DiagnosticReserveLane::FinishOrder => session.diagnostic_finish_order = Vec::new(),
@@ -870,6 +992,10 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
         DiagnosticReserveLane::DeltaIndices => session.diagnostic_delta_indices.capacity(),
         DiagnosticReserveLane::ReverseOffsets => session.diagnostic_reverse_offsets.capacity(),
         DiagnosticReserveLane::ReverseCursors => session.diagnostic_reverse_cursors.capacity(),
+        DiagnosticReserveLane::ReverseEdges => session.diagnostic_reverse_edges.capacity(),
+        DiagnosticReserveLane::BucketHeads => session.diagnostic_bucket_heads.capacity(),
+        DiagnosticReserveLane::BucketTails => session.diagnostic_bucket_tails.capacity(),
+        DiagnosticReserveLane::BucketCandidates => session.diagnostic_bucket_candidates.capacity(),
         DiagnosticReserveLane::DfsStack => session.diagnostic_dfs_stack.capacity(),
         DiagnosticReserveLane::FinishOrder => session.diagnostic_finish_order.capacity(),
         DiagnosticReserveLane::SccIndices => session.diagnostic_scc_indices.capacity(),
@@ -945,6 +1071,12 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
     assert_eq!(session.store.facts().len(), 1);
     assert_eq!(session.store.provenance().len(), 1);
     let fact = &session.store.facts()[0];
+    if union_fixture {
+        assert!(matches!(
+            session.store.term_view(fact.lower()),
+            Ok(TermView::Leaf(Leaf::IntPositive))
+        ));
+    }
     let provenance = &session.store.provenance()[0];
     assert_eq!(provenance.fact(), fact.id());
     assert_eq!(session.store.consumed_receipts.len(), 1);
@@ -987,6 +1119,10 @@ fn f5c_incoming_diagnostic_remaining_scratch_growth_samples_before_rollback_and_
         DiagnosticReserveLane::SccPendingChildren,
         DiagnosticReserveLane::SccWorklist,
         DiagnosticReserveLane::NodeWitnesses,
+        DiagnosticReserveLane::ReverseEdges,
+        DiagnosticReserveLane::BucketHeads,
+        DiagnosticReserveLane::BucketTails,
+        DiagnosticReserveLane::BucketCandidates,
     ] {
         check_diagnostic_changed_reserve(lane);
     }

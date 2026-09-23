@@ -76,6 +76,17 @@ conditional post-rollback sample. The primary accepted two major test-evidence
 gaps from the first review; both were repaired, and the fresh post-repair M2
 specification delta review found no remaining issue in this owner group.
 
+The incoming route-sampling sidecar now also isolates changed-capacity failures
+for `DiagnosticReverseEdges`, `DiagnosticBucketHeads`, `DiagnosticBucketTails`,
+and `DiagnosticBucketCandidates` using an edge- and seed-producing normalized
+Union fixture. Its independent post-rollback ledger recomputes retained typed-
+pair child-edge payloads from the live memo entries. The first M1 review found
+that retry linkage did not prove §44's representative projection; the witness
+now checks the finalized Union's first member and the retried sole fact's
+`Leaf::IntPositive` lower endpoint. A fresh M1 delta review is clean. This
+closes only those four diagnostic scratch lanes, not the whole typed-pair /
+diagnostic owner-to-route matrix.
+
 Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
 same event-time capacity observer. End-to-end incoming failure witnesses prove
 a post-reserve value-row growth sample, a later private-member failure with
@@ -474,10 +485,12 @@ about that exact predecessor capacity is closed by asserting capacity >= 2.
 The tests remain outside `lib.rs`.
 The same helper now covers eight more one-pair diagnostic scratch reserves:
 DFS stack, finish order, SCC indices/nodes/offsets/pending-children/worklist,
-and node witnesses. The M1 specification delta review found no issue. This
-fixture cannot exercise `DiagnosticReverseEdges` because its edge count is zero,
-or bucket heads/tails/candidates because no diagnostic seed is produced; those
-lanes need a separate conflict/edge-producing route fixture.
+and node witnesses. The M1 specification delta review found no issue. The
+former simple-fixture gap for `DiagnosticReverseEdges` and the bucket lanes
+is closed by the edge/seed-producing Union cases above. The remaining exact
+changed-capacity trace audit should continue with `TypedWorklist`, then
+`TypedPairs` and `DiagnosticEdges`; aggregate coverage in the older Union tests
+does not by itself certify each lane's event-to-sample linkage.
 Keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.

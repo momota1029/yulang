@@ -79,12 +79,16 @@ section below. The implementation gates remain open, and the approved
 first-member normalized-Union projection remains unchanged. F5c and F5e remain
 incomplete.
 
-Immediate continuation: cover store/provenance/receipt/routed-use and remaining
-journal-owner transitions, preserving the existing route checkpoint. Once the
-event hooks for all owners are coherent, run one bounded
-successful-path sampling measurement: one warm-up plus three paired samples at
-one input size, within the eight-process/ten-minute budget. The typed-pair and
-diagnostic code gate is closed, but the full sampling/resource gate is not.
+Immediate continuation: audit the remaining per-use failure-lane witnesses at
+the exact changed-capacity event/sample boundary. The next focused slice is a
+changed-capacity `TypedWorklist` witness, followed by exact `TypedPairs` and
+`DiagnosticEdges` event linkage. Keep store/provenance/receipt/routed-use and
+journal-owner transitions in the residual matrix unless their full end-to-end
+trace evidence is already present. After the owner-to-route matrix is coherent,
+run one bounded successful-path sampling measurement: one warm-up plus three
+paired samples at one input size, within the eight-process/ten-minute budget.
+The diagnostic completion scratch lanes do not close the full sampling/resource
+gate.
 
 An architect review resolved the stack-safety scratch-accounting phase
 boundary: §§14/26/34 authorize private production accounting for root-local
@@ -875,8 +879,13 @@ retained-ledger, exactly-one post-rollback sample, and retry identity checks.
 
 The focused value-route sidecar passes thirteen tests; package test-check,
 format, and whitespace checks pass. A fresh M1 specification delta review found
-no issue. No production code or `lib.rs` changed. The fixture intentionally
-does not claim coverage of `DiagnosticReverseEdges` (its `edge_count` is zero)
-or diagnostic bucket heads/tails/candidates (this route emits no diagnostic
-seed). Those lanes need a separate edge/error-producing fixture. The complete
-owner-to-route matrix, §3 accounting/measurement, F5c, and F5e remain open.
+no issue. No production code or `lib.rs` changed. The formerly uncovered
+`DiagnosticReverseEdges`, `DiagnosticBucketHeads`, `DiagnosticBucketTails`, and
+`DiagnosticBucketCandidates` lanes now have changed-capacity failure witnesses
+in the incoming route-sampling sidecar, driven by a Union fixture with both
+diagnostic edges and a mismatch seed. Their independent ledger recomputes
+retained typed-pair child-edge payload. A first M1 review's §44 representative
+finding was repaired by checking the finalized first member and retried fact
+lower endpoint; fresh M1 delta review is clean. The complete owner-to-route
+matrix, §3 accounting/measurement, F5c, and F5e remain open. Next audit exact
+trace witnesses for `TypedWorklist`, `TypedPairs`, and `DiagnosticEdges`.
