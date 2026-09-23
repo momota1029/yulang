@@ -285,6 +285,97 @@ fn f5c_incoming_journal_reported_error_keys_growth_rolls_back_and_retries() {
 }
 
 #[test]
+fn f5c_incoming_journal_seen_partial_setup_samples_before_rollback() {
+    let batch = collect(module(
+        "my source = 1; my sink = source",
+        "f5c-journal-seen-partial",
+    ));
+    let route_id = batch.definition_uses()[0].id.clone();
+    let mut session = InferenceSession::new(batch);
+    let before = RouteCheckpoint::capture(&session);
+    let events = session.incoming_route_sample_attempts;
+    let outer = session.incoming_post_rollback_sample_attempts;
+    inject_next_f5b_post_reserve_failure(F5bCapacityLane::EffectBounds);
+
+    assert_eq!(
+        session.route_incoming(&route_id),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    before.assert_restored(&session);
+    let journal = session.route_journal_spare.as_ref().unwrap();
+    assert!(journal.value_row_seen.capacity() > 0);
+    assert!(journal.effect_row_seen.capacity() > 0);
+    assert_eq!(session.incoming_route_sample_attempts, events + 3);
+    assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+    assert_eq!(
+        session.execution_counters.inference_session_retained_bytes,
+        session.resource_ledger.inference_session_retained_bytes
+    );
+    let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+    session.schemes[target] = Some(
+        session
+            .finalization
+            .as_mut()
+            .unwrap()
+            .finalize_scheme(|finalizer| {
+                let predicate = finalizer.positive_int()?;
+                finalizer.set_scheme(0, &[], predicate)
+            })
+            .unwrap()
+            .into_parts()
+            .0,
+    );
+    session.route_incoming(&route_id).unwrap();
+}
+
+#[test]
+fn f5c_incoming_journal_seen_unchanged_failure_skips_outer_sample() {
+    let batch = collect(module(
+        "my source = 1; my sink = source",
+        "f5c-journal-seen-unchanged",
+    ));
+    let route_id = batch.definition_uses()[0].id.clone();
+    let mut session = InferenceSession::new(batch);
+    let events = session.incoming_route_sample_attempts;
+    let outer = session.incoming_post_rollback_sample_attempts;
+    inject_next_f5b_reserve_failure(F5bCapacityLane::ValueBounds);
+    assert_eq!(
+        session.route_incoming(&route_id),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(session.incoming_route_sample_attempts, events);
+    assert_eq!(session.incoming_post_rollback_sample_attempts, outer);
+}
+
+#[test]
+fn f5c_incoming_journal_value_seen_changed_failure_samples_once_after_setup() {
+    let batch = collect(module(
+        "my source = 1; my sink = source",
+        "f5c-journal-value-seen-failure",
+    ));
+    let route_id = batch.definition_uses()[0].id.clone();
+    let mut session = InferenceSession::new(batch);
+    let events = session.incoming_route_sample_attempts;
+    let outer = session.incoming_post_rollback_sample_attempts;
+    inject_next_f5b_post_reserve_failure(F5bCapacityLane::ValueBounds);
+    assert_eq!(
+        session.route_incoming(&route_id),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert!(
+        session
+            .route_journal_spare
+            .as_ref()
+            .unwrap()
+            .value_row_seen
+            .capacity()
+            > 0
+    );
+    assert_eq!(session.incoming_route_sample_attempts, events + 2);
+    assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+}
+
+#[test]
 fn f5c_incoming_reported_errors_growth_samples_after_first_union_member_and_retries() {
     let batch = collect(module(
         "my source = 1; my sink = source",
