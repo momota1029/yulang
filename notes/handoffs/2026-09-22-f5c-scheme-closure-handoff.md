@@ -740,3 +740,31 @@ only the `DiagnosticDelta` witness, not the broader owner-to-route matrix,
 full §3 gate, F5c, or F5e. The current lane slice kept test bodies and trace
 machinery outside `lib.rs`. The checkpoint commit is `bb1ec56c`; check the
 current branch status for remote synchronization.
+
+## Errors-lane changed-capacity witness (2026-09-24)
+
+Added `f5c_incoming_errors_growth_samples_after_first_union_member_and_retries`
+to `crates/yu-solver/src/tests/f5c_value_exact_upper_route.rs`. The incoming
+scheme is a normalized Union of canonically distinct Int and Function members;
+an existing Int upper bound lets the first Int member complete and makes the
+second Function member incompatible. The fixture pre-reserves
+`ReportedErrors` and its route-journal key lane, then injects failure after the
+`Errors` Vec grows. The trace pairs all completed capacity events and derives
+the target event's exact retained/session delta and peaks from the immediately
+preceding completed sample. It also proves the event sample preceded failure,
+the route checkpoint is restored, the error Vec's physical capacity remains,
+one conditional post-rollback sample reconciles against a fresh ledger, and
+retry reports one incompatibility while publishing only the canonical Int
+representative fact.
+
+The first M1 spec review found that retry did not verify the public
+representative. The test now checks the sole public fact's lower Term is
+`Leaf::IntPositive`; a fresh spec delta review closed the finding and found no
+new blocker. The focused value-route sidecar passes eight tests, the exact new
+test passes, `cargo check -p yu-solver --tests`, formatting, and `git diff
+--check` pass. The full library-suite attempt and its unresolved isolated
+linearity-test discrepancy remain as described above. No benchmark or resource
+matrix was run. This closes only the `Errors` changed-capacity witness; the
+remaining reachable diagnostic scratch/`ReportedErrors` lanes and the wider
+owner-to-route matrix remain open. This test-only slice did not modify
+`lib.rs`; F5c/F5e are still incomplete.

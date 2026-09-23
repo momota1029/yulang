@@ -8,9 +8,10 @@ Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026
 
 ### Live F5c resume status (2026-09-24)
 
-F5a and F5b are complete; F5c and F5e are not. The approved F5c working set is
-preserved in checkpoint commit `bb1ec56c` on `yulang3`; this does not close the
-active gates. The commit contains changes to `crates/yu-solver/src/lib.rs`,
+F5a and F5b are complete; F5c and F5e are not. The base approved F5c working
+set is preserved in checkpoint commit `bb1ec56c` on `yulang3`; this does not
+close the active gates. Later coherent gate slices are checkpointed separately.
+The base commit contains changes to `crates/yu-solver/src/lib.rs`,
 `crates/yu-solver/src/term.rs`, `crates/yu-solver/src/incoming_sample_trace.rs`,
 `crates/yu-solver/src/tests/f5c_scratch_reserve.rs`,
 `crates/yu-solver/src/tests/f5c_value_exact_upper_route.rs`, this task file,
@@ -413,7 +414,7 @@ argument correspondence.
 ### Latest incoming route sampling evidence (2026-09-24)
 
 The changed-failure incoming-route witnesses now cover `ValueLevels`,
-`ValueMetadata`, `ExtrusionValueMarks`, and `DiagnosticDelta` in addition to
+`ValueMetadata`, `ExtrusionValueMarks`, `DiagnosticDelta`, and `Errors` in addition to
 the previously closed exact/direct value-row lanes. The `ValueLevels` fixture isolates one capacity event, checks exact
 event-time and post-rollback retained-byte deltas, proves the event peak rises
 above baseline and survives rollback, then retries. The `ValueMetadata`
@@ -438,20 +439,28 @@ completed capacity events, requires an earlier `FreshValueBounds` growth event,
 and derives the target lane's exact aggregate/peak changes from the immediately
 preceding completed snapshot. It also checks the post-rollback ledger, route
 checkpoint, one conditional final sample, and retry. Test bodies and the
-independent post-state enumeration remain outside `lib.rs`. `lib.rs` is
+independent post-state enumeration remain outside `lib.rs`. The `Errors` lane
+witness injects after the error Vec grows during the second private Union member,
+checks the exact event delta against its preceding event sample, complete
+rollback and independent retained-ledger reconstruction, then confirms retry
+publishes exactly the canonical Int representative while the Function member
+remains private. Its fresh M1 review closed after adding that representative
+assertion. `lib.rs` is
 currently 28,456 lines and
 was not modified in this lane slice; keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.
 
 Verification for this slice: the focused incoming value-route sidecar passed
-all seven tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
+all eight tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
 and `git diff --check` passed. The last completed full `yu-solver` library run
 remains 202 passed. A new 209-test single-threaded run was interrupted after
 more than six minutes in the F4 scale tests; before interruption,
 `direct_root_n_and_2n_counters_remain_linear` was reported failed. Its isolated
-rerun passed 1/1, so the cause of the discrepancy remains open and the full
-suite is not certified by this checkpoint. No benchmark or resource
+rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
+2/2. An independent performance audit found randomized HashMap probe variation
+plausible and no direct F5c path, but the failed assertion values were not
+captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
 without accepted timing data. Next resume: reconcile the remaining reachable
 owner-to-route failure lanes under the addendum; do not call the complete §3
