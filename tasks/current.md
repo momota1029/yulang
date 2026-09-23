@@ -119,6 +119,16 @@ ledger. Its M1 specification review is clean. The three existing journal-seen
 tests now live in the sidecar, keeping their bodies and expectations unchanged
 while removing 91 test lines from `lib.rs`.
 
+The `RouteMutationJournal.value_rows` undo owner now has a focused failed-route
+witness in the sidecar: one traced capacity event is tied to its exact retained
+and peak sample, the active journal's capacity survives in the spare owner after
+rollback, and an independent post-rollback ledger matches retained session and
+nested totals. The old witness was relocated from `lib.rs`, shrinking that file
+by 67 lines. A fresh M1 specification delta review found no blocking or major
+finding. The independent post-rollback ledger carries forward the already-
+asserted event peak; it does not independently reconstruct the whole peak
+history.
+
 Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
 same event-time capacity observer. End-to-end incoming failure witnesses prove
 a post-reserve value-row growth sample, a later private-member failure with
@@ -539,8 +549,10 @@ rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
 plausible and no direct F5c path, but the failed assertion values were not
 captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
-without accepted timing data. Next resume: reconcile the remaining owner-to-
-route transitions against the complete §3 lane list. Keep sampler-cost
+without accepted timing data. Next resume: reconcile the remaining
+ConstraintStore and routed-use owner transitions against their exact incoming
+event/sample and independent-ledger witnesses, then continue the remaining
+per-use lanes against the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
 method. Do not call the complete §3 sampling/accounting gate closed. The F5c

@@ -81,15 +81,16 @@ incomplete.
 
 Immediate continuation: audit the remaining per-use failure-lane witnesses at
 the exact changed-capacity event/sample boundary. `TypedWorklist`, `TypedPairs`,
-`DiagnosticEdges`, and both journal undo-key Vecs (`typed_pair_keys`,
-`reported_error_keys`) now have isolated changed-capacity witnesses with
-event/rollback/independent-ledger checks. The `value_row_seen` and
-`effect_row_seen` setup vectors now have exact ordered event/sample and retained
-ledger evidence as well. Next reconcile the remaining owner-to-route list
-against §3. Keep live effect-row mutation outside the approved pure-Function
-scope. The successful-path sampling attempt consumed its prior process budget
-without a valid comparison; do not repeat it without a new budget and an
-isolating method. These closures do not close the full sampling/resource gate.
+`DiagnosticEdges`, both journal undo-key Vecs (`typed_pair_keys`,
+`reported_error_keys`), the `value_row_seen` and `effect_row_seen` setup vectors,
+and the `RouteMutationJournal.value_rows` undo owner now have focused
+event/rollback/independent-retained-ledger witnesses. Next reconcile the
+remaining ConstraintStore and routed-use owners against §3, then continue the
+remaining per-use lanes. Keep live effect-row mutation outside the approved
+pure-Function scope. The successful-path sampling attempt consumed its prior
+process budget without a valid comparison; do not repeat it without a new
+budget and an isolating method. These closures do not close the full
+sampling/resource gate.
 
 An architect review resolved the stack-safety scratch-accounting phase
 boundary: §§14/26/34 authorize private production accounting for root-local
@@ -976,3 +977,25 @@ to the test sidecar without changing bodies, reducing `lib.rs` by 91 lines.
 Next reconcile the remaining per-use owner-to-route matrix against §3. The
 sampler-cost remeasurement remains deferred pending a fresh budget and a valid
 isolating method; F5c/§3/F5e remain open.
+
+## Incoming value-row undo-owner event witness (2026-09-24)
+
+Moved `f5c_incoming_value_undo_growth_precedes_later_provenance_failure` from
+`lib.rs` into `tests/f5c_value_exact_upper_route.rs` and strengthened it for the
+`RouteMutationJournal.value_rows` reserve. The trace requires exactly one
+`journal/value_rows` capacity event and ties its observed `ValueRowUndo` slot
+delta to the corresponding event-time retained-byte and peak sample. It also
+checks that the sample sees the active journal, the capacity and undo entries
+survive rollback in the spare journal, RouteCheckpoint/public-route restoration,
+exactly one post-rollback sample, independently reconstructed retained/session
+and nested totals, and successful retry.
+
+Fresh M1 specification delta review found no blocking or major finding. The
+focused test, `cargo check -p yu-solver --tests`, formatting, and whitespace
+checks pass. The independent post-rollback ledger enumerates retained state;
+it carries forward the event peaks already derived from the immediately
+preceding sample and observed capacity delta rather than independently replaying
+the full peak history. The move removes 67 lines from `lib.rs`; no production
+code changed. Next reconcile the remaining ConstraintStore and routed-use owner
+traces against §3. F5c, the full §3 accounting/measurement gate, and F5e remain
+open.

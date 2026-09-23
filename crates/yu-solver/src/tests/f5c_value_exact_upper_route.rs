@@ -1,5 +1,186 @@
 use super::*;
 
+#[test]
+fn f5c_incoming_value_undo_growth_precedes_later_provenance_failure() {
+    let batch = collect(module(
+        "my source = 1; my sink = source",
+        "f5c-value-undo-later-failure",
+    ));
+    let route = batch.definition_uses()[0].id.clone();
+    let mut session = InferenceSession::new(batch);
+    let draft = GeneralizationDraft {
+        quantifier_count: 0,
+        recursive_bounds: Vec::new(),
+        predicate: F5cPositive::Union(vec![
+            F5cPositive::Int,
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Top),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Int),
+            },
+        ]),
+    };
+    let finalized = InferenceSession::finalize_generalization_draft(
+        session.finalization.as_mut().unwrap(),
+        &draft,
+        false,
+    )
+    .unwrap();
+    let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+    session.schemes[target] = Some(finalized.into_parts().0);
+    let before = RouteCheckpoint::capture(&session);
+    let previous_capacity = session
+        .route_journal_spare
+        .as_ref()
+        .map_or(0, |journal| journal.value_rows.capacity());
+    let samples = session.incoming_route_sample_attempts;
+    let outer = session.incoming_post_rollback_sample_attempts;
+    let post_samples = session.incoming_post_rollback_samples;
+    let resource_samples = session.resource_boundary_samples;
+    F5C_SAMPLED_ACTIVE_VALUE_UNDO_CAPACITY.with(|observed| observed.set(0));
+    incoming_sample_trace::start();
+    session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
+
+    assert_eq!(
+        session.route_incoming(&route),
+        Err(SolveAvailabilityError::ReceiptMismatch)
+    );
+    let trace = incoming_sample_trace::finish("value-undo-later-provenance", 1);
+    assert_eq!(trace.attempts, 1);
+    assert_eq!(trace.matched_events, trace.event_samples);
+    assert_eq!(trace.completed_events.len(), trace.event_samples);
+    assert_eq!(
+        trace
+            .event_lanes
+            .get(&("journal".into(), "value_rows".into())),
+        Some(&1)
+    );
+    assert_eq!(
+        trace.named_samples,
+        [("post-rollback".into(), 1)].into_iter().collect()
+    );
+    assert_eq!(trace.samples, trace.event_samples + 1);
+    let (position, event) = trace
+        .completed_events
+        .iter()
+        .enumerate()
+        .find(|(_, event)| event.owner == "journal" && event.lane == "value_rows")
+        .expect("value undo growth must have a completed event-time sample");
+    assert!(position > 0);
+    let previous = &trace.completed_events[position - 1].sample;
+    assert_eq!(event.old_capacity, previous_capacity);
+    assert!(event.new_capacity > event.old_capacity);
+    let delta = (event.new_capacity - event.old_capacity)
+        .checked_mul(std::mem::size_of::<ValueRowUndo>())
+        .unwrap();
+    assert!(delta > 0);
+    assert_eq!(
+        event.sample.semantic_retained_bytes,
+        previous.semantic_retained_bytes + delta
+    );
+    assert_eq!(
+        event.sample.session_retained_bytes,
+        previous.session_retained_bytes + delta
+    );
+    assert_eq!(
+        event.sample.semantic_peak_bytes,
+        previous
+            .semantic_peak_bytes
+            .max(previous.semantic_retained_bytes + delta)
+    );
+    assert_eq!(
+        event.sample.session_peak_bytes,
+        previous.session_peak_bytes.max(
+            previous.session_retained_bytes
+                + delta
+                + session.resource_ledger.finish_output_retained_bytes
+        )
+    );
+    let sampled_capacity = F5C_SAMPLED_ACTIVE_VALUE_UNDO_CAPACITY.with(|observed| observed.get());
+    assert_eq!(sampled_capacity, event.new_capacity);
+    assert_eq!(
+        session.incoming_route_sample_attempts,
+        samples + trace.samples
+    );
+    assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+    assert_eq!(session.incoming_post_rollback_samples, post_samples + 1);
+    assert_eq!(
+        session.resource_boundary_samples,
+        resource_samples + trace.samples
+    );
+    before.assert_restored(&session);
+    assert!(session.route_journal.is_none());
+    let retained = session.route_journal_spare.as_ref().unwrap();
+    assert_eq!(retained.value_rows.capacity(), event.new_capacity);
+    assert!(!retained.value_rows.is_empty());
+    assert_eq!(
+        retained.checked_independent_retained_bytes().unwrap(),
+        retained.checked_retained_bytes().unwrap()
+    );
+    let post = &trace.completed_named_samples["post-rollback"][0];
+    let last_event = &trace.completed_events.last().unwrap().sample;
+    assert!(last_event.semantic_peak_bytes >= event.sample.semantic_peak_bytes);
+    assert!(last_event.session_peak_bytes >= event.sample.session_peak_bytes);
+    assert_eq!(post.semantic_peak_bytes, last_event.semantic_peak_bytes);
+    assert_eq!(post.session_peak_bytes, last_event.session_peak_bytes);
+    let (independent, nested) = independent_post_rollback_value_row_resources(
+        &session,
+        last_event.semantic_peak_bytes,
+        last_event.session_peak_bytes,
+    );
+    assert_eq!(
+        post.semantic_retained_bytes,
+        independent.semantic_arena_retained_bytes
+    );
+    assert_eq!(
+        post.session_retained_bytes,
+        independent.inference_session_retained_bytes
+    );
+    assert_eq!(post.nested_bound_bytes, nested.total_bound_bytes());
+    assert_eq!(
+        session.independent_nested_capacities.total_bound_bytes(),
+        nested.total_bound_bytes()
+    );
+    assert_eq!(session.bound_payload_bytes, nested.total_bound_bytes());
+    assert_eq!(
+        session.resource_ledger.semantic_arena_retained_bytes,
+        post.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_retained_bytes,
+        post.session_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.semantic_arena_peak_bytes,
+        post.semantic_peak_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_peak_bytes,
+        post.session_peak_bytes
+    );
+    assert_eq!(
+        session.execution_counters.semantic_arena_retained_bytes,
+        post.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.execution_counters.inference_session_retained_bytes,
+        post.session_retained_bytes
+    );
+    assert_eq!(
+        session.execution_counters.semantic_arena_peak_bytes,
+        post.semantic_peak_bytes
+    );
+    assert_eq!(
+        session.execution_counters.inference_session_peak_bytes,
+        post.session_peak_bytes
+    );
+    assert!(session.store.facts().is_empty());
+    assert!(session.store.provenance().is_empty());
+    session.route_incoming(&route).unwrap();
+    assert_eq!(session.store.facts().len(), 1);
+}
+
 fn check_journal_key_changed_reserve(reported: bool) {
     let batch = collect(module(
         "my source = 1; my sink = source",
