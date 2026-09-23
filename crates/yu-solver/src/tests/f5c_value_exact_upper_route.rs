@@ -1,5 +1,272 @@
 use super::*;
 
+fn preserve_monotone_store_growth_counters(
+    checkpoint: &mut RouteCheckpoint,
+    session: &InferenceSession,
+) {
+    macro_rules! preserve {
+        ($field:ident) => {
+            checkpoint.store.counters.$field = session.store.counters.$field;
+        };
+    }
+    preserve!(fact_store_growths);
+    preserve!(fact_store_rebuilds);
+    preserve!(canonical_map_growths);
+    preserve!(canonical_map_rebuilds);
+    preserve!(consumed_receipt_growths);
+    preserve!(consumed_receipt_rebuilds);
+    preserve!(provenance_growths);
+    preserve!(provenance_rebuilds);
+}
+
+#[test]
+fn f5c_store_changed_failed_reserves_keep_one_outer_sample() {
+    for (index, lane) in [
+        F5bCapacityLane::StoreFacts,
+        F5bCapacityLane::StoreCanonical,
+        F5bCapacityLane::StoreConsumedReceipts,
+        F5bCapacityLane::StoreProvenance,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let (mut session, routes) = f5c_shared_closed_incoming_fixture("f5c-store-changed-reserve");
+        let route = routes[0].clone();
+        session.store.facts = Vec::new();
+        session.store.canonical = HashMap::new();
+        session.store.consumed_receipts = HashSet::new();
+        session.store.provenance = Vec::new();
+        let mut before = RouteCheckpoint::capture(&session);
+        let receipt_serial = session.store.next_receipt;
+        let outer = session.incoming_post_rollback_sample_attempts;
+        let post_samples = session.incoming_post_rollback_samples;
+        let samples = session.incoming_route_sample_attempts;
+        let boundary_samples = session.resource_boundary_samples;
+        let slot_sizes = [
+            std::mem::size_of::<SemanticFact>(),
+            std::mem::size_of::<(FactKey, FactId)>(),
+            std::mem::size_of::<u64>(),
+            std::mem::size_of::<ProvenanceEdge>(),
+        ];
+        incoming_sample_trace::start();
+        inject_next_f5b_post_reserve_failure(lane);
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted),
+            "{lane:?}"
+        );
+        let trace = incoming_sample_trace::finish(&format!("store-lane-{index}"), 1);
+        assert_eq!(trace.attempts, 1, "{lane:?}");
+        assert_eq!(trace.matched_events, trace.event_samples, "{lane:?}");
+        assert_eq!(
+            trace.completed_events.len(),
+            trace.event_samples,
+            "{lane:?}"
+        );
+        assert_eq!(
+            trace.named_samples,
+            [("post-rollback".into(), 1)].into_iter().collect(),
+            "{lane:?}"
+        );
+        assert_eq!(trace.samples, trace.event_samples + 1, "{lane:?}");
+        assert_eq!(
+            session.incoming_route_sample_attempts,
+            samples + trace.samples
+        );
+        assert_eq!(
+            session.resource_boundary_samples,
+            boundary_samples + trace.samples
+        );
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+        assert_eq!(session.incoming_post_rollback_samples, post_samples + 1);
+
+        let store_events: Vec<_> = trace
+            .completed_events
+            .iter()
+            .enumerate()
+            .filter(|(_, event)| event.owner == "ConstraintStore")
+            .collect();
+        assert_eq!(store_events.len(), index + 1, "{lane:?}");
+        for (store_index, (position, event)) in store_events.into_iter().enumerate() {
+            assert_eq!(event.lane, format!("lane-{store_index}"), "{lane:?}");
+            assert_eq!(
+                trace
+                    .event_lanes
+                    .get(&("ConstraintStore".into(), event.lane.clone())),
+                Some(&1),
+                "{lane:?}"
+            );
+            assert!(position > 0, "{lane:?}");
+            let previous = &trace.completed_events[position - 1].sample;
+            assert_eq!(event.old_capacity, 0, "{lane:?}");
+            assert!(event.new_capacity > event.old_capacity, "{lane:?}");
+            let delta = (event.new_capacity - event.old_capacity) * slot_sizes[store_index];
+            assert_eq!(
+                event.sample.semantic_retained_bytes, previous.semantic_retained_bytes,
+                "{lane:?}"
+            );
+            assert_eq!(
+                event.sample.session_retained_bytes,
+                previous.session_retained_bytes + delta,
+                "{lane:?}"
+            );
+            assert_eq!(
+                event.sample.semantic_peak_bytes, previous.semantic_peak_bytes,
+                "{lane:?}"
+            );
+            assert_eq!(
+                event.sample.session_peak_bytes,
+                previous.session_peak_bytes.max(
+                    event.sample.session_retained_bytes
+                        + session.resource_ledger.finish_output_retained_bytes
+                ),
+                "{lane:?}"
+            );
+            assert_eq!(
+                session.resource_ledger.route_store_lanes[store_index].actual_capacity,
+                event.new_capacity,
+                "{lane:?}"
+            );
+        }
+
+        let expected_growths: [usize; 4] =
+            std::array::from_fn(|store_index| usize::from(store_index <= index));
+        assert_eq!(
+            [
+                session.store.counters.fact_store_growths,
+                session.store.counters.canonical_map_growths,
+                session.store.counters.consumed_receipt_growths,
+                session.store.counters.provenance_growths,
+            ],
+            expected_growths,
+            "{lane:?}"
+        );
+        assert_eq!(
+            [
+                session.store.counters.fact_store_rebuilds,
+                session.store.counters.canonical_map_rebuilds,
+                session.store.counters.consumed_receipt_rebuilds,
+                session.store.counters.provenance_rebuilds,
+            ],
+            expected_growths,
+            "{lane:?}"
+        );
+
+        // Physical store growth/rebuild counters remain monotone across rollback;
+        // the assertions above prove their exact event-derived values.
+        preserve_monotone_store_growth_counters(&mut before, &session);
+        before.assert_restored(&session);
+        assert!(session.store.facts.is_empty(), "{lane:?}");
+        assert!(session.store.canonical.is_empty(), "{lane:?}");
+        assert!(session.store.consumed_receipts.is_empty(), "{lane:?}");
+        assert!(session.store.provenance.is_empty(), "{lane:?}");
+        assert!(session.routed_uses.is_empty(), "{lane:?}");
+        assert!(session.routed_use_positions.is_empty(), "{lane:?}");
+        let capacities = [
+            session.store.facts.capacity(),
+            session.store.canonical.capacity(),
+            session.store.consumed_receipts.capacity(),
+            session.store.provenance.capacity(),
+        ];
+        for store_index in 0..4 {
+            assert_eq!(
+                capacities[store_index] > 0,
+                store_index <= index,
+                "{lane:?}"
+            );
+            let ledger = &session.resource_ledger.route_store_lanes[store_index];
+            assert_eq!(ledger.actual_capacity, capacities[store_index], "{lane:?}");
+            assert_eq!(
+                ledger.retained_bytes,
+                capacities[store_index] * slot_sizes[store_index],
+                "{lane:?}"
+            );
+            assert_eq!(
+                ledger.capacity_growths, expected_growths[store_index],
+                "{lane:?}"
+            );
+            if store_index == index {
+                assert!(ledger.peak_bytes > 0, "{lane:?}");
+            }
+        }
+        let post = &trace.completed_named_samples["post-rollback"][0];
+        let last_event = &trace.completed_events.last().unwrap().sample;
+        let (independent, nested) = independent_post_rollback_value_row_resources(
+            &session,
+            last_event.semantic_peak_bytes,
+            last_event.session_peak_bytes,
+        );
+        assert_eq!(
+            post.semantic_retained_bytes, independent.semantic_arena_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            post.session_retained_bytes, independent.inference_session_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            post.nested_bound_bytes,
+            nested.total_bound_bytes(),
+            "{lane:?}"
+        );
+        assert_eq!(
+            post.semantic_peak_bytes, independent.semantic_arena_peak_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            post.session_peak_bytes, independent.inference_session_peak_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes, post.semantic_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            session.resource_ledger.inference_session_retained_bytes, post.session_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            session.execution_counters.semantic_arena_retained_bytes(),
+            post.semantic_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .inference_session_retained_bytes(),
+            post.session_retained_bytes,
+            "{lane:?}"
+        );
+        session.route_incoming(&route).unwrap();
+        assert_eq!(session.store.facts.len(), 1, "{lane:?}");
+        assert_eq!(session.routed_uses.len(), 1, "{lane:?}");
+        let fact = &session.store.facts[0];
+        let fact_id = fact.id();
+        let canonical_key = FactKey::new(
+            fact.lower(),
+            fact.upper(),
+            session.store.comparisons.clone(),
+        );
+        assert_eq!(
+            session.store.canonical.get(&canonical_key),
+            Some(&fact_id),
+            "{lane:?}"
+        );
+        assert_eq!(session.store.provenance().len(), 1, "{lane:?}");
+        assert_eq!(session.store.provenance()[0].fact(), fact_id, "{lane:?}");
+        assert_eq!(session.store.consumed_receipts.len(), 1, "{lane:?}");
+        assert!(
+            session.store.consumed_receipts.contains(&receipt_serial),
+            "{lane:?}"
+        );
+        assert_eq!(session.store.next_receipt, receipt_serial + 1, "{lane:?}");
+        assert_eq!(session.routed_uses[0].use_id, route, "{lane:?}");
+        assert_eq!(session.routed_uses[0].fact, Some(fact_id), "{lane:?}");
+        assert_eq!(session.routed_use_positions.len(), 1, "{lane:?}");
+        assert!(session.routed_use_positions.contains(&route), "{lane:?}");
+    }
+}
+
 #[test]
 fn f5c_incoming_value_undo_growth_precedes_later_provenance_failure() {
     let batch = collect(module(

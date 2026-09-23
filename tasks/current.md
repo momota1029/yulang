@@ -129,6 +129,17 @@ finding. The independent post-rollback ledger carries forward the already-
 asserted event peak; it does not independently reconstruct the whole peak
 history.
 
+The four ConstraintStore changed-failed-reserve cases now trace every ordered
+store-owner event through its exact sample. Their byte delta changes only the
+session aggregate; semantic bytes remain unchanged. Rollback retains physical
+capacity while restoring logical state, with monotone growth/rebuild counters
+checked separately. The post-rollback ledger independently rebuilds retained
+and nested totals, and each lane retries through canonical fact, consumed
+receipt, provenance, and routed-use publication. The old test moved from
+`lib.rs` into the sidecar, removing 46 lines. An M1 specification review's
+minor §44 retry-link omission was closed by adding those assertions; no
+production code changed.
+
 Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
 same event-time capacity observer. End-to-end incoming failure witnesses prove
 a post-reserve value-row growth sample, a later private-member failure with
@@ -549,10 +560,10 @@ rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
 plausible and no direct F5c path, but the failed assertion values were not
 captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
-without accepted timing data. Next resume: reconcile the remaining
-ConstraintStore and routed-use owner transitions against their exact incoming
-event/sample and independent-ledger witnesses, then continue the remaining
-per-use lanes against the complete §3 list. Keep sampler-cost
+without accepted timing data. Next resume: add exact event/sample and
+independent-ledger evidence for the two routed-use owners (`RoutedUses` and
+`RoutedUsePositions`), then continue the remaining per-use lanes against the
+complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
 method. Do not call the complete §3 sampling/accounting gate closed. The F5c

@@ -25869,52 +25869,6 @@ mod tests {
     }
 
     #[test]
-    fn f5c_store_changed_failed_reserves_keep_one_outer_sample() {
-        for (index, lane) in [
-            F5bCapacityLane::StoreFacts,
-            F5bCapacityLane::StoreCanonical,
-            F5bCapacityLane::StoreConsumedReceipts,
-            F5bCapacityLane::StoreProvenance,
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let (mut session, routes) =
-                f5c_shared_closed_incoming_fixture("f5c-store-changed-reserve");
-            inject_next_f5b_post_reserve_failure(lane);
-            let outer = session.incoming_post_rollback_sample_attempts;
-            assert_eq!(
-                session.route_incoming(&routes[0]),
-                Err(SolveAvailabilityError::IdentityExhausted),
-                "{lane:?}"
-            );
-            assert_eq!(
-                session.incoming_post_rollback_sample_attempts,
-                outer + 1,
-                "{lane:?}"
-            );
-            assert!(session.store.facts.is_empty(), "{lane:?}");
-            assert!(session.store.canonical.is_empty(), "{lane:?}");
-            assert!(session.store.consumed_receipts.is_empty(), "{lane:?}");
-            assert!(session.store.provenance.is_empty(), "{lane:?}");
-            assert!(session.routed_uses.is_empty(), "{lane:?}");
-            assert!(session.routed_use_positions.is_empty(), "{lane:?}");
-            let capacities = [
-                session.store.facts.capacity(),
-                session.store.canonical.capacity(),
-                session.store.consumed_receipts.capacity(),
-                session.store.provenance.capacity(),
-            ];
-            assert!(capacities[index] > 0, "{lane:?}");
-            assert_eq!(
-                session.resource_ledger.route_store_lanes[index].actual_capacity,
-                capacities[index]
-            );
-            assert!(session.resource_ledger.route_store_lanes[index].peak_bytes > 0);
-        }
-    }
-
-    #[test]
     fn f5c_store_growth_counter_overflow_is_terminal_before_owner_mutation() {
         for lane in 0..4 {
             let batch = collect(module("my source = 1", "f5c-store-counter-overflow"));

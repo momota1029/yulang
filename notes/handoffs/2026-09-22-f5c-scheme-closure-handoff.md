@@ -83,14 +83,18 @@ Immediate continuation: audit the remaining per-use failure-lane witnesses at
 the exact changed-capacity event/sample boundary. `TypedWorklist`, `TypedPairs`,
 `DiagnosticEdges`, both journal undo-key Vecs (`typed_pair_keys`,
 `reported_error_keys`), the `value_row_seen` and `effect_row_seen` setup vectors,
-and the `RouteMutationJournal.value_rows` undo owner now have focused
-event/rollback/independent-retained-ledger witnesses. Next reconcile the
-remaining ConstraintStore and routed-use owners against §3, then continue the
-remaining per-use lanes. Keep live effect-row mutation outside the approved
-pure-Function scope. The successful-path sampling attempt consumed its prior
-process budget without a valid comparison; do not repeat it without a new
-budget and an isolating method. These closures do not close the full
-sampling/resource gate.
+the `RouteMutationJournal.value_rows` undo owner, and all four ConstraintStore
+lanes now have focused event/rollback/independent-retained-ledger witnesses.
+The store trace distinguishes session-only store bytes from semantic bytes;
+rollback preserves exact physical growth/rebuild evidence while logical state
+is restored. The M1 review's minor §44 retry-link gap is closed by assertions
+for the canonical fact, receipt, provenance, and routed-use records. Next add
+exact event/sample and independent-ledger evidence for `RoutedUses` and
+`RoutedUsePositions`, then continue the remaining per-use lanes. Keep live
+effect-row mutation outside the approved pure-Function scope. The
+successful-path sampling attempt consumed its prior process budget without a
+valid comparison; do not repeat it without a new budget and an isolating
+method. These closures do not close the full sampling/resource gate.
 
 An architect review resolved the stack-safety scratch-accounting phase
 boundary: §§14/26/34 authorize private production accounting for root-local
@@ -999,3 +1003,35 @@ the full peak history. The move removes 67 lines from `lib.rs`; no production
 code changed. Next reconcile the remaining ConstraintStore and routed-use owner
 traces against §3. F5c, the full §3 accounting/measurement gate, and F5e remain
 open.
+
+## ConstraintStore incoming-route changed-reserve witnesses (2026-09-24)
+
+Moved `f5c_store_changed_failed_reserves_keep_one_outer_sample` from `lib.rs`
+into the route sidecar and extended its four injected post-reserve cases to
+trace facts, canonical keys, consumed receipts, and provenance. Each preceding
+successful store growth and the changed failed reserve is linked to its ordered
+event sample using that lane's slot size. Store bytes are session-only, so the
+assertions require unchanged semantic totals and exact session deltas/peaks.
+The test then checks one post-rollback sample, restored logical state, retained
+capacities, independent retained/session/nested totals, and exact successful
+retry publication across fact, canonical key, receipt, provenance, and routed
+use.
+
+The first test-only attempt used the wrong aggregate expectation; source
+inspection confirmed no production sample-order defect. A second test run
+exposed that RouteCheckpoint compares all store counters even though the
+approved physical growth/rebuild counters remain monotone. The test now checks
+those counters against event-derived counts and normalizes only those fields in
+the expected checkpoint before asserting all remaining logical state. The
+original shared closed-Union fixture is preserved. An M1 spec review found a
+minor omission in retry linkage; primary added canonical/receipt/provenance
+assertions and verified the focused sidecar. No production code changed; moving
+the test removes 46 lines from `lib.rs`.
+
+Verification: the single-threaded sidecar filter
+`cargo test -p yu-solver --lib f5c_value_exact_upper_route -- --test-threads=1`
+passes 23 tests;
+`cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
+`git diff --check` pass. Full solver/workspace suites and performance
+measurement were not run. Next: the two routed-use owner traces. The complete
+§3 gate, F5c, and F5e remain open.
