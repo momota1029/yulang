@@ -20,6 +20,236 @@ fn preserve_monotone_store_growth_counters(
 }
 
 #[test]
+fn f5c_route_use_owner_failed_reserves_reconcile_after_rollback() {
+    for (lane, expected_lanes) in [
+        (
+            F5bCapacityLane::RoutedUsePositions,
+            &["RoutedUsePositions"][..],
+        ),
+        (
+            F5bCapacityLane::RoutedUses,
+            &["RoutedUsePositions", "RoutedUses"][..],
+        ),
+    ] {
+        let (mut session, routes) =
+            f5c_shared_closed_incoming_fixture("f5c-route-use-owner-reserve");
+        let route = routes[0].clone();
+        session.routed_uses = Vec::new();
+        session.routed_use_positions = HashSet::new();
+        let mut before = RouteCheckpoint::capture(&session);
+        let receipt_serial = session.store.next_receipt;
+        let attempts = session.incoming_route_sample_attempts;
+        let boundaries = session.resource_boundary_samples;
+        let outer = session.incoming_post_rollback_sample_attempts;
+        let post_samples = session.incoming_post_rollback_samples;
+        incoming_sample_trace::start();
+        inject_next_f5b_post_reserve_failure(lane);
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted),
+            "{lane:?}"
+        );
+        let trace = incoming_sample_trace::finish(&format!("route-use-{lane:?}"), 1);
+        assert_eq!(trace.attempts, 1, "{lane:?}");
+        assert_eq!(trace.matched_events, trace.event_samples, "{lane:?}");
+        assert_eq!(
+            trace.completed_events.len(),
+            trace.event_samples,
+            "{lane:?}"
+        );
+        assert_eq!(
+            trace.named_samples,
+            [("post-rollback".into(), 1)].into_iter().collect(),
+            "{lane:?}"
+        );
+        assert_eq!(trace.samples, trace.event_samples + 1, "{lane:?}");
+        assert_eq!(
+            session.incoming_route_sample_attempts,
+            attempts + trace.samples
+        );
+        assert_eq!(
+            session.resource_boundary_samples,
+            boundaries + trace.samples
+        );
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+        assert_eq!(session.incoming_post_rollback_samples, post_samples + 1);
+
+        let route_events: Vec<_> = trace
+            .completed_events
+            .iter()
+            .enumerate()
+            .filter(|(_, event)| event.owner == "routed-use")
+            .collect();
+        assert_eq!(route_events.len(), expected_lanes.len(), "{lane:?}");
+        let mut expected_growths = [0usize; 2];
+        let mut expected_event_peaks = None;
+        for (position, (event_position, event)) in route_events.into_iter().enumerate() {
+            assert_eq!(event.lane, expected_lanes[position], "{lane:?}");
+            assert_eq!(
+                trace
+                    .event_lanes
+                    .get(&("routed-use".into(), event.lane.clone())),
+                Some(&1),
+                "{lane:?}"
+            );
+            assert!(event_position > 0, "{lane:?}");
+            let previous = &trace.completed_events[event_position - 1].sample;
+            let index = if event.lane == "RoutedUses" { 0 } else { 1 };
+            let slot_size = if index == 0 {
+                std::mem::size_of::<RoutedUseProvenance>()
+            } else {
+                std::mem::size_of::<DefinitionUseId>()
+            };
+            assert_eq!(event.old_capacity, 0, "{lane:?}");
+            assert!(event.new_capacity > event.old_capacity, "{lane:?}");
+            let delta = (event.new_capacity - event.old_capacity) * slot_size;
+            if index == 1 {
+                assert_eq!(
+                    event.sample.semantic_retained_bytes, previous.semantic_retained_bytes,
+                    "{lane:?}"
+                );
+            } else {
+                assert_eq!(
+                    event.sample.semantic_retained_bytes,
+                    previous.semantic_retained_bytes + delta,
+                    "{lane:?}"
+                );
+            }
+            assert_eq!(
+                event.sample.session_retained_bytes,
+                previous.session_retained_bytes + delta,
+                "{lane:?}"
+            );
+            let expected_semantic_retained =
+                previous.semantic_retained_bytes + if index == 0 { delta } else { 0 };
+            let expected_session_retained = previous.session_retained_bytes + delta;
+            let expected_semantic_peak =
+                previous.semantic_peak_bytes.max(expected_semantic_retained);
+            let expected_session_peak = previous.session_peak_bytes.max(
+                expected_session_retained + session.resource_ledger.finish_output_retained_bytes,
+            );
+            assert_eq!(
+                event.sample.semantic_peak_bytes, expected_semantic_peak,
+                "{lane:?}"
+            );
+            assert_eq!(
+                event.sample.session_peak_bytes, expected_session_peak,
+                "{lane:?}"
+            );
+            expected_event_peaks = Some((expected_semantic_peak, expected_session_peak));
+            expected_growths[index] += 1;
+        }
+        assert_eq!(
+            session.execution_counters.routed_use_provenance_growths(),
+            0,
+            "{lane:?}"
+        );
+        before.execution_counters.routed_use_provenance_growths =
+            session.execution_counters.routed_use_provenance_growths();
+        before.assert_restored(&session);
+        assert!(session.routed_uses.is_empty(), "{lane:?}");
+        assert!(session.routed_use_positions.is_empty(), "{lane:?}");
+        for (index, (capacity, slot_size)) in [
+            (
+                session.routed_uses.capacity(),
+                std::mem::size_of::<RoutedUseProvenance>(),
+            ),
+            (
+                session.routed_use_positions.capacity(),
+                std::mem::size_of::<DefinitionUseId>(),
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let ledger = &session.resource_ledger.route_use_lanes[index];
+            assert_eq!(ledger.actual_capacity, capacity, "{lane:?}");
+            assert_eq!(ledger.retained_bytes, capacity * slot_size, "{lane:?}");
+            assert!(ledger.peak_bytes >= ledger.retained_bytes, "{lane:?}");
+            assert_eq!(ledger.capacity_growths, expected_growths[index], "{lane:?}");
+        }
+        let post = &trace.completed_named_samples["post-rollback"][0];
+        // The independent ledger rebuilds retained totals; peak history carries forward
+        // from the already-asserted target event transition.
+        let (expected_semantic_peak, expected_session_peak) = expected_event_peaks.unwrap();
+        let (independent, nested) = independent_post_rollback_value_row_resources(
+            &session,
+            expected_semantic_peak,
+            expected_session_peak,
+        );
+        assert_eq!(
+            post.semantic_retained_bytes, independent.semantic_arena_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            post.session_retained_bytes, independent.inference_session_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            post.nested_bound_bytes,
+            nested.total_bound_bytes(),
+            "{lane:?}"
+        );
+        assert_eq!(
+            post.semantic_peak_bytes, independent.semantic_arena_peak_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            post.session_peak_bytes, independent.inference_session_peak_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes, post.semantic_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            session.resource_ledger.inference_session_retained_bytes, post.session_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            session.execution_counters.semantic_arena_retained_bytes(),
+            post.semantic_retained_bytes,
+            "{lane:?}"
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .inference_session_retained_bytes(),
+            post.session_retained_bytes,
+            "{lane:?}"
+        );
+
+        session.route_incoming(&route).unwrap();
+        assert_eq!(session.store.facts.len(), 1, "{lane:?}");
+        let fact = &session.store.facts[0];
+        let fact_id = fact.id();
+        let key = FactKey::new(
+            fact.lower(),
+            fact.upper(),
+            session.store.comparisons.clone(),
+        );
+        assert_eq!(
+            session.store.canonical.get(&key),
+            Some(&fact_id),
+            "{lane:?}"
+        );
+        assert_eq!(session.store.provenance().len(), 1, "{lane:?}");
+        assert_eq!(session.store.provenance()[0].fact(), fact_id, "{lane:?}");
+        assert_eq!(session.store.consumed_receipts.len(), 1, "{lane:?}");
+        assert!(
+            session.store.consumed_receipts.contains(&receipt_serial),
+            "{lane:?}"
+        );
+        assert_eq!(session.store.next_receipt, receipt_serial + 1, "{lane:?}");
+        assert_eq!(session.routed_uses.len(), 1, "{lane:?}");
+        assert_eq!(session.routed_uses[0].use_id, route, "{lane:?}");
+        assert_eq!(session.routed_uses[0].fact, Some(fact_id), "{lane:?}");
+        assert_eq!(session.routed_use_positions.len(), 1, "{lane:?}");
+        assert!(session.routed_use_positions.contains(&route), "{lane:?}");
+    }
+}
+
+#[test]
 fn f5c_store_changed_failed_reserves_keep_one_outer_sample() {
     for (index, lane) in [
         F5bCapacityLane::StoreFacts,

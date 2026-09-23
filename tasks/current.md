@@ -140,6 +140,17 @@ receipt, provenance, and routed-use publication. The old test moved from
 minor §44 retry-link omission was closed by adding those assertions; no
 production code changed.
 
+Both routed-use owners now have exact changed-reserve witnesses. `RoutedUses`
+is checked against its observed slot delta in both semantic and session totals;
+`RoutedUsePositions` changes only session totals. Each event peak is derived
+from the immediately preceding completed sample and observed lane delta, then
+carried into the independent post-rollback retained-ledger check. The witness
+asserts one conditional post-rollback sample, RouteCheckpoint restoration, and
+successful fact/canonical/receipt/provenance/routed-use retry linkage. The old
+test moved from `lib.rs`, removing 54 lines. The initial M1 review's two major
+assertion gaps were closed; a fresh specification delta review found no
+remaining issue. No production code changed.
+
 Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
 same event-time capacity observer. End-to-end incoming failure witnesses prove
 a post-reserve value-row growth sample, a later private-member failure with
@@ -560,10 +571,11 @@ rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
 plausible and no direct F5c path, but the failed assertion values were not
 captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
-without accepted timing data. Next resume: add exact event/sample and
-independent-ledger evidence for the two routed-use owners (`RoutedUses` and
-`RoutedUsePositions`), then continue the remaining per-use lanes against the
-complete §3 list. Keep sampler-cost
+without accepted timing data. Next resume: add the missing independent
+post-rollback retained-ledger comparison to the existing `ValueLevels`
+changed-reserve witness, then strengthen the split `FreshValueBounds` incoming
+failure proof with exact event/sample and retained-ledger evidence. Continue the
+remaining per-use lanes against the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
 method. Do not call the complete §3 sampling/accounting gate closed. The F5c

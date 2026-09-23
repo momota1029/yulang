@@ -25733,60 +25733,6 @@ mod tests {
     }
 
     #[test]
-    fn f5c_route_use_owner_failed_reserves_reconcile_after_rollback() {
-        for (lane, index) in [
-            (F5bCapacityLane::RoutedUses, 0),
-            (F5bCapacityLane::RoutedUsePositions, 1),
-        ] {
-            let (mut session, routes) =
-                f5c_shared_closed_incoming_fixture("f5c-route-use-owner-reserve");
-            assert!(session.routed_uses.is_empty());
-            assert!(session.routed_use_positions.is_empty());
-            session.routed_uses = Vec::new();
-            session.routed_use_positions = HashSet::new();
-            let outer = session.incoming_post_rollback_sample_attempts;
-            inject_next_f5b_post_reserve_failure(lane);
-            assert_eq!(
-                session.route_incoming(&routes[0]),
-                Err(SolveAvailabilityError::IdentityExhausted),
-                "{lane:?}"
-            );
-            assert!(session.routed_uses.is_empty());
-            assert!(session.routed_use_positions.is_empty());
-            assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
-            let capacity = if index == 0 {
-                session.routed_uses.capacity()
-            } else {
-                session.routed_use_positions.capacity()
-            };
-            assert!(capacity > 0, "{lane:?}");
-            let ledger = &session.resource_ledger.route_use_lanes[index];
-            assert_eq!(ledger.actual_capacity, capacity);
-            assert_eq!(
-                ledger.retained_bytes,
-                capacity
-                    * if index == 0 {
-                        std::mem::size_of::<RoutedUseProvenance>()
-                    } else {
-                        std::mem::size_of::<DefinitionUseId>()
-                    }
-            );
-            assert!(ledger.peak_bytes >= ledger.retained_bytes);
-            assert!(ledger.capacity_growths > 0);
-            assert_eq!(
-                session.resource_ledger.semantic_arena_retained_bytes,
-                session.execution_counters.semantic_arena_retained_bytes()
-            );
-            assert_eq!(
-                session.resource_ledger.inference_session_retained_bytes,
-                session
-                    .execution_counters
-                    .inference_session_retained_bytes()
-            );
-        }
-    }
-
-    #[test]
     fn f5c_store_route_handoff_records_four_physical_owners() {
         let batch = collect(module("my source = 1", "f5c-store-owner-handoff"));
         let occurrence = batch.occurrences()[0].clone();

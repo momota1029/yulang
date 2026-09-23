@@ -83,15 +83,17 @@ Immediate continuation: audit the remaining per-use failure-lane witnesses at
 the exact changed-capacity event/sample boundary. `TypedWorklist`, `TypedPairs`,
 `DiagnosticEdges`, both journal undo-key Vecs (`typed_pair_keys`,
 `reported_error_keys`), the `value_row_seen` and `effect_row_seen` setup vectors,
-the `RouteMutationJournal.value_rows` undo owner, and all four ConstraintStore
-lanes now have focused event/rollback/independent-retained-ledger witnesses.
+the `RouteMutationJournal.value_rows` undo owner, all four ConstraintStore
+lanes, and both routed-use owners now have focused
+event/rollback/independent-retained-ledger witnesses.
 The store trace distinguishes session-only store bytes from semantic bytes;
 rollback preserves exact physical growth/rebuild evidence while logical state
 is restored. The M1 review's minor §44 retry-link gap is closed by assertions
 for the canonical fact, receipt, provenance, and routed-use records. Next add
-exact event/sample and independent-ledger evidence for `RoutedUses` and
-`RoutedUsePositions`, then continue the remaining per-use lanes. Keep live
-effect-row mutation outside the approved pure-Function scope. The
+the missing independent post-rollback retained-ledger comparison to the
+existing `ValueLevels` witness, then strengthen the split `FreshValueBounds`
+incoming-route proof with exact event/sample and retained-ledger evidence.
+Keep live effect-row mutation outside the approved pure-Function scope. The
 successful-path sampling attempt consumed its prior process budget without a
 valid comparison; do not repeat it without a new budget and an isolating
 method. These closures do not close the full sampling/resource gate.
@@ -1033,5 +1035,33 @@ Verification: the single-threaded sidecar filter
 passes 23 tests;
 `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
 `git diff --check` pass. Full solver/workspace suites and performance
-measurement were not run. Next: the two routed-use owner traces. The complete
-§3 gate, F5c, and F5e remain open.
+measurement were not run. The complete §3 gate, F5c, and F5e remain open.
+
+## Routed-use incoming-route changed-reserve witnesses (2026-09-24)
+
+Moved `f5c_route_use_owner_failed_reserves_reconcile_after_rollback` from
+`lib.rs` into `tests/f5c_value_exact_upper_route.rs`, removing 54 lines from
+the already large primary file. The two injected cases now trace the ordered
+`RoutedUsePositions` and `RoutedUses` owner events, check exact observed slot
+byte deltas and semantic/session attribution, prove one post-rollback sample,
+assert logical checkpoint restoration and retained capacities, rebuild
+post-rollback retained/nested totals independently, and retry through the
+canonical fact, receipt, provenance, routed-use, and position links.
+
+The first M1 specification review found two major assertion gaps: the
+`RoutedUses` semantic delta was only positive rather than exact, and the
+independent ledger was seeded directly from the target event's production
+peak. The repair now checks the exact delta and derives each target event peak
+from the immediately preceding completed sample, exact lane delta, and
+finish-output bytes. Those test-derived expected peaks, not the target sample
+fields, seed the independent post-rollback ledger. A fresh specification
+delta review accepted this carry-forward at the per-owner scope: earlier event
+peak transitions have their own lane witnesses; this test does not replay the
+whole route history. No production code changed.
+
+Verification: the focused routed-use test passes 1/1;
+`cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
+`git diff --check` pass. The full solver suite and performance measurement were
+not run. Next: add an independent post-rollback retained-ledger comparison to
+the `ValueLevels` witness, then strengthen the split `FreshValueBounds`
+incoming-route evidence. The complete §3 gate, F5c, and F5e remain open.
