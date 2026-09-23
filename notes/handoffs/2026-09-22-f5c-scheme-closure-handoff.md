@@ -792,3 +792,27 @@ run. This closes only the `ReportedErrors` changed-capacity witness. Other
 diagnostic scratch lanes, the complete owner-to-route matrix, the §3
 sampling/accounting gate, F5c, and F5e remain open. This test-only slice did not
 change `lib.rs`.
+
+## `DiagnosticDeltaIndices` changed-capacity witness (2026-09-24)
+
+Added
+`f5c_incoming_diagnostic_delta_indices_growth_samples_before_rollback_and_retries`
+to the incoming value-route sampling sidecar. The fixture leaves the index
+HashMap at zero capacity while pre-reserving the typed-pair map, diagnostic
+delta Vec, and route-journal typed-pair key lane. It injects failure after
+`DiagnosticDeltaIndices` grows, checks the observed `(CanonicalValuePairKey,
+usize)` slot-byte delta and aggregate peaks against the immediately preceding
+completed event, and proves that one post-rollback sample reconciles to an
+independent retained-resource ledger while the route checkpoint is restored.
+Retry checks that the fact, provenance edge, consumed receipt, routed-use
+record, and use-position marker all refer to the one intended route.
+
+The focused sidecar passes ten tests. Package test-check, formatting, and
+whitespace checks pass. The fresh M1 spec review found the sampling and ledger
+evidence sound, and flagged a minor retry-identity/linkage gap; the primary
+closed it by checking fact/provenance identity, receipt count, and route/use
+linkage, followed by the exact test rerun. The witness uses a simple quantified
+predicate to isolate this diagnostic map lane; it does not replace the separate
+Union-representative witnesses. Other diagnostic scratch lanes, the complete
+owner-to-route matrix, §3 accounting/measurement, F5c, and F5e remain open. No
+production code or `lib.rs` changed.

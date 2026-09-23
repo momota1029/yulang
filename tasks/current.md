@@ -450,13 +450,19 @@ its journal key lane, injects after the reported-error set grows, and checks
 the exact event delta/peaks, retained HashSet capacity, independent
 post-rollback ledger, full route checkpoint restoration, and retry with the
 same canonical representative. Fresh M1 specification reviews are clean for
-both witnesses. `lib.rs` is currently 28,456 lines and was not modified in
-these lane slices; keep the separate 63-line
+both witnesses. The new `DiagnosticDeltaIndices` witness keeps the typed-pair
+map, delta Vec, and journal key lane pre-reserved, then isolates index-map
+growth from zero capacity. It checks the map-slot byte delta against the
+previous completed event, event peaks, independent post-rollback accounting,
+and retry linkage among the fact, provenance, consumed receipt, and routed-use
+record. Its M1 review found a minor retry-identity gap, closed by those linkage
+assertions. `lib.rs` is currently 28,456 lines and was not modified in these
+lane slices; keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.
 
 Verification for this slice: the focused incoming value-route sidecar passed
-all nine tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
+all ten tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
 and `git diff --check` passed. The last completed full `yu-solver` library run
 remains 202 passed. A new 209-test single-threaded run was interrupted after
 more than six minutes in the F4 scale tests; before interruption,
