@@ -1,5 +1,289 @@
 use super::*;
 
+fn check_journal_key_changed_reserve(reported: bool) {
+    let batch = collect(module(
+        "my source = 1; my sink = source",
+        "f5c-journal-key-route",
+    ));
+    let route_id = batch.definition_uses()[0].id.clone();
+    let mut session = InferenceSession::new(batch);
+    let draft = GeneralizationDraft {
+        quantifier_count: 1,
+        recursive_bounds: Vec::new(),
+        predicate: if reported {
+            F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Quantified(0)),
+                },
+            ])
+        } else {
+            F5cPositive::Quantified(0)
+        },
+    };
+    let finalized = InferenceSession::finalize_generalization_draft(
+        session.finalization.as_mut().unwrap(),
+        &draft,
+        false,
+    )
+    .unwrap();
+    let scheme = finalized.into_parts().0;
+    if reported {
+        let view = session
+            .finalization
+            .as_ref()
+            .unwrap()
+            .scheme_view(&scheme)
+            .unwrap();
+        let PositiveValueView::Union(children) = view.positive_value(view.predicate()).unwrap()
+        else {
+            panic!("finalized predicate must be a Union");
+        };
+        assert_eq!(children.len(), 2);
+        assert_ne!(children[0], children[1]);
+        assert!(matches!(
+            view.positive_value(children[0]).unwrap(),
+            PositiveValueView::Int
+        ));
+        assert!(matches!(
+            view.positive_value(children[1]).unwrap(),
+            PositiveValueView::Function { .. }
+        ));
+    }
+    let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+    session.schemes[target] = Some(scheme);
+    if reported {
+        let use_row =
+            session.live_components[session.batch.definition_uses()[0].use_value_component].ordinal;
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 204);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(use_row),
+                    upper: ValueEndpointKey::IntNegative,
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        assert!(session.errors.is_empty());
+        session.reported_errors.try_reserve(1).unwrap();
+        session.errors.try_reserve(1).unwrap();
+    }
+    session.typed_pairs.try_reserve(1).unwrap();
+    session.begin_route_transaction().unwrap();
+    session.rollback_route_transaction().unwrap();
+    let spare = session.route_journal_spare.as_mut().unwrap();
+    if reported {
+        spare.typed_pair_keys.try_reserve(1).unwrap();
+        spare.reported_error_keys = Vec::new();
+        assert_eq!(spare.reported_error_keys.capacity(), 0);
+    } else {
+        spare.typed_pair_keys = Vec::new();
+        assert_eq!(spare.typed_pair_keys.capacity(), 0);
+    }
+    assert!(session.typed_pairs.capacity() > 0);
+    let baseline_typed_pairs = session.typed_pairs.clone();
+    session
+        .sample_f4_resources(ResourceBoundary::IncomingRoute)
+        .unwrap();
+    let mut before = RouteCheckpoint::capture(&session);
+    before.route_journal_spare_generation = before
+        .route_journal_spare_generation
+        .map(|generation| generation.checked_add(1).unwrap());
+    let sample_count = session.resource_boundary_samples;
+    let post_attempts = session.incoming_post_rollback_sample_attempts;
+    let post_samples = session.incoming_post_rollback_samples;
+    let receipt_serial = session.store.next_receipt;
+    let lane = if reported {
+        F5bCapacityLane::ReportedErrors
+    } else {
+        F5bCapacityLane::TypedPairs
+    };
+    let lane_name = if reported {
+        "ReportedErrors"
+    } else {
+        "TypedPairs"
+    };
+    let trace_name = if reported {
+        "journal-reported-error-keys"
+    } else {
+        "journal-typed-pair-keys"
+    };
+    incoming_sample_trace::start();
+    inject_f5b_post_reserve_failure_after(lane, 1);
+    assert_eq!(
+        session.route_incoming(&route_id),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(
+        F5B_INJECTED_POST_RESERVE_FAILURE.with(|failure| failure.get()),
+        None
+    );
+    assert_eq!(F5B_POST_RESERVE_FAILURE_SKIP.with(|skip| skip.get()), 0);
+    before.assert_restored(&session);
+    let trace = incoming_sample_trace::finish(trace_name, 1);
+    assert_eq!(trace.attempts, 1);
+    assert_eq!(
+        trace
+            .event_lanes
+            .get(&("typed-route".into(), lane_name.into())),
+        Some(&1)
+    );
+    assert_eq!(trace.matched_events, trace.event_samples);
+    assert_eq!(trace.completed_events.len(), trace.event_samples);
+    assert_eq!(
+        trace.named_samples,
+        [("post-rollback".into(), 1)].into_iter().collect()
+    );
+    assert_eq!(trace.samples, trace.event_samples + 1);
+    let (position, event) = trace
+        .completed_events
+        .iter()
+        .enumerate()
+        .find(|(_, event)| event.owner == "typed-route" && event.lane == lane_name)
+        .expect("journal reserve must have a completed event-time sample");
+    assert!(position > 0);
+    let previous = &trace.completed_events[position - 1].sample;
+    assert_eq!(event.old_capacity, 0);
+    let slot_size = if reported {
+        std::mem::size_of::<(ConstraintOccurrenceId, SolverErrorKind)>()
+    } else {
+        std::mem::size_of::<TypedPairKey>()
+    };
+    let delta = event.new_capacity.checked_mul(slot_size).unwrap();
+    assert!(delta > 0);
+    assert_eq!(
+        event.sample.semantic_retained_bytes,
+        previous.semantic_retained_bytes + delta
+    );
+    assert_eq!(
+        event.sample.session_retained_bytes,
+        previous.session_retained_bytes + delta
+    );
+    assert_eq!(
+        event.sample.semantic_peak_bytes,
+        previous
+            .semantic_peak_bytes
+            .max(previous.semantic_retained_bytes + delta)
+    );
+    assert_eq!(
+        event.sample.session_peak_bytes,
+        previous.session_peak_bytes.max(
+            previous.session_retained_bytes
+                + delta
+                + session.resource_ledger.finish_output_retained_bytes
+        )
+    );
+    let spare = session.route_journal_spare.as_ref().unwrap();
+    if reported {
+        assert_eq!(spare.reported_error_keys.capacity(), event.new_capacity);
+        assert!(spare.reported_error_keys.is_empty());
+        assert!(session.errors.is_empty());
+        assert!(session.reported_errors.is_empty());
+        assert_eq!(session.typed_pairs, baseline_typed_pairs);
+    } else {
+        assert_eq!(spare.typed_pair_keys.capacity(), event.new_capacity);
+        assert!(spare.typed_pair_keys.is_empty());
+        assert!(session.typed_pairs.is_empty());
+    }
+    let post = trace
+        .completed_named_samples
+        .get("post-rollback")
+        .and_then(|samples| (samples.len() == 1).then_some(&samples[0]))
+        .unwrap();
+    assert_eq!(post.semantic_peak_bytes, event.sample.semantic_peak_bytes);
+    assert_eq!(post.session_peak_bytes, event.sample.session_peak_bytes);
+    let (independent, nested) = independent_post_rollback_value_row_resources(
+        &session,
+        event.sample.semantic_peak_bytes,
+        event.sample.session_peak_bytes,
+    );
+    assert_eq!(
+        post.semantic_retained_bytes,
+        independent.semantic_arena_retained_bytes
+    );
+    assert_eq!(
+        post.session_retained_bytes,
+        independent.inference_session_retained_bytes
+    );
+    assert_eq!(post.nested_bound_bytes, nested.total_bound_bytes());
+    assert_eq!(
+        session.resource_ledger.semantic_arena_retained_bytes,
+        post.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_retained_bytes,
+        post.session_retained_bytes
+    );
+    assert_eq!(
+        session.execution_counters.semantic_arena_peak_bytes,
+        post.semantic_peak_bytes
+    );
+    assert_eq!(
+        session.execution_counters.inference_session_peak_bytes,
+        post.session_peak_bytes
+    );
+    assert_eq!(
+        session.incoming_post_rollback_sample_attempts,
+        post_attempts + 1
+    );
+    assert_eq!(session.incoming_post_rollback_samples, post_samples + 1);
+    assert_eq!(
+        session.resource_boundary_samples,
+        sample_count + trace.samples
+    );
+    assert!(session.store.facts().is_empty());
+    assert!(session.store.provenance().is_empty());
+    assert!(session.store.consumed_receipts.is_empty());
+    assert!(session.routed_uses.is_empty());
+    assert!(session.routed_use_positions.is_empty());
+    session.route_incoming(&route_id).unwrap();
+    assert_eq!(session.store.facts().len(), 1);
+    assert_eq!(session.store.provenance().len(), 1);
+    let fact = &session.store.facts()[0];
+    let canonical_key = FactKey::new(
+        fact.lower(),
+        fact.upper(),
+        session.store.comparisons.clone(),
+    );
+    assert_eq!(
+        session.store.canonical.get(&canonical_key),
+        Some(&fact.id())
+    );
+    if reported {
+        assert!(matches!(
+            session.store.term_view(fact.lower()),
+            Ok(TermView::Leaf(Leaf::IntPositive))
+        ));
+        assert_eq!(session.errors.len(), 1);
+        assert_eq!(session.reported_errors.len(), 1);
+    }
+    assert_eq!(session.store.provenance()[0].fact(), fact.id());
+    assert_eq!(session.store.consumed_receipts.len(), 1);
+    assert!(session.store.consumed_receipts.contains(&receipt_serial));
+    assert_eq!(session.routed_uses.len(), 1);
+    assert_eq!(session.routed_uses[0].use_id, route_id);
+    assert_eq!(session.routed_uses[0].fact, Some(fact.id()));
+    assert_eq!(session.routed_use_positions.len(), 1);
+    assert!(session.routed_use_positions.contains(&route_id));
+}
+
+#[test]
+fn f5c_incoming_journal_typed_pair_keys_growth_rolls_back_and_retries() {
+    check_journal_key_changed_reserve(false);
+}
+
+#[test]
+fn f5c_incoming_journal_reported_error_keys_growth_rolls_back_and_retries() {
+    check_journal_key_changed_reserve(true);
+}
+
 #[test]
 fn f5c_incoming_reported_errors_growth_samples_after_first_union_member_and_retries() {
     let batch = collect(module(

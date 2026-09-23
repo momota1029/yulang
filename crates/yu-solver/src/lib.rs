@@ -107,6 +107,7 @@ impl<T: Eq + Hash, S: std::hash::BuildHasher> F5bReservable for HashSet<T, S> {
 thread_local! {
     static F5B_INJECTED_RESERVE_FAILURE: std::cell::Cell<Option<F5bCapacityLane>> = const { std::cell::Cell::new(None) };
     static F5B_INJECTED_POST_RESERVE_FAILURE: std::cell::Cell<Option<F5bCapacityLane>> = const { std::cell::Cell::new(None) };
+    static F5B_POST_RESERVE_FAILURE_SKIP: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE: std::cell::Cell<Option<F5bCapacityLane>> = const { std::cell::Cell::new(None) };
     static F5C_DIAGNOSTIC_EDGE_EVENT_BYTES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static F5C_ROUTE_MANY_PRIVATE_COMPLETIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
@@ -133,6 +134,15 @@ pub(crate) fn reserve_f5b<T: F5bReservable>(
     if result.is_ok()
         && F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.get() == Some(lane))
     {
+        if F5B_POST_RESERVE_FAILURE_SKIP.with(|skip| {
+            let remaining = skip.get();
+            if remaining > 0 {
+                skip.set(remaining - 1);
+            }
+            remaining > 0
+        }) {
+            return result;
+        }
         F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.set(None));
         return Err(ConstraintError::IdentityExhausted);
     }
@@ -146,7 +156,14 @@ fn inject_next_f5b_reserve_failure(lane: F5bCapacityLane) {
 
 #[cfg(test)]
 fn inject_next_f5b_post_reserve_failure(lane: F5bCapacityLane) {
+    F5B_POST_RESERVE_FAILURE_SKIP.with(|skip| skip.set(0));
     F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.set(Some(lane)));
+}
+
+#[cfg(test)]
+fn inject_f5b_post_reserve_failure_after(lane: F5bCapacityLane, successful_reserves: usize) {
+    inject_next_f5b_post_reserve_failure(lane);
+    F5B_POST_RESERVE_FAILURE_SKIP.with(|skip| skip.set(successful_reserves));
 }
 
 use yu_hir::{

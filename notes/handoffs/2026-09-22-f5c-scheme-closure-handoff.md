@@ -81,14 +81,15 @@ incomplete.
 
 Immediate continuation: audit the remaining per-use failure-lane witnesses at
 the exact changed-capacity event/sample boundary. `TypedWorklist`, `TypedPairs`,
-and `DiagnosticEdges` now have isolated changed-capacity witnesses with
-event/rollback/independent-ledger checks. Keep store/provenance/receipt/
-routed-use and journal-owner transitions in the residual matrix unless their
-full end-to-end trace evidence is already present. After the owner-to-route
-matrix is coherent, run one bounded successful-path sampling measurement: one
-warm-up plus three paired samples at one input size, within the
-eight-process/ten-minute budget. The diagnostic completion scratch lanes do not
-close the full sampling/resource gate.
+`DiagnosticEdges`, and both journal undo-key Vecs (`typed_pair_keys`,
+`reported_error_keys`) now have isolated changed-capacity witnesses with
+event/rollback/independent-ledger checks. Next strengthen exact trace and
+independent-ledger evidence for the value/effect row-seen vectors during journal
+setup, then reconcile any remaining owner-to-route transitions. Keep live
+effect-row mutation outside the approved pure-Function scope. After the matrix
+is coherent, run one bounded successful-path sampling measurement: one warm-up
+plus three paired samples at one input size, within the eight-process/ten-minute
+budget. These closures do not close the full sampling/resource gate.
 
 An architect review resolved the stack-safety scratch-accounting phase
 boundary: §§14/26/34 authorize private production accounting for root-local
@@ -928,3 +929,28 @@ full value-route sidecar passes 16 tests, `cargo fmt --all -- --check`, and
 coverage only. Next audit per-use rollback and remaining owner-to-route
 transitions. The §3 sampling/accounting gate, F5c closure, and F5e certification
 remain open.
+
+## Route-journal undo-key changed-reserve witnesses (2026-09-24)
+
+Added end-to-end changed-capacity failure witnesses for the `typed_pair_keys`
+and `reported_error_keys` Vecs owned by `RouteMutationJournal`. Since each
+journal Vec shares its reserve lane with the typed-pair map or reported-error
+set, a cfg(test)-only matching-reserve skip count now lets the test inject the
+failure after the journal Vec grows, before its new key is pushed. Existing
+post-reserve injection callers still target their first matching reserve.
+
+Both witnesses check the exact journal slot-byte delta, event-time retained
+and peak totals, spare-owner capacity after rollback, full RouteCheckpoint
+restoration, one conditional post-rollback sample, independent retained-ledger
+reconciliation, and successful retry. The reported-error Union retry checks
+the canonical Int representative and fact/provenance/receipt/routed-use links.
+A fresh M1 specification review found one minor omission: canonical-map linkage
+on retry. The primary added that assertion and reran the focused journal tests.
+
+Verification: both new tests pass; the value-route sidecar passes 18 tests;
+the related journal filter passes five tests; `cargo fmt --all -- --check` and
+`git diff --check` pass. The only `lib.rs` change is the 17-line cfg(test)
+injection seam; fixture and assertion code remains in the test sidecar. Next,
+strengthen event/sample and independent-ledger evidence for `value_row_seen`
+and `effect_row_seen` setup reserves. The owner-to-route matrix, full §3 gate,
+F5c closure, and F5e certification remain open.

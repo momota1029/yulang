@@ -102,6 +102,15 @@ representative. A fresh M1 specification delta review is clean, and the route
 sidecar passes 16 tests. These close only the named lanes; the rest of the
 owner-to-route matrix and §3 accounting/measurement gate remain open.
 
+End-to-end changed-reserve witnesses now also cover both journal undo-key
+owners: `typed_pair_keys` and `reported_error_keys`. A cfg(test)-only skip
+counter targets the journal Vec reserve after its matching data-owner reserve;
+the witnesses verify event-time slot deltas/peaks, retained spare capacity,
+rollback, independent ledger, one post-rollback sample, and retry linkage. A
+fresh M1 spec review found only a missing canonical-index assertion; that
+assertion is now present and the focused journal tests pass. The test seam adds
+17 lines to `lib.rs`; the witness body stays in the existing sidecar.
+
 Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
 same event-time capacity observer. End-to-end incoming failure witnesses prove
 a post-reserve value-row growth sample, a later private-member failure with
@@ -522,19 +531,20 @@ rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
 plausible and no direct F5c path, but the failed assertion values were not
 captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
-without accepted timing data. Next resume: boundedly audit per-use failure
-rollback and the remaining owner-to-route transitions under the addendum, then
-run the authorized successful-path sampling measurement when that matrix is
-coherent. Do not call the complete §3 sampling/accounting gate closed. The F5c
-working set is preserved by checkpoint commits; inspect branch synchronization
-before any push.
+without accepted timing data. Next resume: strengthen the changed-failure
+trace/independent-ledger witness for `value_row_seen` and `effect_row_seen`
+during journal setup, then audit any remaining owner-to-route transitions
+under the addendum. Run the authorized successful-path sampling measurement
+only after that matrix is coherent. Do not call the complete §3 sampling/
+accounting gate closed. The F5c working set is preserved by checkpoint commits;
+inspect branch synchronization before any push.
 
 Still open: exact-alpha versus bounded-normalization authority, fixed-point
 replay/rescans and stack-safe expansion/materialization, per-use rollback
 across every availability lane, and F5e public-observation/scale certification.
-The next independent code gate is a bounded audit/closure of per-use failure
-rollback across the remaining availability lanes. Do not alter exact-alpha
-behavior without the user's pending choice.
+The next independent code gate is exact event/sample and independent-ledger
+closure for both journal seen-vector setup lanes. Do not widen into live
+effect-row mutation or alter exact-alpha behavior without the pending decision.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.
