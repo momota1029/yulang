@@ -295,18 +295,121 @@ fn f5c_incoming_journal_seen_partial_setup_samples_before_rollback() {
     let before = RouteCheckpoint::capture(&session);
     let events = session.incoming_route_sample_attempts;
     let outer = session.incoming_post_rollback_sample_attempts;
+    let post_samples = session.incoming_post_rollback_samples;
+    let resource_samples = session.resource_boundary_samples;
+    let baseline = &session.resource_ledger;
+    let mut retained = (
+        baseline.semantic_arena_retained_bytes,
+        baseline.inference_session_retained_bytes,
+    );
+    let mut peaks = (
+        baseline.semantic_arena_peak_bytes,
+        baseline.inference_session_peak_bytes,
+    );
+    let finish_bytes = baseline.finish_output_retained_bytes;
+    incoming_sample_trace::start();
     inject_next_f5b_post_reserve_failure(F5bCapacityLane::EffectBounds);
 
     assert_eq!(
         session.route_incoming(&route_id),
         Err(SolveAvailabilityError::IdentityExhausted)
     );
+    assert_eq!(
+        F5B_INJECTED_POST_RESERVE_FAILURE.with(|failure| failure.get()),
+        None
+    );
+    let trace = incoming_sample_trace::finish("journal-seen-partial", 1);
+    assert_eq!(trace.attempts, 1);
+    assert_eq!(trace.matched_events, 2);
+    assert_eq!(trace.event_samples, 2);
+    assert_eq!(trace.samples, 3);
+    assert_eq!(trace.completed_events.len(), 2);
+    assert_eq!(
+        trace.named_samples,
+        [("post-rollback".into(), 1)].into_iter().collect()
+    );
+    for (event, lane) in trace
+        .completed_events
+        .iter()
+        .zip(["value_row_seen", "effect_row_seen"])
+    {
+        assert_eq!(
+            (event.owner.as_str(), event.lane.as_str()),
+            ("journal", lane)
+        );
+        assert_eq!(event.old_capacity, 0);
+        assert!(event.new_capacity > 0);
+        let delta = event.new_capacity * std::mem::size_of::<u32>();
+        retained.0 += delta;
+        retained.1 += delta;
+        peaks.0 = peaks.0.max(retained.0);
+        peaks.1 = peaks.1.max(retained.1 + finish_bytes);
+        assert_eq!(
+            (
+                event.sample.semantic_retained_bytes,
+                event.sample.session_retained_bytes
+            ),
+            retained
+        );
+        assert_eq!(
+            (
+                event.sample.semantic_peak_bytes,
+                event.sample.session_peak_bytes
+            ),
+            peaks
+        );
+    }
     before.assert_restored(&session);
     let journal = session.route_journal_spare.as_ref().unwrap();
-    assert!(journal.value_row_seen.capacity() > 0);
-    assert!(journal.effect_row_seen.capacity() > 0);
+    assert_eq!(
+        journal.value_row_seen.capacity(),
+        trace.completed_events[0].new_capacity
+    );
+    assert_eq!(
+        journal.effect_row_seen.capacity(),
+        trace.completed_events[1].new_capacity
+    );
+    assert!(journal.value_row_seen.is_empty());
+    assert!(journal.effect_row_seen.is_empty());
+    let post = &trace.completed_named_samples["post-rollback"][0];
+    let (independent, nested) =
+        independent_post_rollback_value_row_resources(&session, peaks.0, peaks.1);
+    assert_eq!(
+        (post.semantic_retained_bytes, post.session_retained_bytes),
+        (
+            independent.semantic_arena_retained_bytes,
+            independent.inference_session_retained_bytes
+        )
+    );
+    assert_eq!(post.nested_bound_bytes, nested.total_bound_bytes());
+    assert_eq!((post.semantic_peak_bytes, post.session_peak_bytes), peaks);
+    assert_eq!(session.resource_ledger.semantic_arena_peak_bytes, peaks.0);
+    assert_eq!(
+        session.resource_ledger.inference_session_peak_bytes,
+        peaks.1
+    );
+    assert_eq!(
+        (
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.resource_ledger.inference_session_retained_bytes
+        ),
+        (post.semantic_retained_bytes, post.session_retained_bytes)
+    );
+    assert_eq!(
+        (
+            session.execution_counters.semantic_arena_peak_bytes,
+            session.execution_counters.inference_session_peak_bytes
+        ),
+        peaks
+    );
     assert_eq!(session.incoming_route_sample_attempts, events + 3);
     assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+    assert_eq!(session.incoming_post_rollback_samples, post_samples + 1);
+    assert_eq!(session.resource_boundary_samples, resource_samples + 3);
+    assert_eq!(
+        session.execution_counters.semantic_arena_retained_bytes,
+        post.semantic_retained_bytes
+    );
     assert_eq!(
         session.execution_counters.inference_session_retained_bytes,
         session.resource_ledger.inference_session_retained_bytes

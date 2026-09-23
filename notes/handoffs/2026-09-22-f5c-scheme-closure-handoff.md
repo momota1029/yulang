@@ -83,13 +83,13 @@ Immediate continuation: audit the remaining per-use failure-lane witnesses at
 the exact changed-capacity event/sample boundary. `TypedWorklist`, `TypedPairs`,
 `DiagnosticEdges`, and both journal undo-key Vecs (`typed_pair_keys`,
 `reported_error_keys`) now have isolated changed-capacity witnesses with
-event/rollback/independent-ledger checks. Next strengthen exact trace and
-independent-ledger evidence for the value/effect row-seen vectors during journal
-setup, then reconcile any remaining owner-to-route transitions. Keep live
-effect-row mutation outside the approved pure-Function scope. After the matrix
-is coherent, run one bounded successful-path sampling measurement: one warm-up
-plus three paired samples at one input size, within the eight-process/ten-minute
-budget. These closures do not close the full sampling/resource gate.
+event/rollback/independent-ledger checks. The `value_row_seen` and
+`effect_row_seen` setup vectors now have exact ordered event/sample and retained
+ledger evidence as well. Next reconcile the remaining owner-to-route list
+against §3. Keep live effect-row mutation outside the approved pure-Function
+scope. The successful-path sampling attempt consumed its prior process budget
+without a valid comparison; do not repeat it without a new budget and an
+isolating method. These closures do not close the full sampling/resource gate.
 
 An architect review resolved the stack-safety scratch-accounting phase
 boundary: §§14/26/34 authorize private production accounting for root-local
@@ -277,11 +277,13 @@ private-member argument correspondence is asserted. The closed child-DAG
 invariant is confirmed by child-before-parent finalizer IDs; recursive binder
 IDs are leaves.
 
-The availability-lane audit now has focused coverage across the production
-routes and direct owner sites listed above. Its remaining blocker is exact
-physical resource accounting after failed route rollback, with the §26/§34
-sampling decision pending. Continue the separate stack-safety slice; do not
-alter exact-alpha behavior before the user's decision.
+The availability-lane audit now has focused per-use evidence through the
+route-journal key and seen-vector owners. The current next step is to reconcile
+any remaining owner-to-route lanes against the complete §3 list. The prior
+sampler-cost attempt produced no valid comparison and exhausted its process
+budget; a new measurement needs an isolating method and fresh budget. Keep
+stack-safety residuals separate, and do not alter exact-alpha behavior before
+the user's decision.
 
 Stack safety remains open beyond the completed walker sub-slice. Expansion,
 postorder summary construction/materialization, and structural comparison now
@@ -954,3 +956,23 @@ injection seam; fixture and assertion code remains in the test sidecar. Next,
 strengthen event/sample and independent-ledger evidence for `value_row_seen`
 and `effect_row_seen` setup reserves. The owner-to-route matrix, full §3 gate,
 F5c closure, and F5e certification remain open.
+
+## Journal seen-vector setup event witnesses (2026-09-24)
+
+The partial journal-setup failure witness now starts the incoming sample trace
+before route begin, then injects the existing post-reserve failure at the
+EffectBounds-backed second seen-vector reserve. It proves exactly two ordered
+events: `journal/value_row_seen` and `journal/effect_row_seen`. Each begins at
+zero capacity and is reconciled using its observed slot delta and the previous
+event sample, including semantic/session peaks and finish-output bytes.
+
+After failed begin, the test checks RouteCheckpoint restoration, both retained
+capacities in the spare journal, empty logical seen vectors, one conditional
+post-rollback sample, and independent retained-ledger/counter agreement. The
+existing retry remains intact. Fresh M1 specification review is clean. Primary
+verification: the five-test journal filter passes; format and diff checks pass.
+Three existing journal setup tests were mechanically relocated from `lib.rs`
+to the test sidecar without changing bodies, reducing `lib.rs` by 91 lines.
+Next reconcile the remaining per-use owner-to-route matrix against §3. The
+sampler-cost remeasurement remains deferred pending a fresh budget and a valid
+isolating method; F5c/§3/F5e remain open.
