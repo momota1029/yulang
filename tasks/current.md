@@ -8,9 +8,9 @@ Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026
 
 ### Live F5c resume status (2026-09-24)
 
-F5a and F5b are complete; F5c and F5e are not. The current approved F5c
-implementation remains uncommitted on `yulang3` at `784fa502`, equal to
-`origin/yulang3`. The worktree changes are in `crates/yu-solver/src/lib.rs`,
+F5a and F5b are complete; F5c and F5e are not. The approved F5c working set is
+preserved in checkpoint commit `bb1ec56c` on `yulang3`; this does not close the
+active gates. The commit contains changes to `crates/yu-solver/src/lib.rs`,
 `crates/yu-solver/src/term.rs`, `crates/yu-solver/src/incoming_sample_trace.rs`,
 `crates/yu-solver/src/tests/f5c_scratch_reserve.rs`,
 `crates/yu-solver/src/tests/f5c_value_exact_upper_route.rs`, this task file,
@@ -446,13 +446,17 @@ checkpoint closes.
 
 Verification for this slice: the focused incoming value-route sidecar passed
 all seven tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
-and `git diff --check` passed. The full `yu-solver` library suite was not
-rerun; its last full result remains 202 passed. No benchmark or resource matrix
-was run. The successful-path sampler-cost budget remains consumed without
-accepted timing data. Next resume: reconcile the remaining reachable
+and `git diff --check` passed. The last completed full `yu-solver` library run
+remains 202 passed. A new 209-test single-threaded run was interrupted after
+more than six minutes in the F4 scale tests; before interruption,
+`direct_root_n_and_2n_counters_remain_linear` was reported failed. Its isolated
+rerun passed 1/1, so the cause of the discrepancy remains open and the full
+suite is not certified by this checkpoint. No benchmark or resource
+matrix was run. The successful-path sampler-cost budget remains consumed
+without accepted timing data. Next resume: reconcile the remaining reachable
 owner-to-route failure lanes under the addendum; do not call the complete §3
-sampling/accounting gate closed. All changes remain unstaged, uncommitted, and
-unpushed.
+sampling/accounting gate closed. The F5c working set is preserved by the
+checkpoint commit; inspect the current branch status for remote synchronization.
 
 Still open: exact-alpha versus bounded-normalization authority, fixed-point
 replay/rescans and stack-safe expansion/materialization, per-use rollback

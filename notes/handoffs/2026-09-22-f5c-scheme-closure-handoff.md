@@ -2,16 +2,10 @@
 
 ## Resume point
 
-Branch `yulang3` is at `784fa502` (`GPT-6移行`), equal to
-`origin/yulang3`, with authorized uncommitted changes in
-`crates/yu-solver/src/lib.rs`, `crates/yu-solver/src/term.rs`, `tasks/current.md`,
-`crates/yu-solver/src/incoming_sample_trace.rs`,
-`crates/yu-solver/src/tests/f5c_scratch_reserve.rs`, this handoff,
-`notes/design/INDEX.md`, the indexed-finalizer draft, the producer-order /
-failed-route-sampling addendum, and the 2026-09-23 and 2026-09-24 daily
-progress records. No
-current F5c changes have been staged, committed, or pushed. Resume the approved
-F5c general-scheme closure gate; do not treat the gate as complete.
+The approved F5c working set is preserved in checkpoint commit `bb1ec56c` on
+`yulang3`. This is a preservation boundary, not F5c gate completion. Check the
+current branch status for remote synchronization before resuming; do not treat
+the gate as complete.
 
 The latest user decision keeps normalized-union option 1: an incoming closed
 positive Union uses its canonical first normalized member as the one public
@@ -735,10 +729,14 @@ A fresh M1 specification delta review found no blocker after requiring the
 actual earlier event. The review confirmed event/sample pairing and the exact
 §3 failed-route sampling boundary. The focused sidecar now has seven passing
 tests; `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
-`git diff --check` pass. The full solver library suite was not rerun; the last
-full result remains 202 passed. No benchmark or resource matrix was run, and
-the earlier eight-process sampler-cost budget remains consumed without valid
-timing data. This closes only the `DiagnosticDelta` witness, not the broader
-owner-to-route matrix, full §3 gate, F5c, or F5e. The current lane slice kept
-test bodies and trace machinery outside `lib.rs`; all changes remain
-unstaged, uncommitted, and unpushed.
+`git diff --check` pass. The last completed full solver library result remains
+202 passed. A later 209-test single-threaded run was interrupted after more
+than six minutes in the F4 scale tests; before interruption,
+`direct_root_n_and_2n_counters_remain_linear` was reported failed. Its isolated
+rerun passed 1/1; the cause of the discrepancy remains unadjudicated. No
+benchmark or resource matrix was run, and the earlier eight-process
+sampler-cost budget remains consumed without valid timing data. This closes
+only the `DiagnosticDelta` witness, not the broader owner-to-route matrix,
+full §3 gate, F5c, or F5e. The current lane slice kept test bodies and trace
+machinery outside `lib.rs`. The checkpoint commit is `bb1ec56c`; check the
+current branch status for remote synchronization.
