@@ -88,6 +88,18 @@ branch. Push by default only when that whole range is intended and coherent;
 otherwise defer with the concrete safety blocker. Never force-push without
 explicit user instruction.
 
+Keep long-running work backed up at frequent, meaningful checkpoints; do not
+wait for the entire multi-gate task to finish before committing and pushing.
+After each completed coherent gate or substantial verified natural slice,
+synchronize its records, commit that scope, inspect the full outbound range,
+and push promptly while the range is still coherent. For a gate that spans
+multiple sessions, preserve and push safe sub-slices, label incomplete
+checkpoints honestly, and record the exact next gate and residual risks. Do
+not split an atomic change or push a broken, unrelated, or unreviewed range
+merely to meet cadence. If a safe push is blocked, keep the useful coherent
+local checkpoint and record the concrete blocker; resolve it before allowing
+another large completed slice to accumulate.
+
 Before work, choose the lightest sufficient M0–M3 mode, set reviewer,
 verification, and measurement budgets, and state the convergence criteria. The
 role catalog is not a mandatory panel. Adjudicate all assigned findings before
