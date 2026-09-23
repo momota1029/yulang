@@ -80,9 +80,10 @@ first-member normalized-Union projection remains unchanged. F5c and F5e remain
 incomplete.
 
 Immediate continuation: audit the remaining per-use failure-lane witnesses at
-the exact changed-capacity event/sample boundary. The next focused slice is a
-changed-capacity `TypedWorklist` witness, followed by exact `TypedPairs` and
-`DiagnosticEdges` event linkage. Keep store/provenance/receipt/routed-use and
+the exact changed-capacity event/sample boundary. `TypedWorklist` now has an
+isolated changed-capacity witness with event/rollback/independent-ledger checks.
+The next focused audit is exact `TypedPairs` and `DiagnosticEdges` event
+linkage. Keep store/provenance/receipt/routed-use and
 journal-owner transitions in the residual matrix unless their full end-to-end
 trace evidence is already present. After the owner-to-route matrix is coherent,
 run one bounded successful-path sampling measurement: one warm-up plus three
@@ -888,4 +889,22 @@ retained typed-pair child-edge payload. A first M1 review's §44 representative
 finding was repaired by checking the finalized first member and retried fact
 lower endpoint; fresh M1 delta review is clean. The complete owner-to-route
 matrix, §3 accounting/measurement, F5c, and F5e remain open. Next audit exact
-trace witnesses for `TypedWorklist`, `TypedPairs`, and `DiagnosticEdges`.
+trace witnesses for `TypedPairs` and `DiagnosticEdges`.
+
+## TypedWorklist changed-capacity witness (2026-09-24)
+
+Extended the generic incoming-route changed-capacity sidecar helper with an
+isolated `TypedWorklist` failure case. The quantified source fixture keeps a
+real earlier `FreshValueBounds` event; the worklist starts at zero capacity and
+the injected post-reserve failure is traced to `TypedWorklist`. The shared
+witness checks exact slot-byte and event-peak deltas, RouteCheckpoint restore,
+one post-rollback sample, independently recomputed retained resources, and
+retry linkage across fact, provenance, receipt, and routed-use state.
+
+The fresh M1 specification delta review found no issue. Primary verification:
+the exact test passes, the full sidecar passes 14 tests,
+`cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
+`git diff --check` pass. The helper rename preserves all previous diagnostic
+lane assertions. No production code or `lib.rs` changed; the test remains in
+the sidecar. The exact `TypedPairs` and `DiagnosticEdges` trace witnesses and
+the broader §3/F5c/F5e gates remain open.

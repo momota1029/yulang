@@ -87,6 +87,12 @@ now checks the finalized Union's first member and the retried sole fact's
 closes only those four diagnostic scratch lanes, not the whole typed-pair /
 diagnostic owner-to-route matrix.
 
+The same shared witness now isolates `TypedWorklist` at zero capacity and
+checks its exact `TypedWorkItem` slot-byte event delta, event peaks, rollback,
+single post-rollback sample, independent retained ledger, and retry linkage.
+The fresh M1 specification delta review is clean. The route sidecar now passes
+14 tests; this closes only the named worklist lane.
+
 Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
 same event-time capacity observer. End-to-end incoming failure witnesses prove
 a post-reserve value-row growth sample, a later private-member failure with
@@ -487,16 +493,16 @@ The same helper now covers eight more one-pair diagnostic scratch reserves:
 DFS stack, finish order, SCC indices/nodes/offsets/pending-children/worklist,
 and node witnesses. The M1 specification delta review found no issue. The
 former simple-fixture gap for `DiagnosticReverseEdges` and the bucket lanes
-is closed by the edge/seed-producing Union cases above. The remaining exact
-changed-capacity trace audit should continue with `TypedWorklist`, then
-`TypedPairs` and `DiagnosticEdges`; aggregate coverage in the older Union tests
+is closed by the edge/seed-producing Union cases above. `TypedWorklist` now has
+an exact changed-capacity route trace witness as well. The next audit is
+`TypedPairs` and `DiagnosticEdges`; aggregate coverage in older Union tests
 does not by itself certify each lane's event-to-sample linkage.
 Keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.
 
 Verification for this slice: the focused incoming value-route sidecar passed
-all thirteen tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
+all fourteen tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
 and `git diff --check` passed. The last completed full `yu-solver` library run
 remains 202 passed. A new 209-test single-threaded run was interrupted after
 more than six minutes in the F4 scale tests; before interruption,
@@ -506,8 +512,9 @@ rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
 plausible and no direct F5c path, but the failed assertion values were not
 captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
-without accepted timing data. Next resume: reconcile the remaining reachable
-owner-to-route failure lanes under the addendum; do not call the complete §3
+without accepted timing data. Next resume: isolate changed-capacity event/sample
+witnesses for `TypedPairs`, then `DiagnosticEdges`, while auditing the rest of
+the owner-to-route matrix under the addendum. Do not call the complete §3
 sampling/accounting gate closed. The F5c working set is preserved by the
 checkpoint commit; inspect the current branch status for remote synchronization.
 
