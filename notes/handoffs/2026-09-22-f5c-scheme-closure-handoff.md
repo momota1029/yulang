@@ -837,7 +837,10 @@ completed sample plus the observed capacity delta, and requiring the final
 sample to preserve that peak; the reviewer then withdrew the finding. No
 remaining review finding. The focused value-route sidecar passes eleven tests;
 package test-check, format, and whitespace checks pass. No production code or
-`lib.rs` changed. Lane-specific oracle code remains explicit rather than being
-abstracted into a helper that would obscure its accounting formula. Remaining
-diagnostic scratch lanes, the owner-to-route matrix, §3 accounting/measurement,
-F5c, and F5e remain open.
+`lib.rs` changed. A follow-up M1 test-only consolidation moved the shared
+route/trace/rollback/retry assertions for `DiagnosticDelta`,
+`DiagnosticDeltaIndices`, and `DiagnosticReverseOffsets` into one private
+helper. Lane-specific capacity setup and slot-size formulas remain explicit.
+The refactor removes 325 net lines, and a fresh specification delta review
+found no weakened or omitted assertion. Remaining diagnostic scratch lanes,
+the owner-to-route matrix, §3 accounting/measurement, F5c, and F5e remain open.

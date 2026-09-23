@@ -463,8 +463,12 @@ the exact slot delta, event peak, rollback, independent retained-ledger
 reconciliation, and retry identity. Its M1 review first raised a peak-ledger
 concern, then withdrew it after confirming that the test derives event peaks
 from the immediately preceding sample plus the observed capacity delta. The
-lane-specific oracle remains explicit rather than being hidden in a shared
-helper; the test stays in the sidecar, not `lib.rs`. Keep the separate 63-line
+common route/trace/rollback/retry assertions for `DiagnosticDelta`,
+`DiagnosticDeltaIndices`, and `DiagnosticReverseOffsets` are now consolidated in
+one private sidecar helper, while each lane's capacity setup and element-size
+formula remain explicit. This removes 325 net lines from the three witnesses;
+the M1 review found no weakened assertion. The tests remain outside `lib.rs`.
+Keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.
 
