@@ -80,16 +80,15 @@ first-member normalized-Union projection remains unchanged. F5c and F5e remain
 incomplete.
 
 Immediate continuation: audit the remaining per-use failure-lane witnesses at
-the exact changed-capacity event/sample boundary. `TypedWorklist` now has an
-isolated changed-capacity witness with event/rollback/independent-ledger checks.
-The next focused audit is exact `TypedPairs` and `DiagnosticEdges` event
-linkage. Keep store/provenance/receipt/routed-use and
-journal-owner transitions in the residual matrix unless their full end-to-end
-trace evidence is already present. After the owner-to-route matrix is coherent,
-run one bounded successful-path sampling measurement: one warm-up plus three
-paired samples at one input size, within the eight-process/ten-minute budget.
-The diagnostic completion scratch lanes do not close the full sampling/resource
-gate.
+the exact changed-capacity event/sample boundary. `TypedWorklist`, `TypedPairs`,
+and `DiagnosticEdges` now have isolated changed-capacity witnesses with
+event/rollback/independent-ledger checks. Keep store/provenance/receipt/
+routed-use and journal-owner transitions in the residual matrix unless their
+full end-to-end trace evidence is already present. After the owner-to-route
+matrix is coherent, run one bounded successful-path sampling measurement: one
+warm-up plus three paired samples at one input size, within the
+eight-process/ten-minute budget. The diagnostic completion scratch lanes do not
+close the full sampling/resource gate.
 
 An architect review resolved the stack-safety scratch-accounting phase
 boundary: §§14/26/34 authorize private production accounting for root-local
@@ -906,5 +905,26 @@ the exact test passes, the full sidecar passes 14 tests,
 `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
 `git diff --check` pass. The helper rename preserves all previous diagnostic
 lane assertions. No production code or `lib.rs` changed; the test remains in
-the sidecar. The exact `TypedPairs` and `DiagnosticEdges` trace witnesses and
-the broader §3/F5c/F5e gates remain open.
+the sidecar. The broader §3/F5c/F5e gates remain open.
+
+## TypedPairs and DiagnosticEdges changed-capacity witnesses (2026-09-24)
+
+Extended the shared incoming-route reserve witness with two remaining typed
+memo lanes. `TypedPairs` starts from a verified zero-capacity map and checks
+its exact key/memo slot-byte growth event. `DiagnosticEdges` uses an
+edge-producing normalized Union constrained against a negative Function; its
+per-pair child vector is allowed to disappear when rollback removes the new
+memo, so event-time peak evidence is reconciled against the independently
+rebuilt retained post-state rather than a surviving target capacity.
+
+Both witnesses verify ordered event-to-sample linkage, exact capacity delta,
+event peaks, full RouteCheckpoint restoration, one conditional
+post-rollback sample, independent retained-ledger reconstruction, and retry
+identity. The edge case also confirms the canonical first Union member remains
+the sole public representative. A fresh M1 specification delta review is clean.
+Primary verification: the focused incoming-route filter passes 55 tests, the
+full value-route sidecar passes 16 tests, `cargo fmt --all -- --check`, and
+`git diff --check` pass. No production code or `lib.rs` changed; this is test
+coverage only. Next audit per-use rollback and remaining owner-to-route
+transitions. The §3 sampling/accounting gate, F5c closure, and F5e certification
+remain open.

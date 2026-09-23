@@ -93,6 +93,15 @@ single post-rollback sample, independent retained ledger, and retry linkage.
 The fresh M1 specification delta review is clean. The route sidecar now passes
 14 tests; this closes only the named worklist lane.
 
+The same witness now also isolates `TypedPairs` from a zero-capacity map and
+checks `DiagnosticEdges` through an edge-producing normalized-Union fixture.
+Both verify event-to-sample linkage, exact slot-byte delta and peaks, complete
+checkpoint restoration, independent retained-ledger reconstruction, and retry;
+the edge case preserves the first normalized member as the sole public
+representative. A fresh M1 specification delta review is clean, and the route
+sidecar passes 16 tests. These close only the named lanes; the rest of the
+owner-to-route matrix and §3 accounting/measurement gate remain open.
+
 Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
 same event-time capacity observer. End-to-end incoming failure witnesses prove
 a post-reserve value-row growth sample, a later private-member failure with
@@ -493,10 +502,11 @@ The same helper now covers eight more one-pair diagnostic scratch reserves:
 DFS stack, finish order, SCC indices/nodes/offsets/pending-children/worklist,
 and node witnesses. The M1 specification delta review found no issue. The
 former simple-fixture gap for `DiagnosticReverseEdges` and the bucket lanes
-is closed by the edge/seed-producing Union cases above. `TypedWorklist` now has
-an exact changed-capacity route trace witness as well. The next audit is
-`TypedPairs` and `DiagnosticEdges`; aggregate coverage in older Union tests
-does not by itself certify each lane's event-to-sample linkage.
+is closed by the edge/seed-producing Union cases above. `TypedWorklist`,
+`TypedPairs`, and `DiagnosticEdges` now each have exact changed-capacity route
+trace witnesses; aggregate coverage in older Union tests did not by itself
+certify each lane's event-to-sample linkage. Continue with the remaining
+owner-to-route and per-use rollback matrix.
 Keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.
@@ -512,11 +522,12 @@ rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
 plausible and no direct F5c path, but the failed assertion values were not
 captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
-without accepted timing data. Next resume: isolate changed-capacity event/sample
-witnesses for `TypedPairs`, then `DiagnosticEdges`, while auditing the rest of
-the owner-to-route matrix under the addendum. Do not call the complete §3
-sampling/accounting gate closed. The F5c working set is preserved by the
-checkpoint commit; inspect the current branch status for remote synchronization.
+without accepted timing data. Next resume: boundedly audit per-use failure
+rollback and the remaining owner-to-route transitions under the addendum, then
+run the authorized successful-path sampling measurement when that matrix is
+coherent. Do not call the complete §3 sampling/accounting gate closed. The F5c
+working set is preserved by checkpoint commits; inspect branch synchronization
+before any push.
 
 Still open: exact-alpha versus bounded-normalization authority, fixed-point
 replay/rescans and stack-safe expansion/materialization, per-use rollback

@@ -588,7 +588,9 @@ fn independent_post_rollback_value_row_resources(
 
 #[derive(Clone, Copy)]
 enum IncomingRouteReserveLane {
+    TypedPairs,
     TypedWorklist,
+    DiagnosticEdges,
     Delta,
     DeltaIndices,
     ReverseOffsets,
@@ -609,12 +611,26 @@ enum IncomingRouteReserveLane {
 
 fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
     let (module_name, trace_name, lane_name, injected_lane, slot_size) = match lane {
+        IncomingRouteReserveLane::TypedPairs => (
+            "f5c-typed-pairs-route",
+            "typed-pairs-route",
+            "TypedPairs",
+            F5bCapacityLane::TypedPairs,
+            std::mem::size_of::<(TypedPairKey, TypedPairMemo)>(),
+        ),
         IncomingRouteReserveLane::TypedWorklist => (
             "f5c-typed-worklist-route",
             "typed-worklist-route",
             "TypedWorklist",
             F5bCapacityLane::TypedWorklist,
             std::mem::size_of::<TypedWorkItem>(),
+        ),
+        IncomingRouteReserveLane::DiagnosticEdges => (
+            "f5c-diagnostic-edges-route",
+            "diagnostic-edges-route",
+            "DiagnosticEdges",
+            F5bCapacityLane::DiagnosticEdges,
+            std::mem::size_of::<DiagnosticEdge>(),
         ),
         IncomingRouteReserveLane::Delta => (
             "f5c-diagnostic-delta-route",
@@ -737,7 +753,8 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
         recursive_bounds: Vec::new(),
         predicate: if matches!(
             lane,
-            IncomingRouteReserveLane::ReverseEdges
+            IncomingRouteReserveLane::DiagnosticEdges
+                | IncomingRouteReserveLane::ReverseEdges
                 | IncomingRouteReserveLane::BucketHeads
                 | IncomingRouteReserveLane::BucketTails
                 | IncomingRouteReserveLane::BucketCandidates
@@ -765,7 +782,8 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
     let scheme = finalized.into_parts().0;
     let union_fixture = matches!(
         lane,
-        IncomingRouteReserveLane::ReverseEdges
+        IncomingRouteReserveLane::DiagnosticEdges
+            | IncomingRouteReserveLane::ReverseEdges
             | IncomingRouteReserveLane::BucketHeads
             | IncomingRouteReserveLane::BucketTails
             | IncomingRouteReserveLane::BucketCandidates
@@ -815,7 +833,9 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
             )
             .unwrap();
     }
-    session.typed_pairs.try_reserve(1).unwrap();
+    if !matches!(lane, IncomingRouteReserveLane::TypedPairs) {
+        session.typed_pairs.try_reserve(1).unwrap();
+    }
     match lane {
         IncomingRouteReserveLane::Delta => {
             session.diagnostic_delta_indices.try_reserve(1).unwrap();
@@ -857,7 +877,13 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
         .try_reserve(1)
         .unwrap();
     match lane {
+        IncomingRouteReserveLane::TypedPairs => {
+            assert!(session.typed_pairs.is_empty());
+            session.typed_pairs = HashMap::new();
+            assert_eq!(session.typed_pairs.capacity(), 0);
+        }
         IncomingRouteReserveLane::TypedWorklist => session.typed_worklist = VecDeque::new(),
+        IncomingRouteReserveLane::DiagnosticEdges => {}
         IncomingRouteReserveLane::Delta => {
             session.diagnostic_delta = Vec::new();
             assert_eq!(session.diagnostic_delta.capacity(), 0);
@@ -903,7 +929,9 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
         IncomingRouteReserveLane::SccWorklist => session.diagnostic_scc_worklist = VecDeque::new(),
         IncomingRouteReserveLane::NodeWitnesses => session.diagnostic_node_witnesses = Vec::new(),
     }
-    assert!(session.typed_pairs.capacity() > session.typed_pairs.len());
+    if !matches!(lane, IncomingRouteReserveLane::TypedPairs) {
+        assert!(session.typed_pairs.capacity() > session.typed_pairs.len());
+    }
     assert!(
         session
             .route_journal_spare
@@ -941,10 +969,15 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
     before.assert_restored(&session);
     let trace = incoming_sample_trace::finish(trace_name, 1);
     assert_eq!(trace.attempts, 1);
+    let summary_owner = if matches!(lane, IncomingRouteReserveLane::DiagnosticEdges) {
+        "typed-pair"
+    } else {
+        "typed-route"
+    };
     assert_eq!(
         trace
             .event_lanes
-            .get(&("typed-route".into(), lane_name.into())),
+            .get(&(summary_owner.into(), lane_name.into())),
         Some(&1)
     );
     assert_eq!(trace.matched_events, trace.event_samples);
@@ -958,10 +991,20 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
         .completed_events
         .iter()
         .enumerate()
-        .find(|(_, event)| event.owner == "typed-route" && event.lane == lane_name)
+        .find(|(_, event)| {
+            event.lane == lane_name
+                && if matches!(lane, IncomingRouteReserveLane::DiagnosticEdges) {
+                    event.owner.starts_with("typed-pair-")
+                } else {
+                    event.owner == "typed-route"
+                }
+        })
         .expect("changed incoming-route reserve must have a completed sample");
     assert!(position > 0);
     let previous = &trace.completed_events[position - 1];
+    if matches!(lane, IncomingRouteReserveLane::DiagnosticEdges) {
+        assert!(event.owner.contains("CanonicalValuePairKey"));
+    }
     assert!(previous.sample.semantic_retained_bytes > baseline_semantic);
     assert!(previous.sample.session_retained_bytes > baseline_session);
     assert!(trace.completed_events[..position].iter().any(|earlier| {
@@ -997,29 +1040,39 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
             .max(previous.sample.session_retained_bytes + delta + finish_output)
     );
     let target_capacity = match lane {
-        IncomingRouteReserveLane::TypedWorklist => session.typed_worklist.capacity(),
-        IncomingRouteReserveLane::Delta => session.diagnostic_delta.capacity(),
-        IncomingRouteReserveLane::DeltaIndices => session.diagnostic_delta_indices.capacity(),
-        IncomingRouteReserveLane::ReverseOffsets => session.diagnostic_reverse_offsets.capacity(),
-        IncomingRouteReserveLane::ReverseCursors => session.diagnostic_reverse_cursors.capacity(),
-        IncomingRouteReserveLane::ReverseEdges => session.diagnostic_reverse_edges.capacity(),
-        IncomingRouteReserveLane::BucketHeads => session.diagnostic_bucket_heads.capacity(),
-        IncomingRouteReserveLane::BucketTails => session.diagnostic_bucket_tails.capacity(),
+        IncomingRouteReserveLane::TypedPairs => Some(session.typed_pairs.capacity()),
+        IncomingRouteReserveLane::TypedWorklist => Some(session.typed_worklist.capacity()),
+        IncomingRouteReserveLane::DiagnosticEdges => None,
+        IncomingRouteReserveLane::Delta => Some(session.diagnostic_delta.capacity()),
+        IncomingRouteReserveLane::DeltaIndices => Some(session.diagnostic_delta_indices.capacity()),
+        IncomingRouteReserveLane::ReverseOffsets => {
+            Some(session.diagnostic_reverse_offsets.capacity())
+        }
+        IncomingRouteReserveLane::ReverseCursors => {
+            Some(session.diagnostic_reverse_cursors.capacity())
+        }
+        IncomingRouteReserveLane::ReverseEdges => Some(session.diagnostic_reverse_edges.capacity()),
+        IncomingRouteReserveLane::BucketHeads => Some(session.diagnostic_bucket_heads.capacity()),
+        IncomingRouteReserveLane::BucketTails => Some(session.diagnostic_bucket_tails.capacity()),
         IncomingRouteReserveLane::BucketCandidates => {
-            session.diagnostic_bucket_candidates.capacity()
+            Some(session.diagnostic_bucket_candidates.capacity())
         }
-        IncomingRouteReserveLane::DfsStack => session.diagnostic_dfs_stack.capacity(),
-        IncomingRouteReserveLane::FinishOrder => session.diagnostic_finish_order.capacity(),
-        IncomingRouteReserveLane::SccIndices => session.diagnostic_scc_indices.capacity(),
-        IncomingRouteReserveLane::SccNodes => session.diagnostic_scc_nodes.capacity(),
-        IncomingRouteReserveLane::SccOffsets => session.diagnostic_scc_offsets.capacity(),
+        IncomingRouteReserveLane::DfsStack => Some(session.diagnostic_dfs_stack.capacity()),
+        IncomingRouteReserveLane::FinishOrder => Some(session.diagnostic_finish_order.capacity()),
+        IncomingRouteReserveLane::SccIndices => Some(session.diagnostic_scc_indices.capacity()),
+        IncomingRouteReserveLane::SccNodes => Some(session.diagnostic_scc_nodes.capacity()),
+        IncomingRouteReserveLane::SccOffsets => Some(session.diagnostic_scc_offsets.capacity()),
         IncomingRouteReserveLane::SccPendingChildren => {
-            session.diagnostic_scc_pending_children.capacity()
+            Some(session.diagnostic_scc_pending_children.capacity())
         }
-        IncomingRouteReserveLane::SccWorklist => session.diagnostic_scc_worklist.capacity(),
-        IncomingRouteReserveLane::NodeWitnesses => session.diagnostic_node_witnesses.capacity(),
+        IncomingRouteReserveLane::SccWorklist => Some(session.diagnostic_scc_worklist.capacity()),
+        IncomingRouteReserveLane::NodeWitnesses => {
+            Some(session.diagnostic_node_witnesses.capacity())
+        }
     };
-    assert_eq!(target_capacity, event.new_capacity);
+    if let Some(target_capacity) = target_capacity {
+        assert_eq!(target_capacity, event.new_capacity);
+    }
     let post = trace
         .completed_named_samples
         .get("post-rollback")
@@ -1101,8 +1154,18 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
 }
 
 #[test]
+fn f5c_incoming_typed_pairs_growth_samples_before_rollback_and_retries() {
+    check_incoming_route_changed_reserve(IncomingRouteReserveLane::TypedPairs);
+}
+
+#[test]
 fn f5c_incoming_typed_worklist_growth_samples_before_rollback_and_retries() {
     check_incoming_route_changed_reserve(IncomingRouteReserveLane::TypedWorklist);
+}
+
+#[test]
+fn f5c_incoming_diagnostic_edges_growth_samples_before_rollback_and_retries() {
+    check_incoming_route_changed_reserve(IncomingRouteReserveLane::DiagnosticEdges);
 }
 
 #[test]
