@@ -457,12 +457,19 @@ previous completed event, event peaks, independent post-rollback accounting,
 and retry linkage among the fact, provenance, consumed receipt, and routed-use
 record. Its M1 review found a minor retry-identity gap, closed by those linkage
 assertions. `lib.rs` is currently 28,456 lines and was not modified in these
-lane slices; keep the separate 63-line
+lane slices. A `DiagnosticReverseOffsets` witness now isolates its zero-capacity
+`Vec<usize>` after pre-reserving the earlier typed-pair/delta lanes and proves
+the exact slot delta, event peak, rollback, independent retained-ledger
+reconciliation, and retry identity. Its M1 review first raised a peak-ledger
+concern, then withdrew it after confirming that the test derives event peaks
+from the immediately preceding sample plus the observed capacity delta. The
+lane-specific oracle remains explicit rather than being hidden in a shared
+helper; the test stays in the sidecar, not `lib.rs`. Keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.
 
 Verification for this slice: the focused incoming value-route sidecar passed
-all ten tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
+all eleven tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
 and `git diff --check` passed. The last completed full `yu-solver` library run
 remains 202 passed. A new 209-test single-threaded run was interrupted after
 more than six minutes in the F4 scale tests; before interruption,

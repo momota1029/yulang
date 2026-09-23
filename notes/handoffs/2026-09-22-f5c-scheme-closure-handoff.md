@@ -816,3 +816,28 @@ predicate to isolate this diagnostic map lane; it does not replace the separate
 Union-representative witnesses. Other diagnostic scratch lanes, the complete
 owner-to-route matrix, §3 accounting/measurement, F5c, and F5e remain open. No
 production code or `lib.rs` changed.
+
+## `DiagnosticReverseOffsets` changed-capacity witness (2026-09-24)
+
+Added
+`f5c_incoming_diagnostic_reverse_offsets_growth_samples_before_rollback_and_retries`
+to the incoming value-route sampling sidecar. The fixture pre-reserves the
+typed-pair map, `DiagnosticDelta`, `DiagnosticDeltaIndices`, and journal key
+lane, then replaces the `DiagnosticReverseOffsets` vector with an empty one to
+isolate its first growth. The witness checks the `usize` slot-byte delta and
+event peaks against the immediately preceding completed sample, retained
+capacity, full checkpoint rollback, one conditional post-rollback sample with
+independent retained-ledger reconciliation, and retry identity across fact,
+provenance, consumed receipt, routed use, and use-position marker.
+
+The fresh M1 spec review first raised a major concern that the independent
+ledger was seeded with the event peak. Primary adjudication pointed to the
+separate assertions deriving the event peak from the immediately preceding
+completed sample plus the observed capacity delta, and requiring the final
+sample to preserve that peak; the reviewer then withdrew the finding. No
+remaining review finding. The focused value-route sidecar passes eleven tests;
+package test-check, format, and whitespace checks pass. No production code or
+`lib.rs` changed. Lane-specific oracle code remains explicit rather than being
+abstracted into a helper that would obscure its accounting formula. Remaining
+diagnostic scratch lanes, the owner-to-route matrix, §3 accounting/measurement,
+F5c, and F5e remain open.
