@@ -578,6 +578,14 @@ enum DiagnosticReserveLane {
     DeltaIndices,
     ReverseOffsets,
     ReverseCursors,
+    DfsStack,
+    FinishOrder,
+    SccIndices,
+    SccNodes,
+    SccOffsets,
+    SccPendingChildren,
+    SccWorklist,
+    NodeWitnesses,
 }
 
 fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
@@ -610,6 +618,62 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
             F5bCapacityLane::DiagnosticReverseCursors,
             std::mem::size_of::<usize>(),
         ),
+        DiagnosticReserveLane::DfsStack => (
+            "f5c-diagnostic-dfs-stack-route",
+            "diagnostic-dfs-stack-route",
+            "DiagnosticDfsStack",
+            F5bCapacityLane::DiagnosticDfsStack,
+            std::mem::size_of::<(usize, usize)>(),
+        ),
+        DiagnosticReserveLane::FinishOrder => (
+            "f5c-diagnostic-finish-order-route",
+            "diagnostic-finish-order-route",
+            "DiagnosticFinishOrder",
+            F5bCapacityLane::DiagnosticFinishOrder,
+            std::mem::size_of::<usize>(),
+        ),
+        DiagnosticReserveLane::SccIndices => (
+            "f5c-diagnostic-scc-indices-route",
+            "diagnostic-scc-indices-route",
+            "DiagnosticSccIndices",
+            F5bCapacityLane::DiagnosticSccIndices,
+            std::mem::size_of::<usize>(),
+        ),
+        DiagnosticReserveLane::SccNodes => (
+            "f5c-diagnostic-scc-nodes-route",
+            "diagnostic-scc-nodes-route",
+            "DiagnosticSccNodes",
+            F5bCapacityLane::DiagnosticSccNodes,
+            std::mem::size_of::<usize>(),
+        ),
+        DiagnosticReserveLane::SccOffsets => (
+            "f5c-diagnostic-scc-offsets-route",
+            "diagnostic-scc-offsets-route",
+            "DiagnosticSccOffsets",
+            F5bCapacityLane::DiagnosticSccOffsets,
+            std::mem::size_of::<usize>(),
+        ),
+        DiagnosticReserveLane::SccPendingChildren => (
+            "f5c-diagnostic-scc-pending-children-route",
+            "diagnostic-scc-pending-children-route",
+            "DiagnosticSccPendingChildren",
+            F5bCapacityLane::DiagnosticSccPendingChildren,
+            std::mem::size_of::<usize>(),
+        ),
+        DiagnosticReserveLane::SccWorklist => (
+            "f5c-diagnostic-scc-worklist-route",
+            "diagnostic-scc-worklist-route",
+            "DiagnosticSccWorklist",
+            F5bCapacityLane::DiagnosticSccWorklist,
+            std::mem::size_of::<usize>(),
+        ),
+        DiagnosticReserveLane::NodeWitnesses => (
+            "f5c-diagnostic-node-witnesses-route",
+            "diagnostic-node-witnesses-route",
+            "DiagnosticNodeWitnesses",
+            F5bCapacityLane::DiagnosticNodeWitnesses,
+            std::mem::size_of::<Option<DiagnosticWitness>>(),
+        ),
     };
     let batch = collect(module("my source = 1; my sink = source", module_name));
     let route_id = batch.definition_uses()[0].id.clone();
@@ -638,6 +702,25 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
         DiagnosticReserveLane::ReverseOffsets | DiagnosticReserveLane::ReverseCursors => {
             session.diagnostic_delta.try_reserve(1).unwrap();
             session.diagnostic_delta_indices.try_reserve(1).unwrap();
+        }
+        _ => {
+            session.diagnostic_delta.try_reserve(1).unwrap();
+            session.diagnostic_delta_indices.try_reserve(1).unwrap();
+            session.diagnostic_reverse_offsets.try_reserve(2).unwrap();
+            session.diagnostic_reverse_cursors.try_reserve(1).unwrap();
+            session.diagnostic_dfs_stack.try_reserve(1).unwrap();
+            session.diagnostic_finish_order.try_reserve(1).unwrap();
+            session.diagnostic_scc_indices.try_reserve(1).unwrap();
+            session.diagnostic_scc_nodes.try_reserve(1).unwrap();
+            session.diagnostic_scc_offsets.try_reserve(2).unwrap();
+            session
+                .diagnostic_scc_pending_children
+                .try_reserve(1)
+                .unwrap();
+            session.diagnostic_scc_worklist.try_reserve(1).unwrap();
+            session.diagnostic_bucket_heads.try_reserve(1).unwrap();
+            session.diagnostic_bucket_tails.try_reserve(1).unwrap();
+            session.diagnostic_node_witnesses.try_reserve(1).unwrap();
         }
     }
     session.begin_route_transaction().unwrap();
@@ -678,6 +761,16 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
             assert!(session.diagnostic_delta.capacity() > 0);
             assert!(session.diagnostic_delta_indices.capacity() > 0);
         }
+        DiagnosticReserveLane::DfsStack => session.diagnostic_dfs_stack = Vec::new(),
+        DiagnosticReserveLane::FinishOrder => session.diagnostic_finish_order = Vec::new(),
+        DiagnosticReserveLane::SccIndices => session.diagnostic_scc_indices = Vec::new(),
+        DiagnosticReserveLane::SccNodes => session.diagnostic_scc_nodes = Vec::new(),
+        DiagnosticReserveLane::SccOffsets => session.diagnostic_scc_offsets = Vec::new(),
+        DiagnosticReserveLane::SccPendingChildren => {
+            session.diagnostic_scc_pending_children = Vec::new()
+        }
+        DiagnosticReserveLane::SccWorklist => session.diagnostic_scc_worklist = VecDeque::new(),
+        DiagnosticReserveLane::NodeWitnesses => session.diagnostic_node_witnesses = Vec::new(),
     }
     assert!(session.typed_pairs.capacity() > session.typed_pairs.len());
     assert!(
@@ -777,6 +870,16 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
         DiagnosticReserveLane::DeltaIndices => session.diagnostic_delta_indices.capacity(),
         DiagnosticReserveLane::ReverseOffsets => session.diagnostic_reverse_offsets.capacity(),
         DiagnosticReserveLane::ReverseCursors => session.diagnostic_reverse_cursors.capacity(),
+        DiagnosticReserveLane::DfsStack => session.diagnostic_dfs_stack.capacity(),
+        DiagnosticReserveLane::FinishOrder => session.diagnostic_finish_order.capacity(),
+        DiagnosticReserveLane::SccIndices => session.diagnostic_scc_indices.capacity(),
+        DiagnosticReserveLane::SccNodes => session.diagnostic_scc_nodes.capacity(),
+        DiagnosticReserveLane::SccOffsets => session.diagnostic_scc_offsets.capacity(),
+        DiagnosticReserveLane::SccPendingChildren => {
+            session.diagnostic_scc_pending_children.capacity()
+        }
+        DiagnosticReserveLane::SccWorklist => session.diagnostic_scc_worklist.capacity(),
+        DiagnosticReserveLane::NodeWitnesses => session.diagnostic_node_witnesses.capacity(),
     };
     assert_eq!(target_capacity, event.new_capacity);
     let post = trace
@@ -871,6 +974,22 @@ fn f5c_incoming_diagnostic_reverse_offsets_growth_samples_before_rollback_and_re
 #[test]
 fn f5c_incoming_diagnostic_reverse_cursors_growth_samples_before_rollback_and_retries() {
     check_diagnostic_changed_reserve(DiagnosticReserveLane::ReverseCursors);
+}
+
+#[test]
+fn f5c_incoming_diagnostic_remaining_scratch_growth_samples_before_rollback_and_retries() {
+    for lane in [
+        DiagnosticReserveLane::DfsStack,
+        DiagnosticReserveLane::FinishOrder,
+        DiagnosticReserveLane::SccIndices,
+        DiagnosticReserveLane::SccNodes,
+        DiagnosticReserveLane::SccOffsets,
+        DiagnosticReserveLane::SccPendingChildren,
+        DiagnosticReserveLane::SccWorklist,
+        DiagnosticReserveLane::NodeWitnesses,
+    ] {
+        check_diagnostic_changed_reserve(lane);
+    }
 }
 
 #[test]

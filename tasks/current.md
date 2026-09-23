@@ -472,12 +472,18 @@ the same helper and isolates its vector while pre-reserving two reverse-offset
 slots for the fixture's one pair plus terminal offset. A minor M1 review gap
 about that exact predecessor capacity is closed by asserting capacity >= 2.
 The tests remain outside `lib.rs`.
+The same helper now covers eight more one-pair diagnostic scratch reserves:
+DFS stack, finish order, SCC indices/nodes/offsets/pending-children/worklist,
+and node witnesses. The M1 specification delta review found no issue. This
+fixture cannot exercise `DiagnosticReverseEdges` because its edge count is zero,
+or bucket heads/tails/candidates because no diagnostic seed is produced; those
+lanes need a separate conflict/edge-producing route fixture.
 Keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.
 
 Verification for this slice: the focused incoming value-route sidecar passed
-all twelve tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
+all thirteen tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
 and `git diff --check` passed. The last completed full `yu-solver` library run
 remains 202 passed. A new 209-test single-threaded run was interrupted after
 more than six minutes in the F4 scale tests; before interruption,

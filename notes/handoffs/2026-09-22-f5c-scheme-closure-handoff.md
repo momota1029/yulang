@@ -862,3 +862,21 @@ test passes after the repair; the focused value-route sidecar passes twelve
 tests, package test-check, format, and whitespace checks pass. No production
 code or `lib.rs` changed. Other diagnostic scratch lanes, the owner-to-route
 matrix, §3 accounting/measurement, F5c, and F5e remain open.
+
+## Per-pair diagnostic scratch lane matrix extension (2026-09-24)
+
+Extended the shared changed-capacity helper to cover eight more one-pair
+diagnostic scratch lanes: DFS stack, finish order, SCC indices, SCC nodes, SCC
+offsets, SCC pending children, SCC worklist, and node witnesses. Each selected
+lane starts at zero capacity while the other route-preceding scratch lanes are
+pre-reserved to their exact one-pair request; offset lanes reserve two slots.
+The helper retains the same event-time delta/peak, rollback, independent
+retained-ledger, exactly-one post-rollback sample, and retry identity checks.
+
+The focused value-route sidecar passes thirteen tests; package test-check,
+format, and whitespace checks pass. A fresh M1 specification delta review found
+no issue. No production code or `lib.rs` changed. The fixture intentionally
+does not claim coverage of `DiagnosticReverseEdges` (its `edge_count` is zero)
+or diagnostic bucket heads/tails/candidates (this route emits no diagnostic
+seed). Those lanes need a separate edge/error-producing fixture. The complete
+owner-to-route matrix, §3 accounting/measurement, F5c, and F5e remain open.
