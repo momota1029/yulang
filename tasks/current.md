@@ -445,14 +445,18 @@ checks the exact event delta against its preceding event sample, complete
 rollback and independent retained-ledger reconstruction, then confirms retry
 publishes exactly the canonical Int representative while the Function member
 remains private. Its fresh M1 review closed after adding that representative
-assertion. `lib.rs` is
-currently 28,456 lines and
-was not modified in this lane slice; keep the separate 63-line
+assertion. The `ReportedErrors` witness separately pre-reserves `Errors` and
+its journal key lane, injects after the reported-error set grows, and checks
+the exact event delta/peaks, retained HashSet capacity, independent
+post-rollback ledger, full route checkpoint restoration, and retry with the
+same canonical representative. Fresh M1 specification reviews are clean for
+both witnesses. `lib.rs` is currently 28,456 lines and was not modified in
+these lane slices; keep the separate 63-line
 `ResourceSampleChecked` extraction deferred until the accounting/measurement
 checkpoint closes.
 
 Verification for this slice: the focused incoming value-route sidecar passed
-all eight tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
+all nine tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
 and `git diff --check` passed. The last completed full `yu-solver` library run
 remains 202 passed. A new 209-test single-threaded run was interrupted after
 more than six minutes in the F4 scale tests; before interruption,

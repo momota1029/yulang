@@ -768,3 +768,27 @@ matrix was run. This closes only the `Errors` changed-capacity witness; the
 remaining reachable diagnostic scratch/`ReportedErrors` lanes and the wider
 owner-to-route matrix remain open. This test-only slice did not modify
 `lib.rs`; F5c/F5e are still incomplete.
+
+## `ReportedErrors` changed-capacity witness (2026-09-24)
+
+Added
+`f5c_incoming_reported_errors_growth_samples_after_first_union_member_and_retries`
+to the route-sampling test sidecar. It uses the same normalized, canonically
+distinct Int/Function Union and existing Int upper bound, but pre-reserves the
+`Errors` vector and route-journal key lane so the injected changed-capacity
+failure is isolated to the `ReportedErrors` set. The witness requires the Int
+private member to complete first, records event-time growth and exact
+session-byte/peak delta from the immediately preceding completed sample, and
+checks that the set retains physical capacity while all logical route state is
+restored. One conditional post-rollback sample is reconciled against an
+independent ledger. Retry reports the Function-vs-Int incompatibility while
+publishing exactly one public `Leaf::IntPositive` representative fact.
+
+A fresh M1 specification delta review found no blocker. The focused sidecar now
+passes nine tests; `cargo check -p yu-solver --tests`, format, and
+`git diff --check` pass. The prior full-library attempt and unresolved isolated
+linearity-test discrepancy remain unchanged; no benchmark/resource matrix was
+run. This closes only the `ReportedErrors` changed-capacity witness. Other
+diagnostic scratch lanes, the complete owner-to-route matrix, the §3
+sampling/accounting gate, F5c, and F5e remain open. This test-only slice did not
+change `lib.rs`.
