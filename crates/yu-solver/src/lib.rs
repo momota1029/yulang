@@ -18,6 +18,10 @@ pub(crate) enum F5bCapacityLane {
     LiveComponents,
     ValueBounds,
     EffectBounds,
+    #[cfg(test)]
+    FreshValueBounds,
+    #[cfg(test)]
+    FreshEffectBounds,
     ValueLevels,
     EffectLevels,
     ValueMetadata,
@@ -62,6 +66,17 @@ pub(crate) enum F5bCapacityLane {
     TermPages,
     TermPagePositions,
     TermInterner,
+    InstantiationSubstitution,
+    InstantiationPositiveMemo,
+    InstantiationNegativeMemo,
+    InstantiationPositiveEffects,
+    InstantiationNegativeEffects,
+    InstantiationParts,
+    InstantiationWork,
+    StoreFacts,
+    StoreCanonical,
+    StoreConsumedReceipts,
+    StoreProvenance,
 }
 
 pub(crate) trait F5bReservable {
@@ -91,6 +106,12 @@ impl<T: Eq + Hash, S: std::hash::BuildHasher> F5bReservable for HashSet<T, S> {
 #[cfg(test)]
 thread_local! {
     static F5B_INJECTED_RESERVE_FAILURE: std::cell::Cell<Option<F5bCapacityLane>> = const { std::cell::Cell::new(None) };
+    static F5B_INJECTED_POST_RESERVE_FAILURE: std::cell::Cell<Option<F5bCapacityLane>> = const { std::cell::Cell::new(None) };
+    static F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE: std::cell::Cell<Option<F5bCapacityLane>> = const { std::cell::Cell::new(None) };
+    static F5C_DIAGNOSTIC_EDGE_EVENT_BYTES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static F5C_ROUTE_MANY_PRIVATE_COMPLETIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static F5C_ROUTE_MANY_ARM_EDGE_FAILURE_AFTER_FIRST: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static F5C_SAMPLED_ACTIVE_VALUE_UNDO_CAPACITY: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 pub(crate) fn reserve_f5b<T: F5bReservable>(
@@ -105,14 +126,27 @@ pub(crate) fn reserve_f5b<T: F5bReservable>(
         F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.set(None));
         return Err(ConstraintError::IdentityExhausted);
     }
-    target
+    let result = target
         .reserve_f5b(additional)
-        .map_err(|_| ConstraintError::IdentityExhausted)
+        .map_err(|_| ConstraintError::IdentityExhausted);
+    #[cfg(test)]
+    if result.is_ok()
+        && F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.get() == Some(lane))
+    {
+        F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.set(None));
+        return Err(ConstraintError::IdentityExhausted);
+    }
+    result
 }
 
 #[cfg(test)]
 fn inject_next_f5b_reserve_failure(lane: F5bCapacityLane) {
     F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.set(Some(lane)));
+}
+
+#[cfg(test)]
+fn inject_next_f5b_post_reserve_failure(lane: F5bCapacityLane) {
+    F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.set(Some(lane)));
 }
 
 use yu_hir::{
@@ -127,10 +161,15 @@ use yu_types::{
 
 mod scc;
 use scc::{SccComponentId, SccPlan};
-mod term;
 #[cfg(test)]
-use term::TERM_PAGE_SLOTS;
-use term::{BranchTermArena, TermBuilder, TermLineage, TermNode, kind_prefix, view_prefix};
+mod incoming_sample_trace;
+mod term;
+use term::{
+    BranchTermArena, TermBuilder, TermCapacitySnapshot, TermLineage, TermNode, kind_prefix,
+    view_prefix,
+};
+#[cfg(test)]
+use term::{BranchTermCheckpoint, TERM_PAGE_SLOTS};
 pub use term::{LiveVariableView, Polarity, Term, TermLookupError, TermView};
 
 /// Resource counters use the documented logical `capacity * size_of::<slot>()`
@@ -146,6 +185,70 @@ fn checked_usize_sum(lanes: impl IntoIterator<Item = usize>, label: &'static str
         .into_iter()
         .try_fold(0usize, |total, lane| total.checked_add(lane))
         .unwrap_or_else(|| panic!("{label}: aggregate accounting fits usize"))
+}
+
+/// Collect every arithmetic failure while preparing one resource snapshot.
+/// Callers publish the prepared counters only after `finish` succeeds.
+struct ResourceSampleChecked(std::cell::Cell<bool>);
+
+impl ResourceSampleChecked {
+    fn new() -> Self {
+        Self(std::cell::Cell::new(false))
+    }
+
+    fn bytes<T>(&self, capacity: usize, _label: &'static str) -> usize {
+        self.mul(capacity, std::mem::size_of::<T>())
+    }
+
+    fn mul(&self, left: usize, right: usize) -> usize {
+        left.checked_mul(right).unwrap_or_else(|| {
+            self.0.set(true);
+            0
+        })
+    }
+
+    fn add(&self, left: usize, right: usize) -> usize {
+        left.checked_add(right).unwrap_or_else(|| {
+            self.0.set(true);
+            0
+        })
+    }
+
+    #[cfg(test)]
+    fn sub(&self, left: usize, right: usize) -> usize {
+        left.checked_sub(right).unwrap_or_else(|| {
+            self.0.set(true);
+            0
+        })
+    }
+
+    fn sum(&self, lanes: impl IntoIterator<Item = usize>, _label: &'static str) -> usize {
+        lanes
+            .into_iter()
+            .fold(0, |total, lane| self.add(total, lane))
+    }
+
+    fn finish(&self) -> Result<(), SolveAvailabilityError> {
+        if self.0.get() {
+            Err(SolveAvailabilityError::IdentityExhausted)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+fn checked_fixed_capacity_bytes(
+    lanes: impl IntoIterator<Item = (usize, usize)>,
+) -> Result<usize, SolveAvailabilityError> {
+    let checked = ResourceSampleChecked::new();
+    let bytes = checked.sum(
+        lanes
+            .into_iter()
+            .map(|(capacity, size)| checked.mul(capacity, size)),
+        "fixed capacity lanes",
+    );
+    checked.finish()?;
+    Ok(bytes)
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -1842,6 +1945,24 @@ pub struct ProductionCounters {
     scc_execution_bottom_trivial_instantiations: usize,
     scc_execution_draft_lookups: usize,
     scc_execution_cross_draft_visits: usize,
+    generalization_shared_summary_admissions: usize,
+    generalization_uncacheable_states: usize,
+    generalization_shared_summary_hits: usize,
+    component_expansion_memo_requested_slots: usize,
+    component_expansion_memo_actual_capacity: usize,
+    component_expansion_memo_retained_bytes: usize,
+    component_expansion_memo_peak_bytes: usize,
+    component_expansion_memo_capacity_growths: usize,
+    instantiation_fresh_value_variables: usize,
+    instantiation_fresh_effect_variables: usize,
+    instantiation_node_visits: usize,
+    instantiation_lower_bound_restorations: usize,
+    instantiation_upper_bound_restorations: usize,
+    instantiation_substitution_requested_slots: usize,
+    instantiation_substitution_actual_capacity: usize,
+    instantiation_substitution_retained_bytes: usize,
+    instantiation_substitution_peak_bytes: usize,
+    instantiation_substitution_capacity_growths: usize,
     constraint_pair_admissions: usize,
     constraint_pair_duplicates: usize,
     lower_bound_insertions: usize,
@@ -2055,6 +2176,24 @@ impl ProductionCounters {
         scc_execution_bottom_trivial_instantiations,
         scc_execution_draft_lookups,
         scc_execution_cross_draft_visits,
+        generalization_shared_summary_admissions,
+        generalization_uncacheable_states,
+        generalization_shared_summary_hits,
+        component_expansion_memo_requested_slots,
+        component_expansion_memo_actual_capacity,
+        component_expansion_memo_retained_bytes,
+        component_expansion_memo_peak_bytes,
+        component_expansion_memo_capacity_growths,
+        instantiation_fresh_value_variables,
+        instantiation_fresh_effect_variables,
+        instantiation_node_visits,
+        instantiation_lower_bound_restorations,
+        instantiation_upper_bound_restorations,
+        instantiation_substitution_requested_slots,
+        instantiation_substitution_actual_capacity,
+        instantiation_substitution_retained_bytes,
+        instantiation_substitution_peak_bytes,
+        instantiation_substitution_capacity_growths,
         constraint_pair_admissions,
         constraint_pair_duplicates,
         lower_bound_insertions,
@@ -2339,6 +2478,24 @@ impl ProductionCounters {
             scc_execution_bottom_trivial_instantiations,
             scc_execution_draft_lookups,
             scc_execution_cross_draft_visits,
+            generalization_shared_summary_admissions,
+            generalization_uncacheable_states,
+            generalization_shared_summary_hits,
+            component_expansion_memo_requested_slots,
+            component_expansion_memo_actual_capacity,
+            component_expansion_memo_retained_bytes,
+            component_expansion_memo_peak_bytes,
+            component_expansion_memo_capacity_growths,
+            instantiation_fresh_value_variables,
+            instantiation_fresh_effect_variables,
+            instantiation_node_visits,
+            instantiation_lower_bound_restorations,
+            instantiation_upper_bound_restorations,
+            instantiation_substitution_requested_slots,
+            instantiation_substitution_actual_capacity,
+            instantiation_substitution_retained_bytes,
+            instantiation_substitution_peak_bytes,
+            instantiation_substitution_capacity_growths,
             constraint_pair_admissions,
             constraint_pair_duplicates,
             lower_bound_insertions,
@@ -2491,11 +2648,51 @@ pub struct ConstraintStore {
     provenance: Vec<ProvenanceEdge>,
     comparisons: Arc<AtomicUsize>,
     counters: ProductionCounters,
+    // Admission can roll back logical contents before the session regains
+    // control. Capacity events remain available through this fixed handoff.
+    route_capacity_events: [usize; 4],
+    route_capacity_snapshots: [Option<StoreCapacitySnapshot>; 4],
+    route_capacity_snapshot_count: usize,
+    route_accounting_active: bool,
     #[cfg(test)]
     injected_admission_failure: Option<ConstraintError>,
     #[cfg(test)]
     injected_provenance_failure: Option<ConstraintError>,
+    #[cfg(test)]
+    injected_after_fact_failure: bool,
 }
+
+#[derive(Clone, Copy, Debug)]
+struct StoreCapacitySnapshot {
+    capacities: [usize; 4],
+    #[cfg(test)]
+    growths: [usize; 4],
+}
+
+/// Private public-store state for one per-use route transaction.  Container
+/// capacities may grow while the transaction runs, but all logical contents,
+/// receipts, counters, and term visibility return to this checkpoint on
+/// failure.
+#[cfg(test)]
+struct ConstraintStoreCheckpoint {
+    terms: BranchTermCheckpoint,
+    next_receipt: u64,
+    consumed_receipts: HashSet<u64>,
+    facts: Vec<SemanticFact>,
+    canonical: HashMap<FactKey, FactId>,
+    provenance: Vec<ProvenanceEdge>,
+    comparisons: usize,
+    counters: ProductionCounters,
+}
+
+struct RouteStoreJournal {
+    facts_len: usize,
+    provenance_len: usize,
+    next_receipt: u64,
+    comparisons: usize,
+    counters: ProductionCounters,
+}
+
 impl ConstraintStore {
     pub fn from_batch(batch: ConstraintBatch) -> Self {
         let lineage = batch.term_lineage();
@@ -2529,27 +2726,265 @@ impl ConstraintStore {
                 consumed_receipt_requested_capacity: requested_capacity,
                 ..ProductionCounters::default()
             },
+            route_capacity_events: [0; 4],
+            route_capacity_snapshots: [None; 4],
+            route_capacity_snapshot_count: 0,
+            route_accounting_active: false,
             #[cfg(test)]
             injected_admission_failure: None,
             #[cfg(test)]
             injected_provenance_failure: None,
+            #[cfg(test)]
+            injected_after_fact_failure: false,
         }
     }
     pub fn transaction(&mut self) -> ConstraintTransaction<'_> {
         ConstraintTransaction { store: self }
     }
+
+    #[cfg(test)]
+    fn checkpoint(&self) -> ConstraintStoreCheckpoint {
+        ConstraintStoreCheckpoint {
+            terms: self.terms.checkpoint(),
+            next_receipt: self.next_receipt,
+            consumed_receipts: self.consumed_receipts.clone(),
+            facts: self.facts.clone(),
+            canonical: self.canonical.clone(),
+            provenance: self.provenance.clone(),
+            comparisons: self.comparisons.load(Ordering::Relaxed),
+            counters: self.counters.clone(),
+        }
+    }
+
+    fn begin_route(&mut self, incoming: bool) -> RouteStoreJournal {
+        self.terms.begin_route();
+        self.route_accounting_active = incoming;
+        self.route_capacity_events = [0; 4];
+        self.route_capacity_snapshots = [None; 4];
+        self.route_capacity_snapshot_count = 0;
+        RouteStoreJournal {
+            facts_len: self.facts.len(),
+            provenance_len: self.provenance.len(),
+            next_receipt: self.next_receipt,
+            comparisons: self.comparisons.load(Ordering::Relaxed),
+            counters: self.counters.clone(),
+        }
+    }
+
+    fn commit_route(&mut self) {
+        self.terms.commit_route();
+        self.route_accounting_active = false;
+    }
+
+    fn rollback_route(&mut self, journal: RouteStoreJournal) {
+        let physical_growths = [
+            self.counters.fact_store_growths,
+            self.counters.fact_store_rebuilds,
+            self.counters.canonical_map_growths,
+            self.counters.canonical_map_rebuilds,
+            self.counters.consumed_receipt_growths,
+            self.counters.consumed_receipt_rebuilds,
+            self.counters.provenance_growths,
+            self.counters.provenance_rebuilds,
+        ];
+        if let Some(fact) = self.facts.get(journal.facts_len) {
+            let key = FactKey::new(fact.lower, fact.upper, self.comparisons.clone());
+            assert_eq!(self.canonical.remove(&key), Some(fact.id));
+        }
+        if self.provenance.len() > journal.provenance_len {
+            assert!(self.consumed_receipts.remove(&journal.next_receipt));
+        }
+        self.facts.truncate(journal.facts_len);
+        self.provenance.truncate(journal.provenance_len);
+        self.next_receipt = journal.next_receipt;
+        self.comparisons
+            .store(journal.comparisons, Ordering::Relaxed);
+        self.counters = journal.counters;
+        if self.route_accounting_active {
+            self.counters.fact_store_growths = physical_growths[0];
+            self.counters.fact_store_rebuilds = physical_growths[1];
+            self.counters.canonical_map_growths = physical_growths[2];
+            self.counters.canonical_map_rebuilds = physical_growths[3];
+            self.counters.consumed_receipt_growths = physical_growths[4];
+            self.counters.consumed_receipt_rebuilds = physical_growths[5];
+            self.counters.provenance_growths = physical_growths[6];
+            self.counters.provenance_rebuilds = physical_growths[7];
+        }
+        self.route_accounting_active = false;
+        self.terms.rollback_route();
+    }
+
+    fn take_route_capacity_events(&mut self) -> [usize; 4] {
+        std::mem::take(&mut self.route_capacity_events)
+    }
+
+    fn note_route_capacity_event(&mut self, lane: usize) -> Result<(), ConstraintError> {
+        if self.route_accounting_active {
+            let count = self.route_capacity_events[lane]
+                .checked_add(1)
+                .ok_or(ConstraintError::IdentityExhausted)?;
+            let index = self.route_capacity_snapshot_count;
+            if index >= self.route_capacity_snapshots.len() {
+                return Err(ConstraintError::IdentityExhausted);
+            }
+            #[cfg(test)]
+            let growths = {
+                let mut growths = [
+                    self.counters.fact_store_growths,
+                    self.counters.canonical_map_growths,
+                    self.counters.consumed_receipt_growths,
+                    self.counters.provenance_growths,
+                ];
+                growths[lane] = growths[lane]
+                    .checked_add(1)
+                    .ok_or(ConstraintError::IdentityExhausted)?;
+                growths
+            };
+            self.route_capacity_snapshots[index] = Some(StoreCapacitySnapshot {
+                capacities: [
+                    self.facts.capacity(),
+                    self.canonical.capacity(),
+                    self.consumed_receipts.capacity(),
+                    self.provenance.capacity(),
+                ],
+                #[cfg(test)]
+                growths,
+            });
+            self.route_capacity_snapshot_count = index + 1;
+            self.route_capacity_events[lane] = count;
+        }
+        Ok(())
+    }
+
+    fn take_route_capacity_snapshots(&mut self) -> [Option<StoreCapacitySnapshot>; 4] {
+        self.route_capacity_snapshot_count = 0;
+        std::mem::take(&mut self.route_capacity_snapshots)
+    }
+
+    fn record_store_growth(
+        &mut self,
+        lane: usize,
+        old_capacity: usize,
+    ) -> Result<(), ConstraintError> {
+        #[cfg(not(test))]
+        let _ = old_capacity;
+        #[cfg(test)]
+        if self.route_accounting_active {
+            let current = match lane {
+                0 => self.facts.capacity(),
+                1 => self.canonical.capacity(),
+                2 => self.consumed_receipts.capacity(),
+                3 => self.provenance.capacity(),
+                _ => unreachable!(),
+            };
+            incoming_sample_trace::event(
+                || "ConstraintStore".into(),
+                || format!("lane-{lane}"),
+                old_capacity,
+                current,
+            );
+        }
+        let (growths, rebuilds) = match lane {
+            0 => (
+                self.counters.fact_store_growths,
+                self.counters.fact_store_rebuilds,
+            ),
+            1 => (
+                self.counters.canonical_map_growths,
+                self.counters.canonical_map_rebuilds,
+            ),
+            2 => (
+                self.counters.consumed_receipt_growths,
+                self.counters.consumed_receipt_rebuilds,
+            ),
+            3 => (
+                self.counters.provenance_growths,
+                self.counters.provenance_rebuilds,
+            ),
+            _ => unreachable!(),
+        };
+        let growths = growths
+            .checked_add(1)
+            .ok_or(ConstraintError::IdentityExhausted)?;
+        let rebuilds = rebuilds
+            .checked_add(1)
+            .ok_or(ConstraintError::IdentityExhausted)?;
+        self.note_route_capacity_event(lane)?;
+        match lane {
+            0 => {
+                self.counters.fact_store_growths = growths;
+                self.counters.fact_store_rebuilds = rebuilds;
+            }
+            1 => {
+                self.counters.canonical_map_growths = growths;
+                self.counters.canonical_map_rebuilds = rebuilds;
+            }
+            2 => {
+                self.counters.consumed_receipt_growths = growths;
+                self.counters.consumed_receipt_rebuilds = rebuilds;
+            }
+            3 => {
+                self.counters.provenance_growths = growths;
+                self.counters.provenance_rebuilds = rebuilds;
+            }
+            _ => unreachable!(),
+        }
+        Ok(())
+    }
+
+    fn check_store_growth_available(&self, lane: usize) -> Result<(), ConstraintError> {
+        let (growths, rebuilds) = match lane {
+            0 => (
+                self.counters.fact_store_growths,
+                self.counters.fact_store_rebuilds,
+            ),
+            1 => (
+                self.counters.canonical_map_growths,
+                self.counters.canonical_map_rebuilds,
+            ),
+            2 => (
+                self.counters.consumed_receipt_growths,
+                self.counters.consumed_receipt_rebuilds,
+            ),
+            3 => (
+                self.counters.provenance_growths,
+                self.counters.provenance_rebuilds,
+            ),
+            _ => unreachable!(),
+        };
+        growths
+            .checked_add(1)
+            .zip(rebuilds.checked_add(1))
+            .ok_or(ConstraintError::IdentityExhausted)?;
+        if self.route_accounting_active {
+            self.route_capacity_events[lane]
+                .checked_add(1)
+                .ok_or(ConstraintError::IdentityExhausted)?;
+            if self.route_capacity_snapshot_count >= self.route_capacity_snapshots.len() {
+                return Err(ConstraintError::IdentityExhausted);
+            }
+        }
+        Ok(())
+    }
+
     pub fn term_view(&self, term: Term) -> Result<TermView<'_>, TermLookupError> {
         self.terms.term_view(term)
     }
     pub fn term_kind(&self, term: Term) -> Result<ComponentKind, TermLookupError> {
         self.terms.term_kind(term)
     }
-    fn inference_term_retained_bytes(&self) -> usize {
-        self.terms.retained_bytes()
+    fn checked_inference_term_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.terms
+            .checked_retained_bytes()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
     }
     #[cfg(test)]
-    fn independent_inference_term_retained_bytes(&self) -> usize {
-        self.terms.independent_retained_bytes()
+    fn checked_independent_inference_term_retained_bytes(
+        &self,
+    ) -> Result<usize, SolveAvailabilityError> {
+        self.terms
+            .checked_independent_retained_bytes()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
     }
     #[cfg(test)]
     fn push_test_branch_term(&mut self, node: TermNode) -> Term {
@@ -2581,21 +3016,44 @@ impl ConstraintStore {
         }
         self.counters.consumed_receipt_index_probes += 1;
         let old_capacity = self.consumed_receipts.capacity();
-        if !self.consumed_receipts.insert(receipt.serial) {
+        if self.consumed_receipts.len() == old_capacity {
+            self.check_store_growth_available(2)?;
+        }
+        if self.route_accounting_active {
+            let reserve = reserve_f5b(
+                &mut self.consumed_receipts,
+                1,
+                F5bCapacityLane::StoreConsumedReceipts,
+            );
+            if self.consumed_receipts.capacity() != old_capacity {
+                self.record_store_growth(2, old_capacity)?;
+            }
+            reserve?;
+        }
+        let inserted = self.consumed_receipts.insert(receipt.serial);
+        if !self.route_accounting_active && self.consumed_receipts.capacity() != old_capacity {
+            self.record_store_growth(2, old_capacity)?;
+        }
+        if !inserted {
             return Err(ConstraintError::ReceiptConsumed);
         }
-        if self.consumed_receipts.capacity() != old_capacity {
-            self.counters.consumed_receipt_growths += 1;
-            self.counters.consumed_receipt_rebuilds += 1;
-        }
         let old_capacity = self.provenance.capacity();
+        if self.provenance.len() == old_capacity {
+            self.check_store_growth_available(3)?;
+        }
+        if self.route_accounting_active {
+            let reserve = reserve_f5b(&mut self.provenance, 1, F5bCapacityLane::StoreProvenance);
+            if self.provenance.capacity() != old_capacity {
+                self.record_store_growth(3, old_capacity)?;
+            }
+            reserve?;
+        }
         self.provenance.push(ProvenanceEdge {
             cause: receipt.cause,
             fact: receipt.fact,
         });
-        if self.provenance.capacity() != old_capacity {
-            self.counters.provenance_growths += 1;
-            self.counters.provenance_rebuilds += 1;
+        if !self.route_accounting_active && self.provenance.capacity() != old_capacity {
+            self.record_store_growth(3, old_capacity)?;
         }
         self.counters.provenance_edges += 1;
         self.counters.provenance_retained_bytes = checked_capacity_bytes::<ProvenanceEdge>(
@@ -2628,7 +3086,9 @@ impl ConstraintStore {
                     let fact = self.facts.last().expect("admitted fact remains present").id;
                     let key =
                         FactKey::new(occurrence.lower, occurrence.upper, self.comparisons.clone());
-                    assert_eq!(self.canonical.remove(&key), Some(fact));
+                    if self.canonical.get(&key) == Some(&fact) {
+                        assert_eq!(self.canonical.remove(&key), Some(fact));
+                    }
                 }
                 self.facts.truncate(facts_len);
                 self.provenance.truncate(provenance_len);
@@ -2766,20 +3226,50 @@ impl ConstraintTransaction<'_> {
                     .map_err(|_| ConstraintError::IdentityExhausted)?,
             );
             let old_fact_capacity = self.store.facts.capacity();
+            if self.store.facts.len() == old_fact_capacity {
+                self.store.check_store_growth_available(0)?;
+            }
+            if self.store.route_accounting_active {
+                let reserve = reserve_f5b(&mut self.store.facts, 1, F5bCapacityLane::StoreFacts);
+                if self.store.facts.capacity() != old_fact_capacity {
+                    self.store.record_store_growth(0, old_fact_capacity)?;
+                }
+                reserve?;
+            }
             self.store.facts.push(SemanticFact {
                 id: fact,
                 lower: occurrence.lower.clone(),
                 upper: occurrence.upper.clone(),
             });
-            if self.store.facts.capacity() != old_fact_capacity {
-                self.store.counters.fact_store_growths += 1;
-                self.store.counters.fact_store_rebuilds += 1;
+            if !self.store.route_accounting_active
+                && self.store.facts.capacity() != old_fact_capacity
+            {
+                self.store.record_store_growth(0, old_fact_capacity)?;
+            }
+            #[cfg(test)]
+            if std::mem::take(&mut self.store.injected_after_fact_failure) {
+                return Err(ConstraintError::IdentityExhausted);
             }
             let old_capacity = self.store.canonical.capacity();
+            if self.store.canonical.len() == old_capacity {
+                self.store.check_store_growth_available(1)?;
+            }
+            if self.store.route_accounting_active {
+                let reserve = reserve_f5b(
+                    &mut self.store.canonical,
+                    1,
+                    F5bCapacityLane::StoreCanonical,
+                );
+                if self.store.canonical.capacity() != old_capacity {
+                    self.store.record_store_growth(1, old_capacity)?;
+                }
+                reserve?;
+            }
             self.store.canonical.insert(key, fact);
-            if self.store.canonical.capacity() != old_capacity {
-                self.store.counters.canonical_map_rebuilds += 1;
-                self.store.counters.canonical_map_growths += 1;
+            if !self.store.route_accounting_active
+                && self.store.canonical.capacity() != old_capacity
+            {
+                self.store.record_store_growth(1, old_capacity)?;
             }
             self.store.counters.admitted_facts += 1;
             self.store.counters.accepted_work_items += 1;
@@ -2944,7 +3434,7 @@ struct VariableBounds {
     has_int_positive_lower: bool,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct EffectBounds {
     direct_lower_rows: Vec<u32>,
     direct_upper_rows: Vec<u32>,
@@ -2954,12 +3444,13 @@ struct EffectBounds {
     has_empty_upper: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum LiveConstraintTask {
     Value(CanonicalValuePairKey),
     Effect(EffectEndpointKey, EffectEndpointKey),
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct TypedWorkItem {
     task: LiveConstraintTask,
 }
@@ -2987,7 +3478,7 @@ struct DiagnosticReverseEdge {
 /// One call-local FIFO link.  Pair memo entries deliberately never retain
 /// completion routing state: these nodes exist only while one §39 delta is
 /// being condensed and settled.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct DiagnosticBucketCandidate {
     node: usize,
     witness: DiagnosticWitness,
@@ -3003,7 +3494,7 @@ enum DiagnosticCompletion {
 /// The session-wide typed memo is the sole semantic pair authority.  A value
 /// pair retains only one finite canonical witness; diagnostics never retain a
 /// descendant list, route, or per-cause waiter state.
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum TypedPairMemo {
     Effect,
     Value {
@@ -3016,7 +3507,7 @@ enum TypedPairMemo {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum FunctionField {
     Argument,
     ArgumentEffect,
@@ -3024,13 +3515,13 @@ enum FunctionField {
     Result,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ExtrusionEndpoint {
     Value(ValueEndpointKey),
     Effect(EffectEndpointKey),
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[allow(
     dead_code,
     reason = "deprecated F4 occurrence-bound compatibility fields remain zero; live rows own semantics"
@@ -3052,6 +3543,7 @@ enum F5cPositive {
     Variable(u32),
     Quantified(u32),
     Recursive(u32),
+    Shared(F5cSummaryNodeId),
     Union(Vec<F5cPositive>),
     Function {
         argument: Box<F5cNegative>,
@@ -3079,6 +3571,7 @@ enum F5cNegative {
     Variable(u32),
     Quantified(u32),
     Recursive(u32),
+    Shared(F5cSummaryNodeId),
     Intersection(Vec<F5cNegative>),
     Function {
         argument: Box<F5cPositive>,
@@ -3102,54 +3595,2429 @@ struct GeneralizationDraft {
     predicate: F5cPositive,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum F5cBoundSide {
+    Lower,
+    Upper,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum F5cTraceHop {
+    Exact {
+        side: F5cBoundSide,
+        slot: usize,
+    },
+    Direct {
+        side: F5cBoundSide,
+        slot: usize,
+        source: u32,
+        target: u32,
+    },
+    Function(FunctionField),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct F5cGuardedTrace {
+    owner: u32,
+    entry_polarity: Polarity,
+    reentry_polarity: Polarity,
+    path: Vec<F5cTraceHop>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum F5cAlphaRef {
+    SelfOwner,
+    Local(u32),
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum F5cCanonicalTree {
+    PositiveBottom,
+    PositiveInt,
+    PositiveVariable(F5cAlphaRef),
+    PositiveQuantified(u32),
+    PositiveRecursive(u32),
+    PositiveUnion(Vec<F5cCanonicalTree>),
+    PositiveFunction {
+        argument: Box<F5cCanonicalTree>,
+        result: Box<F5cCanonicalTree>,
+    },
+    NegativeTop,
+    NegativeBottom,
+    NegativeInt,
+    NegativeVariable(F5cAlphaRef),
+    NegativeQuantified(u32),
+    NegativeRecursive(u32),
+    NegativeIntersection(Vec<F5cCanonicalTree>),
+    NegativeFunction {
+        argument: Box<F5cCanonicalTree>,
+        result: Box<F5cCanonicalTree>,
+    },
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct F5cCanonicalKey {
+    roots: Vec<F5cCanonicalTree>,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum F5cNormalizedHop {
+    Exact(F5cBoundSide),
+    Direct(F5cBoundSide, Option<F5cCanonicalKey>),
+    Function(FunctionField),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum F5cOccurrenceHop {
+    Root(u32, F5cBoundSide),
+    Union(u32),
+    Function(FunctionField),
+}
+
+#[derive(Clone)]
+enum F5cKeyNode {
+    Leaf(F5cCanonicalTree),
+    PositiveVariable(u32),
+    NegativeVariable(u32),
+    PositiveUnion(Vec<usize>),
+    PositiveFunction(usize, usize),
+    NegativeIntersection(Vec<usize>),
+    NegativeFunction(usize, usize),
+}
+
+#[derive(Default)]
+struct F5cKeyForest {
+    nodes: Vec<F5cKeyNode>,
+    variables: Vec<u32>,
+    variable_set: HashSet<u32>,
+}
+
+impl F5cKeyForest {
+    fn leaf(&mut self, signature: F5cCanonicalTree) -> usize {
+        let index = self.nodes.len();
+        self.nodes.push(F5cKeyNode::Leaf(signature));
+        index
+    }
+
+    fn variable(&mut self, ordinal: u32, positive: bool, owner: u32) -> usize {
+        if ordinal != owner && self.variable_set.insert(ordinal) {
+            self.variables.push(ordinal);
+        }
+        let index = self.nodes.len();
+        self.nodes.push(if positive {
+            F5cKeyNode::PositiveVariable(ordinal)
+        } else {
+            F5cKeyNode::NegativeVariable(ordinal)
+        });
+        index
+    }
+
+    fn positive(&mut self, value: &F5cPositive, owner: u32) -> usize {
+        match value {
+            F5cPositive::Bottom => self.leaf(F5cCanonicalTree::PositiveBottom),
+            F5cPositive::Int => self.leaf(F5cCanonicalTree::PositiveInt),
+            F5cPositive::Variable(ordinal) => self.variable(*ordinal, true, owner),
+            F5cPositive::Quantified(ordinal) => {
+                self.leaf(F5cCanonicalTree::PositiveQuantified(*ordinal))
+            }
+            F5cPositive::Recursive(ordinal) => {
+                self.leaf(F5cCanonicalTree::PositiveRecursive(*ordinal))
+            }
+            F5cPositive::Shared(_) => unreachable!("summary IDs are materialized before keys"),
+            F5cPositive::Union(values) => {
+                let children = values
+                    .iter()
+                    .map(|value| self.positive(value, owner))
+                    .collect::<Vec<_>>();
+                self.branch(F5cKeyNode::PositiveUnion(children))
+            }
+            F5cPositive::Function {
+                argument, result, ..
+            } => {
+                let argument = self.negative(argument, owner);
+                let result = self.positive(result, owner);
+                self.branch(F5cKeyNode::PositiveFunction(argument, result))
+            }
+        }
+    }
+
+    fn negative(&mut self, value: &F5cNegative, owner: u32) -> usize {
+        match value {
+            F5cNegative::Top => self.leaf(F5cCanonicalTree::NegativeTop),
+            F5cNegative::Bottom => self.leaf(F5cCanonicalTree::NegativeBottom),
+            F5cNegative::Int => self.leaf(F5cCanonicalTree::NegativeInt),
+            F5cNegative::Variable(ordinal) => self.variable(*ordinal, false, owner),
+            F5cNegative::Quantified(ordinal) => {
+                self.leaf(F5cCanonicalTree::NegativeQuantified(*ordinal))
+            }
+            F5cNegative::Recursive(ordinal) => {
+                self.leaf(F5cCanonicalTree::NegativeRecursive(*ordinal))
+            }
+            F5cNegative::Shared(_) => unreachable!("summary IDs are materialized before keys"),
+            F5cNegative::Intersection(values) => {
+                let children = values
+                    .iter()
+                    .map(|value| self.negative(value, owner))
+                    .collect::<Vec<_>>();
+                self.branch(F5cKeyNode::NegativeIntersection(children))
+            }
+            F5cNegative::Function {
+                argument, result, ..
+            } => {
+                let argument = self.positive(argument, owner);
+                let result = self.negative(result, owner);
+                self.branch(F5cKeyNode::NegativeFunction(argument, result))
+            }
+        }
+    }
+
+    fn branch(&mut self, node: F5cKeyNode) -> usize {
+        let index = self.nodes.len();
+        self.nodes.push(node);
+        index
+    }
+
+    fn tree(
+        &self,
+        index: usize,
+        owner: u32,
+        labels: &HashMap<u32, u32>,
+    ) -> Result<F5cCanonicalTree, SolveAvailabilityError> {
+        Ok(
+            match self
+                .nodes
+                .get(index)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+            {
+                F5cKeyNode::Leaf(tree) => tree.clone(),
+                F5cKeyNode::PositiveVariable(ordinal) => {
+                    F5cCanonicalTree::PositiveVariable(if *ordinal == owner {
+                        F5cAlphaRef::SelfOwner
+                    } else {
+                        F5cAlphaRef::Local(
+                            *labels
+                                .get(ordinal)
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                        )
+                    })
+                }
+                F5cKeyNode::NegativeVariable(ordinal) => {
+                    F5cCanonicalTree::NegativeVariable(if *ordinal == owner {
+                        F5cAlphaRef::SelfOwner
+                    } else {
+                        F5cAlphaRef::Local(
+                            *labels
+                                .get(ordinal)
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                        )
+                    })
+                }
+                F5cKeyNode::PositiveUnion(children) => {
+                    let mut children = children
+                        .iter()
+                        .map(|child| self.tree(*child, owner, labels))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    children.sort_unstable();
+                    children.dedup();
+                    F5cCanonicalTree::PositiveUnion(children)
+                }
+                F5cKeyNode::PositiveFunction(argument, result) => {
+                    F5cCanonicalTree::PositiveFunction {
+                        argument: Box::new(self.tree(*argument, owner, labels)?),
+                        result: Box::new(self.tree(*result, owner, labels)?),
+                    }
+                }
+                F5cKeyNode::NegativeIntersection(children) => {
+                    let mut children = children
+                        .iter()
+                        .map(|child| self.tree(*child, owner, labels))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    children.sort_unstable();
+                    children.dedup();
+                    F5cCanonicalTree::NegativeIntersection(children)
+                }
+                F5cKeyNode::NegativeFunction(argument, result) => {
+                    F5cCanonicalTree::NegativeFunction {
+                        argument: Box::new(self.tree(*argument, owner, labels)?),
+                        result: Box::new(self.tree(*result, owner, labels)?),
+                    }
+                }
+            },
+        )
+    }
+
+    fn next_permutation(values: &mut [u32]) -> bool {
+        let Some(pivot) = (0..values.len().saturating_sub(1))
+            .rev()
+            .find(|index| values[*index] < values[*index + 1])
+        else {
+            return false;
+        };
+        let successor = (pivot + 1..values.len())
+            .rev()
+            .find(|index| values[*index] > values[pivot])
+            .expect("pivot has a successor");
+        values.swap(pivot, successor);
+        values[pivot + 1..].reverse();
+        true
+    }
+
+    #[cfg(test)]
+    fn finish(
+        &self,
+        roots: &[usize],
+        owner: u32,
+        unordered_roots: bool,
+    ) -> Result<F5cCanonicalKey, SolveAvailabilityError> {
+        let variable_count = u32::try_from(self.variables.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let mut permutation = (0..variable_count).collect::<Vec<_>>();
+        let mut best = None;
+        loop {
+            let labels = self
+                .variables
+                .iter()
+                .copied()
+                .zip(permutation.iter().copied())
+                .collect::<HashMap<_, _>>();
+            let mut trees = roots
+                .iter()
+                .map(|root| self.tree(*root, owner, &labels))
+                .collect::<Result<Vec<_>, _>>()?;
+            if unordered_roots {
+                trees.sort_unstable();
+            }
+            let key = F5cCanonicalKey { roots: trees };
+            if best.as_ref().is_none_or(|current| key < *current) {
+                best = Some(key);
+            }
+            if !Self::next_permutation(&mut permutation) {
+                break;
+            }
+        }
+        best.ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn finish_grouped(
+        &self,
+        predicate: usize,
+        bounds: &[(u32, usize, usize)],
+    ) -> Result<(F5cCanonicalKey, HashMap<u32, F5cCanonicalKey>), SolveAvailabilityError> {
+        let variable_count = u32::try_from(self.variables.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let mut permutation = (0..variable_count).collect::<Vec<_>>();
+        let mut best = None;
+        loop {
+            let labels = self
+                .variables
+                .iter()
+                .copied()
+                .zip(permutation.iter().copied())
+                .collect::<HashMap<_, _>>();
+            let predicate = F5cCanonicalKey {
+                roots: vec![self.tree(predicate, u32::MAX, &labels)?],
+            };
+            let bound_keys = bounds
+                .iter()
+                .map(|(owner, lower, upper)| {
+                    Ok((
+                        *owner,
+                        F5cCanonicalKey {
+                            roots: vec![
+                                self.tree(*lower, *owner, &labels)?,
+                                self.tree(*upper, *owner, &labels)?,
+                            ],
+                        },
+                    ))
+                })
+                .collect::<Result<Vec<_>, SolveAvailabilityError>>()?;
+            let mut unordered_bounds = bound_keys
+                .iter()
+                .map(|(_, key)| key.clone())
+                .collect::<Vec<_>>();
+            unordered_bounds.sort_unstable();
+            let rank = (predicate.clone(), unordered_bounds);
+            if best.as_ref().is_none_or(|(current, _, _)| rank < *current) {
+                best = Some((rank, predicate, bound_keys));
+            }
+            if !Self::next_permutation(&mut permutation) {
+                break;
+            }
+        }
+        let (_, predicate, bounds) = best.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Ok((predicate, bounds.into_iter().collect()))
+    }
+
+    fn unordered_root_keys(
+        &self,
+        roots: &[usize],
+        owner: u32,
+    ) -> Result<Vec<F5cCanonicalTree>, SolveAvailabilityError> {
+        let variable_count = u32::try_from(self.variables.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let mut permutation = (0..variable_count).collect::<Vec<_>>();
+        let mut best: Option<(Vec<F5cCanonicalTree>, Vec<F5cCanonicalTree>)> = None;
+        loop {
+            let labels = self
+                .variables
+                .iter()
+                .copied()
+                .zip(permutation.iter().copied())
+                .collect::<HashMap<_, _>>();
+            let trees = roots
+                .iter()
+                .map(|root| self.tree(*root, owner, &labels))
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut sorted = trees.clone();
+            sorted.sort_unstable();
+            if best.as_ref().is_none_or(|(current, _)| sorted < *current) {
+                best = Some((sorted, trees));
+            }
+            if !Self::next_permutation(&mut permutation) {
+                break;
+            }
+        }
+        best.map(|(_, trees)| trees)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct F5cExpansionKey {
+    row: u32,
+    polarity: Polarity,
+    frozen_bound_epoch: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct F5cSummaryNodeId(u32);
+
+#[derive(Clone, Copy)]
+enum F5cSummaryNodeKind {
+    PositiveBottom,
+    PositiveInt,
+    PositiveRow(u32),
+    PositiveAlias {
+        start: u32,
+    },
+    PositiveUnion {
+        start: u32,
+        len: u32,
+    },
+    PositiveFunction {
+        argument: F5cSummaryNodeId,
+        result: F5cSummaryNodeId,
+    },
+    NegativeTop,
+    NegativeBottom,
+    NegativeInt,
+    NegativeRow(u32),
+    NegativeAlias {
+        start: u32,
+    },
+    NegativeIntersection {
+        start: u32,
+        len: u32,
+    },
+    NegativeFunction {
+        argument: F5cSummaryNodeId,
+        result: F5cSummaryNodeId,
+    },
+}
+
+#[derive(Clone, Copy)]
+struct F5cSummaryNode {
+    incidence: Option<(u32, Polarity)>,
+    transitive_incidence_count: usize,
+    kind: F5cSummaryNodeKind,
+}
+
+#[derive(Clone, Copy)]
+struct F5cReverseParentEdge {
+    child: F5cSummaryNodeId,
+    parent: F5cSummaryNodeId,
+    next: Option<usize>,
+}
+
+#[derive(Clone, Copy)]
+struct F5cIncidenceEdge {
+    node: F5cSummaryNodeId,
+    next: Option<usize>,
+}
+
+#[derive(Clone, Copy)]
+struct F5cRootEdge {
+    root: F5cSummaryNodeId,
+    key: F5cExpansionKey,
+    next: Option<usize>,
+    live: bool,
+}
+
+#[derive(Clone, Copy, Default)]
+struct F5cMemoLane {
+    requested_slots: usize,
+    peak_bytes: usize,
+    capacity_growths: usize,
+}
+
+#[derive(Clone, Copy)]
+enum F5cWalkerLaneKind {
+    Tasks = 0,
+    Values = 1,
+    DirectEdges = 2,
+    SummaryTasks = 3,
+    SummaryIds = 4,
+    DirectTargets = 5,
+    Comparison = 6,
+    PositiveParts = 7,
+    NegativeParts = 8,
+    MaterializeTasks = 9,
+    MaterializeValues = 10,
+}
+
+impl F5cWalkerLaneKind {
+    const ALL: [Self; 11] = [
+        Self::Tasks,
+        Self::Values,
+        Self::DirectEdges,
+        Self::SummaryTasks,
+        Self::SummaryIds,
+        Self::DirectTargets,
+        Self::Comparison,
+        Self::PositiveParts,
+        Self::NegativeParts,
+        Self::MaterializeTasks,
+        Self::MaterializeValues,
+    ];
+
+    fn slot_size(self) -> usize {
+        match self {
+            Self::Tasks => std::mem::size_of::<F5cWalkTask>(),
+            Self::Values => std::mem::size_of::<F5cWalkValue>(),
+            Self::DirectEdges => std::mem::size_of::<(usize, u32)>(),
+            Self::SummaryTasks => std::mem::size_of::<F5cSummaryTask<'static>>(),
+            Self::SummaryIds => std::mem::size_of::<F5cSummaryNodeId>(),
+            Self::DirectTargets => std::mem::size_of::<u32>(),
+            Self::Comparison => std::mem::size_of::<F5cCompareTask<'static>>(),
+            Self::PositiveParts => std::mem::size_of::<F5cPositive>(),
+            Self::NegativeParts => std::mem::size_of::<F5cNegative>(),
+            Self::MaterializeTasks => std::mem::size_of::<F5cMaterializeTask>(),
+            Self::MaterializeValues => std::mem::size_of::<F5cWalkValue>(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct F5cWalkerLane {
+    requested_slots: usize,
+    actual_capacity: usize,
+    peak_bytes: usize,
+    capacity_growths: usize,
+}
+
+#[derive(Default)]
+struct F5cWalkerResources {
+    lanes: [F5cWalkerLane; 11],
+    peak_bytes: usize,
+    simultaneous_memo_peak_bytes: usize,
+    observed_memo_bytes: usize,
+    #[cfg(test)]
+    independent_lanes: [F5cWalkerLane; 11],
+    #[cfg(test)]
+    independent_peak_bytes: usize,
+    #[cfg(test)]
+    independent_simultaneous_memo_peak_bytes: usize,
+}
+
+impl F5cWalkerResources {
+    fn reserve_set(
+        &mut self,
+        buffer: &mut HashSet<u32>,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let kind = F5cWalkerLaneKind::DirectTargets;
+        let index = kind as usize;
+        let requested = self.lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let growth = self.lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_requested = self.independent_lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth = self.independent_lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old_capacity = buffer.capacity();
+        buffer
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let new_capacity = buffer.capacity();
+        self.lanes[index].requested_slots = requested;
+        self.lanes[index].actual_capacity = new_capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].requested_slots = independent_requested;
+            self.independent_lanes[index].actual_capacity = new_capacity;
+        }
+        if new_capacity != old_capacity {
+            self.lanes[index].capacity_growths = growth;
+            self.lanes[index].peak_bytes = self.lanes[index].peak_bytes.max(
+                new_capacity
+                    .checked_mul(kind.slot_size())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].capacity_growths = independent_growth;
+                self.independent_lanes[index].peak_bytes =
+                    self.independent_lanes[index].peak_bytes.max(
+                        new_capacity
+                            .checked_mul(std::mem::size_of::<u32>())
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    );
+            }
+            self.observe_memo(memo_bytes)?;
+            self.observed_memo_bytes = memo_bytes;
+        }
+        Ok(())
+    }
+
+    fn reserve<T>(
+        &mut self,
+        buffer: &mut Vec<T>,
+        kind: F5cWalkerLaneKind,
+        additional: usize,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let index = kind as usize;
+        let requested = self.lanes[index]
+            .requested_slots
+            .checked_add(additional)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let growth = self.lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_requested = self.independent_lanes[index]
+            .requested_slots
+            .checked_add(additional)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth = self.independent_lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old_capacity = buffer.capacity();
+        buffer
+            .try_reserve(additional)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let new_capacity = buffer.capacity();
+        self.lanes[index].requested_slots = requested;
+        self.lanes[index].actual_capacity = new_capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].requested_slots = independent_requested;
+            self.independent_lanes[index].actual_capacity = new_capacity;
+        }
+        if new_capacity != old_capacity {
+            self.lanes[index].capacity_growths = growth;
+            self.lanes[index].peak_bytes = self.lanes[index].peak_bytes.max(
+                new_capacity
+                    .checked_mul(kind.slot_size())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].capacity_growths = independent_growth;
+                self.independent_lanes[index].peak_bytes =
+                    self.independent_lanes[index].peak_bytes.max(
+                        buffer
+                            .capacity()
+                            .checked_mul(std::mem::size_of::<T>())
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    );
+            }
+            self.observe_memo(memo_bytes)?;
+            self.observed_memo_bytes = memo_bytes;
+        }
+        Ok(())
+    }
+
+    fn release(&mut self, kind: F5cWalkerLaneKind) {
+        self.lanes[kind as usize].actual_capacity = 0;
+        #[cfg(test)]
+        {
+            self.independent_lanes[kind as usize].actual_capacity = 0;
+        }
+    }
+
+    fn requested_slots(&self) -> Result<usize, SolveAvailabilityError> {
+        self.lanes.iter().try_fold(0usize, |sum, lane| {
+            sum.checked_add(lane.requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+        })
+    }
+
+    fn actual_capacity(&self) -> Result<usize, SolveAvailabilityError> {
+        self.lanes.iter().try_fold(0usize, |sum, lane| {
+            sum.checked_add(lane.actual_capacity)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+        })
+    }
+
+    fn capacity_growths(&self) -> Result<usize, SolveAvailabilityError> {
+        self.lanes.iter().try_fold(0usize, |sum, lane| {
+            sum.checked_add(lane.capacity_growths)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+        })
+    }
+
+    fn retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.lanes
+            .iter()
+            .enumerate()
+            .try_fold(0usize, |sum, (index, lane)| {
+                let size = F5cWalkerLaneKind::ALL[index].slot_size();
+                sum.checked_add(
+                    lane.actual_capacity
+                        .checked_mul(size)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                )
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+            })
+    }
+
+    fn observe_memo(&mut self, memo_bytes: usize) -> Result<(), SolveAvailabilityError> {
+        let scratch_bytes = self.retained_bytes()?;
+        self.peak_bytes = self.peak_bytes.max(scratch_bytes);
+        self.simultaneous_memo_peak_bytes = self.simultaneous_memo_peak_bytes.max(
+            memo_bytes
+                .checked_add(scratch_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        #[cfg(test)]
+        {
+            let sizes = F5cWalkerLaneKind::ALL.map(F5cWalkerLaneKind::slot_size);
+            let bytes = self.independent_lanes.iter().zip(sizes).try_fold(
+                0usize,
+                |sum, (lane, size)| {
+                    sum.checked_add(
+                        lane.actual_capacity
+                            .checked_mul(size)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    )
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)
+                },
+            )?;
+            self.independent_peak_bytes = self.independent_peak_bytes.max(bytes);
+            self.independent_simultaneous_memo_peak_bytes =
+                self.independent_simultaneous_memo_peak_bytes.max(
+                    memo_bytes
+                        .checked_add(bytes)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                );
+        }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+struct F5cComponentExpansionMemo {
+    roots: HashMap<F5cExpansionKey, F5cSummaryNodeId>,
+    nodes: Vec<F5cSummaryNode>,
+    children: Vec<F5cSummaryNodeId>,
+    parent_heads: Vec<Option<usize>>,
+    reverse_parents: Vec<F5cReverseParentEdge>,
+    incidence_heads: HashMap<u32, Option<usize>>,
+    incidences: Vec<F5cIncidenceEdge>,
+    root_heads: Vec<Option<usize>>,
+    root_edges: Vec<F5cRootEdge>,
+    root_edge_marks: Vec<u32>,
+    root_edge_mark_epoch: u32,
+    invalidated_root_edges: Vec<(usize, Option<usize>)>,
+    active_rows: HashMap<u32, usize>,
+    active_conflicts: HashMap<F5cExpansionKey, usize>,
+    work: Vec<F5cSummaryNodeId>,
+    conflict_journal: Vec<(F5cExpansionKey, usize)>,
+    visit_epochs: Vec<u32>,
+    visit_epoch: u32,
+    root_lane: F5cMemoLane,
+    node_lane: F5cMemoLane,
+    child_lane: F5cMemoLane,
+    index_lane: F5cMemoLane,
+    scratch_lane: F5cMemoLane,
+    walker_resources: F5cWalkerResources,
+    #[cfg(test)]
+    independent_root_growths: usize,
+    #[cfg(test)]
+    independent_node_growths: usize,
+    #[cfg(test)]
+    independent_child_growths: usize,
+    #[cfg(test)]
+    independent_index_growths: usize,
+    #[cfg(test)]
+    independent_scratch_growths: usize,
+    #[cfg(test)]
+    independent_index_requests: usize,
+    #[cfg(test)]
+    independent_scratch_requests: usize,
+}
+
+impl F5cComponentExpansionMemo {
+    fn reserve_walker<T>(
+        &mut self,
+        buffer: &mut Vec<T>,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        let memo_bytes = self.retained_bytes()?;
+        self.walker_resources.reserve(buffer, kind, 1, memo_bytes)
+    }
+
+    fn reserve_walker_target(
+        &mut self,
+        targets: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        let memo_bytes = self.retained_bytes()?;
+        self.walker_resources.reserve_set(targets, memo_bytes)
+    }
+
+    fn observe_walker(&mut self) -> Result<(), SolveAvailabilityError> {
+        let memo_bytes = self.retained_bytes()?;
+        if memo_bytes != self.walker_resources.observed_memo_bytes {
+            self.walker_resources.observe_memo(memo_bytes)?;
+            self.walker_resources.observed_memo_bytes = memo_bytes;
+        }
+        Ok(())
+    }
+
+    fn prepare_index_reserve(
+        &self,
+        requested: usize,
+    ) -> Result<(usize, usize), SolveAvailabilityError> {
+        Ok((
+            self.index_lane
+                .requested_slots
+                .checked_add(requested)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            self.index_lane
+                .capacity_growths
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        ))
+    }
+
+    fn commit_index_reserve(
+        &mut self,
+        requested: usize,
+        growth_if_changed: usize,
+        old_capacity: usize,
+        new_capacity: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        let (independent_requests, independent_growths) = (
+            self.independent_index_requests
+                .checked_add(requested - self.index_lane.requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            self.independent_index_growths
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        self.index_lane.requested_slots = requested;
+        if old_capacity != new_capacity {
+            self.index_lane.capacity_growths = growth_if_changed;
+            #[cfg(test)]
+            {
+                self.independent_index_growths = independent_growths;
+            }
+        }
+        #[cfg(test)]
+        {
+            self.independent_index_requests = independent_requests;
+        }
+        self.index_lane.peak_bytes = self.index_lane.peak_bytes.max(self.index_retained_bytes()?);
+        Ok(())
+    }
+
+    fn prepare_scratch_reserve(
+        &self,
+        requested: usize,
+    ) -> Result<(usize, usize), SolveAvailabilityError> {
+        Ok((
+            self.scratch_lane
+                .requested_slots
+                .checked_add(requested)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            self.scratch_lane
+                .capacity_growths
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        ))
+    }
+
+    fn commit_scratch_reserve(
+        &mut self,
+        requested: usize,
+        growth_if_changed: usize,
+        old_capacity: usize,
+        new_capacity: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        let (independent_requests, independent_growths) = (
+            self.independent_scratch_requests
+                .checked_add(requested - self.scratch_lane.requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            self.independent_scratch_growths
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        self.scratch_lane.requested_slots = requested;
+        if old_capacity != new_capacity {
+            self.scratch_lane.capacity_growths = growth_if_changed;
+            #[cfg(test)]
+            {
+                self.independent_scratch_growths = independent_growths;
+            }
+        }
+        #[cfg(test)]
+        {
+            self.independent_scratch_requests = independent_requests;
+        }
+        self.scratch_lane.peak_bytes = self
+            .scratch_lane
+            .peak_bytes
+            .max(self.scratch_retained_bytes()?);
+        Ok(())
+    }
+
+    fn positive_node(
+        &mut self,
+        value: &F5cPositive,
+        incidence: Option<(u32, Polarity)>,
+    ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        self.node_iterative(F5cSummaryTask::Positive(value, incidence))
+    }
+
+    fn negative_node(
+        &mut self,
+        value: &F5cNegative,
+        incidence: Option<(u32, Polarity)>,
+    ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        self.node_iterative(F5cSummaryTask::Negative(value, incidence))
+    }
+
+    fn node_iterative(
+        &mut self,
+        first: F5cSummaryTask<'_>,
+    ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        let mut tasks = Vec::new();
+        let mut ids = Vec::<F5cSummaryNodeId>::new();
+        macro_rules! push_task {
+            ($value:expr) => {{
+                let value = $value;
+                self.reserve_walker(&mut tasks, F5cWalkerLaneKind::SummaryTasks)?;
+                tasks.push(value);
+            }};
+        }
+        macro_rules! push_id {
+            ($value:expr) => {{
+                let value = $value;
+                self.observe_walker()?;
+                self.reserve_walker(&mut ids, F5cWalkerLaneKind::SummaryIds)?;
+                ids.push(value);
+            }};
+        }
+        let result = (|| {
+            push_task!(first);
+            while let Some(task) = tasks.pop() {
+                match task {
+                    F5cSummaryTask::Positive(value, incidence) => match value {
+                        F5cPositive::Bottom => {
+                            push_id!(self.push_node(F5cSummaryNodeKind::PositiveBottom, incidence)?)
+                        }
+                        F5cPositive::Int => {
+                            push_id!(self.push_node(F5cSummaryNodeKind::PositiveInt, incidence)?)
+                        }
+                        F5cPositive::Variable(row) => push_id!(
+                            self.push_node(F5cSummaryNodeKind::PositiveRow(*row), incidence)?
+                        ),
+                        F5cPositive::Shared(id) => {
+                            if incidence.is_some() {
+                                let (start, _) = self.push_children(&[*id])?;
+                                push_id!(self.push_node(
+                                    F5cSummaryNodeKind::PositiveAlias { start },
+                                    incidence
+                                )?);
+                            } else {
+                                push_id!(*id);
+                            }
+                        }
+                        F5cPositive::Union(children) => {
+                            push_task!(F5cSummaryTask::PositiveUnion(ids.len(), incidence));
+                            for child in children.iter().rev() {
+                                push_task!(F5cSummaryTask::Positive(child, None));
+                            }
+                        }
+                        F5cPositive::Function {
+                            argument, result, ..
+                        } => {
+                            push_task!(F5cSummaryTask::PositiveFunction(incidence));
+                            push_task!(F5cSummaryTask::Positive(result, None));
+                            push_task!(F5cSummaryTask::Negative(argument, None));
+                        }
+                        F5cPositive::Quantified(_) | F5cPositive::Recursive(_) => {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                    },
+                    F5cSummaryTask::Negative(value, incidence) => match value {
+                        F5cNegative::Top => {
+                            push_id!(self.push_node(F5cSummaryNodeKind::NegativeTop, incidence)?)
+                        }
+                        F5cNegative::Bottom => {
+                            push_id!(self.push_node(F5cSummaryNodeKind::NegativeBottom, incidence)?)
+                        }
+                        F5cNegative::Int => {
+                            push_id!(self.push_node(F5cSummaryNodeKind::NegativeInt, incidence)?)
+                        }
+                        F5cNegative::Variable(row) => push_id!(
+                            self.push_node(F5cSummaryNodeKind::NegativeRow(*row), incidence)?
+                        ),
+                        F5cNegative::Shared(id) => {
+                            if incidence.is_some() {
+                                let (start, _) = self.push_children(&[*id])?;
+                                push_id!(self.push_node(
+                                    F5cSummaryNodeKind::NegativeAlias { start },
+                                    incidence
+                                )?);
+                            } else {
+                                push_id!(*id);
+                            }
+                        }
+                        F5cNegative::Intersection(children) => {
+                            push_task!(F5cSummaryTask::NegativeIntersection(ids.len(), incidence));
+                            for child in children.iter().rev() {
+                                push_task!(F5cSummaryTask::Negative(child, None));
+                            }
+                        }
+                        F5cNegative::Function {
+                            argument, result, ..
+                        } => {
+                            push_task!(F5cSummaryTask::NegativeFunction(incidence));
+                            push_task!(F5cSummaryTask::Negative(result, None));
+                            push_task!(F5cSummaryTask::Positive(argument, None));
+                        }
+                        F5cNegative::Quantified(_) | F5cNegative::Recursive(_) => {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                    },
+                    F5cSummaryTask::PositiveUnion(start, incidence) => {
+                        let (child_start, len) = self.push_children(&ids[start..])?;
+                        ids.truncate(start);
+                        push_id!(self.push_node(
+                            F5cSummaryNodeKind::PositiveUnion {
+                                start: child_start,
+                                len
+                            },
+                            incidence
+                        )?);
+                    }
+                    F5cSummaryTask::NegativeIntersection(start, incidence) => {
+                        let (child_start, len) = self.push_children(&ids[start..])?;
+                        ids.truncate(start);
+                        push_id!(self.push_node(
+                            F5cSummaryNodeKind::NegativeIntersection {
+                                start: child_start,
+                                len
+                            },
+                            incidence
+                        )?);
+                    }
+                    F5cSummaryTask::PositiveFunction(incidence) => {
+                        let result = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let argument =
+                            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        push_id!(self.push_node(
+                            F5cSummaryNodeKind::PositiveFunction { argument, result },
+                            incidence
+                        )?);
+                    }
+                    F5cSummaryTask::NegativeFunction(incidence) => {
+                        let result = ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let argument =
+                            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        push_id!(self.push_node(
+                            F5cSummaryNodeKind::NegativeFunction { argument, result },
+                            incidence
+                        )?);
+                    }
+                }
+            }
+            if ids.len() != 1 {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            ids.pop().ok_or(SolveAvailabilityError::IdentityExhausted)
+        })();
+        self.walker_resources
+            .release(F5cWalkerLaneKind::SummaryTasks);
+        self.walker_resources.release(F5cWalkerLaneKind::SummaryIds);
+        result
+    }
+
+    fn child_slice(
+        &self,
+        start: u32,
+        len: u32,
+    ) -> Result<&[F5cSummaryNodeId], SolveAvailabilityError> {
+        let start =
+            usize::try_from(start).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let len = usize::try_from(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let end = start
+            .checked_add(len)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.children
+            .get(start..end)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    #[cfg(test)]
+    fn positive_value(
+        &mut self,
+        id: F5cSummaryNodeId,
+    ) -> Result<F5cPositive, SolveAvailabilityError> {
+        self.positive_value_with(id, &mut |_, _| {})
+    }
+
+    fn positive_value_with(
+        &mut self,
+        id: F5cSummaryNodeId,
+        mark: &mut impl FnMut(u32, Polarity),
+    ) -> Result<F5cPositive, SolveAvailabilityError> {
+        match self.materialize_summary(F5cMaterializeTask::Positive(id), mark)? {
+            F5cWalkValue::Positive(value, _) => Ok(value),
+            _ => Err(SolveAvailabilityError::IdentityExhausted),
+        }
+    }
+
+    #[cfg(test)]
+    fn negative_value(
+        &mut self,
+        id: F5cSummaryNodeId,
+    ) -> Result<F5cNegative, SolveAvailabilityError> {
+        self.negative_value_with(id, &mut |_, _| {})
+    }
+
+    fn negative_value_with(
+        &mut self,
+        id: F5cSummaryNodeId,
+        mark: &mut impl FnMut(u32, Polarity),
+    ) -> Result<F5cNegative, SolveAvailabilityError> {
+        match self.materialize_summary(F5cMaterializeTask::Negative(id), mark)? {
+            F5cWalkValue::Negative(value, _) => Ok(value),
+            _ => Err(SolveAvailabilityError::IdentityExhausted),
+        }
+    }
+
+    fn materialize_summary(
+        &mut self,
+        first: F5cMaterializeTask,
+        mark: &mut impl FnMut(u32, Polarity),
+    ) -> Result<F5cWalkValue, SolveAvailabilityError> {
+        let mut tasks = Vec::new();
+        let mut values = Vec::new();
+        macro_rules! push_task {
+            ($task:expr) => {{
+                let task = $task;
+                self.reserve_walker(&mut tasks, F5cWalkerLaneKind::MaterializeTasks)?;
+                tasks.push(task);
+            }};
+        }
+        macro_rules! push_value {
+            ($value:expr) => {{
+                let value = $value;
+                self.reserve_walker(&mut values, F5cWalkerLaneKind::MaterializeValues)?;
+                values.push(value);
+            }};
+        }
+        let result = (|| {
+            push_task!(first);
+            while let Some(task) = tasks.pop() {
+                match task {
+                    F5cMaterializeTask::Positive(id) | F5cMaterializeTask::Negative(id) => {
+                        let node = self.node(id)?;
+                        if let Some((row, polarity)) = node.incidence {
+                            mark(row, polarity);
+                        }
+                        match (task, node.kind) {
+                            (
+                                F5cMaterializeTask::Positive(_),
+                                F5cSummaryNodeKind::PositiveBottom,
+                            ) => push_value!(F5cWalkValue::Positive(F5cPositive::Bottom, true)),
+                            (F5cMaterializeTask::Positive(_), F5cSummaryNodeKind::PositiveInt) => {
+                                push_value!(F5cWalkValue::Positive(F5cPositive::Int, true))
+                            }
+                            (
+                                F5cMaterializeTask::Positive(_),
+                                F5cSummaryNodeKind::PositiveRow(row),
+                            ) => push_value!(F5cWalkValue::Positive(
+                                F5cPositive::Variable(row),
+                                true
+                            )),
+                            (F5cMaterializeTask::Negative(_), F5cSummaryNodeKind::NegativeTop) => {
+                                push_value!(F5cWalkValue::Negative(F5cNegative::Top, true))
+                            }
+                            (
+                                F5cMaterializeTask::Negative(_),
+                                F5cSummaryNodeKind::NegativeBottom,
+                            ) => push_value!(F5cWalkValue::Negative(F5cNegative::Bottom, true)),
+                            (F5cMaterializeTask::Negative(_), F5cSummaryNodeKind::NegativeInt) => {
+                                push_value!(F5cWalkValue::Negative(F5cNegative::Int, true))
+                            }
+                            (
+                                F5cMaterializeTask::Negative(_),
+                                F5cSummaryNodeKind::NegativeRow(row),
+                            ) => push_value!(F5cWalkValue::Negative(
+                                F5cNegative::Variable(row),
+                                true
+                            )),
+                            (
+                                F5cMaterializeTask::Positive(_),
+                                F5cSummaryNodeKind::PositiveAlias { start },
+                            ) => {
+                                let child = self.child_slice(start, 1)?[0];
+                                push_task!(F5cMaterializeTask::Positive(child));
+                            }
+                            (
+                                F5cMaterializeTask::Negative(_),
+                                F5cSummaryNodeKind::NegativeAlias { start },
+                            ) => {
+                                let child = self.child_slice(start, 1)?[0];
+                                push_task!(F5cMaterializeTask::Negative(child));
+                            }
+                            (
+                                F5cMaterializeTask::Positive(_),
+                                F5cSummaryNodeKind::PositiveUnion { start, len },
+                            ) => {
+                                push_task!(F5cMaterializeTask::PositiveUnion(values.len()));
+                                let count = self.child_slice(start, len)?.len();
+                                for index in (0..count).rev() {
+                                    let child = self.child_slice(start, len)?[index];
+                                    push_task!(F5cMaterializeTask::Positive(child));
+                                }
+                            }
+                            (
+                                F5cMaterializeTask::Negative(_),
+                                F5cSummaryNodeKind::NegativeIntersection { start, len },
+                            ) => {
+                                push_task!(F5cMaterializeTask::NegativeIntersection(values.len()));
+                                let count = self.child_slice(start, len)?.len();
+                                for index in (0..count).rev() {
+                                    let child = self.child_slice(start, len)?[index];
+                                    push_task!(F5cMaterializeTask::Negative(child));
+                                }
+                            }
+                            (
+                                F5cMaterializeTask::Positive(_),
+                                F5cSummaryNodeKind::PositiveFunction { argument, result },
+                            ) => {
+                                push_task!(F5cMaterializeTask::PositiveFunction);
+                                push_task!(F5cMaterializeTask::Positive(result));
+                                push_task!(F5cMaterializeTask::Negative(argument));
+                            }
+                            (
+                                F5cMaterializeTask::Negative(_),
+                                F5cSummaryNodeKind::NegativeFunction { argument, result },
+                            ) => {
+                                push_task!(F5cMaterializeTask::NegativeFunction);
+                                push_task!(F5cMaterializeTask::Negative(result));
+                                push_task!(F5cMaterializeTask::Positive(argument));
+                            }
+                            _ => return Err(SolveAvailabilityError::IdentityExhausted),
+                        }
+                    }
+                    F5cMaterializeTask::PositiveUnion(start) => {
+                        let mut parts = Vec::new();
+                        for child in values.drain(start..) {
+                            let F5cWalkValue::Positive(value, _) = child else {
+                                return Err(SolveAvailabilityError::IdentityExhausted);
+                            };
+                            self.reserve_walker(&mut parts, F5cWalkerLaneKind::PositiveParts)?;
+                            parts.push(value);
+                        }
+                        push_value!(F5cWalkValue::Positive(F5cPositive::Union(parts), true));
+                        self.walker_resources
+                            .release(F5cWalkerLaneKind::PositiveParts);
+                    }
+                    F5cMaterializeTask::NegativeIntersection(start) => {
+                        let mut parts = Vec::new();
+                        for child in values.drain(start..) {
+                            let F5cWalkValue::Negative(value, _) = child else {
+                                return Err(SolveAvailabilityError::IdentityExhausted);
+                            };
+                            self.reserve_walker(&mut parts, F5cWalkerLaneKind::NegativeParts)?;
+                            parts.push(value);
+                        }
+                        push_value!(F5cWalkValue::Negative(
+                            F5cNegative::Intersection(parts),
+                            true
+                        ));
+                        self.walker_resources
+                            .release(F5cWalkerLaneKind::NegativeParts);
+                    }
+                    F5cMaterializeTask::PositiveFunction => {
+                        let F5cWalkValue::Positive(result, _) = values
+                            .pop()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                        else {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        };
+                        let F5cWalkValue::Negative(argument, _) = values
+                            .pop()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                        else {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        };
+                        push_value!(F5cWalkValue::Positive(
+                            F5cPositive::Function {
+                                argument: Box::new(argument),
+                                argument_effect: F5cNegativeEffect::Empty,
+                                result_effect: F5cPositiveEffect::Bottom,
+                                result: Box::new(result),
+                            },
+                            true
+                        ));
+                    }
+                    F5cMaterializeTask::NegativeFunction => {
+                        let F5cWalkValue::Negative(result, _) = values
+                            .pop()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                        else {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        };
+                        let F5cWalkValue::Positive(argument, _) = values
+                            .pop()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                        else {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        };
+                        push_value!(F5cWalkValue::Negative(
+                            F5cNegative::Function {
+                                argument: Box::new(argument),
+                                argument_effect: F5cPositiveEffect::Bottom,
+                                result_effect: F5cNegativeEffect::Empty,
+                                result: Box::new(result),
+                            },
+                            true
+                        ));
+                    }
+                }
+            }
+            if values.len() != 1 {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            values
+                .pop()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+        })();
+        self.walker_resources
+            .release(F5cWalkerLaneKind::MaterializeTasks);
+        self.walker_resources
+            .release(F5cWalkerLaneKind::MaterializeValues);
+        self.walker_resources
+            .release(F5cWalkerLaneKind::PositiveParts);
+        self.walker_resources
+            .release(F5cWalkerLaneKind::NegativeParts);
+        result
+    }
+
+    fn node(&self, id: F5cSummaryNodeId) -> Result<F5cSummaryNode, SolveAvailabilityError> {
+        self.nodes
+            .get(id.0 as usize)
+            .copied()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn begin_visit(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.work.clear();
+        if self.visit_epoch == u32::MAX {
+            self.visit_epochs.fill(0);
+            self.visit_epoch = 1;
+        } else {
+            self.visit_epoch += 1;
+        }
+        Ok(())
+    }
+
+    fn queue_once(&mut self, id: F5cSummaryNodeId) -> Result<(), SolveAvailabilityError> {
+        let index = id.0 as usize;
+        let mark = *self
+            .visit_epochs
+            .get(index)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if mark != self.visit_epoch {
+            let (requested, growth_if_changed) = self.prepare_scratch_reserve(1)?;
+            let old = self.work.capacity();
+            self.work
+                .try_reserve(1)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            self.commit_scratch_reserve(requested, growth_if_changed, old, self.work.capacity())?;
+            self.visit_epochs[index] = self.visit_epoch;
+            self.work.push(id);
+        }
+        Ok(())
+    }
+
+    fn seed_row(&mut self, row: u32) -> Result<(), SolveAvailabilityError> {
+        let mut edge = self.incidence_heads.get(&row).copied().flatten();
+        while let Some(index) = edge {
+            let incidence = *self
+                .incidences
+                .get(index)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.queue_once(incidence.node)?;
+            edge = incidence.next;
+        }
+        Ok(())
+    }
+
+    fn propagate_active_row(
+        &mut self,
+        row: u32,
+        entering: bool,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.conflict_journal.clear();
+        let (journal_requested, journal_growth) = self.prepare_scratch_reserve(self.roots.len())?;
+        let old_journal_capacity = self.conflict_journal.capacity();
+        self.conflict_journal
+            .try_reserve(self.roots.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_scratch_reserve(
+            journal_requested,
+            journal_growth,
+            old_journal_capacity,
+            self.conflict_journal.capacity(),
+        )?;
+        self.begin_visit()?;
+        if self.root_edge_mark_epoch == u32::MAX {
+            self.root_edge_marks.fill(0);
+            self.root_edge_mark_epoch = 1;
+        } else {
+            self.root_edge_mark_epoch += 1;
+        }
+        self.seed_row(row)?;
+        while let Some(id) = self.work.pop() {
+            let mut root_edge = *self
+                .root_heads
+                .get(id.0 as usize)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            while let Some(index) = root_edge {
+                let edge = *self
+                    .root_edges
+                    .get(index)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                if edge.live {
+                    let prior = self.active_conflicts.get(&edge.key).copied().unwrap_or(0);
+                    let mark = self
+                        .root_edge_marks
+                        .get_mut(index)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    if *mark != self.root_edge_mark_epoch {
+                        if entering {
+                            prior
+                                .checked_add(1)
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        } else if prior == 0 {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                        *mark = self.root_edge_mark_epoch;
+                        self.conflict_journal.push((edge.key, prior));
+                    }
+                }
+                root_edge = edge.next;
+            }
+            let mut parent_edge = *self
+                .parent_heads
+                .get(id.0 as usize)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            while let Some(index) = parent_edge {
+                let edge = *self
+                    .reverse_parents
+                    .get(index)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.queue_once(edge.parent)?;
+                parent_edge = edge.next;
+            }
+        }
+        if entering {
+            let (requested, growth) = self.prepare_scratch_reserve(self.conflict_journal.len())?;
+            let old = self.active_conflicts.capacity();
+            self.active_conflicts
+                .try_reserve(self.conflict_journal.len())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            self.commit_scratch_reserve(requested, growth, old, self.active_conflicts.capacity())?;
+        }
+        for &(key, prior) in &self.conflict_journal {
+            if entering {
+                self.active_conflicts.insert(key, prior + 1);
+            } else if prior == 1 {
+                self.active_conflicts.remove(&key);
+            } else {
+                self.active_conflicts.insert(key, prior - 1);
+            }
+        }
+        Ok(())
+    }
+
+    fn enter_active(&mut self, row: u32) -> Result<(), SolveAvailabilityError> {
+        let (row_requested, row_growth) = self.prepare_scratch_reserve(1)?;
+        let old_row_capacity = self.active_rows.capacity();
+        self.active_rows
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_scratch_reserve(
+            row_requested,
+            row_growth,
+            old_row_capacity,
+            self.active_rows.capacity(),
+        )?;
+        let (conflict_requested, conflict_growth) =
+            self.prepare_scratch_reserve(self.roots.len())?;
+        let old_conflict_capacity = self.active_conflicts.capacity();
+        self.active_conflicts
+            .try_reserve(self.roots.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_scratch_reserve(
+            conflict_requested,
+            conflict_growth,
+            old_conflict_capacity,
+            self.active_conflicts.capacity(),
+        )?;
+        let prior = self.active_rows.get(&row).copied().unwrap_or(0);
+        let next = prior
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if prior == 0 {
+            self.propagate_active_row(row, true)?;
+        }
+        self.active_rows.insert(row, next);
+        self.scratch_lane.peak_bytes = self
+            .scratch_lane
+            .peak_bytes
+            .max(self.scratch_retained_bytes()?);
+        Ok(())
+    }
+
+    fn leave_active(&mut self, row: u32) -> Result<(), SolveAvailabilityError> {
+        let prior = self
+            .active_rows
+            .get(&row)
+            .copied()
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let next = prior
+            .checked_sub(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if next == 0 {
+            self.propagate_active_row(row, false)?;
+            self.active_rows.remove(&row);
+        } else {
+            self.active_rows.insert(row, next);
+        }
+        Ok(())
+    }
+
+    fn conflicts_active(&self, key: F5cExpansionKey) -> bool {
+        self.active_conflicts.get(&key).copied().unwrap_or(0) != 0
+    }
+
+    fn invalidate_row(&mut self, row: u32) -> Result<(), SolveAvailabilityError> {
+        self.begin_visit()?;
+        self.seed_row(row)?;
+        while let Some(id) = self.work.pop() {
+            let mut root_edge = *self
+                .root_heads
+                .get(id.0 as usize)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            while let Some(index) = root_edge {
+                let edge = *self
+                    .root_edges
+                    .get(index)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                if edge.live {
+                    let (requested, growth) = self.prepare_index_reserve(1)?;
+                    let old = self.invalidated_root_edges.capacity();
+                    self.invalidated_root_edges
+                        .try_reserve(1)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    self.commit_index_reserve(
+                        requested,
+                        growth,
+                        old,
+                        self.invalidated_root_edges.capacity(),
+                    )?;
+                    self.roots.remove(&edge.key);
+                    let active_conflicts = self.active_conflicts.remove(&edge.key);
+                    self.root_edges[index].live = false;
+                    self.invalidated_root_edges.push((index, active_conflicts));
+                }
+                root_edge = edge.next;
+            }
+            let mut parent_edge = *self
+                .parent_heads
+                .get(id.0 as usize)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            while let Some(index) = parent_edge {
+                let edge = *self
+                    .reverse_parents
+                    .get(index)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.queue_once(edge.parent)?;
+                parent_edge = edge.next;
+            }
+        }
+        Ok(())
+    }
+
+    fn push_node(
+        &mut self,
+        kind: F5cSummaryNodeKind,
+        incidence: Option<(u32, Polarity)>,
+    ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        let id = F5cSummaryNodeId(
+            u32::try_from(self.nodes.len())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+        );
+        let mut count = usize::from(incidence.is_some());
+        let mut include = |child: F5cSummaryNodeId| -> Result<(), SolveAvailabilityError> {
+            let child = self.node(child)?;
+            count = count
+                .checked_add(child.transitive_incidence_count)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            Ok(())
+        };
+        match kind {
+            F5cSummaryNodeKind::PositiveAlias { start }
+            | F5cSummaryNodeKind::NegativeAlias { start } => {
+                let child = *self
+                    .child_slice(start, 1)?
+                    .first()
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                include(child)?;
+            }
+            F5cSummaryNodeKind::PositiveUnion { start, len }
+            | F5cSummaryNodeKind::NegativeIntersection { start, len } => {
+                for child in self.child_slice(start, len)? {
+                    include(*child)?;
+                }
+            }
+            F5cSummaryNodeKind::PositiveFunction { argument, result }
+            | F5cSummaryNodeKind::NegativeFunction { argument, result } => {
+                include(argument)?;
+                include(result)?;
+            }
+            _ => {}
+        }
+        let child_count = match kind {
+            F5cSummaryNodeKind::PositiveAlias { .. } | F5cSummaryNodeKind::NegativeAlias { .. } => {
+                1
+            }
+            F5cSummaryNodeKind::PositiveUnion { len, .. }
+            | F5cSummaryNodeKind::NegativeIntersection { len, .. } => len as usize,
+            F5cSummaryNodeKind::PositiveFunction { .. }
+            | F5cSummaryNodeKind::NegativeFunction { .. } => 2,
+            _ => 0,
+        };
+        let requested = self
+            .node_lane
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = self.nodes.capacity();
+        let node_growth = self
+            .node_lane
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_node_growth = self
+            .independent_node_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.nodes
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let node_grew = usize::from(self.nodes.capacity() != old);
+        if node_grew != 0 {
+            self.node_lane.capacity_growths = node_growth;
+            #[cfg(test)]
+            {
+                self.independent_node_growths = independent_node_growth;
+            }
+        }
+        self.node_lane.requested_slots = requested;
+        self.node_lane.peak_bytes = self.node_lane.peak_bytes.max(self.node_retained_bytes()?);
+
+        let (next, growth) = self.prepare_index_reserve(1)?;
+        let old = self.parent_heads.capacity();
+        self.parent_heads
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_index_reserve(next, growth, old, self.parent_heads.capacity())?;
+        let (next, growth) = self.prepare_index_reserve(1)?;
+        let old = self.root_heads.capacity();
+        self.root_heads
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_index_reserve(next, growth, old, self.root_heads.capacity())?;
+        let (next, growth) = self.prepare_scratch_reserve(1)?;
+        let old = self.visit_epochs.capacity();
+        self.visit_epochs
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_scratch_reserve(next, growth, old, self.visit_epochs.capacity())?;
+        let (next, growth) = self.prepare_index_reserve(child_count)?;
+        let old = self.reverse_parents.capacity();
+        self.reverse_parents
+            .try_reserve(child_count)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_index_reserve(next, growth, old, self.reverse_parents.capacity())?;
+        if incidence.is_some() {
+            let (next, growth) = self.prepare_index_reserve(1)?;
+            let old = self.incidences.capacity();
+            self.incidences
+                .try_reserve(1)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            self.commit_index_reserve(next, growth, old, self.incidences.capacity())?;
+            let (next, growth) = self.prepare_index_reserve(1)?;
+            let old = self.incidence_heads.capacity();
+            self.incidence_heads
+                .try_reserve(1)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            self.commit_index_reserve(next, growth, old, self.incidence_heads.capacity())?;
+        }
+        self.nodes.push(F5cSummaryNode {
+            incidence,
+            transitive_incidence_count: count,
+            kind,
+        });
+        self.parent_heads.push(None);
+        self.root_heads.push(None);
+        self.visit_epochs.push(0);
+        let add_parent =
+            |this: &mut Self, child: F5cSummaryNodeId| -> Result<(), SolveAvailabilityError> {
+                let head = this
+                    .parent_heads
+                    .get_mut(child.0 as usize)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let next = *head;
+                *head = Some(this.reverse_parents.len());
+                this.reverse_parents.push(F5cReverseParentEdge {
+                    child,
+                    parent: id,
+                    next,
+                });
+                Ok(())
+            };
+        match kind {
+            F5cSummaryNodeKind::PositiveAlias { start }
+            | F5cSummaryNodeKind::NegativeAlias { start } => {
+                add_parent(self, self.child_slice(start, 1)?[0])?;
+            }
+            F5cSummaryNodeKind::PositiveUnion { start, len }
+            | F5cSummaryNodeKind::NegativeIntersection { start, len } => {
+                let children = self.child_slice(start, len)?.to_vec();
+                for child in children {
+                    add_parent(self, child)?;
+                }
+            }
+            F5cSummaryNodeKind::PositiveFunction { argument, result }
+            | F5cSummaryNodeKind::NegativeFunction { argument, result } => {
+                add_parent(self, argument)?;
+                add_parent(self, result)?;
+            }
+            _ => {}
+        }
+        if let Some((row, _)) = incidence {
+            let next = self.incidence_heads.get(&row).copied().flatten();
+            self.incidence_heads
+                .insert(row, Some(self.incidences.len()));
+            self.incidences.push(F5cIncidenceEdge { node: id, next });
+        }
+        Ok(id)
+    }
+
+    fn push_children(
+        &mut self,
+        ids: &[F5cSummaryNodeId],
+    ) -> Result<(u32, u32), SolveAvailabilityError> {
+        let start = u32::try_from(self.children.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let len =
+            u32::try_from(ids.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        start
+            .checked_add(len)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let requested = self
+            .child_lane
+            .requested_slots
+            .checked_add(ids.len())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let growth_if_changed = self
+            .child_lane
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth_if_changed = self
+            .independent_child_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = self.children.capacity();
+        self.children
+            .try_reserve(ids.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        if self.children.capacity() != old {
+            self.child_lane.capacity_growths = growth_if_changed;
+            #[cfg(test)]
+            {
+                self.independent_child_growths = independent_growth_if_changed;
+            }
+        }
+        self.child_lane.requested_slots = requested;
+        let peak_bytes = self.child_lane.peak_bytes.max(self.child_retained_bytes()?);
+        self.children.extend_from_slice(ids);
+        self.child_lane.peak_bytes = peak_bytes;
+        Ok((start, len))
+    }
+
+    fn admit(
+        &mut self,
+        key: F5cExpansionKey,
+        root: F5cSummaryNodeId,
+    ) -> Result<(), SolveAvailabilityError> {
+        if self.roots.contains_key(&key) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        self.node(root)?;
+        let requested = self
+            .root_lane
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let root_growth = self
+            .root_lane
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_root_growth = self
+            .independent_root_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = self.roots.capacity();
+        self.roots
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let root_grew = usize::from(self.roots.capacity() != old);
+        if root_grew != 0 {
+            self.root_lane.capacity_growths = root_growth;
+            #[cfg(test)]
+            {
+                self.independent_root_growths = independent_root_growth;
+            }
+        }
+        self.root_lane.requested_slots = requested;
+        self.root_lane.peak_bytes = self.root_lane.peak_bytes.max(self.root_retained_bytes()?);
+
+        let (next, growth) = self.prepare_index_reserve(1)?;
+        let old = self.root_edges.capacity();
+        self.root_edges
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_index_reserve(next, growth, old, self.root_edges.capacity())?;
+        let (next, growth) = self.prepare_index_reserve(1)?;
+        let old = self.root_edge_marks.capacity();
+        self.root_edge_marks
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_index_reserve(next, growth, old, self.root_edge_marks.capacity())?;
+        let (next, growth) = self.prepare_scratch_reserve(1)?;
+        let old = self.active_conflicts.capacity();
+        self.active_conflicts
+            .try_reserve(1)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.commit_scratch_reserve(next, growth, old, self.active_conflicts.capacity())?;
+        // Re-entry, conflicted warm lookup, and Shared materialization taint
+        // active frames. A completed root-neutral summary therefore has no
+        // active incidence when it reaches admission.
+        let next = *self
+            .root_heads
+            .get(root.0 as usize)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let edge_index = self.root_edges.len();
+        self.root_edges.push(F5cRootEdge {
+            root,
+            key,
+            next,
+            live: true,
+        });
+        self.root_edge_marks.push(0);
+        self.root_heads[root.0 as usize] = Some(edge_index);
+        self.roots.insert(key, root);
+        Ok(())
+    }
+
+    fn requested_slots(&self) -> Result<usize, SolveAvailabilityError> {
+        self.root_lane
+            .requested_slots
+            .checked_add(self.node_lane.requested_slots)
+            .and_then(|value| value.checked_add(self.child_lane.requested_slots))
+            .and_then(|value| value.checked_add(self.index_lane.requested_slots))
+            .and_then(|value| value.checked_add(self.scratch_lane.requested_slots))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn capacity_growths(&self) -> Result<usize, SolveAvailabilityError> {
+        self.root_lane
+            .capacity_growths
+            .checked_add(self.node_lane.capacity_growths)
+            .and_then(|value| value.checked_add(self.child_lane.capacity_growths))
+            .and_then(|value| value.checked_add(self.index_lane.capacity_growths))
+            .and_then(|value| value.checked_add(self.scratch_lane.capacity_growths))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn actual_capacity(&self) -> Result<usize, SolveAvailabilityError> {
+        self.roots
+            .capacity()
+            .checked_add(self.nodes.capacity())
+            .and_then(|v| v.checked_add(self.children.capacity()))
+            .and_then(|v| v.checked_add(self.index_capacity().ok()?))
+            .and_then(|v| v.checked_add(self.scratch_capacity().ok()?))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn root_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.roots
+            .capacity()
+            .checked_mul(std::mem::size_of::<(F5cExpansionKey, F5cSummaryNodeId)>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn node_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.nodes
+            .capacity()
+            .checked_mul(std::mem::size_of::<F5cSummaryNode>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn child_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.children
+            .capacity()
+            .checked_mul(std::mem::size_of::<F5cSummaryNodeId>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn index_capacity(&self) -> Result<usize, SolveAvailabilityError> {
+        [
+            self.parent_heads.capacity(),
+            self.reverse_parents.capacity(),
+            self.incidence_heads.capacity(),
+            self.incidences.capacity(),
+            self.root_heads.capacity(),
+            self.root_edges.capacity(),
+            self.root_edge_marks.capacity(),
+            self.invalidated_root_edges.capacity(),
+        ]
+        .into_iter()
+        .try_fold(0usize, |sum, value| sum.checked_add(value))
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn scratch_capacity(&self) -> Result<usize, SolveAvailabilityError> {
+        [
+            self.active_rows.capacity(),
+            self.active_conflicts.capacity(),
+            self.work.capacity(),
+            self.conflict_journal.capacity(),
+            self.visit_epochs.capacity(),
+        ]
+        .into_iter()
+        .try_fold(0usize, |sum, value| sum.checked_add(value))
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn index_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        let lanes = [
+            self.parent_heads
+                .capacity()
+                .checked_mul(std::mem::size_of::<Option<usize>>()),
+            self.reverse_parents
+                .capacity()
+                .checked_mul(std::mem::size_of::<F5cReverseParentEdge>()),
+            self.incidence_heads
+                .capacity()
+                .checked_mul(std::mem::size_of::<(u32, Option<usize>)>()),
+            self.incidences
+                .capacity()
+                .checked_mul(std::mem::size_of::<F5cIncidenceEdge>()),
+            self.root_heads
+                .capacity()
+                .checked_mul(std::mem::size_of::<Option<usize>>()),
+            self.root_edges
+                .capacity()
+                .checked_mul(std::mem::size_of::<F5cRootEdge>()),
+            self.root_edge_marks
+                .capacity()
+                .checked_mul(std::mem::size_of::<u32>()),
+            self.invalidated_root_edges
+                .capacity()
+                .checked_mul(std::mem::size_of::<(usize, Option<usize>)>()),
+        ];
+        lanes
+            .into_iter()
+            .try_fold(0usize, |sum, value| sum.checked_add(value?))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn scratch_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        let lanes = [
+            self.active_rows
+                .capacity()
+                .checked_mul(std::mem::size_of::<(u32, usize)>()),
+            self.active_conflicts
+                .capacity()
+                .checked_mul(std::mem::size_of::<(F5cExpansionKey, usize)>()),
+            self.work
+                .capacity()
+                .checked_mul(std::mem::size_of::<F5cSummaryNodeId>()),
+            self.conflict_journal
+                .capacity()
+                .checked_mul(std::mem::size_of::<(F5cExpansionKey, usize)>()),
+            self.visit_epochs
+                .capacity()
+                .checked_mul(std::mem::size_of::<u32>()),
+        ];
+        lanes
+            .into_iter()
+            .try_fold(0usize, |sum, value| sum.checked_add(value?))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.root_retained_bytes()?
+            .checked_add(self.node_retained_bytes()?)
+            .and_then(|value| value.checked_add(self.child_retained_bytes().ok()?))
+            .and_then(|value| value.checked_add(self.index_retained_bytes().ok()?))
+            .and_then(|value| value.checked_add(self.scratch_retained_bytes().ok()?))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn peak_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        self.root_lane
+            .peak_bytes
+            .checked_add(self.node_lane.peak_bytes)
+            .and_then(|value| value.checked_add(self.child_lane.peak_bytes))
+            .and_then(|value| value.checked_add(self.index_lane.peak_bytes))
+            .and_then(|value| value.checked_add(self.scratch_lane.peak_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn clear(&mut self) {
+        self.roots = HashMap::new();
+        self.nodes = Vec::new();
+        self.children = Vec::new();
+        self.parent_heads = Vec::new();
+        self.reverse_parents = Vec::new();
+        self.incidence_heads = HashMap::new();
+        self.incidences = Vec::new();
+        self.root_heads = Vec::new();
+        self.root_edges = Vec::new();
+        self.root_edge_marks = Vec::new();
+        self.root_edge_mark_epoch = 0;
+        self.invalidated_root_edges = Vec::new();
+        self.active_rows = HashMap::new();
+        self.active_conflicts = HashMap::new();
+        self.work = Vec::new();
+        self.conflict_journal = Vec::new();
+        self.visit_epochs = Vec::new();
+        self.walker_resources = F5cWalkerResources::default();
+    }
+
+    fn rollback_admission(&mut self, key: F5cExpansionKey) {
+        self.roots.remove(&key);
+        self.active_conflicts.remove(&key);
+        let edge = self
+            .root_edges
+            .pop()
+            .expect("F5c rollback root edge was admitted");
+        self.root_edge_marks
+            .pop()
+            .expect("F5c rollback root edge mark was admitted");
+        assert_eq!(edge.key, key, "F5c admissions roll back in reverse order");
+        self.root_heads[edge.root.0 as usize] = edge.next;
+    }
+
+    fn rollback_nodes(
+        &mut self,
+        node_checkpoint: usize,
+        child_checkpoint: usize,
+        reverse_checkpoint: usize,
+        incidence_checkpoint: usize,
+    ) {
+        while self.reverse_parents.len() > reverse_checkpoint {
+            let edge = self.reverse_parents.pop().expect("reverse edge exists");
+            assert_eq!(
+                self.parent_heads[edge.child.0 as usize],
+                Some(self.reverse_parents.len()),
+                "F5c reverse edges roll back in reverse order"
+            );
+            self.parent_heads[edge.child.0 as usize] = edge.next;
+        }
+        while self.incidences.len() > incidence_checkpoint {
+            let edge = self.incidences.pop().expect("incidence edge exists");
+            let row = self.nodes[edge.node.0 as usize]
+                .incidence
+                .expect("incidence edge owns row")
+                .0;
+            if let Some(next) = edge.next {
+                self.incidence_heads.insert(row, Some(next));
+            } else {
+                self.incidence_heads.remove(&row);
+            }
+        }
+        self.nodes.truncate(node_checkpoint);
+        self.children.truncate(child_checkpoint);
+        self.parent_heads.truncate(node_checkpoint);
+        self.root_heads.truncate(node_checkpoint);
+        self.visit_epochs.truncate(node_checkpoint);
+    }
+
+    fn finish_invalidation_transaction(&mut self, checkpoint: usize, commit: bool) {
+        if !commit {
+            for (index, active_conflicts) in self.invalidated_root_edges[checkpoint..]
+                .iter()
+                .rev()
+                .copied()
+            {
+                let edge = &mut self.root_edges[index];
+                edge.live = true;
+                self.roots.insert(edge.key, edge.root);
+                if let Some(count) = active_conflicts {
+                    self.active_conflicts.insert(edge.key, count);
+                }
+            }
+        }
+        self.invalidated_root_edges.truncate(checkpoint);
+    }
+
+    fn reset_active_scratch(&mut self) {
+        self.active_rows.clear();
+        self.active_conflicts.clear();
+        self.work.clear();
+        self.conflict_journal.clear();
+    }
+}
+
+#[derive(Default)]
+struct F5cExpansionFrame {
+    tainted: bool,
+}
+
+enum F5cWalkTask {
+    EnterRow {
+        row: u32,
+        polarity: Polarity,
+        root: bool,
+    },
+    PositiveEndpoint(ValueEndpointKey),
+    NegativeEndpoint(ValueEndpointKey),
+    EnterTerm {
+        term: Term,
+        polarity: Polarity,
+    },
+    ExitRow {
+        row: u32,
+        polarity: Polarity,
+        root: bool,
+        values_start: usize,
+    },
+    ExitFunction {
+        polarity: Polarity,
+    },
+    EnterPath(F5cTraceHop),
+    LeavePath,
+}
+
+enum F5cWalkValue {
+    Positive(F5cPositive, bool),
+    Negative(F5cNegative, bool),
+}
+
+enum F5cCompareTask<'a> {
+    Positive(&'a F5cPositive, &'a F5cPositive),
+    Negative(&'a F5cNegative, &'a F5cNegative),
+}
+
+enum F5cSummaryTask<'a> {
+    Positive(&'a F5cPositive, Option<(u32, Polarity)>),
+    Negative(&'a F5cNegative, Option<(u32, Polarity)>),
+    PositiveUnion(usize, Option<(u32, Polarity)>),
+    NegativeIntersection(usize, Option<(u32, Polarity)>),
+    PositiveFunction(Option<(u32, Polarity)>),
+    NegativeFunction(Option<(u32, Polarity)>),
+}
+
+#[derive(Clone, Copy)]
+enum F5cMaterializeTask {
+    Positive(F5cSummaryNodeId),
+    Negative(F5cSummaryNodeId),
+    PositiveUnion(usize),
+    NegativeIntersection(usize),
+    PositiveFunction,
+    NegativeFunction,
+}
+
 /// Root-local F5c expansion state.  Collected rows remain immutable recipes;
 /// this walker is the sole owner of polarity incidence, active-path re-entry,
 /// and the Q/R decision for one draft.
 struct F5cGeneralizer<'a> {
     session: &'a InferenceSession,
-    active: Vec<(u32, Polarity)>,
+    memo: F5cComponentExpansionMemo,
+    frozen_bound_epoch: usize,
+    frames: Vec<F5cExpansionFrame>,
+    shared_summary_hits: usize,
+    uncacheable_states: usize,
+    uncacheable_seen: HashSet<F5cExpansionKey>,
+    fatal_taint: bool,
+    provisional_recursive_rows: HashSet<u32>,
+    admitted_keys: Vec<F5cExpansionKey>,
+    node_checkpoint: usize,
+    child_checkpoint: usize,
+    reverse_checkpoint: usize,
+    incidence_checkpoint: usize,
+    invalidation_checkpoint: usize,
+    active: Vec<(u32, Polarity, usize)>,
     active_set: HashSet<(u32, Polarity)>,
-    function_depth: usize,
-    /// Completed acyclic row expansions are reused within one root draft.
-    /// Active re-entries deliberately bypass these maps so guarded paths keep
-    /// their owner-local R witness.
-    positive_cache: HashMap<u32, F5cPositive>,
-    negative_cache: HashMap<u32, F5cNegative>,
-    positive_seen: HashSet<u32>,
-    negative_seen: HashSet<u32>,
+    #[cfg(test)]
+    assert_admission_invariant: bool,
+    path: Vec<F5cTraceHop>,
     order: Vec<u32>,
     order_seen: HashSet<u32>,
-    reentries: Vec<u32>,
-    reentry_set: HashSet<u32>,
+    reentries: Vec<F5cGuardedTrace>,
     invalid_effects: bool,
 }
 
 impl<'a> F5cGeneralizer<'a> {
+    #[cfg(test)]
     fn new(session: &'a InferenceSession) -> Self {
+        Self::with_memo(session, F5cComponentExpansionMemo::default(), 0)
+    }
+
+    fn with_memo(
+        session: &'a InferenceSession,
+        memo: F5cComponentExpansionMemo,
+        frozen_bound_epoch: usize,
+    ) -> Self {
+        let node_checkpoint = memo.nodes.len();
+        let child_checkpoint = memo.children.len();
+        let reverse_checkpoint = memo.reverse_parents.len();
+        let incidence_checkpoint = memo.incidences.len();
+        let invalidation_checkpoint = memo.invalidated_root_edges.len();
         Self {
             session,
+            memo,
+            frozen_bound_epoch,
+            frames: Vec::new(),
+            shared_summary_hits: 0,
+            uncacheable_states: 0,
+            uncacheable_seen: HashSet::new(),
+            fatal_taint: false,
+            provisional_recursive_rows: HashSet::new(),
+            admitted_keys: Vec::new(),
+            node_checkpoint,
+            child_checkpoint,
+            reverse_checkpoint,
+            incidence_checkpoint,
+            invalidation_checkpoint,
             active: Vec::new(),
             active_set: HashSet::new(),
-            function_depth: 0,
-            positive_cache: HashMap::new(),
-            negative_cache: HashMap::new(),
-            positive_seen: HashSet::new(),
-            negative_seen: HashSet::new(),
+            #[cfg(test)]
+            assert_admission_invariant: false,
+            path: Vec::new(),
             order: Vec::new(),
             order_seen: HashSet::new(),
             reentries: Vec::new(),
-            reentry_set: HashSet::new(),
             invalid_effects: false,
         }
     }
 
-    fn mark(&mut self, ordinal: u32, polarity: Polarity) {
-        let seen = match polarity {
-            Polarity::Positive => &mut self.positive_seen,
-            Polarity::Negative => &mut self.negative_seen,
-        };
-        if seen.insert(ordinal) && self.order_seen.insert(ordinal) {
+    fn mark(&mut self, ordinal: u32, _polarity: Polarity) {
+        if self.order_seen.insert(ordinal) {
             self.order.push(ordinal);
+        }
+        if self.provisional_recursive_rows.contains(&ordinal)
+            || self
+                .session
+                .value_metadata
+                .get(ordinal as usize)
+                .is_none_or(|metadata| metadata.non_generic)
+            || self
+                .session
+                .value_levels
+                .get(ordinal as usize)
+                .is_none_or(|level| *level == 0)
+        {
+            if let Some(frame) = self.frames.last_mut() {
+                frame.tainted = true;
+            }
+        }
+    }
+
+    fn materialize_positive(
+        &mut self,
+        value: F5cPositive,
+    ) -> Result<F5cPositive, SolveAvailabilityError> {
+        match value {
+            F5cPositive::Shared(id) => {
+                let session = self.session;
+                let frames = &mut self.frames;
+                let active_set = &self.active_set;
+                let provisional = &self.provisional_recursive_rows;
+                let order = &mut self.order;
+                let order_seen = &mut self.order_seen;
+                let mut active_conflict = false;
+                let materialized = self.memo.positive_value_with(id, &mut |row, _polarity| {
+                    active_conflict |= active_set.contains(&(row, Polarity::Positive))
+                        || active_set.contains(&(row, Polarity::Negative));
+                    if order_seen.insert(row) {
+                        order.push(row);
+                    }
+                    if provisional.contains(&row)
+                        || session
+                            .value_metadata
+                            .get(row as usize)
+                            .is_none_or(|metadata| metadata.non_generic)
+                        || session
+                            .value_levels
+                            .get(row as usize)
+                            .is_none_or(|level| *level == 0)
+                    {
+                        if let Some(frame) = frames.last_mut() {
+                            frame.tainted = true;
+                        }
+                    }
+                })?;
+                if active_conflict {
+                    self.taint_active_states();
+                }
+                Ok(materialized)
+            }
+            F5cPositive::Union(values) => Ok(F5cPositive::Union(
+                values
+                    .into_iter()
+                    .map(|value| self.materialize_positive(value))
+                    .collect::<Result<_, _>>()?,
+            )),
+            F5cPositive::Function {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } => Ok(F5cPositive::Function {
+                argument: Box::new(self.materialize_negative(*argument)?),
+                argument_effect,
+                result_effect,
+                result: Box::new(self.materialize_positive(*result)?),
+            }),
+            other => Ok(other),
+        }
+    }
+
+    fn materialize_negative(
+        &mut self,
+        value: F5cNegative,
+    ) -> Result<F5cNegative, SolveAvailabilityError> {
+        match value {
+            F5cNegative::Shared(id) => {
+                let session = self.session;
+                let frames = &mut self.frames;
+                let active_set = &self.active_set;
+                let provisional = &self.provisional_recursive_rows;
+                let order = &mut self.order;
+                let order_seen = &mut self.order_seen;
+                let mut active_conflict = false;
+                let materialized = self.memo.negative_value_with(id, &mut |row, _polarity| {
+                    active_conflict |= active_set.contains(&(row, Polarity::Positive))
+                        || active_set.contains(&(row, Polarity::Negative));
+                    if order_seen.insert(row) {
+                        order.push(row);
+                    }
+                    if provisional.contains(&row)
+                        || session
+                            .value_metadata
+                            .get(row as usize)
+                            .is_none_or(|metadata| metadata.non_generic)
+                        || session
+                            .value_levels
+                            .get(row as usize)
+                            .is_none_or(|level| *level == 0)
+                    {
+                        if let Some(frame) = frames.last_mut() {
+                            frame.tainted = true;
+                        }
+                    }
+                })?;
+                if active_conflict {
+                    self.taint_active_states();
+                }
+                Ok(materialized)
+            }
+            F5cNegative::Intersection(values) => Ok(F5cNegative::Intersection(
+                values
+                    .into_iter()
+                    .map(|value| self.materialize_negative(value))
+                    .collect::<Result<_, _>>()?,
+            )),
+            F5cNegative::Function {
+                argument,
+                argument_effect,
+                result_effect,
+                result,
+            } => Ok(F5cNegative::Function {
+                argument: Box::new(self.materialize_positive(*argument)?),
+                argument_effect,
+                result_effect,
+                result: Box::new(self.materialize_negative(*result)?),
+            }),
+            other => Ok(other),
+        }
+    }
+
+    fn taint_active_states(&mut self) {
+        for frame in &mut self.frames {
+            frame.tainted = true;
+        }
+    }
+
+    fn taint_failed_draft(&mut self) {
+        self.fatal_taint = true;
+        self.taint_active_states();
+    }
+
+    fn record_uncacheable(&mut self, row: u32, polarity: Polarity) {
+        if self.uncacheable_seen.insert(F5cExpansionKey {
+            row,
+            polarity,
+            frozen_bound_epoch: self.frozen_bound_epoch,
+        }) {
+            self.uncacheable_states += 1;
         }
     }
 
@@ -3162,300 +6030,1620 @@ impl<'a> F5cGeneralizer<'a> {
             || self.active_set.contains(&(ordinal, Polarity::Negative))
     }
 
-    fn cacheable_positive(value: &F5cPositive) -> bool {
+    #[cfg(test)]
+    fn assert_admitted_summary_has_no_active_incidence(&self, root: F5cSummaryNodeId) {
+        let mut pending = vec![root];
+        let mut seen = HashSet::new();
+        while let Some(id) = pending.pop() {
+            let Some(node) = self.memo.nodes.get(id.0 as usize) else {
+                assert!(false, "admitted summary node ID is valid");
+                return;
+            };
+            if !seen.insert(id) {
+                continue;
+            }
+            if let Some((row, _)) = node.incidence {
+                assert!(
+                    !self.active_any(row),
+                    "admitted summary contains an active row"
+                );
+            }
+            match node.kind {
+                F5cSummaryNodeKind::PositiveAlias { start }
+                | F5cSummaryNodeKind::NegativeAlias { start } => {
+                    let children = self.memo.child_slice(start, 1);
+                    assert!(children.is_ok(), "admitted alias children are valid");
+                    pending.extend_from_slice(children.unwrap());
+                }
+                F5cSummaryNodeKind::PositiveUnion { start, len }
+                | F5cSummaryNodeKind::NegativeIntersection { start, len } => {
+                    let children = self.memo.child_slice(start, len);
+                    assert!(children.is_ok(), "admitted summary children are valid");
+                    pending.extend_from_slice(children.unwrap());
+                }
+                F5cSummaryNodeKind::PositiveFunction { argument, result }
+                | F5cSummaryNodeKind::NegativeFunction { argument, result } => {
+                    pending.extend([argument, result]);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn record_reentry(
+        &mut self,
+        ordinal: u32,
+        reentry_polarity: Polarity,
+    ) -> Result<(), SolveAvailabilityError> {
+        if self.provisional_recursive_rows.insert(ordinal) {
+            self.memo.invalidate_row(ordinal)?;
+        }
+        let Some((_, entry_polarity, path_start)) =
+            self.active.iter().find(|(active, _, _)| *active == ordinal)
+        else {
+            return Ok(());
+        };
+        let path = self.path[*path_start..].to_vec();
+        if path
+            .iter()
+            .any(|hop| matches!(hop, F5cTraceHop::Function(_)))
+        {
+            self.reentries.push(F5cGuardedTrace {
+                owner: ordinal,
+                entry_polarity: *entry_polarity,
+                reentry_polarity,
+                path,
+            });
+        }
+        Ok(())
+    }
+
+    fn structural_equal<'b>(
+        &mut self,
+        first: F5cCompareTask<'b>,
+        stack: &mut Vec<F5cCompareTask<'b>>,
+    ) -> Result<bool, SolveAvailabilityError> {
+        stack.clear();
+        self.memo
+            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+        stack.push(first);
+        while let Some(pair) = stack.pop() {
+            match pair {
+                F5cCompareTask::Positive(left, right) => match (left, right) {
+                    (F5cPositive::Bottom, F5cPositive::Bottom)
+                    | (F5cPositive::Int, F5cPositive::Int) => {}
+                    (F5cPositive::Variable(a), F5cPositive::Variable(b))
+                    | (F5cPositive::Quantified(a), F5cPositive::Quantified(b))
+                    | (F5cPositive::Recursive(a), F5cPositive::Recursive(b))
+                        if a == b => {}
+                    (F5cPositive::Shared(a), F5cPositive::Shared(b)) if a == b => {}
+                    (F5cPositive::Union(a), F5cPositive::Union(b)) if a.len() == b.len() => {
+                        for (left, right) in a.iter().zip(b).rev() {
+                            self.memo
+                                .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                            stack.push(F5cCompareTask::Positive(left, right));
+                        }
+                    }
+                    (
+                        F5cPositive::Function {
+                            argument: aa,
+                            argument_effect: ae,
+                            result_effect: re,
+                            result: ar,
+                        },
+                        F5cPositive::Function {
+                            argument: ba,
+                            argument_effect: be,
+                            result_effect: br,
+                            result: b,
+                        },
+                    ) if ae == be && re == br => {
+                        self.memo
+                            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                        stack.push(F5cCompareTask::Positive(ar, b));
+                        self.memo
+                            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                        stack.push(F5cCompareTask::Negative(aa, ba));
+                    }
+                    _ => {
+                        stack.clear();
+                        return Ok(false);
+                    }
+                },
+                F5cCompareTask::Negative(left, right) => match (left, right) {
+                    (F5cNegative::Top, F5cNegative::Top)
+                    | (F5cNegative::Bottom, F5cNegative::Bottom)
+                    | (F5cNegative::Int, F5cNegative::Int) => {}
+                    (F5cNegative::Variable(a), F5cNegative::Variable(b))
+                    | (F5cNegative::Quantified(a), F5cNegative::Quantified(b))
+                    | (F5cNegative::Recursive(a), F5cNegative::Recursive(b))
+                        if a == b => {}
+                    (F5cNegative::Shared(a), F5cNegative::Shared(b)) if a == b => {}
+                    (F5cNegative::Intersection(a), F5cNegative::Intersection(b))
+                        if a.len() == b.len() =>
+                    {
+                        for (left, right) in a.iter().zip(b).rev() {
+                            self.memo
+                                .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                            stack.push(F5cCompareTask::Negative(left, right));
+                        }
+                    }
+                    (
+                        F5cNegative::Function {
+                            argument: aa,
+                            argument_effect: ae,
+                            result_effect: re,
+                            result: ar,
+                        },
+                        F5cNegative::Function {
+                            argument: ba,
+                            argument_effect: be,
+                            result_effect: br,
+                            result: b,
+                        },
+                    ) if ae == be && re == br => {
+                        self.memo
+                            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                        stack.push(F5cCompareTask::Negative(ar, b));
+                        self.memo
+                            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                        stack.push(F5cCompareTask::Positive(aa, ba));
+                    }
+                    _ => {
+                        stack.clear();
+                        return Ok(false);
+                    }
+                },
+            }
+        }
+        Ok(true)
+    }
+
+    fn walk(&mut self, first: F5cWalkTask) -> Result<F5cWalkValue, SolveAvailabilityError> {
+        let active_checkpoint = self.active.len();
+        let frame_checkpoint = self.frames.len();
+        let path_checkpoint = self.path.len();
+        let mut tasks = Vec::new();
+        let mut values = Vec::<F5cWalkValue>::new();
+        let mut direct_edges = Vec::<(usize, u32)>::new();
+        let mut direct_targets = HashSet::<u32>::new();
+        macro_rules! push_task {
+            ($value:expr) => {{
+                let value = $value;
+                self.memo
+                    .reserve_walker(&mut tasks, F5cWalkerLaneKind::Tasks)?;
+                tasks.push(value);
+            }};
+        }
+        macro_rules! push_value {
+            ($value:expr) => {{
+                let value = $value;
+                self.memo
+                    .reserve_walker(&mut values, F5cWalkerLaneKind::Values)?;
+                values.push(value);
+            }};
+        }
+        macro_rules! push_direct {
+            ($value:expr) => {{
+                let value = $value;
+                self.memo
+                    .reserve_walker(&mut direct_edges, F5cWalkerLaneKind::DirectEdges)?;
+                direct_edges.push(value);
+            }};
+        }
+        let result = (|| {
+            push_task!(first);
+            while let Some(task) = tasks.pop() {
+                match task {
+                    F5cWalkTask::EnterPath(hop) => self.path.push(hop),
+                    F5cWalkTask::LeavePath => {
+                        self.path.pop();
+                    }
+                    F5cWalkTask::EnterRow {
+                        row,
+                        polarity,
+                        root,
+                    } => {
+                        if self.active(row, polarity) {
+                            self.taint_active_states();
+                            self.record_reentry(row, polarity)?;
+                            self.memo.observe_walker()?;
+                            self.mark(row, polarity);
+                            push_value!(match polarity {
+                                Polarity::Positive =>
+                                    F5cWalkValue::Positive(F5cPositive::Variable(row), false),
+                                Polarity::Negative =>
+                                    F5cWalkValue::Negative(F5cNegative::Variable(row), false),
+                            });
+                            continue;
+                        }
+                        if self.active_any(row) {
+                            self.taint_active_states();
+                            self.record_reentry(row, polarity)?;
+                            self.memo.observe_walker()?;
+                        }
+                        let key = F5cExpansionKey {
+                            row,
+                            polarity,
+                            frozen_bound_epoch: self.frozen_bound_epoch,
+                        };
+                        let mut warm_conflict = false;
+                        if !root {
+                            if let Some(id) = self.memo.roots.get(&key).copied() {
+                                if self.memo.conflicts_active(key) {
+                                    self.taint_active_states();
+                                    warm_conflict = true;
+                                } else {
+                                    self.shared_summary_hits = self
+                                        .shared_summary_hits
+                                        .checked_add(self.memo.node(id)?.transitive_incidence_count)
+                                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                                    push_value!(match polarity {
+                                        Polarity::Positive =>
+                                            F5cWalkValue::Positive(F5cPositive::Shared(id), true),
+                                        Polarity::Negative =>
+                                            F5cWalkValue::Negative(F5cNegative::Shared(id), true),
+                                    });
+                                    continue;
+                                }
+                            }
+                            self.frames.push(F5cExpansionFrame {
+                                tainted: self.fatal_taint || warm_conflict,
+                            });
+                        }
+                        self.mark(row, polarity);
+                        self.memo.enter_active(row)?;
+                        self.memo.observe_walker()?;
+                        self.active.push((row, polarity, self.path.len()));
+                        self.active_set.insert((row, polarity));
+                        let bounds = self
+                            .session
+                            .bounds
+                            .get(row as usize)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let start = values.len();
+                        push_task!(F5cWalkTask::ExitRow {
+                            row,
+                            polarity,
+                            root,
+                            values_start: start,
+                        });
+                        direct_edges.clear();
+                        if !root {
+                            direct_targets.clear();
+                            let direct = match polarity {
+                                Polarity::Positive => &bounds.direct_lower_rows,
+                                Polarity::Negative => &bounds.direct_upper_rows,
+                            };
+                            for (slot, target) in direct.iter().copied().enumerate() {
+                                if !direct_targets.contains(&target) {
+                                    self.memo.reserve_walker_target(&mut direct_targets)?;
+                                    direct_targets.insert(target);
+                                    push_direct!((slot, target));
+                                }
+                            }
+                            for (slot, target) in direct_edges.iter().rev().copied() {
+                                let side = match polarity {
+                                    Polarity::Positive => F5cBoundSide::Lower,
+                                    Polarity::Negative => F5cBoundSide::Upper,
+                                };
+                                push_task!(F5cWalkTask::LeavePath);
+                                push_task!(match polarity {
+                                    Polarity::Positive | Polarity::Negative =>
+                                        F5cWalkTask::EnterRow {
+                                            row: target,
+                                            polarity,
+                                            root: false
+                                        },
+                                });
+                                push_task!(F5cWalkTask::EnterPath(F5cTraceHop::Direct {
+                                    side,
+                                    slot,
+                                    source: row,
+                                    target,
+                                }));
+                            }
+                        }
+                        let exact = match polarity {
+                            Polarity::Positive => &bounds.exact_non_variable_lowers,
+                            Polarity::Negative => &bounds.exact_non_variable_uppers,
+                        };
+                        for (slot, endpoint) in exact.iter().copied().enumerate().rev() {
+                            let side = match polarity {
+                                Polarity::Positive => F5cBoundSide::Lower,
+                                Polarity::Negative => F5cBoundSide::Upper,
+                            };
+                            push_task!(F5cWalkTask::LeavePath);
+                            push_task!(match polarity {
+                                Polarity::Positive => F5cWalkTask::PositiveEndpoint(endpoint),
+                                Polarity::Negative => F5cWalkTask::NegativeEndpoint(endpoint),
+                            });
+                            push_task!(F5cWalkTask::EnterPath(F5cTraceHop::Exact { side, slot }));
+                        }
+                    }
+                    F5cWalkTask::ExitRow {
+                        row,
+                        polarity,
+                        root,
+                        values_start,
+                    } => {
+                        self.memo.leave_active(row)?;
+                        self.memo.observe_walker()?;
+                        self.active.pop();
+                        self.active_set.remove(&(row, polarity));
+                        let value = match polarity {
+                            Polarity::Positive => {
+                                let mut parts = Vec::new();
+                                let mut cacheable = true;
+                                for child in values.drain(values_start..) {
+                                    let F5cWalkValue::Positive(value, child_cacheable) = child
+                                    else {
+                                        return Err(SolveAvailabilityError::IdentityExhausted);
+                                    };
+                                    let duplicate = {
+                                        let mut comparisons = Vec::new();
+                                        let mut duplicate = false;
+                                        for previous in &parts {
+                                            if self.structural_equal(
+                                                F5cCompareTask::Positive(previous, &value),
+                                                &mut comparisons,
+                                            )? {
+                                                duplicate = true;
+                                                break;
+                                            }
+                                        }
+                                        self.memo
+                                            .walker_resources
+                                            .release(F5cWalkerLaneKind::Comparison);
+                                        duplicate
+                                    };
+                                    if !duplicate {
+                                        cacheable &= child_cacheable;
+                                        self.memo.reserve_walker(
+                                            &mut parts,
+                                            F5cWalkerLaneKind::PositiveParts,
+                                        )?;
+                                        parts.push(value);
+                                    }
+                                }
+                                let nonempty = !parts.is_empty();
+                                let value = F5cWalkValue::Positive(
+                                    match parts.len() {
+                                        0 if root => F5cPositive::Bottom,
+                                        0 => F5cPositive::Variable(row),
+                                        1 => parts.pop().expect("one lower member"),
+                                        _ => F5cPositive::Union(parts),
+                                    },
+                                    cacheable && (nonempty || root),
+                                );
+                                self.memo
+                                    .walker_resources
+                                    .release(F5cWalkerLaneKind::PositiveParts);
+                                value
+                            }
+                            Polarity::Negative => {
+                                let mut parts = Vec::new();
+                                let mut cacheable = true;
+                                for child in values.drain(values_start..) {
+                                    let F5cWalkValue::Negative(value, child_cacheable) = child
+                                    else {
+                                        return Err(SolveAvailabilityError::IdentityExhausted);
+                                    };
+                                    let duplicate = {
+                                        let mut comparisons = Vec::new();
+                                        let mut duplicate = false;
+                                        for previous in &parts {
+                                            if self.structural_equal(
+                                                F5cCompareTask::Negative(previous, &value),
+                                                &mut comparisons,
+                                            )? {
+                                                duplicate = true;
+                                                break;
+                                            }
+                                        }
+                                        self.memo
+                                            .walker_resources
+                                            .release(F5cWalkerLaneKind::Comparison);
+                                        duplicate
+                                    };
+                                    if !duplicate {
+                                        cacheable &= child_cacheable;
+                                        self.memo.reserve_walker(
+                                            &mut parts,
+                                            F5cWalkerLaneKind::NegativeParts,
+                                        )?;
+                                        parts.push(value);
+                                    }
+                                }
+                                let nonempty = !parts.is_empty();
+                                let value = F5cWalkValue::Negative(
+                                    match parts.len() {
+                                        0 => F5cNegative::Variable(row),
+                                        1 => parts.pop().expect("one upper member"),
+                                        _ => F5cNegative::Intersection(parts),
+                                    },
+                                    cacheable && nonempty,
+                                );
+                                self.memo
+                                    .walker_resources
+                                    .release(F5cWalkerLaneKind::NegativeParts);
+                                value
+                            }
+                        };
+                        if root {
+                            push_value!(value);
+                            continue;
+                        }
+                        let mut frame = self
+                            .frames
+                            .pop()
+                            .expect("non-root expansion owns one frame");
+                        frame.tainted |= match &value {
+                            F5cWalkValue::Positive(_, cacheable)
+                            | F5cWalkValue::Negative(_, cacheable) => !cacheable,
+                        };
+                        if frame.tainted {
+                            self.record_uncacheable(row, polarity);
+                            self.taint_active_states();
+                            push_value!(value);
+                        } else {
+                            self.admitted_keys
+                                .try_reserve(1)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            let id = match &value {
+                                F5cWalkValue::Positive(value, _) => {
+                                    self.memo.positive_node(value, Some((row, polarity)))?
+                                }
+                                F5cWalkValue::Negative(value, _) => {
+                                    self.memo.negative_node(value, Some((row, polarity)))?
+                                }
+                            };
+                            let key = F5cExpansionKey {
+                                row,
+                                polarity,
+                                frozen_bound_epoch: self.frozen_bound_epoch,
+                            };
+                            self.memo.admit(key, id)?;
+                            self.memo.observe_walker()?;
+                            #[cfg(test)]
+                            if self.assert_admission_invariant {
+                                self.assert_admitted_summary_has_no_active_incidence(id);
+                            }
+                            self.admitted_keys.push(key);
+                            push_value!(match polarity {
+                                Polarity::Positive =>
+                                    F5cWalkValue::Positive(F5cPositive::Shared(id), true),
+                                Polarity::Negative =>
+                                    F5cWalkValue::Negative(F5cNegative::Shared(id), true),
+                            });
+                        }
+                    }
+                    F5cWalkTask::PositiveEndpoint(endpoint) => push_task!(match endpoint {
+                        ValueEndpointKey::IntPositive => {
+                            push_value!(F5cWalkValue::Positive(F5cPositive::Int, true));
+                            continue;
+                        }
+                        ValueEndpointKey::BottomPositive => {
+                            push_value!(F5cWalkValue::Positive(F5cPositive::Bottom, true));
+                            continue;
+                        }
+                        ValueEndpointKey::ValueRow(row) => F5cWalkTask::EnterRow {
+                            row,
+                            polarity: Polarity::Positive,
+                            root: false
+                        },
+                        ValueEndpointKey::PositiveFunction(term) => F5cWalkTask::EnterTerm {
+                            term,
+                            polarity: Polarity::Positive
+                        },
+                        _ => return Err(SolveAvailabilityError::IdentityExhausted),
+                    }),
+                    F5cWalkTask::NegativeEndpoint(endpoint) => push_task!(match endpoint {
+                        ValueEndpointKey::IntNegative => {
+                            push_value!(F5cWalkValue::Negative(F5cNegative::Int, true));
+                            continue;
+                        }
+                        ValueEndpointKey::TopNegative => {
+                            push_value!(F5cWalkValue::Negative(F5cNegative::Top, true));
+                            continue;
+                        }
+                        ValueEndpointKey::BottomNegative => {
+                            push_value!(F5cWalkValue::Negative(F5cNegative::Bottom, true));
+                            continue;
+                        }
+                        ValueEndpointKey::ValueRow(row) => F5cWalkTask::EnterRow {
+                            row,
+                            polarity: Polarity::Negative,
+                            root: false
+                        },
+                        ValueEndpointKey::NegativeFunction(term) => F5cWalkTask::EnterTerm {
+                            term,
+                            polarity: Polarity::Negative
+                        },
+                        _ => return Err(SolveAvailabilityError::IdentityExhausted),
+                    }),
+                    F5cWalkTask::EnterTerm { term, polarity } => {
+                        match (
+                            polarity,
+                            self.session
+                                .store
+                                .term_view(term)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                        ) {
+                            (Polarity::Positive, TermView::Leaf(Leaf::IntPositive)) => {
+                                push_value!(F5cWalkValue::Positive(F5cPositive::Int, true))
+                            }
+                            (Polarity::Negative, TermView::Leaf(Leaf::IntNegative)) => {
+                                push_value!(F5cWalkValue::Negative(F5cNegative::Int, true))
+                            }
+                            (Polarity::Positive, TermView::PositiveBottom) => {
+                                push_value!(F5cWalkValue::Positive(F5cPositive::Bottom, true))
+                            }
+                            (Polarity::Negative, TermView::NegativeTop) => {
+                                push_value!(F5cWalkValue::Negative(F5cNegative::Top, true))
+                            }
+                            (Polarity::Negative, TermView::NegativeBottom) => {
+                                push_value!(F5cWalkValue::Negative(F5cNegative::Bottom, true))
+                            }
+                            (polarity, TermView::LiveVariable(view))
+                                if view.polarity() == polarity =>
+                            {
+                                push_task!(match polarity {
+                                    Polarity::Positive | Polarity::Negative =>
+                                        F5cWalkTask::EnterRow {
+                                            row: view.ordinal(),
+                                            polarity,
+                                            root: false
+                                        },
+                                })
+                            }
+                            (
+                                Polarity::Positive,
+                                TermView::PositiveFunction {
+                                    argument,
+                                    argument_effect,
+                                    result_effect,
+                                    result,
+                                },
+                            )
+                            | (
+                                Polarity::Negative,
+                                TermView::NegativeFunction {
+                                    argument,
+                                    argument_effect,
+                                    result_effect,
+                                    result,
+                                },
+                            ) => {
+                                let valid = match polarity {
+                                    Polarity::Positive => {
+                                        matches!(
+                                            self.session.store.term_view(argument_effect),
+                                            Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
+                                        ) && matches!(
+                                            self.session.store.term_view(result_effect),
+                                            Ok(TermView::Leaf(Leaf::EffectBottomPositive))
+                                        )
+                                    }
+                                    Polarity::Negative => {
+                                        matches!(
+                                            self.session.store.term_view(argument_effect),
+                                            Ok(TermView::Leaf(Leaf::EffectBottomPositive))
+                                        ) && matches!(
+                                            self.session.store.term_view(result_effect),
+                                            Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
+                                        )
+                                    }
+                                };
+                                if !valid {
+                                    self.invalid_effects = true;
+                                    self.taint_failed_draft();
+                                }
+                                push_task!(F5cWalkTask::ExitFunction { polarity });
+                                push_task!(F5cWalkTask::LeavePath);
+                                push_task!(match polarity {
+                                    Polarity::Positive | Polarity::Negative =>
+                                        F5cWalkTask::EnterTerm {
+                                            term: result,
+                                            polarity
+                                        },
+                                });
+                                push_task!(F5cWalkTask::EnterPath(F5cTraceHop::Function(
+                                    FunctionField::Result
+                                )));
+                                push_task!(F5cWalkTask::LeavePath);
+                                push_task!(match polarity {
+                                    Polarity::Positive => F5cWalkTask::EnterTerm {
+                                        term: argument,
+                                        polarity: Polarity::Negative
+                                    },
+                                    Polarity::Negative => F5cWalkTask::EnterTerm {
+                                        term: argument,
+                                        polarity: Polarity::Positive
+                                    },
+                                });
+                                push_task!(F5cWalkTask::EnterPath(F5cTraceHop::Function(
+                                    FunctionField::Argument
+                                )));
+                            }
+                            _ => return Err(SolveAvailabilityError::IdentityExhausted),
+                        }
+                    }
+                    F5cWalkTask::ExitFunction { polarity } => {
+                        let result = values
+                            .pop()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let argument = values
+                            .pop()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        push_value!(match (polarity, argument, result) {
+                            (
+                                Polarity::Positive,
+                                F5cWalkValue::Negative(argument, argument_cacheable),
+                                F5cWalkValue::Positive(result, result_cacheable),
+                            ) => F5cWalkValue::Positive(
+                                F5cPositive::Function {
+                                    argument: Box::new(argument),
+                                    argument_effect: F5cNegativeEffect::Empty,
+                                    result_effect: F5cPositiveEffect::Bottom,
+                                    result: Box::new(result),
+                                },
+                                argument_cacheable && result_cacheable
+                            ),
+                            (
+                                Polarity::Negative,
+                                F5cWalkValue::Positive(argument, argument_cacheable),
+                                F5cWalkValue::Negative(result, result_cacheable),
+                            ) => F5cWalkValue::Negative(
+                                F5cNegative::Function {
+                                    argument: Box::new(argument),
+                                    argument_effect: F5cPositiveEffect::Bottom,
+                                    result_effect: F5cNegativeEffect::Empty,
+                                    result: Box::new(result),
+                                },
+                                argument_cacheable && result_cacheable
+                            ),
+                            _ => return Err(SolveAvailabilityError::IdentityExhausted),
+                        });
+                    }
+                }
+            }
+            if values.len() != 1 {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            values
+                .pop()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)
+        })();
+        let result = match result {
+            Ok(value) => self.memo.observe_walker().map(|()| value),
+            Err(error) => {
+                let _ = self.memo.observe_walker();
+                Err(error)
+            }
+        };
+        if result.is_err() {
+            while self.active.len() > active_checkpoint {
+                let (row, polarity, _) = self.active.pop().expect("active checkpoint");
+                self.active_set.remove(&(row, polarity));
+                if self.memo.leave_active(row).is_err() {
+                    self.memo.reset_active_scratch();
+                }
+            }
+            self.frames.truncate(frame_checkpoint);
+            self.path.truncate(path_checkpoint);
+            self.taint_active_states();
+        }
+        self.memo.walker_resources.release(F5cWalkerLaneKind::Tasks);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::Values);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::DirectEdges);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::DirectTargets);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::Comparison);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::PositiveParts);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::NegativeParts);
+        result
+    }
+
+    fn positive_row(
+        &mut self,
+        ordinal: u32,
+        root: bool,
+    ) -> Result<F5cPositive, SolveAvailabilityError> {
+        match self.walk(F5cWalkTask::EnterRow {
+            row: ordinal,
+            polarity: Polarity::Positive,
+            root,
+        })? {
+            F5cWalkValue::Positive(value, _) => Ok(value),
+            F5cWalkValue::Negative(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
+        }
+    }
+
+    fn negative_row(&mut self, ordinal: u32) -> Result<F5cNegative, SolveAvailabilityError> {
+        match self.walk(F5cWalkTask::EnterRow {
+            row: ordinal,
+            polarity: Polarity::Negative,
+            root: false,
+        })? {
+            F5cWalkValue::Negative(value, _) => Ok(value),
+            F5cWalkValue::Positive(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
+        }
+    }
+
+    #[cfg(test)]
+    fn positive_endpoint(
+        &mut self,
+        endpoint: ValueEndpointKey,
+    ) -> Result<F5cPositive, SolveAvailabilityError> {
+        match self.walk(F5cWalkTask::PositiveEndpoint(endpoint))? {
+            F5cWalkValue::Positive(value, _) => Ok(value),
+            F5cWalkValue::Negative(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
+        }
+    }
+
+    #[cfg(test)]
+    fn negative_endpoint(
+        &mut self,
+        endpoint: ValueEndpointKey,
+    ) -> Result<F5cNegative, SolveAvailabilityError> {
+        match self.walk(F5cWalkTask::NegativeEndpoint(endpoint))? {
+            F5cWalkValue::Negative(value, _) => Ok(value),
+            F5cWalkValue::Positive(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
+        }
+    }
+
+    #[cfg(test)]
+    fn positive_term(&mut self, term: Term) -> Result<F5cPositive, SolveAvailabilityError> {
+        match self.walk(F5cWalkTask::EnterTerm {
+            term,
+            polarity: Polarity::Positive,
+        })? {
+            F5cWalkValue::Positive(value, _) => Ok(value),
+            F5cWalkValue::Negative(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
+        }
+    }
+
+    #[cfg(test)]
+    fn negative_term(&mut self, term: Term) -> Result<F5cNegative, SolveAvailabilityError> {
+        match self.walk(F5cWalkTask::EnterTerm {
+            term,
+            polarity: Polarity::Negative,
+        })? {
+            F5cWalkValue::Negative(value, _) => Ok(value),
+            F5cWalkValue::Positive(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
+        }
+    }
+
+    fn positive_has_guarded_owner(value: &F5cPositive, owner: u32, guarded: bool) -> bool {
         match value {
-            F5cPositive::Variable(_) => false,
+            F5cPositive::Variable(ordinal) => guarded && *ordinal == owner,
             F5cPositive::Function {
                 argument, result, ..
-            } => Self::cacheable_negative(argument) && Self::cacheable_positive(result),
-            F5cPositive::Union(values) => values.iter().all(Self::cacheable_positive),
-            _ => true,
+            } => {
+                Self::negative_has_guarded_owner(argument, owner, true)
+                    || Self::positive_has_guarded_owner(result, owner, true)
+            }
+            F5cPositive::Union(values) => values
+                .iter()
+                .any(|value| Self::positive_has_guarded_owner(value, owner, guarded)),
+            _ => false,
         }
     }
 
-    fn cacheable_negative(value: &F5cNegative) -> bool {
+    fn negative_has_guarded_owner(value: &F5cNegative, owner: u32, guarded: bool) -> bool {
         match value {
-            F5cNegative::Variable(_) => false,
+            F5cNegative::Variable(ordinal) => guarded && *ordinal == owner,
             F5cNegative::Function {
                 argument, result, ..
-            } => Self::cacheable_positive(argument) && Self::cacheable_negative(result),
-            F5cNegative::Intersection(values) => values.iter().all(Self::cacheable_negative),
+            } => {
+                Self::positive_has_guarded_owner(argument, owner, true)
+                    || Self::negative_has_guarded_owner(result, owner, true)
+            }
+            F5cNegative::Intersection(values) => values
+                .iter()
+                .any(|value| Self::negative_has_guarded_owner(value, owner, guarded)),
+            _ => false,
+        }
+    }
+
+    fn guarded_trace_sort_key(
+        trace: &F5cGuardedTrace,
+        owner_key: &F5cCanonicalKey,
+        all_bound_keys: &HashMap<u32, F5cCanonicalKey>,
+    ) -> (u8, u8, Vec<F5cNormalizedHop>, F5cCanonicalKey) {
+        let path = trace
+            .path
+            .iter()
+            .map(|hop| match hop {
+                F5cTraceHop::Exact { side, .. } => F5cNormalizedHop::Exact(*side),
+                F5cTraceHop::Direct { side, target, .. } => {
+                    let target = all_bound_keys.get(target).cloned();
+                    F5cNormalizedHop::Direct(*side, target)
+                }
+                F5cTraceHop::Function(field) => F5cNormalizedHop::Function(*field),
+            })
+            .collect();
+        (
+            u8::from(trace.entry_polarity == Polarity::Negative),
+            u8::from(trace.reentry_polarity == Polarity::Negative),
+            path,
+            owner_key.clone(),
+        )
+    }
+
+    fn guarded_trace_path_survives(
+        trace: &F5cGuardedTrace,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> bool {
+        trace.path.iter().all(|hop| match hop {
+            F5cTraceHop::Direct {
+                side,
+                source,
+                target,
+                ..
+            } => {
+                let eliminated = match side {
+                    F5cBoundSide::Lower => positive_only,
+                    F5cBoundSide::Upper => negative_only,
+                };
+                (protected.contains(source) || !eliminated.contains(source))
+                    && (protected.contains(target) || !eliminated.contains(target))
+            }
             _ => true,
-        }
+        })
     }
 
-    fn positive_row(&mut self, ordinal: u32, root: bool) -> F5cPositive {
-        if self.active(ordinal, Polarity::Positive) {
-            if self.function_depth > 0 && self.reentry_set.insert(ordinal) {
-                self.reentries.push(ordinal);
-            }
-            self.mark(ordinal, Polarity::Positive);
-            return F5cPositive::Variable(ordinal);
+    fn guarded_bound_survives(owner: u32, lower: &F5cPositive, upper: &F5cNegative) -> bool {
+        (!matches!(lower, F5cPositive::Bottom) || !matches!(upper, F5cNegative::Top))
+            && (Self::positive_has_guarded_owner(lower, owner, false)
+                || Self::negative_has_guarded_owner(upper, owner, false))
+    }
+
+    #[cfg(test)]
+    fn guarded_trace_survives(
+        trace: &F5cGuardedTrace,
+        owner: u32,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+        raw_recursive_bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
+    ) -> bool {
+        if !Self::guarded_trace_path_survives(trace, protected, positive_only, negative_only) {
+            return false;
         }
-        if self.function_depth > 0 && self.active_any(ordinal) && self.reentry_set.insert(ordinal) {
-            self.reentries.push(ordinal);
-        }
-        if !root {
-            if let Some(value) = self.positive_cache.get(&ordinal).cloned() {
-                self.mark(ordinal, Polarity::Positive);
-                return value;
-            }
-        }
-        self.mark(ordinal, Polarity::Positive);
-        self.active.push((ordinal, Polarity::Positive));
-        self.active_set.insert((ordinal, Polarity::Positive));
-        let bounds = self
-            .session
-            .bounds
-            .get(ordinal as usize)
-            .cloned()
-            .unwrap_or_default();
-        let mut members = Vec::new();
-        for endpoint in bounds.exact_non_variable_lowers {
-            let member = self.positive_endpoint(endpoint);
-            if !members.contains(&member) {
-                members.push(member);
-            }
-        }
-        // Exact propagation already carries every structural lower reachable
-        // through a direct row.  Only an otherwise open non-root variable
-        // needs the row census; an open root is the normative Bottom case.
-        if members.is_empty() && !root {
-            let mut work = bounds.direct_lower_rows.clone();
-            let mut visited = HashSet::new();
-            while let Some(lower) = work.pop() {
-                if !visited.insert(lower) {
-                    continue;
-                }
-                let member = self.positive_row(lower, false);
-                if !members.contains(&member) {
-                    members.push(member);
-                }
-            }
-        }
-        let value = match members.len() {
-            0 if root => F5cPositive::Bottom,
-            0 => F5cPositive::Variable(ordinal),
-            1 => members.pop().expect("one lower member"),
-            _ => F5cPositive::Union(members),
+        let Some((lower, upper)) = raw_recursive_bounds.get(&owner) else {
+            return false;
         };
-        self.active.pop();
-        self.active_set.remove(&(ordinal, Polarity::Positive));
-        if !root && Self::cacheable_positive(&value) {
-            self.positive_cache.insert(ordinal, value.clone());
-        }
-        value
+        let lower = Self::replay_positive(lower, protected, positive_only, negative_only);
+        let upper = Self::replay_negative(upper, protected, positive_only, negative_only);
+        Self::guarded_bound_survives(owner, &lower, &upper)
     }
 
-    fn negative_row(&mut self, ordinal: u32) -> F5cNegative {
-        if self.active(ordinal, Polarity::Negative) {
-            if self.function_depth > 0 && self.reentry_set.insert(ordinal) {
-                self.reentries.push(ordinal);
+    fn replay_positive(
+        value: &F5cPositive,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> F5cPositive {
+        match value {
+            F5cPositive::Variable(owner)
+                if !protected.contains(owner) && positive_only.contains(owner) =>
+            {
+                F5cPositive::Bottom
             }
-            self.mark(ordinal, Polarity::Negative);
-            return F5cNegative::Variable(ordinal);
+            F5cPositive::Function {
+                argument, result, ..
+            } => F5cPositive::Function {
+                argument: Box::new(Self::replay_negative(
+                    argument,
+                    protected,
+                    positive_only,
+                    negative_only,
+                )),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(Self::replay_positive(
+                    result,
+                    protected,
+                    positive_only,
+                    negative_only,
+                )),
+            },
+            F5cPositive::Union(values) => F5cPositive::Union(
+                values
+                    .iter()
+                    .map(|value| {
+                        Self::replay_positive(value, protected, positive_only, negative_only)
+                    })
+                    .collect(),
+            ),
+            other => other.clone(),
         }
-        if self.function_depth > 0 && self.active_any(ordinal) && self.reentry_set.insert(ordinal) {
-            self.reentries.push(ordinal);
-        }
-        if let Some(value) = self.negative_cache.get(&ordinal).cloned() {
-            self.mark(ordinal, Polarity::Negative);
-            return value;
-        }
-        self.mark(ordinal, Polarity::Negative);
-        self.active.push((ordinal, Polarity::Negative));
-        self.active_set.insert((ordinal, Polarity::Negative));
-        let bounds = self
-            .session
-            .bounds
-            .get(ordinal as usize)
-            .cloned()
-            .unwrap_or_default();
-        let mut members = Vec::new();
-        for endpoint in bounds.exact_non_variable_uppers {
-            let member = self.negative_endpoint(endpoint);
-            if !members.contains(&member) {
-                members.push(member);
+    }
+
+    fn replay_negative(
+        value: &F5cNegative,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> F5cNegative {
+        match value {
+            F5cNegative::Variable(owner)
+                if !protected.contains(owner) && negative_only.contains(owner) =>
+            {
+                F5cNegative::Top
             }
+            F5cNegative::Function {
+                argument, result, ..
+            } => F5cNegative::Function {
+                argument: Box::new(Self::replay_positive(
+                    argument,
+                    protected,
+                    positive_only,
+                    negative_only,
+                )),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(Self::replay_negative(
+                    result,
+                    protected,
+                    positive_only,
+                    negative_only,
+                )),
+            },
+            F5cNegative::Intersection(values) => F5cNegative::Intersection(
+                values
+                    .iter()
+                    .map(|value| {
+                        Self::replay_negative(value, protected, positive_only, negative_only)
+                    })
+                    .collect(),
+            ),
+            other => other.clone(),
         }
-        if members.is_empty() {
-            let mut work = bounds.direct_upper_rows.clone();
-            let mut visited = HashSet::new();
-            while let Some(upper) = work.pop() {
-                if !visited.insert(upper) {
-                    continue;
+    }
+
+    fn positive_references(value: &F5cPositive, owners: &HashSet<u32>, out: &mut HashSet<u32>) {
+        match value {
+            F5cPositive::Variable(owner) => {
+                if owners.contains(owner) {
+                    out.insert(*owner);
                 }
-                let member = self.negative_row(upper);
-                if !members.contains(&member) {
-                    members.push(member);
+            }
+            F5cPositive::Function {
+                argument, result, ..
+            } => {
+                Self::negative_references(argument, owners, out);
+                Self::positive_references(result, owners, out);
+            }
+            F5cPositive::Union(values) => {
+                for value in values {
+                    Self::positive_references(value, owners, out);
                 }
             }
+            _ => {}
         }
-        let value = match members.len() {
-            0 => F5cNegative::Variable(ordinal),
-            1 => members.pop().expect("one upper member"),
-            _ => F5cNegative::Intersection(members),
+    }
+
+    fn negative_references(value: &F5cNegative, owners: &HashSet<u32>, out: &mut HashSet<u32>) {
+        match value {
+            F5cNegative::Variable(owner) => {
+                if owners.contains(owner) {
+                    out.insert(*owner);
+                }
+            }
+            F5cNegative::Function {
+                argument, result, ..
+            } => {
+                Self::positive_references(argument, owners, out);
+                Self::negative_references(result, owners, out);
+            }
+            F5cNegative::Intersection(values) => {
+                for value in values {
+                    Self::negative_references(value, owners, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn positive_incidences(
+        value: &F5cPositive,
+        positive: &mut HashSet<u32>,
+        negative: &mut HashSet<u32>,
+    ) {
+        match value {
+            F5cPositive::Variable(owner) => {
+                positive.insert(*owner);
+            }
+            F5cPositive::Function {
+                argument, result, ..
+            } => {
+                Self::negative_incidences(argument, positive, negative);
+                Self::positive_incidences(result, positive, negative);
+            }
+            F5cPositive::Union(values) => {
+                for value in values {
+                    Self::positive_incidences(value, positive, negative);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn negative_incidences(
+        value: &F5cNegative,
+        positive: &mut HashSet<u32>,
+        negative: &mut HashSet<u32>,
+    ) {
+        match value {
+            F5cNegative::Variable(owner) => {
+                negative.insert(*owner);
+            }
+            F5cNegative::Function {
+                argument, result, ..
+            } => {
+                Self::positive_incidences(argument, positive, negative);
+                Self::negative_incidences(result, positive, negative);
+            }
+            F5cNegative::Intersection(values) => {
+                for value in values {
+                    Self::negative_incidences(value, positive, negative);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn normalize_positive(value: F5cPositive) -> Result<F5cPositive, SolveAvailabilityError> {
+        Ok(match value {
+            F5cPositive::Function {
+                argument, result, ..
+            } => F5cPositive::Function {
+                argument: Box::new(Self::normalize_negative(*argument)?),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(Self::normalize_positive(*result)?),
+            },
+            F5cPositive::Union(values) => {
+                let values = values
+                    .into_iter()
+                    .map(Self::normalize_positive)
+                    .collect::<Result<Vec<_>, _>>()?;
+                let mut forest = F5cKeyForest::default();
+                let roots = values
+                    .iter()
+                    .map(|value| forest.positive(value, u32::MAX))
+                    .collect::<Vec<_>>();
+                let keys = forest.unordered_root_keys(&roots, u32::MAX)?;
+                let mut keyed = keys.into_iter().zip(values).collect::<Vec<_>>();
+                keyed.sort_by(|left, right| left.0.cmp(&right.0));
+                keyed.dedup_by(|left, right| left.0 == right.0);
+                F5cPositive::Union(keyed.into_iter().map(|(_, value)| value).collect())
+            }
+            other => other,
+        })
+    }
+
+    fn normalize_negative(value: F5cNegative) -> Result<F5cNegative, SolveAvailabilityError> {
+        Ok(match value {
+            F5cNegative::Function {
+                argument, result, ..
+            } => F5cNegative::Function {
+                argument: Box::new(Self::normalize_positive(*argument)?),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(Self::normalize_negative(*result)?),
+            },
+            F5cNegative::Intersection(values) => {
+                let values = values
+                    .into_iter()
+                    .map(Self::normalize_negative)
+                    .collect::<Result<Vec<_>, _>>()?;
+                let mut forest = F5cKeyForest::default();
+                let roots = values
+                    .iter()
+                    .map(|value| forest.negative(value, u32::MAX))
+                    .collect::<Vec<_>>();
+                let keys = forest.unordered_root_keys(&roots, u32::MAX)?;
+                let mut keyed = keys.into_iter().zip(values).collect::<Vec<_>>();
+                keyed.sort_by(|left, right| left.0.cmp(&right.0));
+                keyed.dedup_by(|left, right| left.0 == right.0);
+                F5cNegative::Intersection(keyed.into_iter().map(|(_, value)| value).collect())
+            }
+            other => other,
+        })
+    }
+
+    fn term_value_rows(&self, term: Term, rows: &mut HashSet<u32>) {
+        let Ok(view) = self.session.store.term_view(term) else {
+            return;
         };
-        self.active.pop();
-        self.active_set.remove(&(ordinal, Polarity::Negative));
-        if Self::cacheable_negative(&value) {
-            self.negative_cache.insert(ordinal, value.clone());
-        }
-        value
-    }
-
-    fn positive_endpoint(&mut self, endpoint: ValueEndpointKey) -> F5cPositive {
-        match endpoint {
-            ValueEndpointKey::IntPositive => F5cPositive::Int,
-            ValueEndpointKey::BottomPositive => F5cPositive::Bottom,
-            ValueEndpointKey::ValueRow(ordinal) => self.positive_row(ordinal, false),
-            ValueEndpointKey::PositiveFunction(term) => self.positive_term(term),
-            _ => F5cPositive::Bottom,
-        }
-    }
-
-    fn negative_endpoint(&mut self, endpoint: ValueEndpointKey) -> F5cNegative {
-        match endpoint {
-            ValueEndpointKey::IntNegative => F5cNegative::Int,
-            ValueEndpointKey::TopNegative => F5cNegative::Top,
-            ValueEndpointKey::BottomNegative => F5cNegative::Bottom,
-            ValueEndpointKey::ValueRow(ordinal) => self.negative_row(ordinal),
-            ValueEndpointKey::NegativeFunction(term) => self.negative_term(term),
-            _ => F5cNegative::Top,
-        }
-    }
-
-    fn positive_term(&mut self, term: Term) -> F5cPositive {
-        match self
-            .session
-            .store
-            .term_view(term)
-            .expect("F5c term remains owned")
-        {
-            TermView::Leaf(Leaf::IntPositive) => F5cPositive::Int,
+        match view {
             TermView::LiveVariable(view) => {
-                debug_assert_eq!(view.polarity(), Polarity::Positive);
-                self.positive_row(view.ordinal(), false)
+                rows.insert(view.ordinal());
             }
-            TermView::PositiveBottom => F5cPositive::Bottom,
             TermView::PositiveFunction {
-                argument,
-                argument_effect,
-                result_effect,
-                result,
-            } => {
-                // F5c closes the pure subset authorized by the current closed
-                // effect algebra.  A non-extreme live effect cannot be erased.
-                if !matches!(
-                    self.session.store.term_view(argument_effect),
-                    Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
-                ) || !matches!(
-                    self.session.store.term_view(result_effect),
-                    Ok(TermView::Leaf(Leaf::EffectBottomPositive))
-                ) {
-                    self.invalid_effects = true;
-                }
-                self.function_depth += 1;
-                let value = F5cPositive::Function {
-                    argument: Box::new(self.negative_term(argument)),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(self.positive_term(result)),
-                };
-                self.function_depth -= 1;
-                value
+                argument, result, ..
             }
-            TermView::Leaf(_)
-            | TermView::Component(_)
-            | TermView::NegativeTop
-            | TermView::NegativeBottom
-            | TermView::NegativeFunction { .. } => F5cPositive::Bottom,
+            | TermView::NegativeFunction {
+                argument, result, ..
+            } => {
+                self.term_value_rows(argument, rows);
+                self.term_value_rows(result, rows);
+            }
+            _ => {}
         }
     }
 
-    fn negative_term(&mut self, term: Term) -> F5cNegative {
-        match self
+    fn non_generic_closure(&self) -> HashSet<u32> {
+        let mut adjacency = vec![HashSet::new(); self.session.bounds.len()];
+        for (owner, bounds) in self.session.bounds.iter().enumerate() {
+            let owner = owner as u32;
+            let mut connected = bounds
+                .direct_lower_rows
+                .iter()
+                .chain(&bounds.direct_upper_rows)
+                .copied()
+                .collect::<HashSet<_>>();
+            for endpoint in bounds
+                .exact_non_variable_lowers
+                .iter()
+                .chain(&bounds.exact_non_variable_uppers)
+            {
+                match endpoint {
+                    ValueEndpointKey::ValueRow(row) => {
+                        connected.insert(*row);
+                    }
+                    ValueEndpointKey::PositiveFunction(term)
+                    | ValueEndpointKey::NegativeFunction(term) => {
+                        self.term_value_rows(*term, &mut connected);
+                    }
+                    _ => {}
+                }
+            }
+            for target in connected {
+                if let Some(neighbors) = adjacency.get_mut(owner as usize) {
+                    neighbors.insert(target);
+                }
+                if let Some(neighbors) = adjacency.get_mut(target as usize) {
+                    neighbors.insert(owner);
+                }
+            }
+        }
+        let mut closure = self
             .session
-            .store
-            .term_view(term)
-            .expect("F5c term remains owned")
-        {
-            TermView::Leaf(Leaf::IntNegative) => F5cNegative::Int,
-            TermView::LiveVariable(view) => {
-                debug_assert_eq!(view.polarity(), Polarity::Negative);
-                self.negative_row(view.ordinal())
-            }
-            TermView::NegativeTop => F5cNegative::Top,
-            TermView::NegativeBottom => F5cNegative::Bottom,
-            TermView::NegativeFunction {
-                argument,
-                argument_effect,
-                result_effect,
-                result,
-            } => {
-                if !matches!(
-                    self.session.store.term_view(argument_effect),
-                    Ok(TermView::Leaf(Leaf::EffectBottomPositive))
-                ) || !matches!(
-                    self.session.store.term_view(result_effect),
-                    Ok(TermView::Leaf(Leaf::EmptyEffectNegative))
-                ) {
-                    self.invalid_effects = true;
+            .value_metadata
+            .iter()
+            .enumerate()
+            .filter_map(|(ordinal, metadata)| metadata.non_generic.then_some(ordinal as u32))
+            .collect::<HashSet<_>>();
+        let mut frontier = closure.iter().copied().collect::<Vec<_>>();
+        while let Some(owner) = frontier.pop() {
+            let Some(neighbors) = adjacency.get(owner as usize) else {
+                continue;
+            };
+            for neighbor in neighbors {
+                if closure.insert(*neighbor) {
+                    frontier.push(*neighbor);
                 }
-                self.function_depth += 1;
-                let value = F5cNegative::Function {
-                    argument: Box::new(self.positive_term(argument)),
-                    argument_effect: F5cPositiveEffect::Bottom,
-                    result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(self.negative_term(result)),
-                };
-                self.function_depth -= 1;
-                value
             }
-            TermView::Leaf(_)
-            | TermView::Component(_)
-            | TermView::PositiveBottom
-            | TermView::PositiveFunction { .. } => F5cNegative::Top,
+        }
+        closure
+    }
+
+    fn positive_occurrences(
+        value: &F5cPositive,
+        path: &mut Vec<F5cOccurrenceHop>,
+        first: &mut HashMap<u32, Vec<F5cOccurrenceHop>>,
+    ) {
+        match value {
+            F5cPositive::Variable(owner) => {
+                first.entry(*owner).or_insert_with(|| path.clone());
+            }
+            F5cPositive::Function {
+                argument, result, ..
+            } => {
+                path.push(F5cOccurrenceHop::Function(FunctionField::Argument));
+                Self::negative_occurrences(argument, path, first);
+                path.pop();
+                path.push(F5cOccurrenceHop::Function(FunctionField::Result));
+                Self::positive_occurrences(result, path, first);
+                path.pop();
+            }
+            F5cPositive::Union(values) => {
+                for (index, value) in values.iter().enumerate() {
+                    path.push(F5cOccurrenceHop::Union(index as u32));
+                    Self::positive_occurrences(value, path, first);
+                    path.pop();
+                }
+            }
+            _ => {}
         }
     }
 
+    fn negative_occurrences(
+        value: &F5cNegative,
+        path: &mut Vec<F5cOccurrenceHop>,
+        first: &mut HashMap<u32, Vec<F5cOccurrenceHop>>,
+    ) {
+        match value {
+            F5cNegative::Variable(owner) => {
+                first.entry(*owner).or_insert_with(|| path.clone());
+            }
+            F5cNegative::Function {
+                argument, result, ..
+            } => {
+                path.push(F5cOccurrenceHop::Function(FunctionField::Argument));
+                Self::positive_occurrences(argument, path, first);
+                path.pop();
+                path.push(F5cOccurrenceHop::Function(FunctionField::Result));
+                Self::negative_occurrences(result, path, first);
+                path.pop();
+            }
+            F5cNegative::Intersection(values) => {
+                for (index, value) in values.iter().enumerate() {
+                    path.push(F5cOccurrenceHop::Union(index as u32));
+                    Self::negative_occurrences(value, path, first);
+                    path.pop();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn retained_occurrences(
+        retained_predicate: &F5cPositive,
+        recursive_owners: &[u32],
+        recursive_bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
+    ) -> Result<HashMap<u32, Vec<F5cOccurrenceHop>>, SolveAvailabilityError> {
+        let mut first = HashMap::new();
+        let mut path = vec![F5cOccurrenceHop::Root(0, F5cBoundSide::Lower)];
+        Self::positive_occurrences(retained_predicate, &mut path, &mut first);
+        for (index, owner) in recursive_owners.iter().enumerate() {
+            let (lower, upper) = recursive_bounds
+                .get(owner)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let root =
+                u32::try_from(index + 1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            path.clear();
+            path.push(F5cOccurrenceHop::Root(root, F5cBoundSide::Lower));
+            Self::positive_occurrences(lower, &mut path, &mut first);
+            path.clear();
+            path.push(F5cOccurrenceHop::Root(root, F5cBoundSide::Upper));
+            Self::negative_occurrences(upper, &mut path, &mut first);
+        }
+        Ok(first)
+    }
+
+    #[cfg(test)]
     fn build(mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
-        let predicate = self.positive_row(root, true);
+        self.build_inner(root)
+    }
+
+    fn build_component(
+        mut self,
+        root: u32,
+    ) -> (
+        Result<GeneralizationDraft, SolveAvailabilityError>,
+        F5cComponentExpansionMemo,
+        usize,
+        usize,
+    ) {
+        let result = self.build_inner(root);
+        if result.is_err() {
+            self.memo.reset_active_scratch();
+            self.active.clear();
+            self.active_set.clear();
+            self.frames.clear();
+            for key in self.admitted_keys.drain(..).rev() {
+                self.memo.rollback_admission(key);
+            }
+            self.memo
+                .finish_invalidation_transaction(self.invalidation_checkpoint, false);
+            self.memo.rollback_nodes(
+                self.node_checkpoint,
+                self.child_checkpoint,
+                self.reverse_checkpoint,
+                self.incidence_checkpoint,
+            );
+        } else {
+            self.memo
+                .finish_invalidation_transaction(self.invalidation_checkpoint, true);
+        }
+        (
+            result,
+            self.memo,
+            self.shared_summary_hits,
+            self.uncacheable_states,
+        )
+    }
+
+    fn reject_unclassified_rows(
+        order: &[u32],
+        recursive_set: &HashSet<u32>,
+        q: &HashMap<u32, u32>,
+        eligible: impl Fn(u32) -> bool,
+    ) -> Result<(), SolveAvailabilityError> {
+        for ordinal in order {
+            if !eligible(*ordinal) && !recursive_set.contains(ordinal) && !q.contains_key(ordinal) {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+        }
+        Ok(())
+    }
+
+    fn build_inner(&mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+        let predicate = self.positive_row(root, true)?;
+        let mut raw_recursive_bounds = HashMap::new();
+        let mut next_owner = 0;
+        let mut completed_owners = HashSet::new();
+        while next_owner < self.reentries.len() {
+            let ordinal = self.reentries[next_owner].owner;
+            next_owner += 1;
+            if !completed_owners.insert(ordinal) {
+                continue;
+            }
+            let bounds = self
+                .session
+                .bounds
+                .get(ordinal as usize)
+                .cloned()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let expanded_lower = self.positive_row(ordinal, false)?;
+            let expanded_upper = self.negative_row(ordinal)?;
+            let lower = if bounds.exact_non_variable_lowers.is_empty()
+                && bounds.direct_lower_rows.is_empty()
+            {
+                F5cPositive::Bottom
+            } else {
+                expanded_lower
+            };
+            let upper = if bounds.exact_non_variable_uppers.is_empty()
+                && bounds.direct_upper_rows.is_empty()
+            {
+                F5cNegative::Top
+            } else {
+                expanded_upper
+            };
+            raw_recursive_bounds.insert(ordinal, (lower, upper));
+        }
         if self.invalid_effects {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
-        let mut recursive_owners = self.reentries.clone();
-        let order_positions = self
+        let predicate = self.materialize_positive(predicate)?;
+        for (lower, upper) in raw_recursive_bounds.values_mut() {
+            *lower = self.materialize_positive(lower.clone())?;
+            *upper = self.materialize_negative(upper.clone())?;
+        }
+        let mut reentries_by_owner = HashMap::<u32, Vec<usize>>::new();
+        for (index, trace) in self.reentries.iter().enumerate() {
+            reentries_by_owner
+                .entry(trace.owner)
+                .or_default()
+                .push(index);
+        }
+        let non_generic = self.non_generic_closure();
+        let eligible = |ordinal: u32| {
+            self.session
+                .value_levels
+                .get(ordinal as usize)
+                .is_some_and(|level| *level > 0)
+                && !non_generic.contains(&ordinal)
+        };
+        let mut positive_incidences = HashSet::new();
+        let mut negative_incidences = HashSet::new();
+        Self::positive_incidences(
+            &predicate,
+            &mut positive_incidences,
+            &mut negative_incidences,
+        );
+        for (lower, upper) in raw_recursive_bounds.values() {
+            Self::positive_incidences(lower, &mut positive_incidences, &mut negative_incidences);
+            Self::negative_incidences(upper, &mut positive_incidences, &mut negative_incidences);
+        }
+        let positive_only = self
             .order
             .iter()
-            .enumerate()
-            .map(|(position, ordinal)| (*ordinal, position))
-            .collect::<HashMap<_, _>>();
-        recursive_owners.sort_unstable_by_key(|ordinal| {
-            order_positions.get(ordinal).copied().unwrap_or(usize::MAX)
-        });
-        recursive_owners.dedup();
-        let recursive_set = recursive_owners.iter().copied().collect::<HashSet<_>>();
-        let mut q = HashMap::new();
-        for ordinal in &self.order {
-            let eligible = self
-                .session
-                .value_levels
-                .get(*ordinal as usize)
-                .is_some_and(|level| *level > 0)
-                && !self
-                    .session
-                    .value_metadata
-                    .get(*ordinal as usize)
-                    .is_some_and(|metadata| metadata.non_generic);
-            if !recursive_set.contains(ordinal)
-                && self.positive_seen.contains(ordinal)
-                && self.negative_seen.contains(ordinal)
-                && eligible
-            {
-                let next = q.len() as u32;
-                q.insert(*ordinal, next);
+            .copied()
+            .filter(|owner| {
+                eligible(*owner)
+                    && positive_incidences.contains(owner)
+                    && !negative_incidences.contains(owner)
+            })
+            .collect::<HashSet<_>>();
+        let negative_only = self
+            .order
+            .iter()
+            .copied()
+            .filter(|owner| {
+                eligible(*owner)
+                    && negative_incidences.contains(owner)
+                    && !positive_incidences.contains(owner)
+            })
+            .collect::<HashSet<_>>();
+        let mut candidates = reentries_by_owner
+            .keys()
+            .copied()
+            .filter(|owner| eligible(*owner))
+            .collect::<HashSet<_>>();
+        loop {
+            let previous = candidates.clone();
+            let surviving_bounds = previous
+                .iter()
+                .filter_map(|owner| {
+                    let (lower, upper) = raw_recursive_bounds.get(owner)?;
+                    let lower =
+                        Self::replay_positive(lower, &previous, &positive_only, &negative_only);
+                    let upper =
+                        Self::replay_negative(upper, &previous, &positive_only, &negative_only);
+                    Self::guarded_bound_survives(*owner, &lower, &upper).then_some(*owner)
+                })
+                .collect::<HashSet<_>>();
+            candidates.retain(|owner| {
+                surviving_bounds.contains(owner)
+                    && reentries_by_owner.get(owner).is_some_and(|indices| {
+                        indices.iter().any(|index| {
+                            Self::guarded_trace_path_survives(
+                                &self.reentries[*index],
+                                &previous,
+                                &positive_only,
+                                &negative_only,
+                            )
+                        })
+                    })
+            });
+            let replayed_predicate =
+                Self::replay_positive(&predicate, &candidates, &positive_only, &negative_only);
+            let mut reachable = HashSet::new();
+            Self::positive_references(&replayed_predicate, &candidates, &mut reachable);
+            let mut frontier = reachable.iter().copied().collect::<Vec<_>>();
+            while let Some(owner) = frontier.pop() {
+                let Some((lower, upper)) = raw_recursive_bounds.get(&owner) else {
+                    continue;
+                };
+                let mut referenced = HashSet::new();
+                Self::positive_references(lower, &candidates, &mut referenced);
+                Self::negative_references(upper, &candidates, &mut referenced);
+                for referenced_owner in referenced {
+                    if reachable.insert(referenced_owner) {
+                        frontier.push(referenced_owner);
+                    }
+                }
             }
+            candidates.retain(|owner| reachable.contains(owner));
+            if candidates == previous {
+                break;
+            }
+        }
+        let retained_predicate = Self::normalize_positive(Self::replay_positive(
+            &predicate,
+            &candidates,
+            &positive_only,
+            &negative_only,
+        ))?;
+        let mut retained_bounds = HashMap::with_capacity(candidates.len());
+        for owner in &candidates {
+            let (lower, upper) = raw_recursive_bounds
+                .get(owner)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let lower = Self::normalize_positive(Self::replay_positive(
+                lower,
+                &candidates,
+                &positive_only,
+                &negative_only,
+            ))?;
+            let upper = Self::normalize_negative(Self::replay_negative(
+                upper,
+                &candidates,
+                &positive_only,
+                &negative_only,
+            ))?;
+            retained_bounds.insert(*owner, (lower, upper));
+        }
+        let mut forest = F5cKeyForest::default();
+        let predicate_key_root = forest.positive(&retained_predicate, u32::MAX);
+        let mut bound_key_roots = Vec::with_capacity(retained_bounds.len());
+        for (owner, (lower, upper)) in &retained_bounds {
+            let lower = forest.positive(lower, *owner);
+            let upper = forest.negative(upper, *owner);
+            bound_key_roots.push((*owner, lower, upper));
+        }
+        let (_, all_bound_keys) = forest.finish_grouped(predicate_key_root, &bound_key_roots)?;
+        let surviving_bound_owners = retained_bounds
+            .iter()
+            .filter_map(|(owner, (lower, upper))| {
+                Self::guarded_bound_survives(*owner, lower, upper).then_some(*owner)
+            })
+            .collect::<HashSet<_>>();
+        let surviving_traces = self
+            .reentries
+            .iter()
+            .enumerate()
+            .filter_map(|(index, trace)| {
+                (candidates.contains(&trace.owner)
+                    && surviving_bound_owners.contains(&trace.owner)
+                    && Self::guarded_trace_path_survives(
+                        trace,
+                        &candidates,
+                        &positive_only,
+                        &negative_only,
+                    ))
+                .then_some(index)
+            })
+            .collect::<HashSet<_>>();
+        let mut retained_traces = Vec::new();
+        let mut retained_owner_seen = HashSet::new();
+        for admitted in &self.reentries {
+            let owner = admitted.owner;
+            if !candidates.contains(&owner) || !retained_owner_seen.insert(owner) {
+                continue;
+            }
+            let owner_traces = reentries_by_owner
+                .get(&owner)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                .iter()
+                .filter(|index| surviving_traces.contains(index))
+                .map(|index| self.reentries[*index].clone())
+                .collect::<Vec<_>>();
+            let owner_key = all_bound_keys
+                .get(&owner)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let mut owner_traces = owner_traces
+                .into_iter()
+                .map(|trace| {
+                    let key = Self::guarded_trace_sort_key(&trace, owner_key, &all_bound_keys);
+                    (key, trace)
+                })
+                .collect::<Vec<_>>();
+            owner_traces.sort_by(|left, right| left.0.cmp(&right.0));
+            if let Some((key, trace)) = owner_traces.into_iter().next() {
+                retained_traces.push((key, trace));
+            }
+        }
+        retained_traces.sort_by(|left, right| left.0.cmp(&right.0));
+        let recursive_owners = retained_traces
+            .into_iter()
+            .map(|(_, trace)| trace.owner)
+            .collect::<Vec<_>>();
+        let recursive_set = recursive_owners.iter().copied().collect::<HashSet<_>>();
+        let retained_predicate = Self::normalize_positive(Self::replay_positive(
+            &predicate,
+            &recursive_set,
+            &positive_only,
+            &negative_only,
+        ))?;
+        let first_occurrences =
+            Self::retained_occurrences(&retained_predicate, &recursive_owners, &retained_bounds)?;
+        let mut quantified_owners = first_occurrences
+            .into_iter()
+            .filter_map(|(ordinal, path)| {
+                (!recursive_set.contains(&ordinal)
+                    && positive_incidences.contains(&ordinal)
+                    && negative_incidences.contains(&ordinal)
+                    && eligible(ordinal))
+                .then_some((path, ordinal))
+            })
+            .collect::<Vec<_>>();
+        quantified_owners.sort_by(|left, right| left.0.cmp(&right.0));
+        let mut q = HashMap::new();
+        for (_, ordinal) in quantified_owners {
+            let next = q.len() as u32;
+            q.insert(ordinal, next);
         }
         let q_count = q.len() as u32;
         let r = recursive_owners
@@ -3463,112 +7651,162 @@ impl<'a> F5cGeneralizer<'a> {
             .enumerate()
             .map(|(index, ordinal)| (*ordinal, q_count + index as u32))
             .collect::<HashMap<_, _>>();
-        for ordinal in &self.order {
-            let eligible_for_elimination =
-                self.session.value_levels.get(*ordinal as usize).is_some()
-                    && !self
-                        .session
-                        .value_metadata
-                        .get(*ordinal as usize)
-                        .is_some_and(|metadata| metadata.non_generic);
-            if !eligible_for_elimination
-                && !recursive_set.contains(ordinal)
-                && !q.contains_key(ordinal)
-            {
-                panic!("F5c draft retains an unclosed non-generic live variable");
-            }
-        }
+        Self::reject_unclassified_rows(&self.order, &recursive_set, &q, eligible)?;
+        let positive_eliminated = self
+            .order
+            .iter()
+            .copied()
+            .filter(|ordinal| {
+                !recursive_set.contains(ordinal)
+                    && !q.contains_key(ordinal)
+                    && positive_only.contains(ordinal)
+            })
+            .collect::<HashSet<_>>();
+        let negative_eliminated = self
+            .order
+            .iter()
+            .copied()
+            .filter(|ordinal| {
+                !recursive_set.contains(ordinal)
+                    && !q.contains_key(ordinal)
+                    && negative_only.contains(ordinal)
+            })
+            .collect::<HashSet<_>>();
         fn positive(
             value: F5cPositive,
             q: &HashMap<u32, u32>,
             r: &HashMap<u32, u32>,
-        ) -> F5cPositive {
+            positive_eliminated: &HashSet<u32>,
+            negative_eliminated: &HashSet<u32>,
+        ) -> Result<F5cPositive, SolveAvailabilityError> {
             match value {
                 F5cPositive::Variable(ordinal) => r
                     .get(&ordinal)
                     .copied()
                     .map(F5cPositive::Recursive)
                     .or_else(|| q.get(&ordinal).copied().map(F5cPositive::Quantified))
-                    .unwrap_or(F5cPositive::Bottom),
+                    .or_else(|| {
+                        positive_eliminated
+                            .contains(&ordinal)
+                            .then_some(F5cPositive::Bottom)
+                    })
+                    .ok_or(SolveAvailabilityError::IdentityExhausted),
                 F5cPositive::Function {
                     argument, result, ..
-                } => F5cPositive::Function {
-                    argument: Box::new(negative(*argument, q, r)),
+                } => Ok(F5cPositive::Function {
+                    argument: Box::new(negative(
+                        *argument,
+                        q,
+                        r,
+                        positive_eliminated,
+                        negative_eliminated,
+                    )?),
                     argument_effect: F5cNegativeEffect::Empty,
                     result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(positive(*result, q, r)),
-                },
-                F5cPositive::Union(values) => F5cPositive::Union(
+                    result: Box::new(positive(
+                        *result,
+                        q,
+                        r,
+                        positive_eliminated,
+                        negative_eliminated,
+                    )?),
+                }),
+                F5cPositive::Union(values) => Ok(F5cPositive::Union(
                     values
                         .into_iter()
-                        .map(|value| positive(value, q, r))
-                        .collect(),
-                ),
-                other => other,
+                        .map(|value| {
+                            positive(value, q, r, positive_eliminated, negative_eliminated)
+                        })
+                        .collect::<Result<_, _>>()?,
+                )),
+                other => Ok(other),
             }
         }
         fn negative(
             value: F5cNegative,
             q: &HashMap<u32, u32>,
             r: &HashMap<u32, u32>,
-        ) -> F5cNegative {
+            positive_eliminated: &HashSet<u32>,
+            negative_eliminated: &HashSet<u32>,
+        ) -> Result<F5cNegative, SolveAvailabilityError> {
             match value {
                 F5cNegative::Variable(ordinal) => r
                     .get(&ordinal)
                     .copied()
                     .map(F5cNegative::Recursive)
                     .or_else(|| q.get(&ordinal).copied().map(F5cNegative::Quantified))
-                    .unwrap_or(F5cNegative::Top),
+                    .or_else(|| {
+                        negative_eliminated
+                            .contains(&ordinal)
+                            .then_some(F5cNegative::Top)
+                    })
+                    .ok_or(SolveAvailabilityError::IdentityExhausted),
                 F5cNegative::Function {
                     argument, result, ..
-                } => F5cNegative::Function {
-                    argument: Box::new(positive(*argument, q, r)),
+                } => Ok(F5cNegative::Function {
+                    argument: Box::new(positive(
+                        *argument,
+                        q,
+                        r,
+                        positive_eliminated,
+                        negative_eliminated,
+                    )?),
                     argument_effect: F5cPositiveEffect::Bottom,
                     result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(negative(*result, q, r)),
-                },
-                F5cNegative::Intersection(values) => F5cNegative::Intersection(
+                    result: Box::new(negative(
+                        *result,
+                        q,
+                        r,
+                        positive_eliminated,
+                        negative_eliminated,
+                    )?),
+                }),
+                F5cNegative::Intersection(values) => Ok(F5cNegative::Intersection(
                     values
                         .into_iter()
-                        .map(|value| negative(value, q, r))
-                        .collect(),
-                ),
-                other => other,
+                        .map(|value| {
+                            negative(value, q, r, positive_eliminated, negative_eliminated)
+                        })
+                        .collect::<Result<_, _>>()?,
+                )),
+                other => Ok(other),
             }
         }
-        let predicate = positive(predicate, &q, &r);
-        let recursive_bounds = recursive_owners
-            .iter()
-            .filter_map(|ordinal| {
-                r.get(ordinal).copied().map(|binder| F5cRecursiveBound {
-                    ordinal: binder,
-                    lower: if self
-                        .session
-                        .bounds
-                        .get(*ordinal as usize)
-                        .is_some_and(|bounds| {
-                            bounds.exact_non_variable_lowers.is_empty()
-                                && bounds.direct_lower_rows.is_empty()
-                        }) {
-                        F5cPositive::Bottom
-                    } else {
-                        positive(self.positive_row(*ordinal, false), &q, &r)
-                    },
-                    upper: if self
-                        .session
-                        .bounds
-                        .get(*ordinal as usize)
-                        .is_some_and(|bounds| {
-                            bounds.exact_non_variable_uppers.is_empty()
-                                && bounds.direct_upper_rows.is_empty()
-                        }) {
-                        F5cNegative::Top
-                    } else {
-                        negative(self.negative_row(*ordinal), &q, &r)
-                    },
-                })
-            })
-            .collect();
+        let predicate = Self::normalize_positive(positive(
+            predicate,
+            &q,
+            &r,
+            &positive_eliminated,
+            &negative_eliminated,
+        )?)?;
+        let mut recursive_bounds = Vec::with_capacity(recursive_owners.len());
+        for ordinal in &recursive_owners {
+            let Some(binder) = r.get(ordinal).copied() else {
+                continue;
+            };
+            let (raw_lower, raw_upper) = raw_recursive_bounds
+                .remove(ordinal)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let lower = Self::normalize_positive(positive(
+                raw_lower,
+                &q,
+                &r,
+                &positive_eliminated,
+                &negative_eliminated,
+            )?)?;
+            let upper = Self::normalize_negative(negative(
+                raw_upper,
+                &q,
+                &r,
+                &positive_eliminated,
+                &negative_eliminated,
+            )?)?;
+            recursive_bounds.push(F5cRecursiveBound {
+                ordinal: binder,
+                lower,
+                upper,
+            });
+        }
         Ok(GeneralizationDraft {
             quantifier_count: q_count,
             recursive_bounds,
@@ -3601,7 +7839,7 @@ enum RoutedUseKind {
     dead_code,
     reason = "F4 retains exact private route provenance without a public query"
 )]
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct RoutedUseProvenance {
     use_id: DefinitionUseId,
     fact: Option<FactId>,
@@ -3687,8 +7925,16 @@ enum ResourceBoundary {
 }
 
 #[cfg(test)]
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct IndependentResourceLedger {
+    term_lanes: [IndependentMemoLane; 6],
+    route_store_lanes: [IndependentMemoLane; 4],
+    route_use_lanes: [IndependentMemoLane; 2],
+    term_active_journal: bool,
+    term_journal_transfers: usize,
+    term_lengths: [usize; 6],
+    term_retained_bytes: usize,
+    term_peak_bytes: usize,
     coverage: u16,
     samples: usize,
     queue_retained_bytes: usize,
@@ -3697,10 +7943,42 @@ struct IndependentResourceLedger {
     finish_output_retained_bytes: usize,
     semantic_arena_peak_bytes: usize,
     inference_session_peak_bytes: usize,
+    component_expansion_memo_requested_slots: usize,
+    component_expansion_memo_actual_capacity: usize,
+    component_expansion_memo_retained_bytes: usize,
+    component_expansion_memo_peak_bytes: usize,
+    component_expansion_memo_capacity_growths: usize,
+    component_expansion_memo_roots: IndependentMemoLane,
+    component_expansion_memo_nodes: IndependentMemoLane,
+    component_expansion_memo_children: IndependentMemoLane,
+    component_expansion_memo_index: IndependentMemoLane,
+    component_expansion_memo_scratch: IndependentMemoLane,
+    generalization_walker_requested_slots: usize,
+    generalization_walker_actual_capacity: usize,
+    generalization_walker_retained_bytes: usize,
+    generalization_walker_peak_bytes: usize,
+    generalization_walker_capacity_growths: usize,
+    generalization_walker_lanes: [IndependentMemoLane; 11],
+    instantiation_substitution_requested_slots: usize,
+    instantiation_substitution_actual_capacity: usize,
+    instantiation_substitution_retained_bytes: usize,
+    instantiation_substitution_peak_bytes: usize,
+    instantiation_substitution_capacity_growths: usize,
+    instantiation_lanes: [IndependentMemoLane; 7],
 }
 
 #[cfg(test)]
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct IndependentMemoLane {
+    requested_slots: usize,
+    actual_capacity: usize,
+    retained_bytes: usize,
+    peak_bytes: usize,
+    capacity_growths: usize,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct IndependentNestedCapacityLedger {
     value_direct_lower: usize,
     value_direct_upper: usize,
@@ -3715,6 +7993,31 @@ struct IndependentNestedCapacityLedger {
 
 #[cfg(test)]
 impl IndependentNestedCapacityLedger {
+    fn from_surviving_rows(bounds: &[VariableBounds], effect_bounds: &[EffectBounds]) -> Self {
+        let mut lanes = Self::default();
+        for row in bounds {
+            lanes.value_direct_lower +=
+                row.direct_lower_rows.capacity() * std::mem::size_of::<u32>();
+            lanes.value_direct_upper +=
+                row.direct_upper_rows.capacity() * std::mem::size_of::<u32>();
+            lanes.value_exact_lower +=
+                row.exact_non_variable_lowers.capacity() * std::mem::size_of::<ValueEndpointKey>();
+            lanes.value_exact_upper +=
+                row.exact_non_variable_uppers.capacity() * std::mem::size_of::<ValueEndpointKey>();
+        }
+        for row in effect_bounds {
+            lanes.effect_direct_lower +=
+                row.direct_lower_rows.capacity() * std::mem::size_of::<u32>();
+            lanes.effect_direct_upper +=
+                row.direct_upper_rows.capacity() * std::mem::size_of::<u32>();
+            lanes.effect_exact_lower +=
+                row.exact_non_variable_lowers.capacity() * std::mem::size_of::<EffectEndpointKey>();
+            lanes.effect_exact_upper +=
+                row.exact_non_variable_uppers.capacity() * std::mem::size_of::<EffectEndpointKey>();
+        }
+        lanes
+    }
+
     fn total_bound_bytes(&self) -> usize {
         checked_usize_sum(
             [
@@ -3734,10 +8037,377 @@ impl IndependentNestedCapacityLedger {
 
 #[cfg(test)]
 impl IndependentResourceLedger {
+    fn record_term_lanes(
+        &mut self,
+        owner: term::TermOwnerLanes,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let mut total = 0usize;
+        for (index, lane) in self.term_lanes.iter_mut().enumerate() {
+            lane.requested_slots = owner.requests[index];
+            lane.capacity_growths = owner.growths[index];
+            lane.actual_capacity = owner.capacities[index];
+            lane.retained_bytes = owner.bytes[index];
+            lane.peak_bytes = lane.peak_bytes.max(lane.retained_bytes);
+            total = total
+                .checked_add(lane.retained_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        self.term_active_journal = owner.active;
+        self.term_journal_transfers = owner.transfers;
+        self.term_lengths = owner.lengths;
+        self.term_retained_bytes = total;
+        self.term_peak_bytes = self.term_peak_bytes.max(total);
+        Ok(total)
+    }
+    fn record_instantiation_scratch(
+        &mut self,
+        scratch: &InstantiationScratch,
+    ) -> Result<(), SolveAvailabilityError> {
+        let capacities = [
+            scratch.substitution.capacity(),
+            scratch.positive.capacity(),
+            scratch.negative.capacity(),
+            scratch.positive_effects.capacity(),
+            scratch.negative_effects.capacity(),
+            scratch.parts.capacity(),
+            scratch.work.capacity(),
+        ];
+        let sizes = [
+            std::mem::size_of::<(u32, u32)>(),
+            std::mem::size_of::<(yu_types::PositiveValueId, std::ops::Range<usize>)>(),
+            std::mem::size_of::<(yu_types::NegativeValueId, std::ops::Range<usize>)>(),
+            std::mem::size_of::<yu_types::PositiveEffectId>(),
+            std::mem::size_of::<yu_types::NegativeEffectId>(),
+            std::mem::size_of::<Term>(),
+            std::mem::size_of::<InstantiationWork>(),
+        ];
+        for (index, lane) in self.instantiation_lanes.iter_mut().enumerate() {
+            lane.requested_slots = lane
+                .requested_slots
+                .checked_add(scratch.lane_requested[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            lane.capacity_growths = lane
+                .capacity_growths
+                .checked_add(scratch.lane_growths[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            lane.actual_capacity = capacities[index];
+            lane.retained_bytes = capacities[index]
+                .checked_mul(sizes[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            lane.peak_bytes = lane.peak_bytes.max(lane.retained_bytes);
+        }
+        self.instantiation_substitution_requested_slots = capacities
+            .iter()
+            .enumerate()
+            .try_fold(0usize, |total, (index, _)| {
+                total.checked_add(self.instantiation_lanes[index].requested_slots)
+            })
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.instantiation_substitution_actual_capacity = self
+            .instantiation_lanes
+            .iter()
+            .try_fold(0usize, |total, lane| {
+                total.checked_add(lane.actual_capacity)
+            })
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.instantiation_substitution_retained_bytes = self
+            .instantiation_lanes
+            .iter()
+            .try_fold(0usize, |total, lane| total.checked_add(lane.retained_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.instantiation_substitution_peak_bytes = self
+            .instantiation_substitution_peak_bytes
+            .max(self.instantiation_substitution_retained_bytes);
+        self.instantiation_substitution_capacity_growths = self
+            .instantiation_lanes
+            .iter()
+            .try_fold(0usize, |total, lane| {
+                total.checked_add(lane.capacity_growths)
+            })
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Ok(())
+    }
+
+    fn record_component_expansion_memo(
+        &mut self,
+        memo: &F5cComponentExpansionMemo,
+    ) -> Result<(), SolveAvailabilityError> {
+        let mut next = self.clone();
+        next.record_component_expansion_memo_inner(memo)?;
+        *self = next;
+        Ok(())
+    }
+
+    fn record_component_expansion_memo_inner(
+        &mut self,
+        memo: &F5cComponentExpansionMemo,
+    ) -> Result<(), SolveAvailabilityError> {
+        let root_capacity = memo.roots.capacity();
+        let node_capacity = memo.nodes.capacity();
+        let child_capacity = memo.children.capacity();
+        let index_capacities = [
+            memo.parent_heads.capacity(),
+            memo.reverse_parents.capacity(),
+            memo.incidence_heads.capacity(),
+            memo.incidences.capacity(),
+            memo.root_heads.capacity(),
+            memo.root_edges.capacity(),
+            memo.root_edge_marks.capacity(),
+            memo.invalidated_root_edges.capacity(),
+        ];
+        let index_capacity = index_capacities
+            .into_iter()
+            .try_fold(0usize, |sum, value| sum.checked_add(value))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let scratch_capacities = [
+            memo.active_rows.capacity(),
+            memo.active_conflicts.capacity(),
+            memo.work.capacity(),
+            memo.conflict_journal.capacity(),
+            memo.visit_epochs.capacity(),
+        ];
+        let scratch_capacity = scratch_capacities
+            .into_iter()
+            .try_fold(0usize, |sum, value| sum.checked_add(value))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let root_bytes = root_capacity
+            .checked_mul(std::mem::size_of::<(F5cExpansionKey, F5cSummaryNodeId)>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let node_bytes = node_capacity
+            .checked_mul(std::mem::size_of::<F5cSummaryNode>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let child_bytes = child_capacity
+            .checked_mul(std::mem::size_of::<F5cSummaryNodeId>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let index_bytes = [
+            memo.parent_heads
+                .capacity()
+                .checked_mul(std::mem::size_of::<Option<usize>>()),
+            memo.reverse_parents
+                .capacity()
+                .checked_mul(std::mem::size_of::<F5cReverseParentEdge>()),
+            memo.incidence_heads
+                .capacity()
+                .checked_mul(std::mem::size_of::<(u32, Option<usize>)>()),
+            memo.incidences
+                .capacity()
+                .checked_mul(std::mem::size_of::<F5cIncidenceEdge>()),
+            memo.root_heads
+                .capacity()
+                .checked_mul(std::mem::size_of::<Option<usize>>()),
+            memo.root_edges
+                .capacity()
+                .checked_mul(std::mem::size_of::<F5cRootEdge>()),
+            memo.root_edge_marks
+                .capacity()
+                .checked_mul(std::mem::size_of::<u32>()),
+            memo.invalidated_root_edges
+                .capacity()
+                .checked_mul(std::mem::size_of::<(usize, Option<usize>)>()),
+        ]
+        .into_iter()
+        .try_fold(0usize, |sum, value| sum.checked_add(value?))
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let scratch_bytes = [
+            memo.active_rows
+                .capacity()
+                .checked_mul(std::mem::size_of::<(u32, usize)>()),
+            memo.active_conflicts
+                .capacity()
+                .checked_mul(std::mem::size_of::<(F5cExpansionKey, usize)>()),
+            memo.work
+                .capacity()
+                .checked_mul(std::mem::size_of::<F5cSummaryNodeId>()),
+            memo.conflict_journal
+                .capacity()
+                .checked_mul(std::mem::size_of::<(F5cExpansionKey, usize)>()),
+            memo.visit_epochs
+                .capacity()
+                .checked_mul(std::mem::size_of::<u32>()),
+        ]
+        .into_iter()
+        .try_fold(0usize, |sum, value| sum.checked_add(value?))
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let retained_bytes = root_bytes
+            .checked_add(node_bytes)
+            .and_then(|value| value.checked_add(child_bytes))
+            .and_then(|value| value.checked_add(index_bytes))
+            .and_then(|value| value.checked_add(scratch_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if retained_bytes != 0 {
+            let requested_slots = memo
+                .root_lane
+                .requested_slots
+                .checked_add(memo.node_lane.requested_slots)
+                .and_then(|value| value.checked_add(memo.child_lane.requested_slots))
+                .and_then(|value| value.checked_add(memo.independent_index_requests))
+                .and_then(|value| value.checked_add(memo.independent_scratch_requests))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.component_expansion_memo_requested_slots = self
+                .component_expansion_memo_requested_slots
+                .checked_add(requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let capacity_growths = memo
+                .independent_root_growths
+                .checked_add(memo.independent_node_growths)
+                .and_then(|value| value.checked_add(memo.independent_child_growths))
+                .and_then(|value| value.checked_add(memo.independent_index_growths))
+                .and_then(|value| value.checked_add(memo.independent_scratch_growths))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.component_expansion_memo_capacity_growths = self
+                .component_expansion_memo_capacity_growths
+                .checked_add(capacity_growths)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            Self::record_memo_lane(
+                &mut self.component_expansion_memo_roots,
+                memo.root_lane.requested_slots,
+                memo.independent_root_growths,
+                root_capacity,
+                root_bytes,
+            )?;
+            Self::record_memo_lane(
+                &mut self.component_expansion_memo_nodes,
+                memo.node_lane.requested_slots,
+                memo.independent_node_growths,
+                node_capacity,
+                node_bytes,
+            )?;
+            Self::record_memo_lane(
+                &mut self.component_expansion_memo_children,
+                memo.child_lane.requested_slots,
+                memo.independent_child_growths,
+                child_capacity,
+                child_bytes,
+            )?;
+            Self::record_memo_lane(
+                &mut self.component_expansion_memo_index,
+                memo.independent_index_requests,
+                memo.independent_index_growths,
+                index_capacity,
+                index_bytes,
+            )?;
+            Self::record_memo_lane(
+                &mut self.component_expansion_memo_scratch,
+                memo.independent_scratch_requests,
+                memo.independent_scratch_growths,
+                scratch_capacity,
+                scratch_bytes,
+            )?;
+        } else {
+            for lane in [
+                &mut self.component_expansion_memo_roots,
+                &mut self.component_expansion_memo_nodes,
+                &mut self.component_expansion_memo_children,
+                &mut self.component_expansion_memo_index,
+                &mut self.component_expansion_memo_scratch,
+            ] {
+                lane.actual_capacity = 0;
+                lane.retained_bytes = 0;
+            }
+        }
+        self.component_expansion_memo_actual_capacity = root_capacity
+            .checked_add(node_capacity)
+            .and_then(|value| value.checked_add(child_capacity))
+            .and_then(|value| value.checked_add(index_capacity))
+            .and_then(|value| value.checked_add(scratch_capacity))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.component_expansion_memo_retained_bytes = retained_bytes;
+        self.component_expansion_memo_peak_bytes =
+            self.component_expansion_memo_peak_bytes.max(retained_bytes);
+        let walker = &memo.walker_resources;
+        let walker_sizes = F5cWalkerLaneKind::ALL.map(F5cWalkerLaneKind::slot_size);
+        let mut walker_capacity = 0usize;
+        let mut walker_bytes = 0usize;
+        let mut walker_requested = 0usize;
+        let mut walker_growths = 0usize;
+        for (index, (lane, size)) in walker
+            .independent_lanes
+            .iter()
+            .zip(walker_sizes)
+            .enumerate()
+        {
+            walker_capacity = walker_capacity
+                .checked_add(lane.actual_capacity)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let bytes = lane
+                .actual_capacity
+                .checked_mul(size)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            walker_bytes = walker_bytes
+                .checked_add(bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            walker_requested = walker_requested
+                .checked_add(lane.requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            walker_growths = walker_growths
+                .checked_add(lane.capacity_growths)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            Self::record_memo_lane(
+                &mut self.generalization_walker_lanes[index],
+                lane.requested_slots,
+                lane.capacity_growths,
+                lane.actual_capacity,
+                bytes,
+            )?;
+            self.generalization_walker_lanes[index].peak_bytes = self.generalization_walker_lanes
+                [index]
+                .peak_bytes
+                .max(lane.peak_bytes);
+        }
+        self.generalization_walker_requested_slots = self
+            .generalization_walker_requested_slots
+            .checked_add(walker_requested)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.generalization_walker_capacity_growths = self
+            .generalization_walker_capacity_growths
+            .checked_add(walker_growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.generalization_walker_actual_capacity = walker_capacity;
+        self.generalization_walker_retained_bytes = walker_bytes;
+        self.generalization_walker_peak_bytes = self
+            .generalization_walker_peak_bytes
+            .max(walker.independent_peak_bytes);
+        let expansion_peak = retained_bytes.max(walker.independent_simultaneous_memo_peak_bytes);
+        self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(
+            self.semantic_arena_retained_bytes
+                .checked_add(expansion_peak)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(
+            self.inference_session_retained_bytes
+                .checked_add(expansion_peak)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        Ok(())
+    }
+
+    fn record_memo_lane(
+        independent: &mut IndependentMemoLane,
+        requested_slots: usize,
+        capacity_growths: usize,
+        actual_capacity: usize,
+        retained_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        independent.requested_slots = independent
+            .requested_slots
+            .checked_add(requested_slots)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        independent.capacity_growths = independent
+            .capacity_growths
+            .checked_add(capacity_growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        independent.actual_capacity = actual_capacity;
+        independent.retained_bytes = retained_bytes;
+        independent.peak_bytes = independent.peak_bytes.max(retained_bytes);
+        Ok(())
+    }
+
     fn record(
         &mut self,
         boundary: ResourceBoundary,
         store: &ConstraintStore,
+        term_snapshot: Option<TermCapacitySnapshot>,
+        store_snapshot: Option<StoreCapacitySnapshot>,
         errors: &Vec<SolverError>,
         reported_errors: &HashSet<(ConstraintOccurrenceId, SolverErrorKind)>,
         cross_kind_components: &HashSet<ComponentId>,
@@ -3774,69 +8444,82 @@ impl IndependentResourceLedger {
         routed_use_positions: &HashSet<DefinitionUseId>,
         schemes: &Vec<Option<ClosedValueScheme>>,
         drafts: &Vec<DraftScheme>,
+        instantiation_scratch: &InstantiationScratch,
         closed_type_retained_bytes: usize,
         f2_batch_retained_bytes: usize,
         component_term_positions_capacity: usize,
         finish_output_retained_bytes: usize,
         nested_capacities: &IndependentNestedCapacityLedger,
-    ) {
+        route_journal_retained_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let checked = ResourceSampleChecked::new();
         self.coverage |= 1 << (boundary as u8);
-        self.samples += 1;
-        let queue_bytes = checked_capacity_bytes::<TypedWorkItem>(
+        self.samples = checked.add(self.samples, 1);
+        let queue_bytes = checked.bytes::<TypedWorkItem>(
             typed_worklist.capacity(),
             "F5b independent typed frontier queue",
         );
-        let semantic = checked_usize_sum(
+        let semantic = checked.sum(
             [
-                checked_usize_sum(
+                checked.sum(
                     [
-                        checked_capacity_bytes::<LiveComponentEndpoint>(
+                        checked.bytes::<LiveComponentEndpoint>(
                             live_components.capacity(),
                             "F5b independent live translation",
                         ),
-                        checked_capacity_bytes::<VariableBounds>(
+                        checked.bytes::<VariableBounds>(
                             bounds.capacity(),
                             "F5b independent value rows",
                         ),
-                        checked_capacity_bytes::<EffectBounds>(
+                        checked.bytes::<EffectBounds>(
                             effect_bounds.capacity(),
                             "F5b independent effect rows",
                         ),
-                        checked_capacity_bytes::<u32>(
-                            value_levels.capacity(),
-                            "F5b independent value levels",
-                        ),
-                        checked_capacity_bytes::<u32>(
+                        checked
+                            .bytes::<u32>(value_levels.capacity(), "F5b independent value levels"),
+                        checked.bytes::<u32>(
                             effect_levels.capacity(),
                             "F5b independent effect levels",
                         ),
-                        checked_capacity_bytes::<LiveVariableMetadata>(
+                        checked.bytes::<LiveVariableMetadata>(
                             value_metadata.capacity(),
                             "F5b independent value metadata",
                         ),
-                        checked_capacity_bytes::<LiveVariableMetadata>(
+                        checked.bytes::<LiveVariableMetadata>(
                             effect_metadata.capacity(),
                             "F5b independent effect metadata",
                         ),
-                        checked_capacity_bytes::<ExtrusionEndpoint>(
+                        checked.bytes::<ExtrusionEndpoint>(
                             extrusion_stack.capacity(),
                             "F5b independent extrusion stack",
                         ),
-                        checked_capacity_bytes::<u32>(
+                        checked.bytes::<u32>(
                             extrusion_value_marks.capacity(),
                             "F5b independent extrusion value marks",
                         ),
-                        checked_capacity_bytes::<u32>(
+                        checked.bytes::<u32>(
                             extrusion_effect_marks.capacity(),
                             "F5b independent extrusion effect marks",
                         ),
-                        nested_capacities.total_bound_bytes(),
+                        checked.sum(
+                            [
+                                nested_capacities.value_direct_lower,
+                                nested_capacities.value_direct_upper,
+                                nested_capacities.value_exact_lower,
+                                nested_capacities.value_exact_upper,
+                                nested_capacities.effect_direct_lower,
+                                nested_capacities.effect_direct_upper,
+                                nested_capacities.effect_exact_lower,
+                                nested_capacities.effect_exact_upper,
+                            ],
+                            "independent nested bound lanes",
+                        ),
                     ],
                     "F5b independent bounds",
                 ),
-                checked_usize_sum(
+                checked.sum(
                     [
-                        checked_capacity_bytes::<(TypedPairKey, TypedPairMemo)>(
+                        checked.bytes::<(TypedPairKey, TypedPairMemo)>(
                             typed_pairs.capacity(),
                             "F5b independent typed pair memo",
                         ),
@@ -3845,132 +8528,178 @@ impl IndependentResourceLedger {
                     "F5b independent typed pair memo including diagnostic edges",
                 ),
                 queue_bytes,
-                checked_usize_sum(
+                checked.sum(
                     [
-                        checked_capacity_bytes::<CanonicalValuePairKey>(
+                        checked.bytes::<CanonicalValuePairKey>(
                             diagnostic_delta.capacity(),
                             "F5b independent diagnostic delta",
                         ),
-                        checked_capacity_bytes::<(CanonicalValuePairKey, usize)>(
+                        checked.bytes::<(CanonicalValuePairKey, usize)>(
                             diagnostic_delta_indices.capacity(),
                             "F5b independent diagnostic delta index",
                         ),
-                        checked_capacity_bytes::<usize>(
+                        checked.bytes::<usize>(
                             diagnostic_reverse_offsets.capacity(),
                             "F5b independent reverse offsets",
                         ),
-                        checked_capacity_bytes::<DiagnosticReverseEdge>(
+                        checked.bytes::<DiagnosticReverseEdge>(
                             diagnostic_reverse_edges.capacity(),
                             "F5b independent reverse edges",
                         ),
-                        checked_capacity_bytes::<usize>(
+                        checked.bytes::<usize>(
                             diagnostic_reverse_cursors.capacity(),
                             "F5b independent reverse cursors",
                         ),
-                        checked_capacity_bytes::<(usize, usize)>(
+                        checked.bytes::<(usize, usize)>(
                             diagnostic_dfs_stack.capacity(),
                             "F5b independent DFS",
                         ),
-                        checked_capacity_bytes::<usize>(
+                        checked.bytes::<usize>(
                             diagnostic_finish_order.capacity(),
                             "F5b independent finish order",
                         ),
-                        checked_capacity_bytes::<usize>(
+                        checked.bytes::<usize>(
                             diagnostic_scc_indices.capacity(),
                             "F5b independent SCC indices",
                         ),
-                        checked_capacity_bytes::<usize>(
+                        checked.bytes::<usize>(
                             diagnostic_scc_nodes.capacity(),
                             "F5b independent SCC nodes",
                         ),
-                        checked_capacity_bytes::<usize>(
+                        checked.bytes::<usize>(
                             diagnostic_scc_offsets.capacity(),
                             "F5b independent SCC offsets",
                         ),
-                        checked_capacity_bytes::<usize>(
+                        checked.bytes::<usize>(
                             diagnostic_scc_pending_children.capacity(),
                             "F5b independent SCC pending",
                         ),
-                        checked_capacity_bytes::<usize>(
+                        checked.bytes::<usize>(
                             diagnostic_scc_worklist.capacity(),
                             "F5b independent SCC worklist",
                         ),
-                        checked_capacity_bytes::<Option<usize>>(
+                        checked.bytes::<Option<usize>>(
                             diagnostic_bucket_heads.capacity(),
                             "F5b independent bucket heads",
                         ),
-                        checked_capacity_bytes::<Option<usize>>(
+                        checked.bytes::<Option<usize>>(
                             diagnostic_bucket_tails.capacity(),
                             "F5b independent bucket tails",
                         ),
-                        checked_capacity_bytes::<DiagnosticBucketCandidate>(
+                        checked.bytes::<DiagnosticBucketCandidate>(
                             diagnostic_bucket_candidates.capacity(),
                             "F5b independent bucket candidates",
                         ),
-                        checked_capacity_bytes::<Option<DiagnosticWitness>>(
+                        checked.bytes::<Option<DiagnosticWitness>>(
                             diagnostic_node_witnesses.capacity(),
                             "F5b independent node witnesses",
                         ),
                     ],
                     "F5b independent diagnostic scratch",
                 ),
-                checked_capacity_bytes::<Option<ClosedValueScheme>>(
+                checked.bytes::<Option<ClosedValueScheme>>(
                     schemes.capacity(),
                     "F4 independent scheme table",
                 ),
-                checked_capacity_bytes::<RoutedUseProvenance>(
+                checked.bytes::<RoutedUseProvenance>(
                     routed_uses.capacity(),
                     "F4 independent routed-use provenance",
                 ),
-                checked_capacity_bytes::<DraftScheme>(
-                    drafts.capacity(),
-                    "F4 independent draft scratch",
+                checked.bytes::<DraftScheme>(drafts.capacity(), "F4 independent draft scratch"),
+                checked.sum(
+                    [
+                        checked.bytes::<(u32, u32)>(
+                            instantiation_scratch.substitution.capacity(),
+                            "independent incoming substitution",
+                        ),
+                        checked.bytes::<(yu_types::PositiveValueId, std::ops::Range<usize>)>(
+                            instantiation_scratch.positive.capacity(),
+                            "independent incoming positive memo",
+                        ),
+                        checked.bytes::<(yu_types::NegativeValueId, std::ops::Range<usize>)>(
+                            instantiation_scratch.negative.capacity(),
+                            "independent incoming negative memo",
+                        ),
+                        checked.bytes::<yu_types::PositiveEffectId>(
+                            instantiation_scratch.positive_effects.capacity(),
+                            "independent incoming positive effects",
+                        ),
+                        checked.bytes::<yu_types::NegativeEffectId>(
+                            instantiation_scratch.negative_effects.capacity(),
+                            "independent incoming negative effects",
+                        ),
+                        checked.bytes::<Term>(
+                            instantiation_scratch.parts.capacity(),
+                            "independent incoming parts",
+                        ),
+                        checked.bytes::<InstantiationWork>(
+                            instantiation_scratch.work.capacity(),
+                            "independent incoming work",
+                        ),
+                    ],
+                    "independent incoming scratch",
                 ),
                 closed_type_retained_bytes,
-                checked_capacity_bytes::<OccurrenceExactBounds>(
+                checked.bytes::<OccurrenceExactBounds>(
                     occurrence_exact_bounds.capacity(),
                     "F4 independent occurrence bounds",
                 ),
-                store.independent_inference_term_retained_bytes(),
+                self.record_term_lanes({
+                    let snapshot = term_snapshot.unwrap_or_else(|| store.terms.capacity_snapshot());
+                    let owner = term_snapshot.map_or_else(
+                        || {
+                            store
+                                .terms
+                                .independent_owner_lanes()
+                                .expect("Term owner lanes fit usize")
+                        },
+                        |event| event.2,
+                    );
+                    assert_eq!(owner.capacities, snapshot.0, "Term lane capacities");
+                    assert_eq!(owner.lengths, snapshot.1.lengths, "Term lane lengths");
+                    assert_eq!(owner.requests, snapshot.1.requests, "Term lane requests");
+                    assert_eq!(owner.growths, snapshot.1.growths, "Term lane growths");
+                    owner
+                })?,
+                route_journal_retained_bytes,
             ],
             "F4 independent semantic ledger",
         );
-        let component_term_position_bytes = checked_capacity_bytes::<(Term, usize)>(
+        let component_term_position_bytes = checked.bytes::<(Term, usize)>(
             component_term_positions_capacity,
             "F5b independent collected component-term recipe index",
         );
-        let f2_batch_without_component_term_positions = f2_batch_retained_bytes
-            .checked_sub(component_term_position_bytes)
-            .expect("F5b component-term recipe index is included once in the F2 batch total");
-        let session = checked_usize_sum(
+        let f2_batch_without_component_term_positions =
+            checked.sub(f2_batch_retained_bytes, component_term_position_bytes);
+        let session = checked.sum(
             [
                 semantic,
-                checked_capacity_bytes::<SemanticFact>(
-                    store.facts.capacity(),
+                checked.bytes::<SemanticFact>(
+                    store_snapshot.map_or(store.facts.capacity(), |s| s.capacities[0]),
                     "F4 independent facts",
                 ),
-                checked_capacity_bytes::<(FactKey, FactId)>(
-                    store.canonical.capacity(),
+                checked.bytes::<(FactKey, FactId)>(
+                    store_snapshot.map_or(store.canonical.capacity(), |s| s.capacities[1]),
                     "F4 independent canonical map",
                 ),
-                checked_capacity_bytes::<ProvenanceEdge>(
-                    store.provenance.capacity(),
+                checked.bytes::<ProvenanceEdge>(
+                    store_snapshot.map_or(store.provenance.capacity(), |s| s.capacities[3]),
                     "F4 independent provenance",
                 ),
-                checked_capacity_bytes::<u64>(
-                    store.consumed_receipts.capacity(),
+                checked.bytes::<u64>(
+                    store_snapshot.map_or(store.consumed_receipts.capacity(), |s| s.capacities[2]),
                     "F4 independent consumed receipts",
                 ),
-                checked_capacity_bytes::<SolverError>(errors.capacity(), "F4 independent errors"),
-                checked_capacity_bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(
+                checked.bytes::<SolverError>(errors.capacity(), "F4 independent errors"),
+                checked.bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(
                     reported_errors.capacity(),
                     "F5b independent reported-error index",
                 ),
-                checked_capacity_bytes::<ComponentId>(
+                checked.bytes::<ComponentId>(
                     cross_kind_components.capacity(),
                     "F4 independent cross-kind components",
                 ),
-                checked_capacity_bytes::<DefinitionUseId>(
+                checked.bytes::<DefinitionUseId>(
                     routed_use_positions.capacity(),
                     "F4 independent routed-use index",
                 ),
@@ -3979,15 +8708,74 @@ impl IndependentResourceLedger {
             ],
             "F4 independent session ledger",
         );
-        let full_session = session
-            .checked_add(finish_output_retained_bytes)
-            .expect("independent finish-output session ledger fits usize");
+        let full_session = checked.add(session, finish_output_retained_bytes);
+        checked.finish()?;
+        let route_capacities = [
+            store.facts.capacity(),
+            store.canonical.capacity(),
+            store.consumed_receipts.capacity(),
+            store.provenance.capacity(),
+        ];
+        let route_capacities = store_snapshot.map_or(route_capacities, |s| s.capacities);
+        let route_sizes = [
+            std::mem::size_of::<SemanticFact>(),
+            std::mem::size_of::<(FactKey, FactId)>(),
+            std::mem::size_of::<u64>(),
+            std::mem::size_of::<ProvenanceEdge>(),
+        ];
+        let store_growths = [
+            store.counters.fact_store_growths,
+            store.counters.canonical_map_growths,
+            store.counters.consumed_receipt_growths,
+            store.counters.provenance_growths,
+        ];
+        let store_growths = store_snapshot.map_or(store_growths, |s| s.growths);
+        for index in 0..4 {
+            let bytes = route_capacities[index]
+                .checked_mul(route_sizes[index])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let lane = &mut self.route_store_lanes[index];
+            lane.actual_capacity = route_capacities[index];
+            lane.retained_bytes = bytes;
+            lane.peak_bytes = lane.peak_bytes.max(bytes);
+            lane.capacity_growths = store_growths[index];
+        }
+        for (index, (capacity, size)) in [
+            (
+                routed_uses.capacity(),
+                std::mem::size_of::<RoutedUseProvenance>(),
+            ),
+            (
+                routed_use_positions.capacity(),
+                std::mem::size_of::<DefinitionUseId>(),
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let bytes = capacity
+                .checked_mul(size)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let lane = &mut self.route_use_lanes[index];
+            if matches!(boundary, ResourceBoundary::IncomingRoute)
+                && capacity > lane.actual_capacity
+            {
+                lane.capacity_growths = lane
+                    .capacity_growths
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+            lane.actual_capacity = capacity;
+            lane.retained_bytes = bytes;
+            lane.peak_bytes = lane.peak_bytes.max(bytes);
+        }
         self.queue_retained_bytes = queue_bytes;
         self.semantic_arena_retained_bytes = semantic;
         self.inference_session_retained_bytes = session;
         self.finish_output_retained_bytes = finish_output_retained_bytes;
         self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(semantic);
         self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(full_session);
+        Ok(())
     }
 }
 
@@ -4137,6 +8925,7 @@ struct InferenceSession {
     finalization: Option<ClosedTypeFinalizationSession>,
     current_closed_retained_bytes: usize,
     drafts: Vec<DraftScheme>,
+    instantiation_scratch: InstantiationScratch,
     execution_counters: ProductionCounters,
     #[cfg(test)]
     summary_reads: usize,
@@ -4153,11 +8942,1641 @@ struct InferenceSession {
     #[cfg(test)]
     resource_boundary_samples: usize,
     #[cfg(test)]
+    incoming_post_rollback_samples: usize,
+    #[cfg(test)]
+    incoming_post_rollback_had_pending_requests: bool,
+    #[cfg(test)]
+    inject_no_growth_scratch_request_on_route_exit: bool,
+    #[cfg(test)]
+    sample_fixed_capacity_probe: Option<SampleFixedCapacityProbe>,
+    #[cfg(test)]
+    inject_next_incoming_nested_preflight_abort: bool,
+    #[cfg(test)]
     resource_ledger: IndependentResourceLedger,
     #[cfg(test)]
     independent_nested_capacities: IndependentNestedCapacityLedger,
+    route_journal: Option<RouteMutationJournal>,
+    route_journal_spare: Option<RouteMutationJournal>,
+    route_attempt_physical_change: bool,
+    incoming_route_accounting_active: bool,
+    incoming_route_event_sample_failed: bool,
+    #[cfg(test)]
+    incoming_term_event_snapshots: [Option<TermCapacitySnapshot>; 6],
+    #[cfg(test)]
+    incoming_term_event_count: usize,
+    #[cfg(test)]
+    incoming_term_event_attempt_observer: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
+    #[cfg(test)]
+    incoming_post_rollback_sample_attempts: usize,
+    #[cfg(test)]
+    incoming_post_rollback_attempt_observer: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
+    #[cfg(test)]
+    incoming_nested_event_sample_attempts: usize,
+    #[cfg(test)]
+    incoming_route_sample_attempts: usize,
+    #[cfg(test)]
+    incoming_nested_value_direct_upper_event_peak_bytes: usize,
+    #[cfg(test)]
+    incoming_nested_event_scratch_peak_bytes: usize,
+    #[cfg(test)]
+    incoming_nested_value_direct_upper_event: Option<IncomingNestedBoundEventObservation>,
+    #[cfg(test)]
+    incoming_nested_event_attempt_observer: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
+    #[cfg(test)]
+    incoming_bound_preflight_observer: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
+    #[cfg(test)]
+    inject_next_incoming_bound_preflight_overflow: bool,
 }
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+enum SampleFixedCapacityProbe {
+    RouteJournal,
+    IndependentRouteJournal,
+    InstantiationScratch,
+    InferenceTerm,
+    IndependentInferenceTerm,
+    IncomingNestedEvent,
+    IncomingTermEvent,
+}
+
+#[derive(Clone, Copy)]
+enum InstantiationWork {
+    Positive(yu_types::PositiveValueId, bool),
+    Negative(yu_types::NegativeValueId, bool),
+}
+
+#[derive(Default)]
+struct InstantiationScratch {
+    substitution: HashMap<u32, u32>,
+    positive: HashMap<yu_types::PositiveValueId, std::ops::Range<usize>>,
+    negative: HashMap<yu_types::NegativeValueId, std::ops::Range<usize>>,
+    positive_effects: HashSet<yu_types::PositiveEffectId>,
+    negative_effects: HashSet<yu_types::NegativeEffectId>,
+    parts: Vec<Term>,
+    work: Vec<InstantiationWork>,
+    requested_slots: usize,
+    capacity_growths: usize,
+    lane_requested: [usize; 7],
+    lane_growths: [usize; 7],
+    growth_sample_pending: bool,
+}
+
+impl InstantiationScratch {
+    fn clear(&mut self) {
+        self.substitution.clear();
+        self.positive.clear();
+        self.negative.clear();
+        self.positive_effects.clear();
+        self.negative_effects.clear();
+        self.parts.clear();
+        self.work.clear();
+        self.growth_sample_pending = false;
+    }
+
+    #[cfg(test)]
+    fn retained_bytes(&self) -> usize {
+        checked_usize_sum(
+            [
+                checked_capacity_bytes::<(u32, u32)>(
+                    self.substitution.capacity(),
+                    "F5 incoming substitution",
+                ),
+                checked_capacity_bytes::<(yu_types::PositiveValueId, std::ops::Range<usize>)>(
+                    self.positive.capacity(),
+                    "F5 incoming positive memo",
+                ),
+                checked_capacity_bytes::<(yu_types::NegativeValueId, std::ops::Range<usize>)>(
+                    self.negative.capacity(),
+                    "F5 incoming negative memo",
+                ),
+                checked_capacity_bytes::<yu_types::PositiveEffectId>(
+                    self.positive_effects.capacity(),
+                    "F5 incoming positive effects",
+                ),
+                checked_capacity_bytes::<yu_types::NegativeEffectId>(
+                    self.negative_effects.capacity(),
+                    "F5 incoming negative effects",
+                ),
+                checked_capacity_bytes::<Term>(self.parts.capacity(), "F5 incoming parts"),
+                checked_capacity_bytes::<InstantiationWork>(
+                    self.work.capacity(),
+                    "F5 incoming work",
+                ),
+            ],
+            "F5 incoming scratch bytes",
+        )
+    }
+
+    fn checked_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        Self::checked_capacity_bytes([
+            self.substitution.capacity(),
+            self.positive.capacity(),
+            self.negative.capacity(),
+            self.positive_effects.capacity(),
+            self.negative_effects.capacity(),
+            self.parts.capacity(),
+            self.work.capacity(),
+        ])
+    }
+
+    fn checked_capacity_bytes(capacities: [usize; 7]) -> Result<usize, SolveAvailabilityError> {
+        checked_fixed_capacity_bytes(capacities.into_iter().zip([
+            std::mem::size_of::<(u32, u32)>(),
+            std::mem::size_of::<(yu_types::PositiveValueId, std::ops::Range<usize>)>(),
+            std::mem::size_of::<(yu_types::NegativeValueId, std::ops::Range<usize>)>(),
+            std::mem::size_of::<yu_types::PositiveEffectId>(),
+            std::mem::size_of::<yu_types::NegativeEffectId>(),
+            std::mem::size_of::<Term>(),
+            std::mem::size_of::<InstantiationWork>(),
+        ]))
+    }
+
+    fn push_work(&mut self, item: InstantiationWork) -> Result<bool, SolveAvailabilityError> {
+        let grew = reserve_instantiation(
+            &mut self.work,
+            1,
+            F5bCapacityLane::InstantiationWork,
+            Vec::capacity,
+            &mut self.requested_slots,
+            &mut self.capacity_growths,
+            &mut self.lane_requested,
+            &mut self.lane_growths,
+            &mut self.growth_sample_pending,
+        )?;
+        self.work.push(item);
+        Ok(grew)
+    }
+
+    fn push_part(&mut self, item: Term) -> Result<bool, SolveAvailabilityError> {
+        let grew = reserve_instantiation(
+            &mut self.parts,
+            1,
+            F5bCapacityLane::InstantiationParts,
+            Vec::capacity,
+            &mut self.requested_slots,
+            &mut self.capacity_growths,
+            &mut self.lane_requested,
+            &mut self.lane_growths,
+            &mut self.growth_sample_pending,
+        )?;
+        self.parts.push(item);
+        Ok(grew)
+    }
+
+    fn insert_positive(
+        &mut self,
+        id: yu_types::PositiveValueId,
+        range: std::ops::Range<usize>,
+    ) -> Result<bool, SolveAvailabilityError> {
+        let grew = reserve_instantiation(
+            &mut self.positive,
+            1,
+            F5bCapacityLane::InstantiationPositiveMemo,
+            HashMap::capacity,
+            &mut self.requested_slots,
+            &mut self.capacity_growths,
+            &mut self.lane_requested,
+            &mut self.lane_growths,
+            &mut self.growth_sample_pending,
+        )?;
+        self.positive.insert(id, range);
+        Ok(grew)
+    }
+
+    fn insert_negative(
+        &mut self,
+        id: yu_types::NegativeValueId,
+        range: std::ops::Range<usize>,
+    ) -> Result<bool, SolveAvailabilityError> {
+        let grew = reserve_instantiation(
+            &mut self.negative,
+            1,
+            F5bCapacityLane::InstantiationNegativeMemo,
+            HashMap::capacity,
+            &mut self.requested_slots,
+            &mut self.capacity_growths,
+            &mut self.lane_requested,
+            &mut self.lane_growths,
+            &mut self.growth_sample_pending,
+        )?;
+        self.negative.insert(id, range);
+        Ok(grew)
+    }
+
+    fn append_range(
+        &mut self,
+        range: std::ops::Range<usize>,
+    ) -> Result<bool, SolveAvailabilityError> {
+        let grew = reserve_instantiation(
+            &mut self.parts,
+            range.len(),
+            F5bCapacityLane::InstantiationParts,
+            Vec::capacity,
+            &mut self.requested_slots,
+            &mut self.capacity_growths,
+            &mut self.lane_requested,
+            &mut self.lane_growths,
+            &mut self.growth_sample_pending,
+        )?;
+        self.parts.extend_from_within(range);
+        Ok(grew)
+    }
+}
+
+fn reserve_instantiation<T: F5bReservable>(
+    target: &mut T,
+    additional: usize,
+    lane: F5bCapacityLane,
+    capacity: impl Fn(&T) -> usize,
+    requested: &mut usize,
+    growths: &mut usize,
+    lane_requested: &mut [usize; 7],
+    lane_growths: &mut [usize; 7],
+    growth_sample_pending: &mut bool,
+) -> Result<bool, SolveAvailabilityError> {
+    let index = match lane {
+        F5bCapacityLane::InstantiationSubstitution => 0,
+        F5bCapacityLane::InstantiationPositiveMemo => 1,
+        F5bCapacityLane::InstantiationNegativeMemo => 2,
+        F5bCapacityLane::InstantiationPositiveEffects => 3,
+        F5bCapacityLane::InstantiationNegativeEffects => 4,
+        F5bCapacityLane::InstantiationParts => 5,
+        F5bCapacityLane::InstantiationWork => 6,
+        _ => unreachable!("only incoming scratch lanes use this reserve"),
+    };
+    let next_requested = requested
+        .checked_add(additional)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let next_lane_requested = lane_requested[index]
+        .checked_add(additional)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    *requested = next_requested;
+    lane_requested[index] = next_lane_requested;
+    let before = capacity(target);
+    #[cfg(test)]
+    let reservation = reserve_f5b(target, additional, lane);
+    #[cfg(test)]
+    let current = capacity(target);
+    #[cfg(test)]
+    if incoming_sample_trace::in_attempt() {
+        incoming_sample_trace::event(
+            || "InstantiationScratch".into(),
+            || format!("{lane:?}"),
+            before,
+            current,
+        );
+    }
+    #[cfg(not(test))]
+    let reservation = reserve_f5b(target, additional, lane);
+    let grew = usize::from(capacity(target) != before);
+    if grew != 0 {
+        *growth_sample_pending = true;
+        let next_growths = growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let next_lane_growths = lane_growths[index]
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        *growths = next_growths;
+        lane_growths[index] = next_lane_growths;
+    }
+    reservation?;
+    Ok(grew != 0)
+}
+
+struct ValueRowUndo {
+    index: usize,
+    direct_lower_rows_len: usize,
+    direct_lower_rows_capacity: usize,
+    direct_upper_rows_len: usize,
+    direct_upper_rows_capacity: usize,
+    exact_non_variable_lowers_len: usize,
+    exact_non_variable_lowers_capacity: usize,
+    exact_non_variable_uppers_len: usize,
+    exact_non_variable_uppers_capacity: usize,
+    has_int_positive_lower: bool,
+    level: u32,
+    mark: u32,
+}
+
+struct EffectRowUndo {
+    index: usize,
+    direct_lower_rows_len: usize,
+    direct_lower_rows_capacity: usize,
+    direct_upper_rows_len: usize,
+    direct_upper_rows_capacity: usize,
+    exact_non_variable_lowers_len: usize,
+    exact_non_variable_lowers_capacity: usize,
+    exact_non_variable_uppers_len: usize,
+    exact_non_variable_uppers_capacity: usize,
+    has_bottom_lower: bool,
+    has_empty_upper: bool,
+    level: u32,
+    mark: u32,
+}
+
+struct RouteMutationJournal {
+    store: RouteStoreJournal,
+    value_rows_len: usize,
+    effect_rows_len: usize,
+    value_rows: Vec<ValueRowUndo>,
+    effect_rows: Vec<EffectRowUndo>,
+    value_row_seen: Vec<u32>,
+    effect_row_seen: Vec<u32>,
+    row_seen_generation: u32,
+    retained_bound_growths: usize,
+    incoming_bound_growth_events: usize,
+    typed_pair_keys: Vec<TypedPairKey>,
+    reported_error_keys: Vec<(ConstraintOccurrenceId, SolverErrorKind)>,
+    errors_len: usize,
+    routed_uses_len: usize,
+    routed_use_id: Option<DefinitionUseId>,
+    extrusion_generation: u32,
+    bound_payload_bytes: usize,
+    typed_pair_payload_bytes: usize,
+    execution_counters: ProductionCounters,
+    #[cfg(test)]
+    test_counters: RouteTestCounters,
+}
+
+impl RouteMutationJournal {
+    fn checked_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        Self::checked_capacity_bytes([
+            self.value_rows.capacity(),
+            self.effect_rows.capacity(),
+            self.value_row_seen.capacity(),
+            self.effect_row_seen.capacity(),
+            self.typed_pair_keys.capacity(),
+            self.reported_error_keys.capacity(),
+        ])
+    }
+
+    fn checked_capacity_bytes(capacities: [usize; 6]) -> Result<usize, SolveAvailabilityError> {
+        checked_fixed_capacity_bytes(capacities.into_iter().zip([
+            std::mem::size_of::<ValueRowUndo>(),
+            std::mem::size_of::<EffectRowUndo>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<TypedPairKey>(),
+            std::mem::size_of::<(ConstraintOccurrenceId, SolverErrorKind)>(),
+        ]))
+    }
+
+    #[cfg(test)]
+    fn retained_bytes(&self) -> usize {
+        checked_usize_sum(
+            [
+                checked_capacity_bytes::<ValueRowUndo>(
+                    self.value_rows.capacity(),
+                    "F5c route value-row undo",
+                ),
+                checked_capacity_bytes::<EffectRowUndo>(
+                    self.effect_rows.capacity(),
+                    "F5c route effect-row undo",
+                ),
+                checked_capacity_bytes::<u32>(
+                    self.value_row_seen.capacity(),
+                    "F5c route value-row generations",
+                ),
+                checked_capacity_bytes::<u32>(
+                    self.effect_row_seen.capacity(),
+                    "F5c route effect-row generations",
+                ),
+                checked_capacity_bytes::<TypedPairKey>(
+                    self.typed_pair_keys.capacity(),
+                    "F5c route typed-pair undo",
+                ),
+                checked_capacity_bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(
+                    self.reported_error_keys.capacity(),
+                    "F5c route reported-error undo",
+                ),
+            ],
+            "F5c route journal",
+        )
+    }
+
+    #[cfg(test)]
+    fn checked_independent_retained_bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        Self::checked_independent_capacity_bytes([
+            self.value_rows.capacity(),
+            self.effect_rows.capacity(),
+            self.value_row_seen.capacity(),
+            self.effect_row_seen.capacity(),
+            self.typed_pair_keys.capacity(),
+            self.reported_error_keys.capacity(),
+        ])
+    }
+
+    #[cfg(test)]
+    fn checked_independent_capacity_bytes(
+        capacities: [usize; 6],
+    ) -> Result<usize, SolveAvailabilityError> {
+        let sizes = [
+            std::mem::size_of::<ValueRowUndo>(),
+            std::mem::size_of::<EffectRowUndo>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<TypedPairKey>(),
+            std::mem::size_of::<(ConstraintOccurrenceId, SolverErrorKind)>(),
+        ];
+        capacities
+            .into_iter()
+            .zip(sizes)
+            .try_fold(0usize, |total, (capacity, size)| {
+                let lane = capacity
+                    .checked_mul(size)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                total
+                    .checked_add(lane)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)
+            })
+    }
+}
+
+#[cfg(test)]
+struct RouteTestCounters {
+    diagnostic_settle_visits: usize,
+    diagnostic_internal_reverse_edge_visits: usize,
+    diagnostic_scc_member_seed_scans: usize,
+    typed_pair_worklist_pushes: usize,
+    typed_pair_worklist_pops: usize,
+    typed_pair_worklist_maximum_live: usize,
+    typed_pair_worklist_capacity_growths: usize,
+    typed_pair_worklist_peak_bytes: usize,
+    typed_direct_edges: usize,
+    typed_exact_lower_memberships: usize,
+    typed_exact_upper_memberships: usize,
+    typed_transmission_attempts: usize,
+    typed_same_row_atom_intersections: usize,
+    independent_nested_capacities: IndependentNestedCapacityLedger,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+struct IncomingNestedBoundEventObservation {
+    fresh_row: bool,
+    value_direct_upper_bytes: usize,
+    scratch_bytes: usize,
+    semantic_retained_bytes: usize,
+    session_retained_bytes: usize,
+}
+
+/// Complete logical state for one per-use route.  The checkpoint
+/// is deliberately private to the route boundary: an availability failure
+/// must not expose a partially instantiated scheme, a partially admitted
+/// typed pair, or a public representative fact.
+#[cfg(test)]
+struct RouteCheckpoint {
+    store: ConstraintStoreCheckpoint,
+    errors: Vec<SolverError>,
+    reported_errors: HashSet<(ConstraintOccurrenceId, SolverErrorKind)>,
+    cross_kind_components: HashSet<ComponentId>,
+    live_components: Vec<LiveComponentEndpoint>,
+    bounds: Vec<VariableBounds>,
+    effect_bounds: Vec<EffectBounds>,
+    value_bound_capacities: Vec<[usize; 4]>,
+    effect_bound_capacities: Vec<[usize; 4]>,
+    value_levels: Vec<u32>,
+    effect_levels: Vec<u32>,
+    value_metadata: Vec<LiveVariableMetadata>,
+    effect_metadata: Vec<LiveVariableMetadata>,
+    extrusion_stack: Vec<ExtrusionEndpoint>,
+    extrusion_value_marks: Vec<u32>,
+    extrusion_effect_marks: Vec<u32>,
+    extrusion_generation: u32,
+    bound_payload_bytes: usize,
+    occurrence_exact_bounds: Vec<OccurrenceExactBounds>,
+    typed_pairs: HashMap<TypedPairKey, TypedPairMemo>,
+    typed_pair_payload_bytes: usize,
+    typed_worklist: VecDeque<TypedWorkItem>,
+    diagnostic_delta: Vec<CanonicalValuePairKey>,
+    diagnostic_delta_indices: HashMap<CanonicalValuePairKey, usize>,
+    diagnostic_reverse_offsets: Vec<usize>,
+    diagnostic_reverse_edges: Vec<DiagnosticReverseEdge>,
+    diagnostic_reverse_cursors: Vec<usize>,
+    diagnostic_dfs_stack: Vec<(usize, usize)>,
+    diagnostic_finish_order: Vec<usize>,
+    diagnostic_scc_indices: Vec<usize>,
+    diagnostic_scc_nodes: Vec<usize>,
+    diagnostic_scc_offsets: Vec<usize>,
+    diagnostic_scc_pending_children: Vec<usize>,
+    diagnostic_scc_worklist: VecDeque<usize>,
+    diagnostic_bucket_heads: Vec<Option<usize>>,
+    diagnostic_bucket_tails: Vec<Option<usize>>,
+    diagnostic_bucket_candidates: Vec<DiagnosticBucketCandidate>,
+    diagnostic_node_witnesses: Vec<Option<DiagnosticWitness>>,
+    routed_uses: Vec<RoutedUseProvenance>,
+    routed_use_positions: HashSet<DefinitionUseId>,
+    route_journal_spare_generation: Option<u32>,
+    execution_counters: ProductionCounters,
+    resource_boundary_samples: usize,
+    #[cfg(test)]
+    diagnostic_settle_visits: usize,
+    #[cfg(test)]
+    diagnostic_internal_reverse_edge_visits: usize,
+    #[cfg(test)]
+    diagnostic_scc_member_seed_scans: usize,
+    #[cfg(test)]
+    typed_pair_worklist_pushes: usize,
+    #[cfg(test)]
+    typed_pair_worklist_pops: usize,
+    #[cfg(test)]
+    typed_pair_worklist_maximum_live: usize,
+    #[cfg(test)]
+    typed_pair_worklist_capacity_growths: usize,
+    #[cfg(test)]
+    typed_pair_worklist_peak_bytes: usize,
+    #[cfg(test)]
+    typed_direct_edges: usize,
+    #[cfg(test)]
+    typed_exact_lower_memberships: usize,
+    #[cfg(test)]
+    typed_exact_upper_memberships: usize,
+    #[cfg(test)]
+    typed_transmission_attempts: usize,
+    #[cfg(test)]
+    typed_same_row_atom_intersections: usize,
+    #[cfg(test)]
+    independent_nested_capacities: IndependentNestedCapacityLedger,
+}
+
+#[cfg(test)]
+impl RouteCheckpoint {
+    fn capture(session: &InferenceSession) -> Self {
+        Self {
+            store: session.store.checkpoint(),
+            errors: session.errors.clone(),
+            reported_errors: session.reported_errors.clone(),
+            cross_kind_components: session.cross_kind_components.clone(),
+            live_components: session.live_components.clone(),
+            bounds: session.bounds.clone(),
+            effect_bounds: session.effect_bounds.clone(),
+            value_bound_capacities: session
+                .bounds
+                .iter()
+                .map(|row| {
+                    [
+                        row.direct_lower_rows.capacity(),
+                        row.direct_upper_rows.capacity(),
+                        row.exact_non_variable_lowers.capacity(),
+                        row.exact_non_variable_uppers.capacity(),
+                    ]
+                })
+                .collect(),
+            effect_bound_capacities: session
+                .effect_bounds
+                .iter()
+                .map(|row| {
+                    [
+                        row.direct_lower_rows.capacity(),
+                        row.direct_upper_rows.capacity(),
+                        row.exact_non_variable_lowers.capacity(),
+                        row.exact_non_variable_uppers.capacity(),
+                    ]
+                })
+                .collect(),
+            value_levels: session.value_levels.clone(),
+            effect_levels: session.effect_levels.clone(),
+            value_metadata: session.value_metadata.clone(),
+            effect_metadata: session.effect_metadata.clone(),
+            extrusion_stack: session.extrusion_stack.clone(),
+            extrusion_value_marks: session.extrusion_value_marks.clone(),
+            extrusion_effect_marks: session.extrusion_effect_marks.clone(),
+            extrusion_generation: session.extrusion_generation,
+            bound_payload_bytes: session.bound_payload_bytes,
+            occurrence_exact_bounds: session.occurrence_exact_bounds.clone(),
+            typed_pairs: session.typed_pairs.clone(),
+            typed_pair_payload_bytes: session.typed_pair_payload_bytes,
+            typed_worklist: session.typed_worklist.clone(),
+            diagnostic_delta: session.diagnostic_delta.clone(),
+            diagnostic_delta_indices: session.diagnostic_delta_indices.clone(),
+            diagnostic_reverse_offsets: session.diagnostic_reverse_offsets.clone(),
+            diagnostic_reverse_edges: session.diagnostic_reverse_edges.clone(),
+            diagnostic_reverse_cursors: session.diagnostic_reverse_cursors.clone(),
+            diagnostic_dfs_stack: session.diagnostic_dfs_stack.clone(),
+            diagnostic_finish_order: session.diagnostic_finish_order.clone(),
+            diagnostic_scc_indices: session.diagnostic_scc_indices.clone(),
+            diagnostic_scc_nodes: session.diagnostic_scc_nodes.clone(),
+            diagnostic_scc_offsets: session.diagnostic_scc_offsets.clone(),
+            diagnostic_scc_pending_children: session.diagnostic_scc_pending_children.clone(),
+            diagnostic_scc_worklist: session.diagnostic_scc_worklist.clone(),
+            diagnostic_bucket_heads: session.diagnostic_bucket_heads.clone(),
+            diagnostic_bucket_tails: session.diagnostic_bucket_tails.clone(),
+            diagnostic_bucket_candidates: session.diagnostic_bucket_candidates.clone(),
+            diagnostic_node_witnesses: session.diagnostic_node_witnesses.clone(),
+            routed_uses: session.routed_uses.clone(),
+            routed_use_positions: session.routed_use_positions.clone(),
+            route_journal_spare_generation: session
+                .route_journal_spare
+                .as_ref()
+                .map(|journal| journal.row_seen_generation),
+            execution_counters: session.execution_counters.clone(),
+            resource_boundary_samples: session.resource_boundary_samples,
+            #[cfg(test)]
+            diagnostic_settle_visits: session.diagnostic_settle_visits,
+            #[cfg(test)]
+            diagnostic_internal_reverse_edge_visits: session
+                .diagnostic_internal_reverse_edge_visits,
+            #[cfg(test)]
+            diagnostic_scc_member_seed_scans: session.diagnostic_scc_member_seed_scans,
+            #[cfg(test)]
+            typed_pair_worklist_pushes: session.typed_pair_worklist_pushes,
+            #[cfg(test)]
+            typed_pair_worklist_pops: session.typed_pair_worklist_pops,
+            #[cfg(test)]
+            typed_pair_worklist_maximum_live: session.typed_pair_worklist_maximum_live,
+            #[cfg(test)]
+            typed_pair_worklist_capacity_growths: session.typed_pair_worklist_capacity_growths,
+            #[cfg(test)]
+            typed_pair_worklist_peak_bytes: session.typed_pair_worklist_peak_bytes,
+            #[cfg(test)]
+            typed_direct_edges: session.typed_direct_edges,
+            #[cfg(test)]
+            typed_exact_lower_memberships: session.typed_exact_lower_memberships,
+            #[cfg(test)]
+            typed_exact_upper_memberships: session.typed_exact_upper_memberships,
+            #[cfg(test)]
+            typed_transmission_attempts: session.typed_transmission_attempts,
+            #[cfg(test)]
+            typed_same_row_atom_intersections: session.typed_same_row_atom_intersections,
+            #[cfg(test)]
+            independent_nested_capacities: session.independent_nested_capacities.clone(),
+        }
+    }
+}
+
+#[cfg(test)]
+impl RouteCheckpoint {
+    fn assert_restored(&self, session: &InferenceSession) {
+        fn canonical_entries(canonical: &HashMap<FactKey, FactId>) -> Vec<(FactId, Term, Term)> {
+            let mut entries = canonical
+                .iter()
+                .map(|(key, fact)| (*fact, key.lower, key.upper))
+                .collect::<Vec<_>>();
+            entries.sort_unstable_by_key(|(fact, _, _)| fact.0);
+            entries
+        }
+
+        assert_eq!(session.store.terms.checkpoint(), self.store.terms);
+        assert_eq!(session.store.next_receipt, self.store.next_receipt);
+        assert_eq!(
+            session.store.consumed_receipts,
+            self.store.consumed_receipts
+        );
+        assert_eq!(session.store.facts, self.store.facts);
+        assert_eq!(
+            canonical_entries(&session.store.canonical),
+            canonical_entries(&self.store.canonical)
+        );
+        assert_eq!(session.store.provenance, self.store.provenance);
+        assert_eq!(
+            session.store.comparisons.load(Ordering::Relaxed),
+            self.store.comparisons
+        );
+        assert_eq!(session.store.counters, self.store.counters);
+
+        assert_eq!(session.errors, self.errors);
+        assert_eq!(session.reported_errors, self.reported_errors);
+        assert_eq!(session.cross_kind_components, self.cross_kind_components);
+        assert_eq!(session.live_components, self.live_components);
+        assert_eq!(session.bounds, self.bounds);
+        assert_eq!(session.effect_bounds, self.effect_bounds);
+        assert_eq!(session.value_levels, self.value_levels);
+        assert_eq!(session.effect_levels, self.effect_levels);
+        assert_eq!(session.value_metadata, self.value_metadata);
+        assert_eq!(session.effect_metadata, self.effect_metadata);
+        assert_eq!(session.extrusion_stack, self.extrusion_stack);
+        assert_eq!(session.extrusion_value_marks, self.extrusion_value_marks);
+        assert_eq!(session.extrusion_effect_marks, self.extrusion_effect_marks);
+        assert_eq!(session.extrusion_generation, self.extrusion_generation);
+        let mut retained_bound_delta = 0;
+        let mut retained_bound_growths = 0;
+        let mut expected_nested_capacities = self.independent_nested_capacities.clone();
+        macro_rules! check_retained_lane {
+            ($before:expr, $after:expr, $slot:ty, $lane:ident) => {{
+                let before = $before;
+                let after = $after;
+                assert!(after >= before);
+                let delta = (after - before) * std::mem::size_of::<$slot>();
+                retained_bound_delta += delta;
+                retained_bound_growths += usize::from(delta != 0);
+                expected_nested_capacities.$lane += delta;
+            }};
+        }
+        for (before, after) in self.value_bound_capacities.iter().zip(&session.bounds) {
+            check_retained_lane!(
+                before[0],
+                after.direct_lower_rows.capacity(),
+                u32,
+                value_direct_lower
+            );
+            check_retained_lane!(
+                before[1],
+                after.direct_upper_rows.capacity(),
+                u32,
+                value_direct_upper
+            );
+            check_retained_lane!(
+                before[2],
+                after.exact_non_variable_lowers.capacity(),
+                ValueEndpointKey,
+                value_exact_lower
+            );
+            check_retained_lane!(
+                before[3],
+                after.exact_non_variable_uppers.capacity(),
+                ValueEndpointKey,
+                value_exact_upper
+            );
+        }
+        for (before, after) in self
+            .effect_bound_capacities
+            .iter()
+            .zip(&session.effect_bounds)
+        {
+            check_retained_lane!(
+                before[0],
+                after.direct_lower_rows.capacity(),
+                u32,
+                effect_direct_lower
+            );
+            check_retained_lane!(
+                before[1],
+                after.direct_upper_rows.capacity(),
+                u32,
+                effect_direct_upper
+            );
+            check_retained_lane!(
+                before[2],
+                after.exact_non_variable_lowers.capacity(),
+                EffectEndpointKey,
+                effect_exact_lower
+            );
+            check_retained_lane!(
+                before[3],
+                after.exact_non_variable_uppers.capacity(),
+                EffectEndpointKey,
+                effect_exact_upper
+            );
+        }
+        assert_eq!(
+            session.independent_nested_capacities,
+            expected_nested_capacities
+        );
+        assert_eq!(
+            session.bound_payload_bytes,
+            self.bound_payload_bytes + retained_bound_delta
+        );
+        assert_eq!(
+            session.occurrence_exact_bounds,
+            self.occurrence_exact_bounds
+        );
+        assert_eq!(session.typed_pairs, self.typed_pairs);
+        assert_eq!(
+            session.typed_pair_payload_bytes,
+            self.typed_pair_payload_bytes
+        );
+        assert_eq!(session.typed_worklist, self.typed_worklist);
+        assert_eq!(session.diagnostic_delta, self.diagnostic_delta);
+        assert_eq!(
+            session.diagnostic_delta_indices,
+            self.diagnostic_delta_indices
+        );
+        assert_eq!(
+            session.diagnostic_reverse_offsets,
+            self.diagnostic_reverse_offsets
+        );
+        assert_eq!(
+            session.diagnostic_reverse_edges,
+            self.diagnostic_reverse_edges
+        );
+        assert_eq!(
+            session.diagnostic_reverse_cursors,
+            self.diagnostic_reverse_cursors
+        );
+        assert_eq!(session.diagnostic_dfs_stack, self.diagnostic_dfs_stack);
+        assert_eq!(
+            session.diagnostic_finish_order,
+            self.diagnostic_finish_order
+        );
+        assert_eq!(session.diagnostic_scc_indices, self.diagnostic_scc_indices);
+        assert_eq!(session.diagnostic_scc_nodes, self.diagnostic_scc_nodes);
+        assert_eq!(session.diagnostic_scc_offsets, self.diagnostic_scc_offsets);
+        assert_eq!(
+            session.diagnostic_scc_pending_children,
+            self.diagnostic_scc_pending_children
+        );
+        assert_eq!(
+            session.diagnostic_scc_worklist,
+            self.diagnostic_scc_worklist
+        );
+        assert_eq!(
+            session.diagnostic_bucket_heads,
+            self.diagnostic_bucket_heads
+        );
+        assert_eq!(
+            session.diagnostic_bucket_tails,
+            self.diagnostic_bucket_tails
+        );
+        assert_eq!(
+            session.diagnostic_bucket_candidates,
+            self.diagnostic_bucket_candidates
+        );
+        assert_eq!(
+            session.diagnostic_node_witnesses,
+            self.diagnostic_node_witnesses
+        );
+        assert_eq!(session.routed_uses, self.routed_uses);
+        assert_eq!(session.routed_use_positions, self.routed_use_positions);
+        if let Some(generation) = self.route_journal_spare_generation {
+            assert_eq!(
+                session
+                    .route_journal_spare
+                    .as_ref()
+                    .map(|journal| journal.row_seen_generation),
+                Some(generation)
+            );
+        }
+        let mut observed = session.execution_counters.clone();
+        if session.resource_boundary_samples > self.resource_boundary_samples {
+            macro_rules! accept_sampled_resource_field {
+                ($field:ident) => {
+                    observed.$field = self.execution_counters.$field;
+                };
+            }
+            accept_sampled_resource_field!(draft_scratch_capacity);
+            accept_sampled_resource_field!(draft_scratch_retained_bytes);
+            accept_sampled_resource_field!(bound_table_capacity);
+            accept_sampled_resource_field!(bound_table_retained_bytes);
+            accept_sampled_resource_field!(bound_table_peak_bytes);
+            accept_sampled_resource_field!(constraint_pair_cache_capacity);
+            accept_sampled_resource_field!(constraint_pair_cache_retained_bytes);
+            accept_sampled_resource_field!(constraint_pair_cache_peak_bytes);
+            accept_sampled_resource_field!(scheme_table_len);
+            accept_sampled_resource_field!(scheme_table_capacity);
+            accept_sampled_resource_field!(scheme_table_retained_bytes);
+            accept_sampled_resource_field!(routed_use_provenance_len);
+            accept_sampled_resource_field!(routed_use_provenance_capacity);
+            accept_sampled_resource_field!(routed_use_provenance_retained_bytes);
+            accept_sampled_resource_field!(occurrence_bound_state_len);
+            accept_sampled_resource_field!(occurrence_bound_state_capacity);
+            accept_sampled_resource_field!(occurrence_bound_state_retained_bytes);
+            accept_sampled_resource_field!(solver_error_workspace_capacity);
+            accept_sampled_resource_field!(solver_error_workspace_retained_bytes);
+            accept_sampled_resource_field!(semantic_arena_retained_bytes);
+            accept_sampled_resource_field!(semantic_arena_peak_bytes);
+            accept_sampled_resource_field!(inference_session_retained_bytes);
+            accept_sampled_resource_field!(inference_session_peak_bytes);
+        }
+        assert!(
+            observed.bound_table_growths
+                >= self.execution_counters.bound_table_growths + retained_bound_growths
+        );
+        assert_eq!(
+            observed.bound_table_rebuilds,
+            observed.bound_table_growths + self.execution_counters.bound_table_rebuilds
+                - self.execution_counters.bound_table_growths
+        );
+        observed.bound_table_growths = self.execution_counters.bound_table_growths;
+        observed.bound_table_rebuilds = self.execution_counters.bound_table_rebuilds;
+        assert!(
+            observed.constraint_pair_cache_growths
+                >= self.execution_counters.constraint_pair_cache_growths
+        );
+        assert_eq!(
+            observed.constraint_pair_cache_rebuilds - observed.constraint_pair_cache_growths,
+            self.execution_counters.constraint_pair_cache_rebuilds
+                - self.execution_counters.constraint_pair_cache_growths
+        );
+        observed.constraint_pair_cache_growths =
+            self.execution_counters.constraint_pair_cache_growths;
+        observed.constraint_pair_cache_rebuilds =
+            self.execution_counters.constraint_pair_cache_rebuilds;
+        if observed.instantiation_substitution_requested_slots
+            != self
+                .execution_counters
+                .instantiation_substitution_requested_slots
+        {
+            assert!(
+                observed.instantiation_substitution_requested_slots
+                    >= self
+                        .execution_counters
+                        .instantiation_substitution_requested_slots
+            );
+            assert!(
+                observed.instantiation_substitution_peak_bytes
+                    >= self
+                        .execution_counters
+                        .instantiation_substitution_peak_bytes
+            );
+            observed.instantiation_substitution_requested_slots = self
+                .execution_counters
+                .instantiation_substitution_requested_slots;
+            observed.instantiation_substitution_actual_capacity = self
+                .execution_counters
+                .instantiation_substitution_actual_capacity;
+            observed.instantiation_substitution_retained_bytes = self
+                .execution_counters
+                .instantiation_substitution_retained_bytes;
+            observed.instantiation_substitution_peak_bytes = self
+                .execution_counters
+                .instantiation_substitution_peak_bytes;
+            observed.instantiation_substitution_capacity_growths = self
+                .execution_counters
+                .instantiation_substitution_capacity_growths;
+            observed.semantic_arena_retained_bytes =
+                self.execution_counters.semantic_arena_retained_bytes;
+            observed.semantic_arena_peak_bytes = self.execution_counters.semantic_arena_peak_bytes;
+            observed.inference_session_retained_bytes =
+                self.execution_counters.inference_session_retained_bytes;
+            observed.inference_session_peak_bytes =
+                self.execution_counters.inference_session_peak_bytes;
+            observed.bound_table_retained_bytes =
+                self.execution_counters.bound_table_retained_bytes;
+            observed.bound_table_capacity = self.execution_counters.bound_table_capacity;
+            observed.bound_table_peak_bytes = self.execution_counters.bound_table_peak_bytes;
+        }
+        assert_eq!(observed, self.execution_counters);
+        assert_eq!(
+            session.diagnostic_settle_visits,
+            self.diagnostic_settle_visits
+        );
+        assert_eq!(
+            session.diagnostic_internal_reverse_edge_visits,
+            self.diagnostic_internal_reverse_edge_visits
+        );
+        assert_eq!(
+            session.diagnostic_scc_member_seed_scans,
+            self.diagnostic_scc_member_seed_scans
+        );
+        assert_eq!(
+            session.typed_pair_worklist_pushes,
+            self.typed_pair_worklist_pushes
+        );
+        assert_eq!(
+            session.typed_pair_worklist_pops,
+            self.typed_pair_worklist_pops
+        );
+        assert_eq!(
+            session.typed_pair_worklist_maximum_live,
+            self.typed_pair_worklist_maximum_live
+        );
+        assert_eq!(
+            session.typed_pair_worklist_capacity_growths,
+            self.typed_pair_worklist_capacity_growths
+        );
+        assert_eq!(
+            session.typed_pair_worklist_peak_bytes,
+            self.typed_pair_worklist_peak_bytes
+        );
+        assert_eq!(session.typed_direct_edges, self.typed_direct_edges);
+        assert_eq!(
+            session.typed_exact_lower_memberships,
+            self.typed_exact_lower_memberships
+        );
+        assert_eq!(
+            session.typed_exact_upper_memberships,
+            self.typed_exact_upper_memberships
+        );
+        assert_eq!(
+            session.typed_transmission_attempts,
+            self.typed_transmission_attempts
+        );
+        assert_eq!(
+            session.typed_same_row_atom_intersections,
+            self.typed_same_row_atom_intersections
+        );
+        assert_eq!(
+            session.independent_nested_capacities.total_bound_bytes(),
+            self.independent_nested_capacities.total_bound_bytes() + retained_bound_delta
+        );
+    }
+}
+
+macro_rules! reserve_typed_route_lane {
+    ($session:expr, $target:expr, $additional:expr, $lane:expr) => {{
+        let lane = $lane;
+        let target = &mut $target;
+        let old_capacity = target.capacity();
+        let reservation = reserve_f5b(target, $additional, lane);
+        let changed = target.capacity() != old_capacity;
+        #[cfg(test)]
+        if changed {
+            if $session.incoming_route_accounting_active {
+                incoming_sample_trace::event(
+                    || "typed-route".into(),
+                    || format!("{lane:?}"),
+                    old_capacity,
+                    target.capacity(),
+                );
+            }
+        }
+        $session.observe_typed_route_capacity(changed)?;
+        #[cfg(test)]
+        if changed && $session.incoming_route_accounting_active {
+            F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.set(Some(lane)));
+        }
+        reservation.map_err(SolveAvailabilityError::from)?;
+    }};
+}
+
+#[cfg(test)]
+fn fresh_value_bounds_lane() -> F5bCapacityLane {
+    F5bCapacityLane::FreshValueBounds
+}
+
+#[cfg(not(test))]
+fn fresh_value_bounds_lane() -> F5bCapacityLane {
+    F5bCapacityLane::ValueBounds
+}
+
+#[cfg(test)]
+fn fresh_effect_bounds_lane() -> F5bCapacityLane {
+    F5bCapacityLane::FreshEffectBounds
+}
+
+#[cfg(not(test))]
+fn fresh_effect_bounds_lane() -> F5bCapacityLane {
+    F5bCapacityLane::EffectBounds
+}
+
 impl InferenceSession {
+    fn observe_typed_route_capacity(
+        &mut self,
+        changed: bool,
+    ) -> Result<(), SolveAvailabilityError> {
+        if changed && self.incoming_route_accounting_active {
+            self.route_attempt_physical_change = true;
+            if let Err(error) = self.sample_f4_resources(ResourceBoundary::IncomingRoute) {
+                self.incoming_route_event_sample_failed = true;
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+
+    fn begin_route_transaction(&mut self) -> Result<(), SolveAvailabilityError> {
+        assert!(self.route_journal.is_none());
+        debug_assert!(self.typed_worklist.is_empty());
+        debug_assert!(self.diagnostic_delta.is_empty());
+        if self
+            .route_journal_spare
+            .as_ref()
+            .is_some_and(|journal| journal.row_seen_generation == u32::MAX)
+        {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let store = self
+            .store
+            .begin_route(self.incoming_route_accounting_active);
+        let journal = self
+            .route_journal_spare
+            .take()
+            .unwrap_or_else(|| RouteMutationJournal {
+                store: RouteStoreJournal {
+                    facts_len: 0,
+                    provenance_len: 0,
+                    next_receipt: 0,
+                    comparisons: 0,
+                    counters: ProductionCounters::default(),
+                },
+                value_rows_len: 0,
+                effect_rows_len: 0,
+                value_rows: Vec::new(),
+                effect_rows: Vec::new(),
+                value_row_seen: Vec::new(),
+                effect_row_seen: Vec::new(),
+                row_seen_generation: 0,
+                retained_bound_growths: 0,
+                incoming_bound_growth_events: 0,
+                typed_pair_keys: Vec::new(),
+                reported_error_keys: Vec::new(),
+                errors_len: 0,
+                routed_uses_len: 0,
+                routed_use_id: None,
+                extrusion_generation: 0,
+                bound_payload_bytes: 0,
+                typed_pair_payload_bytes: 0,
+                execution_counters: ProductionCounters::default(),
+                #[cfg(test)]
+                test_counters: RouteTestCounters {
+                    diagnostic_settle_visits: 0,
+                    diagnostic_internal_reverse_edge_visits: 0,
+                    diagnostic_scc_member_seed_scans: 0,
+                    typed_pair_worklist_pushes: 0,
+                    typed_pair_worklist_pops: 0,
+                    typed_pair_worklist_maximum_live: 0,
+                    typed_pair_worklist_capacity_growths: 0,
+                    typed_pair_worklist_peak_bytes: 0,
+                    typed_direct_edges: 0,
+                    typed_exact_lower_memberships: 0,
+                    typed_exact_upper_memberships: 0,
+                    typed_transmission_attempts: 0,
+                    typed_same_row_atom_intersections: 0,
+                    independent_nested_capacities: IndependentNestedCapacityLedger::default(),
+                },
+            });
+        self.route_journal_spare = Some(journal);
+        let journal = self
+            .route_journal_spare
+            .as_mut()
+            .expect("route journal setup");
+        let value_seen_additional = self
+            .bounds
+            .len()
+            .saturating_sub(journal.value_row_seen.len());
+        let value_seen_capacity = journal.value_row_seen.capacity();
+        let value_seen_reservation = reserve_f5b(
+            &mut journal.value_row_seen,
+            value_seen_additional,
+            F5bCapacityLane::ValueBounds,
+        );
+        let value_seen_changed = journal.value_row_seen.capacity() != value_seen_capacity;
+        #[cfg(test)]
+        if self.incoming_route_accounting_active {
+            incoming_sample_trace::event(
+                || "journal".into(),
+                || "value_row_seen".into(),
+                value_seen_capacity,
+                journal.value_row_seen.capacity(),
+            );
+        }
+        let _ = journal;
+        if let Err(error) = self.observe_typed_route_capacity(value_seen_changed) {
+            self.store.rollback_route(store);
+            return Err(error);
+        }
+        if let Err(error) = value_seen_reservation {
+            self.store.rollback_route(store);
+            return Err(error.into());
+        }
+        let journal = self
+            .route_journal_spare
+            .as_mut()
+            .expect("route journal setup");
+        let effect_seen_additional = self
+            .effect_bounds
+            .len()
+            .saturating_sub(journal.effect_row_seen.len());
+        let effect_seen_capacity = journal.effect_row_seen.capacity();
+        let effect_seen_reservation = reserve_f5b(
+            &mut journal.effect_row_seen,
+            effect_seen_additional,
+            F5bCapacityLane::EffectBounds,
+        );
+        let effect_seen_changed = journal.effect_row_seen.capacity() != effect_seen_capacity;
+        #[cfg(test)]
+        if self.incoming_route_accounting_active {
+            incoming_sample_trace::event(
+                || "journal".into(),
+                || "effect_row_seen".into(),
+                effect_seen_capacity,
+                journal.effect_row_seen.capacity(),
+            );
+        }
+        let _ = journal;
+        if let Err(error) = self.observe_typed_route_capacity(effect_seen_changed) {
+            self.store.rollback_route(store);
+            return Err(error);
+        }
+        if let Err(error) = effect_seen_reservation {
+            self.store.rollback_route(store);
+            return Err(error.into());
+        }
+        let mut journal = self
+            .route_journal_spare
+            .take()
+            .expect("route journal setup");
+        journal.store = store;
+        journal.value_rows_len = self.bounds.len();
+        journal.effect_rows_len = self.effect_bounds.len();
+        journal.value_rows.clear();
+        journal.effect_rows.clear();
+        journal.row_seen_generation = journal
+            .row_seen_generation
+            .checked_add(1)
+            .expect("route generation overflow was rejected before store mutation");
+        journal.retained_bound_growths = 0;
+        journal.incoming_bound_growth_events = 0;
+        journal.value_row_seen.resize(self.bounds.len(), 0);
+        journal.effect_row_seen.resize(self.effect_bounds.len(), 0);
+        journal.typed_pair_keys.clear();
+        journal.reported_error_keys.clear();
+        journal.errors_len = self.errors.len();
+        journal.routed_uses_len = self.routed_uses.len();
+        journal.routed_use_id = None;
+        journal.extrusion_generation = self.extrusion_generation;
+        journal.bound_payload_bytes = self.bound_payload_bytes;
+        journal.typed_pair_payload_bytes = self.typed_pair_payload_bytes;
+        journal.execution_counters = self.execution_counters.clone();
+        #[cfg(test)]
+        {
+            journal.test_counters = RouteTestCounters {
+                diagnostic_settle_visits: self.diagnostic_settle_visits,
+                diagnostic_internal_reverse_edge_visits: self
+                    .diagnostic_internal_reverse_edge_visits,
+                diagnostic_scc_member_seed_scans: self.diagnostic_scc_member_seed_scans,
+                typed_pair_worklist_pushes: self.typed_pair_worklist_pushes,
+                typed_pair_worklist_pops: self.typed_pair_worklist_pops,
+                typed_pair_worklist_maximum_live: self.typed_pair_worklist_maximum_live,
+                typed_pair_worklist_capacity_growths: self.typed_pair_worklist_capacity_growths,
+                typed_pair_worklist_peak_bytes: self.typed_pair_worklist_peak_bytes,
+                typed_direct_edges: self.typed_direct_edges,
+                typed_exact_lower_memberships: self.typed_exact_lower_memberships,
+                typed_exact_upper_memberships: self.typed_exact_upper_memberships,
+                typed_transmission_attempts: self.typed_transmission_attempts,
+                typed_same_row_atom_intersections: self.typed_same_row_atom_intersections,
+                independent_nested_capacities: self.independent_nested_capacities.clone(),
+            };
+        }
+        self.route_journal = Some(journal);
+        Ok(())
+    }
+
+    fn with_route_transaction<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
+        self.begin_route_transaction()?;
+        match operation(self) {
+            Ok(value) => {
+                let journal = self
+                    .route_journal
+                    .take()
+                    .expect("route transaction is active");
+                self.store.commit_route();
+                self.route_journal_spare = Some(journal);
+                Ok(value)
+            }
+            Err(error) => {
+                self.rollback_route_transaction()?;
+                Err(error)
+            }
+        }
+    }
+
+    fn journal_value_row(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
+        let Some(journal) = &mut self.route_journal else {
+            return Ok(());
+        };
+        if index >= journal.value_rows_len
+            || journal.value_row_seen[index] == journal.row_seen_generation
+        {
+            return Ok(());
+        }
+        let old_capacity = journal.value_rows.capacity();
+        let reservation = reserve_f5b(&mut journal.value_rows, 1, F5bCapacityLane::ValueBounds);
+        let changed = journal.value_rows.capacity() != old_capacity;
+        #[cfg(test)]
+        if self.incoming_route_accounting_active {
+            incoming_sample_trace::event(
+                || "journal".into(),
+                || "value_rows".into(),
+                old_capacity,
+                journal.value_rows.capacity(),
+            );
+        }
+        let _ = journal;
+        self.observe_typed_route_capacity(changed)?;
+        reservation?;
+        let journal = self
+            .route_journal
+            .as_mut()
+            .expect("route transaction is active");
+        journal.value_row_seen[index] = journal.row_seen_generation;
+        let bounds = &self.bounds[index];
+        journal.value_rows.push(ValueRowUndo {
+            index,
+            direct_lower_rows_len: bounds.direct_lower_rows.len(),
+            direct_lower_rows_capacity: bounds.direct_lower_rows.capacity(),
+            direct_upper_rows_len: bounds.direct_upper_rows.len(),
+            direct_upper_rows_capacity: bounds.direct_upper_rows.capacity(),
+            exact_non_variable_lowers_len: bounds.exact_non_variable_lowers.len(),
+            exact_non_variable_lowers_capacity: bounds.exact_non_variable_lowers.capacity(),
+            exact_non_variable_uppers_len: bounds.exact_non_variable_uppers.len(),
+            exact_non_variable_uppers_capacity: bounds.exact_non_variable_uppers.capacity(),
+            has_int_positive_lower: bounds.has_int_positive_lower,
+            level: self.value_levels[index],
+            mark: self.extrusion_value_marks[index],
+        });
+        Ok(())
+    }
+
+    fn journal_effect_row(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
+        let Some(journal) = &mut self.route_journal else {
+            return Ok(());
+        };
+        if index >= journal.effect_rows_len
+            || journal.effect_row_seen[index] == journal.row_seen_generation
+        {
+            return Ok(());
+        }
+        let old_capacity = journal.effect_rows.capacity();
+        let reservation = reserve_f5b(&mut journal.effect_rows, 1, F5bCapacityLane::EffectBounds);
+        let changed = journal.effect_rows.capacity() != old_capacity;
+        #[cfg(test)]
+        if self.incoming_route_accounting_active {
+            incoming_sample_trace::event(
+                || "journal".into(),
+                || "effect_rows".into(),
+                old_capacity,
+                journal.effect_rows.capacity(),
+            );
+        }
+        let _ = journal;
+        self.observe_typed_route_capacity(changed)?;
+        reservation?;
+        let journal = self
+            .route_journal
+            .as_mut()
+            .expect("route transaction is active");
+        journal.effect_row_seen[index] = journal.row_seen_generation;
+        let bounds = &self.effect_bounds[index];
+        journal.effect_rows.push(EffectRowUndo {
+            index,
+            direct_lower_rows_len: bounds.direct_lower_rows.len(),
+            direct_lower_rows_capacity: bounds.direct_lower_rows.capacity(),
+            direct_upper_rows_len: bounds.direct_upper_rows.len(),
+            direct_upper_rows_capacity: bounds.direct_upper_rows.capacity(),
+            exact_non_variable_lowers_len: bounds.exact_non_variable_lowers.len(),
+            exact_non_variable_lowers_capacity: bounds.exact_non_variable_lowers.capacity(),
+            exact_non_variable_uppers_len: bounds.exact_non_variable_uppers.len(),
+            exact_non_variable_uppers_capacity: bounds.exact_non_variable_uppers.capacity(),
+            has_bottom_lower: bounds.has_bottom_lower,
+            has_empty_upper: bounds.has_empty_upper,
+            level: self.effect_levels[index],
+            mark: self.extrusion_effect_marks[index],
+        });
+        Ok(())
+    }
+
+    fn rollback_route_transaction(&mut self) -> Result<(), SolveAvailabilityError> {
+        let semantic_peak_bytes = self.execution_counters.semantic_arena_peak_bytes;
+        let session_peak_bytes = self.execution_counters.inference_session_peak_bytes;
+        let pair_growths = self.execution_counters.constraint_pair_cache_growths;
+        let pair_rebuilds = self.execution_counters.constraint_pair_cache_rebuilds;
+        let routed_use_growths = self.execution_counters.routed_use_provenance_growths;
+        let instantiation_physical = (
+            self.execution_counters
+                .instantiation_substitution_requested_slots,
+            self.execution_counters
+                .instantiation_substitution_actual_capacity,
+            self.execution_counters
+                .instantiation_substitution_retained_bytes,
+            self.execution_counters
+                .instantiation_substitution_peak_bytes,
+            self.execution_counters
+                .instantiation_substitution_capacity_growths,
+        );
+        let mut journal = self
+            .route_journal
+            .take()
+            .expect("route transaction is active");
+        let store_journal = std::mem::replace(
+            &mut journal.store,
+            RouteStoreJournal {
+                facts_len: 0,
+                provenance_len: 0,
+                next_receipt: 0,
+                comparisons: 0,
+                counters: ProductionCounters::default(),
+            },
+        );
+        self.store.rollback_route(store_journal);
+        for undo in &journal.value_rows {
+            let bounds = &mut self.bounds[undo.index];
+            bounds
+                .direct_lower_rows
+                .truncate(undo.direct_lower_rows_len);
+            bounds
+                .direct_upper_rows
+                .truncate(undo.direct_upper_rows_len);
+            bounds
+                .exact_non_variable_lowers
+                .truncate(undo.exact_non_variable_lowers_len);
+            bounds
+                .exact_non_variable_uppers
+                .truncate(undo.exact_non_variable_uppers_len);
+            bounds.has_int_positive_lower = undo.has_int_positive_lower;
+            self.value_levels[undo.index] = undo.level;
+            self.extrusion_value_marks[undo.index] = undo.mark;
+        }
+        for undo in &journal.effect_rows {
+            let bounds = &mut self.effect_bounds[undo.index];
+            bounds
+                .direct_lower_rows
+                .truncate(undo.direct_lower_rows_len);
+            bounds
+                .direct_upper_rows
+                .truncate(undo.direct_upper_rows_len);
+            bounds
+                .exact_non_variable_lowers
+                .truncate(undo.exact_non_variable_lowers_len);
+            bounds
+                .exact_non_variable_uppers
+                .truncate(undo.exact_non_variable_uppers_len);
+            bounds.has_bottom_lower = undo.has_bottom_lower;
+            bounds.has_empty_upper = undo.has_empty_upper;
+            self.effect_levels[undo.index] = undo.level;
+            self.extrusion_effect_marks[undo.index] = undo.mark;
+        }
+        self.bounds.truncate(journal.value_rows_len);
+        self.value_levels.truncate(journal.value_rows_len);
+        self.value_metadata.truncate(journal.value_rows_len);
+        self.extrusion_value_marks.truncate(journal.value_rows_len);
+        self.effect_bounds.truncate(journal.effect_rows_len);
+        self.effect_levels.truncate(journal.effect_rows_len);
+        self.effect_metadata.truncate(journal.effect_rows_len);
+        self.extrusion_effect_marks
+            .truncate(journal.effect_rows_len);
+        for key in journal.typed_pair_keys.iter().rev() {
+            assert!(self.typed_pairs.remove(&key).is_some());
+        }
+        for key in journal.reported_error_keys.iter().rev() {
+            assert!(self.reported_errors.remove(&key));
+        }
+        if let Some(id) = &journal.routed_use_id {
+            assert!(self.routed_use_positions.remove(&id));
+        }
+        self.errors.truncate(journal.errors_len);
+        self.routed_uses.truncate(journal.routed_uses_len);
+        self.extrusion_generation = journal.extrusion_generation;
+        self.bound_payload_bytes = journal.bound_payload_bytes;
+        self.typed_pair_payload_bytes = journal.typed_pair_payload_bytes;
+        self.execution_counters = journal.execution_counters.clone();
+        if self.incoming_route_accounting_active {
+            self.execution_counters.constraint_pair_cache_growths = pair_growths;
+            self.execution_counters.constraint_pair_cache_rebuilds = pair_rebuilds;
+            self.execution_counters.routed_use_provenance_growths = routed_use_growths;
+        }
+        #[cfg(test)]
+        {
+            self.independent_nested_capacities =
+                journal.test_counters.independent_nested_capacities.clone();
+        }
+        let mut no_route_journal = None;
+        let mut accounting_error = None;
+        let mut reconciled_bound_growths = 0usize;
+        // Truncation drops rows born during this route. Only capacities of
+        // journaled, preexisting rows survive and belong in retained bytes.
+        macro_rules! reconcile_bound_capacity {
+            ($saved:expr, $current:expr, $slot:ty, $lane:ident) => {
+                if $current != $saved {
+                    reconciled_bound_growths += 1;
+                }
+                if let Err(error) = Self::record_bound_capacity_growth(
+                    &mut self.bound_payload_bytes,
+                    #[cfg(test)]
+                    &mut self.independent_nested_capacities.$lane,
+                    &mut self.execution_counters,
+                    &mut no_route_journal,
+                    0,
+                    false,
+                    $saved,
+                    $current,
+                    std::mem::size_of::<$slot>(),
+                ) {
+                    accounting_error = Some(error);
+                }
+            };
+        }
+        for undo in &journal.value_rows {
+            let bounds = &self.bounds[undo.index];
+            reconcile_bound_capacity!(
+                undo.direct_lower_rows_capacity,
+                bounds.direct_lower_rows.capacity(),
+                u32,
+                value_direct_lower
+            );
+            reconcile_bound_capacity!(
+                undo.direct_upper_rows_capacity,
+                bounds.direct_upper_rows.capacity(),
+                u32,
+                value_direct_upper
+            );
+            reconcile_bound_capacity!(
+                undo.exact_non_variable_lowers_capacity,
+                bounds.exact_non_variable_lowers.capacity(),
+                ValueEndpointKey,
+                value_exact_lower
+            );
+            reconcile_bound_capacity!(
+                undo.exact_non_variable_uppers_capacity,
+                bounds.exact_non_variable_uppers.capacity(),
+                ValueEndpointKey,
+                value_exact_upper
+            );
+        }
+        for undo in &journal.effect_rows {
+            let bounds = &self.effect_bounds[undo.index];
+            reconcile_bound_capacity!(
+                undo.direct_lower_rows_capacity,
+                bounds.direct_lower_rows.capacity(),
+                u32,
+                effect_direct_lower
+            );
+            reconcile_bound_capacity!(
+                undo.direct_upper_rows_capacity,
+                bounds.direct_upper_rows.capacity(),
+                u32,
+                effect_direct_upper
+            );
+            reconcile_bound_capacity!(
+                undo.exact_non_variable_lowers_capacity,
+                bounds.exact_non_variable_lowers.capacity(),
+                EffectEndpointKey,
+                effect_exact_lower
+            );
+            reconcile_bound_capacity!(
+                undo.exact_non_variable_uppers_capacity,
+                bounds.exact_non_variable_uppers.capacity(),
+                EffectEndpointKey,
+                effect_exact_upper
+            );
+        }
+        // Reconciliation retains bytes for surviving owners. Incoming event
+        // counts come from the attempt journal, including failed preflights.
+        if self.incoming_route_accounting_active {
+            if let (Some(growths), Some(rebuilds)) = (
+                journal
+                    .execution_counters
+                    .bound_table_growths
+                    .checked_add(journal.incoming_bound_growth_events),
+                journal
+                    .execution_counters
+                    .bound_table_rebuilds
+                    .checked_add(journal.incoming_bound_growth_events),
+            ) {
+                self.execution_counters.bound_table_growths = growths;
+                self.execution_counters.bound_table_rebuilds = rebuilds;
+            } else {
+                accounting_error = Some(SolveAvailabilityError::IdentityExhausted);
+            }
+        } else {
+            let additional_growths = journal
+                .retained_bound_growths
+                .saturating_sub(reconciled_bound_growths);
+            if let (Some(growths), Some(rebuilds)) = (
+                self.execution_counters
+                    .bound_table_growths
+                    .checked_add(additional_growths),
+                self.execution_counters
+                    .bound_table_rebuilds
+                    .checked_add(additional_growths),
+            ) {
+                self.execution_counters.bound_table_growths = growths;
+                self.execution_counters.bound_table_rebuilds = rebuilds;
+            } else {
+                accounting_error = Some(SolveAvailabilityError::IdentityExhausted);
+            }
+        }
+        (
+            self.execution_counters
+                .instantiation_substitution_requested_slots,
+            self.execution_counters
+                .instantiation_substitution_actual_capacity,
+            self.execution_counters
+                .instantiation_substitution_retained_bytes,
+            self.execution_counters
+                .instantiation_substitution_peak_bytes,
+            self.execution_counters
+                .instantiation_substitution_capacity_growths,
+        ) = instantiation_physical;
+        self.execution_counters.semantic_arena_peak_bytes = self
+            .execution_counters
+            .semantic_arena_peak_bytes
+            .max(semantic_peak_bytes);
+        self.execution_counters.inference_session_peak_bytes = self
+            .execution_counters
+            .inference_session_peak_bytes
+            .max(session_peak_bytes);
+        self.extrusion_stack.clear();
+        self.typed_worklist.clear();
+        self.clear_diagnostic_scratch();
+        #[cfg(test)]
+        {
+            let counters = &journal.test_counters;
+            self.diagnostic_settle_visits = counters.diagnostic_settle_visits;
+            self.diagnostic_internal_reverse_edge_visits =
+                counters.diagnostic_internal_reverse_edge_visits;
+            self.diagnostic_scc_member_seed_scans = counters.diagnostic_scc_member_seed_scans;
+            self.typed_pair_worklist_pushes = counters.typed_pair_worklist_pushes;
+            self.typed_pair_worklist_pops = counters.typed_pair_worklist_pops;
+            self.typed_pair_worklist_maximum_live = counters.typed_pair_worklist_maximum_live;
+            self.typed_pair_worklist_capacity_growths =
+                counters.typed_pair_worklist_capacity_growths;
+            self.typed_pair_worklist_peak_bytes = counters.typed_pair_worklist_peak_bytes;
+            self.typed_direct_edges = counters.typed_direct_edges;
+            self.typed_exact_lower_memberships = counters.typed_exact_lower_memberships;
+            self.typed_exact_upper_memberships = counters.typed_exact_upper_memberships;
+            self.typed_transmission_attempts = counters.typed_transmission_attempts;
+            self.typed_same_row_atom_intersections = counters.typed_same_row_atom_intersections;
+        }
+        self.route_journal_spare = Some(journal);
+        accounting_error.map_or(Ok(()), Err)
+    }
+
     #[cfg(test)]
     fn new(batch: ConstraintBatch) -> Self {
         Self::try_new(batch)
@@ -4263,6 +10682,7 @@ impl InferenceSession {
             ),
             current_closed_retained_bytes: 0,
             drafts: Vec::new(),
+            instantiation_scratch: InstantiationScratch::default(),
             execution_counters: ProductionCounters::default(),
             #[cfg(test)]
             summary_reads: 0,
@@ -4279,9 +10699,50 @@ impl InferenceSession {
             #[cfg(test)]
             resource_boundary_samples: 0,
             #[cfg(test)]
+            incoming_post_rollback_samples: 0,
+            #[cfg(test)]
+            incoming_post_rollback_had_pending_requests: false,
+            #[cfg(test)]
+            inject_no_growth_scratch_request_on_route_exit: false,
+            #[cfg(test)]
+            sample_fixed_capacity_probe: None,
+            #[cfg(test)]
+            inject_next_incoming_nested_preflight_abort: false,
+            #[cfg(test)]
             resource_ledger: IndependentResourceLedger::default(),
             #[cfg(test)]
             independent_nested_capacities: IndependentNestedCapacityLedger::default(),
+            route_journal: None,
+            route_journal_spare: None,
+            route_attempt_physical_change: false,
+            incoming_route_accounting_active: false,
+            incoming_route_event_sample_failed: false,
+            #[cfg(test)]
+            incoming_term_event_snapshots: [None; 6],
+            #[cfg(test)]
+            incoming_term_event_count: 0,
+            #[cfg(test)]
+            incoming_term_event_attempt_observer: None,
+            #[cfg(test)]
+            incoming_post_rollback_sample_attempts: 0,
+            #[cfg(test)]
+            incoming_post_rollback_attempt_observer: None,
+            #[cfg(test)]
+            incoming_nested_event_sample_attempts: 0,
+            #[cfg(test)]
+            incoming_route_sample_attempts: 0,
+            #[cfg(test)]
+            incoming_nested_value_direct_upper_event_peak_bytes: 0,
+            #[cfg(test)]
+            incoming_nested_event_scratch_peak_bytes: 0,
+            #[cfg(test)]
+            incoming_nested_value_direct_upper_event: None,
+            #[cfg(test)]
+            incoming_nested_event_attempt_observer: None,
+            #[cfg(test)]
+            incoming_bound_preflight_observer: None,
+            #[cfg(test)]
+            inject_next_incoming_bound_preflight_overflow: false,
         };
         // Every F5b live table and diagnostic workspace acquires capacity
         // before startup can publish a live identity or mutate a row.
@@ -4443,7 +10904,7 @@ impl InferenceSession {
         }
         // Initial reservations coexist before any fact admission and are a
         // real resource boundary, not a final retained-byte alias.
-        session.sample_f4_resources(ResourceBoundary::InitialReservation);
+        session.sample_f4_resources(ResourceBoundary::InitialReservation)?;
         Ok(session)
     }
 
@@ -4463,14 +10924,15 @@ impl InferenceSession {
     fn fresh_value_at_level(&mut self, level: u32) -> Result<u32, SolveAvailabilityError> {
         let ordinal = u32::try_from(self.bounds.len())
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        reserve_f5b(&mut self.bounds, 1, F5bCapacityLane::ValueBounds)?;
-        reserve_f5b(&mut self.value_levels, 1, F5bCapacityLane::ValueLevels)?;
-        reserve_f5b(&mut self.value_metadata, 1, F5bCapacityLane::ValueMetadata)?;
-        reserve_f5b(
-            &mut self.extrusion_value_marks,
+        reserve_typed_route_lane!(self, self.bounds, 1, fresh_value_bounds_lane());
+        reserve_typed_route_lane!(self, self.value_levels, 1, F5bCapacityLane::ValueLevels);
+        reserve_typed_route_lane!(self, self.value_metadata, 1, F5bCapacityLane::ValueMetadata);
+        reserve_typed_route_lane!(
+            self,
+            self.extrusion_value_marks,
             1,
-            F5bCapacityLane::ExtrusionValueMarks,
-        )?;
+            F5bCapacityLane::ExtrusionValueMarks
+        );
         self.bounds.push(VariableBounds::default());
         self.value_levels.push(level);
         self.value_metadata.push(LiveVariableMetadata {
@@ -4488,18 +10950,20 @@ impl InferenceSession {
     fn fresh_effect_at_level(&mut self, level: u32) -> Result<u32, SolveAvailabilityError> {
         let ordinal = u32::try_from(self.effect_bounds.len())
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        reserve_f5b(&mut self.effect_bounds, 1, F5bCapacityLane::EffectBounds)?;
-        reserve_f5b(&mut self.effect_levels, 1, F5bCapacityLane::EffectLevels)?;
-        reserve_f5b(
-            &mut self.effect_metadata,
+        reserve_typed_route_lane!(self, self.effect_bounds, 1, fresh_effect_bounds_lane());
+        reserve_typed_route_lane!(self, self.effect_levels, 1, F5bCapacityLane::EffectLevels);
+        reserve_typed_route_lane!(
+            self,
+            self.effect_metadata,
             1,
-            F5bCapacityLane::EffectMetadata,
-        )?;
-        reserve_f5b(
-            &mut self.extrusion_effect_marks,
+            F5bCapacityLane::EffectMetadata
+        );
+        reserve_typed_route_lane!(
+            self,
+            self.extrusion_effect_marks,
             1,
-            F5bCapacityLane::ExtrusionEffectMarks,
-        )?;
+            F5bCapacityLane::ExtrusionEffectMarks
+        );
         self.effect_bounds.push(EffectBounds::default());
         self.effect_levels.push(level);
         self.effect_metadata.push(LiveVariableMetadata {
@@ -4526,10 +10990,7 @@ impl InferenceSession {
         polarity: Polarity,
         ordinal: u32,
     ) -> Result<Term, SolveAvailabilityError> {
-        self.store
-            .terms
-            .live_variable(ComponentKind::Value, polarity, ordinal)
-            .map_err(SolveAvailabilityError::from)
+        self.with_term_events(|terms| terms.live_variable(ComponentKind::Value, polarity, ordinal))
     }
 
     #[allow(
@@ -4541,31 +11002,19 @@ impl InferenceSession {
         polarity: Polarity,
         ordinal: u32,
     ) -> Result<Term, SolveAvailabilityError> {
-        self.store
-            .terms
-            .live_variable(ComponentKind::Effect, polarity, ordinal)
-            .map_err(SolveAvailabilityError::from)
+        self.with_term_events(|terms| terms.live_variable(ComponentKind::Effect, polarity, ordinal))
     }
 
     fn positive_bottom_term(&mut self) -> Result<Term, SolveAvailabilityError> {
-        self.store
-            .terms
-            .positive_bottom()
-            .map_err(SolveAvailabilityError::from)
+        self.with_term_events(BranchTermArena::positive_bottom)
     }
 
     fn negative_top_term(&mut self) -> Result<Term, SolveAvailabilityError> {
-        self.store
-            .terms
-            .negative_top()
-            .map_err(SolveAvailabilityError::from)
+        self.with_term_events(BranchTermArena::negative_top)
     }
 
     fn negative_bottom_term(&mut self) -> Result<Term, SolveAvailabilityError> {
-        self.store
-            .terms
-            .negative_bottom()
-            .map_err(SolveAvailabilityError::from)
+        self.with_term_events(BranchTermArena::negative_bottom)
     }
 
     #[allow(
@@ -4579,10 +11028,9 @@ impl InferenceSession {
         result_effect: Term,
         result: Term,
     ) -> Result<Term, SolveAvailabilityError> {
-        self.store
-            .terms
-            .positive_function(argument, argument_effect, result_effect, result)
-            .map_err(SolveAvailabilityError::from)
+        self.with_term_events(|terms| {
+            terms.positive_function(argument, argument_effect, result_effect, result)
+        })
     }
 
     #[allow(
@@ -4596,10 +11044,37 @@ impl InferenceSession {
         result_effect: Term,
         result: Term,
     ) -> Result<Term, SolveAvailabilityError> {
-        self.store
-            .terms
-            .negative_function(argument, argument_effect, result_effect, result)
-            .map_err(SolveAvailabilityError::from)
+        self.with_term_events(|terms| {
+            terms.negative_function(argument, argument_effect, result_effect, result)
+        })
+    }
+
+    fn with_term_events(
+        &mut self,
+        constructor: impl FnOnce(&mut BranchTermArena) -> Result<Term, ConstraintError>,
+    ) -> Result<Term, SolveAvailabilityError> {
+        let result = constructor(&mut self.store.terms);
+        let events = self.store.terms.take_capacity_events();
+        for snapshot in events {
+            if self.incoming_route_accounting_active {
+                self.route_attempt_physical_change = true;
+                #[cfg(test)]
+                if let Some(observer) = &self.incoming_term_event_attempt_observer {
+                    observer.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                }
+                if let Err(error) = self.sample_f4_resources_with_term_snapshot(snapshot) {
+                    self.incoming_route_event_sample_failed = true;
+                    return Err(error);
+                }
+                #[cfg(test)]
+                {
+                    let slot = self.incoming_term_event_count % 6;
+                    self.incoming_term_event_snapshots[slot] = Some(snapshot);
+                    self.incoming_term_event_count += 1;
+                }
+            }
+        }
+        result.map_err(Into::into)
     }
 
     #[cfg(test)]
@@ -4620,9 +11095,9 @@ impl InferenceSession {
     fn run(mut self) -> Result<SolvedModule, SolveAvailabilityError> {
         self.admit_all_collected_facts()?;
         self.execute_scc_plan()?;
-        self.sample_f4_resources(ResourceBoundary::StoreAccounting);
+        self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
         self.store.finish_accounting();
-        self.sample_f4_resources(ResourceBoundary::StoreAccounting);
+        self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
         self.finish()
     }
 
@@ -4634,9 +11109,9 @@ impl InferenceSession {
         self.ordering_observer = Some(OrderingObserver::new(capacity));
         self.admit_all_collected_facts()?;
         self.execute_scc_plan()?;
-        self.sample_f4_resources(ResourceBoundary::StoreAccounting);
+        self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
         self.store.finish_accounting();
-        self.sample_f4_resources(ResourceBoundary::StoreAccounting);
+        self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;
         let observer = self
             .ordering_observer
             .take()
@@ -4706,17 +11181,116 @@ impl InferenceSession {
         Ok((solved, observer, summary))
     }
 
-    fn sample_f4_resources(&mut self, _boundary: ResourceBoundary) {
-        self.sample_f4_resources_with_finish_output(_boundary, 0);
+    fn sample_f4_resources(
+        &mut self,
+        boundary: ResourceBoundary,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        if matches!(boundary, ResourceBoundary::IncomingRoute) {
+            incoming_sample_trace::sample();
+            self.incoming_route_sample_attempts += 1;
+            if let Some(journal) = &self.route_journal {
+                F5C_SAMPLED_ACTIVE_VALUE_UNDO_CAPACITY.with(|observed| {
+                    observed.set(observed.get().max(journal.value_rows.capacity()))
+                });
+            }
+        }
+        self.sample_f4_resources_with_finish_output(boundary, 0)
     }
 
     fn sample_f4_resources_with_finish_output(
         &mut self,
         _boundary: ResourceBoundary,
         finish_output_retained_bytes: usize,
-    ) {
-        Self::sample_f4_resource_parts(
+    ) -> Result<(), SolveAvailabilityError> {
+        self.sample_f4_resources_with_term_override(
+            _boundary,
+            finish_output_retained_bytes,
+            None,
+            None,
+        )
+    }
+
+    fn sample_f4_resources_with_term_snapshot(
+        &mut self,
+        snapshot: TermCapacitySnapshot,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        {
+            incoming_sample_trace::sample();
+            self.incoming_route_sample_attempts += 1;
+        }
+        self.sample_f4_resources_with_term_override(
+            ResourceBoundary::IncomingRoute,
+            0,
+            Some(snapshot),
+            None,
+        )
+    }
+
+    fn sample_f4_resources_with_term_override(
+        &mut self,
+        _boundary: ResourceBoundary,
+        finish_output_retained_bytes: usize,
+        term_snapshot: Option<TermCapacitySnapshot>,
+        store_snapshot: Option<StoreCapacitySnapshot>,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        let route_probe = self.sample_fixed_capacity_probe;
+        let route_journal_retained_bytes = self
+            .route_journal
+            .as_ref()
+            .or(self.route_journal_spare.as_ref())
+            .map(|journal| {
+                #[cfg(test)]
+                if matches!(route_probe, Some(SampleFixedCapacityProbe::RouteJournal))
+                    || (matches!(
+                        route_probe,
+                        Some(SampleFixedCapacityProbe::IncomingNestedEvent)
+                    ) && self.incoming_route_accounting_active
+                        && self.incoming_nested_event_sample_attempts != 0)
+                {
+                    return RouteMutationJournal::checked_capacity_bytes([
+                        usize::MAX,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ]);
+                }
+                journal.checked_retained_bytes()
+            })
+            .transpose()?
+            .unwrap_or(0);
+        #[cfg(test)]
+        let independent_route_journal_retained_bytes = self
+            .route_journal
+            .as_ref()
+            .or(self.route_journal_spare.as_ref())
+            .map(|journal| {
+                if matches!(
+                    route_probe,
+                    Some(SampleFixedCapacityProbe::IndependentRouteJournal)
+                ) {
+                    RouteMutationJournal::checked_independent_capacity_bytes([
+                        usize::MAX,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ])
+                } else {
+                    journal.checked_independent_retained_bytes()
+                }
+            })
+            .transpose()?
+            .unwrap_or(0);
+        let result = Self::sample_f4_resource_parts(
             &self.store,
+            term_snapshot,
+            store_snapshot,
             &self.errors,
             &self.reported_errors,
             &self.cross_kind_components,
@@ -4755,9 +11329,13 @@ impl InferenceSession {
             &self.routed_use_positions,
             &self.schemes,
             &self.drafts,
+            &self.instantiation_scratch,
+            #[cfg(test)]
+            self.sample_fixed_capacity_probe,
             self.current_closed_retained_bytes,
             self.batch.counters.f2_batch_retained_bytes,
             self.batch.component_term_positions.capacity(),
+            route_journal_retained_bytes,
             finish_output_retained_bytes,
             &mut self.execution_counters,
             #[cfg(test)]
@@ -4768,7 +11346,23 @@ impl InferenceSession {
             &mut self.resource_ledger,
             #[cfg(test)]
             &self.independent_nested_capacities,
+            #[cfg(test)]
+            independent_route_journal_retained_bytes,
         );
+        #[cfg(test)]
+        if matches!(_boundary, ResourceBoundary::IncomingRoute) {
+            if result.is_ok() {
+                incoming_sample_trace::completed_sample(
+                    self.value_levels.capacity() * std::mem::size_of::<u32>(),
+                    self.resource_ledger.semantic_arena_retained_bytes,
+                    self.resource_ledger.inference_session_retained_bytes,
+                    self.independent_nested_capacities.total_bound_bytes(),
+                    self.resource_ledger.semantic_arena_peak_bytes,
+                    self.resource_ledger.inference_session_peak_bytes,
+                );
+            }
+        }
+        result
     }
 
     /// This is a constant-size capacity snapshot.  It deliberately receives
@@ -4778,6 +11372,8 @@ impl InferenceSession {
     #[allow(clippy::too_many_arguments)]
     fn sample_f4_resource_parts(
         store: &ConstraintStore,
+        term_snapshot: Option<TermCapacitySnapshot>,
+        store_snapshot: Option<StoreCapacitySnapshot>,
         errors: &Vec<SolverError>,
         reported_errors: &HashSet<(ConstraintOccurrenceId, SolverErrorKind)>,
         cross_kind_components: &HashSet<ComponentId>,
@@ -4816,24 +11412,309 @@ impl InferenceSession {
         routed_use_positions: &HashSet<DefinitionUseId>,
         schemes: &Vec<Option<ClosedValueScheme>>,
         drafts: &Vec<DraftScheme>,
+        instantiation_scratch: &InstantiationScratch,
+        #[cfg(test)] sample_fixed_capacity_probe: Option<SampleFixedCapacityProbe>,
         closed_type_retained_bytes: usize,
         f2_batch_retained_bytes: usize,
         component_term_positions_capacity: usize,
+        route_journal_retained_bytes: usize,
         finish_output_retained_bytes: usize,
         counters: &mut ProductionCounters,
         #[cfg(test)] resource_boundary_samples: &mut usize,
         #[cfg(test)] boundary: ResourceBoundary,
         #[cfg(test)] resource_ledger: &mut IndependentResourceLedger,
         #[cfg(test)] independent_nested_capacities: &IndependentNestedCapacityLedger,
-    ) {
+        #[cfg(test)] independent_route_journal_retained_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
         #[cfg(not(test))]
         let _ = component_term_positions_capacity;
         #[cfg(test)]
+        let instantiation_bytes = if matches!(
+            sample_fixed_capacity_probe,
+            Some(SampleFixedCapacityProbe::InstantiationScratch)
+        ) {
+            InstantiationScratch::checked_capacity_bytes([usize::MAX, 0, 0, 0, 0, 0, 0])?
+        } else {
+            instantiation_scratch.checked_retained_bytes()?
+        };
+        #[cfg(not(test))]
+        let instantiation_bytes = instantiation_scratch.checked_retained_bytes()?;
+        #[cfg(test)]
+        let inference_term_bytes = if matches!(
+            sample_fixed_capacity_probe,
+            Some(SampleFixedCapacityProbe::InferenceTerm)
+        ) {
+            BranchTermArena::checked_capacity_bytes([usize::MAX, 0, 0, 0, 0, 0])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+        } else {
+            if term_snapshot.is_some()
+                && matches!(
+                    sample_fixed_capacity_probe,
+                    Some(SampleFixedCapacityProbe::IncomingTermEvent)
+                )
+            {
+                BranchTermArena::checked_capacity_bytes([usize::MAX, 0, 0, 0, 0, 0])
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?
+            } else {
+                term_snapshot.map_or_else(
+                    || store.checked_inference_term_retained_bytes(),
+                    |snapshot| {
+                        BranchTermArena::checked_capacity_bytes(snapshot.0)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)
+                    },
+                )?
+            }
+        };
+        #[cfg(not(test))]
+        let inference_term_bytes = term_snapshot.map_or_else(
+            || store.checked_inference_term_retained_bytes(),
+            |snapshot| {
+                BranchTermArena::checked_capacity_bytes(snapshot.0)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)
+            },
+        )?;
+        #[cfg(test)]
+        if matches!(
+            sample_fixed_capacity_probe,
+            Some(SampleFixedCapacityProbe::IndependentInferenceTerm)
+        ) {
+            BranchTermArena::checked_independent_capacity_bytes([usize::MAX, 0, 0, 0, 0, 0])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        } else {
+            if let Some(snapshot) = term_snapshot {
+                snapshot
+                    .2
+                    .bytes
+                    .into_iter()
+                    .try_fold(0usize, usize::checked_add)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            } else {
+                store.checked_independent_inference_term_retained_bytes()?;
+            }
+        }
+        let checked = ResourceSampleChecked::new();
+        let mut prepared_counters = counters.clone();
+        let published_counters = counters;
+        let counters = &mut prepared_counters;
+        let bounds_bytes = checked.sum(
+            [
+                checked.bytes::<LiveComponentEndpoint>(
+                    live_components.capacity(),
+                    "F5b live translation",
+                ),
+                checked.bytes::<VariableBounds>(bounds.capacity(), "F5b value bound rows"),
+                checked.bytes::<EffectBounds>(effect_bounds.capacity(), "F5b effect bound rows"),
+                checked.bytes::<u32>(value_levels.capacity(), "F5b value levels"),
+                checked.bytes::<u32>(effect_levels.capacity(), "F5b effect levels"),
+                checked
+                    .bytes::<LiveVariableMetadata>(value_metadata.capacity(), "F5b value metadata"),
+                checked.bytes::<LiveVariableMetadata>(
+                    effect_metadata.capacity(),
+                    "F5b effect metadata",
+                ),
+                checked
+                    .bytes::<ExtrusionEndpoint>(extrusion_stack.capacity(), "F5b extrusion stack"),
+                checked.bytes::<u32>(
+                    extrusion_value_marks.capacity(),
+                    "F5b extrusion value marks",
+                ),
+                checked.bytes::<u32>(
+                    extrusion_effect_marks.capacity(),
+                    "F5b extrusion effect marks",
+                ),
+                bound_payload_bytes,
+            ],
+            "F5b live bound tables",
+        );
+        let pair_bytes = checked.sum(
+            [
+                checked.bytes::<(TypedPairKey, TypedPairMemo)>(
+                    typed_pairs.capacity(),
+                    "F5b typed pair memo",
+                ),
+                typed_pair_payload_bytes,
+            ],
+            "F5b typed pair memo including diagnostic edges",
+        );
+        let frontier_bytes =
+            checked.bytes::<TypedWorkItem>(typed_worklist.capacity(), "F5b typed frontier queue");
+        let diagnostic_scratch_bytes = checked.sum(
+            [
+                checked.bytes::<CanonicalValuePairKey>(
+                    diagnostic_delta.capacity(),
+                    "F5b diagnostic delta",
+                ),
+                checked.bytes::<(CanonicalValuePairKey, usize)>(
+                    diagnostic_delta_indices.capacity(),
+                    "F5b diagnostic delta index",
+                ),
+                checked
+                    .bytes::<usize>(diagnostic_reverse_offsets.capacity(), "F5b reverse offsets"),
+                checked.bytes::<DiagnosticReverseEdge>(
+                    diagnostic_reverse_edges.capacity(),
+                    "F5b reverse edges",
+                ),
+                checked
+                    .bytes::<usize>(diagnostic_reverse_cursors.capacity(), "F5b reverse cursors"),
+                checked
+                    .bytes::<(usize, usize)>(diagnostic_dfs_stack.capacity(), "F5b diagnostic DFS"),
+                checked.bytes::<usize>(diagnostic_finish_order.capacity(), "F5b finish order"),
+                checked.bytes::<usize>(diagnostic_scc_indices.capacity(), "F5b SCC indices"),
+                checked.bytes::<usize>(diagnostic_scc_nodes.capacity(), "F5b SCC nodes"),
+                checked.bytes::<usize>(diagnostic_scc_offsets.capacity(), "F5b SCC offsets"),
+                checked.bytes::<usize>(
+                    diagnostic_scc_pending_children.capacity(),
+                    "F5b SCC pending",
+                ),
+                checked.bytes::<usize>(diagnostic_scc_worklist.capacity(), "F5b SCC worklist"),
+                checked
+                    .bytes::<Option<usize>>(diagnostic_bucket_heads.capacity(), "F5b bucket heads"),
+                checked
+                    .bytes::<Option<usize>>(diagnostic_bucket_tails.capacity(), "F5b bucket tails"),
+                checked.bytes::<DiagnosticBucketCandidate>(
+                    diagnostic_bucket_candidates.capacity(),
+                    "F5b bucket candidates",
+                ),
+                checked.bytes::<Option<DiagnosticWitness>>(
+                    diagnostic_node_witnesses.capacity(),
+                    "F5b node witnesses",
+                ),
+            ],
+            "F5b diagnostic scratch",
+        );
+        let exact_bytes = checked.bytes::<OccurrenceExactBounds>(
+            occurrence_exact_bounds.capacity(),
+            "F4 production occurrence bounds",
+        );
+        let scheme_bytes = checked
+            .bytes::<Option<ClosedValueScheme>>(schemes.capacity(), "F4 production scheme table");
+        let routes_bytes = checked.bytes::<RoutedUseProvenance>(
+            routed_uses.capacity(),
+            "F4 production routed-use provenance",
+        );
+        let drafts_bytes =
+            checked.bytes::<DraftScheme>(drafts.capacity(), "F4 production draft scratch");
+        let store_bytes = checked.sum(
+            [
+                checked.bytes::<SemanticFact>(
+                    store_snapshot.map_or(store.facts.capacity(), |s| s.capacities[0]),
+                    "F4 production facts",
+                ),
+                checked.bytes::<(FactKey, FactId)>(
+                    store_snapshot.map_or(store.canonical.capacity(), |s| s.capacities[1]),
+                    "F4 production canonical map",
+                ),
+                checked.bytes::<ProvenanceEdge>(
+                    store_snapshot.map_or(store.provenance.capacity(), |s| s.capacities[3]),
+                    "F4 production provenance",
+                ),
+                checked.bytes::<u64>(
+                    store_snapshot.map_or(store.consumed_receipts.capacity(), |s| s.capacities[2]),
+                    "F4 production consumed receipts",
+                ),
+            ],
+            "F4 production store",
+        );
+        counters.draft_scratch_capacity = drafts.capacity();
+        counters.draft_scratch_retained_bytes = drafts_bytes;
+        // Compatibility accessor: aggregate the dense live-table lanes rather
+        // than reporting one value-row Vec while retained bytes cover the
+        // complete value/effect table family. Nested row storage is
+        // heterogeneous and remains represented exactly by retained bytes.
+        counters.bound_table_capacity = checked.sum(
+            [
+                live_components.capacity(),
+                bounds.capacity(),
+                effect_bounds.capacity(),
+                value_levels.capacity(),
+                effect_levels.capacity(),
+                value_metadata.capacity(),
+                effect_metadata.capacity(),
+                extrusion_stack.capacity(),
+                extrusion_value_marks.capacity(),
+                extrusion_effect_marks.capacity(),
+            ],
+            "F5b aggregate live-table capacity",
+        );
+        counters.bound_table_retained_bytes = bounds_bytes;
+        counters.bound_table_peak_bytes = counters.bound_table_peak_bytes.max(bounds_bytes);
+        counters.constraint_pair_cache_capacity = typed_pairs.capacity();
+        counters.constraint_pair_cache_retained_bytes = pair_bytes;
+        counters.constraint_pair_cache_peak_bytes =
+            counters.constraint_pair_cache_peak_bytes.max(pair_bytes);
+        counters.scheme_table_len = schemes.len();
+        counters.scheme_table_capacity = schemes.capacity();
+        counters.scheme_table_retained_bytes = scheme_bytes;
+        counters.routed_use_provenance_len = routed_uses.len();
+        counters.routed_use_provenance_capacity = routed_uses.capacity();
+        counters.routed_use_provenance_retained_bytes = routes_bytes;
+        counters.occurrence_bound_state_len = occurrence_exact_bounds.len();
+        counters.occurrence_bound_state_capacity = occurrence_exact_bounds.capacity();
+        counters.occurrence_bound_state_retained_bytes = exact_bytes;
+        // Solver errors remain live session storage after F4.  Unlike removed
+        // finish-only workspaces, this is a retained diagnostic boundary.
+        counters.solver_error_workspace_capacity = errors.capacity();
+        counters.solver_error_workspace_retained_bytes =
+            checked.bytes::<SolverError>(errors.capacity(), "F4 production solver errors");
+        counters.semantic_arena_retained_bytes = checked.sum(
+            [
+                bounds_bytes,
+                pair_bytes,
+                frontier_bytes,
+                diagnostic_scratch_bytes,
+                scheme_bytes,
+                routes_bytes,
+                drafts_bytes,
+                instantiation_bytes,
+                closed_type_retained_bytes,
+                exact_bytes,
+                inference_term_bytes,
+                route_journal_retained_bytes,
+            ],
+            "F4 production semantic arena",
+        );
+        counters.semantic_arena_peak_bytes = counters
+            .semantic_arena_peak_bytes
+            .max(counters.semantic_arena_retained_bytes);
+        counters.inference_session_retained_bytes = checked.sum(
+            [
+                counters.semantic_arena_retained_bytes,
+                store_bytes,
+                checked.bytes::<SolverError>(errors.capacity(), "F4 production solver errors"),
+                checked.bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(
+                    reported_errors.capacity(),
+                    "F5b production reported-error index",
+                ),
+                checked.bytes::<ComponentId>(
+                    cross_kind_components.capacity(),
+                    "F4 production cross-kind components",
+                ),
+                checked.bytes::<DefinitionUseId>(
+                    routed_use_positions.capacity(),
+                    "F4 production routed-use index",
+                ),
+                f2_batch_retained_bytes,
+            ],
+            "F4 production session",
+        );
+        let full_session_bytes = checked.add(
+            counters.inference_session_retained_bytes,
+            finish_output_retained_bytes,
+        );
+        counters.inference_session_peak_bytes = counters
+            .inference_session_peak_bytes
+            .max(full_session_bytes);
+        #[cfg(test)]
+        let prepared_samples = checked.add(*resource_boundary_samples, 1);
+        checked.finish()?;
+        #[cfg(test)]
         {
-            *resource_boundary_samples += 1;
-            resource_ledger.record(
+            let mut prepared_ledger = resource_ledger.clone();
+            prepared_ledger.record(
                 boundary,
                 store,
+                term_snapshot,
+                store_snapshot,
                 errors,
                 reported_errors,
                 cross_kind_components,
@@ -4870,255 +11751,22 @@ impl InferenceSession {
                 routed_use_positions,
                 schemes,
                 drafts,
+                instantiation_scratch,
                 closed_type_retained_bytes,
                 f2_batch_retained_bytes,
                 component_term_positions_capacity,
                 finish_output_retained_bytes,
                 independent_nested_capacities,
-            );
+                independent_route_journal_retained_bytes,
+            )?;
+            *resource_ledger = prepared_ledger;
         }
-        let bounds_bytes = checked_usize_sum(
-            [
-                checked_capacity_bytes::<LiveComponentEndpoint>(
-                    live_components.capacity(),
-                    "F5b live translation",
-                ),
-                checked_capacity_bytes::<VariableBounds>(bounds.capacity(), "F5b value bound rows"),
-                checked_capacity_bytes::<EffectBounds>(
-                    effect_bounds.capacity(),
-                    "F5b effect bound rows",
-                ),
-                checked_capacity_bytes::<u32>(value_levels.capacity(), "F5b value levels"),
-                checked_capacity_bytes::<u32>(effect_levels.capacity(), "F5b effect levels"),
-                checked_capacity_bytes::<LiveVariableMetadata>(
-                    value_metadata.capacity(),
-                    "F5b value metadata",
-                ),
-                checked_capacity_bytes::<LiveVariableMetadata>(
-                    effect_metadata.capacity(),
-                    "F5b effect metadata",
-                ),
-                checked_capacity_bytes::<ExtrusionEndpoint>(
-                    extrusion_stack.capacity(),
-                    "F5b extrusion stack",
-                ),
-                checked_capacity_bytes::<u32>(
-                    extrusion_value_marks.capacity(),
-                    "F5b extrusion value marks",
-                ),
-                checked_capacity_bytes::<u32>(
-                    extrusion_effect_marks.capacity(),
-                    "F5b extrusion effect marks",
-                ),
-                bound_payload_bytes,
-            ],
-            "F5b live bound tables",
-        );
-        let pair_bytes = checked_usize_sum(
-            [
-                checked_capacity_bytes::<(TypedPairKey, TypedPairMemo)>(
-                    typed_pairs.capacity(),
-                    "F5b typed pair memo",
-                ),
-                typed_pair_payload_bytes,
-            ],
-            "F5b typed pair memo including diagnostic edges",
-        );
-        let frontier_bytes = checked_capacity_bytes::<TypedWorkItem>(
-            typed_worklist.capacity(),
-            "F5b typed frontier queue",
-        );
-        let diagnostic_scratch_bytes = checked_usize_sum(
-            [
-                checked_capacity_bytes::<CanonicalValuePairKey>(
-                    diagnostic_delta.capacity(),
-                    "F5b diagnostic delta",
-                ),
-                checked_capacity_bytes::<(CanonicalValuePairKey, usize)>(
-                    diagnostic_delta_indices.capacity(),
-                    "F5b diagnostic delta index",
-                ),
-                checked_capacity_bytes::<usize>(
-                    diagnostic_reverse_offsets.capacity(),
-                    "F5b reverse offsets",
-                ),
-                checked_capacity_bytes::<DiagnosticReverseEdge>(
-                    diagnostic_reverse_edges.capacity(),
-                    "F5b reverse edges",
-                ),
-                checked_capacity_bytes::<usize>(
-                    diagnostic_reverse_cursors.capacity(),
-                    "F5b reverse cursors",
-                ),
-                checked_capacity_bytes::<(usize, usize)>(
-                    diagnostic_dfs_stack.capacity(),
-                    "F5b diagnostic DFS",
-                ),
-                checked_capacity_bytes::<usize>(
-                    diagnostic_finish_order.capacity(),
-                    "F5b finish order",
-                ),
-                checked_capacity_bytes::<usize>(
-                    diagnostic_scc_indices.capacity(),
-                    "F5b SCC indices",
-                ),
-                checked_capacity_bytes::<usize>(diagnostic_scc_nodes.capacity(), "F5b SCC nodes"),
-                checked_capacity_bytes::<usize>(
-                    diagnostic_scc_offsets.capacity(),
-                    "F5b SCC offsets",
-                ),
-                checked_capacity_bytes::<usize>(
-                    diagnostic_scc_pending_children.capacity(),
-                    "F5b SCC pending",
-                ),
-                checked_capacity_bytes::<usize>(
-                    diagnostic_scc_worklist.capacity(),
-                    "F5b SCC worklist",
-                ),
-                checked_capacity_bytes::<Option<usize>>(
-                    diagnostic_bucket_heads.capacity(),
-                    "F5b bucket heads",
-                ),
-                checked_capacity_bytes::<Option<usize>>(
-                    diagnostic_bucket_tails.capacity(),
-                    "F5b bucket tails",
-                ),
-                checked_capacity_bytes::<DiagnosticBucketCandidate>(
-                    diagnostic_bucket_candidates.capacity(),
-                    "F5b bucket candidates",
-                ),
-                checked_capacity_bytes::<Option<DiagnosticWitness>>(
-                    diagnostic_node_witnesses.capacity(),
-                    "F5b node witnesses",
-                ),
-            ],
-            "F5b diagnostic scratch",
-        );
-        let exact_bytes = checked_capacity_bytes::<OccurrenceExactBounds>(
-            occurrence_exact_bounds.capacity(),
-            "F4 production occurrence bounds",
-        );
-        let scheme_bytes = checked_capacity_bytes::<Option<ClosedValueScheme>>(
-            schemes.capacity(),
-            "F4 production scheme table",
-        );
-        let routes_bytes = checked_capacity_bytes::<RoutedUseProvenance>(
-            routed_uses.capacity(),
-            "F4 production routed-use provenance",
-        );
-        let drafts_bytes =
-            checked_capacity_bytes::<DraftScheme>(drafts.capacity(), "F4 production draft scratch");
-        let store_bytes = checked_usize_sum(
-            [
-                checked_capacity_bytes::<SemanticFact>(
-                    store.facts.capacity(),
-                    "F4 production facts",
-                ),
-                checked_capacity_bytes::<(FactKey, FactId)>(
-                    store.canonical.capacity(),
-                    "F4 production canonical map",
-                ),
-                checked_capacity_bytes::<ProvenanceEdge>(
-                    store.provenance.capacity(),
-                    "F4 production provenance",
-                ),
-                checked_capacity_bytes::<u64>(
-                    store.consumed_receipts.capacity(),
-                    "F4 production consumed receipts",
-                ),
-            ],
-            "F4 production store",
-        );
-        counters.draft_scratch_capacity = drafts.capacity();
-        counters.draft_scratch_retained_bytes = drafts_bytes;
-        // Compatibility accessor: aggregate the dense live-table lanes rather
-        // than reporting one value-row Vec while retained bytes cover the
-        // complete value/effect table family. Nested row storage is
-        // heterogeneous and remains represented exactly by retained bytes.
-        counters.bound_table_capacity = checked_usize_sum(
-            [
-                live_components.capacity(),
-                bounds.capacity(),
-                effect_bounds.capacity(),
-                value_levels.capacity(),
-                effect_levels.capacity(),
-                value_metadata.capacity(),
-                effect_metadata.capacity(),
-                extrusion_stack.capacity(),
-                extrusion_value_marks.capacity(),
-                extrusion_effect_marks.capacity(),
-            ],
-            "F5b aggregate live-table capacity",
-        );
-        counters.bound_table_retained_bytes = bounds_bytes;
-        counters.bound_table_peak_bytes = counters.bound_table_peak_bytes.max(bounds_bytes);
-        counters.constraint_pair_cache_capacity = typed_pairs.capacity();
-        counters.constraint_pair_cache_retained_bytes = pair_bytes;
-        counters.constraint_pair_cache_peak_bytes =
-            counters.constraint_pair_cache_peak_bytes.max(pair_bytes);
-        counters.scheme_table_len = schemes.len();
-        counters.scheme_table_capacity = schemes.capacity();
-        counters.scheme_table_retained_bytes = scheme_bytes;
-        counters.routed_use_provenance_len = routed_uses.len();
-        counters.routed_use_provenance_capacity = routed_uses.capacity();
-        counters.routed_use_provenance_retained_bytes = routes_bytes;
-        counters.occurrence_bound_state_len = occurrence_exact_bounds.len();
-        counters.occurrence_bound_state_capacity = occurrence_exact_bounds.capacity();
-        counters.occurrence_bound_state_retained_bytes = exact_bytes;
-        // Solver errors remain live session storage after F4.  Unlike removed
-        // finish-only workspaces, this is a retained diagnostic boundary.
-        counters.solver_error_workspace_capacity = errors.capacity();
-        counters.solver_error_workspace_retained_bytes =
-            checked_capacity_bytes::<SolverError>(errors.capacity(), "F4 production solver errors");
-        counters.semantic_arena_retained_bytes = checked_usize_sum(
-            [
-                bounds_bytes,
-                pair_bytes,
-                frontier_bytes,
-                diagnostic_scratch_bytes,
-                scheme_bytes,
-                routes_bytes,
-                drafts_bytes,
-                closed_type_retained_bytes,
-                exact_bytes,
-                store.inference_term_retained_bytes(),
-            ],
-            "F4 production semantic arena",
-        );
-        counters.semantic_arena_peak_bytes = counters
-            .semantic_arena_peak_bytes
-            .max(counters.semantic_arena_retained_bytes);
-        counters.inference_session_retained_bytes = checked_usize_sum(
-            [
-                counters.semantic_arena_retained_bytes,
-                store_bytes,
-                checked_capacity_bytes::<SolverError>(
-                    errors.capacity(),
-                    "F4 production solver errors",
-                ),
-                checked_capacity_bytes::<(ConstraintOccurrenceId, SolverErrorKind)>(
-                    reported_errors.capacity(),
-                    "F5b production reported-error index",
-                ),
-                checked_capacity_bytes::<ComponentId>(
-                    cross_kind_components.capacity(),
-                    "F4 production cross-kind components",
-                ),
-                checked_capacity_bytes::<DefinitionUseId>(
-                    routed_use_positions.capacity(),
-                    "F4 production routed-use index",
-                ),
-                f2_batch_retained_bytes,
-            ],
-            "F4 production session",
-        );
-        let full_session_bytes = counters
-            .inference_session_retained_bytes
-            .checked_add(finish_output_retained_bytes)
-            .expect("F4 finish-output session accounting fits usize");
-        counters.inference_session_peak_bytes = counters
-            .inference_session_peak_bytes
-            .max(full_session_bytes);
+        *published_counters = prepared_counters;
+        #[cfg(test)]
+        {
+            *resource_boundary_samples = prepared_samples;
+        }
+        Ok(())
     }
 
     fn admit_all_collected_facts(&mut self) -> Result<(), SolveAvailabilityError> {
@@ -5155,7 +11803,7 @@ impl InferenceSession {
                             }
                             #[cfg(not(test))]
                             let _ = transitions;
-                            self.sample_f4_resources(ResourceBoundary::InitialAdmission);
+                            self.sample_f4_resources(ResourceBoundary::InitialAdmission)?;
                         }
                         ComponentKind::Effect => {
                             let lower = self.effect_endpoint(occurrence.lower, Polarity::Positive);
@@ -5166,7 +11814,7 @@ impl InferenceSession {
                                 &occurrence.id,
                                 &occurrence.cause,
                             )?;
-                            self.sample_f4_resources(ResourceBoundary::InitialAdmission);
+                            self.sample_f4_resources(ResourceBoundary::InitialAdmission)?;
                         }
                     }
                 }
@@ -5187,7 +11835,7 @@ impl InferenceSession {
                             self.cross_kind_components.insert(component.clone());
                         }
                     }
-                    self.sample_f4_resources(ResourceBoundary::CrossKind);
+                    self.sample_f4_resources(ResourceBoundary::CrossKind)?;
                 }
                 Err(error) => return Err(error.into()),
             }
@@ -5280,6 +11928,9 @@ impl InferenceSession {
         initial: ExtrusionEndpoint,
         target_level: u32,
     ) -> Result<(), SolveAvailabilityError> {
+        if self.extrusion_generation == u32::MAX && self.route_journal.is_some() {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
         self.extrusion_generation = self.extrusion_generation.wrapping_add(1);
         if self.extrusion_generation == 0 {
             self.extrusion_value_marks.fill(0);
@@ -5299,6 +11950,7 @@ impl InferenceSession {
                         {
                             continue;
                         }
+                        self.journal_value_row(index)?;
                         self.extrusion_value_marks[index] = generation;
                         self.value_levels[index] = target_level;
                         for item_index in 0..self.bounds[index].exact_non_variable_lowers.len() {
@@ -5388,6 +12040,7 @@ impl InferenceSession {
                     {
                         continue;
                     }
+                    self.journal_effect_row(index)?;
                     self.extrusion_effect_marks[index] = generation;
                     self.effect_levels[index] = target_level;
                     for item_index in 0..self.effect_bounds[index].exact_non_variable_lowers.len() {
@@ -5425,11 +12078,12 @@ impl InferenceSession {
         &mut self,
         endpoint: ExtrusionEndpoint,
     ) -> Result<(), SolveAvailabilityError> {
-        reserve_f5b(
-            &mut self.extrusion_stack,
+        reserve_typed_route_lane!(
+            self,
+            self.extrusion_stack,
             1,
-            F5bCapacityLane::ExtrusionStack,
-        )?;
+            F5bCapacityLane::ExtrusionStack
+        );
         self.extrusion_stack.push(endpoint);
         Ok(())
     }
@@ -5458,6 +12112,8 @@ impl InferenceSession {
                     ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(a)),
                     minimum,
                 )?;
+                self.journal_effect_row(a as usize)?;
+                self.journal_effect_row(b as usize)?;
                 self.extrude(
                     ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(b)),
                     minimum,
@@ -5466,36 +12122,36 @@ impl InferenceSession {
                     self.effect_bounds[b as usize].direct_lower_rows.capacity();
                 let old_upper_capacity =
                     self.effect_bounds[a as usize].direct_upper_rows.capacity();
-                reserve_f5b(
+                let reservation = reserve_f5b(
                     &mut self.effect_bounds[b as usize].direct_lower_rows,
                     1,
                     F5bCapacityLane::EffectDirectLower,
-                )?;
-                reserve_f5b(
-                    &mut self.effect_bounds[a as usize].direct_upper_rows,
-                    1,
-                    F5bCapacityLane::EffectDirectUpper,
-                )?;
-                self.effect_bounds[b as usize].direct_lower_rows.push(a);
-                self.effect_bounds[a as usize].direct_upper_rows.push(b);
-                Self::record_bound_capacity_growth(
-                    &mut self.bound_payload_bytes,
-                    #[cfg(test)]
-                    &mut self.independent_nested_capacities.effect_direct_lower,
-                    &mut self.execution_counters,
+                );
+                self.record_incoming_bound_capacity_growth(
+                    b as usize,
+                    true,
+                    F5bCapacityLane::EffectDirectLower,
                     old_lower_capacity,
                     self.effect_bounds[b as usize].direct_lower_rows.capacity(),
                     std::mem::size_of::<u32>(),
+                    reservation,
+                )?;
+                let reservation = reserve_f5b(
+                    &mut self.effect_bounds[a as usize].direct_upper_rows,
+                    1,
+                    F5bCapacityLane::EffectDirectUpper,
                 );
-                Self::record_bound_capacity_growth(
-                    &mut self.bound_payload_bytes,
-                    #[cfg(test)]
-                    &mut self.independent_nested_capacities.effect_direct_upper,
-                    &mut self.execution_counters,
+                self.record_incoming_bound_capacity_growth(
+                    a as usize,
+                    true,
+                    F5bCapacityLane::EffectDirectUpper,
                     old_upper_capacity,
                     self.effect_bounds[a as usize].direct_upper_rows.capacity(),
                     std::mem::size_of::<u32>(),
-                );
+                    reservation,
+                )?;
+                self.effect_bounds[b as usize].direct_lower_rows.push(a);
+                self.effect_bounds[a as usize].direct_upper_rows.push(b);
                 let lower_len = self.effect_bounds[a as usize]
                     .exact_non_variable_lowers
                     .len();
@@ -5517,29 +12173,30 @@ impl InferenceSession {
             }
             (item, EffectEndpointKey::EffectRow(row)) => {
                 let index = row as usize;
+                self.journal_effect_row(index)?;
                 self.extrude(ExtrusionEndpoint::Effect(item), self.effect_levels[index])?;
                 let old_capacity = self.effect_bounds[index]
                     .exact_non_variable_lowers
                     .capacity();
-                reserve_f5b(
+                let reservation = reserve_f5b(
                     &mut self.effect_bounds[index].exact_non_variable_lowers,
                     1,
                     F5bCapacityLane::EffectExactLower,
-                )?;
-                self.effect_bounds[index]
-                    .exact_non_variable_lowers
-                    .push(item);
-                Self::record_bound_capacity_growth(
-                    &mut self.bound_payload_bytes,
-                    #[cfg(test)]
-                    &mut self.independent_nested_capacities.effect_exact_lower,
-                    &mut self.execution_counters,
+                );
+                self.record_incoming_bound_capacity_growth(
+                    index,
+                    true,
+                    F5bCapacityLane::EffectExactLower,
                     old_capacity,
                     self.effect_bounds[index]
                         .exact_non_variable_lowers
                         .capacity(),
                     std::mem::size_of::<EffectEndpointKey>(),
-                );
+                    reservation,
+                )?;
+                self.effect_bounds[index]
+                    .exact_non_variable_lowers
+                    .push(item);
                 self.effect_bounds[index].has_bottom_lower |=
                     item == EffectEndpointKey::BottomPositive;
                 let upper_len = self.effect_bounds[index].exact_non_variable_uppers.len();
@@ -5561,29 +12218,30 @@ impl InferenceSession {
             }
             (EffectEndpointKey::EffectRow(row), item) => {
                 let index = row as usize;
+                self.journal_effect_row(index)?;
                 self.extrude(ExtrusionEndpoint::Effect(item), self.effect_levels[index])?;
                 let old_capacity = self.effect_bounds[index]
                     .exact_non_variable_uppers
                     .capacity();
-                reserve_f5b(
+                let reservation = reserve_f5b(
                     &mut self.effect_bounds[index].exact_non_variable_uppers,
                     1,
                     F5bCapacityLane::EffectExactUpper,
-                )?;
-                self.effect_bounds[index]
-                    .exact_non_variable_uppers
-                    .push(item);
-                Self::record_bound_capacity_growth(
-                    &mut self.bound_payload_bytes,
-                    #[cfg(test)]
-                    &mut self.independent_nested_capacities.effect_exact_upper,
-                    &mut self.execution_counters,
+                );
+                self.record_incoming_bound_capacity_growth(
+                    index,
+                    true,
+                    F5bCapacityLane::EffectExactUpper,
                     old_capacity,
                     self.effect_bounds[index]
                         .exact_non_variable_uppers
                         .capacity(),
                     std::mem::size_of::<EffectEndpointKey>(),
-                );
+                    reservation,
+                )?;
+                self.effect_bounds[index]
+                    .exact_non_variable_uppers
+                    .push(item);
                 self.effect_bounds[index].has_empty_upper |=
                     item == EffectEndpointKey::EmptyNegative;
                 let lower_len = self.effect_bounds[index].exact_non_variable_lowers.len();
@@ -5789,7 +12447,7 @@ impl InferenceSession {
     }
 
     fn enqueue_task(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
-        reserve_f5b(&mut self.typed_worklist, 1, F5bCapacityLane::TypedWorklist)?;
+        reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
         let old_capacity = self.typed_worklist.capacity();
         self.typed_worklist.push_back(TypedWorkItem { task });
         #[cfg(test)]
@@ -5800,7 +12458,7 @@ impl InferenceSession {
     }
 
     fn enqueue_front(&mut self, task: LiveConstraintTask) -> Result<(), SolveAvailabilityError> {
-        reserve_f5b(&mut self.typed_worklist, 1, F5bCapacityLane::TypedWorklist)?;
+        reserve_typed_route_lane!(self, self.typed_worklist, 1, F5bCapacityLane::TypedWorklist);
         let old_capacity = self.typed_worklist.capacity();
         self.typed_worklist.push_front(TypedWorkItem { task });
         #[cfg(test)]
@@ -5837,20 +12495,64 @@ impl InferenceSession {
         // Reserve every persistent memo/delta lane before the first admission
         // makes the pair semantically visible.  The session is discardable on
         // availability failure, but no unreserved logical edge is published.
-        reserve_f5b(&mut self.typed_pairs, 1, F5bCapacityLane::TypedPairs)?;
-        if matches!(key, TypedPairKey::Value(_)) {
-            reserve_f5b(
-                &mut self.diagnostic_delta,
-                1,
-                F5bCapacityLane::DiagnosticDelta,
-            )?;
-            reserve_f5b(
-                &mut self.diagnostic_delta_indices,
-                1,
-                F5bCapacityLane::DiagnosticDeltaIndices,
-            )?;
+        let pair_capacity = self.typed_pairs.capacity();
+        let pair_reservation = reserve_f5b(&mut self.typed_pairs, 1, F5bCapacityLane::TypedPairs);
+        if self.typed_pairs.capacity() != pair_capacity {
+            #[cfg(test)]
+            if self.incoming_route_accounting_active {
+                incoming_sample_trace::event(
+                    || "typed-route".into(),
+                    || "TypedPairs".into(),
+                    pair_capacity,
+                    self.typed_pairs.capacity(),
+                );
+            }
+            self.route_attempt_physical_change |= self.incoming_route_accounting_active;
+            let Some((growths, rebuilds)) = self
+                .execution_counters
+                .constraint_pair_cache_growths
+                .checked_add(1)
+                .zip(
+                    self.execution_counters
+                        .constraint_pair_cache_rebuilds
+                        .checked_add(1),
+                )
+            else {
+                self.incoming_route_event_sample_failed |= self.incoming_route_accounting_active;
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            };
+            self.execution_counters.constraint_pair_cache_growths = growths;
+            self.execution_counters.constraint_pair_cache_rebuilds = rebuilds;
+            self.observe_typed_route_capacity(true)?;
         }
-        let old_capacity = self.typed_pairs.capacity();
+        pair_reservation?;
+        if matches!(key, TypedPairKey::Value(_)) {
+            reserve_typed_route_lane!(
+                self,
+                self.diagnostic_delta,
+                1,
+                F5bCapacityLane::DiagnosticDelta
+            );
+            reserve_typed_route_lane!(
+                self,
+                self.diagnostic_delta_indices,
+                1,
+                F5bCapacityLane::DiagnosticDeltaIndices
+            );
+        }
+        if self.route_journal.is_some() {
+            reserve_typed_route_lane!(
+                self,
+                self.route_journal.as_mut().unwrap().typed_pair_keys,
+                1,
+                F5bCapacityLane::TypedPairs
+            );
+            self.route_journal
+                .as_mut()
+                .unwrap()
+                .typed_pair_keys
+                .push(key);
+        }
         assert!(
             self.typed_pairs.insert(key, entry).is_none(),
             "pair admitted once"
@@ -5864,10 +12566,6 @@ impl InferenceSession {
                 "a newly admitted value pair enters one diagnostic delta"
             );
         }
-        if self.typed_pairs.capacity() != old_capacity {
-            self.execution_counters.constraint_pair_cache_growths += 1;
-            self.execution_counters.constraint_pair_cache_rebuilds += 1;
-        }
         Ok(())
     }
 
@@ -5878,33 +12576,76 @@ impl InferenceSession {
         field: Option<FunctionField>,
     ) -> Result<(), SolveAvailabilityError> {
         let parent_edge = DiagnosticEdge { child, field };
+        let (old_capacity, new_capacity, reservation) = {
+            let Some(TypedPairMemo::Value { children, .. }) =
+                self.typed_pairs.get_mut(&TypedPairKey::Value(parent))
+            else {
+                unreachable!("a semantic value pair owns its diagnostic children");
+            };
+            let old_capacity = children.capacity();
+            let reservation = reserve_f5b(children, 1, F5bCapacityLane::DiagnosticEdges);
+            (old_capacity, children.capacity(), reservation)
+        };
+        if new_capacity != old_capacity {
+            #[cfg(test)]
+            if self.incoming_route_accounting_active {
+                incoming_sample_trace::event(
+                    || format!("typed-pair-{parent:?}"),
+                    || "DiagnosticEdges".into(),
+                    old_capacity,
+                    new_capacity,
+                );
+            }
+            self.route_attempt_physical_change |= self.incoming_route_accounting_active;
+            let accounted = (|| {
+                let added = new_capacity
+                    .checked_sub(old_capacity)
+                    .and_then(|slots| slots.checked_mul(std::mem::size_of::<DiagnosticEdge>()))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let payload = self
+                    .typed_pair_payload_bytes
+                    .checked_add(added)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let independent = {
+                    #[cfg(test)]
+                    {
+                        self.independent_nested_capacities
+                            .diagnostic_edges
+                            .checked_add(added)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+                    }
+                    #[cfg(not(test))]
+                    {
+                        0
+                    }
+                };
+                Ok::<_, SolveAvailabilityError>((payload, independent))
+            })();
+            let (payload, independent) = match accounted {
+                Ok(value) => value,
+                Err(error) => {
+                    self.incoming_route_event_sample_failed |=
+                        self.incoming_route_accounting_active;
+                    return Err(error);
+                }
+            };
+            self.typed_pair_payload_bytes = payload;
+            #[cfg(test)]
+            {
+                self.independent_nested_capacities.diagnostic_edges = independent;
+                F5C_DIAGNOSTIC_EDGE_EVENT_BYTES.with(|peak| peak.set(peak.get().max(independent)));
+            }
+            #[cfg(not(test))]
+            let _ = independent;
+            self.observe_typed_route_capacity(true)?;
+        }
+        reservation?;
         let Some(TypedPairMemo::Value { children, .. }) =
             self.typed_pairs.get_mut(&TypedPairKey::Value(parent))
         else {
             unreachable!("a semantic value pair owns its diagnostic children");
         };
-        let old_capacity = children.capacity();
-        reserve_f5b(children, 1, F5bCapacityLane::DiagnosticEdges)?;
         children.push(parent_edge);
-        if children.capacity() != old_capacity {
-            let added = children
-                .capacity()
-                .checked_sub(old_capacity)
-                .and_then(|slots| slots.checked_mul(std::mem::size_of::<DiagnosticEdge>()))
-                .expect("F5b diagnostic edge capacity fits usize");
-            self.typed_pair_payload_bytes = self
-                .typed_pair_payload_bytes
-                .checked_add(added)
-                .expect("F5b typed-pair payload accounting fits usize");
-            #[cfg(test)]
-            {
-                self.independent_nested_capacities.diagnostic_edges = self
-                    .independent_nested_capacities
-                    .diagnostic_edges
-                    .checked_add(added)
-                    .expect("independent diagnostic-edge accounting fits usize");
-            }
-        }
         Ok(())
     }
 
@@ -6268,7 +13009,7 @@ impl InferenceSession {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         macro_rules! reserve_scratch {
             ($field:ident, $additional:expr, $lane:ident) => {
-                reserve_f5b(&mut self.$field, $additional, F5bCapacityLane::$lane)?;
+                reserve_typed_route_lane!(self, self.$field, $additional, F5bCapacityLane::$lane);
             };
         }
         reserve_scratch!(
@@ -6331,16 +13072,18 @@ impl InferenceSession {
         &mut self,
         bucket_count: usize,
     ) -> Result<(), SolveAvailabilityError> {
-        reserve_f5b(
-            &mut self.diagnostic_bucket_heads,
+        reserve_typed_route_lane!(
+            self,
+            self.diagnostic_bucket_heads,
             bucket_count,
-            F5bCapacityLane::DiagnosticBucketHeads,
-        )?;
-        reserve_f5b(
-            &mut self.diagnostic_bucket_tails,
+            F5bCapacityLane::DiagnosticBucketHeads
+        );
+        reserve_typed_route_lane!(
+            self,
+            self.diagnostic_bucket_tails,
             bucket_count,
-            F5bCapacityLane::DiagnosticBucketTails,
-        )?;
+            F5bCapacityLane::DiagnosticBucketTails
+        );
         self.diagnostic_bucket_heads.clear();
         self.diagnostic_bucket_tails.clear();
         self.diagnostic_bucket_heads.resize(bucket_count, None);
@@ -6353,11 +13096,12 @@ impl InferenceSession {
         node: usize,
         witness: DiagnosticWitness,
     ) -> Result<(), SolveAvailabilityError> {
-        reserve_f5b(
-            &mut self.diagnostic_bucket_candidates,
+        reserve_typed_route_lane!(
+            self,
+            self.diagnostic_bucket_candidates,
             1,
-            F5bCapacityLane::DiagnosticBucketCandidates,
-        )?;
+            F5bCapacityLane::DiagnosticBucketCandidates
+        );
         self.diagnostic_bucket_candidates
             .push(DiagnosticBucketCandidate {
                 node,
@@ -6510,43 +13254,45 @@ impl InferenceSession {
                 let minimum = self.value_levels[lower_index].min(self.value_levels[upper_index]);
                 self.extrude_value_endpoint(ValueEndpointKey::ValueRow(lower), minimum)?;
                 self.extrude_value_endpoint(ValueEndpointKey::ValueRow(upper), minimum)?;
+                self.journal_value_row(lower_index)?;
+                self.journal_value_row(upper_index)?;
                 #[cfg(test)]
                 {
                     self.typed_direct_edges += 1;
                 }
                 let old_lower_capacity = self.bounds[upper_index].direct_lower_rows.capacity();
                 let old_upper_capacity = self.bounds[lower_index].direct_upper_rows.capacity();
-                reserve_f5b(
+                let reservation = reserve_f5b(
                     &mut self.bounds[upper_index].direct_lower_rows,
                     1,
                     F5bCapacityLane::ValueDirectLower,
-                )?;
-                reserve_f5b(
-                    &mut self.bounds[lower_index].direct_upper_rows,
-                    1,
-                    F5bCapacityLane::ValueDirectUpper,
-                )?;
-                self.bounds[upper_index].direct_lower_rows.push(lower);
-                Self::record_bound_capacity_growth(
-                    &mut self.bound_payload_bytes,
-                    #[cfg(test)]
-                    &mut self.independent_nested_capacities.value_direct_lower,
-                    &mut self.execution_counters,
+                );
+                self.record_incoming_bound_capacity_growth(
+                    upper_index,
+                    false,
+                    F5bCapacityLane::ValueDirectLower,
                     old_lower_capacity,
                     self.bounds[upper_index].direct_lower_rows.capacity(),
                     std::mem::size_of::<u32>(),
+                    reservation,
+                )?;
+                let reservation = reserve_f5b(
+                    &mut self.bounds[lower_index].direct_upper_rows,
+                    1,
+                    F5bCapacityLane::ValueDirectUpper,
                 );
-                self.execution_counters.lower_bound_insertions += 1;
-                self.bounds[lower_index].direct_upper_rows.push(upper);
-                Self::record_bound_capacity_growth(
-                    &mut self.bound_payload_bytes,
-                    #[cfg(test)]
-                    &mut self.independent_nested_capacities.value_direct_upper,
-                    &mut self.execution_counters,
+                self.record_incoming_bound_capacity_growth(
+                    lower_index,
+                    false,
+                    F5bCapacityLane::ValueDirectUpper,
                     old_upper_capacity,
                     self.bounds[lower_index].direct_upper_rows.capacity(),
                     std::mem::size_of::<u32>(),
-                );
+                    reservation,
+                )?;
+                self.bounds[upper_index].direct_lower_rows.push(lower);
+                self.execution_counters.lower_bound_insertions += 1;
+                self.bounds[lower_index].direct_upper_rows.push(upper);
                 self.execution_counters.upper_bound_insertions += 1;
                 let lower_len = self.bounds[lower_index].exact_non_variable_lowers.len();
                 for item_index in 0..lower_len {
@@ -6581,22 +13327,23 @@ impl InferenceSession {
             }
             (atom, ValueEndpointKey::ValueRow(row)) => {
                 let index = row as usize;
+                self.journal_value_row(index)?;
                 let old_capacity = self.bounds[index].exact_non_variable_lowers.capacity();
-                reserve_f5b(
+                let reservation = reserve_f5b(
                     &mut self.bounds[index].exact_non_variable_lowers,
                     1,
                     F5bCapacityLane::ValueExactLower,
-                )?;
-                self.bounds[index].exact_non_variable_lowers.push(atom);
-                Self::record_bound_capacity_growth(
-                    &mut self.bound_payload_bytes,
-                    #[cfg(test)]
-                    &mut self.independent_nested_capacities.value_exact_lower,
-                    &mut self.execution_counters,
+                );
+                self.record_incoming_bound_capacity_growth(
+                    index,
+                    false,
+                    F5bCapacityLane::ValueExactLower,
                     old_capacity,
                     self.bounds[index].exact_non_variable_lowers.capacity(),
                     std::mem::size_of::<ValueEndpointKey>(),
-                );
+                    reservation,
+                )?;
+                self.bounds[index].exact_non_variable_lowers.push(atom);
                 self.execution_counters.lower_bound_insertions += 1;
                 #[cfg(test)]
                 {
@@ -6640,22 +13387,23 @@ impl InferenceSession {
             }
             (ValueEndpointKey::ValueRow(row), atom) => {
                 let index = row as usize;
+                self.journal_value_row(index)?;
                 let old_capacity = self.bounds[index].exact_non_variable_uppers.capacity();
-                reserve_f5b(
+                let reservation = reserve_f5b(
                     &mut self.bounds[index].exact_non_variable_uppers,
                     1,
                     F5bCapacityLane::ValueExactUpper,
-                )?;
-                self.bounds[index].exact_non_variable_uppers.push(atom);
-                Self::record_bound_capacity_growth(
-                    &mut self.bound_payload_bytes,
-                    #[cfg(test)]
-                    &mut self.independent_nested_capacities.value_exact_upper,
-                    &mut self.execution_counters,
+                );
+                self.record_incoming_bound_capacity_growth(
+                    index,
+                    false,
+                    F5bCapacityLane::ValueExactUpper,
                     old_capacity,
                     self.bounds[index].exact_non_variable_uppers.capacity(),
                     std::mem::size_of::<ValueEndpointKey>(),
-                );
+                    reservation,
+                )?;
+                self.bounds[index].exact_non_variable_uppers.push(atom);
                 self.execution_counters.upper_bound_insertions += 1;
                 #[cfg(test)]
                 {
@@ -6773,12 +13521,26 @@ impl InferenceSession {
         let kind = SolverErrorKind::IncompatibleValue { lower, upper };
         let key = (occurrence.clone(), kind);
         if !self.reported_errors.contains(&key) {
-            reserve_f5b(
-                &mut self.reported_errors,
+            reserve_typed_route_lane!(
+                self,
+                self.reported_errors,
                 1,
-                F5bCapacityLane::ReportedErrors,
-            )?;
-            reserve_f5b(&mut self.errors, 1, F5bCapacityLane::Errors)?;
+                F5bCapacityLane::ReportedErrors
+            );
+            reserve_typed_route_lane!(self, self.errors, 1, F5bCapacityLane::Errors);
+            if self.route_journal.is_some() {
+                reserve_typed_route_lane!(
+                    self,
+                    self.route_journal.as_mut().unwrap().reported_error_keys,
+                    1,
+                    F5bCapacityLane::ReportedErrors
+                );
+                self.route_journal
+                    .as_mut()
+                    .unwrap()
+                    .reported_error_keys
+                    .push(key.clone());
+            }
             assert!(self.reported_errors.insert(key));
             self.errors.push(SolverError {
                 occurrence: occurrence.clone(),
@@ -6793,27 +13555,305 @@ impl InferenceSession {
         payload_bytes: &mut usize,
         #[cfg(test)] independent_lane_bytes: &mut usize,
         counters: &mut ProductionCounters,
+        route_journal: &mut Option<RouteMutationJournal>,
+        row_index: usize,
+        effect_row: bool,
         old_capacity: usize,
         new_capacity: usize,
         slot_size: usize,
-    ) {
+    ) -> Result<(), SolveAvailabilityError> {
         if new_capacity != old_capacity {
             let delta = new_capacity
                 .checked_sub(old_capacity)
                 .and_then(|slots| slots.checked_mul(slot_size))
-                .expect("F4 bound capacity growth fits usize");
-            *payload_bytes = payload_bytes
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let next_payload = payload_bytes
                 .checked_add(delta)
-                .expect("F4 bound payload byte accounting fits usize");
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            #[cfg(test)]
+            let next_independent = independent_lane_bytes
+                .checked_add(delta)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let growths = counters
+                .bound_table_growths
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let rebuilds = counters
+                .bound_table_rebuilds
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if let Some(journal) = route_journal {
+                let existing_rows = if effect_row {
+                    journal.effect_rows_len
+                } else {
+                    journal.value_rows_len
+                };
+                if row_index < existing_rows {
+                    journal.retained_bound_growths = journal
+                        .retained_bound_growths
+                        .checked_add(1)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                }
+            }
+            *payload_bytes = next_payload;
             #[cfg(test)]
             {
-                *independent_lane_bytes = independent_lane_bytes
-                    .checked_add(delta)
-                    .expect("independent bound lane accounting fits usize");
+                *independent_lane_bytes = next_independent;
             }
-            counters.bound_table_growths += 1;
-            counters.bound_table_rebuilds += 1;
+            counters.bound_table_growths = growths;
+            counters.bound_table_rebuilds = rebuilds;
         }
+        Ok(())
+    }
+
+    fn record_incoming_bound_capacity_growth(
+        &mut self,
+        row_index: usize,
+        effect_row: bool,
+        lane: F5bCapacityLane,
+        old_capacity: usize,
+        new_capacity: usize,
+        slot_size: usize,
+        reservation: Result<(), ConstraintError>,
+    ) -> Result<(), SolveAvailabilityError> {
+        if old_capacity != new_capacity {
+            #[cfg(test)]
+            if self.incoming_route_accounting_active {
+                incoming_sample_trace::event(
+                    || {
+                        format!(
+                            "{}-row-{row_index}",
+                            if effect_row { "effect" } else { "value" }
+                        )
+                    },
+                    || format!("{lane:?}"),
+                    old_capacity,
+                    new_capacity,
+                );
+            }
+            #[cfg(not(test))]
+            let _ = lane;
+            if self.incoming_route_accounting_active {
+                self.route_attempt_physical_change = true;
+            }
+            if let Some(journal) = &mut self.route_journal {
+                journal.incoming_bound_growth_events = journal
+                    .incoming_bound_growth_events
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            }
+            #[cfg(test)]
+            let independent_lane = match lane {
+                F5bCapacityLane::ValueDirectLower => {
+                    &mut self.independent_nested_capacities.value_direct_lower
+                }
+                F5bCapacityLane::ValueDirectUpper => {
+                    &mut self.independent_nested_capacities.value_direct_upper
+                }
+                F5bCapacityLane::ValueExactLower => {
+                    &mut self.independent_nested_capacities.value_exact_lower
+                }
+                F5bCapacityLane::ValueExactUpper => {
+                    &mut self.independent_nested_capacities.value_exact_upper
+                }
+                F5bCapacityLane::EffectDirectLower => {
+                    &mut self.independent_nested_capacities.effect_direct_lower
+                }
+                F5bCapacityLane::EffectDirectUpper => {
+                    &mut self.independent_nested_capacities.effect_direct_upper
+                }
+                F5bCapacityLane::EffectExactLower => {
+                    &mut self.independent_nested_capacities.effect_exact_lower
+                }
+                F5bCapacityLane::EffectExactUpper => {
+                    &mut self.independent_nested_capacities.effect_exact_upper
+                }
+                _ => unreachable!("only nested bound lanes are recorded here"),
+            };
+            #[cfg(test)]
+            if self.incoming_route_accounting_active {
+                if let Some(observer) = &self.incoming_bound_preflight_observer {
+                    observer.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                }
+            }
+            #[cfg(test)]
+            let preflight_payload_bytes = if self.incoming_route_accounting_active
+                && std::mem::take(&mut self.inject_next_incoming_bound_preflight_overflow)
+            {
+                usize::MAX
+            } else {
+                self.bound_payload_bytes
+            };
+            #[cfg(not(test))]
+            let preflight_payload_bytes = self.bound_payload_bytes;
+            let preflight = (|| {
+                let delta = new_capacity
+                    .checked_sub(old_capacity)
+                    .and_then(|slots| slots.checked_mul(slot_size))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                preflight_payload_bytes
+                    .checked_add(delta)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.execution_counters
+                    .bound_table_growths
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.execution_counters
+                    .bound_table_rebuilds
+                    .checked_add(1)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                if let Some(journal) = &self.route_journal {
+                    if row_index
+                        < if effect_row {
+                            journal.effect_rows_len
+                        } else {
+                            journal.value_rows_len
+                        }
+                    {
+                        journal
+                            .retained_bound_growths
+                            .checked_add(1)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    }
+                }
+                #[cfg(test)]
+                independent_lane
+                    .checked_add(delta)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                Ok::<(), SolveAvailabilityError>(())
+            })();
+            if let Err(error) = preflight {
+                if self.incoming_route_accounting_active {
+                    self.incoming_route_event_sample_failed = true;
+                }
+                return Err(error);
+            }
+            Self::record_bound_capacity_growth(
+                &mut self.bound_payload_bytes,
+                #[cfg(test)]
+                independent_lane,
+                &mut self.execution_counters,
+                &mut self.route_journal,
+                row_index,
+                effect_row,
+                old_capacity,
+                new_capacity,
+                slot_size,
+            )?;
+            if self.incoming_route_accounting_active {
+                #[cfg(test)]
+                {
+                    self.incoming_nested_event_sample_attempts += 1;
+                    if let Some(observer) = &self.incoming_nested_event_attempt_observer {
+                        observer.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+                if let Err(error) = self.sample_f4_resources(ResourceBoundary::IncomingRoute) {
+                    self.incoming_route_event_sample_failed = true;
+                    return Err(error);
+                }
+                #[cfg(test)]
+                if std::mem::take(&mut self.inject_next_incoming_nested_preflight_abort) {
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                }
+                #[cfg(test)]
+                {
+                    if matches!(lane, F5bCapacityLane::ValueDirectUpper) {
+                        self.incoming_nested_value_direct_upper_event =
+                            Some(IncomingNestedBoundEventObservation {
+                                fresh_row: self
+                                    .route_journal
+                                    .as_ref()
+                                    .is_some_and(|journal| row_index >= journal.value_rows_len),
+                                value_direct_upper_bytes: self
+                                    .independent_nested_capacities
+                                    .value_direct_upper,
+                                scratch_bytes: self
+                                    .instantiation_scratch
+                                    .checked_retained_bytes()?,
+                                semantic_retained_bytes: self
+                                    .resource_ledger
+                                    .semantic_arena_retained_bytes,
+                                session_retained_bytes: self
+                                    .resource_ledger
+                                    .inference_session_retained_bytes,
+                            });
+                    }
+                    self.incoming_nested_value_direct_upper_event_peak_bytes = self
+                        .incoming_nested_value_direct_upper_event_peak_bytes
+                        .max(self.independent_nested_capacities.value_direct_upper);
+                    if self.independent_nested_capacities.value_direct_upper > 0 {
+                        self.incoming_nested_event_scratch_peak_bytes = self
+                            .incoming_nested_event_scratch_peak_bytes
+                            .max(self.instantiation_scratch.checked_retained_bytes()?);
+                    }
+                }
+            }
+        }
+        reservation.map_err(Into::into)
+    }
+
+    fn record_component_expansion_memo_resources(
+        &mut self,
+        memo: &F5cComponentExpansionMemo,
+    ) -> Result<(), SolveAvailabilityError> {
+        let requested_slots = memo.requested_slots()?;
+        let actual_capacity = memo.actual_capacity()?;
+        let retained_bytes = memo.retained_bytes()?;
+        let peak_bytes = memo.peak_bytes()?;
+        let capacity_growths = memo.capacity_growths()?;
+        // These transient lanes are owned by the root-local walker.
+        // They are not part of the component memo's public resource family.
+        let _walker_requested = memo.walker_resources.requested_slots()?;
+        let _walker_capacity = memo.walker_resources.actual_capacity()?;
+        let walker_retained = memo.walker_resources.retained_bytes()?;
+        let _walker_growths = memo.walker_resources.capacity_growths()?;
+        let simultaneous_peak = peak_bytes
+            .max(memo.walker_resources.simultaneous_memo_peak_bytes)
+            .max(
+                retained_bytes
+                    .checked_add(walker_retained)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+        let total_requested_slots = self
+            .execution_counters
+            .component_expansion_memo_requested_slots
+            .checked_add(requested_slots)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let total_capacity_growths = self
+            .execution_counters
+            .component_expansion_memo_capacity_growths
+            .checked_add(capacity_growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let semantic_peak = self.execution_counters.semantic_arena_peak_bytes.max(
+            self.execution_counters
+                .semantic_arena_retained_bytes
+                .checked_add(simultaneous_peak)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        let session_peak = self.execution_counters.inference_session_peak_bytes.max(
+            self.execution_counters
+                .inference_session_retained_bytes
+                .checked_add(simultaneous_peak)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        #[cfg(test)]
+        self.resource_ledger.record_component_expansion_memo(memo)?;
+        self.execution_counters
+            .component_expansion_memo_requested_slots = total_requested_slots;
+        self.execution_counters
+            .component_expansion_memo_actual_capacity = actual_capacity;
+        self.execution_counters
+            .component_expansion_memo_retained_bytes = retained_bytes;
+        self.execution_counters.component_expansion_memo_peak_bytes = self
+            .execution_counters
+            .component_expansion_memo_peak_bytes
+            .max(peak_bytes);
+        self.execution_counters.semantic_arena_peak_bytes = semantic_peak;
+        self.execution_counters.inference_session_peak_bytes = session_peak;
+        self.execution_counters
+            .component_expansion_memo_capacity_growths = total_capacity_growths;
+        Ok(())
     }
 
     fn execute_scc_plan(&mut self) -> Result<(), SolveAvailabilityError> {
@@ -6824,6 +13864,8 @@ impl InferenceSession {
             ($boundary:expr) => {
                 Self::sample_f4_resource_parts(
                     &self.store,
+                    None,
+                    None,
                     &self.errors,
                     &self.reported_errors,
                     &self.cross_kind_components,
@@ -6862,9 +13904,18 @@ impl InferenceSession {
                     &self.routed_use_positions,
                     &self.schemes,
                     &self.drafts,
+                    &self.instantiation_scratch,
+                    #[cfg(test)]
+                    self.sample_fixed_capacity_probe,
                     self.current_closed_retained_bytes,
                     self.batch.counters.f2_batch_retained_bytes,
                     self.batch.component_term_positions.capacity(),
+                    self.route_journal
+                        .as_ref()
+                        .or(self.route_journal_spare.as_ref())
+                        .map(RouteMutationJournal::checked_retained_bytes)
+                        .transpose()?
+                        .unwrap_or(0),
                     0,
                     &mut self.execution_counters,
                     #[cfg(test)]
@@ -6875,6 +13926,13 @@ impl InferenceSession {
                     &mut self.resource_ledger,
                     #[cfg(test)]
                     &self.independent_nested_capacities,
+                    #[cfg(test)]
+                    self.route_journal
+                        .as_ref()
+                        .or(self.route_journal_spare.as_ref())
+                        .map(RouteMutationJournal::checked_independent_retained_bytes)
+                        .transpose()?
+                        .unwrap_or(0),
                 )
             };
         }
@@ -6905,12 +13963,13 @@ impl InferenceSession {
                 }
                 #[cfg(not(test))]
                 let _ = transitions;
-                sample_boundary!(ResourceBoundary::InternalRoute);
+                sample_boundary!(ResourceBoundary::InternalRoute)?;
             }
             let members = self
                 .batch
                 .scc_component_members(&component)
-                .expect("plan-owned component");
+                .expect("plan-owned component")
+                .to_vec();
             #[cfg(test)]
             {
                 self.summary_reads += members.len();
@@ -6918,8 +13977,10 @@ impl InferenceSession {
             self.drafts.clear();
             // `clear` is a reuse boundary: it changes live draft ownership
             // without changing capacity, so sample it independently.
-            sample_boundary!(ResourceBoundary::DraftScratchClear);
+            sample_boundary!(ResourceBoundary::DraftScratchClear)?;
             let mut generalization_drafts = Vec::with_capacity(members.len());
+            let mut component_expansion_memo = F5cComponentExpansionMemo::default();
+            let frozen_bound_epoch = self.execution_counters.scc_execution_component_visits;
             for member_index in 0..members.len() {
                 let member = &members[member_index];
                 self.execution_counters.scc_execution_draft_members += 1;
@@ -6927,8 +13988,54 @@ impl InferenceSession {
                 if let Some(observer) = self.ordering_observer.as_mut() {
                     observer.record(|| ExecutionEvent::Drafted(member.clone()));
                 }
-                generalization_drafts.push(self.generalization_draft(member)?);
+                let admissions_before = component_expansion_memo.root_lane.requested_slots;
+                let (draft, returned_memo, hits, uncacheable) = self
+                    .component_generalization_draft(
+                        member,
+                        component_expansion_memo,
+                        frozen_bound_epoch,
+                    );
+                component_expansion_memo = returned_memo;
+                let draft = match draft {
+                    Ok(draft) => draft,
+                    Err(error) => {
+                        self.record_component_expansion_memo_resources(&component_expansion_memo)?;
+                        return Err(error);
+                    }
+                };
+                self.execution_counters
+                    .generalization_shared_summary_admissions = self
+                    .execution_counters
+                    .generalization_shared_summary_admissions
+                    .checked_add(
+                        component_expansion_memo
+                            .root_lane
+                            .requested_slots
+                            .checked_sub(admissions_before)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    )
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.execution_counters.generalization_shared_summary_hits = self
+                    .execution_counters
+                    .generalization_shared_summary_hits
+                    .checked_add(hits)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.execution_counters.generalization_uncacheable_states = self
+                    .execution_counters
+                    .generalization_uncacheable_states
+                    .checked_add(uncacheable)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                generalization_drafts.push(draft);
             }
+            self.record_component_expansion_memo_resources(&component_expansion_memo)?;
+            component_expansion_memo.clear();
+            self.execution_counters
+                .component_expansion_memo_actual_capacity = 0;
+            self.execution_counters
+                .component_expansion_memo_retained_bytes = 0;
+            #[cfg(test)]
+            self.resource_ledger
+                .record_component_expansion_memo(&component_expansion_memo)?;
             self.execution_counters
                 .scc_execution_drafts_visible_barriers += 1;
             #[cfg(test)]
@@ -7000,7 +14107,7 @@ impl InferenceSession {
                 if self.drafts.capacity() != old_capacity {
                     self.execution_counters.draft_scratch_growths += 1;
                 }
-                sample_boundary!(ResourceBoundary::DraftMember);
+                sample_boundary!(ResourceBoundary::DraftMember)?;
             }
             self.execution_counters.draft_scratch_max_len = self
                 .execution_counters
@@ -7026,7 +14133,7 @@ impl InferenceSession {
                     observer.record(|| ExecutionEvent::Installed(verified.record.root.clone()));
                 }
                 // Finalized schemes and drafts coexist at each direct move.
-                sample_boundary!(ResourceBoundary::SchemeInstall);
+                sample_boundary!(ResourceBoundary::SchemeInstall)?;
             }
             let incoming_uses = self
                 .batch
@@ -7076,7 +14183,11 @@ impl InferenceSession {
                 }
                 #[cfg(not(test))]
                 let _ = transitions;
-                sample_boundary!(ResourceBoundary::IncomingRoute);
+                #[cfg(test)]
+                incoming_sample_trace::reason("execute_scc_plan-after-incoming-use");
+                #[cfg(test)]
+                incoming_sample_trace::sample();
+                sample_boundary!(ResourceBoundary::IncomingRoute)?;
             }
         }
         Ok(())
@@ -7084,6 +14195,14 @@ impl InferenceSession {
 
     fn route_internal(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
         let use_record = Self::validated_route_use(&self.batch, id)?.clone();
+        self.with_route_transaction(|session| session.route_internal_inner(id, use_record))
+    }
+
+    fn route_internal_inner(
+        &mut self,
+        id: &DefinitionUseId,
+        use_record: DefinitionUse,
+    ) -> Result<usize, SolveAvailabilityError> {
         let root = self
             .batch
             .component_term_at(use_record.target_root_component);
@@ -7099,6 +14218,7 @@ impl InferenceSession {
         self.route(id, &use_record, root, value, key, RoutedUseKind::Internal)
     }
 
+    #[cfg(test)]
     fn decode_positive_scheme(
         view: yu_types::ClosedValueSchemeView<'_>,
         id: yu_types::PositiveValueId,
@@ -7136,6 +14256,7 @@ impl InferenceSession {
         }
     }
 
+    #[cfg(test)]
     fn decode_negative_scheme(
         view: yu_types::ClosedValueSchemeView<'_>,
         id: yu_types::NegativeValueId,
@@ -7174,6 +14295,7 @@ impl InferenceSession {
         }
     }
 
+    #[cfg(test)]
     fn decode_closed_scheme(
         finalization: &ClosedTypeFinalizationSession,
         scheme: &ClosedValueScheme,
@@ -7201,153 +14323,6 @@ impl InferenceSession {
         })
     }
 
-    fn instantiate_positive(
-        &mut self,
-        value: &F5cPositive,
-        substitution: &HashMap<u32, u32>,
-    ) -> Result<Term, SolveAvailabilityError> {
-        match value {
-            F5cPositive::Bottom => self.positive_bottom_term(),
-            F5cPositive::Int => Ok(self.batch.collected_leaf_term(Leaf::IntPositive)),
-            F5cPositive::Quantified(ordinal) | F5cPositive::Recursive(ordinal) => {
-                let row = substitution
-                    .get(ordinal)
-                    .copied()
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                self.live_value_term(Polarity::Positive, row)
-            }
-            F5cPositive::Variable(_) => Err(SolveAvailabilityError::IdentityExhausted),
-            F5cPositive::Union(_) => Err(SolveAvailabilityError::IdentityExhausted),
-            F5cPositive::Function {
-                argument, result, ..
-            } => {
-                let argument = self.instantiate_negative(argument, substitution)?;
-                let result = self.instantiate_positive(result, substitution)?;
-                let argument_effect = self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
-                let result_effect = self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
-                self.positive_function_term(argument, argument_effect, result_effect, result)
-            }
-        }
-    }
-
-    fn instantiate_positive_parts(
-        &mut self,
-        value: &F5cPositive,
-        substitution: &HashMap<u32, u32>,
-    ) -> Result<Vec<Term>, SolveAvailabilityError> {
-        match value {
-            F5cPositive::Union(values) => {
-                values
-                    .iter()
-                    .try_fold(Vec::with_capacity(values.len()), |mut terms, value| {
-                        terms.extend(self.instantiate_positive_parts(value, substitution)?);
-                        Ok(terms)
-                    })
-            }
-            F5cPositive::Function {
-                argument, result, ..
-            } => {
-                let arguments = self.instantiate_negative_parts(argument, substitution)?;
-                let results = self.instantiate_positive_parts(result, substitution)?;
-                let capacity = arguments
-                    .len()
-                    .checked_mul(results.len())
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                let mut terms = Vec::with_capacity(capacity);
-                for argument in arguments {
-                    for result in &results {
-                        let argument_effect =
-                            self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
-                        let result_effect =
-                            self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
-                        terms.push(self.positive_function_term(
-                            argument,
-                            argument_effect,
-                            result_effect,
-                            *result,
-                        )?);
-                    }
-                }
-                Ok(terms)
-            }
-            _ => Ok(vec![self.instantiate_positive(value, substitution)?]),
-        }
-    }
-
-    fn instantiate_negative(
-        &mut self,
-        value: &F5cNegative,
-        substitution: &HashMap<u32, u32>,
-    ) -> Result<Term, SolveAvailabilityError> {
-        match value {
-            F5cNegative::Top => self.negative_top_term(),
-            F5cNegative::Bottom => self.negative_bottom_term(),
-            F5cNegative::Int => Ok(self.batch.collected_leaf_term(Leaf::IntNegative)),
-            F5cNegative::Quantified(ordinal) | F5cNegative::Recursive(ordinal) => {
-                let row = substitution
-                    .get(ordinal)
-                    .copied()
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                self.live_value_term(Polarity::Negative, row)
-            }
-            F5cNegative::Variable(_) => Err(SolveAvailabilityError::IdentityExhausted),
-            F5cNegative::Intersection(_) => Err(SolveAvailabilityError::IdentityExhausted),
-            F5cNegative::Function {
-                argument, result, ..
-            } => {
-                let argument = self.instantiate_positive(argument, substitution)?;
-                let result = self.instantiate_negative(result, substitution)?;
-                let argument_effect = self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
-                let result_effect = self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
-                self.negative_function_term(argument, argument_effect, result_effect, result)
-            }
-        }
-    }
-
-    fn instantiate_negative_parts(
-        &mut self,
-        value: &F5cNegative,
-        substitution: &HashMap<u32, u32>,
-    ) -> Result<Vec<Term>, SolveAvailabilityError> {
-        match value {
-            F5cNegative::Intersection(values) => {
-                values
-                    .iter()
-                    .try_fold(Vec::with_capacity(values.len()), |mut terms, value| {
-                        terms.extend(self.instantiate_negative_parts(value, substitution)?);
-                        Ok(terms)
-                    })
-            }
-            F5cNegative::Function {
-                argument, result, ..
-            } => {
-                let arguments = self.instantiate_positive_parts(argument, substitution)?;
-                let results = self.instantiate_negative_parts(result, substitution)?;
-                let capacity = arguments
-                    .len()
-                    .checked_mul(results.len())
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                let mut terms = Vec::with_capacity(capacity);
-                for argument in arguments {
-                    for result in &results {
-                        let argument_effect =
-                            self.batch.collected_leaf_term(Leaf::EffectBottomPositive);
-                        let result_effect =
-                            self.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
-                        terms.push(self.negative_function_term(
-                            argument,
-                            argument_effect,
-                            result_effect,
-                            *result,
-                        )?);
-                    }
-                }
-                Ok(terms)
-            }
-            _ => Ok(vec![self.instantiate_negative(value, substitution)?]),
-        }
-    }
-
     /// A closed positive union has no single live Term representation in the
     /// F5c arena. Its canonical first member is therefore the intentional
     /// public representative fact; every remaining normalized member is a
@@ -7356,13 +14331,16 @@ impl InferenceSession {
         &mut self,
         id: &DefinitionUseId,
         use_record: &DefinitionUse,
-        lowers: Vec<Term>,
+        lowers: std::ops::Range<usize>,
         upper: Term,
         kind: RoutedUseKind,
     ) -> Result<usize, SolveAvailabilityError> {
-        let mut lowers = lowers.into_iter();
+        #[cfg(test)]
+        F5C_ROUTE_MANY_PRIVATE_COMPLETIONS.with(|count| count.set(0));
+        let mut lowers = lowers;
         let first = lowers
             .next()
+            .map(|index| self.instantiation_scratch.parts[index])
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let occurrence_id = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
         let cause = CauseId::for_occurrence(occurrence_id.clone());
@@ -7380,12 +14358,24 @@ impl InferenceSession {
             &occurrence_id,
             &cause,
         )?;
-        for lower in lowers {
+        #[cfg(test)]
+        F5C_ROUTE_MANY_PRIVATE_COMPLETIONS.with(|count| {
+            count.set(1);
+            F5C_ROUTE_MANY_ARM_EDGE_FAILURE_AFTER_FIRST.with(|armed| {
+                if armed.replace(false) {
+                    inject_next_f5b_post_reserve_failure(F5bCapacityLane::DiagnosticEdges);
+                }
+            });
+        });
+        for index in lowers {
+            let lower = self.instantiation_scratch.parts[index];
             let key = CanonicalValuePairKey {
                 lower: self.value_endpoint(lower, Polarity::Positive),
                 upper: upper_row,
             };
             transitions += self.constrain_live_value(key, &occurrence_id, &cause)?;
+            #[cfg(test)]
+            F5C_ROUTE_MANY_PRIVATE_COMPLETIONS.with(|count| count.set(count.get() + 1));
         }
         let key = CanonicalValuePairKey {
             lower: self.value_endpoint(first, Polarity::Positive),
@@ -7398,140 +14388,771 @@ impl InferenceSession {
         Ok(transitions)
     }
 
-    fn instantiate_and_route(
+    fn closed_parts(
+        &mut self,
+        view: yu_types::ClosedValueSchemeView<'_>,
+        root: InstantiationWork,
+        scratch: &mut InstantiationScratch,
+    ) -> Result<std::ops::Range<usize>, SolveAvailabilityError> {
+        let grew = scratch.push_work(root)?;
+        self.sample_instantiation_growth(scratch, grew)?;
+        while let Some(work) = scratch.work.pop() {
+            match work {
+                InstantiationWork::Positive(id, complete) => {
+                    if scratch.positive.contains_key(&id) {
+                        continue;
+                    }
+                    let node = view
+                        .positive_value(id)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    if !complete {
+                        let grew = scratch.push_work(InstantiationWork::Positive(id, true))?;
+                        self.sample_instantiation_growth(scratch, grew)?;
+                        match node {
+                            PositiveValueView::Function {
+                                argument, result, ..
+                            } => {
+                                let grew = scratch
+                                    .push_work(InstantiationWork::Positive(result, false))?;
+                                self.sample_instantiation_growth(scratch, grew)?;
+                                let grew = scratch
+                                    .push_work(InstantiationWork::Negative(argument, false))?;
+                                self.sample_instantiation_growth(scratch, grew)?;
+                            }
+                            PositiveValueView::Union(children) => {
+                                for child in children.iter().rev() {
+                                    let grew = scratch
+                                        .push_work(InstantiationWork::Positive(*child, false))?;
+                                    self.sample_instantiation_growth(scratch, grew)?;
+                                }
+                            }
+                            _ => {}
+                        }
+                        continue;
+                    }
+                    let start = scratch.parts.len();
+                    match node {
+                        PositiveValueView::Bottom => {
+                            let term = self.positive_bottom_term()?;
+                            let grew = scratch.push_part(term)?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        PositiveValueView::Int => {
+                            let grew = scratch
+                                .push_part(self.batch.collected_leaf_term(Leaf::IntPositive))?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        PositiveValueView::Quantified(q) => {
+                            let row = *scratch
+                                .substitution
+                                .get(&q.ordinal())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            let term = self.live_value_term(Polarity::Positive, row)?;
+                            let grew = scratch.push_part(term)?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        PositiveValueView::Recursive(r) => {
+                            let row = *scratch
+                                .substitution
+                                .get(&r.ordinal())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            let term = self.live_value_term(Polarity::Positive, row)?;
+                            let grew = scratch.push_part(term)?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        PositiveValueView::Union(children) => {
+                            for child in children {
+                                let range = scratch
+                                    .positive
+                                    .get(child)
+                                    .cloned()
+                                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                                let grew = scratch.append_range(range)?;
+                                self.sample_instantiation_growth(scratch, grew)?;
+                            }
+                        }
+                        PositiveValueView::Function {
+                            argument,
+                            argument_effect,
+                            result_effect,
+                            result,
+                        } => {
+                            if !matches!(
+                                view.negative_effect(argument_effect),
+                                Ok(yu_types::NegativeEffectView::Empty)
+                            ) || !matches!(
+                                view.positive_effect(result_effect),
+                                Ok(yu_types::PositiveEffectView::Bottom)
+                            ) {
+                                return Err(SolveAvailabilityError::IdentityExhausted);
+                            }
+                            self.visit_closed_negative_effect(argument_effect, scratch)?;
+                            self.visit_closed_positive_effect(result_effect, scratch)?;
+                            let arguments = scratch
+                                .negative
+                                .get(&argument)
+                                .cloned()
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            let results = scratch
+                                .positive
+                                .get(&result)
+                                .cloned()
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            arguments
+                                .len()
+                                .checked_mul(results.len())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            for a in arguments {
+                                for r in results.clone() {
+                                    let term = self.positive_function_term(
+                                        scratch.parts[a],
+                                        self.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                                        self.batch.collected_leaf_term(Leaf::EffectBottomPositive),
+                                        scratch.parts[r],
+                                    )?;
+                                    let grew = scratch.push_part(term)?;
+                                    self.sample_instantiation_growth(scratch, grew)?;
+                                }
+                            }
+                        }
+                    }
+                    let grew = scratch.insert_positive(id, start..scratch.parts.len())?;
+                    self.sample_instantiation_growth(scratch, grew)?;
+                    self.execution_counters.instantiation_node_visits += 1;
+                }
+                InstantiationWork::Negative(id, complete) => {
+                    if scratch.negative.contains_key(&id) {
+                        continue;
+                    }
+                    let node = view
+                        .negative_value(id)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    if !complete {
+                        let grew = scratch.push_work(InstantiationWork::Negative(id, true))?;
+                        self.sample_instantiation_growth(scratch, grew)?;
+                        match node {
+                            NegativeValueView::Function {
+                                argument, result, ..
+                            } => {
+                                let grew = scratch
+                                    .push_work(InstantiationWork::Negative(result, false))?;
+                                self.sample_instantiation_growth(scratch, grew)?;
+                                let grew = scratch
+                                    .push_work(InstantiationWork::Positive(argument, false))?;
+                                self.sample_instantiation_growth(scratch, grew)?;
+                            }
+                            NegativeValueView::Intersection(children) => {
+                                for child in children.iter().rev() {
+                                    let grew = scratch
+                                        .push_work(InstantiationWork::Negative(*child, false))?;
+                                    self.sample_instantiation_growth(scratch, grew)?;
+                                }
+                            }
+                            _ => {}
+                        }
+                        continue;
+                    }
+                    let start = scratch.parts.len();
+                    match node {
+                        NegativeValueView::Top => {
+                            let term = self.negative_top_term()?;
+                            let grew = scratch.push_part(term)?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        NegativeValueView::Bottom => {
+                            let term = self.negative_bottom_term()?;
+                            let grew = scratch.push_part(term)?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        NegativeValueView::Int => {
+                            let grew = scratch
+                                .push_part(self.batch.collected_leaf_term(Leaf::IntNegative))?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        NegativeValueView::Quantified(q) => {
+                            let row = *scratch
+                                .substitution
+                                .get(&q.ordinal())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            let term = self.live_value_term(Polarity::Negative, row)?;
+                            let grew = scratch.push_part(term)?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        NegativeValueView::Recursive(r) => {
+                            let row = *scratch
+                                .substitution
+                                .get(&r.ordinal())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            let term = self.live_value_term(Polarity::Negative, row)?;
+                            let grew = scratch.push_part(term)?;
+                            self.sample_instantiation_growth(scratch, grew)?;
+                        }
+                        NegativeValueView::Intersection(children) => {
+                            for child in children {
+                                let range = scratch
+                                    .negative
+                                    .get(child)
+                                    .cloned()
+                                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                                let grew = scratch.append_range(range)?;
+                                self.sample_instantiation_growth(scratch, grew)?;
+                            }
+                        }
+                        NegativeValueView::Function {
+                            argument,
+                            argument_effect,
+                            result_effect,
+                            result,
+                        } => {
+                            if !matches!(
+                                view.positive_effect(argument_effect),
+                                Ok(yu_types::PositiveEffectView::Bottom)
+                            ) || !matches!(
+                                view.negative_effect(result_effect),
+                                Ok(yu_types::NegativeEffectView::Empty)
+                            ) {
+                                return Err(SolveAvailabilityError::IdentityExhausted);
+                            }
+                            self.visit_closed_positive_effect(argument_effect, scratch)?;
+                            self.visit_closed_negative_effect(result_effect, scratch)?;
+                            let arguments = scratch
+                                .positive
+                                .get(&argument)
+                                .cloned()
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            let results = scratch
+                                .negative
+                                .get(&result)
+                                .cloned()
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            arguments
+                                .len()
+                                .checked_mul(results.len())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            for a in arguments {
+                                for r in results.clone() {
+                                    let term = self.negative_function_term(
+                                        scratch.parts[a],
+                                        self.batch.collected_leaf_term(Leaf::EffectBottomPositive),
+                                        self.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                                        scratch.parts[r],
+                                    )?;
+                                    let grew = scratch.push_part(term)?;
+                                    self.sample_instantiation_growth(scratch, grew)?;
+                                }
+                            }
+                        }
+                    }
+                    let grew = scratch.insert_negative(id, start..scratch.parts.len())?;
+                    self.sample_instantiation_growth(scratch, grew)?;
+                    self.execution_counters.instantiation_node_visits += 1;
+                }
+            }
+        }
+        match root {
+            InstantiationWork::Positive(id, _) => scratch.positive.get(&id).cloned(),
+            InstantiationWork::Negative(id, _) => scratch.negative.get(&id).cloned(),
+        }
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn visit_closed_positive_effect(
+        &mut self,
+        id: yu_types::PositiveEffectId,
+        scratch: &mut InstantiationScratch,
+    ) -> Result<(), SolveAvailabilityError> {
+        if !scratch.positive_effects.contains(&id) {
+            let grew = reserve_instantiation(
+                &mut scratch.positive_effects,
+                1,
+                F5bCapacityLane::InstantiationPositiveEffects,
+                HashSet::capacity,
+                &mut scratch.requested_slots,
+                &mut scratch.capacity_growths,
+                &mut scratch.lane_requested,
+                &mut scratch.lane_growths,
+                &mut scratch.growth_sample_pending,
+            )?;
+            self.sample_instantiation_growth(scratch, grew)?;
+            scratch.positive_effects.insert(id);
+            self.execution_counters.instantiation_node_visits += 1;
+        }
+        Ok(())
+    }
+
+    fn visit_closed_negative_effect(
+        &mut self,
+        id: yu_types::NegativeEffectId,
+        scratch: &mut InstantiationScratch,
+    ) -> Result<(), SolveAvailabilityError> {
+        if !scratch.negative_effects.contains(&id) {
+            let grew = reserve_instantiation(
+                &mut scratch.negative_effects,
+                1,
+                F5bCapacityLane::InstantiationNegativeEffects,
+                HashSet::capacity,
+                &mut scratch.requested_slots,
+                &mut scratch.capacity_growths,
+                &mut scratch.lane_requested,
+                &mut scratch.lane_growths,
+                &mut scratch.growth_sample_pending,
+            )?;
+            self.sample_instantiation_growth(scratch, grew)?;
+            scratch.negative_effects.insert(id);
+            self.execution_counters.instantiation_node_visits += 1;
+        }
+        Ok(())
+    }
+
+    fn instantiate_and_route_closed_inner(
         &mut self,
         id: &DefinitionUseId,
         use_record: &DefinitionUse,
-        draft: &GeneralizationDraft,
+        view: yu_types::ClosedValueSchemeView<'_>,
         value: Term,
+        scratch: &mut InstantiationScratch,
     ) -> Result<usize, SolveAvailabilityError> {
-        let mut substitution = HashMap::new();
-        for ordinal in 0..draft.quantifier_count {
+        for ordinal in 0..view.quantifier_count() {
             let fresh = self.fresh_value_at_level(use_record.use_level)?;
-            substitution.insert(ordinal, fresh);
+            let grew = reserve_instantiation(
+                &mut scratch.substitution,
+                1,
+                F5bCapacityLane::InstantiationSubstitution,
+                HashMap::capacity,
+                &mut scratch.requested_slots,
+                &mut scratch.capacity_growths,
+                &mut scratch.lane_requested,
+                &mut scratch.lane_growths,
+                &mut scratch.growth_sample_pending,
+            )?;
+            self.sample_instantiation_growth(scratch, grew)?;
+            scratch.substitution.insert(ordinal, fresh);
+            self.execution_counters.instantiation_fresh_value_variables += 1;
         }
-        for bound in &draft.recursive_bounds {
-            if !substitution.contains_key(&bound.ordinal) {
+        for bound in view.recursive_bounds() {
+            let ordinal = bound.binder().ordinal();
+            if !scratch.substitution.contains_key(&ordinal) {
                 let fresh = self.fresh_value_at_level(use_record.use_level)?;
-                substitution.insert(bound.ordinal, fresh);
+                let grew = reserve_instantiation(
+                    &mut scratch.substitution,
+                    1,
+                    F5bCapacityLane::InstantiationSubstitution,
+                    HashMap::capacity,
+                    &mut scratch.requested_slots,
+                    &mut scratch.capacity_growths,
+                    &mut scratch.lane_requested,
+                    &mut scratch.lane_growths,
+                    &mut scratch.growth_sample_pending,
+                )?;
+                self.sample_instantiation_growth(scratch, grew)?;
+                scratch.substitution.insert(ordinal, fresh);
+                self.execution_counters.instantiation_fresh_value_variables += 1;
             }
         }
         let occurrence_id = ConstraintOccurrenceId::new(use_record.occurrence.clone(), 0);
         let cause = CauseId::for_occurrence(occurrence_id.clone());
-        for bound in &draft.recursive_bounds {
-            let row = substitution
-                .get(&bound.ordinal)
-                .copied()
+        for bound in view.recursive_bounds() {
+            let row = *scratch
+                .substitution
+                .get(&bound.binder().ordinal())
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            for lower in self.instantiate_positive_parts(&bound.lower, &substitution)? {
+            let NeutralValueView::Bounds { lower, upper } = view
+                .neutral_value(bound.bounds())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let lowers =
+                self.closed_parts(view, InstantiationWork::Positive(lower, false), scratch)?;
+            for position in lowers {
                 let lower_key = CanonicalValuePairKey {
-                    lower: self.value_endpoint(lower, Polarity::Positive),
+                    lower: self.value_endpoint(scratch.parts[position], Polarity::Positive),
                     upper: ValueEndpointKey::ValueRow(row),
                 };
-                self.constrain_live_value(lower_key, &occurrence_id, &cause)?;
+                self.with_attached_instantiation_scratch(scratch, |session| {
+                    session.constrain_live_value(lower_key, &occurrence_id, &cause)
+                })?;
             }
-            for upper in self.instantiate_negative_parts(&bound.upper, &substitution)? {
+            self.execution_counters
+                .instantiation_lower_bound_restorations += 1;
+            let uppers =
+                self.closed_parts(view, InstantiationWork::Negative(upper, false), scratch)?;
+            for position in uppers {
                 let upper_key = CanonicalValuePairKey {
                     lower: ValueEndpointKey::ValueRow(row),
-                    upper: self.value_endpoint(upper, Polarity::Negative),
+                    upper: self.value_endpoint(scratch.parts[position], Polarity::Negative),
                 };
-                self.constrain_live_value(upper_key, &occurrence_id, &cause)?;
+                self.with_attached_instantiation_scratch(scratch, |session| {
+                    session.constrain_live_value(upper_key, &occurrence_id, &cause)
+                })?;
             }
+            self.execution_counters
+                .instantiation_upper_bound_restorations += 1;
         }
-        let predicates = self.instantiate_positive_parts(&draft.predicate, &substitution)?;
+        let predicates = self.closed_parts(
+            view,
+            InstantiationWork::Positive(view.predicate(), false),
+            scratch,
+        )?;
         if predicates.len() == 1 {
-            let predicate = predicates.into_iter().next().expect("one predicate");
+            let predicate = scratch.parts[predicates.start];
             let key = CanonicalValuePairKey {
                 lower: self.value_endpoint(predicate, Polarity::Positive),
                 upper: ValueEndpointKey::ValueRow(
                     self.live_components[use_record.use_value_component].ordinal,
                 ),
             };
-            self.route(
-                id,
-                use_record,
-                predicate,
-                value,
-                key,
-                RoutedUseKind::IncomingStructured,
-            )
+            self.with_attached_instantiation_scratch(scratch, |session| {
+                session.route(
+                    id,
+                    use_record,
+                    predicate,
+                    value,
+                    key,
+                    RoutedUseKind::IncomingStructured,
+                )
+            })
         } else {
-            self.route_many(
-                id,
-                use_record,
-                predicates,
-                value,
-                RoutedUseKind::IncomingStructured,
-            )
+            self.with_attached_instantiation_scratch(scratch, |session| {
+                session.route_many(
+                    id,
+                    use_record,
+                    predicates,
+                    value,
+                    RoutedUseKind::IncomingStructured,
+                )
+            })
         }
+    }
+
+    fn with_attached_instantiation_scratch<T>(
+        &mut self,
+        scratch: &mut InstantiationScratch,
+        operation: impl FnOnce(&mut Self) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
+        std::mem::swap(scratch, &mut self.instantiation_scratch);
+        let result = operation(self);
+        std::mem::swap(scratch, &mut self.instantiation_scratch);
+        result
     }
 
     fn route_incoming(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
         let use_record = Self::validated_route_use(&self.batch, id)?.clone();
+        #[cfg(test)]
+        incoming_sample_trace::begin_attempt();
+        self.route_attempt_physical_change = false;
+        self.incoming_route_event_sample_failed = false;
+        self.incoming_route_accounting_active = true;
+        let prior_growths = self
+            .execution_counters
+            .instantiation_substitution_capacity_growths;
+        let result =
+            self.with_route_transaction(|session| session.route_incoming_inner(id, use_record));
+        self.incoming_route_accounting_active = false;
+        let mut event_sample_failed = std::mem::take(&mut self.incoming_route_event_sample_failed);
+        let route_physical_change = std::mem::take(&mut self.route_attempt_physical_change);
+        let pending_scratch = self.instantiation_scratch.requested_slots != 0
+            || self.instantiation_scratch.capacity_growths != 0;
+        let prior_counters = self.execution_counters.clone();
+        #[cfg(test)]
+        let prior_ledger = self.resource_ledger.clone();
+        let pending = (
+            self.instantiation_scratch.requested_slots,
+            self.instantiation_scratch.capacity_growths,
+            self.instantiation_scratch.lane_requested,
+            self.instantiation_scratch.lane_growths,
+        );
+        if !event_sample_failed && self.record_instantiation_scratch_resources().is_err() {
+            event_sample_failed = true;
+        }
+        let post_rollback = result.is_err()
+            && (route_physical_change
+                || self
+                    .execution_counters
+                    .instantiation_substitution_capacity_growths
+                    > prior_growths);
+        let sample_result = if post_rollback {
+            #[cfg(test)]
+            incoming_sample_trace::reason("post-rollback");
+            #[cfg(test)]
+            {
+                self.incoming_post_rollback_sample_attempts += 1;
+                if let Some(observer) = &self.incoming_post_rollback_attempt_observer {
+                    observer.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                }
+            }
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        } else if result.is_ok() && pending_scratch {
+            #[cfg(test)]
+            incoming_sample_trace::reason("successful-outer-pending-scratch");
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+        } else {
+            Ok(())
+        };
+        if sample_result.is_err() {
+            self.execution_counters = prior_counters;
+            #[cfg(test)]
+            {
+                self.resource_ledger = prior_ledger;
+            }
+            self.instantiation_scratch.requested_slots = pending.0;
+            self.instantiation_scratch.capacity_growths = pending.1;
+            self.instantiation_scratch.lane_requested = pending.2;
+            self.instantiation_scratch.lane_growths = pending.3;
+            #[cfg(test)]
+            incoming_sample_trace::end_attempt();
+            return sample_result.and(result);
+        }
+        #[cfg(test)]
+        if post_rollback {
+            self.incoming_post_rollback_samples += 1;
+            self.incoming_post_rollback_had_pending_requests = pending_scratch;
+        }
+        #[cfg(test)]
+        incoming_sample_trace::end_attempt();
+        if event_sample_failed {
+            Err(SolveAvailabilityError::IdentityExhausted)
+        } else {
+            result
+        }
+    }
+
+    fn sample_instantiation_growth(
+        &mut self,
+        scratch: &mut InstantiationScratch,
+        grew: bool,
+    ) -> Result<(), SolveAvailabilityError> {
+        if grew {
+            std::mem::swap(scratch, &mut self.instantiation_scratch);
+            let prior_counters = self.execution_counters.clone();
+            #[cfg(test)]
+            let prior_ledger = self.resource_ledger.clone();
+            let pending = (
+                self.instantiation_scratch.requested_slots,
+                self.instantiation_scratch.capacity_growths,
+                self.instantiation_scratch.lane_requested,
+                self.instantiation_scratch.lane_growths,
+            );
+            let result = self
+                .record_instantiation_scratch_resources()
+                .and_then(|()| {
+                    self.instantiation_scratch.growth_sample_pending = false;
+                    self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+                });
+            if result.is_err() {
+                self.execution_counters = prior_counters;
+                #[cfg(test)]
+                {
+                    self.resource_ledger = prior_ledger;
+                }
+                self.instantiation_scratch.requested_slots = pending.0;
+                self.instantiation_scratch.capacity_growths = pending.1;
+                self.instantiation_scratch.lane_requested = pending.2;
+                self.instantiation_scratch.lane_growths = pending.3;
+            }
+            std::mem::swap(scratch, &mut self.instantiation_scratch);
+            if result.is_err() && !self.instantiation_scratch.growth_sample_pending {
+                self.route_attempt_physical_change = true;
+                self.incoming_route_event_sample_failed = true;
+            }
+            result?;
+        }
+        Ok(())
+    }
+
+    fn sample_failed_instantiation_growth(
+        &mut self,
+        scratch: &mut InstantiationScratch,
+    ) -> Result<(), SolveAvailabilityError> {
+        std::mem::swap(scratch, &mut self.instantiation_scratch);
+        self.instantiation_scratch.growth_sample_pending = false;
+        let prior_counters = self.execution_counters.clone();
+        #[cfg(test)]
+        let prior_ledger = self.resource_ledger.clone();
+        let result = self.sample_f4_resources(ResourceBoundary::IncomingRoute);
+        if result.is_err() {
+            self.execution_counters = prior_counters;
+            #[cfg(test)]
+            {
+                self.resource_ledger = prior_ledger;
+            }
+        }
+        std::mem::swap(scratch, &mut self.instantiation_scratch);
+        result
+    }
+
+    fn record_instantiation_scratch_resources(&mut self) -> Result<(), SolveAvailabilityError> {
+        let scratch = &mut self.instantiation_scratch;
+        if scratch.requested_slots == 0 && scratch.capacity_growths == 0 {
+            return Ok(());
+        }
+        let actual_capacity = [
+            scratch.substitution.capacity(),
+            scratch.positive.capacity(),
+            scratch.negative.capacity(),
+            scratch.positive_effects.capacity(),
+            scratch.negative_effects.capacity(),
+            scratch.parts.capacity(),
+            scratch.work.capacity(),
+        ]
+        .into_iter()
+        .try_fold(0usize, |total, capacity| total.checked_add(capacity))
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let retained_bytes = if matches!(
+            self.sample_fixed_capacity_probe,
+            Some(SampleFixedCapacityProbe::InstantiationScratch)
+        ) {
+            InstantiationScratch::checked_capacity_bytes([usize::MAX, 0, 0, 0, 0, 0, 0])?
+        } else {
+            scratch.checked_retained_bytes()?
+        };
+        #[cfg(not(test))]
+        let retained_bytes = scratch.checked_retained_bytes()?;
+        let mut counters = self.execution_counters.clone();
+        counters.instantiation_substitution_requested_slots = counters
+            .instantiation_substitution_requested_slots
+            .checked_add(scratch.requested_slots)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        counters.instantiation_substitution_capacity_growths = counters
+            .instantiation_substitution_capacity_growths
+            .checked_add(scratch.capacity_growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        counters.instantiation_substitution_actual_capacity = actual_capacity;
+        counters.instantiation_substitution_retained_bytes = retained_bytes;
+        counters.instantiation_substitution_peak_bytes = counters
+            .instantiation_substitution_peak_bytes
+            .max(retained_bytes);
+        #[cfg(test)]
+        let mut ledger = self.resource_ledger.clone();
+        #[cfg(test)]
+        ledger.record_instantiation_scratch(scratch)?;
+        self.execution_counters = counters;
+        #[cfg(test)]
+        {
+            self.resource_ledger = ledger;
+        }
+        scratch.requested_slots = 0;
+        scratch.capacity_growths = 0;
+        scratch.lane_requested.fill(0);
+        scratch.lane_growths.fill(0);
+        Ok(())
+    }
+
+    fn route_incoming_inner(
+        &mut self,
+        id: &DefinitionUseId,
+        use_record: DefinitionUse,
+    ) -> Result<usize, SolveAvailabilityError> {
         let position = use_record.target.ordinal() as usize;
         let scheme = self.schemes[position]
             .as_ref()
             .expect("incoming observes finalized component scheme")
             .clone();
         let value = self.batch.component_term_at(use_record.use_value_component);
-        let draft = Self::decode_closed_scheme(
-            self.finalization
-                .as_ref()
-                .expect("finalization remains live"),
-            &scheme,
-        )?;
-        match draft.predicate.clone() {
-            F5cPositive::Bottom => {
-                self.execution_counters
-                    .scc_execution_bottom_trivial_instantiations += 1;
-                reserve_f5b(
-                    &mut self.routed_use_positions,
-                    1,
-                    F5bCapacityLane::RoutedUsePositions,
-                )?;
-                reserve_f5b(&mut self.routed_uses, 1, F5bCapacityLane::RoutedUses)?;
-                assert!(
-                    self.routed_use_positions.insert(id.clone()),
-                    "each use routes once"
-                );
-                let old_capacity = self.routed_uses.capacity();
-                self.routed_uses.push(RoutedUseProvenance {
-                    use_id: id.clone(),
-                    fact: None,
-                    kind: RoutedUseKind::IncomingBottomTrivial,
-                });
-                if self.routed_uses.capacity() != old_capacity {
-                    self.execution_counters.routed_use_provenance_growths += 1;
+        let finalization = self.finalization.take().expect("finalization remains live");
+        let mut scratch = std::mem::take(&mut self.instantiation_scratch);
+        let mut result = (|| {
+            let view = finalization
+                .scheme_view(&scheme)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            match view
+                .positive_value(view.predicate())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
+            {
+                PositiveValueView::Bottom => {
+                    self.execution_counters.instantiation_node_visits += 1;
+                    self.execution_counters
+                        .scc_execution_bottom_trivial_instantiations += 1;
+                    self.reserve_routed_use_owners()?;
+                    let old_position_capacity = self.routed_use_positions.capacity();
+                    assert!(
+                        self.routed_use_positions.insert(id.clone()),
+                        "each use routes once"
+                    );
+                    if let Some(journal) = &mut self.route_journal {
+                        assert!(journal.routed_use_id.replace(id.clone()).is_none());
+                    }
+                    self.sample_routed_use_owner_change(
+                        old_position_capacity,
+                        self.routed_use_positions.capacity(),
+                        F5bCapacityLane::RoutedUsePositions,
+                    )?;
+                    let old_capacity = self.routed_uses.capacity();
+                    self.routed_uses.push(RoutedUseProvenance {
+                        use_id: id.clone(),
+                        fact: None,
+                        kind: RoutedUseKind::IncomingBottomTrivial,
+                    });
+                    if self.routed_uses.capacity() != old_capacity {
+                        self.execution_counters.routed_use_provenance_growths += 1;
+                        self.sample_routed_use_owner_change(
+                            old_capacity,
+                            self.routed_uses.capacity(),
+                            F5bCapacityLane::RoutedUses,
+                        )?;
+                    }
+                    Ok(0)
                 }
-                Ok(0)
-            }
-            F5cPositive::Int => {
-                self.execution_counters
-                    .scc_execution_int_instantiation_facts += 1;
-                let lower = self.batch.collected_leaf_term(Leaf::IntPositive);
-                let key = CanonicalValuePairKey {
-                    lower: ValueEndpointKey::IntPositive,
-                    upper: ValueEndpointKey::ValueRow(
-                        self.live_components[use_record.use_value_component].ordinal,
-                    ),
-                };
-                self.route(
+                PositiveValueView::Int => {
+                    self.execution_counters.instantiation_node_visits += 1;
+                    self.execution_counters
+                        .scc_execution_int_instantiation_facts += 1;
+                    let lower = self.batch.collected_leaf_term(Leaf::IntPositive);
+                    let key = CanonicalValuePairKey {
+                        lower: ValueEndpointKey::IntPositive,
+                        upper: ValueEndpointKey::ValueRow(
+                            self.live_components[use_record.use_value_component].ordinal,
+                        ),
+                    };
+                    self.route(
+                        id,
+                        &use_record,
+                        lower,
+                        value,
+                        key,
+                        RoutedUseKind::IncomingInt,
+                    )
+                }
+                _ => self.instantiate_and_route_closed_inner(
                     id,
                     &use_record,
-                    lower,
+                    view,
                     value,
-                    key,
-                    RoutedUseKind::IncomingInt,
-                )
+                    &mut scratch,
+                ),
             }
-            F5cPositive::Function { .. }
-            | F5cPositive::Quantified(_)
-            | F5cPositive::Recursive(_)
-            | F5cPositive::Union(_)
-            | F5cPositive::Variable(_) => {
-                self.instantiate_and_route(id, &use_record, &draft, value)
+        })();
+        if result.is_err() && scratch.growth_sample_pending {
+            self.route_attempt_physical_change = true;
+            if let Err(error) = self.sample_failed_instantiation_growth(&mut scratch) {
+                self.incoming_route_event_sample_failed = true;
+                result = Err(error);
             }
         }
+        scratch.clear();
+        #[cfg(test)]
+        if self.inject_no_growth_scratch_request_on_route_exit {
+            let grew = reserve_instantiation(
+                &mut scratch.work,
+                1,
+                F5bCapacityLane::InstantiationWork,
+                Vec::capacity,
+                &mut scratch.requested_slots,
+                &mut scratch.capacity_growths,
+                &mut scratch.lane_requested,
+                &mut scratch.lane_growths,
+                &mut scratch.growth_sample_pending,
+            )?;
+            assert!(!grew, "warm work lane must service the final request");
+        }
+        self.instantiation_scratch = scratch;
+        self.finalization = Some(finalization);
+        if !self.incoming_route_event_sample_failed
+            && self.instantiation_scratch.requested_slots != 0
+        {
+            #[cfg(test)]
+            incoming_sample_trace::reason("route_incoming_inner-scratch-peak");
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        }
+        result
     }
 
     fn route(
@@ -7545,12 +15166,7 @@ impl InferenceSession {
     ) -> Result<usize, SolveAvailabilityError> {
         // Route provenance is logically coupled to fact admission: reserve
         // both durable route lanes before the transaction can publish a fact.
-        reserve_f5b(
-            &mut self.routed_use_positions,
-            1,
-            F5bCapacityLane::RoutedUsePositions,
-        )?;
-        reserve_f5b(&mut self.routed_uses, 1, F5bCapacityLane::RoutedUses)?;
+        self.reserve_routed_use_owners()?;
         assert!(
             !self.routed_use_positions.contains(id),
             "each use routes once"
@@ -7562,15 +15178,43 @@ impl InferenceSession {
             lower: lower.clone(),
             upper: upper.clone(),
         };
-        let fact = self
-            .store
-            .admit_and_record_provenance(&occurrence)
-            .map_err(SolveAvailabilityError::from)?;
+        let admission = self.store.admit_and_record_provenance(&occurrence);
+        // Admission can undo a fact before returning an error. The physical
+        // owners and their event handoff survive that local undo.
+        let snapshots = self.store.take_route_capacity_snapshots();
+        self.store.take_route_capacity_events();
+        for snapshot in snapshots.into_iter().flatten() {
+            self.route_attempt_physical_change = true;
+            #[cfg(test)]
+            {
+                incoming_sample_trace::sample();
+                self.incoming_route_sample_attempts += 1;
+            }
+            if let Err(error) = self.sample_f4_resources_with_term_override(
+                ResourceBoundary::IncomingRoute,
+                0,
+                None,
+                Some(snapshot),
+            ) {
+                self.incoming_route_event_sample_failed = true;
+                return Err(error);
+            }
+        }
+        let fact = admission.map_err(SolveAvailabilityError::from)?;
         let transitions = self.constrain_live_value(key, &occurrence.id, &occurrence.cause)?;
+        let old_position_capacity = self.routed_use_positions.capacity();
         assert!(
             self.routed_use_positions.insert(id.clone()),
             "each use routes once"
         );
+        if let Some(journal) = &mut self.route_journal {
+            assert!(journal.routed_use_id.replace(id.clone()).is_none());
+        }
+        self.sample_routed_use_owner_change(
+            old_position_capacity,
+            self.routed_use_positions.capacity(),
+            F5bCapacityLane::RoutedUsePositions,
+        )?;
         let old_capacity = self.routed_uses.capacity();
         self.routed_uses.push(RoutedUseProvenance {
             use_id: id.clone(),
@@ -7579,8 +15223,59 @@ impl InferenceSession {
         });
         if self.routed_uses.capacity() != old_capacity {
             self.execution_counters.routed_use_provenance_growths += 1;
+            self.sample_routed_use_owner_change(
+                old_capacity,
+                self.routed_uses.capacity(),
+                F5bCapacityLane::RoutedUses,
+            )?;
         }
         Ok(transitions)
+    }
+
+    fn sample_routed_use_owner_change(
+        &mut self,
+        old: usize,
+        current: usize,
+        lane: F5bCapacityLane,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(not(test))]
+        let _ = lane;
+        if old != current && self.incoming_route_accounting_active {
+            #[cfg(test)]
+            incoming_sample_trace::event(
+                || "routed-use".into(),
+                || format!("{lane:?}"),
+                old,
+                current,
+            );
+            self.route_attempt_physical_change = true;
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        }
+        Ok(())
+    }
+
+    fn reserve_routed_use_owners(&mut self) -> Result<(), SolveAvailabilityError> {
+        let before = self.routed_use_positions.capacity();
+        let result = reserve_f5b(
+            &mut self.routed_use_positions,
+            1,
+            F5bCapacityLane::RoutedUsePositions,
+        );
+        self.sample_routed_use_owner_change(
+            before,
+            self.routed_use_positions.capacity(),
+            F5bCapacityLane::RoutedUsePositions,
+        )?;
+        result?;
+        let before = self.routed_uses.capacity();
+        let result = reserve_f5b(&mut self.routed_uses, 1, F5bCapacityLane::RoutedUses);
+        self.sample_routed_use_owner_change(
+            before,
+            self.routed_uses.capacity(),
+            F5bCapacityLane::RoutedUses,
+        )?;
+        result?;
+        Ok(())
     }
 
     /// Route provenance is an atomic admission precondition.  It must be
@@ -7596,10 +15291,30 @@ impl InferenceSession {
             .ok_or(SolveAvailabilityError::CauseMismatch)
     }
 
+    #[cfg(test)]
     fn generalization_draft(
         &self,
         definition: &DefinitionOrderId,
     ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+        let (result, _, _, _) = self.component_generalization_draft(
+            definition,
+            F5cComponentExpansionMemo::default(),
+            0,
+        );
+        result
+    }
+
+    fn component_generalization_draft(
+        &self,
+        definition: &DefinitionOrderId,
+        memo: F5cComponentExpansionMemo,
+        frozen_bound_epoch: usize,
+    ) -> (
+        Result<GeneralizationDraft, SolveAvailabilityError>,
+        F5cComponentExpansionMemo,
+        usize,
+        usize,
+    ) {
         let verified = Self::verified_scheme_definition(&self.batch, definition);
         let component = self
             .batch
@@ -7608,7 +15323,7 @@ impl InferenceSession {
             .expect("definition root retains its immutable component recipe")
             .component;
         let row = self.live_components[component].ordinal as usize;
-        F5cGeneralizer::new(self).build(row as u32)
+        F5cGeneralizer::with_memo(self, memo, frozen_bound_epoch).build_component(row as u32)
     }
 
     fn finalize_generalization_draft(
@@ -7616,6 +15331,31 @@ impl InferenceSession {
         draft: &GeneralizationDraft,
         #[cfg(test)] inject_finalization_failure: bool,
     ) -> Result<ClosedSchemeFinalization, SolveAvailabilityError> {
+        Self::finalize_generalization_draft_raw(
+            finalization,
+            draft,
+            #[cfg(test)]
+            inject_finalization_failure,
+        )
+        .map_err(Self::map_finalization_error)
+    }
+
+    fn finalize_generalization_draft_raw(
+        finalization: &mut ClosedTypeFinalizationSession,
+        draft: &GeneralizationDraft,
+        #[cfg(test)] inject_finalization_failure: bool,
+    ) -> Result<ClosedSchemeFinalization, ClosedTypeFinalizeError> {
+        for (index, bound) in draft.recursive_bounds.iter().enumerate() {
+            let index = u32::try_from(index).map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+            let expected = draft
+                .quantifier_count
+                .checked_add(index)
+                .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+            if bound.ordinal != expected {
+                return Err(ClosedTypeFinalizeError::InvalidDraft);
+            }
+        }
+
         fn positive<'tx>(
             finalizer: &mut ClosedTypeFinalizer<'tx>,
             value: &F5cPositive,
@@ -7625,13 +15365,28 @@ impl InferenceSession {
             match value {
                 F5cPositive::Bottom => finalizer.positive_bottom(),
                 F5cPositive::Int => finalizer.positive_int(),
-                F5cPositive::Variable(_) => Err(ClosedTypeFinalizeError::InvalidDraft),
+                F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
+                    Err(ClosedTypeFinalizeError::InvalidDraft)
+                }
                 F5cPositive::Quantified(ordinal) => {
-                    finalizer.positive_quantified(quantifiers[*ordinal as usize])
+                    let quantifier = quantifiers
+                        .get(*ordinal as usize)
+                        .copied()
+                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                    finalizer.positive_quantified(quantifier)
                 }
                 F5cPositive::Recursive(ordinal) => {
-                    let index = (*ordinal - quantifiers.len() as u32) as usize;
-                    finalizer.positive_recursive(recursive_binders[index])
+                    let quantifier_count = u32::try_from(quantifiers.len())
+                        .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+                    let index = ordinal
+                        .checked_sub(quantifier_count)
+                        .and_then(|index| usize::try_from(index).ok())
+                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                    let recursive_binder = recursive_binders
+                        .get(index)
+                        .copied()
+                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                    finalizer.positive_recursive(recursive_binder)
                 }
                 F5cPositive::Union(values) => {
                     let values = values
@@ -7661,13 +15416,28 @@ impl InferenceSession {
                 F5cNegative::Top => finalizer.negative_top(),
                 F5cNegative::Bottom => finalizer.negative_bottom(),
                 F5cNegative::Int => finalizer.negative_int(),
-                F5cNegative::Variable(_) => Err(ClosedTypeFinalizeError::InvalidDraft),
+                F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
+                    Err(ClosedTypeFinalizeError::InvalidDraft)
+                }
                 F5cNegative::Quantified(ordinal) => {
-                    finalizer.negative_quantified(quantifiers[*ordinal as usize])
+                    let quantifier = quantifiers
+                        .get(*ordinal as usize)
+                        .copied()
+                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                    finalizer.negative_quantified(quantifier)
                 }
                 F5cNegative::Recursive(ordinal) => {
-                    let index = (*ordinal - quantifiers.len() as u32) as usize;
-                    finalizer.negative_recursive(recursive_binders[index])
+                    let quantifier_count = u32::try_from(quantifiers.len())
+                        .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+                    let index = ordinal
+                        .checked_sub(quantifier_count)
+                        .and_then(|index| usize::try_from(index).ok())
+                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                    let recursive_binder = recursive_binders
+                        .get(index)
+                        .copied()
+                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                    finalizer.negative_recursive(recursive_binder)
                 }
                 F5cNegative::Intersection(values) => {
                     let values = values
@@ -7688,41 +15458,37 @@ impl InferenceSession {
             }
         }
 
-        finalization
-            .finalize_scheme(|finalizer| {
-                #[cfg(test)]
-                if inject_finalization_failure {
-                    return Err(ClosedTypeFinalizeError::IdentityExhausted);
-                }
-                // The finalizer validates dense Q ordinals and disjoint R
-                // ordinals.  R occupies the numeric range immediately after Q.
-                let quantifiers = (0..draft.quantifier_count)
-                    .map(|ordinal| finalizer.quantifier(ordinal))
-                    .collect::<Vec<_>>();
-                let recursive_binders = draft
-                    .recursive_bounds
-                    .iter()
-                    .map(|bound| finalizer.recursive_binder(bound.ordinal))
-                    .collect::<Vec<_>>();
-                let mut recursive_bounds = Vec::with_capacity(draft.recursive_bounds.len());
-                for bound in &draft.recursive_bounds {
-                    let binder = recursive_binders[recursive_bounds.len()];
-                    let lower =
-                        positive(finalizer, &bound.lower, &quantifiers, &recursive_binders)?;
-                    let upper =
-                        negative(finalizer, &bound.upper, &quantifiers, &recursive_binders)?;
-                    let neutral = finalizer.neutral_bounds(lower, upper)?;
-                    recursive_bounds.push(finalizer.recursive_bound(binder, neutral)?);
-                }
-                let predicate = positive(
-                    finalizer,
-                    &draft.predicate,
-                    &quantifiers,
-                    &recursive_binders,
-                )?;
-                finalizer.set_scheme(draft.quantifier_count, &recursive_bounds, predicate)
-            })
-            .map_err(Self::map_finalization_error)
+        finalization.finalize_scheme(|finalizer| {
+            #[cfg(test)]
+            if inject_finalization_failure {
+                return Err(ClosedTypeFinalizeError::IdentityExhausted);
+            }
+            // The finalizer validates dense Q ordinals and disjoint R
+            // ordinals.  R occupies the numeric range immediately after Q.
+            let quantifiers = (0..draft.quantifier_count)
+                .map(|ordinal| finalizer.quantifier(ordinal))
+                .collect::<Vec<_>>();
+            let recursive_binders = draft
+                .recursive_bounds
+                .iter()
+                .map(|bound| finalizer.recursive_binder(bound.ordinal))
+                .collect::<Vec<_>>();
+            let mut recursive_bounds = Vec::with_capacity(draft.recursive_bounds.len());
+            for bound in &draft.recursive_bounds {
+                let binder = recursive_binders[recursive_bounds.len()];
+                let lower = positive(finalizer, &bound.lower, &quantifiers, &recursive_binders)?;
+                let upper = negative(finalizer, &bound.upper, &quantifiers, &recursive_binders)?;
+                let neutral = finalizer.neutral_bounds(lower, upper)?;
+                recursive_bounds.push(finalizer.recursive_bound(binder, neutral)?);
+            }
+            let predicate = positive(
+                finalizer,
+                &draft.predicate,
+                &quantifiers,
+                &recursive_binders,
+            )?;
+            finalizer.set_scheme(draft.quantifier_count, &recursive_bounds, predicate)
+        })
     }
 
     #[cfg(test)]
@@ -7850,7 +15616,7 @@ impl InferenceSession {
         self.sample_f4_resources_with_finish_output(
             ResourceBoundary::FinishOutputWithStaging,
             work.solved_projection_retained_bytes,
-        );
+        )?;
         // `finish` is fallible only for terminal closed-type accounting. Map it
         // after the real pre-finish coexistence sample but before combining
         // final counters or constructing the public result.
@@ -7868,10 +15634,39 @@ impl InferenceSession {
             "closed finalization receipt continues the solver-owned total"
         );
         self.current_closed_retained_bytes = receipt.retained_bytes_after_finish();
+        self.instantiation_scratch = InstantiationScratch::default();
+        self.execution_counters
+            .instantiation_substitution_actual_capacity = 0;
+        self.execution_counters
+            .instantiation_substitution_retained_bytes = 0;
+        #[cfg(test)]
+        self.resource_ledger
+            .record_instantiation_scratch(&self.instantiation_scratch)?;
         self.sample_f4_resources_with_finish_output(
             ResourceBoundary::FinishOutput,
             work.solved_projection_retained_bytes,
-        );
+        )?;
+        #[cfg(test)]
+        {
+            assert_eq!(
+                self.resource_ledger
+                    .instantiation_substitution_retained_bytes,
+                0
+            );
+            assert_eq!(
+                self.resource_ledger
+                    .instantiation_substitution_actual_capacity,
+                0
+            );
+            assert_eq!(
+                self.resource_ledger.semantic_arena_retained_bytes,
+                self.execution_counters.semantic_arena_retained_bytes,
+            );
+            assert_eq!(
+                self.resource_ledger.inference_session_retained_bytes,
+                self.execution_counters.inference_session_retained_bytes,
+            );
+        }
         let mut counters = self.batch.counters();
         counters.combine(self.store.counters());
         counters.combine(&work);
@@ -7990,6 +15785,8 @@ impl SolvedModule {
 #[allow(deprecated)]
 mod tests {
     use super::*;
+    mod f5c_scratch_reserve;
+    mod f5c_value_exact_upper_route;
     use std::sync::Arc;
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
@@ -8340,8 +16137,49 @@ mod tests {
         for witness in witnesses {
             let path = format!("f4-scale-{}-{}.yu", witness.name, witness.definitions);
             let batch = synthetic_scale_batch(&witness, &path);
+            incoming_sample_trace::start();
             let (solved, observer, summary) =
                 InferenceSession::new(batch).run_with_observer(0).unwrap();
+            let sample_trace = incoming_sample_trace::finish(witness.name, witness.definitions);
+            assert_eq!(sample_trace.attempts, witness.incoming_uses);
+            assert_eq!(
+                sample_trace.event_lanes.values().sum::<usize>(),
+                sample_trace.matched_events
+            );
+            assert_eq!(
+                sample_trace
+                    .named_samples
+                    .get("execute_scc_plan-after-incoming-use")
+                    .copied()
+                    .unwrap_or(0),
+                witness.incoming_uses
+            );
+            assert_eq!(
+                sample_trace
+                    .named_samples
+                    .get("post-rollback")
+                    .copied()
+                    .unwrap_or(0),
+                0
+            );
+            assert_eq!(
+                sample_trace
+                    .named_samples
+                    .get("successful-outer-pending-scratch")
+                    .copied()
+                    .unwrap_or(0),
+                0
+            );
+            let scratch_peak_samples = sample_trace
+                .named_samples
+                .get("route_incoming_inner-scratch-peak")
+                .copied()
+                .unwrap_or(0);
+            assert_eq!(
+                sample_trace.named_samples.values().sum::<usize>(),
+                witness.incoming_uses + scratch_peak_samples,
+                "only authorized named incoming boundaries occur"
+            );
             assert!(observer.events.is_empty());
             assert_eq!(
                 observer.omitted,
@@ -8485,7 +16323,7 @@ mod tests {
                 .checked_mul(3)
                 .and_then(|count| count.checked_add(witness.synthetic_seed_value_pair_probes))
                 .expect("F4 scale initial-admission sample count fits usize");
-            let expected_resource_samples = checked_usize_sum(
+            let base_resource_samples = checked_usize_sum(
                 [
                     1, // initial reservation
                     initial_admission_samples,
@@ -8498,6 +16336,14 @@ mod tests {
                     2, // output with live closed staging, then post-finish transfer
                 ],
                 "F4 scale resource boundary sample count",
+            );
+            let expected_resource_samples = checked_usize_sum(
+                [
+                    base_resource_samples,
+                    sample_trace.matched_events,
+                    scratch_peak_samples,
+                ],
+                "F4 scale event and scratch-peak sample count",
             );
             assert_eq!(
                 summary.resource_boundary_samples, expected_resource_samples,
@@ -13504,7 +21350,7 @@ mod tests {
         )
         .unwrap();
         let committed = session.fresh_value_at_level(1).unwrap();
-        inject_next_f5b_reserve_failure(F5bCapacityLane::ValueBounds);
+        inject_next_f5b_reserve_failure(F5bCapacityLane::FreshValueBounds);
         assert_eq!(
             session.fresh_value_at_level(2),
             Err(SolveAvailabilityError::IdentityExhausted)
@@ -13808,7 +21654,9 @@ mod tests {
                 &cause,
             )
             .unwrap();
-        session.sample_f4_resources(ResourceBoundary::InternalRoute);
+        session
+            .sample_f4_resources(ResourceBoundary::InternalRoute)
+            .unwrap();
         let lanes = &session.independent_nested_capacities;
         assert!(lanes.value_direct_lower > 0);
         assert!(lanes.value_direct_upper > 0);
@@ -14021,6 +21869,1801 @@ mod tests {
     }
 
     #[test]
+    fn f5c_component_expansion_memo_aliases_preserve_cold_warm_structure() {
+        let mut memo = F5cComponentExpansionMemo::default();
+        let positive_cold = F5cPositive::Function {
+            argument: Box::new(F5cNegative::Int),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Int),
+        };
+        let positive_child = memo.positive_node(&positive_cold, None).unwrap();
+        let positive_root = memo
+            .positive_node(
+                &F5cPositive::Shared(positive_child),
+                Some((0, Polarity::Positive)),
+            )
+            .unwrap();
+        assert_eq!(memo.positive_value(positive_root).unwrap(), positive_cold);
+
+        let negative_cold = F5cNegative::Function {
+            argument: Box::new(F5cPositive::Int),
+            argument_effect: F5cPositiveEffect::Bottom,
+            result_effect: F5cNegativeEffect::Empty,
+            result: Box::new(F5cNegative::Int),
+        };
+        let negative_child = memo.negative_node(&negative_cold, None).unwrap();
+        let negative_root = memo
+            .negative_node(
+                &F5cNegative::Shared(negative_child),
+                Some((1, Polarity::Negative)),
+            )
+            .unwrap();
+        assert_eq!(memo.negative_value(negative_root).unwrap(), negative_cold);
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_indexes_colliding_rows_exactly() {
+        let mut memo = F5cComponentExpansionMemo::default();
+        let first = memo
+            .push_node(
+                F5cSummaryNodeKind::PositiveInt,
+                Some((1, Polarity::Positive)),
+            )
+            .unwrap();
+        let colliding = memo
+            .push_node(
+                F5cSummaryNodeKind::PositiveBottom,
+                Some((65, Polarity::Positive)),
+            )
+            .unwrap();
+        let first_key = F5cExpansionKey {
+            row: 10,
+            polarity: Polarity::Positive,
+            frozen_bound_epoch: 1,
+        };
+        let colliding_key = F5cExpansionKey {
+            row: 11,
+            polarity: Polarity::Positive,
+            frozen_bound_epoch: 1,
+        };
+        memo.admit(first_key, first).unwrap();
+        memo.admit(colliding_key, colliding).unwrap();
+
+        memo.enter_active(1).unwrap();
+        assert!(memo.conflicts_active(first_key));
+        assert!(!memo.conflicts_active(colliding_key));
+        memo.leave_active(1).unwrap();
+
+        memo.invalidate_row(1).unwrap();
+        assert!(!memo.roots.contains_key(&first_key));
+        assert!(memo.roots.contains_key(&colliding_key));
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_active_failure_rolls_back_and_retries() {
+        let mut memo = F5cComponentExpansionMemo::default();
+        let root = memo
+            .push_node(
+                F5cSummaryNodeKind::PositiveInt,
+                Some((7, Polarity::Positive)),
+            )
+            .unwrap();
+        let key = F5cExpansionKey {
+            row: 0,
+            polarity: Polarity::Positive,
+            frozen_bound_epoch: 0,
+        };
+        memo.admit(key, root).unwrap();
+        memo.active_conflicts.insert(key, usize::MAX);
+
+        assert_eq!(
+            memo.enter_active(7),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(memo.active_rows.is_empty());
+        assert_eq!(memo.active_conflicts.get(&key), Some(&usize::MAX));
+
+        memo.active_conflicts.remove(&key);
+        memo.enter_active(7).unwrap();
+        assert_eq!(memo.active_rows.get(&7), Some(&1));
+        assert_eq!(memo.active_conflicts.get(&key), Some(&1));
+        memo.leave_active(7).unwrap();
+        assert!(memo.active_rows.is_empty());
+        assert!(!memo.active_conflicts.contains_key(&key));
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_same_key_readmission_failure_restores_prior_root() {
+        let mut memo = F5cComponentExpansionMemo::default();
+        let key = F5cExpansionKey {
+            row: 3,
+            polarity: Polarity::Positive,
+            frozen_bound_epoch: 5,
+        };
+        let prior = memo
+            .push_node(
+                F5cSummaryNodeKind::PositiveInt,
+                Some((7, Polarity::Positive)),
+            )
+            .unwrap();
+        memo.admit(key, prior).unwrap();
+        let invalidation_checkpoint = memo.invalidated_root_edges.len();
+        memo.invalidate_row(7).unwrap();
+        assert!(!memo.roots.contains_key(&key));
+
+        let replacement = memo
+            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
+            .unwrap();
+        memo.admit(key, replacement).unwrap();
+        memo.rollback_admission(key);
+        memo.finish_invalidation_transaction(invalidation_checkpoint, false);
+
+        assert_eq!(memo.roots.get(&key), Some(&prior));
+        assert!(memo.root_edges[0].live);
+        assert_eq!(memo.root_heads[prior.0 as usize], Some(0));
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_checked_accounting_exhausts() {
+        let key = F5cExpansionKey {
+            row: 0,
+            polarity: Polarity::Positive,
+            frozen_bound_epoch: 0,
+        };
+
+        let mut memo = F5cComponentExpansionMemo::default();
+        let root = memo
+            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
+            .unwrap();
+        memo.root_lane.requested_slots = usize::MAX;
+        assert_eq!(
+            memo.admit(key, root),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(memo.roots.is_empty());
+
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.node_lane.requested_slots = usize::MAX;
+        assert_eq!(
+            memo.push_node(F5cSummaryNodeKind::PositiveBottom, None),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.child_lane.requested_slots = usize::MAX;
+        assert_eq!(
+            memo.push_children(&[F5cSummaryNodeId(0)]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.index_lane.requested_slots = usize::MAX;
+        assert_eq!(
+            memo.push_node(F5cSummaryNodeKind::PositiveBottom, None),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.scratch_lane.requested_slots = usize::MAX;
+        assert_eq!(
+            memo.push_node(F5cSummaryNodeKind::PositiveBottom, None),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+
+        let mut memo = F5cComponentExpansionMemo::default();
+        let root = memo
+            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
+            .unwrap();
+        memo.root_lane.capacity_growths = usize::MAX;
+        assert_eq!(
+            memo.admit(key, root),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(memo.roots.is_empty());
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.node_lane.capacity_growths = usize::MAX;
+        assert_eq!(
+            memo.push_node(F5cSummaryNodeKind::PositiveBottom, None),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.child_lane.capacity_growths = usize::MAX;
+        assert_eq!(
+            memo.push_children(&[F5cSummaryNodeId(0)]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.index_lane.capacity_growths = usize::MAX;
+        assert_eq!(
+            memo.push_node(F5cSummaryNodeKind::PositiveBottom, None),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.scratch_lane.capacity_growths = usize::MAX;
+        assert_eq!(
+            memo.push_node(F5cSummaryNodeKind::PositiveBottom, None),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+
+        let mut memo = F5cComponentExpansionMemo::default();
+        let root = memo
+            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
+            .unwrap();
+        memo.push_children(&[root]).unwrap();
+        memo.admit(key, root).unwrap();
+
+        for lane in 0..5 {
+            let mut ledger = IndependentResourceLedger::default();
+            match lane {
+                0 => ledger.component_expansion_memo_roots.requested_slots = usize::MAX,
+                1 => ledger.component_expansion_memo_nodes.requested_slots = usize::MAX,
+                2 => ledger.component_expansion_memo_children.requested_slots = usize::MAX,
+                3 => ledger.component_expansion_memo_index.requested_slots = usize::MAX,
+                4 => ledger.component_expansion_memo_scratch.requested_slots = usize::MAX,
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                ledger.record_component_expansion_memo(&memo),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+        }
+
+        let mut ledger = IndependentResourceLedger::default();
+        ledger.component_expansion_memo_scratch.capacity_growths = usize::MAX;
+        let snapshot = ledger.clone();
+        assert_eq!(
+            ledger.record_component_expansion_memo(&memo),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(ledger, snapshot);
+
+        let mut ledger = IndependentResourceLedger::default();
+        ledger.component_expansion_memo_roots.peak_bytes = usize::MAX;
+        ledger.record_component_expansion_memo(&memo).unwrap();
+        assert_eq!(ledger.component_expansion_memo_roots.peak_bytes, usize::MAX);
+        assert_eq!(
+            ledger.component_expansion_memo_peak_bytes,
+            memo.retained_bytes().unwrap()
+        );
+        for lane in 0..5 {
+            let mut ledger = IndependentResourceLedger::default();
+            match lane {
+                0 => ledger.component_expansion_memo_roots.capacity_growths = usize::MAX,
+                1 => ledger.component_expansion_memo_nodes.capacity_growths = usize::MAX,
+                2 => ledger.component_expansion_memo_children.capacity_growths = usize::MAX,
+                3 => ledger.component_expansion_memo_index.capacity_growths = usize::MAX,
+                4 => ledger.component_expansion_memo_scratch.capacity_growths = usize::MAX,
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                ledger.record_component_expansion_memo(&memo),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+        }
+
+        let mut ledger = IndependentResourceLedger {
+            component_expansion_memo_requested_slots: usize::MAX,
+            ..IndependentResourceLedger::default()
+        };
+        assert_eq!(
+            ledger.record_component_expansion_memo(&memo),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+
+        let mut memo = memo;
+        memo.independent_root_growths = usize::MAX;
+        assert_eq!(
+            IndependentResourceLedger::default().record_component_expansion_memo(&memo),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+
+        memo.independent_root_growths = 0;
+        for session_peak in [false, true] {
+            let mut ledger = IndependentResourceLedger::default();
+            if session_peak {
+                ledger.inference_session_retained_bytes = usize::MAX;
+            } else {
+                ledger.semantic_arena_retained_bytes = usize::MAX;
+            }
+            assert_eq!(
+                ledger.record_component_expansion_memo(&memo),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+        }
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_later_reserve_failure_retains_physical_accounting() {
+        let key = F5cExpansionKey {
+            row: 0,
+            polarity: Polarity::Positive,
+            frozen_bound_epoch: 0,
+        };
+        let mut memo = F5cComponentExpansionMemo::default();
+        let root = memo
+            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
+            .unwrap();
+        memo.root_lane.requested_slots = usize::MAX - 1;
+        memo.index_lane.requested_slots = usize::MAX - 1;
+        let root_growths = memo.root_lane.capacity_growths;
+        let index_growths = memo.index_lane.capacity_growths;
+        let root_capacity = memo.roots.capacity();
+        let root_edge_capacity = memo.root_edges.capacity();
+        let root_edge_mark_capacity = memo.root_edge_marks.capacity();
+
+        assert_eq!(
+            memo.admit(key, root),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+
+        assert!(memo.roots.is_empty());
+        assert!(memo.root_edges.is_empty());
+        assert!(memo.root_edge_marks.is_empty());
+        assert_eq!(memo.root_heads[root.0 as usize], None);
+        assert!(memo.active_conflicts.is_empty());
+        assert!(memo.roots.capacity() > root_capacity);
+        assert!(memo.root_edges.capacity() > root_edge_capacity);
+        assert_eq!(memo.root_edge_marks.capacity(), root_edge_mark_capacity);
+        assert_eq!(memo.root_lane.requested_slots, usize::MAX);
+        assert_eq!(memo.root_lane.capacity_growths, root_growths + 1);
+        assert_eq!(
+            memo.root_lane.peak_bytes,
+            memo.root_retained_bytes().unwrap()
+        );
+        assert_eq!(memo.index_lane.requested_slots, usize::MAX);
+        assert_eq!(memo.index_lane.capacity_growths, index_growths + 1);
+        assert_eq!(
+            memo.index_lane.peak_bytes,
+            memo.index_retained_bytes().unwrap()
+        );
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_build_rollback_retains_reserve_effects() {
+        let batch = collect(module("my f = 1", "f5c-component-reserve-rollback"));
+        let mut session = InferenceSession::new(batch);
+        let child = session.fresh_value_at_level(1).unwrap();
+        session.bounds[child as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        let root = session.fresh_value_at_level(1).unwrap();
+        session.bounds[root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::ValueRow(child));
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.index_lane.requested_slots = usize::MAX - 1;
+        let index_growths = memo.index_lane.capacity_growths;
+
+        let (result, memo, _, _) =
+            F5cGeneralizer::with_memo(&session, memo, 1).build_component(root);
+
+        assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+        assert!(memo.roots.is_empty());
+        assert!(memo.nodes.is_empty());
+        assert!(memo.children.is_empty());
+        assert!(memo.parent_heads.is_empty());
+        assert!(memo.reverse_parents.is_empty());
+        assert!(memo.incidence_heads.is_empty());
+        assert!(memo.incidences.is_empty());
+        assert!(memo.root_heads.is_empty());
+        assert!(memo.root_edges.is_empty());
+        assert!(memo.root_edge_marks.is_empty());
+        assert!(memo.active_rows.is_empty());
+        assert!(memo.active_conflicts.is_empty());
+        assert!(memo.work.is_empty());
+        assert!(memo.conflict_journal.is_empty());
+        assert_eq!(memo.node_lane.requested_slots, 1);
+        assert_eq!(memo.node_lane.capacity_growths, 1);
+        assert!(memo.nodes.capacity() > 0);
+        assert_eq!(
+            memo.node_lane.peak_bytes,
+            memo.node_retained_bytes().unwrap()
+        );
+        assert_eq!(memo.index_lane.requested_slots, usize::MAX);
+        assert_eq!(memo.index_lane.capacity_growths, index_growths + 1);
+        assert!(memo.parent_heads.capacity() > 0);
+        assert_eq!(memo.root_heads.capacity(), 0);
+        assert_eq!(
+            memo.index_lane.peak_bytes,
+            memo.index_retained_bytes().unwrap()
+        );
+        assert!(memo.scratch_lane.requested_slots > 0);
+        assert!(memo.scratch_lane.capacity_growths > 0);
+        assert!(memo.scratch_retained_bytes().unwrap() > 0);
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_aggregate_peak_uses_simultaneous_boundary() {
+        let mut root_memo = F5cComponentExpansionMemo::default();
+        let root = root_memo
+            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
+            .unwrap();
+        for row in 0..64 {
+            root_memo
+                .admit(
+                    F5cExpansionKey {
+                        row,
+                        polarity: Polarity::Positive,
+                        frozen_bound_epoch: 1,
+                    },
+                    root,
+                )
+                .unwrap();
+        }
+
+        let mut child_memo = F5cComponentExpansionMemo::default();
+        let child = child_memo
+            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
+            .unwrap();
+        child_memo.push_children(&vec![child; 256]).unwrap();
+
+        let root_retained = root_memo.retained_bytes().unwrap();
+        let child_retained = child_memo.retained_bytes().unwrap();
+        let expected_peak = root_retained.max(child_retained);
+        assert!(root_memo.root_retained_bytes().unwrap() > 0);
+        assert_eq!(root_memo.child_retained_bytes().unwrap(), 0);
+        assert_eq!(child_memo.root_retained_bytes().unwrap(), 0);
+        assert!(child_memo.child_retained_bytes().unwrap() > 0);
+
+        let mut independent = IndependentResourceLedger::default();
+        independent
+            .record_component_expansion_memo(&root_memo)
+            .unwrap();
+        independent
+            .record_component_expansion_memo(&child_memo)
+            .unwrap();
+        let historical_lane_peak_sum = [
+            independent.component_expansion_memo_roots.peak_bytes,
+            independent.component_expansion_memo_nodes.peak_bytes,
+            independent.component_expansion_memo_children.peak_bytes,
+            independent.component_expansion_memo_index.peak_bytes,
+            independent.component_expansion_memo_scratch.peak_bytes,
+        ]
+        .into_iter()
+        .sum::<usize>();
+        assert!(historical_lane_peak_sum > expected_peak);
+        assert_eq!(
+            independent.component_expansion_memo_peak_bytes,
+            expected_peak
+        );
+
+        let batch = collect(module("my f = 1", "f5c-component-aggregate-peak"));
+        let mut session = InferenceSession::new(batch);
+        session
+            .record_component_expansion_memo_resources(&root_memo)
+            .unwrap();
+        session
+            .record_component_expansion_memo_resources(&child_memo)
+            .unwrap();
+        assert_eq!(
+            session
+                .execution_counters
+                .component_expansion_memo_peak_bytes,
+            expected_peak
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .component_expansion_memo_peak_bytes,
+            independent.component_expansion_memo_peak_bytes
+        );
+        assert_eq!(
+            session.resource_ledger.component_expansion_memo_peak_bytes,
+            independent.component_expansion_memo_peak_bytes
+        );
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_warm_guarded_cycles_preserve_reentry_order() {
+        fn draft(opposite: bool, warm: bool) -> GeneralizationDraft {
+            let batch = collect(module("my f = 1", "f5c-warm-guarded-cycle"));
+            let mut session = InferenceSession::new(batch);
+            let root = session.batch.definitions[0].root.clone();
+            let root_row = session.live_components
+                [session.batch.root_component_positions[&root].component]
+                .ordinal;
+            let relay = session.fresh_value_at_level(1).unwrap();
+            let argument = if opposite {
+                session.live_value_term(Polarity::Negative, relay).unwrap()
+            } else {
+                session.negative_top_term().unwrap()
+            };
+            let result = if opposite {
+                session.batch.collected_leaf_term(Leaf::IntPositive)
+            } else {
+                session.live_value_term(Polarity::Positive, relay).unwrap()
+            };
+            let function = session
+                .positive_function_term(
+                    argument,
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    result,
+                )
+                .unwrap();
+            session.bounds[root_row as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::PositiveFunction(function));
+            if opposite {
+                session.bounds[relay as usize]
+                    .direct_upper_rows
+                    .push(root_row);
+            } else {
+                session.bounds[relay as usize]
+                    .direct_lower_rows
+                    .push(root_row);
+            }
+
+            let mut memo = F5cComponentExpansionMemo::default();
+            if warm {
+                let polarity = if opposite {
+                    Polarity::Negative
+                } else {
+                    Polarity::Positive
+                };
+                let summary = if opposite {
+                    memo.negative_node(&F5cNegative::Top, Some((root_row, Polarity::Negative)))
+                        .unwrap()
+                } else {
+                    memo.positive_node(&F5cPositive::Bottom, Some((root_row, Polarity::Positive)))
+                        .unwrap()
+                };
+                memo.admit(
+                    F5cExpansionKey {
+                        row: relay,
+                        polarity,
+                        frozen_bound_epoch: 31,
+                    },
+                    summary,
+                )
+                .unwrap();
+            }
+            let (result, _, _, _) =
+                F5cGeneralizer::with_memo(&session, memo, 31).build_component(root_row);
+            result.unwrap()
+        }
+
+        let same_cold = draft(false, false);
+        let same_warm = draft(false, true);
+        assert_eq!(same_warm, same_cold);
+        assert_eq!(same_warm.recursive_bounds.len(), 1);
+        let opposite_cold = draft(true, false);
+        let opposite_warm = draft(true, true);
+        assert_eq!(opposite_warm, opposite_cold);
+        assert_eq!(opposite_warm.recursive_bounds.len(), 1);
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_rejects_active_conflicted_warm_summaries() {
+        let batch = collect(module("my f = 1", "f5c-warm-active-conflict"));
+        let mut session = InferenceSession::new(batch);
+        let ancestor = session.fresh_value_at_level(1).unwrap();
+        let relay = session.fresh_value_at_level(1).unwrap();
+        session.bounds[relay as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        session.bounds[relay as usize]
+            .exact_non_variable_uppers
+            .push(ValueEndpointKey::IntNegative);
+
+        for polarity in [Polarity::Positive, Polarity::Negative] {
+            let mut memo = F5cComponentExpansionMemo::default();
+            let summary = match polarity {
+                Polarity::Positive => memo
+                    .positive_node(&F5cPositive::Int, Some((ancestor, polarity)))
+                    .unwrap(),
+                Polarity::Negative => memo
+                    .negative_node(&F5cNegative::Int, Some((ancestor, polarity)))
+                    .unwrap(),
+            };
+            let key = F5cExpansionKey {
+                row: relay,
+                polarity,
+                frozen_bound_epoch: 32,
+            };
+            memo.admit(key, summary).unwrap();
+            let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 32);
+            generalizer.frames = vec![F5cExpansionFrame::default(), F5cExpansionFrame::default()];
+            generalizer.memo.enter_active(ancestor).unwrap();
+            generalizer
+                .active_set
+                .insert((ancestor, Polarity::Positive));
+            assert!(generalizer.memo.conflicts_active(key));
+            match polarity {
+                Polarity::Positive => {
+                    assert_eq!(
+                        generalizer.positive_row(relay, false).unwrap(),
+                        F5cPositive::Int
+                    )
+                }
+                Polarity::Negative => {
+                    assert_eq!(generalizer.negative_row(relay).unwrap(), F5cNegative::Int)
+                }
+            }
+            assert!(generalizer.frames.iter().all(|frame| frame.tainted));
+            assert_eq!(generalizer.shared_summary_hits, 0);
+            assert_eq!(generalizer.uncacheable_states, 1);
+            assert_eq!(generalizer.memo.root_lane.requested_slots, 1);
+            assert_eq!(generalizer.memo.roots.get(&key), Some(&summary));
+            generalizer.memo.leave_active(ancestor).unwrap();
+        }
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_materialization_taints_active_ancestors() {
+        let batch = collect(module("my f = 1", "f5c-materialize-active-conflict"));
+        let mut session = InferenceSession::new(batch);
+        let ancestor = session.fresh_value_at_level(1).unwrap();
+        let mut memo = F5cComponentExpansionMemo::default();
+        let positive = memo
+            .positive_node(&F5cPositive::Int, Some((ancestor, Polarity::Positive)))
+            .unwrap();
+        let negative = memo
+            .negative_node(&F5cNegative::Int, Some((ancestor, Polarity::Negative)))
+            .unwrap();
+        let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 33);
+        generalizer
+            .active_set
+            .insert((ancestor, Polarity::Positive));
+        generalizer.frames = vec![F5cExpansionFrame::default(), F5cExpansionFrame::default()];
+        assert_eq!(
+            generalizer
+                .materialize_positive(F5cPositive::Shared(positive))
+                .unwrap(),
+            F5cPositive::Int
+        );
+        assert!(generalizer.frames.iter().all(|frame| frame.tainted));
+
+        generalizer.frames = vec![F5cExpansionFrame::default(), F5cExpansionFrame::default()];
+        assert_eq!(
+            generalizer
+                .materialize_negative(F5cNegative::Shared(negative))
+                .unwrap(),
+            F5cNegative::Int
+        );
+        assert!(generalizer.frames.iter().all(|frame| frame.tainted));
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_admission_excludes_active_ancestors() {
+        let batch = collect(module("my f = 1", "f5c-active-free-admission"));
+        let mut session = InferenceSession::new(batch);
+        let ancestor = session.fresh_value_at_level(1).unwrap();
+        let child = session.fresh_value_at_level(1).unwrap();
+        session.bounds[ancestor as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::ValueRow(child));
+        session.bounds[child as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+
+        let mut generalizer = F5cGeneralizer::new(&session);
+        generalizer.assert_admission_invariant = true;
+        assert!(matches!(
+            generalizer.positive_row(ancestor, true).unwrap(),
+            F5cPositive::Shared(_)
+        ));
+        assert_eq!(generalizer.admitted_keys.len(), 1);
+    }
+
+    #[test]
+    fn f5c_walker_failure_retry_reconciles_every_private_lane() {
+        fn assert_reconciled(memo: &F5cComponentExpansionMemo) {
+            let walker = &memo.walker_resources;
+            let mut ledger = IndependentResourceLedger::default();
+            ledger.record_component_expansion_memo(memo).unwrap();
+            let mut requests = 0usize;
+            let mut growths = 0usize;
+            for kind in F5cWalkerLaneKind::ALL {
+                let index = kind as usize;
+                let physical = walker.independent_lanes[index];
+                let recorded = &ledger.generalization_walker_lanes[index];
+                assert_eq!(
+                    walker.lanes[index].requested_slots,
+                    physical.requested_slots
+                );
+                assert_eq!(
+                    walker.lanes[index].capacity_growths,
+                    physical.capacity_growths
+                );
+                assert_eq!(walker.lanes[index].peak_bytes, physical.peak_bytes);
+                assert_eq!(physical.actual_capacity, 0, "walker lane {index} released");
+                assert_eq!(recorded.requested_slots, physical.requested_slots);
+                assert_eq!(recorded.capacity_growths, physical.capacity_growths);
+                assert_eq!(recorded.actual_capacity, 0);
+                assert_eq!(recorded.retained_bytes, 0);
+                assert_eq!(recorded.peak_bytes, physical.peak_bytes);
+                requests += physical.requested_slots;
+                growths += physical.capacity_growths;
+            }
+            assert_eq!(walker.requested_slots().unwrap(), requests);
+            assert_eq!(walker.capacity_growths().unwrap(), growths);
+            assert_eq!(walker.actual_capacity().unwrap(), 0);
+            assert_eq!(walker.retained_bytes().unwrap(), 0);
+            assert_eq!(ledger.generalization_walker_requested_slots, requests);
+            assert_eq!(ledger.generalization_walker_capacity_growths, growths);
+            assert_eq!(ledger.generalization_walker_actual_capacity, 0);
+            assert_eq!(ledger.generalization_walker_retained_bytes, 0);
+            assert_eq!(
+                ledger.generalization_walker_peak_bytes,
+                walker.independent_peak_bytes
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_retained_bytes,
+                memo.retained_bytes().unwrap()
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_peak_bytes,
+                memo.retained_bytes().unwrap()
+            );
+            assert_eq!(
+                ledger.semantic_arena_peak_bytes,
+                memo.retained_bytes()
+                    .unwrap()
+                    .max(walker.independent_simultaneous_memo_peak_bytes)
+            );
+            assert_eq!(
+                ledger.inference_session_peak_bytes,
+                ledger.semantic_arena_peak_bytes
+            );
+        }
+
+        let batch = collect(module("my f = 1", "f5c-walker-failure-retry"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.fresh_value_at_level(1).unwrap();
+        let child = session.fresh_value_at_level(1).unwrap();
+        session.bounds[root as usize]
+            .direct_lower_rows
+            .extend([child, child]);
+        session.bounds[root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        session.bounds[child as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        let mut generalizer = F5cGeneralizer::new(&session);
+        let tasks = F5cWalkerLaneKind::Tasks as usize;
+        generalizer.memo.walker_resources.lanes[tasks].requested_slots = usize::MAX;
+        generalizer.memo.walker_resources.independent_lanes[tasks].requested_slots = usize::MAX;
+        assert!(matches!(
+            generalizer.positive_row(root, false),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(generalizer.active.is_empty());
+        assert!(generalizer.active_set.is_empty());
+        assert!(generalizer.frames.is_empty());
+        assert!(generalizer.path.is_empty());
+        assert!(generalizer.memo.active_rows.is_empty());
+        generalizer.memo.walker_resources.lanes[tasks].requested_slots = 0;
+        generalizer.memo.walker_resources.independent_lanes[tasks].requested_slots = 0;
+        assert_reconciled(&generalizer.memo);
+
+        let targets = F5cWalkerLaneKind::DirectTargets as usize;
+        generalizer.memo.walker_resources.lanes[targets].requested_slots = usize::MAX;
+        generalizer.memo.walker_resources.independent_lanes[targets].requested_slots = usize::MAX;
+        assert!(matches!(
+            generalizer.positive_row(root, false),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(generalizer.active.is_empty());
+        assert!(generalizer.active_set.is_empty());
+        assert!(generalizer.frames.is_empty());
+        assert!(generalizer.path.is_empty());
+        assert!(generalizer.memo.active_rows.is_empty());
+        assert!(generalizer.memo.walker_resources.peak_bytes > 0);
+        generalizer.memo.walker_resources.lanes[targets].requested_slots = 0;
+        generalizer.memo.walker_resources.independent_lanes[targets].requested_slots = 0;
+        assert_reconciled(&generalizer.memo);
+
+        assert!(matches!(
+            generalizer.positive_row(root, false).unwrap(),
+            F5cPositive::Shared(_)
+        ));
+        assert_reconciled(&generalizer.memo);
+        let cold_requests = generalizer.memo.walker_resources.requested_slots().unwrap();
+        assert!(matches!(
+            generalizer.positive_row(root, false).unwrap(),
+            F5cPositive::Shared(_)
+        ));
+        assert!(generalizer.memo.walker_resources.requested_slots().unwrap() > cold_requests);
+        assert_reconciled(&generalizer.memo);
+        assert!(
+            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::DirectEdges as usize]
+                .requested_slots
+                > 0
+        );
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[targets].requested_slots,
+            1
+        );
+        assert!(
+            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::Comparison as usize]
+                .requested_slots
+                > 0
+        );
+        assert!(
+            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::SummaryTasks as usize]
+                .requested_slots
+                > 0
+        );
+        assert!(
+            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::SummaryIds as usize]
+                .requested_slots
+                > 0
+        );
+        let memo = std::mem::take(&mut generalizer.memo);
+        drop(generalizer);
+        let prior_semantic_peak = session.execution_counters.semantic_arena_peak_bytes;
+        let prior_session_peak = session.execution_counters.inference_session_peak_bytes;
+        let semantic_base = session.execution_counters.semantic_arena_retained_bytes;
+        let session_base = session.execution_counters.inference_session_retained_bytes;
+        let simultaneous = memo
+            .peak_bytes()
+            .unwrap()
+            .max(memo.walker_resources.simultaneous_memo_peak_bytes);
+        session
+            .record_component_expansion_memo_resources(&memo)
+            .unwrap();
+        assert_eq!(
+            session
+                .execution_counters
+                .component_expansion_memo_peak_bytes,
+            memo.peak_bytes().unwrap()
+        );
+        assert_eq!(
+            session.execution_counters.semantic_arena_peak_bytes,
+            prior_semantic_peak.max(semantic_base + simultaneous)
+        );
+        assert_eq!(
+            session.execution_counters.inference_session_peak_bytes,
+            prior_session_peak.max(session_base + simultaneous)
+        );
+        assert_eq!(
+            session.resource_ledger.generalization_walker_peak_bytes,
+            memo.walker_resources.independent_peak_bytes
+        );
+    }
+
+    #[test]
+    fn f5c_walker_lanes_reject_checked_overflow() {
+        for kind in F5cWalkerLaneKind::ALL {
+            let mut resources = F5cWalkerResources::default();
+            resources.lanes[kind as usize].requested_slots = usize::MAX;
+            if matches!(kind, F5cWalkerLaneKind::DirectTargets) {
+                let mut set = HashSet::new();
+                assert_eq!(
+                    resources.reserve_set(&mut set, 0),
+                    Err(SolveAvailabilityError::IdentityExhausted)
+                );
+                assert_eq!(set.capacity(), 0);
+            } else {
+                let mut values = Vec::<u8>::new();
+                assert_eq!(
+                    resources.reserve(&mut values, kind, 1, 0),
+                    Err(SolveAvailabilityError::IdentityExhausted)
+                );
+                assert_eq!(values.capacity(), 0);
+            }
+            let mut resources = F5cWalkerResources::default();
+            resources.lanes[kind as usize].capacity_growths = usize::MAX;
+            if matches!(kind, F5cWalkerLaneKind::DirectTargets) {
+                assert_eq!(
+                    resources.reserve_set(&mut HashSet::new(), 0),
+                    Err(SolveAvailabilityError::IdentityExhausted)
+                );
+            } else {
+                assert_eq!(
+                    resources.reserve(&mut Vec::<u8>::new(), kind, 1, 0),
+                    Err(SolveAvailabilityError::IdentityExhausted)
+                );
+            }
+        }
+        let mut resources = F5cWalkerResources::default();
+        resources.lanes[F5cWalkerLaneKind::Tasks as usize].actual_capacity = 1;
+        assert_eq!(
+            resources.observe_memo(usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        resources.lanes[F5cWalkerLaneKind::Tasks as usize].actual_capacity = usize::MAX;
+        assert_eq!(
+            resources.retained_bytes(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn f5c_walker_function_dedup_keeps_first_seen_order_in_both_polarities() {
+        let batch = collect(module("my f = 1", "f5c-function-dedup"));
+        let mut session = InferenceSession::new(batch);
+        let row = session.fresh_value_at_level(1).unwrap();
+        let positive_int = session.batch.collected_leaf_term(Leaf::IntPositive);
+        let negative_int = session.batch.collected_leaf_term(Leaf::IntNegative);
+        let positive_effect = session
+            .batch
+            .collected_leaf_term(Leaf::EffectBottomPositive);
+        let negative_effect = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+        let positive = session
+            .positive_function_term(negative_int, negative_effect, positive_effect, positive_int)
+            .unwrap();
+        let negative = session
+            .negative_function_term(positive_int, positive_effect, negative_effect, negative_int)
+            .unwrap();
+        session.bounds[row as usize]
+            .exact_non_variable_lowers
+            .extend([
+                ValueEndpointKey::PositiveFunction(positive),
+                ValueEndpointKey::IntPositive,
+                ValueEndpointKey::PositiveFunction(positive),
+            ]);
+        session.bounds[row as usize]
+            .exact_non_variable_uppers
+            .extend([
+                ValueEndpointKey::NegativeFunction(negative),
+                ValueEndpointKey::IntNegative,
+                ValueEndpointKey::NegativeFunction(negative),
+            ]);
+        let mut generalizer = F5cGeneralizer::new(&session);
+        let F5cWalkValue::Positive(F5cPositive::Union(positive_parts), _) = generalizer
+            .walk(F5cWalkTask::EnterRow {
+                row,
+                polarity: Polarity::Positive,
+                root: true,
+            })
+            .unwrap()
+        else {
+            panic!("positive row keeps two ordered members");
+        };
+        assert_eq!(positive_parts.len(), 2);
+        assert!(matches!(positive_parts[0], F5cPositive::Function { .. }));
+        assert!(matches!(positive_parts[1], F5cPositive::Int));
+        let F5cWalkValue::Negative(F5cNegative::Intersection(negative_parts), _) = generalizer
+            .walk(F5cWalkTask::EnterRow {
+                row,
+                polarity: Polarity::Negative,
+                root: true,
+            })
+            .unwrap()
+        else {
+            panic!("negative row keeps two ordered members");
+        };
+        assert_eq!(negative_parts.len(), 2);
+        assert!(matches!(negative_parts[0], F5cNegative::Function { .. }));
+        assert!(matches!(negative_parts[1], F5cNegative::Int));
+        assert_eq!(
+            generalizer.memo.walker_resources.actual_capacity().unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn f5c_deep_direct_rows_build_draft_through_summary_admission_and_materialization() {
+        const DEPTH: usize = 1024;
+        let batch = collect(module("my f = 1", "f5c-deep-direct-draft"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.fresh_value_at_level(1).unwrap();
+        let rows: Vec<_> = (0..DEPTH)
+            .map(|_| session.fresh_value_at_level(1).unwrap())
+            .collect();
+        session.bounds[root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::ValueRow(rows[0]));
+        for edge in rows.windows(2) {
+            session.bounds[edge[0] as usize]
+                .direct_lower_rows
+                .push(edge[1]);
+        }
+        session.bounds[*rows.last().unwrap() as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        let (draft, memo, _, _) = F5cGeneralizer::new(&session).build_component(root);
+        let draft = draft.unwrap();
+        assert_eq!(draft.predicate, F5cPositive::Int);
+        assert_eq!(memo.roots.len(), DEPTH);
+        assert!(memo.nodes.len() >= DEPTH);
+        assert!(
+            memo.walker_resources.lanes[F5cWalkerLaneKind::MaterializeTasks as usize]
+                .requested_slots
+                >= DEPTH
+        );
+        assert_eq!(memo.walker_resources.actual_capacity().unwrap(), 0);
+        let mut ledger = IndependentResourceLedger::default();
+        ledger.record_component_expansion_memo(&memo).unwrap();
+        for kind in [
+            F5cWalkerLaneKind::MaterializeTasks,
+            F5cWalkerLaneKind::MaterializeValues,
+        ] {
+            let lane = memo.walker_resources.independent_lanes[kind as usize];
+            let recorded = &ledger.generalization_walker_lanes[kind as usize];
+            assert!(lane.requested_slots > 0);
+            assert_eq!(recorded.requested_slots, lane.requested_slots);
+            assert_eq!(recorded.capacity_growths, lane.capacity_growths);
+            assert_eq!(recorded.peak_bytes, lane.peak_bytes);
+            assert_eq!(recorded.actual_capacity, 0);
+            assert_eq!(recorded.retained_bytes, 0);
+        }
+    }
+
+    #[test]
+    fn f5c_deep_alternating_function_walk_and_comparison_are_iterative() {
+        const DEPTH: usize = 2048;
+        let batch = collect(module("my f = 1", "f5c-deep-function-walk"));
+        let mut session = InferenceSession::new(batch);
+        let positive_int = session.batch.collected_leaf_term(Leaf::IntPositive);
+        let negative_int = session.batch.collected_leaf_term(Leaf::IntNegative);
+        let positive_effect = session
+            .batch
+            .collected_leaf_term(Leaf::EffectBottomPositive);
+        let negative_effect = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+        let mut term = positive_int;
+        let mut positive = true;
+        for _ in 0..DEPTH {
+            term = if positive {
+                session
+                    .negative_function_term(term, positive_effect, negative_effect, negative_int)
+                    .unwrap()
+            } else {
+                session
+                    .positive_function_term(term, negative_effect, positive_effect, positive_int)
+                    .unwrap()
+            };
+            positive = !positive;
+        }
+        let mut generalizer = F5cGeneralizer::new(&session);
+        let value = generalizer
+            .positive_endpoint(ValueEndpointKey::PositiveFunction(term))
+            .unwrap();
+        let mut comparisons = Vec::new();
+        assert!(
+            generalizer
+                .structural_equal(F5cCompareTask::Positive(&value, &value), &mut comparisons)
+                .unwrap()
+        );
+        generalizer
+            .memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::Comparison);
+        let mut next = F5cWalkValue::Positive(value, true);
+        let mut functions = 0;
+        loop {
+            next = match next {
+                F5cWalkValue::Positive(
+                    F5cPositive::Function {
+                        argument, result, ..
+                    },
+                    _,
+                ) => {
+                    assert!(matches!(*result, F5cPositive::Int));
+                    functions += 1;
+                    F5cWalkValue::Negative(*argument, true)
+                }
+                F5cWalkValue::Negative(
+                    F5cNegative::Function {
+                        argument, result, ..
+                    },
+                    _,
+                ) => {
+                    assert!(matches!(*result, F5cNegative::Int));
+                    functions += 1;
+                    F5cWalkValue::Positive(*argument, true)
+                }
+                F5cWalkValue::Positive(F5cPositive::Int, _) => break,
+                _ => panic!("alternating argument chain remains intact"),
+            };
+        }
+        assert_eq!(functions, DEPTH);
+        assert!(
+            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::Comparison as usize]
+                .requested_slots
+                > 0
+        );
+        assert_eq!(
+            generalizer.memo.walker_resources.actual_capacity().unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_shares_only_one_acyclic_component_epoch() {
+        const K: usize = 4;
+        const D: usize = 4;
+        fn draft_in_order(order: [usize; D]) -> (Vec<GeneralizationDraft>, usize, usize) {
+            let batch = collect(module("my f = 1", "f5c-component-summary"));
+            let mut session = InferenceSession::new(batch);
+            let shared: [u32; K] =
+                std::array::from_fn(|_| session.fresh_value_at_level(1).unwrap());
+            session.bounds[shared[K - 1] as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::IntPositive);
+            session.bounds[shared[K - 1] as usize]
+                .exact_non_variable_uppers
+                .push(ValueEndpointKey::IntNegative);
+            for index in 0..K - 1 {
+                session.bounds[shared[index] as usize]
+                    .direct_lower_rows
+                    .push(shared[index + 1]);
+                session.bounds[shared[index] as usize]
+                    .direct_upper_rows
+                    .push(shared[index + 1]);
+            }
+            let argument = session
+                .live_value_term(Polarity::Negative, shared[0])
+                .unwrap();
+            let result = session
+                .live_value_term(Polarity::Positive, shared[0])
+                .unwrap();
+            let function = session
+                .positive_function_term(
+                    argument,
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    result,
+                )
+                .unwrap();
+            let roots: [u32; D] = std::array::from_fn(|_| {
+                let root = session.fresh_value_at_level(1).unwrap();
+                session.bounds[root as usize]
+                    .exact_non_variable_lowers
+                    .push(ValueEndpointKey::PositiveFunction(function));
+                root
+            });
+            let mut memo = F5cComponentExpansionMemo::default();
+            let mut drafts = Vec::new();
+            let mut hits = 0;
+            let mut uncacheable = 0;
+            for index in order {
+                let (draft, returned, root_hits, root_uncacheable) =
+                    F5cGeneralizer::with_memo(&session, memo, 7).build_component(roots[index]);
+                memo = returned;
+                drafts.push(draft.unwrap());
+                hits += root_hits;
+                uncacheable += root_uncacheable;
+            }
+            assert_eq!(memo.root_lane.requested_slots, 2 * K);
+            assert_eq!(memo.node_lane.requested_slots, 2 * K);
+            assert_eq!(memo.child_lane.requested_slots, 2 * (K - 1));
+            assert_eq!(
+                memo.requested_slots().unwrap(),
+                [
+                    memo.root_lane.requested_slots,
+                    memo.node_lane.requested_slots,
+                    memo.child_lane.requested_slots,
+                    memo.index_lane.requested_slots,
+                    memo.scratch_lane.requested_slots,
+                ]
+                .into_iter()
+                .sum()
+            );
+            assert_eq!(hits, 2 * K * (D - 1));
+            assert_eq!(memo.roots.len(), 2 * K);
+            assert_eq!(memo.nodes.len(), 2 * K);
+            assert_eq!(memo.children.len(), 2 * (K - 1));
+            assert_eq!(uncacheable, 0);
+            let admissions = memo.root_lane.requested_slots;
+            let first_retained = memo.retained_bytes().unwrap();
+            let mut ledger = IndependentResourceLedger::default();
+            ledger.record_component_expansion_memo(&memo).unwrap();
+            assert_eq!(ledger.component_expansion_memo_roots.requested_slots, 8);
+            assert_eq!(ledger.component_expansion_memo_nodes.requested_slots, 8);
+            assert_eq!(ledger.component_expansion_memo_children.requested_slots, 6);
+            assert_eq!(
+                ledger.component_expansion_memo_index.requested_slots,
+                memo.index_lane.requested_slots
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_scratch.requested_slots,
+                memo.scratch_lane.requested_slots
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_requested_slots,
+                memo.requested_slots().unwrap()
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_actual_capacity,
+                memo.actual_capacity().unwrap()
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_retained_bytes,
+                memo.retained_bytes().unwrap()
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_peak_bytes,
+                memo.peak_bytes().unwrap()
+            );
+            let first_growths = memo.capacity_growths().unwrap();
+            let first_lane_growths = (
+                memo.root_lane.capacity_growths,
+                memo.node_lane.capacity_growths,
+                memo.child_lane.capacity_growths,
+                memo.index_lane.capacity_growths,
+                memo.scratch_lane.capacity_growths,
+            );
+            let first_lane_peaks = (
+                memo.root_lane.peak_bytes,
+                memo.node_lane.peak_bytes,
+                memo.child_lane.peak_bytes,
+                memo.index_lane.peak_bytes,
+                memo.scratch_lane.peak_bytes,
+            );
+            memo.clear();
+            ledger.record_component_expansion_memo(&memo).unwrap();
+            assert_eq!(ledger.component_expansion_memo_actual_capacity, 0);
+            assert_eq!(ledger.component_expansion_memo_retained_bytes, 0);
+            assert_eq!(ledger.component_expansion_memo_roots.actual_capacity, 0);
+            assert_eq!(ledger.component_expansion_memo_nodes.actual_capacity, 0);
+            assert_eq!(ledger.component_expansion_memo_children.actual_capacity, 0);
+            assert_eq!(ledger.component_expansion_memo_index.actual_capacity, 0);
+            assert_eq!(ledger.component_expansion_memo_scratch.actual_capacity, 0);
+
+            let mut second_memo = F5cComponentExpansionMemo::default();
+            for index in order {
+                let (draft, returned, _, _) = F5cGeneralizer::with_memo(&session, second_memo, 8)
+                    .build_component(roots[index]);
+                draft.unwrap();
+                second_memo = returned;
+            }
+            let second_retained = second_memo.retained_bytes().unwrap();
+            let second_growths = second_memo.capacity_growths().unwrap();
+            ledger
+                .record_component_expansion_memo(&second_memo)
+                .unwrap();
+            assert_eq!(ledger.component_expansion_memo_roots.requested_slots, 16);
+            assert_eq!(ledger.component_expansion_memo_nodes.requested_slots, 16);
+            assert_eq!(ledger.component_expansion_memo_children.requested_slots, 12);
+            assert_eq!(
+                ledger.component_expansion_memo_requested_slots,
+                memo.requested_slots().unwrap() + second_memo.requested_slots().unwrap()
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_capacity_growths,
+                first_growths + second_growths
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_roots.capacity_growths,
+                first_lane_growths.0 + second_memo.root_lane.capacity_growths
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_nodes.capacity_growths,
+                first_lane_growths.1 + second_memo.node_lane.capacity_growths
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_children.capacity_growths,
+                first_lane_growths.2 + second_memo.child_lane.capacity_growths
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_index.capacity_growths,
+                first_lane_growths.3 + second_memo.index_lane.capacity_growths
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_scratch.capacity_growths,
+                first_lane_growths.4 + second_memo.scratch_lane.capacity_growths
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_peak_bytes,
+                first_retained.max(second_retained)
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_roots.peak_bytes,
+                first_lane_peaks.0.max(second_memo.root_lane.peak_bytes)
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_nodes.peak_bytes,
+                first_lane_peaks.1.max(second_memo.node_lane.peak_bytes)
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_children.peak_bytes,
+                first_lane_peaks.2.max(second_memo.child_lane.peak_bytes)
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_index.peak_bytes,
+                first_lane_peaks.3.max(second_memo.index_lane.peak_bytes)
+            );
+            assert_eq!(
+                ledger.component_expansion_memo_scratch.peak_bytes,
+                first_lane_peaks.4.max(second_memo.scratch_lane.peak_bytes)
+            );
+            second_memo.clear();
+            ledger
+                .record_component_expansion_memo(&second_memo)
+                .unwrap();
+            assert_eq!(ledger.component_expansion_memo_actual_capacity, 0);
+            assert_eq!(ledger.component_expansion_memo_retained_bytes, 0);
+            assert_eq!(ledger.component_expansion_memo_roots.retained_bytes, 0);
+            assert_eq!(ledger.component_expansion_memo_nodes.retained_bytes, 0);
+            assert_eq!(ledger.component_expansion_memo_children.retained_bytes, 0);
+            assert_eq!(ledger.component_expansion_memo_index.retained_bytes, 0);
+            assert_eq!(ledger.component_expansion_memo_scratch.retained_bytes, 0);
+            (drafts, admissions, hits)
+        }
+
+        let forward = draft_in_order([0, 1, 2, 3]);
+        let reverse = draft_in_order([3, 2, 1, 0]);
+        let rotated = draft_in_order([1, 2, 3, 0]);
+        assert_eq!(forward.1, 2 * K);
+        assert_eq!(forward.2, 2 * K * (D - 1));
+        assert_eq!(forward.0, reverse.0);
+        assert_eq!(forward.0, rotated.0);
+
+        // Isolate admission from active-row transition work: each new root
+        // shares an ever larger acyclic prefix, but scratch requests stay linear.
+        const ADMISSION_K: usize = 128;
+        let mut admission_memo = F5cComponentExpansionMemo::default();
+        let mut child = None;
+        for row in 0..ADMISSION_K {
+            let value = child.map_or(F5cPositive::Int, F5cPositive::Shared);
+            let id = admission_memo
+                .positive_node(&value, Some((row as u32, Polarity::Positive)))
+                .unwrap();
+            admission_memo
+                .admit(
+                    F5cExpansionKey {
+                        row: row as u32,
+                        polarity: Polarity::Positive,
+                        frozen_bound_epoch: 9,
+                    },
+                    id,
+                )
+                .unwrap();
+            child = Some(id);
+        }
+        assert_eq!(admission_memo.root_lane.requested_slots, ADMISSION_K);
+        assert_eq!(admission_memo.node_lane.requested_slots, ADMISSION_K);
+        assert_eq!(
+            admission_memo
+                .node(child.unwrap())
+                .unwrap()
+                .transitive_incidence_count,
+            ADMISSION_K
+        );
+        // One visit-epoch slot per node and one active-conflict reserve per root.
+        assert!(admission_memo.scratch_lane.requested_slots <= 4 * ADMISSION_K);
+
+        let batch = collect(module("my f = 1", "f5c-component-isolation"));
+        let mut session = InferenceSession::new(batch);
+        let row = session.fresh_value_at_level(1).unwrap();
+        session.bounds[row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        let isolated_root = session.fresh_value_at_level(1).unwrap();
+        session.bounds[isolated_root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::ValueRow(row));
+        for epoch in [11, 12] {
+            let (_, mut memo, hits, _) =
+                F5cGeneralizer::with_memo(&session, F5cComponentExpansionMemo::default(), epoch)
+                    .build_component(isolated_root);
+            assert_eq!(memo.root_lane.requested_slots, 1);
+            assert_eq!(hits, 0);
+            assert!(memo.retained_bytes().unwrap() > 0);
+            memo.clear();
+            assert_eq!(memo.actual_capacity().unwrap(), 0);
+            assert_eq!(memo.retained_bytes().unwrap(), 0);
+        }
+    }
+
+    #[test]
+    fn f5c_component_expansion_memo_taints_guarded_cycles_and_invalid_effects() {
+        let batch = collect(module("my f = 1", "f5c-component-cycle-taint"));
+        let mut session = InferenceSession::new(batch);
+        let cycle = session.fresh_value_at_level(1).unwrap();
+        let cycle_result = session.live_value_term(Polarity::Positive, cycle).unwrap();
+        let guarded = session
+            .positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                cycle_result,
+            )
+            .unwrap();
+        session.bounds[cycle as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(guarded));
+        let root = session.fresh_value_at_level(1).unwrap();
+        session.bounds[root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::ValueRow(cycle));
+        let (_, memo, _, uncacheable) =
+            F5cGeneralizer::with_memo(&session, F5cComponentExpansionMemo::default(), 19)
+                .build_component(root);
+        assert_eq!(memo.root_lane.requested_slots, 0);
+        assert_eq!(memo.node_lane.requested_slots, 0);
+        assert_eq!(memo.child_lane.requested_slots, 0);
+        assert!(uncacheable > 0);
+
+        let invalid_root = session.fresh_value_at_level(1).unwrap();
+        let effect = session.fresh_effect_at_level(1).unwrap();
+        let argument_effect = session
+            .live_effect_term(Polarity::Negative, effect)
+            .unwrap();
+        let result_effect = session
+            .live_effect_term(Polarity::Positive, effect)
+            .unwrap();
+        let invalid = session
+            .positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                argument_effect,
+                result_effect,
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+            )
+            .unwrap();
+        session.bounds[invalid_root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(invalid));
+        let (result, memo, _, _) =
+            F5cGeneralizer::with_memo(&session, F5cComponentExpansionMemo::default(), 20)
+                .build_component(invalid_root);
+        assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+        assert_eq!(memo.root_lane.requested_slots, 0);
+        assert!(memo.scratch_lane.requested_slots > 0);
+        assert!(memo.roots.is_empty());
+        assert!(memo.nodes.is_empty());
+        assert!(memo.children.is_empty());
+
+        let admitted_then_failed = session.fresh_value_at_level(1).unwrap();
+        session.bounds[admitted_then_failed as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        let rollback_root = session.fresh_value_at_level(1).unwrap();
+        session.bounds[rollback_root as usize]
+            .exact_non_variable_lowers
+            .extend([
+                ValueEndpointKey::ValueRow(admitted_then_failed),
+                ValueEndpointKey::PositiveFunction(invalid),
+            ]);
+        let (result, memo, _, _) =
+            F5cGeneralizer::with_memo(&session, F5cComponentExpansionMemo::default(), 21)
+                .build_component(rollback_root);
+        assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+        assert!(memo.root_lane.requested_slots > 0);
+        assert!(memo.node_lane.requested_slots > 0);
+        assert!(memo.index_lane.requested_slots > 0);
+        assert!(memo.scratch_lane.requested_slots > 0);
+        assert!(memo.roots.is_empty());
+        assert!(memo.nodes.is_empty());
+        assert!(memo.children.is_empty());
+
+        let mut independent = IndependentResourceLedger::default();
+        independent.record_component_expansion_memo(&memo).unwrap();
+        session
+            .record_component_expansion_memo_resources(&memo)
+            .unwrap();
+        assert_eq!(
+            session
+                .execution_counters
+                .component_expansion_memo_requested_slots,
+            independent.component_expansion_memo_requested_slots
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .component_expansion_memo_actual_capacity,
+            independent.component_expansion_memo_actual_capacity
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .component_expansion_memo_retained_bytes,
+            independent.component_expansion_memo_retained_bytes
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .component_expansion_memo_peak_bytes,
+            independent.component_expansion_memo_peak_bytes
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .component_expansion_memo_capacity_growths,
+            independent.component_expansion_memo_capacity_growths
+        );
+    }
+
+    #[test]
+    fn f5c_quantifiers_follow_normalized_occurrences_not_admission_order() {
+        fn draft(reverse: bool) -> GeneralizationDraft {
+            let batch = collect(module("my f = 1", "f5c-q-order"));
+            let mut session = InferenceSession::new(batch);
+            let root = session.batch.definitions[0].root.clone();
+            let definition = session.batch.definitions[0].definition.clone();
+            let root_row = session.live_components
+                [session.batch.root_component_positions[&root].component]
+                .ordinal;
+            let owners = [
+                session.fresh_value_at_level(1).unwrap(),
+                session.fresh_value_at_level(1).unwrap(),
+            ];
+            let effects = (
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+            );
+            let identity = |session: &mut InferenceSession, owner| {
+                let argument = session.live_value_term(Polarity::Negative, owner).unwrap();
+                let result = session.live_value_term(Polarity::Positive, owner).unwrap();
+                session
+                    .positive_function_term(argument, effects.0, effects.1, result)
+                    .unwrap()
+            };
+            let first = identity(&mut session, owners[0]);
+            let nested_result = identity(&mut session, owners[1]);
+            let second = session
+                .positive_function_term(
+                    session.batch.collected_leaf_term(Leaf::IntNegative),
+                    effects.0,
+                    effects.1,
+                    nested_result,
+                )
+                .unwrap();
+            let mut lowers = [first, second];
+            if reverse {
+                lowers.reverse();
+            }
+            session.bounds[root_row as usize]
+                .exact_non_variable_lowers
+                .extend(lowers.map(ValueEndpointKey::PositiveFunction));
+            session.generalization_draft(&definition).unwrap()
+        }
+
+        let forward = draft(false);
+        assert_eq!(forward.quantifier_count, 2);
+        assert_eq!(forward, draft(true));
+    }
+
+    #[test]
+    fn f5c_generalization_rejects_reachable_non_generic_variable_without_panicking() {
+        let batch = collect(module("my f = 1", "f5c-ineligible-variable"));
+        let mut session = InferenceSession::new(batch);
+        let definition = session.batch.definitions[0].definition.clone();
+        let root = session.batch.definitions[0].root.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let ineligible = session.fresh_value_at_level(1).unwrap();
+        session.value_metadata[ineligible as usize].non_generic = true;
+        let ineligible_term = session
+            .live_value_term(Polarity::Positive, ineligible)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                ineligible_term,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 205);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+
+        assert_eq!(
+            session.generalization_draft(&definition),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
+    fn f5c_generalization_rejects_ineligible_live_variables_in_both_polarities() {
+        for polarity in [Polarity::Positive, Polarity::Negative] {
+            let batch = collect(module("my f = 1", "f5c-ineligible-polarities"));
+            let mut session = InferenceSession::new(batch);
+            let definition = session.batch.definitions[0].definition.clone();
+            let root = session.batch.definitions[0].root.clone();
+            let root_row = session.live_components
+                [session.batch.root_component_positions[&root].component]
+                .ordinal;
+            let ineligible = session.fresh_value_at_level(0).unwrap();
+            let argument = if polarity == Polarity::Negative {
+                session
+                    .live_value_term(Polarity::Negative, ineligible)
+                    .unwrap()
+            } else {
+                session.batch.collected_leaf_term(Leaf::IntNegative)
+            };
+            let result = if polarity == Polarity::Positive {
+                session
+                    .live_value_term(Polarity::Positive, ineligible)
+                    .unwrap()
+            } else {
+                session.batch.collected_leaf_term(Leaf::IntPositive)
+            };
+            let function = session
+                .positive_function_term(
+                    argument,
+                    session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                    session
+                        .batch
+                        .collected_leaf_term(Leaf::EffectBottomPositive),
+                    result,
+                )
+                .unwrap();
+            session.bounds[root_row as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::PositiveFunction(function));
+
+            assert_eq!(
+                session.generalization_draft(&definition),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "level=0, non_generic=false, polarity={polarity:?}"
+            );
+        }
+
+        for polarity in [Polarity::Positive, Polarity::Negative] {
+            let batch = collect(module("my f = 1", "f5c-non-generic-polarities"));
+            let mut session = InferenceSession::new(batch);
+            let target = session.fresh_value_at_level(1).unwrap();
+            session.value_metadata[target as usize].non_generic = true;
+            let term = session.live_value_term(polarity, target).unwrap();
+            let mut generalizer = F5cGeneralizer::new(&session);
+            match polarity {
+                Polarity::Positive => {
+                    generalizer.positive_term(term).unwrap();
+                }
+                Polarity::Negative => {
+                    generalizer.negative_term(term).unwrap();
+                }
+            }
+            assert_eq!(generalizer.order, [target], "polarity={polarity:?}");
+            let non_generic = generalizer.non_generic_closure();
+            assert!(non_generic.contains(&target));
+            assert_eq!(
+                F5cGeneralizer::reject_unclassified_rows(
+                    &generalizer.order,
+                    &HashSet::new(),
+                    &HashMap::new(),
+                    |ordinal| session.value_levels[ordinal as usize] > 0
+                        && !non_generic.contains(&ordinal),
+                ),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "polarity={polarity:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn f5c_non_generic_closure_crosses_direct_and_nested_function_value_paths() {
+        let batch = collect(module("my f = 1", "f5c-non-generic-closure"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let connected = session.fresh_value_at_level(1).unwrap();
+        let seed = session.fresh_value_at_level(1).unwrap();
+        session.value_metadata[seed as usize].non_generic = true;
+        session.bounds[connected as usize]
+            .direct_lower_rows
+            .push(seed);
+        let result = session
+            .live_value_term(Polarity::Positive, connected)
+            .unwrap();
+        let argument = session.negative_top_term().unwrap();
+        let function = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(function));
+
+        let closure = F5cGeneralizer::new(&session).non_generic_closure();
+        assert!(closure.is_superset(&HashSet::from([seed, connected, root_row])));
+    }
+
+    #[test]
+    fn f5c_generalization_rejects_wrong_polarity_endpoints_and_terms() {
+        let batch = collect(module("my f = 1", "f5c-wrong-polarity"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntNegative);
+        let positive_term = session.batch.collected_leaf_term(Leaf::IntPositive);
+        let negative_term = session.batch.collected_leaf_term(Leaf::IntNegative);
+        let mut generalizer = F5cGeneralizer::new(&session);
+
+        assert_eq!(
+            generalizer.positive_endpoint(ValueEndpointKey::IntNegative),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            generalizer.negative_endpoint(ValueEndpointKey::IntPositive),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            generalizer.positive_term(negative_term),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            generalizer.negative_term(positive_term),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            generalizer.positive_row(root_row, true),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(generalizer.active.is_empty());
+        assert!(generalizer.active_set.is_empty());
+        assert!(generalizer.path.is_empty());
+    }
+
+    #[test]
+    fn f5c_component_rejection_installs_no_scheme_or_closed_candidate() {
+        let batch = collect(module(
+            "my left = right; my right = left",
+            "f5c-component-ineligible-variable",
+        ));
+        let mut session = InferenceSession::new(batch);
+        let second = session.batch.definitions[1].root.clone();
+        let second_row = session.live_components
+            [session.batch.root_component_positions[&second].component]
+            .ordinal;
+        let ineligible = session.fresh_value_at_level(1).unwrap();
+        session.value_metadata[ineligible as usize].non_generic = true;
+        let ineligible_term = session
+            .live_value_term(Polarity::Positive, ineligible)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                ineligible_term,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 206);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(second_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        let closed_before = session.current_closed_retained_bytes;
+
+        assert_eq!(
+            session.execute_scc_plan(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(session.schemes.iter().all(Option::is_none));
+        assert!(session.drafts.is_empty());
+        assert_eq!(session.current_closed_retained_bytes, closed_before);
+    }
+
+    #[test]
     fn f5c_generalization_expands_direct_rows_and_multiple_exact_lowers() {
         let batch = collect(module("my f = 1", "f5c-bounds"));
         let mut session = InferenceSession::new(batch);
@@ -14089,6 +23732,237 @@ mod tests {
     }
 
     #[test]
+    fn f5c_positive_row_combines_exact_and_direct_members_with_one_bipolar_variable() {
+        let batch = collect(module("my f = 1", "f5c-positive-mixed-row"));
+        let mut session = InferenceSession::new(batch);
+        let mixed = session.fresh_value_at_level(1).unwrap();
+        let direct = session.fresh_value_at_level(1).unwrap();
+        let bipolar = session.fresh_value_at_level(1).unwrap();
+        let argument = session
+            .live_value_term(Polarity::Negative, bipolar)
+            .unwrap();
+        let result = session
+            .live_value_term(Polarity::Positive, bipolar)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        session.bounds[mixed as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::IntPositive);
+        session.bounds[mixed as usize]
+            .direct_lower_rows
+            .extend([direct, direct]);
+        session.bounds[direct as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(function));
+
+        let expanded = F5cGeneralizer::new(&session)
+            .positive_row(mixed, false)
+            .unwrap();
+        let F5cPositive::Union(members) = expanded else {
+            panic!("mixed positive row retains exact and direct members");
+        };
+        assert_eq!(members.len(), 2, "duplicate direct rows are deduplicated");
+        assert!(members.contains(&F5cPositive::Int));
+        assert!(members.iter().any(|member| matches!(
+            member,
+            F5cPositive::Function { argument, result, .. }
+                if **argument == F5cNegative::Variable(bipolar)
+                    && **result == F5cPositive::Variable(bipolar)
+        )));
+    }
+
+    #[test]
+    fn f5c_negative_row_combines_exact_and_direct_members_with_one_bipolar_variable() {
+        let batch = collect(module("my f = 1", "f5c-negative-mixed-row"));
+        let mut session = InferenceSession::new(batch);
+        let mixed = session.fresh_value_at_level(1).unwrap();
+        let direct = session.fresh_value_at_level(1).unwrap();
+        let bipolar = session.fresh_value_at_level(1).unwrap();
+        let argument = session
+            .live_value_term(Polarity::Positive, bipolar)
+            .unwrap();
+        let result = session
+            .live_value_term(Polarity::Negative, bipolar)
+            .unwrap();
+        let function = session
+            .negative_function_term(
+                argument,
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                result,
+            )
+            .unwrap();
+        session.bounds[mixed as usize]
+            .exact_non_variable_uppers
+            .push(ValueEndpointKey::IntNegative);
+        session.bounds[mixed as usize]
+            .direct_upper_rows
+            .extend([direct, direct]);
+        session.bounds[direct as usize]
+            .exact_non_variable_uppers
+            .push(ValueEndpointKey::NegativeFunction(function));
+
+        let expanded = F5cGeneralizer::new(&session).negative_row(mixed).unwrap();
+        let F5cNegative::Intersection(members) = expanded else {
+            panic!("mixed negative row retains exact and direct members");
+        };
+        assert_eq!(members.len(), 2, "duplicate direct rows are deduplicated");
+        assert!(members.contains(&F5cNegative::Int));
+        assert!(members.iter().any(|member| matches!(
+            member,
+            F5cNegative::Function { argument, result, .. }
+                if **argument == F5cPositive::Variable(bipolar)
+                    && **result == F5cNegative::Variable(bipolar)
+        )));
+    }
+
+    #[test]
+    fn f5c_malformed_draft_ordinals_return_invalid_draft() {
+        let malformed = [
+            GeneralizationDraft {
+                quantifier_count: 1,
+                recursive_bounds: Vec::new(),
+                predicate: F5cPositive::Quantified(1),
+            },
+            GeneralizationDraft {
+                quantifier_count: 1,
+                recursive_bounds: Vec::new(),
+                predicate: F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Recursive(0)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Bottom),
+                },
+            },
+            GeneralizationDraft {
+                quantifier_count: 1,
+                recursive_bounds: vec![F5cRecursiveBound {
+                    ordinal: 1,
+                    lower: F5cPositive::Recursive(2),
+                    upper: F5cNegative::Recursive(1),
+                }],
+                predicate: F5cPositive::Recursive(1),
+            },
+            GeneralizationDraft {
+                quantifier_count: 1,
+                recursive_bounds: vec![
+                    F5cRecursiveBound {
+                        ordinal: 2,
+                        lower: F5cPositive::Recursive(1),
+                        upper: F5cNegative::Recursive(2),
+                    },
+                    F5cRecursiveBound {
+                        ordinal: 1,
+                        lower: F5cPositive::Recursive(2),
+                        upper: F5cNegative::Recursive(1),
+                    },
+                ],
+                predicate: F5cPositive::Recursive(2),
+            },
+        ];
+
+        for draft in malformed {
+            let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
+            assert!(matches!(
+                InferenceSession::finalize_generalization_draft_raw(
+                    &mut finalization,
+                    &draft,
+                    false,
+                ),
+                Err(ClosedTypeFinalizeError::InvalidDraft)
+            ));
+        }
+    }
+
+    #[test]
+    fn f5c_malformed_pure_recursive_ordinals_reject_gap_and_duplicate() {
+        let malformed = [
+            GeneralizationDraft {
+                quantifier_count: 0,
+                recursive_bounds: vec![
+                    F5cRecursiveBound {
+                        ordinal: 0,
+                        lower: F5cPositive::Recursive(0),
+                        upper: F5cNegative::Recursive(0),
+                    },
+                    F5cRecursiveBound {
+                        ordinal: 2,
+                        lower: F5cPositive::Recursive(2),
+                        upper: F5cNegative::Recursive(2),
+                    },
+                ],
+                predicate: F5cPositive::Recursive(0),
+            },
+            GeneralizationDraft {
+                quantifier_count: 0,
+                recursive_bounds: vec![
+                    F5cRecursiveBound {
+                        ordinal: 0,
+                        lower: F5cPositive::Recursive(0),
+                        upper: F5cNegative::Recursive(0),
+                    },
+                    F5cRecursiveBound {
+                        ordinal: 0,
+                        lower: F5cPositive::Recursive(0),
+                        upper: F5cNegative::Recursive(0),
+                    },
+                ],
+                predicate: F5cPositive::Recursive(0),
+            },
+        ];
+
+        for draft in malformed {
+            let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
+            assert!(matches!(
+                InferenceSession::finalize_generalization_draft_raw(
+                    &mut finalization,
+                    &draft,
+                    false,
+                ),
+                Err(ClosedTypeFinalizeError::InvalidDraft)
+            ));
+        }
+    }
+
+    #[test]
+    fn f5c_dense_quantified_and_recursive_ordinals_round_trip() {
+        let draft = GeneralizationDraft {
+            quantifier_count: 1,
+            recursive_bounds: vec![F5cRecursiveBound {
+                ordinal: 1,
+                lower: F5cPositive::Quantified(0),
+                upper: F5cNegative::Recursive(1),
+            }],
+            predicate: F5cPositive::Function {
+                argument: Box::new(F5cNegative::Quantified(0)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Recursive(1)),
+            },
+        };
+        let mut finalization = ClosedTypeFinalizationSession::try_new().unwrap();
+
+        let finalized =
+            InferenceSession::finalize_generalization_draft_raw(&mut finalization, &draft, false)
+                .unwrap();
+        let (scheme, _) = finalized.into_parts();
+        let decoded = InferenceSession::decode_closed_scheme(&finalization, &scheme).unwrap();
+
+        assert_eq!(decoded, draft);
+    }
+
+    #[test]
     fn f5c_generalization_retains_guarded_self_as_one_recursive_bound() {
         let batch = collect(module("my f = 1", "f5c-self"));
         let mut session = InferenceSession::new(batch);
@@ -14148,6 +24022,622 @@ mod tests {
     }
 
     #[test]
+    fn f5c_outer_function_does_not_guard_a_later_direct_cycle() {
+        let batch = collect(module("my f = 1", "f5c-outer-function-direct-cycle"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let a = session.fresh_value_at_level(1).unwrap();
+        let b = session.fresh_value_at_level(1).unwrap();
+        let result = session.live_value_term(Polarity::Positive, a).unwrap();
+        let argument = session.negative_top_term().unwrap();
+        let function = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(function));
+        session.bounds[a as usize].direct_lower_rows.push(b);
+        session.bounds[b as usize].direct_lower_rows.push(a);
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert!(draft.recursive_bounds.is_empty());
+        let F5cPositive::Function { result, .. } = draft.predicate else {
+            panic!("outer Function remains in the predicate");
+        };
+        assert_eq!(*result, F5cPositive::Bottom);
+    }
+
+    #[test]
+    fn f5c_guard_trace_retains_owner_polarities_and_exact_direct_hops() {
+        let batch = collect(module("my f = 1", "f5c-complete-guard-trace"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let relay = session.fresh_value_at_level(1).unwrap();
+        let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+        let top = session.negative_top_term().unwrap();
+        let function = session
+            .positive_function_term(
+                top,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(function));
+        session.bounds[relay as usize]
+            .direct_lower_rows
+            .push(root_row);
+
+        let mut generalizer = F5cGeneralizer::new(&session);
+        generalizer.positive_row(root_row, true).unwrap();
+        let trace = generalizer
+            .reentries
+            .iter()
+            .find(|trace| trace.owner == root_row)
+            .expect("the guarded return retains private evidence");
+        assert_eq!(trace.entry_polarity, Polarity::Positive);
+        assert_eq!(trace.reentry_polarity, Polarity::Positive);
+        assert_eq!(
+            trace.path,
+            vec![
+                F5cTraceHop::Exact {
+                    side: F5cBoundSide::Lower,
+                    slot: 0,
+                },
+                F5cTraceHop::Function(FunctionField::Result),
+                F5cTraceHop::Direct {
+                    side: F5cBoundSide::Lower,
+                    slot: 0,
+                    source: relay,
+                    target: root_row,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn f5c_guard_trace_records_mutual_function_cycle() {
+        let batch = collect(module("my f = 1", "f5c-mutual-guard-trace"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let left = session.fresh_value_at_level(1).unwrap();
+        let right = session.fresh_value_at_level(1).unwrap();
+        let relay = session.fresh_value_at_level(1).unwrap();
+        let effects = (
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+        );
+        let mut function_to = |target| {
+            let result = session.live_value_term(Polarity::Positive, target).unwrap();
+            let top = session.negative_top_term().unwrap();
+            session
+                .positive_function_term(top, effects.0, effects.1, result)
+                .unwrap()
+        };
+        let root_function = function_to(left);
+        let left_function = function_to(right);
+        let right_function = function_to(relay);
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(root_function));
+        session.bounds[left as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(left_function));
+        session.bounds[right as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(right_function));
+        session.bounds[relay as usize].direct_lower_rows.push(left);
+
+        let mut generalizer = F5cGeneralizer::new(&session);
+        generalizer.positive_row(root_row, true).unwrap();
+        let trace = generalizer
+            .reentries
+            .iter()
+            .find(|trace| trace.owner == left)
+            .expect("mutual guarded return retains the first owner");
+        assert_eq!(trace.owner, left);
+        assert_eq!(trace.entry_polarity, Polarity::Positive);
+        assert_eq!(trace.reentry_polarity, Polarity::Positive);
+        assert_eq!(
+            trace.path,
+            vec![
+                F5cTraceHop::Exact {
+                    side: F5cBoundSide::Lower,
+                    slot: 0,
+                },
+                F5cTraceHop::Function(FunctionField::Result),
+                F5cTraceHop::Exact {
+                    side: F5cBoundSide::Lower,
+                    slot: 0,
+                },
+                F5cTraceHop::Function(FunctionField::Result),
+                F5cTraceHop::Direct {
+                    side: F5cBoundSide::Lower,
+                    slot: 0,
+                    source: relay,
+                    target: left,
+                },
+            ]
+        );
+
+        let draft = F5cGeneralizer::new(&session).build(root_row).unwrap();
+        assert_eq!(draft.quantifier_count, 0);
+        assert_eq!(draft.recursive_bounds.len(), 1);
+        assert_eq!(draft.recursive_bounds[0].ordinal, 0);
+        assert_eq!(draft.recursive_bounds[0].upper, F5cNegative::Top);
+        let F5cPositive::Function { result, .. } = &draft.recursive_bounds[0].lower else {
+            panic!("mutual recursive lower remains a Function");
+        };
+        let F5cPositive::Function { result, .. } = result.as_ref() else {
+            panic!("mutual recursive lower retains the second Function hop");
+        };
+        assert_eq!(**result, F5cPositive::Recursive(0));
+    }
+
+    #[test]
+    fn f5c_guard_trace_direct_hops_ignore_opposite_polarity_elimination() {
+        let owner = 7;
+        let intermediary = 8;
+        let trace = |side| F5cGuardedTrace {
+            owner,
+            entry_polarity: Polarity::Positive,
+            reentry_polarity: Polarity::Positive,
+            path: vec![
+                F5cTraceHop::Function(FunctionField::Result),
+                F5cTraceHop::Direct {
+                    side,
+                    slot: 0,
+                    source: intermediary,
+                    target: owner,
+                },
+            ],
+        };
+        let bounds = HashMap::from([(
+            owner,
+            (
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Variable(owner)),
+                },
+                F5cNegative::Top,
+            ),
+        )]);
+        let protected = HashSet::from([owner]);
+        let positive_only = HashSet::from([intermediary]);
+        let negative_only = HashSet::from([intermediary]);
+
+        assert!(F5cGeneralizer::guarded_trace_survives(
+            &trace(F5cBoundSide::Lower),
+            owner,
+            &protected,
+            &HashSet::new(),
+            &negative_only,
+            &bounds,
+        ));
+        assert!(!F5cGeneralizer::guarded_trace_survives(
+            &trace(F5cBoundSide::Lower),
+            owner,
+            &protected,
+            &positive_only,
+            &HashSet::new(),
+            &bounds,
+        ));
+        assert!(F5cGeneralizer::guarded_trace_survives(
+            &trace(F5cBoundSide::Upper),
+            owner,
+            &protected,
+            &positive_only,
+            &HashSet::new(),
+            &bounds,
+        ));
+        assert!(!F5cGeneralizer::guarded_trace_survives(
+            &trace(F5cBoundSide::Upper),
+            owner,
+            &protected,
+            &HashSet::new(),
+            &negative_only,
+            &bounds,
+        ));
+    }
+
+    #[test]
+    fn f5c_duplicate_same_owner_guard_traces_coalesce_to_one_recursive_binder() {
+        let batch = collect(module("my f = 1", "f5c-duplicate-owner-traces"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let effects = (
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+        );
+        for _ in 0..2 {
+            let result = session
+                .live_value_term(Polarity::Positive, root_row)
+                .unwrap();
+            let top = session.negative_top_term().unwrap();
+            let function = session
+                .positive_function_term(top, effects.0, effects.1, result)
+                .unwrap();
+            session.bounds[root_row as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::PositiveFunction(function));
+        }
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.recursive_bounds.len(), 1);
+        assert_eq!(draft.recursive_bounds[0].ordinal, 0);
+    }
+
+    #[test]
+    fn f5c_distinct_symmetric_recursive_owners_are_retained_alpha_equivalently() {
+        fn draft(reverse: bool) -> GeneralizationDraft {
+            let batch = collect(module("my f = 1", "f5c-symmetric-r-owners"));
+            let mut session = InferenceSession::new(batch);
+            let root = session.batch.definitions[0].root.clone();
+            let definition = session.batch.definitions[0].definition.clone();
+            let root_row = session.live_components
+                [session.batch.root_component_positions[&root].component]
+                .ordinal;
+            let mut owners = [
+                session.fresh_value_at_level(1).unwrap(),
+                session.fresh_value_at_level(1).unwrap(),
+            ];
+            if reverse {
+                owners.reverse();
+            }
+            let effects = (
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+            );
+            for owner in owners {
+                let owner_result = session.live_value_term(Polarity::Positive, owner).unwrap();
+                let top = session.negative_top_term().unwrap();
+                let recursive = session
+                    .positive_function_term(top, effects.0, effects.1, owner_result)
+                    .unwrap();
+                session.bounds[owner as usize]
+                    .exact_non_variable_lowers
+                    .push(ValueEndpointKey::PositiveFunction(recursive));
+
+                let root_result = session.live_value_term(Polarity::Positive, owner).unwrap();
+                let top = session.negative_top_term().unwrap();
+                let entry = session
+                    .positive_function_term(top, effects.0, effects.1, root_result)
+                    .unwrap();
+                session.bounds[root_row as usize]
+                    .exact_non_variable_lowers
+                    .push(ValueEndpointKey::PositiveFunction(entry));
+            }
+            session.generalization_draft(&definition).unwrap()
+        }
+
+        let forward = draft(false);
+        assert_eq!(forward.recursive_bounds.len(), 2);
+        assert_eq!(forward, draft(true));
+    }
+
+    #[test]
+    fn f5c_key_forest_distinguishes_shared_and_independent_non_owner_variables() {
+        let shared = F5cPositive::Function {
+            argument: Box::new(F5cNegative::Variable(7)),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Variable(7)),
+        };
+        let independent = F5cPositive::Function {
+            argument: Box::new(F5cNegative::Variable(7)),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Variable(8)),
+        };
+        let key = |value: &F5cPositive| {
+            let mut forest = F5cKeyForest::default();
+            let root = forest.positive(value, u32::MAX);
+            forest.finish(&[root], u32::MAX, false).unwrap()
+        };
+
+        assert_ne!(key(&shared), key(&independent));
+    }
+
+    #[test]
+    fn f5c_key_forest_canonicalizes_commutative_roots_with_shared_alpha_variables() {
+        let positive_key = |values: &[F5cPositive]| {
+            let mut forest = F5cKeyForest::default();
+            let roots = values
+                .iter()
+                .map(|value| forest.positive(value, u32::MAX))
+                .collect::<Vec<_>>();
+            forest.finish(&roots, u32::MAX, true).unwrap()
+        };
+        let negative_key = |values: &[F5cNegative]| {
+            let mut forest = F5cKeyForest::default();
+            let roots = values
+                .iter()
+                .map(|value| forest.negative(value, u32::MAX))
+                .collect::<Vec<_>>();
+            forest.finish(&roots, u32::MAX, true).unwrap()
+        };
+        let positive = [
+            F5cPositive::Variable(7),
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Variable(8)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(7)),
+            },
+        ];
+        let positive_reversed = [
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Variable(18)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(17)),
+            },
+            F5cPositive::Variable(17),
+        ];
+        assert_eq!(positive_key(&positive), positive_key(&positive_reversed));
+
+        let negative = [
+            F5cNegative::Variable(7),
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Variable(8)),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(7)),
+            },
+        ];
+        let negative_reversed = [
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Variable(18)),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(17)),
+            },
+            F5cNegative::Variable(17),
+        ];
+        assert_eq!(negative_key(&negative), negative_key(&negative_reversed));
+    }
+
+    #[test]
+    fn f5c_grouped_keys_preserve_cross_owner_variable_sharing() {
+        let grouped = |first_argument, second_argument| {
+            let predicate =
+                F5cPositive::Union(vec![F5cPositive::Variable(1), F5cPositive::Variable(2)]);
+            let lower = |owner, argument| F5cPositive::Function {
+                argument: Box::new(F5cNegative::Variable(argument)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(owner)),
+            };
+            let mut forest = F5cKeyForest::default();
+            let predicate = forest.positive(&predicate, u32::MAX);
+            let first_lower = forest.positive(&lower(1, first_argument), 1);
+            let first_upper = forest.negative(&F5cNegative::Top, 1);
+            let second_lower = forest.positive(&lower(2, second_argument), 2);
+            let second_upper = forest.negative(&F5cNegative::Top, 2);
+            let (predicate, bounds) = forest
+                .finish_grouped(
+                    predicate,
+                    &[
+                        (1, first_lower, first_upper),
+                        (2, second_lower, second_upper),
+                    ],
+                )
+                .unwrap();
+            let mut bounds = bounds.into_values().collect::<Vec<_>>();
+            bounds.sort_unstable();
+            (predicate, bounds)
+        };
+
+        assert_ne!(grouped(9, 9), grouped(9, 10));
+        assert_eq!(grouped(9, 9), grouped(19, 19));
+    }
+
+    #[test]
+    fn f5c_q_occurrence_collection_includes_recursive_dual_bounds() {
+        let owner = 7;
+        let q = 9;
+        let recursive_owners = [owner];
+        let raw_bounds =
+            HashMap::from([(owner, (F5cPositive::Variable(q), F5cNegative::Variable(q)))]);
+
+        let first = F5cGeneralizer::retained_occurrences(
+            &F5cPositive::Recursive(0),
+            &recursive_owners,
+            &raw_bounds,
+        )
+        .unwrap();
+
+        assert_eq!(
+            first.get(&q),
+            Some(&vec![F5cOccurrenceHop::Root(1, F5cBoundSide::Lower)])
+        );
+    }
+
+    #[test]
+    fn f5c_reachable_missing_row_is_checked_failure() {
+        let batch = collect(module("my f = 1", "f5c-missing-row"));
+        let session = InferenceSession::new(batch);
+        let missing = u32::try_from(session.bounds.len()).unwrap();
+        let mut generalizer = F5cGeneralizer::new(&session);
+
+        assert_eq!(
+            generalizer.positive_row(missing, false),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            generalizer.negative_row(missing),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(generalizer.active.is_empty());
+        assert!(generalizer.active_set.is_empty());
+    }
+
+    #[test]
+    fn f5c_union_normalization_preserves_independent_identity_members_and_deduplicates_exact_members()
+     {
+        let identity = |ordinal| F5cPositive::Function {
+            argument: Box::new(F5cNegative::Variable(ordinal)),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Variable(ordinal)),
+        };
+        let normalized =
+            F5cGeneralizer::normalize_positive(F5cPositive::Union(vec![identity(7), identity(8)]))
+                .unwrap();
+        let F5cPositive::Union(independent) = normalized else {
+            panic!("union remains normalized as a union");
+        };
+        assert_eq!(independent.len(), 2);
+
+        let normalized =
+            F5cGeneralizer::normalize_positive(F5cPositive::Union(vec![identity(7), identity(7)]))
+                .unwrap();
+        let F5cPositive::Union(duplicates) = normalized else {
+            panic!("union remains normalized as a union");
+        };
+        assert_eq!(duplicates.len(), 1);
+    }
+
+    #[test]
+    fn f5c_normalized_census_ignores_traversal_only_direct_intermediary() {
+        let batch = collect(module("my f = 1", "f5c-eliminated-r-intermediary"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let intermediary = session.fresh_value_at_level(1).unwrap();
+        let result = session
+            .live_value_term(Polarity::Positive, intermediary)
+            .unwrap();
+        let top = session.negative_top_term().unwrap();
+        let function = session
+            .positive_function_term(
+                top,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(function));
+        session.bounds[intermediary as usize]
+            .direct_lower_rows
+            .push(root_row);
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.quantifier_count, 0);
+        assert_eq!(draft.recursive_bounds.len(), 1);
+        assert_eq!(draft.recursive_bounds[0].ordinal, 0);
+    }
+
+    #[test]
+    fn f5c_reversed_exact_and_direct_admission_keeps_canonical_recursive_order() {
+        fn draft(reverse: bool) -> GeneralizationDraft {
+            let batch = collect(module("my f = 1", "f5c-reversed-r-admission"));
+            let mut session = InferenceSession::new(batch);
+            let root = session.batch.definitions[0].root.clone();
+            let definition = session.batch.definitions[0].definition.clone();
+            let root_row = session.live_components
+                [session.batch.root_component_positions[&root].component]
+                .ordinal;
+            let hub = session.fresh_value_at_level(1).unwrap();
+            let argument_owner = session.fresh_value_at_level(1).unwrap();
+            let result_owner = session.fresh_value_at_level(1).unwrap();
+            let effects = (
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+            );
+            let argument_self = session
+                .live_value_term(Polarity::Negative, argument_owner)
+                .unwrap();
+            let result_self = session
+                .live_value_term(Polarity::Positive, result_owner)
+                .unwrap();
+            let top = session.negative_top_term().unwrap();
+            let argument_function = session
+                .positive_function_term(
+                    argument_self,
+                    effects.0,
+                    effects.1,
+                    session.batch.collected_leaf_term(Leaf::IntPositive),
+                )
+                .unwrap();
+            let result_function = session
+                .positive_function_term(top, effects.0, effects.1, result_self)
+                .unwrap();
+            let root_result = session.live_value_term(Polarity::Positive, hub).unwrap();
+            let root_function = session
+                .positive_function_term(top, effects.0, effects.1, root_result)
+                .unwrap();
+            session.bounds[root_row as usize]
+                .exact_non_variable_lowers
+                .push(ValueEndpointKey::PositiveFunction(root_function));
+            let mut direct = [argument_owner, result_owner];
+            let mut exact = [
+                ValueEndpointKey::PositiveFunction(argument_function),
+                ValueEndpointKey::PositiveFunction(result_function),
+            ];
+            if reverse {
+                direct.reverse();
+                exact.reverse();
+            }
+            session.bounds[hub as usize]
+                .direct_lower_rows
+                .extend(direct);
+            session.bounds[argument_owner as usize]
+                .exact_non_variable_lowers
+                .push(exact[if reverse { 1 } else { 0 }]);
+            session.bounds[result_owner as usize]
+                .exact_non_variable_lowers
+                .push(exact[if reverse { 0 } else { 1 }]);
+
+            session.generalization_draft(&definition).unwrap()
+        }
+
+        assert_eq!(draft(false), draft(true));
+    }
+
+    #[test]
     fn f5c_guarded_opposite_polarity_reentry_owns_one_recursive_binder() {
         let batch = collect(module("my f = 1", "f5c-opposite-polarity"));
         let mut session = InferenceSession::new(batch);
@@ -14198,6 +24688,241 @@ mod tests {
     }
 
     #[test]
+    fn f5c_recursive_binders_follow_guarded_reentry_order_not_row_visit_order() {
+        let batch = collect(module("my f = 1", "f5c-recursive-order"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let first_visited = session.fresh_value_at_level(1).unwrap();
+        let first_reentered = session.fresh_value_at_level(1).unwrap();
+        let argument = session.negative_top_term().unwrap();
+        let argument_effect = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+        let result_effect = session
+            .batch
+            .collected_leaf_term(Leaf::EffectBottomPositive);
+        let function_to = |session: &mut InferenceSession, row| {
+            let result = session.live_value_term(Polarity::Positive, row).unwrap();
+            session
+                .positive_function_term(argument, argument_effect, result_effect, result)
+                .unwrap()
+        };
+        let visit_first = function_to(&mut session, first_visited);
+        let visit_first_reentered = function_to(&mut session, first_reentered);
+        let reenter_first = function_to(&mut session, first_reentered);
+        let reenter_second = function_to(&mut session, first_visited);
+
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(visit_first));
+        session.bounds[first_visited as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(visit_first_reentered));
+        session.bounds[first_reentered as usize]
+            .exact_non_variable_lowers
+            .extend([
+                ValueEndpointKey::PositiveFunction(reenter_first),
+                ValueEndpointKey::PositiveFunction(reenter_second),
+            ]);
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.quantifier_count, 0);
+        assert_eq!(draft.recursive_bounds.len(), 2);
+        assert_eq!(draft.recursive_bounds[0].ordinal, 0);
+        assert_eq!(draft.recursive_bounds[1].ordinal, 1);
+        let F5cPositive::Union(first_owner_lowers) = &draft.recursive_bounds[0].lower else {
+            panic!("the first guarded re-entry owns the two-lower recursive bound");
+        };
+        assert_eq!(first_owner_lowers.len(), 2);
+        let F5cPositive::Function { result, .. } = &draft.recursive_bounds[1].lower else {
+            panic!("the row visited first owns the second recursive binder");
+        };
+        assert!(matches!(result.as_ref(), F5cPositive::Union(_)));
+    }
+
+    #[test]
+    fn f5c_recursive_upper_census_eliminates_new_negative_only_row_to_top() {
+        let batch = collect(module("my f = 1", "f5c-recursive-upper-census"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let upper_row = session.fresh_value_at_level(1).unwrap();
+        let argument = session.negative_top_term().unwrap();
+        let result = session
+            .live_value_term(Polarity::Positive, root_row)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 207);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(root_row),
+                    upper: ValueEndpointKey::ValueRow(upper_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.recursive_bounds.len(), 1);
+        assert_eq!(draft.recursive_bounds[0].upper, F5cNegative::Top);
+    }
+
+    #[test]
+    fn f5c_recursive_lower_census_eliminates_new_positive_only_row_to_bottom() {
+        let batch = collect(module("my f = 1", "f5c-recursive-lower-census"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let lower_row = session.fresh_value_at_level(1).unwrap();
+        let argument = session
+            .live_value_term(Polarity::Negative, root_row)
+            .unwrap();
+        let result = session
+            .live_value_term(Polarity::Positive, lower_row)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 208);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.recursive_bounds.len(), 1);
+        let F5cPositive::Function { result, .. } = &draft.recursive_bounds[0].lower else {
+            panic!("recursive lower remains a Function");
+        };
+        assert_eq!(**result, F5cPositive::Bottom);
+    }
+
+    #[test]
+    fn f5c_guarded_non_generic_owner_rejects_without_scheme_publication() {
+        let batch = collect(module("my f = 1", "f5c-non-generic-recursive-owner"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let argument = session.negative_top_term().unwrap();
+        let result = session
+            .live_value_term(Polarity::Positive, root_row)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 209);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::PositiveFunction(function),
+                    upper: ValueEndpointKey::ValueRow(root_row),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        session.value_metadata[root_row as usize].non_generic = true;
+
+        assert_eq!(
+            session.execute_scc_plan(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(session.schemes.iter().all(Option::is_none));
+        assert!(session.drafts.is_empty());
+    }
+
+    #[test]
+    fn f5c_guarded_boundary_level_owner_is_rejected() {
+        let batch = collect(module("my f = 1", "f5c-boundary-recursive-owner"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let argument = session.negative_top_term().unwrap();
+        let result = session
+            .live_value_term(Polarity::Positive, root_row)
+            .unwrap();
+        let function = session
+            .positive_function_term(
+                argument,
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(function));
+        session.value_levels[root_row as usize] = 0;
+
+        assert_eq!(
+            session.generalization_draft(&definition),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+    }
+
+    #[test]
     fn f5c_incoming_union_routes_each_normalized_member() {
         let batch = collect(module("my source = 1; my sink = source", "f5c-union-route"));
         let route_id = batch.definition_uses()[0].id.clone();
@@ -14228,6 +24953,690 @@ mod tests {
         assert_eq!(session.routed_uses.len(), 1);
         assert_eq!(session.store.facts().len(), 1);
         assert_eq!(session.routed_use_positions.len(), 1);
+        assert!(matches!(
+            session.store.term_view(session.store.facts()[0].lower()),
+            Ok(TermView::Leaf(Leaf::IntPositive))
+        ));
+        assert!(
+            session
+                .route_journal_spare
+                .as_ref()
+                .unwrap()
+                .retained_bytes()
+                > 0
+        );
+        session
+            .sample_f4_resources(ResourceBoundary::IncomingRoute)
+            .unwrap();
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.execution_counters.semantic_arena_retained_bytes()
+        );
+        assert_eq!(
+            session.resource_ledger.inference_session_retained_bytes,
+            session
+                .execution_counters
+                .inference_session_retained_bytes()
+        );
+    }
+
+    #[test]
+    fn f5c_fixed_capacity_overflow_publishes_nothing() {
+        let batch = collect(module("my f = 1", "f5c-fixed-capacity-overflow"));
+        let mut session = InferenceSession::new(batch);
+        session.begin_route_transaction().unwrap();
+        session.rollback_route_transaction().unwrap();
+        let counters = session.execution_counters.clone();
+        let ledger = session.resource_ledger.clone();
+        let samples = session.resource_boundary_samples;
+        for probe in [
+            SampleFixedCapacityProbe::RouteJournal,
+            SampleFixedCapacityProbe::IndependentRouteJournal,
+            SampleFixedCapacityProbe::InstantiationScratch,
+            SampleFixedCapacityProbe::InferenceTerm,
+            SampleFixedCapacityProbe::IndependentInferenceTerm,
+        ] {
+            session.sample_fixed_capacity_probe = Some(probe);
+            assert_eq!(
+                session.sample_f4_resources(ResourceBoundary::IncomingRoute),
+                Err(SolveAvailabilityError::IdentityExhausted),
+            );
+            assert_eq!(session.execution_counters, counters);
+            assert_eq!(session.resource_boundary_samples, samples);
+            assert_eq!(session.resource_ledger, ledger);
+        }
+        session.sample_fixed_capacity_probe = None;
+        session
+            .sample_f4_resources(ResourceBoundary::IncomingRoute)
+            .unwrap();
+    }
+
+    #[test]
+    fn f5c_incoming_nested_event_overflow_samples_once_after_rollback() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-incoming-nested-event-overflow",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(
+            session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap()
+                .into_parts()
+                .0,
+        );
+        let before = RouteCheckpoint::capture(&session);
+        let counters = session.execution_counters.clone();
+        let ledger = session.resource_ledger.clone();
+        let samples = session.resource_boundary_samples;
+        let event_attempts = session.incoming_nested_event_sample_attempts;
+        let outer_attempts = session.incoming_post_rollback_sample_attempts;
+        let incoming_attempts = session.incoming_route_sample_attempts;
+        session.instantiation_scratch.work.reserve(1);
+        session.inject_no_growth_scratch_request_on_route_exit = true;
+        session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::IncomingNestedEvent);
+
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.store.facts, before.store.facts);
+        assert_eq!(session.store.provenance, before.store.provenance);
+        assert_eq!(session.bounds, before.bounds);
+        assert_eq!(session.effect_bounds, before.effect_bounds);
+        assert_eq!(session.typed_pairs, before.typed_pairs);
+        assert_eq!(session.errors, before.errors);
+        assert_eq!(session.routed_uses, before.routed_uses);
+        assert_eq!(
+            session.incoming_nested_event_sample_attempts,
+            event_attempts + 1
+        );
+        assert_eq!(
+            session.incoming_post_rollback_sample_attempts,
+            outer_attempts + 1
+        );
+        assert!(session.incoming_route_sample_attempts >= incoming_attempts + 2);
+        assert_eq!(session.instantiation_scratch.requested_slots, 1);
+        assert_eq!(
+            session.resource_boundary_samples,
+            samples + session.incoming_route_sample_attempts - incoming_attempts - 1
+        );
+        assert!(
+            session.execution_counters.semantic_arena_peak_bytes
+                >= counters.semantic_arena_peak_bytes
+        );
+        assert!(session.resource_ledger.samples >= ledger.samples);
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(!session.incoming_route_accounting_active);
+        assert!(!session.incoming_route_event_sample_failed);
+
+        // This terminal accounting failure belongs to the consuming solve path;
+        // discard the private session instead of retrying it.
+    }
+
+    #[test]
+    fn f5c_incoming_nested_event_overflow_aborts_consuming_run() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-incoming-nested-consuming-overflow",
+        ));
+        let mut session = InferenceSession::new(batch);
+        let attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let outer_attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        session.incoming_nested_event_attempt_observer = Some(attempts.clone());
+        session.incoming_post_rollback_attempt_observer = Some(outer_attempts.clone());
+        session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::IncomingNestedEvent);
+        assert!(matches!(
+            session.run(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert_eq!(attempts.load(std::sync::atomic::Ordering::Relaxed), 1);
+        assert_eq!(outer_attempts.load(std::sync::atomic::Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn f5c_incoming_nested_preflight_overflow_aborts_consuming_run() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-incoming-nested-consuming-preflight-overflow",
+        ));
+        let mut session = InferenceSession::new(batch);
+        let preflights = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let outer_attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        session.incoming_bound_preflight_observer = Some(preflights.clone());
+        session.incoming_post_rollback_attempt_observer = Some(outer_attempts.clone());
+        session.inject_next_incoming_bound_preflight_overflow = true;
+
+        assert!(matches!(
+            session.run(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert_eq!(preflights.load(std::sync::atomic::Ordering::Relaxed), 1);
+        assert_eq!(outer_attempts.load(std::sync::atomic::Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn f5c_incoming_failed_event_keeps_successful_final_sample() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-failed-event-final-sample",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(
+            session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap()
+                .into_parts()
+                .0,
+        );
+        let before = RouteCheckpoint::capture(&session);
+        let samples = session.resource_boundary_samples;
+        let attempts = session.incoming_post_rollback_sample_attempts;
+        let route_attempts = session.incoming_route_sample_attempts;
+        session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::IncomingNestedEvent);
+
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        before.assert_restored(&session);
+        assert_eq!(session.incoming_post_rollback_sample_attempts, attempts + 1);
+        assert_eq!(session.incoming_post_rollback_samples, 1);
+        assert_eq!(
+            session.resource_boundary_samples,
+            samples + session.incoming_route_sample_attempts - route_attempts - 1
+        );
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.execution_counters.semantic_arena_retained_bytes()
+        );
+        assert_eq!(
+            session.resource_ledger.inference_session_retained_bytes,
+            session
+                .execution_counters
+                .inference_session_retained_bytes()
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.routed_uses.is_empty());
+    }
+
+    #[test]
+    fn f5c_incoming_nested_injected_abort_keeps_event_and_outer_sample() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-nested-preflight-route",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(
+            session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap()
+                .into_parts()
+                .0,
+        );
+        let before = RouteCheckpoint::capture(&session);
+        let samples = session.resource_boundary_samples;
+        let attempts = session.incoming_post_rollback_sample_attempts;
+        let route_attempts = session.incoming_route_sample_attempts;
+        let event_attempts = session.incoming_nested_event_sample_attempts;
+        session.inject_next_incoming_nested_preflight_abort = true;
+
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        before.assert_restored(&session);
+        assert!(!session.inject_next_incoming_nested_preflight_abort);
+        assert_eq!(
+            session.incoming_nested_event_sample_attempts,
+            event_attempts + 1
+        );
+        assert_eq!(session.incoming_post_rollback_sample_attempts, attempts + 1);
+        assert_eq!(session.incoming_post_rollback_samples, 1);
+        assert_eq!(
+            session.resource_boundary_samples,
+            samples + session.incoming_route_sample_attempts - route_attempts
+        );
+        let enumerated = IndependentNestedCapacityLedger::from_surviving_rows(
+            &session.bounds,
+            &session.effect_bounds,
+        );
+        assert_eq!(enumerated.total_bound_bytes(), session.bound_payload_bytes);
+        assert_eq!(enumerated, session.independent_nested_capacities);
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.execution_counters.semantic_arena_retained_bytes()
+        );
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.execution_counters.semantic_arena_retained_bytes()
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.routed_uses.is_empty());
+    }
+
+    #[test]
+    fn f5c_incoming_nested_preflight_overflow_rolls_back_fresh_and_existing_rows() {
+        for existing in [false, true] {
+            let batch = collect(module("my source = 1", "f5c-nested-preflight-overflow"));
+            let mut session = InferenceSession::new(batch);
+            let row = if existing {
+                Some(session.fresh_value_at_level(1).unwrap() as usize)
+            } else {
+                None
+            };
+            session.bound_payload_bytes = usize::MAX;
+            let original_rows = session.bounds.len();
+            let original_counters = session.execution_counters.clone();
+            let original_ledger = session.resource_ledger.clone();
+            let original_samples = session.resource_boundary_samples;
+            session.begin_route_transaction().unwrap();
+            let row = match row {
+                Some(row) => {
+                    session.journal_value_row(row).unwrap();
+                    row
+                }
+                None => session.fresh_value_at_level(1).unwrap() as usize,
+            };
+            let old_capacity = session.bounds[row].direct_upper_rows.capacity();
+            session.bounds[row].direct_upper_rows.reserve(1);
+            let new_capacity = session.bounds[row].direct_upper_rows.capacity();
+            assert!(new_capacity > old_capacity);
+            session.incoming_route_accounting_active = true;
+            assert_eq!(
+                session.record_incoming_bound_capacity_growth(
+                    row,
+                    false,
+                    F5bCapacityLane::ValueDirectUpper,
+                    old_capacity,
+                    new_capacity,
+                    std::mem::size_of::<u32>(),
+                    Ok(()),
+                ),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+            assert!(session.incoming_route_event_sample_failed);
+            assert_eq!(
+                session.rollback_route_transaction(),
+                if existing {
+                    Err(SolveAvailabilityError::IdentityExhausted)
+                } else {
+                    Ok(())
+                }
+            );
+            assert_eq!(session.bounds.len(), original_rows);
+            assert!(session.store.facts().is_empty());
+            assert_eq!(session.resource_boundary_samples, original_samples);
+            assert_eq!(session.resource_ledger, original_ledger);
+            assert_eq!(
+                session.execution_counters.bound_table_growths,
+                original_counters.bound_table_growths + 1
+            );
+            assert_eq!(
+                session.execution_counters.bound_table_rebuilds,
+                original_counters.bound_table_rebuilds + 1
+            );
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_mixed_recorded_and_failed_preflight_growth_counts_each_event() {
+        let batch = collect(module("my source = 1", "f5c-mixed-nested-growth"));
+        let mut session = InferenceSession::new(batch);
+        let row_a = session.fresh_value_at_level(1).unwrap() as usize;
+        let row_b = session.fresh_value_at_level(1).unwrap() as usize;
+        let before = RouteCheckpoint::capture(&session);
+        let old_growths = session.execution_counters.bound_table_growths;
+        let old_rebuilds = session.execution_counters.bound_table_rebuilds;
+        let old_bytes = session.bound_payload_bytes;
+        session.incoming_route_accounting_active = true;
+        session.begin_route_transaction().unwrap();
+        session.journal_value_row(row_a).unwrap();
+        session.journal_value_row(row_b).unwrap();
+        for _ in 0..2 {
+            let old = session.bounds[row_a].direct_upper_rows.capacity();
+            session.bounds[row_a].direct_upper_rows.reserve(old + 1);
+            let new = session.bounds[row_a].direct_upper_rows.capacity();
+            assert!(new > old);
+            session
+                .record_incoming_bound_capacity_growth(
+                    row_a,
+                    false,
+                    F5bCapacityLane::ValueDirectUpper,
+                    old,
+                    new,
+                    std::mem::size_of::<u32>(),
+                    Ok(()),
+                )
+                .unwrap();
+        }
+        let old = session.bounds[row_b].direct_upper_rows.capacity();
+        session.bounds[row_b].direct_upper_rows.reserve(1);
+        let new = session.bounds[row_b].direct_upper_rows.capacity();
+        assert!(new > old);
+        session.inject_next_incoming_bound_preflight_overflow = true;
+        assert_eq!(
+            session.record_incoming_bound_capacity_growth(
+                row_b,
+                false,
+                F5bCapacityLane::ValueDirectUpper,
+                old,
+                new,
+                std::mem::size_of::<u32>(),
+                Ok(()),
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.incoming_nested_event_sample_attempts, 2);
+        session.rollback_route_transaction().unwrap();
+        session.incoming_route_accounting_active = false;
+        before.assert_restored(&session);
+        assert_eq!(
+            session.execution_counters.bound_table_growths,
+            old_growths + 3
+        );
+        assert_eq!(
+            session.execution_counters.bound_table_rebuilds,
+            old_rebuilds + 3
+        );
+        assert_eq!(
+            session.bound_payload_bytes,
+            old_bytes
+                + (session.bounds[row_a].direct_upper_rows.capacity()
+                    + session.bounds[row_b].direct_upper_rows.capacity())
+                    * std::mem::size_of::<u32>()
+        );
+        let enumerated = IndependentNestedCapacityLedger::from_surviving_rows(
+            &session.bounds,
+            &session.effect_bounds,
+        );
+        assert_eq!(enumerated.total_bound_bytes(), session.bound_payload_bytes);
+        assert_eq!(enumerated, session.independent_nested_capacities);
+    }
+
+    #[test]
+    fn f5c_incoming_repeated_nested_growth_retains_each_event_after_rollback() {
+        let batch = collect(module("my source = 1", "f5c-repeated-nested-growth"));
+        let mut session = InferenceSession::new(batch);
+        let row = session.fresh_value_at_level(1).unwrap() as usize;
+        let before = RouteCheckpoint::capture(&session);
+        let old_bytes = session.bound_payload_bytes;
+        let old_growths = session.execution_counters.bound_table_growths;
+        let old_rebuilds = session.execution_counters.bound_table_rebuilds;
+        session.incoming_route_accounting_active = true;
+        session.begin_route_transaction().unwrap();
+        session.journal_value_row(row).unwrap();
+        for _ in 0..2 {
+            let old = session.bounds[row].direct_upper_rows.capacity();
+            session.bounds[row].direct_upper_rows.reserve(old + 1);
+            let new = session.bounds[row].direct_upper_rows.capacity();
+            assert!(new > old);
+            session
+                .record_incoming_bound_capacity_growth(
+                    row,
+                    false,
+                    F5bCapacityLane::ValueDirectUpper,
+                    old,
+                    new,
+                    std::mem::size_of::<u32>(),
+                    Ok(()),
+                )
+                .unwrap();
+        }
+        session.rollback_route_transaction().unwrap();
+        session.incoming_route_accounting_active = false;
+        before.assert_restored(&session);
+        assert_eq!(
+            session.execution_counters.bound_table_growths,
+            old_growths + 2
+        );
+        assert_eq!(
+            session.execution_counters.bound_table_rebuilds,
+            old_rebuilds + 2
+        );
+        assert_eq!(
+            session.bound_payload_bytes,
+            old_bytes
+                + session.bounds[row].direct_upper_rows.capacity() * std::mem::size_of::<u32>()
+        );
+        let enumerated = IndependentNestedCapacityLedger::from_surviving_rows(
+            &session.bounds,
+            &session.effect_bounds,
+        );
+        assert_eq!(enumerated.total_bound_bytes(), session.bound_payload_bytes);
+        assert_eq!(enumerated, session.independent_nested_capacities);
+    }
+
+    #[test]
+    fn f5c_incoming_fresh_nested_growth_keeps_events_after_drop() {
+        let batch = collect(module("my source = 1", "f5c-fresh-repeated-nested-growth"));
+        let mut session = InferenceSession::new(batch);
+        let before = RouteCheckpoint::capture(&session);
+        let old_rows = session.bounds.len();
+        let old_bytes = session.bound_payload_bytes;
+        let old_growths = session.execution_counters.bound_table_growths;
+        let old_rebuilds = session.execution_counters.bound_table_rebuilds;
+        session.incoming_route_accounting_active = true;
+        session.begin_route_transaction().unwrap();
+        let row = session.fresh_value_at_level(1).unwrap() as usize;
+        for _ in 0..2 {
+            let old = session.bounds[row].direct_upper_rows.capacity();
+            session.bounds[row].direct_upper_rows.reserve(old + 1);
+            let new = session.bounds[row].direct_upper_rows.capacity();
+            assert!(new > old);
+            session
+                .record_incoming_bound_capacity_growth(
+                    row,
+                    false,
+                    F5bCapacityLane::ValueDirectUpper,
+                    old,
+                    new,
+                    std::mem::size_of::<u32>(),
+                    Ok(()),
+                )
+                .unwrap();
+        }
+        session.rollback_route_transaction().unwrap();
+        session.incoming_route_accounting_active = false;
+        before.assert_restored(&session);
+        assert_eq!(session.bounds.len(), old_rows);
+        assert_eq!(session.bound_payload_bytes, old_bytes);
+        assert_eq!(
+            session.execution_counters.bound_table_growths,
+            old_growths + 2
+        );
+        assert_eq!(
+            session.execution_counters.bound_table_rebuilds,
+            old_rebuilds + 2
+        );
+    }
+
+    #[test]
+    fn f5c_incoming_nested_preflight_overflow_exits_through_outer_route() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-nested-preflight-outer-route",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        let draft = GeneralizationDraft {
+            quantifier_count: 1,
+            recursive_bounds: vec![F5cRecursiveBound {
+                ordinal: 1,
+                lower: F5cPositive::Quantified(0),
+                upper: F5cNegative::Recursive(1),
+            }],
+            predicate: F5cPositive::Function {
+                argument: Box::new(F5cNegative::Quantified(0)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Recursive(1)),
+            },
+        };
+        session.schemes[target] = Some(
+            InferenceSession::finalize_generalization_draft(
+                session.finalization.as_mut().unwrap(),
+                &draft,
+                false,
+            )
+            .unwrap()
+            .into_parts()
+            .0,
+        );
+        let before = RouteCheckpoint::capture(&session);
+        let original_counters = session.execution_counters.clone();
+        let ledger = session.resource_ledger.clone();
+        let samples = session.resource_boundary_samples;
+        let attempts = session.incoming_post_rollback_sample_attempts;
+        let event_attempts = session.incoming_nested_event_sample_attempts;
+        let preflights = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        session.incoming_bound_preflight_observer = Some(preflights.clone());
+        session.inject_next_incoming_bound_preflight_overflow = true;
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        before.assert_restored(&session);
+        assert_eq!(preflights.load(std::sync::atomic::Ordering::Relaxed), 1);
+        assert!(!session.inject_next_incoming_bound_preflight_overflow);
+        assert_eq!(
+            session.execution_counters.bound_table_growths,
+            original_counters.bound_table_growths + 1
+        );
+        assert_eq!(
+            session.execution_counters.bound_table_rebuilds,
+            original_counters.bound_table_rebuilds + 1
+        );
+        assert_eq!(session.bound_payload_bytes, before.bound_payload_bytes);
+        assert_eq!(session.incoming_post_rollback_sample_attempts, attempts + 1);
+        assert_eq!(
+            session.incoming_nested_event_sample_attempts,
+            event_attempts
+        );
+        assert!(session.resource_boundary_samples > samples);
+        assert_eq!(
+            session.resource_ledger.samples - ledger.samples,
+            session.resource_boundary_samples - samples
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.routed_uses.is_empty());
+    }
+
+    #[test]
+    fn f5c_instantiation_flush_overflow_is_atomic() {
+        let batch = collect(module("my f = 1", "f5c-scratch-flush-overflow"));
+        let mut session = InferenceSession::new(batch);
+        session.instantiation_scratch.requested_slots = 1;
+        session.instantiation_scratch.lane_requested[0] = 1;
+        let counters = session.execution_counters.clone();
+        let ledger = session.resource_ledger.clone();
+        let samples = session.resource_boundary_samples;
+        session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::InstantiationScratch);
+        assert_eq!(
+            session.record_instantiation_scratch_resources(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.execution_counters, counters);
+        assert_eq!(session.resource_ledger, ledger);
+        assert_eq!(session.resource_boundary_samples, samples);
+        assert_eq!(session.instantiation_scratch.requested_slots, 1);
+        assert_eq!(session.instantiation_scratch.lane_requested[0], 1);
+    }
+
+    #[test]
+    fn f5c_resource_sample_overflow_publishes_nothing() {
+        let batch = collect(module("my f = 1", "f5c-sample-overflow"));
+        let mut session = InferenceSession::new(batch);
+
+        let counters = session.execution_counters.clone();
+        let baseline_ledger = session.resource_ledger.clone();
+        let samples = session.resource_boundary_samples;
+        assert_eq!(
+            session.sample_f4_resources_with_finish_output(
+                ResourceBoundary::FinishOutput,
+                usize::MAX,
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted),
+        );
+        assert_eq!(session.execution_counters, counters);
+        assert_eq!(session.resource_ledger, baseline_ledger);
+        assert_eq!(session.resource_boundary_samples, samples);
+
+        session.resource_ledger.samples = usize::MAX;
+        let ledger = session.resource_ledger.clone();
+        assert_eq!(
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute),
+            Err(SolveAvailabilityError::IdentityExhausted),
+        );
+        assert_eq!(session.execution_counters, counters);
+        assert_eq!(session.resource_ledger, ledger);
+        assert_eq!(session.resource_boundary_samples, samples);
+
+        session.resource_ledger = baseline_ledger.clone();
+        session.independent_nested_capacities.value_direct_lower = usize::MAX;
+        session.independent_nested_capacities.value_direct_upper = 1;
+        let ledger = session.resource_ledger.clone();
+        assert_eq!(
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute),
+            Err(SolveAvailabilityError::IdentityExhausted),
+        );
+        assert_eq!(session.execution_counters, counters);
+        assert_eq!(session.resource_ledger, ledger);
+        assert_eq!(session.resource_boundary_samples, samples);
+
+        session.independent_nested_capacities.value_direct_lower = 0;
+        session.independent_nested_capacities.value_direct_upper = 0;
+        session.resource_boundary_samples = usize::MAX;
+        let ledger = session.resource_ledger.clone();
+        assert_eq!(
+            session.sample_f4_resources(ResourceBoundary::IncomingRoute),
+            Err(SolveAvailabilityError::IdentityExhausted),
+        );
+        assert_eq!(session.execution_counters, counters);
+        assert_eq!(session.resource_ledger, ledger);
+        assert_eq!(session.resource_boundary_samples, usize::MAX);
+
+        session.resource_boundary_samples = samples;
+        session
+            .sample_f4_resources(ResourceBoundary::IncomingRoute)
+            .unwrap();
+        assert_eq!(session.resource_boundary_samples, samples + 1);
+        assert_eq!(session.resource_ledger.samples, baseline_ledger.samples + 1);
+        assert_eq!(
+            session.execution_counters.semantic_arena_retained_bytes,
+            session.resource_ledger.semantic_arena_retained_bytes,
+        );
+        assert_eq!(
+            session.execution_counters.inference_session_retained_bytes,
+            session.resource_ledger.inference_session_retained_bytes,
+        );
     }
 
     #[test]
@@ -14269,6 +25678,1242 @@ mod tests {
         assert_eq!(session.routed_use_positions.len(), 1);
     }
 
+    fn f5c_shared_closed_incoming_fixture(label: &str) -> (InferenceSession, Vec<DefinitionUseId>) {
+        let batch = collect(module(
+            "my source = 1; my first = source; my second = source",
+            label,
+        ));
+        let routes = batch
+            .definition_uses()
+            .iter()
+            .map(|use_record| use_record.id.clone())
+            .collect();
+        let mut session = InferenceSession::new(batch);
+        let finalized = session
+            .finalization
+            .as_mut()
+            .unwrap()
+            .finalize_scheme(|finalizer| {
+                let q = finalizer.quantifier(0);
+                let shared = finalizer.positive_quantified(q)?;
+                let top = finalizer.negative_top()?;
+                let int = finalizer.negative_int()?;
+                let argument_effect = finalizer.negative_effect_empty()?;
+                let result_effect = finalizer.positive_effect_bottom()?;
+                let first =
+                    finalizer.positive_function(top, argument_effect, result_effect, shared)?;
+                let second =
+                    finalizer.positive_function(int, argument_effect, result_effect, shared)?;
+                let predicate = finalizer.positive_union(&[first, second])?;
+                finalizer.set_scheme(1, &[], predicate)
+            })
+            .unwrap();
+        let (scheme, checkpoint) = finalized.into_parts();
+        session.current_closed_retained_bytes = checkpoint.retained_bytes_after();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(scheme);
+        (session, routes)
+    }
+
+    #[test]
+    fn f5c_route_use_owner_failed_reserves_reconcile_after_rollback() {
+        for (lane, index) in [
+            (F5bCapacityLane::RoutedUses, 0),
+            (F5bCapacityLane::RoutedUsePositions, 1),
+        ] {
+            let (mut session, routes) =
+                f5c_shared_closed_incoming_fixture("f5c-route-use-owner-reserve");
+            assert!(session.routed_uses.is_empty());
+            assert!(session.routed_use_positions.is_empty());
+            session.routed_uses = Vec::new();
+            session.routed_use_positions = HashSet::new();
+            let outer = session.incoming_post_rollback_sample_attempts;
+            inject_next_f5b_post_reserve_failure(lane);
+            assert_eq!(
+                session.route_incoming(&routes[0]),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "{lane:?}"
+            );
+            assert!(session.routed_uses.is_empty());
+            assert!(session.routed_use_positions.is_empty());
+            assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+            let capacity = if index == 0 {
+                session.routed_uses.capacity()
+            } else {
+                session.routed_use_positions.capacity()
+            };
+            assert!(capacity > 0, "{lane:?}");
+            let ledger = &session.resource_ledger.route_use_lanes[index];
+            assert_eq!(ledger.actual_capacity, capacity);
+            assert_eq!(
+                ledger.retained_bytes,
+                capacity
+                    * if index == 0 {
+                        std::mem::size_of::<RoutedUseProvenance>()
+                    } else {
+                        std::mem::size_of::<DefinitionUseId>()
+                    }
+            );
+            assert!(ledger.peak_bytes >= ledger.retained_bytes);
+            assert!(ledger.capacity_growths > 0);
+            assert_eq!(
+                session.resource_ledger.semantic_arena_retained_bytes,
+                session.execution_counters.semantic_arena_retained_bytes()
+            );
+            assert_eq!(
+                session.resource_ledger.inference_session_retained_bytes,
+                session
+                    .execution_counters
+                    .inference_session_retained_bytes()
+            );
+        }
+    }
+
+    #[test]
+    fn f5c_store_route_handoff_records_four_physical_owners() {
+        let batch = collect(module("my source = 1", "f5c-store-owner-handoff"));
+        let occurrence = batch.occurrences()[0].clone();
+        let mut store = ConstraintStore::with_capacity(batch.hir.clone(), batch.term_lineage(), 0);
+        let journal = store.begin_route(true);
+        store.admit_and_record_provenance(&occurrence).unwrap();
+        assert_eq!(store.take_route_capacity_events(), [1, 1, 1, 1]);
+        let capacities = [
+            store.facts.capacity(),
+            store.canonical.capacity(),
+            store.consumed_receipts.capacity(),
+            store.provenance.capacity(),
+        ];
+        assert!(capacities.into_iter().all(|capacity| capacity > 0));
+        store.rollback_route(journal);
+        assert!(store.facts.is_empty());
+        assert!(store.canonical.is_empty());
+        assert!(store.consumed_receipts.is_empty());
+        assert!(store.provenance.is_empty());
+        assert_eq!(
+            [
+                store.facts.capacity(),
+                store.canonical.capacity(),
+                store.consumed_receipts.capacity(),
+                store.provenance.capacity()
+            ],
+            capacities
+        );
+        assert_eq!(
+            [
+                store.counters.fact_store_growths,
+                store.counters.canonical_map_growths,
+                store.counters.consumed_receipt_growths,
+                store.counters.provenance_growths
+            ],
+            [1, 1, 1, 1]
+        );
+    }
+
+    #[test]
+    fn f5c_store_event_snapshots_keep_simultaneous_capacities() {
+        let batch = collect(module("my source = 1", "f5c-store-event-snapshots"));
+        let occurrence = batch.occurrences()[0].clone();
+        let mut store = ConstraintStore::with_capacity(batch.hir.clone(), batch.term_lineage(), 0);
+        let journal = store.begin_route(true);
+        store.admit_and_record_provenance(&occurrence).unwrap();
+        let snapshots: Vec<_> = store
+            .take_route_capacity_snapshots()
+            .into_iter()
+            .flatten()
+            .collect();
+        assert_eq!(snapshots.len(), 4);
+        for (index, snapshot) in snapshots.iter().enumerate() {
+            assert!(snapshot.capacities[index] > 0);
+            assert!(
+                snapshot.capacities[..index]
+                    .iter()
+                    .all(|capacity| *capacity > 0)
+            );
+            assert!(
+                snapshot.capacities[index + 1..]
+                    .iter()
+                    .all(|capacity| *capacity == 0)
+            );
+        }
+        store.rollback_route(journal);
+        assert!(store.facts.is_empty());
+        assert!(store.canonical.is_empty());
+        assert!(store.consumed_receipts.is_empty());
+        assert!(store.provenance.is_empty());
+        assert_eq!(
+            snapshots[3].capacities,
+            [
+                store.facts.capacity(),
+                store.canonical.capacity(),
+                store.consumed_receipts.capacity(),
+                store.provenance.capacity()
+            ]
+        );
+    }
+
+    #[test]
+    fn f5c_store_changed_failed_reserves_keep_one_outer_sample() {
+        for (index, lane) in [
+            F5bCapacityLane::StoreFacts,
+            F5bCapacityLane::StoreCanonical,
+            F5bCapacityLane::StoreConsumedReceipts,
+            F5bCapacityLane::StoreProvenance,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let (mut session, routes) =
+                f5c_shared_closed_incoming_fixture("f5c-store-changed-reserve");
+            inject_next_f5b_post_reserve_failure(lane);
+            let outer = session.incoming_post_rollback_sample_attempts;
+            assert_eq!(
+                session.route_incoming(&routes[0]),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "{lane:?}"
+            );
+            assert_eq!(
+                session.incoming_post_rollback_sample_attempts,
+                outer + 1,
+                "{lane:?}"
+            );
+            assert!(session.store.facts.is_empty(), "{lane:?}");
+            assert!(session.store.canonical.is_empty(), "{lane:?}");
+            assert!(session.store.consumed_receipts.is_empty(), "{lane:?}");
+            assert!(session.store.provenance.is_empty(), "{lane:?}");
+            assert!(session.routed_uses.is_empty(), "{lane:?}");
+            assert!(session.routed_use_positions.is_empty(), "{lane:?}");
+            let capacities = [
+                session.store.facts.capacity(),
+                session.store.canonical.capacity(),
+                session.store.consumed_receipts.capacity(),
+                session.store.provenance.capacity(),
+            ];
+            assert!(capacities[index] > 0, "{lane:?}");
+            assert_eq!(
+                session.resource_ledger.route_store_lanes[index].actual_capacity,
+                capacities[index]
+            );
+            assert!(session.resource_ledger.route_store_lanes[index].peak_bytes > 0);
+        }
+    }
+
+    #[test]
+    fn f5c_store_growth_counter_overflow_is_terminal_before_owner_mutation() {
+        for lane in 0..4 {
+            let batch = collect(module("my source = 1", "f5c-store-counter-overflow"));
+            let occurrence = batch.occurrences()[0].clone();
+            let mut store =
+                ConstraintStore::with_capacity(batch.hir.clone(), batch.term_lineage(), 0);
+            match lane {
+                0 => store.counters.fact_store_growths = usize::MAX,
+                1 => store.counters.canonical_map_growths = usize::MAX,
+                2 => store.counters.consumed_receipt_growths = usize::MAX,
+                3 => store.counters.provenance_growths = usize::MAX,
+                _ => unreachable!(),
+            }
+            let journal = store.begin_route(true);
+            assert_eq!(
+                store.admit_and_record_provenance(&occurrence),
+                Err(ConstraintError::IdentityExhausted)
+            );
+            store.rollback_route(journal);
+            assert!(store.facts.is_empty());
+            assert!(store.canonical.is_empty());
+            assert!(store.consumed_receipts.is_empty());
+            assert!(store.provenance.is_empty());
+            let capacities = [
+                store.facts.capacity(),
+                store.canonical.capacity(),
+                store.consumed_receipts.capacity(),
+                store.provenance.capacity(),
+            ];
+            assert_eq!(capacities[lane], 0, "{lane}");
+        }
+    }
+
+    #[test]
+    fn f5c_store_route_event_counter_overflow_rejects_before_growth() {
+        let batch = collect(module("my source = 1", "f5c-store-event-overflow"));
+        let occurrence = batch.occurrences()[0].clone();
+        let mut store = ConstraintStore::with_capacity(batch.hir.clone(), batch.term_lineage(), 0);
+        let journal = store.begin_route(true);
+        store.route_capacity_events[0] = usize::MAX;
+        assert_eq!(
+            store.admit_and_record_provenance(&occurrence),
+            Err(ConstraintError::IdentityExhausted)
+        );
+        store.rollback_route(journal);
+        assert!(store.facts.is_empty());
+        assert_eq!(store.facts.capacity(), 0);
+        assert_eq!(store.route_capacity_events[0], usize::MAX);
+        assert!(
+            store
+                .take_route_capacity_snapshots()
+                .into_iter()
+                .flatten()
+                .next()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn f5c_public_admission_failure_keeps_store_owner_events_and_ledger() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-store-route-ledger",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(
+            session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap()
+                .into_parts()
+                .0,
+        );
+        assert!(session.store.facts.is_empty());
+        assert!(session.store.canonical.is_empty());
+        assert!(session.store.consumed_receipts.is_empty());
+        assert!(session.store.provenance.is_empty());
+        session.store.facts = Vec::new();
+        session.store.canonical = HashMap::new();
+        session.store.consumed_receipts = HashSet::new();
+        session.store.provenance = Vec::new();
+        let outer = session.incoming_post_rollback_sample_attempts;
+        inject_next_f5b_reserve_failure(F5bCapacityLane::TypedPairs);
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(session.store.facts.is_empty());
+        assert!(session.store.canonical.is_empty());
+        assert!(session.store.consumed_receipts.is_empty());
+        assert!(session.store.provenance.is_empty());
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+        for (index, (capacity, size)) in [
+            (
+                session.store.facts.capacity(),
+                std::mem::size_of::<SemanticFact>(),
+            ),
+            (
+                session.store.canonical.capacity(),
+                std::mem::size_of::<(FactKey, FactId)>(),
+            ),
+            (
+                session.store.consumed_receipts.capacity(),
+                std::mem::size_of::<u64>(),
+            ),
+            (
+                session.store.provenance.capacity(),
+                std::mem::size_of::<ProvenanceEdge>(),
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert!(capacity > 0, "store lane {index}");
+            let lane = &session.resource_ledger.route_store_lanes[index];
+            assert_eq!(lane.actual_capacity, capacity);
+            assert_eq!(lane.retained_bytes, capacity * size);
+            assert!(lane.peak_bytes >= lane.retained_bytes);
+            assert_eq!(lane.capacity_growths, 1);
+        }
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.execution_counters.semantic_arena_retained_bytes()
+        );
+        assert_eq!(
+            session.resource_ledger.inference_session_retained_bytes,
+            session
+                .execution_counters
+                .inference_session_retained_bytes()
+        );
+        session.route_incoming(&route).unwrap();
+        assert_eq!(session.store.facts.len(), 1);
+    }
+
+    #[test]
+    fn f5c_provenance_failure_after_fact_growth_restores_public_state() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-provenance-after-store-growth",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(
+            session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap()
+                .into_parts()
+                .0,
+        );
+        assert!(session.store.facts.is_empty());
+        session.store.facts = Vec::new();
+        session.store.canonical = HashMap::new();
+        let outer = session.incoming_post_rollback_sample_attempts;
+        session.store.injected_provenance_failure = Some(ConstraintError::IdentityExhausted);
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+        assert!(session.store.facts.is_empty());
+        assert!(session.store.canonical.is_empty());
+        assert!(session.store.consumed_receipts.is_empty());
+        assert!(session.store.provenance.is_empty());
+        assert!(session.routed_uses.is_empty());
+        assert!(session.routed_use_positions.is_empty());
+        for index in [0, 1] {
+            assert!(session.resource_ledger.route_store_lanes[index].capacity_growths > 0);
+            assert!(session.resource_ledger.route_store_lanes[index].peak_bytes > 0);
+        }
+        session.route_incoming(&route).unwrap();
+        assert_eq!(session.store.facts.len(), 1);
+    }
+
+    #[test]
+    fn f5c_failed_admission_after_fact_growth_samples_one_store_lane() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-admission-after-one-store-lane",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(
+            session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap()
+                .into_parts()
+                .0,
+        );
+        assert!(session.store.facts.is_empty());
+        session.store.facts = Vec::new();
+        let outer = session.incoming_post_rollback_sample_attempts;
+        session.store.injected_after_fact_failure = true;
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+        assert!(session.store.facts.is_empty());
+        assert!(session.store.canonical.is_empty());
+        assert!(session.store.provenance.is_empty());
+        assert!(session.store.consumed_receipts.is_empty());
+        let lane = &session.resource_ledger.route_store_lanes[0];
+        assert_eq!(lane.actual_capacity, session.store.facts.capacity());
+        assert!(lane.peak_bytes >= lane.retained_bytes && lane.retained_bytes > 0);
+        assert_eq!(lane.capacity_growths, 1);
+        session.route_incoming(&route).unwrap();
+        assert_eq!(session.store.facts.len(), 1);
+    }
+
+    #[test]
+    fn f5c_shared_closed_child_is_instantiated_once_per_use_with_disjoint_rows() {
+        let (mut session, routes) = f5c_shared_closed_incoming_fixture("f5c-shared-closed-child");
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        let view = session
+            .finalization
+            .as_ref()
+            .unwrap()
+            .scheme_view(session.schemes[target].as_ref().unwrap())
+            .unwrap();
+        let PositiveValueView::Union(children) = view.positive_value(view.predicate()).unwrap()
+        else {
+            panic!("two distinct Function parents");
+        };
+        assert_eq!(children.len(), 2);
+        let PositiveValueView::Function {
+            argument: first_argument,
+            result: first_child,
+            ..
+        } = view.positive_value(children[0]).unwrap()
+        else {
+            panic!("first Function");
+        };
+        let PositiveValueView::Function {
+            argument: second_argument,
+            result: second_child,
+            ..
+        } = view.positive_value(children[1]).unwrap()
+        else {
+            panic!("second Function");
+        };
+        assert_eq!(
+            first_child, second_child,
+            "the shared child is one closed ID"
+        );
+        let canonical_arguments = [first_argument, second_argument].map(|argument| {
+            match view.negative_value(argument).unwrap() {
+                NegativeValueView::Top => false,
+                NegativeValueView::Int => true,
+                _ => panic!("closed Function argument"),
+            }
+        });
+        let initial_rows = session.bounds.len() as u32;
+        let initial_session_bytes = session.execution_counters.inference_session_retained_bytes;
+        for (use_index, route) in routes.iter().enumerate() {
+            session.route_incoming(route).unwrap();
+            if use_index == 0 {
+                assert!(session.bounds.capacity() > 0);
+                assert!(
+                    session
+                        .resource_ledger
+                        .instantiation_lanes
+                        .iter()
+                        .filter(|lane| lane.capacity_growths > 0)
+                        .count()
+                        >= 2
+                );
+                assert!(
+                    session.resource_ledger.inference_session_peak_bytes > initial_session_bytes
+                );
+                assert!(
+                    session.resource_ledger.inference_session_peak_bytes
+                        >= session.resource_ledger.inference_session_retained_bytes
+                );
+            }
+            assert_eq!(
+                session
+                    .execution_counters
+                    .instantiation_fresh_value_variables,
+                use_index + 1
+            );
+            assert_eq!(
+                session
+                    .execution_counters
+                    .instantiation_fresh_effect_variables,
+                0
+            );
+            assert_eq!(
+                session.execution_counters.instantiation_node_visits,
+                8 * (use_index + 1)
+            );
+            assert!(session.instantiation_scratch.substitution.is_empty());
+            assert!(session.instantiation_scratch.positive.is_empty());
+            assert!(session.instantiation_scratch.negative.is_empty());
+            assert!(session.instantiation_scratch.parts.is_empty());
+            let TermView::PositiveFunction {
+                argument, result, ..
+            } = session
+                .store
+                .term_view(session.store.facts()[use_index].lower())
+                .unwrap()
+            else {
+                panic!("representative Function");
+            };
+            assert!(matches!(
+                (canonical_arguments[0], session.store.term_view(argument)),
+                (false, Ok(TermView::NegativeTop)) | (true, Ok(TermView::Leaf(Leaf::IntNegative)))
+            ));
+            let TermView::LiveVariable(row) = session.store.term_view(result).unwrap() else {
+                panic!("instantiated Q result");
+            };
+            assert_eq!(row.ordinal(), initial_rows + use_index as u32);
+        }
+        assert_eq!(session.store.facts().len(), 2);
+        let mut products = [[0usize; 2]; 2];
+        for key in session.typed_pairs.keys() {
+            if let TypedPairKey::Value(CanonicalValuePairKey {
+                lower: ValueEndpointKey::PositiveFunction(term),
+                ..
+            }) = key
+            {
+                if let Ok(TermView::PositiveFunction {
+                    argument, result, ..
+                }) = session.store.term_view(*term)
+                {
+                    if let Ok(TermView::LiveVariable(row)) = session.store.term_view(result) {
+                        let index = row.ordinal().saturating_sub(initial_rows) as usize;
+                        if index < 2 {
+                            for (member, expected) in canonical_arguments.iter().enumerate() {
+                                if matches!(
+                                    (*expected, session.store.term_view(argument)),
+                                    (false, Ok(TermView::NegativeTop))
+                                        | (true, Ok(TermView::Leaf(Leaf::IntNegative)))
+                                ) {
+                                    products[index][member] += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(products, [[1, 1], [1, 1]]);
+        let ledger = &session.resource_ledger;
+        let counters = &session.execution_counters;
+        assert_eq!(
+            ledger.instantiation_substitution_requested_slots,
+            counters.instantiation_substitution_requested_slots()
+        );
+        assert_eq!(
+            ledger.instantiation_substitution_actual_capacity,
+            counters.instantiation_substitution_actual_capacity()
+        );
+        assert_eq!(
+            ledger.instantiation_substitution_retained_bytes,
+            counters.instantiation_substitution_retained_bytes()
+        );
+        assert_eq!(
+            ledger.instantiation_substitution_peak_bytes,
+            counters.instantiation_substitution_peak_bytes()
+        );
+        assert_eq!(
+            ledger.instantiation_substitution_capacity_growths,
+            counters.instantiation_substitution_capacity_growths()
+        );
+        assert_eq!(
+            ledger.semantic_arena_retained_bytes,
+            counters.semantic_arena_retained_bytes()
+        );
+        assert_eq!(
+            ledger.semantic_arena_peak_bytes,
+            counters.semantic_arena_peak_bytes()
+        );
+        assert_eq!(
+            ledger.inference_session_retained_bytes,
+            counters.inference_session_retained_bytes()
+        );
+        assert_eq!(
+            ledger.inference_session_peak_bytes,
+            counters.inference_session_peak_bytes()
+        );
+        assert_eq!(
+            ledger.instantiation_substitution_retained_bytes,
+            ledger
+                .instantiation_lanes
+                .iter()
+                .map(|lane| lane.retained_bytes)
+                .sum::<usize>()
+        );
+        let observed_capacities = [
+            session.instantiation_scratch.substitution.capacity(),
+            session.instantiation_scratch.positive.capacity(),
+            session.instantiation_scratch.negative.capacity(),
+            session.instantiation_scratch.positive_effects.capacity(),
+            session.instantiation_scratch.negative_effects.capacity(),
+            session.instantiation_scratch.parts.capacity(),
+            session.instantiation_scratch.work.capacity(),
+        ];
+        let slot_sizes = [
+            std::mem::size_of::<(u32, u32)>(),
+            std::mem::size_of::<(yu_types::PositiveValueId, std::ops::Range<usize>)>(),
+            std::mem::size_of::<(yu_types::NegativeValueId, std::ops::Range<usize>)>(),
+            std::mem::size_of::<yu_types::PositiveEffectId>(),
+            std::mem::size_of::<yu_types::NegativeEffectId>(),
+            std::mem::size_of::<Term>(),
+            std::mem::size_of::<InstantiationWork>(),
+        ];
+        for (index, lane) in ledger.instantiation_lanes.iter().enumerate() {
+            assert!(lane.requested_slots > 0, "lane {index}");
+            assert!(lane.capacity_growths > 0, "lane {index}");
+            assert_eq!(
+                lane.actual_capacity, observed_capacities[index],
+                "lane {index}"
+            );
+            assert_eq!(
+                lane.retained_bytes,
+                observed_capacities[index] * slot_sizes[index],
+                "lane {index}"
+            );
+            assert!(lane.peak_bytes >= lane.retained_bytes, "lane {index}");
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_scratch_is_released_at_finish_transfer() {
+        let (mut session, routes) =
+            f5c_shared_closed_incoming_fixture("f5c-incoming-finish-retention");
+        let source = session.batch.definition_uses()[0].target.ordinal() as usize;
+        for position in 0..session.schemes.len() {
+            if position == source {
+                continue;
+            }
+            let finalized = session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap();
+            let (scheme, checkpoint) = finalized.into_parts();
+            session.current_closed_retained_bytes = checkpoint.retained_bytes_after();
+            session.schemes[position] = Some(scheme);
+        }
+        for route in &routes {
+            session.route_incoming(route).unwrap();
+        }
+        assert!(session.instantiation_scratch.retained_bytes() > 0);
+        let solved = session.finish().unwrap();
+        let counters = solved.counters();
+        assert_eq!(counters.instantiation_substitution_retained_bytes(), 0);
+        assert_eq!(counters.instantiation_substitution_actual_capacity(), 0);
+        assert!(counters.instantiation_substitution_peak_bytes() > 0);
+    }
+
+    #[test]
+    fn f5c_incoming_restores_recursive_lower_then_upper_with_q_before_r() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-incoming-r-order",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 1,
+            recursive_bounds: vec![F5cRecursiveBound {
+                ordinal: 1,
+                lower: F5cPositive::Quantified(0),
+                upper: F5cNegative::Recursive(1),
+            }],
+            predicate: F5cPositive::Function {
+                argument: Box::new(F5cNegative::Quantified(0)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Recursive(1)),
+            },
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+        let first_fresh = session.bounds.len() as u32;
+        session.route_incoming(&route).unwrap();
+        assert_eq!(
+            session
+                .execution_counters
+                .instantiation_fresh_value_variables(),
+            2
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .instantiation_fresh_effect_variables(),
+            0
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .instantiation_lower_bound_restorations(),
+            1
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .instantiation_upper_bound_restorations(),
+            1
+        );
+        assert_eq!(session.execution_counters.instantiation_node_visits(), 7);
+        assert!(
+            session.bounds[(first_fresh + 1) as usize]
+                .direct_lower_rows
+                .contains(&first_fresh)
+        );
+        assert!(
+            session.bounds[(first_fresh + 1) as usize]
+                .direct_upper_rows
+                .contains(&(first_fresh + 1))
+        );
+    }
+
+    #[test]
+    fn f5c_incoming_fresh_nested_growth_peaks_then_drops_on_late_failure() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-fresh-nested-route-failure",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 1,
+            recursive_bounds: vec![F5cRecursiveBound {
+                ordinal: 1,
+                lower: F5cPositive::Quantified(0),
+                upper: F5cNegative::Recursive(1),
+            }],
+            predicate: F5cPositive::Function {
+                argument: Box::new(F5cNegative::Quantified(0)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Recursive(1)),
+            },
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+        let before = RouteCheckpoint::capture(&session);
+        let first_fresh = session.bounds.len();
+        let old_bound_bytes = session.bound_payload_bytes;
+        let old_semantic_retained_bytes = session.resource_ledger.semantic_arena_retained_bytes;
+        let old_direct_upper_bytes = session.independent_nested_capacities.value_direct_upper;
+        assert_eq!(old_direct_upper_bytes, 0);
+        let old_samples = session.incoming_post_rollback_samples;
+        let old_boundary_samples = session.resource_boundary_samples;
+        session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::ReceiptMismatch)
+        );
+        before.assert_restored(&session);
+        assert_eq!(session.incoming_post_rollback_samples, old_samples + 1);
+        let surviving_value_bytes: usize = session
+            .bounds
+            .iter()
+            .map(|row| {
+                (row.direct_lower_rows.capacity() + row.direct_upper_rows.capacity())
+                    * std::mem::size_of::<u32>()
+                    + (row.exact_non_variable_lowers.capacity()
+                        + row.exact_non_variable_uppers.capacity())
+                        * std::mem::size_of::<ValueEndpointKey>()
+            })
+            .sum();
+        let surviving_effect_bytes: usize = session
+            .effect_bounds
+            .iter()
+            .map(|row| {
+                (row.direct_lower_rows.capacity() + row.direct_upper_rows.capacity())
+                    * std::mem::size_of::<u32>()
+                    + (row.exact_non_variable_lowers.capacity()
+                        + row.exact_non_variable_uppers.capacity())
+                        * std::mem::size_of::<EffectEndpointKey>()
+            })
+            .sum();
+        assert_eq!(
+            session.bound_payload_bytes,
+            surviving_value_bytes + surviving_effect_bytes
+        );
+        assert_eq!(
+            session.independent_nested_capacities.total_bound_bytes(),
+            session.bound_payload_bytes
+        );
+        assert_eq!(
+            session.independent_nested_capacities.value_direct_upper,
+            old_direct_upper_bytes
+        );
+        let enumerated = IndependentNestedCapacityLedger::from_surviving_rows(
+            &session.bounds,
+            &session.effect_bounds,
+        );
+        assert_eq!(enumerated.total_bound_bytes(), session.bound_payload_bytes);
+        assert_eq!(enumerated, session.independent_nested_capacities);
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.execution_counters.semantic_arena_retained_bytes()
+        );
+        assert!(session.resource_boundary_samples > old_boundary_samples + 1);
+        assert!(session.incoming_nested_value_direct_upper_event_peak_bytes > 0);
+        assert!(session.incoming_nested_event_scratch_peak_bytes > 0);
+        let event = session.incoming_nested_value_direct_upper_event.unwrap();
+        assert!(event.fresh_row);
+        assert!(event.value_direct_upper_bytes > 0);
+        assert!(event.scratch_bytes > 0);
+        assert_eq!(session.bounds.len(), first_fresh);
+        assert!(
+            event.semantic_retained_bytes
+                >= old_semantic_retained_bytes
+                    + event.value_direct_upper_bytes
+                    + event.scratch_bytes
+        );
+        assert!(session.resource_ledger.semantic_arena_peak_bytes >= event.semantic_retained_bytes);
+        assert!(
+            session.resource_ledger.inference_session_peak_bytes >= event.session_retained_bytes
+        );
+        assert!(
+            event.semantic_retained_bytes > session.resource_ledger.semantic_arena_retained_bytes
+        );
+        assert!(
+            session.resource_ledger.semantic_arena_peak_bytes
+                > session.resource_ledger.semantic_arena_retained_bytes
+        );
+        assert!(session.bound_payload_bytes >= old_bound_bytes);
+        session.route_incoming(&route).unwrap();
+        assert!(session.bounds[first_fresh + 1].direct_upper_rows.capacity() > 0);
+        assert_eq!(session.store.facts().len(), 1);
+    }
+
+    #[test]
+    fn f5c_incoming_scratch_reserve_failures_preserve_physical_accounting_and_retry() {
+        let lanes = [
+            F5bCapacityLane::InstantiationSubstitution,
+            F5bCapacityLane::InstantiationPositiveMemo,
+            F5bCapacityLane::InstantiationNegativeMemo,
+            F5bCapacityLane::InstantiationPositiveEffects,
+            F5bCapacityLane::InstantiationNegativeEffects,
+            F5bCapacityLane::InstantiationParts,
+            F5bCapacityLane::InstantiationWork,
+        ];
+        for (lane_index, lane) in lanes.into_iter().enumerate() {
+            let (mut session, routes) =
+                f5c_shared_closed_incoming_fixture("f5c-scratch-lane-failure");
+            let before = RouteCheckpoint::capture(&session);
+            inject_next_f5b_reserve_failure(lane);
+            assert_eq!(
+                session.route_incoming(&routes[0]),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "{lane:?}"
+            );
+            before.assert_restored(&session);
+            assert_eq!(
+                session.resource_ledger.instantiation_lanes[lane_index].requested_slots, 1,
+                "{lane:?}"
+            );
+            assert_eq!(
+                session
+                    .execution_counters
+                    .instantiation_substitution_requested_slots,
+                session
+                    .resource_ledger
+                    .instantiation_substitution_requested_slots
+            );
+            assert_eq!(
+                session
+                    .execution_counters
+                    .instantiation_substitution_capacity_growths,
+                session
+                    .resource_ledger
+                    .instantiation_substitution_capacity_growths
+            );
+            assert_eq!(
+                session
+                    .execution_counters
+                    .instantiation_substitution_peak_bytes,
+                session
+                    .resource_ledger
+                    .instantiation_substitution_peak_bytes
+            );
+            assert_eq!(
+                session.execution_counters.semantic_arena_retained_bytes,
+                session.resource_ledger.semantic_arena_retained_bytes,
+            );
+            assert_eq!(
+                session.execution_counters.semantic_arena_peak_bytes,
+                session.resource_ledger.semantic_arena_peak_bytes,
+            );
+            assert_eq!(
+                session.execution_counters.inference_session_retained_bytes,
+                session.resource_ledger.inference_session_retained_bytes,
+            );
+            assert_eq!(
+                session.execution_counters.inference_session_peak_bytes,
+                session.resource_ledger.inference_session_peak_bytes,
+            );
+            assert!(session.instantiation_scratch.substitution.is_empty());
+            assert!(session.instantiation_scratch.positive.is_empty());
+            assert!(session.instantiation_scratch.negative.is_empty());
+            assert!(session.instantiation_scratch.parts.is_empty());
+            session.route_incoming(&routes[0]).unwrap();
+            assert_eq!(session.store.facts().len(), 1, "{lane:?}");
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_late_failure_retains_scratch_growth_and_reconciles_rollback() {
+        let (mut session, routes) =
+            f5c_shared_closed_incoming_fixture("f5c-late-scratch-growth-failure");
+        let before = RouteCheckpoint::capture(&session);
+        let initial_session_bytes = session.execution_counters.inference_session_retained_bytes;
+        let initial_bound_bytes = session.bound_payload_bytes;
+        let initial_bound_growths = session.execution_counters.bound_table_growths;
+        let outer_samples = session.incoming_post_rollback_samples;
+        session.inject_no_growth_scratch_request_on_route_exit = true;
+        session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
+
+        assert_eq!(
+            session.route_incoming(&routes[0]),
+            Err(SolveAvailabilityError::ReceiptMismatch)
+        );
+        before.assert_restored(&session);
+        assert_eq!(session.incoming_post_rollback_samples, outer_samples + 1);
+        assert!(session.execution_counters.bound_table_growths > initial_bound_growths);
+        assert!(session.bound_payload_bytes > initial_bound_bytes);
+        let enumerated = IndependentNestedCapacityLedger::from_surviving_rows(
+            &session.bounds,
+            &session.effect_bounds,
+        );
+        assert_eq!(enumerated.total_bound_bytes(), session.bound_payload_bytes);
+        assert_eq!(enumerated, session.independent_nested_capacities);
+        assert_eq!(
+            session.independent_nested_capacities.total_bound_bytes(),
+            session.bound_payload_bytes
+        );
+        assert!(
+            session.resource_ledger.semantic_arena_peak_bytes
+                > session.resource_ledger.semantic_arena_retained_bytes
+        );
+        assert!(session.incoming_post_rollback_had_pending_requests);
+        let counters = &session.execution_counters;
+        let ledger = &session.resource_ledger;
+        assert!(
+            ledger
+                .instantiation_lanes
+                .iter()
+                .filter(|lane| lane.capacity_growths > 0)
+                .count()
+                >= 2
+        );
+        assert!(ledger.instantiation_substitution_requested_slots > 0);
+        assert_eq!(
+            counters.instantiation_substitution_requested_slots,
+            ledger.instantiation_substitution_requested_slots
+        );
+        assert_eq!(
+            counters.instantiation_substitution_capacity_growths,
+            ledger.instantiation_substitution_capacity_growths
+        );
+        assert_eq!(
+            counters.instantiation_substitution_actual_capacity,
+            ledger.instantiation_substitution_actual_capacity
+        );
+        assert_eq!(
+            counters.instantiation_substitution_retained_bytes,
+            ledger.instantiation_substitution_retained_bytes
+        );
+        assert_eq!(
+            counters.instantiation_substitution_peak_bytes,
+            ledger.instantiation_substitution_peak_bytes
+        );
+        assert!(
+            ledger.inference_session_peak_bytes
+                >= initial_session_bytes + ledger.instantiation_substitution_retained_bytes
+        );
+        assert_eq!(
+            counters.semantic_arena_retained_bytes,
+            ledger.semantic_arena_retained_bytes
+        );
+        assert_eq!(
+            counters.semantic_arena_peak_bytes,
+            ledger.semantic_arena_peak_bytes
+        );
+        assert_eq!(
+            counters.inference_session_retained_bytes,
+            ledger.inference_session_retained_bytes
+        );
+        assert_eq!(
+            counters.inference_session_peak_bytes,
+            ledger.inference_session_peak_bytes
+        );
+        session.route_incoming(&routes[0]).unwrap();
+        assert_eq!(session.store.facts().len(), 1);
+    }
+
+    #[test]
+    fn f5c_incoming_failed_route_without_scratch_growth_has_no_outer_sample() {
+        let (mut session, routes) =
+            f5c_shared_closed_incoming_fixture("f5c-no-scratch-growth-failure");
+        session.route_incoming(&routes[0]).unwrap();
+        session.begin_route_transaction().unwrap();
+        session.rollback_route_transaction().unwrap();
+        session
+            .route_journal_spare
+            .as_mut()
+            .unwrap()
+            .effect_row_seen
+            .reserve(1);
+        session.fresh_effect_at_level(1).unwrap();
+        session
+            .sample_f4_resources(ResourceBoundary::IncomingRoute)
+            .unwrap();
+        let effect_seen_capacity = session
+            .route_journal_spare
+            .as_ref()
+            .unwrap()
+            .effect_row_seen
+            .capacity();
+        let growths = session
+            .execution_counters
+            .instantiation_substitution_capacity_growths;
+        let resource_samples = session.resource_boundary_samples;
+        let outer_samples = session.incoming_post_rollback_samples;
+        inject_next_f5b_reserve_failure(F5bCapacityLane::EffectBounds);
+        assert_eq!(
+            session.route_incoming(&routes[1]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            session
+                .route_journal_spare
+                .as_ref()
+                .unwrap()
+                .effect_row_seen
+                .capacity(),
+            effect_seen_capacity
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .instantiation_substitution_capacity_growths,
+            growths
+        );
+        assert_eq!(session.resource_boundary_samples, resource_samples);
+        assert_eq!(session.incoming_post_rollback_samples, outer_samples);
+        assert!(!session.route_attempt_physical_change);
+
+        session.route_incoming(&routes[1]).unwrap();
+        assert_eq!(session.store.facts().len(), 2);
+    }
+
+    #[test]
+    fn f5c_incoming_partial_begin_growth_gets_one_post_rollback_sample() {
+        let (mut session, routes) =
+            f5c_shared_closed_incoming_fixture("f5c-partial-begin-growth-sample");
+        session.begin_route_transaction().unwrap();
+        session.rollback_route_transaction().unwrap();
+
+        loop {
+            let journal = session.route_journal_spare.as_ref().unwrap();
+            if session.bounds.len() > journal.value_row_seen.capacity() {
+                break;
+            }
+            session.fresh_value_at_level(1).unwrap();
+        }
+        loop {
+            let journal = session.route_journal_spare.as_ref().unwrap();
+            if session.effect_bounds.len() > journal.effect_row_seen.capacity() {
+                break;
+            }
+            session.fresh_effect_at_level(1).unwrap();
+        }
+        session
+            .sample_f4_resources(ResourceBoundary::IncomingRoute)
+            .unwrap();
+
+        let before = RouteCheckpoint::capture(&session);
+        let journal = session.route_journal_spare.as_ref().unwrap();
+        let value_seen_capacity = journal.value_row_seen.capacity();
+        let effect_seen_capacity = journal.effect_row_seen.capacity();
+        let journal_retained_bytes = journal.checked_retained_bytes().unwrap();
+        let independent_journal_retained_bytes =
+            journal.checked_independent_retained_bytes().unwrap();
+        let semantic_retained_bytes = session.execution_counters.semantic_arena_retained_bytes;
+        let session_retained_bytes = session.execution_counters.inference_session_retained_bytes;
+        let independent_semantic_retained_bytes =
+            session.resource_ledger.semantic_arena_retained_bytes;
+        let independent_session_retained_bytes =
+            session.resource_ledger.inference_session_retained_bytes;
+        let resource_samples = session.resource_boundary_samples;
+        let route_sample_attempts = session.incoming_route_sample_attempts;
+        let post_rollback_samples = session.incoming_post_rollback_samples;
+        let scratch_growths = session
+            .execution_counters
+            .instantiation_substitution_capacity_growths;
+        assert_eq!(session.instantiation_scratch.capacity_growths, 0);
+
+        inject_next_f5b_reserve_failure(F5bCapacityLane::EffectBounds);
+        assert_eq!(
+            session.route_incoming(&routes[0]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+
+        let journal = session.route_journal_spare.as_ref().unwrap();
+        let value_seen_capacity_after = journal.value_row_seen.capacity();
+        assert!(value_seen_capacity_after > value_seen_capacity);
+        assert_eq!(journal.effect_row_seen.capacity(), effect_seen_capacity);
+        let value_seen_delta_bytes =
+            (value_seen_capacity_after - value_seen_capacity) * std::mem::size_of::<u32>();
+        assert_eq!(
+            journal.checked_retained_bytes().unwrap(),
+            journal_retained_bytes + value_seen_delta_bytes
+        );
+        assert_eq!(
+            journal.checked_independent_retained_bytes().unwrap(),
+            independent_journal_retained_bytes + value_seen_delta_bytes
+        );
+
+        assert_eq!(
+            session.incoming_route_sample_attempts,
+            route_sample_attempts + 2
+        );
+        assert_eq!(session.resource_boundary_samples, resource_samples + 2);
+        assert_eq!(
+            session.incoming_post_rollback_samples,
+            post_rollback_samples + 1
+        );
+        assert!(!session.incoming_post_rollback_had_pending_requests);
+        assert_eq!(
+            session
+                .execution_counters
+                .instantiation_substitution_capacity_growths,
+            scratch_growths
+        );
+        assert_eq!(
+            session.execution_counters.semantic_arena_retained_bytes,
+            semantic_retained_bytes + value_seen_delta_bytes
+        );
+        assert_eq!(
+            session.execution_counters.inference_session_retained_bytes,
+            session_retained_bytes + value_seen_delta_bytes
+        );
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            independent_semantic_retained_bytes + value_seen_delta_bytes
+        );
+        assert_eq!(
+            session.resource_ledger.inference_session_retained_bytes,
+            independent_session_retained_bytes + value_seen_delta_bytes
+        );
+        assert!(
+            session.execution_counters.semantic_arena_peak_bytes
+                >= session.execution_counters.semantic_arena_retained_bytes
+        );
+        assert!(
+            session.execution_counters.inference_session_peak_bytes
+                >= session.execution_counters.inference_session_retained_bytes
+        );
+        assert!(!session.route_attempt_physical_change);
+
+        assert_eq!(session.store.facts, before.store.facts);
+        assert_eq!(session.store.canonical, before.store.canonical);
+        assert_eq!(session.store.provenance, before.store.provenance);
+        assert_eq!(
+            session.store.consumed_receipts,
+            before.store.consumed_receipts
+        );
+        assert_eq!(session.errors, before.errors);
+        assert_eq!(session.bounds, before.bounds);
+        assert_eq!(session.effect_bounds, before.effect_bounds);
+        assert_eq!(session.typed_pairs, before.typed_pairs);
+        assert_eq!(session.diagnostic_delta, before.diagnostic_delta);
+        assert_eq!(session.routed_uses, before.routed_uses);
+        assert_eq!(session.routed_use_positions, before.routed_use_positions);
+        assert!(session.route_journal.is_none());
+
+        session.route_incoming(&routes[0]).unwrap();
+        assert_eq!(session.store.facts.len(), 1);
+        assert_eq!(session.routed_uses.len(), 1);
+    }
+
     #[test]
     fn f5c_incoming_union_representative_failure_has_no_public_route() {
         let batch = collect(module(
@@ -14298,6 +26943,7 @@ mod tests {
         .unwrap();
         let target = session.batch.definition_uses()[0].target.ordinal() as usize;
         session.schemes[target] = Some(finalized.into_parts().0);
+        let before = RouteCheckpoint::capture(&session);
         session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
 
         assert_eq!(
@@ -14308,5 +26954,1503 @@ mod tests {
         assert!(session.store.provenance().is_empty());
         assert!(session.routed_uses.is_empty());
         assert!(session.routed_use_positions.is_empty());
+        before.assert_restored(&session);
+    }
+
+    #[test]
+    fn f5c_incoming_typed_capacity_event_survives_failed_union_route() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-typed-event-failed-route",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Int),
+                },
+            ]),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let scheme = finalized.into_parts().0;
+        let view = session
+            .finalization
+            .as_ref()
+            .unwrap()
+            .scheme_view(&scheme)
+            .unwrap();
+        let PositiveValueView::Union(children) = view.positive_value(view.predicate()).unwrap()
+        else {
+            panic!("finalized predicate must retain both Union members");
+        };
+        assert_eq!(children.len(), 2);
+        assert_ne!(children[0], children[1]);
+        assert!(
+            children.iter().any(|child| matches!(
+                view.positive_value(*child).unwrap(),
+                PositiveValueView::Int
+            ))
+        );
+        assert!(children.iter().any(|child| matches!(
+            view.positive_value(*child).unwrap(),
+            PositiveValueView::Function { .. }
+        )));
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(scheme);
+        session.typed_worklist = VecDeque::new();
+        session.typed_pairs = HashMap::new();
+        session.diagnostic_delta = Vec::new();
+        session.diagnostic_delta_indices = HashMap::new();
+        let upper_row =
+            session.live_components[session.batch.definition_uses()[0].use_value_component].ordinal;
+        let negative_function = session
+            .negative_function_term(
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+            )
+            .unwrap();
+        let setup_occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 204);
+        let setup_cause = CauseId::for_occurrence(setup_occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(upper_row),
+                    upper: ValueEndpointKey::NegativeFunction(negative_function),
+                },
+                &setup_occurrence,
+                &setup_cause,
+            )
+            .unwrap();
+        session.diagnostic_reverse_edges = Vec::new();
+        session.diagnostic_finish_order = Vec::new();
+        session
+            .sample_f4_resources(ResourceBoundary::IncomingRoute)
+            .unwrap();
+        let before = RouteCheckpoint::capture(&session);
+        let edge_bytes = session.independent_nested_capacities.diagnostic_edges;
+        F5C_DIAGNOSTIC_EDGE_EVENT_BYTES.with(|peak| peak.set(edge_bytes));
+        let scratch_capacity = session.diagnostic_reverse_edges.capacity();
+        let event_samples = session.incoming_route_sample_attempts;
+        let final_samples = session.incoming_post_rollback_sample_attempts;
+        let peak = session.execution_counters.semantic_arena_peak_bytes;
+        session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
+
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::ReceiptMismatch)
+        );
+        assert_eq!(
+            F5C_ROUTE_MANY_PRIVATE_COMPLETIONS.with(|count| count.get()),
+            2
+        );
+        before.assert_restored(&session);
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.routed_uses.is_empty());
+        assert!(session.routed_use_positions.is_empty());
+        assert!(session.typed_worklist.is_empty());
+        assert!(session.typed_pairs.capacity() > before.typed_pairs.capacity());
+        assert!(session.typed_worklist.capacity() > 0);
+        assert!(F5C_DIAGNOSTIC_EDGE_EVENT_BYTES.with(|peak| peak.get()) > edge_bytes);
+        assert!(session.diagnostic_reverse_edges.capacity() > scratch_capacity);
+        assert_eq!(
+            session.execution_counters.constraint_pair_cache_growths,
+            session.execution_counters.constraint_pair_cache_rebuilds
+        );
+        assert!(session.incoming_route_sample_attempts > event_samples + 1);
+        assert_eq!(
+            session.incoming_post_rollback_sample_attempts,
+            final_samples + 1
+        );
+        assert!(session.execution_counters.semantic_arena_peak_bytes > peak);
+        assert_eq!(
+            session.resource_ledger.queue_retained_bytes,
+            session.typed_worklist.capacity() * std::mem::size_of::<TypedWorkItem>()
+        );
+        let retained_edge_bytes: usize = session
+            .typed_pairs
+            .values()
+            .map(|memo| match memo {
+                TypedPairMemo::Value { children, .. } => {
+                    children.capacity() * std::mem::size_of::<DiagnosticEdge>()
+                }
+                TypedPairMemo::Effect => 0,
+            })
+            .sum();
+        assert_eq!(session.typed_pair_payload_bytes, retained_edge_bytes);
+        assert_eq!(
+            session.independent_nested_capacities.diagnostic_edges,
+            retained_edge_bytes
+        );
+        assert_eq!(
+            session
+                .execution_counters
+                .constraint_pair_cache_retained_bytes,
+            session.typed_pairs.capacity() * std::mem::size_of::<(TypedPairKey, TypedPairMemo)>()
+                + retained_edge_bytes
+        );
+        assert_eq!(
+            session.execution_counters.semantic_arena_retained_bytes,
+            session.resource_ledger.semantic_arena_retained_bytes
+        );
+        assert_eq!(
+            session.execution_counters.inference_session_retained_bytes,
+            session.resource_ledger.inference_session_retained_bytes
+        );
+    }
+
+    #[test]
+    fn f5c_incoming_typed_worklist_failed_reserve_without_growth_is_unsampled() {
+        let batch = collect(module("my source = 1", "f5c-typed-no-growth"));
+        let mut session = InferenceSession::new(batch);
+        let capacity = session.typed_worklist.capacity();
+        let samples = session.incoming_route_sample_attempts;
+        session.incoming_route_accounting_active = true;
+        inject_next_f5b_reserve_failure(F5bCapacityLane::TypedWorklist);
+        let task = LiveConstraintTask::Value(CanonicalValuePairKey {
+            lower: ValueEndpointKey::IntPositive,
+            upper: ValueEndpointKey::IntNegative,
+        });
+        assert_eq!(
+            session.enqueue_task(task),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.typed_worklist.capacity(), capacity);
+        assert!(session.typed_worklist.is_empty());
+        assert_eq!(session.incoming_route_sample_attempts, samples);
+        assert!(!session.route_attempt_physical_change);
+        session.incoming_route_accounting_active = false;
+    }
+
+    #[test]
+    fn f5c_incoming_union_private_member_availability_failure_restores_route() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-union-private-member-availability-failure",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Int),
+                },
+            ]),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+        let upper_row =
+            session.live_components[session.batch.definition_uses()[0].use_value_component].ordinal;
+        let negative_function = session
+            .negative_function_term(
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+            )
+            .unwrap();
+        let setup_occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 204);
+        let setup_cause = CauseId::for_occurrence(setup_occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(upper_row),
+                    upper: ValueEndpointKey::NegativeFunction(negative_function),
+                },
+                &setup_occurrence,
+                &setup_cause,
+            )
+            .unwrap();
+        let before = RouteCheckpoint::capture(&session);
+        let old_lower_capacity = session.bounds[upper_row as usize]
+            .exact_non_variable_lowers
+            .capacity();
+        let prior_samples = session.incoming_post_rollback_samples;
+        let old_edge_bytes = session.independent_nested_capacities.diagnostic_edges;
+        F5C_DIAGNOSTIC_EDGE_EVENT_BYTES.with(|peak| peak.set(old_edge_bytes));
+        let event_samples = session.incoming_route_sample_attempts;
+        let final_attempts = session.incoming_post_rollback_sample_attempts;
+        F5C_ROUTE_MANY_ARM_EDGE_FAILURE_AFTER_FIRST.with(|armed| armed.set(true));
+
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5C_ROUTE_MANY_PRIVATE_COMPLETIONS.with(|count| count.get()),
+            1
+        );
+        assert!(!F5C_ROUTE_MANY_ARM_EDGE_FAILURE_AFTER_FIRST.with(|armed| armed.get()));
+        before.assert_restored(&session);
+        assert!(F5C_DIAGNOSTIC_EDGE_EVENT_BYTES.with(|peak| peak.get()) > old_edge_bytes);
+        assert!(session.incoming_route_sample_attempts > event_samples);
+        assert_eq!(
+            session.incoming_post_rollback_sample_attempts,
+            final_attempts + 1
+        );
+        assert!(
+            session.bounds[upper_row as usize]
+                .exact_non_variable_lowers
+                .capacity()
+                > old_lower_capacity
+        );
+        assert_eq!(session.incoming_post_rollback_samples, prior_samples + 1);
+        assert_eq!(
+            session.independent_nested_capacities.total_bound_bytes(),
+            session.bound_payload_bytes
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.routed_uses.is_empty());
+        assert!(session.routed_use_positions.is_empty());
+        session.route_incoming(&route_id).unwrap();
+        assert_eq!(session.store.facts().len(), 1);
+    }
+
+    #[test]
+    fn f5c_incoming_fresh_outer_rows_survive_private_failure() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-fresh-outer-private-failure",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 1,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Quantified(0)),
+                },
+            ]),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+        let upper_row =
+            session.live_components[session.batch.definition_uses()[0].use_value_component].ordinal;
+        let negative_function = session
+            .negative_function_term(
+                session.batch.collected_leaf_term(Leaf::IntPositive),
+                session
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+                session.batch.collected_leaf_term(Leaf::IntNegative),
+            )
+            .unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 204);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        session
+            .constrain_live_value(
+                CanonicalValuePairKey {
+                    lower: ValueEndpointKey::ValueRow(upper_row),
+                    upper: ValueEndpointKey::NegativeFunction(negative_function),
+                },
+                &occurrence,
+                &cause,
+            )
+            .unwrap();
+        while session.bounds.len() < session.bounds.capacity() {
+            session.fresh_value_at_level(1).unwrap();
+        }
+        session
+            .sample_f4_resources(ResourceBoundary::IncomingRoute)
+            .unwrap();
+        let before = RouteCheckpoint::capture(&session);
+        let capacities = (
+            session.bounds.capacity(),
+            session.value_levels.capacity(),
+            session.value_metadata.capacity(),
+            session.extrusion_value_marks.capacity(),
+        );
+        let samples = session.incoming_post_rollback_sample_attempts;
+        let peak = session.execution_counters.inference_session_peak_bytes;
+        F5C_ROUTE_MANY_ARM_EDGE_FAILURE_AFTER_FIRST.with(|armed| armed.set(true));
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5C_ROUTE_MANY_PRIVATE_COMPLETIONS.with(|count| count.get()),
+            1
+        );
+        before.assert_restored(&session);
+        assert!(session.bounds.capacity() > capacities.0);
+        assert!(session.value_levels.capacity() >= capacities.1);
+        assert!(session.value_metadata.capacity() >= capacities.2);
+        assert!(session.extrusion_value_marks.capacity() >= capacities.3);
+        assert_eq!(session.incoming_post_rollback_sample_attempts, samples + 1);
+        assert!(session.execution_counters.inference_session_peak_bytes >= peak);
+        assert_eq!(
+            session.execution_counters.inference_session_retained_bytes,
+            session.resource_ledger.inference_session_retained_bytes
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.routed_uses.is_empty());
+    }
+
+    #[test]
+    fn f5c_incoming_fresh_outer_row_growth_samples_before_rollback() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-fresh-outer-event-sample",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 1,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Quantified(0),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+        while session.bounds.len() < session.bounds.capacity() {
+            session.fresh_value_at_level(1).unwrap();
+        }
+        session
+            .sample_f4_resources(ResourceBoundary::IncomingRoute)
+            .unwrap();
+        let before = RouteCheckpoint::capture(&session);
+        let capacity = session.bounds.capacity();
+        let attempts = session.incoming_route_sample_attempts;
+        let samples = session.resource_boundary_samples;
+        let final_attempts = session.incoming_post_rollback_sample_attempts;
+        let final_samples = session.incoming_post_rollback_samples;
+        F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.set(None));
+        inject_next_f5b_post_reserve_failure(F5bCapacityLane::FreshValueBounds);
+
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.get()),
+            None
+        );
+        before.assert_restored(&session);
+        assert!(session.bounds.capacity() > capacity);
+        assert_eq!(
+            F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.get()),
+            Some(F5bCapacityLane::FreshValueBounds)
+        );
+        let route_attempts = session.incoming_route_sample_attempts - attempts;
+        assert!(
+            route_attempts >= 2,
+            "event and final samples must be attempted"
+        );
+        assert_eq!(session.resource_boundary_samples, samples + route_attempts);
+        assert_eq!(
+            session.incoming_post_rollback_sample_attempts,
+            final_attempts + 1
+        );
+        assert_eq!(session.incoming_post_rollback_samples, final_samples + 1);
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.routed_uses.is_empty());
+        assert!(session.routed_use_positions.is_empty());
+        assert_eq!(
+            session.execution_counters.inference_session_retained_bytes,
+            session.resource_ledger.inference_session_retained_bytes
+        );
+        assert_eq!(
+            session.execution_counters.semantic_arena_retained_bytes,
+            session.resource_ledger.semantic_arena_retained_bytes
+        );
+    }
+
+    #[test]
+    fn f5c_incoming_extrusion_stack_growth_samples_before_rollback() {
+        let (mut session, routes) =
+            f5c_shared_closed_incoming_fixture("f5c-extrusion-stack-event-sample");
+        session.extrusion_stack = Vec::new();
+        let before = RouteCheckpoint::capture(&session);
+        let capacity = session.extrusion_stack.capacity();
+        assert_eq!(capacity, 0);
+        let attempts = session.incoming_route_sample_attempts;
+        let samples = session.resource_boundary_samples;
+        let final_attempts = session.incoming_post_rollback_sample_attempts;
+        let final_samples = session.incoming_post_rollback_samples;
+        F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.set(None));
+        inject_next_f5b_post_reserve_failure(F5bCapacityLane::ExtrusionStack);
+
+        assert_eq!(
+            session.route_incoming(&routes[0]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.get()),
+            None
+        );
+        before.assert_restored(&session);
+        assert!(session.extrusion_stack.capacity() > capacity);
+        assert_eq!(
+            F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.get()),
+            Some(F5bCapacityLane::ExtrusionStack)
+        );
+        let route_attempts = session.incoming_route_sample_attempts - attempts;
+        assert!(
+            route_attempts >= 2,
+            "event and final samples must be attempted"
+        );
+        assert_eq!(session.resource_boundary_samples, samples + route_attempts);
+        assert_eq!(
+            session.incoming_post_rollback_sample_attempts,
+            final_attempts + 1
+        );
+        assert_eq!(session.incoming_post_rollback_samples, final_samples + 1);
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.routed_uses.is_empty());
+        assert!(session.routed_use_positions.is_empty());
+        assert_eq!(
+            session.execution_counters.inference_session_retained_bytes,
+            session.resource_ledger.inference_session_retained_bytes
+        );
+        assert_eq!(
+            session.execution_counters.semantic_arena_retained_bytes,
+            session.resource_ledger.semantic_arena_retained_bytes
+        );
+    }
+
+    #[test]
+    fn f5c_incoming_route_generation_exhaustion_is_atomic() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-route-generation-exhaustion",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Int),
+                },
+            ]),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+
+        session.begin_route_transaction().unwrap();
+        session.rollback_route_transaction().unwrap();
+        session
+            .route_journal_spare
+            .as_mut()
+            .unwrap()
+            .row_seen_generation = u32::MAX;
+        let before = RouteCheckpoint::capture(&session);
+        let event_samples = session.incoming_route_sample_attempts;
+        let final_samples = session.incoming_post_rollback_sample_attempts;
+
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        before.assert_restored(&session);
+        assert_eq!(session.incoming_route_sample_attempts, event_samples);
+        assert_eq!(
+            session.incoming_post_rollback_sample_attempts,
+            final_samples
+        );
+    }
+
+    #[test]
+    fn f5c_internal_route_failure_restores_and_retries_cleanly() {
+        let batch = collect(module(
+            "my left = right; my right = left",
+            "f5c-internal-route-rollback",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let before = RouteCheckpoint::capture(&session);
+        inject_next_f5b_reserve_failure(F5bCapacityLane::TypedPairs);
+
+        assert_eq!(
+            session.route_internal(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        before.assert_restored(&session);
+
+        session.route_internal(&route_id).unwrap();
+        assert_eq!(session.store.facts().len(), 1);
+        assert_eq!(session.store.provenance().len(), 1);
+        assert_eq!(session.routed_uses.len(), 1);
+        assert_eq!(session.routed_use_positions.len(), 1);
+    }
+
+    #[test]
+    fn f5c_route_publication_reserve_failures_restore_and_retry() {
+        for lane in [
+            F5bCapacityLane::RoutedUses,
+            F5bCapacityLane::ValueDirectLower,
+            F5bCapacityLane::ValueDirectUpper,
+        ] {
+            let batch = collect(module(
+                "my left = right; my right = left",
+                "f5c-route-publication-reserve",
+            ));
+            let route_id = batch.definition_uses()[0].id.clone();
+            let mut session = InferenceSession::new(batch);
+            let before = RouteCheckpoint::capture(&session);
+            inject_next_f5b_reserve_failure(lane);
+
+            assert_eq!(
+                session.route_internal(&route_id),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "{lane:?}"
+            );
+            assert_eq!(
+                F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get()),
+                None,
+                "{lane:?} must be consumed by this route"
+            );
+            before.assert_restored(&session);
+
+            session.route_internal(&route_id).unwrap();
+            assert_eq!(session.store.facts().len(), 1);
+            assert_eq!(session.routed_uses.len(), 1);
+        }
+    }
+
+    #[test]
+    fn f5c_preexisting_value_row_failed_second_reserve_retains_first_capacity() {
+        let batch = collect(module(
+            "my left = right; my right = left",
+            "f5c-retained-value-route-capacity",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let use_record = session.batch.definition_uses()[0].clone();
+        let upper = session.live_components[use_record.use_value_component].ordinal as usize;
+        let lower = session.live_components[use_record.target_root_component].ordinal as usize;
+        assert_eq!(session.bounds[upper].direct_lower_rows.capacity(), 0);
+        assert_eq!(session.bounds[lower].direct_upper_rows.capacity(), 0);
+        let before = RouteCheckpoint::capture(&session);
+        inject_next_f5b_reserve_failure(F5bCapacityLane::ValueDirectUpper);
+
+        assert_eq!(
+            session.route_internal(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get()),
+            None
+        );
+        before.assert_restored(&session);
+        let retained_capacity = session.bounds[upper].direct_lower_rows.capacity();
+        assert!(retained_capacity > 0);
+        assert_eq!(session.bounds[lower].direct_upper_rows.capacity(), 0);
+        let retained_bytes = retained_capacity * std::mem::size_of::<u32>();
+        assert_eq!(
+            session.bound_payload_bytes,
+            before.bound_payload_bytes + retained_bytes
+        );
+        assert_eq!(
+            session.independent_nested_capacities.value_direct_lower,
+            before.independent_nested_capacities.value_direct_lower + retained_bytes
+        );
+        assert_eq!(
+            session.execution_counters.bound_table_growths,
+            before.execution_counters.bound_table_growths + 1
+        );
+        session.route_internal(&route_id).unwrap();
+        assert_eq!(session.store.facts().len(), 1);
+    }
+
+    #[test]
+    fn f5c_fresh_value_rows_drop_first_reserve_capacity_on_route_rollback() {
+        let batch = collect(module("1", "f5c-fresh-row-capacity-rollback"));
+        let mut session = InferenceSession::new(batch);
+        let before = RouteCheckpoint::capture(&session);
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 127);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        inject_next_f5b_reserve_failure(F5bCapacityLane::ValueDirectUpper);
+        assert_eq!(
+            session.with_route_transaction(|session| {
+                let lower = session.fresh_value_at_level(1)?;
+                let upper = session.fresh_value_at_level(1)?;
+                session.constrain_live_value(
+                    CanonicalValuePairKey {
+                        lower: ValueEndpointKey::ValueRow(lower),
+                        upper: ValueEndpointKey::ValueRow(upper),
+                    },
+                    &occurrence,
+                    &cause,
+                )
+            }),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get()),
+            None
+        );
+        before.assert_restored(&session);
+        assert_eq!(session.bound_payload_bytes, before.bound_payload_bytes);
+    }
+
+    #[test]
+    fn f5c_fresh_value_bounds_owner_failure_restores_route_and_retries() {
+        let batch = collect(module("1", "f5c-fresh-value-bounds-owner"));
+        let mut session = InferenceSession::new(batch);
+        let before = RouteCheckpoint::capture(&session);
+
+        assert_eq!(
+            session.with_route_transaction(|session| {
+                inject_next_f5b_reserve_failure(F5bCapacityLane::FreshValueBounds);
+                session.fresh_value_at_level(1)
+            }),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get()),
+            None
+        );
+        before.assert_restored(&session);
+
+        session
+            .with_route_transaction(|session| session.fresh_value_at_level(1))
+            .unwrap();
+        assert_eq!(session.bounds.len(), before.bounds.len() + 1);
+    }
+
+    #[test]
+    fn f5c_value_exact_upper_owner_failure_restores_route_and_retries() {
+        let batch = collect(module("1", "f5c-value-exact-upper-owner"));
+        let mut session = InferenceSession::new(batch);
+        let row = session.fresh_value_at_level(1).unwrap();
+        let occurrence =
+            ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 128);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let key = CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(row),
+            upper: ValueEndpointKey::IntNegative,
+        };
+        let before = RouteCheckpoint::capture(&session);
+        inject_next_f5b_reserve_failure(F5bCapacityLane::ValueExactUpper);
+
+        assert_eq!(
+            session.with_route_transaction(|session| {
+                session.constrain_live_value(key, &occurrence, &cause)
+            }),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get()),
+            None
+        );
+        before.assert_restored(&session);
+
+        session
+            .with_route_transaction(|session| {
+                session.constrain_live_value(key, &occurrence, &cause)
+            })
+            .unwrap();
+        assert_eq!(
+            session.bounds[row as usize].exact_non_variable_uppers,
+            [ValueEndpointKey::IntNegative]
+        );
+    }
+
+    #[test]
+    fn f5c_incoming_term_and_fresh_row_reserve_failures_restore_and_retry() {
+        for lane in [
+            F5bCapacityLane::TermPages,
+            F5bCapacityLane::TermPagePositions,
+            F5bCapacityLane::TermInterner,
+            F5bCapacityLane::ValueLevels,
+            F5bCapacityLane::ValueMetadata,
+            F5bCapacityLane::ExtrusionValueMarks,
+            F5bCapacityLane::ExtrusionStack,
+        ] {
+            let (mut session, routes) =
+                f5c_shared_closed_incoming_fixture("f5c-incoming-term-row-reserve");
+            let before = RouteCheckpoint::capture(&session);
+            inject_next_f5b_reserve_failure(lane);
+
+            assert_eq!(
+                session.route_incoming(&routes[0]),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "{lane:?}"
+            );
+            assert_eq!(
+                F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get()),
+                None,
+                "{lane:?} must be consumed by this route"
+            );
+            before.assert_restored(&session);
+
+            session.route_incoming(&routes[0]).unwrap();
+            assert_eq!(session.store.facts().len(), 1, "{lane:?}");
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_term_post_reserve_events_precede_rollback() {
+        for (lane, physical_lane) in [
+            (F5bCapacityLane::TermInterner, 3),
+            (F5bCapacityLane::TermPages, 1),
+            (F5bCapacityLane::TermPagePositions, 2),
+        ] {
+            let (mut session, routes) =
+                f5c_shared_closed_incoming_fixture("f5c-term-post-reserve-event");
+            let before = RouteCheckpoint::capture(&session);
+            let initial = session.store.terms.capacity_snapshot();
+            let samples = session.resource_boundary_samples;
+            let outer = session.incoming_post_rollback_sample_attempts;
+            inject_next_f5b_post_reserve_failure(lane);
+
+            assert_eq!(
+                session.route_incoming(&routes[0]),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "{lane:?}"
+            );
+            assert_eq!(
+                F5B_INJECTED_POST_RESERVE_FAILURE.with(|failure| failure.get()),
+                None
+            );
+            assert!(session.incoming_term_event_count > 0, "{lane:?}");
+            assert!(
+                session
+                    .incoming_term_event_snapshots
+                    .iter()
+                    .flatten()
+                    .any(|snapshot| { snapshot.0[physical_lane] > initial.0[physical_lane] }),
+                "{lane:?}"
+            );
+            assert!(
+                session.resource_boundary_samples > samples + 1,
+                "event and outer sample"
+            );
+            assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+            before.assert_restored(&session);
+            assert_eq!(
+                session.resource_ledger.semantic_arena_retained_bytes,
+                session.execution_counters.semantic_arena_retained_bytes()
+            );
+            assert_eq!(
+                session.resource_ledger.inference_session_retained_bytes,
+                session
+                    .execution_counters
+                    .inference_session_retained_bytes()
+            );
+            assert_eq!(session.store.terms.capacity_snapshot().0[0], initial.0[0]);
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_term_journal_lanes_sample_growth_and_transfer() {
+        for physical_lane in [4, 5] {
+            let (mut session, routes) =
+                f5c_shared_closed_incoming_fixture("f5c-term-journal-owner");
+            let before = RouteCheckpoint::capture(&session);
+            let initial = session.store.terms.capacity_snapshot();
+            let outer = session.incoming_post_rollback_sample_attempts;
+            term::inject_post_growth_failure(physical_lane, 0);
+
+            assert_eq!(
+                session.route_incoming(&routes[0]),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "physical Term lane {physical_lane}"
+            );
+            assert!(!term::post_growth_failure_pending());
+            let event = session
+                .incoming_term_event_snapshots
+                .iter()
+                .flatten()
+                .find(|snapshot| snapshot.0[physical_lane] > initial.0[physical_lane])
+                .expect("journal growth must be sampled before rollback");
+            assert!(event.1.journal_active);
+            assert!(event.1.growths[physical_lane] > initial.1.growths[physical_lane]);
+            assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+            before.assert_restored(&session);
+            let retained = session.store.terms.capacity_snapshot();
+            let owner = session.store.terms.independent_owner_lanes().unwrap();
+            assert!(!retained.1.journal_active);
+            assert_eq!(retained.0[physical_lane], event.0[physical_lane]);
+            let ledger = &session.resource_ledger;
+            for index in 0..6 {
+                assert_eq!(
+                    ledger.term_lanes[index].actual_capacity,
+                    owner.capacities[index]
+                );
+                assert_eq!(ledger.term_lanes[index].retained_bytes, owner.bytes[index]);
+                assert_eq!(
+                    ledger.term_lanes[index].requested_slots,
+                    owner.requests[index]
+                );
+                assert_eq!(
+                    ledger.term_lanes[index].capacity_growths,
+                    owner.growths[index]
+                );
+            }
+            assert!(!ledger.term_active_journal);
+            assert_eq!(ledger.term_journal_transfers, owner.transfers);
+            assert_eq!(ledger.term_lengths, owner.lengths);
+            assert!(ledger.term_journal_transfers >= initial.1.journal_transfers + 2);
+            assert!(ledger.term_lanes[physical_lane].peak_bytes >= event.2.bytes[physical_lane]);
+            assert_eq!(
+                ledger
+                    .term_lanes
+                    .iter()
+                    .map(|lane| lane.retained_bytes)
+                    .sum::<usize>(),
+                owner.bytes.into_iter().sum::<usize>()
+            );
+            assert_eq!(
+                ledger.term_retained_bytes,
+                session
+                    .store
+                    .terms
+                    .checked_independent_retained_bytes()
+                    .unwrap()
+            );
+            assert!(ledger.term_peak_bytes >= event.2.bytes.into_iter().sum::<usize>());
+            assert!(ledger.semantic_arena_peak_bytes >= ledger.term_peak_bytes);
+            assert!(ledger.inference_session_peak_bytes >= ledger.term_peak_bytes);
+            assert_eq!(
+                ledger.semantic_arena_retained_bytes,
+                session.execution_counters.semantic_arena_retained_bytes()
+            );
+            assert_eq!(
+                ledger.inference_session_retained_bytes,
+                session
+                    .execution_counters
+                    .inference_session_retained_bytes()
+            );
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_term_page_backing_peak_survives_later_failure() {
+        let (mut session, routes) =
+            f5c_shared_closed_incoming_fixture("f5c-term-page-rollback-peak");
+        let before = RouteCheckpoint::capture(&session);
+        let initial = session.store.terms.capacity_snapshot();
+        let prior_peak = session.execution_counters.semantic_arena_peak_bytes();
+        let outer = session.incoming_post_rollback_sample_attempts;
+        inject_next_f5b_reserve_failure(F5bCapacityLane::RoutedUses);
+        assert_eq!(
+            session.route_incoming(&routes[0]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(
+            F5B_INJECTED_RESERVE_FAILURE.with(|failure| failure.get()),
+            None
+        );
+        assert!(
+            session
+                .incoming_term_event_snapshots
+                .iter()
+                .flatten()
+                .any(|snapshot| { snapshot.0[0] > initial.0[0] })
+        );
+        assert!(session.execution_counters.semantic_arena_peak_bytes() > prior_peak);
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+        before.assert_restored(&session);
+        assert_eq!(session.store.terms.capacity_snapshot().0[0], initial.0[0]);
+        assert_eq!(
+            session.resource_ledger.semantic_arena_retained_bytes,
+            session.execution_counters.semantic_arena_retained_bytes()
+        );
+    }
+
+    #[test]
+    fn f5c_incoming_term_event_overflow_is_terminal_and_atomic() {
+        let (mut session, routes) = f5c_shared_closed_incoming_fixture("f5c-term-event-overflow");
+        let counters = session.execution_counters.clone();
+        let ledger = session.resource_ledger.clone();
+        let samples = session.resource_boundary_samples;
+        session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::IncomingTermEvent);
+        assert_eq!(
+            session.route_incoming(&routes[0]),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.incoming_term_event_count, 0);
+        assert!(session.resource_boundary_samples > samples);
+        assert_eq!(
+            session.resource_boundary_samples - samples,
+            session.resource_ledger.samples - ledger.samples
+        );
+        assert!(
+            session.execution_counters.semantic_arena_peak_bytes()
+                >= counters.semantic_arena_peak_bytes()
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        assert!(session.routed_uses.is_empty());
+
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-term-consuming-overflow",
+        ));
+        let mut consuming = InferenceSession::new(batch);
+        let source_root = consuming.batch.root_component_positions
+            [&consuming.batch.definitions[0].root]
+            .component;
+        let source_row = consuming.live_components[source_root].ordinal;
+        let variable = consuming.fresh_value_at_level(1).unwrap();
+        let argument = consuming
+            .live_value_term(Polarity::Negative, variable)
+            .unwrap();
+        let result = consuming
+            .live_value_term(Polarity::Positive, variable)
+            .unwrap();
+        let function = consuming
+            .positive_function_term(
+                argument,
+                consuming
+                    .batch
+                    .collected_leaf_term(Leaf::EmptyEffectNegative),
+                consuming
+                    .batch
+                    .collected_leaf_term(Leaf::EffectBottomPositive),
+                result,
+            )
+            .unwrap();
+        consuming.bounds[source_row as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(function));
+        let term_events = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let outer_attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        consuming.incoming_term_event_attempt_observer = Some(term_events.clone());
+        consuming.incoming_post_rollback_attempt_observer = Some(outer_attempts.clone());
+        consuming.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::IncomingTermEvent);
+        assert!(matches!(
+            consuming.run(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(term_events.load(std::sync::atomic::Ordering::Relaxed) > 0);
+        assert_eq!(outer_attempts.load(std::sync::atomic::Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn f5c_incoming_diagnostic_reserve_failures_restore_and_retry() {
+        for lane in [
+            F5bCapacityLane::TypedWorklist,
+            F5bCapacityLane::DiagnosticDelta,
+            F5bCapacityLane::DiagnosticDeltaIndices,
+            F5bCapacityLane::DiagnosticReverseOffsets,
+            F5bCapacityLane::DiagnosticReverseEdges,
+            F5bCapacityLane::DiagnosticReverseCursors,
+            F5bCapacityLane::DiagnosticDfsStack,
+            F5bCapacityLane::DiagnosticFinishOrder,
+            F5bCapacityLane::DiagnosticSccIndices,
+            F5bCapacityLane::DiagnosticSccNodes,
+            F5bCapacityLane::DiagnosticSccOffsets,
+            F5bCapacityLane::DiagnosticSccPendingChildren,
+            F5bCapacityLane::DiagnosticSccWorklist,
+            F5bCapacityLane::DiagnosticBucketHeads,
+            F5bCapacityLane::DiagnosticBucketTails,
+            F5bCapacityLane::DiagnosticBucketCandidates,
+            F5bCapacityLane::DiagnosticNodeWitnesses,
+            F5bCapacityLane::ReportedErrors,
+            F5bCapacityLane::Errors,
+            F5bCapacityLane::ValueExactLower,
+        ] {
+            let batch = collect(module(
+                "my source = 1; my sink = source",
+                "f5c-incoming-diagnostic-reserve",
+            ));
+            let route_id = batch.definition_uses()[0].id.clone();
+            let mut session = InferenceSession::new(batch);
+            let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+            session.schemes[target] = Some(
+                session
+                    .finalization
+                    .as_mut()
+                    .unwrap()
+                    .finalize_scheme(|finalizer| {
+                        let predicate = finalizer.positive_int()?;
+                        finalizer.set_scheme(0, &[], predicate)
+                    })
+                    .unwrap()
+                    .into_parts()
+                    .0,
+            );
+            let upper_row = session.live_components
+                [session.batch.definition_uses()[0].use_value_component]
+                .ordinal;
+            let setup_occurrence =
+                ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 205);
+            let setup_cause = CauseId::for_occurrence(setup_occurrence.clone());
+            session
+                .constrain_live_value(
+                    CanonicalValuePairKey {
+                        lower: ValueEndpointKey::ValueRow(upper_row),
+                        upper: ValueEndpointKey::BottomNegative,
+                    },
+                    &setup_occurrence,
+                    &setup_cause,
+                )
+                .unwrap();
+            let before = RouteCheckpoint::capture(&session);
+            inject_next_f5b_reserve_failure(lane);
+
+            assert_eq!(
+                session.route_incoming(&route_id),
+                Err(SolveAvailabilityError::IdentityExhausted),
+                "{lane:?}"
+            );
+            assert_eq!(
+                F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get()),
+                None,
+                "{lane:?} must be consumed by this route"
+            );
+            before.assert_restored(&session);
+
+            session.route_incoming(&route_id).unwrap();
+            assert_eq!(session.store.facts().len(), 1, "{lane:?}");
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_bottom_failure_restores_and_retries_cleanly() {
+        for lane in [
+            F5bCapacityLane::RoutedUses,
+            F5bCapacityLane::RoutedUsePositions,
+        ] {
+            let batch = collect(module(
+                "my source = missing; my sink = source",
+                "f5c-bottom-route-rollback",
+            ));
+            let route_id = batch.definition_uses()[0].id.clone();
+            let mut session = InferenceSession::new(batch);
+            let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+            session.schemes[target] = Some(
+                session
+                    .finalization
+                    .as_mut()
+                    .unwrap()
+                    .finalize_scheme(|finalizer| {
+                        let predicate = finalizer.positive_bottom()?;
+                        finalizer.set_scheme(0, &[], predicate)
+                    })
+                    .unwrap()
+                    .into_parts()
+                    .0,
+            );
+            let before = RouteCheckpoint::capture(&session);
+            inject_next_f5b_reserve_failure(lane);
+
+            assert_eq!(
+                session.route_incoming(&route_id),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+            assert_eq!(
+                F5B_INJECTED_RESERVE_FAILURE.with(|injected| injected.get()),
+                None
+            );
+            before.assert_restored(&session);
+            assert!(session.store.facts().is_empty());
+            assert!(session.store.provenance().is_empty());
+            assert!(session.routed_uses.is_empty());
+            assert!(session.routed_use_positions.is_empty());
+
+            session.route_incoming(&route_id).unwrap();
+            assert!(session.store.facts().is_empty());
+            assert!(session.store.provenance().is_empty());
+            assert_eq!(session.routed_uses.len(), 1);
+            assert_eq!(session.routed_use_positions.len(), 1);
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_int_failure_restores_and_retries_cleanly() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-int-route-rollback",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(
+            session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap()
+                .into_parts()
+                .0,
+        );
+        let before = RouteCheckpoint::capture(&session);
+        inject_next_f5b_reserve_failure(F5bCapacityLane::TypedPairs);
+
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        before.assert_restored(&session);
+
+        session.route_incoming(&route_id).unwrap();
+        assert_eq!(session.store.facts().len(), 1);
+        assert_eq!(session.store.provenance().len(), 1);
+        assert_eq!(session.routed_uses.len(), 1);
+        assert_eq!(session.routed_use_positions.len(), 1);
+    }
+
+    #[test]
+    fn f5c_route_begin_reservation_failures_preserve_warm_spare_state() {
+        for lane in [F5bCapacityLane::ValueBounds, F5bCapacityLane::EffectBounds] {
+            let batch = collect(module(
+                "my left = right; my right = left",
+                "f5c-route-begin-rollback",
+            ));
+            let route_id = batch.definition_uses()[0].id.clone();
+            let mut session = InferenceSession::new(batch);
+            session.begin_route_transaction().unwrap();
+            session.rollback_route_transaction().unwrap();
+            match lane {
+                F5bCapacityLane::ValueBounds => {
+                    session.fresh_value_at_level(1).unwrap();
+                }
+                F5bCapacityLane::EffectBounds => {
+                    session.fresh_effect_at_level(1).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            let before = RouteCheckpoint::capture(&session);
+            inject_next_f5b_reserve_failure(lane);
+
+            assert_eq!(
+                session.route_internal(&route_id),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+            before.assert_restored(&session);
+
+            session.route_internal(&route_id).unwrap();
+            assert_eq!(session.store.facts().len(), 1);
+            assert_eq!(session.routed_use_positions.len(), 1);
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_journal_seen_partial_setup_samples_before_rollback() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-journal-seen-partial",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let before = RouteCheckpoint::capture(&session);
+        let events = session.incoming_route_sample_attempts;
+        let outer = session.incoming_post_rollback_sample_attempts;
+        inject_next_f5b_post_reserve_failure(F5bCapacityLane::EffectBounds);
+
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        before.assert_restored(&session);
+        let journal = session.route_journal_spare.as_ref().unwrap();
+        assert!(journal.value_row_seen.capacity() > 0);
+        assert!(journal.effect_row_seen.capacity() > 0);
+        assert_eq!(session.incoming_route_sample_attempts, events + 3);
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+        assert_eq!(
+            session.execution_counters.inference_session_retained_bytes,
+            session.resource_ledger.inference_session_retained_bytes
+        );
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(
+            session
+                .finalization
+                .as_mut()
+                .unwrap()
+                .finalize_scheme(|finalizer| {
+                    let predicate = finalizer.positive_int()?;
+                    finalizer.set_scheme(0, &[], predicate)
+                })
+                .unwrap()
+                .into_parts()
+                .0,
+        );
+        session.route_incoming(&route_id).unwrap();
+    }
+
+    #[test]
+    fn f5c_incoming_journal_seen_unchanged_failure_skips_outer_sample() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-journal-seen-unchanged",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let events = session.incoming_route_sample_attempts;
+        let outer = session.incoming_post_rollback_sample_attempts;
+        inject_next_f5b_reserve_failure(F5bCapacityLane::ValueBounds);
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(session.incoming_route_sample_attempts, events);
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer);
+    }
+
+    #[test]
+    fn f5c_incoming_journal_value_seen_changed_failure_samples_once_after_setup() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-journal-value-seen-failure",
+        ));
+        let route_id = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let events = session.incoming_route_sample_attempts;
+        let outer = session.incoming_post_rollback_sample_attempts;
+        inject_next_f5b_post_reserve_failure(F5bCapacityLane::ValueBounds);
+        assert_eq!(
+            session.route_incoming(&route_id),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(
+            session
+                .route_journal_spare
+                .as_ref()
+                .unwrap()
+                .value_row_seen
+                .capacity()
+                > 0
+        );
+        assert_eq!(session.incoming_route_sample_attempts, events + 2);
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+    }
+
+    #[test]
+    fn f5c_journal_undo_changed_failed_reserves_sample_at_event() {
+        for effect in [false, true] {
+            let batch = collect(module("my source = 1", "f5c-journal-undo-reserve"));
+            let mut session = InferenceSession::new(batch);
+            let row = if effect {
+                session.fresh_effect_at_level(1).unwrap() as usize
+            } else {
+                session.fresh_value_at_level(1).unwrap() as usize
+            };
+            session.incoming_route_accounting_active = true;
+            session.begin_route_transaction().unwrap();
+            let events = session.incoming_route_sample_attempts;
+            let lane = if effect {
+                F5bCapacityLane::EffectBounds
+            } else {
+                F5bCapacityLane::ValueBounds
+            };
+            inject_next_f5b_post_reserve_failure(lane);
+            let result = if effect {
+                session.journal_effect_row(row)
+            } else {
+                session.journal_value_row(row)
+            };
+            assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
+            assert_eq!(session.incoming_route_sample_attempts, events + 1);
+            assert!(session.route_attempt_physical_change);
+            session.rollback_route_transaction().unwrap();
+            session.incoming_route_accounting_active = false;
+            session
+                .sample_f4_resources(ResourceBoundary::IncomingRoute)
+                .unwrap();
+            assert_eq!(
+                session.execution_counters.inference_session_retained_bytes,
+                session.resource_ledger.inference_session_retained_bytes
+            );
+            session.begin_route_transaction().unwrap();
+            if effect {
+                session.journal_effect_row(row).unwrap();
+            } else {
+                session.journal_value_row(row).unwrap();
+            }
+            session.rollback_route_transaction().unwrap();
+        }
+    }
+
+    #[test]
+    fn f5c_incoming_value_undo_growth_precedes_later_provenance_failure() {
+        let batch = collect(module(
+            "my source = 1; my sink = source",
+            "f5c-value-undo-later-failure",
+        ));
+        let route = batch.definition_uses()[0].id.clone();
+        let mut session = InferenceSession::new(batch);
+        let draft = GeneralizationDraft {
+            quantifier_count: 0,
+            recursive_bounds: Vec::new(),
+            predicate: F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Int),
+                },
+            ]),
+        };
+        let finalized = InferenceSession::finalize_generalization_draft(
+            session.finalization.as_mut().unwrap(),
+            &draft,
+            false,
+        )
+        .unwrap();
+        let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+        session.schemes[target] = Some(finalized.into_parts().0);
+        let before = RouteCheckpoint::capture(&session);
+        let previous_capacity = session
+            .route_journal_spare
+            .as_ref()
+            .map_or(0, |journal| journal.value_rows.capacity());
+        let samples = session.incoming_route_sample_attempts;
+        let outer = session.incoming_post_rollback_sample_attempts;
+        F5C_SAMPLED_ACTIVE_VALUE_UNDO_CAPACITY.with(|observed| observed.set(0));
+        session.inject_next_provenance_failure(ConstraintError::ReceiptMismatch);
+
+        assert_eq!(
+            session.route_incoming(&route),
+            Err(SolveAvailabilityError::ReceiptMismatch)
+        );
+        let sampled_capacity =
+            F5C_SAMPLED_ACTIVE_VALUE_UNDO_CAPACITY.with(|observed| observed.get());
+        assert!(sampled_capacity > previous_capacity);
+        assert!(session.incoming_route_sample_attempts > samples + 1);
+        assert_eq!(session.incoming_post_rollback_sample_attempts, outer + 1);
+        before.assert_restored(&session);
+        assert!(session.route_journal.is_none());
+        let retained = session.route_journal_spare.as_ref().unwrap();
+        assert_eq!(retained.value_rows.capacity(), sampled_capacity);
+        assert!(!retained.value_rows.is_empty());
+        assert_eq!(
+            session.resource_ledger.inference_session_retained_bytes,
+            session.execution_counters.inference_session_retained_bytes
+        );
+        assert_eq!(
+            retained.checked_independent_retained_bytes().unwrap(),
+            retained.checked_retained_bytes().unwrap()
+        );
+        assert!(session.store.facts().is_empty());
+        assert!(session.store.provenance().is_empty());
+        session.route_incoming(&route).unwrap();
+        assert_eq!(session.store.facts().len(), 1);
+    }
+
+    #[test]
+    fn f5c_route_cause_validation_precedes_cold_and_warm_begin_reservation() {
+        fn assert_cause_mismatch_precedes_begin(
+            session: &mut InferenceSession,
+            route_id: &DefinitionUseId,
+            incoming: bool,
+        ) {
+            let before = RouteCheckpoint::capture(session);
+            inject_next_f5b_reserve_failure(F5bCapacityLane::ValueBounds);
+
+            let result = if incoming {
+                session.route_incoming(route_id)
+            } else {
+                session.route_internal(route_id)
+            };
+            assert_eq!(result, Err(SolveAvailabilityError::CauseMismatch));
+            assert!(session.route_journal.is_none());
+            before.assert_restored(session);
+
+            let mut probe = Vec::<u8>::new();
+            assert_eq!(
+                reserve_f5b(&mut probe, 1, F5bCapacityLane::ValueBounds),
+                Err(ConstraintError::IdentityExhausted),
+                "validation must leave the unobserved begin-reservation failure pending"
+            );
+        }
+
+        for incoming in [false, true] {
+            for warm in [false, true] {
+                let mut batch = if incoming {
+                    collect(module(
+                        "my source = 1; my sink = source",
+                        "f5c-cause-before-incoming-begin",
+                    ))
+                } else {
+                    collect(module(
+                        "my left = right; my right = left",
+                        "f5c-cause-before-internal-begin",
+                    ))
+                };
+                let route_id = batch.definition_uses()[0].id.clone();
+                let unrelated = if incoming {
+                    DefinitionUseId::new(
+                        batch.collection_artifact.clone(),
+                        batch.projection_order[0].clone(),
+                    )
+                } else {
+                    batch.definition_uses()[1].id.clone()
+                };
+                batch.definition_uses[0].cause = DefinitionUseCause::for_use(unrelated);
+                let mut session = InferenceSession::new(batch);
+                if warm {
+                    session.begin_route_transaction().unwrap();
+                    session.rollback_route_transaction().unwrap();
+                    session.fresh_value_at_level(1).unwrap();
+                }
+
+                assert_cause_mismatch_precedes_begin(&mut session, &route_id, incoming);
+            }
+        }
     }
 }

@@ -1,10 +1,279 @@
 # Current task: F5 general Function scheme foundation
 
-Updated: 2026-09-22. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-24. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
 ## Active F5 gate
+
+### Live F5c resume status (2026-09-24)
+
+F5a and F5b are complete; F5c and F5e are not. The current approved F5c
+implementation remains uncommitted on `yulang3` at `784fa502`, equal to
+`origin/yulang3`. The worktree changes are in `crates/yu-solver/src/lib.rs`,
+`crates/yu-solver/src/term.rs`, `crates/yu-solver/src/incoming_sample_trace.rs`,
+`crates/yu-solver/src/tests/f5c_scratch_reserve.rs`,
+`crates/yu-solver/src/tests/f5c_value_exact_upper_route.rs`, this task file,
+the F5c handoff, `notes/design/INDEX.md`, the indexed-finalizer Draft, the
+producer-order/failed-route-sampling addendum, and the 2026-09-23 and
+2026-09-24 daily progress records.
+
+The closed-DAG incoming traversal/scratch gate is closed. The last full
+`f5c_`-filtered suite passed 93 tests before the Term-owner additions; the last
+full `f5c_incoming_` subset passed 31 before those additions. The current
+focused Term subset passes five tests. End-to-end per-use failure-injection
+coverage includes `ExtrusionStack`, Bottom `RoutedUses` and
+`RoutedUsePositions`, fresh-row `ValueBounds`, `ValueExactUpper`,
+`ValueExactLower`, direct lower/upper value rows, `ValueLevels`,
+`ValueMetadata`, and `ExtrusionValueMarks`. The incoming value-row witnesses
+use changed post-reserve failures during `route_incoming`, match the event-time
+lane sample before propagation, check RouteCheckpoint/public-route
+restoration, verify the one conditional post-rollback sample and retained-ledger
+reconciliation, then retry successfully. The `ValueLevels`, `ValueMetadata`,
+and `ExtrusionValueMarks` witnesses prove exact aggregate growth and event-peak
+preservation. The metadata and marks tests independently recompute
+post-rollback totals from live capacities through a fresh independent ledger.
+Focused M1 specification delta reviews are clean for these lanes.
+This closes only the named lanes; the remaining owner-to-route witness matrix
+still needs reconciliation. Pure Function effects remain limited to closed
+`EmptyEffect`/`EffectBottom`, so live effect-row mutation lanes remain outside
+the current per-use matrix. The earlier
+direct-owner `ValueBounds` injection-site finding was closed after moving
+injection inside its transaction; the incoming `FreshValueBounds` witness also
+exists in `f5c_incoming_fresh_outer_row_growth_samples_before_rollback`.
+
+Per-use rollback remains open on full physical resource accounting. The nested
+value/effect-bound capacity subgate is now independently reviewed and closed:
+incoming capacity events are journaled before checked preflight; rollback
+preserves event/rebuild counts, including repeated growth and failed preflight,
+while retained bytes are reconciled only from surviving rows. Coverage includes
+two successful growths on one existing lane, a mixed successful/failed
+preflight event sequence across two existing rows, and repeated growth on a
+fresh row that rollback drops. A real Function/recursive-bound route reaches
+the checked preflight failure and proves one outer post-rollback sample plus
+full RouteCheckpoint restoration. A consuming run witness reaches that same
+preflight branch, attempts one outer sample, returns `IdentityExhausted`, and
+publishes no `SolvedModule`.
+
+An M3 compiler review questioned the missing event peak when checked preflight
+totals are unrepresentable. Architect adjudication rejected that as a blocker:
+the checked preflight is the failed event-accounting attempt, and publishing a
+stale or partial peak would violate §3's atomic-overflow clause. The route marks
+the failure, rolls back, takes the one conditional post-rollback sample, then
+terminates with no result. Representable nested growth still has event-time
+peak coverage. This adjudication does not close other resource lanes.
+
+The typed-pair/diagnostic owner group now has event-time capacity hooks for the
+typed-pair map and payload, worklist, diagnostic delta/index and completion
+scratch, bucket candidates, errors/reported-errors, and the two corresponding
+journal undo buffers. Checked diagnostic-edge accounting publishes atomically.
+The incoming-Union witnesses prove a normalized, distinct Int/Function pair,
+completion of all private members before representative-provenance failure,
+failure in the later private member, complete RouteCheckpoint restoration,
+event-time transient payload evidence, retained-ledger reconciliation, and one
+conditional post-rollback sample. The primary accepted two major test-evidence
+gaps from the first review; both were repaired, and the fresh post-repair M2
+specification delta review found no remaining issue in this owner group.
+
+Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
+same event-time capacity observer. End-to-end incoming failure witnesses prove
+a post-reserve value-row growth sample, a later private-member failure with
+retained row capacity, and zero-capacity extrusion-stack growth followed by
+post-reserve failure. The tests assert the exact changed lane was sampled
+before the reserve error propagated, full logical RouteCheckpoint restoration,
+one successful post-rollback sample, no public route, and retained-byte ledger
+reconciliation. The first M2 spec review found the event-time witness did not
+distinguish the final sample; a test-only lane observer and reserve-failure
+witness closed that finding, and fresh spec delta review found no remaining
+issue. Closed-pure Function effects still exclude live effect-row creation from
+the per-use route witness matrix; those lane hooks are not end-to-end certified.
+
+The inference Term arena owner group is now implemented and independently
+reviewed. It records event snapshots for all six counted owners; the test ledger
+independently enumerates physical owner state, lengths, requests, capacities,
+growths, bytes/peaks, and active/spare journal transfer. Dedicated post-growth
+failure witnesses cover the interned and claimed-page journal lanes, proving
+the event sample precedes rollback and retained spare capacity reconciles after
+the single post-rollback sample. Checked-overflow coverage reaches both the
+private route and consuming `run()` path. The initial M2 review found missing
+journal-lane witnesses and non-independent aggregate-only Term ledger evidence;
+both were repaired, and the fresh delta review found no remaining issue.
+Successful-path event-sample cost remains part of the one bounded measurement
+after the remaining owner hooks cohere.
+
+The full §3 sampling gate remains open. The ConstraintStore and routed-use
+owner group is now implemented and independently reviewed: facts, canonical
+keys, consumed receipts, provenance, routed-use records, and routed-use
+positions preserve event-time capacity evidence and post-rollback retained
+state. Store lanes use checked growth/event counters and fallible reserves;
+changed failed reserves are sampled before their errors propagate. The
+independent ledger receives each fixed-size store snapshot. Focused witnesses
+cover all four store lanes, changed failed reserves, local admission rollback,
+retained capacities, retry, and counter overflow. Fresh M2 specification and
+performance delta reviews found no blocking issue.
+
+The changed-failed-reserve gap in all seven incoming-instantiation scratch
+lanes is now closed. A reserve that changes physical capacity before returning
+an error records checked growth evidence and marks the pending event; the
+event-time aggregate sample runs while scratch is attached, followed by the
+existing §26 scratch-exit sample and exactly one conditional post-rollback
+sample. A trace test covers all seven lanes and distinguishes those three
+sample roles; pre-reserve/no-growth failures do not take a post-rollback
+sample. The trace now pairs batched Term owner events with their ordered
+per-event snapshots. Fresh M2 specification review found no blocking issue.
+
+Verification at this checkpoint: `cargo test -p yu-solver --lib -- --test-threads=1`
+— 202 passed in 675.10s; the focused scratch-reserve tests,
+pre-reserve failure test, and no-growth/no-outer-sample test pass. Format,
+package test check, and whitespace checks pass. The aggregate sampler is
+fixed-size/O(1), while successful event-time invocation count is O(G) for G
+capacity-growth events. The required bounded successful-path measurement was
+attempted but produced no valid result. The temporary no-sample control
+bypassed 26 IncomingRoute aggregates while the measured sample counter still
+advanced by 26, so the comparison did not isolate the target cost. The
+conservative eight-process experiment budget is exhausted; no timing sample is
+accepted. Do not call the full §3 accounting/measurement gate, F5c, or F5e
+complete.
+
+The two delegated design choices are now adjudicated in
+[`F5c producer ordering and failed-route sampling`](../notes/design/2026-09-23-f5c-producer-order-and-failed-route-sampling-addendum.md):
+Q/R assignment follows first surviving producer encounter, so cross-order
+alpha/output equality is not required when that order changes; the full Union
+relation and §44 first-normalized-member atomic projection remain. A failed
+incoming route takes exactly one fixed-size O(1) post-rollback sample iff a
+physical capacity or counted-owner/retention transition occurred. Architect
+preflight and final M3 specification/compiler/performance delta reviews are
+clean.
+
+These choices authorize implementation, not completion. The typed-pair/
+diagnostic, outer-row/extrusion, inference-Term, ConstraintStore/routed-use,
+incoming-instantiation-scratch owner groups are implemented and independently
+reviewed. The `ValueExactUpper` incoming-route lane is now covered; the broader
+owner-to-route failure-lane audit remains open. The successful-path measurement
+also remains open: the eight-process attempt above was invalid, and a new
+experiment must first isolate every IncomingRoute sampling entrypoint.
+Keep the new test in `src/tests/f5c_value_exact_upper_route.rs`; `lib.rs` has
+only its one module declaration for this witness (28,442 lines total). An
+independent mapping found a separate mechanical 63-line `ResourceSampleChecked`
+extraction candidate, but it is deferred until the accounting/measurement
+checkpoint closes to keep this diff focused. Producer-ordered Q/R
+assignment and post-Q/R normalization
+remain paused until the separate mixed-height §25/§36 order decision is
+recorded. Component sharing, remaining iterative producer/finalizer work, and
+F5e certification also remain open. Candidate B's proposed §24 API is not
+approved.
+
+The fixed-Q/R normalization order is now paused on a separate authority gap.
+The architect and specification preflight found that §25's structural-first
+order and §36's per-postorder-height ranks do not specify one order for mixed-
+height children. This is not covered by the approved producer-order
+relaxation, which permits output changes only when Q/R assignment changes. The
+user has been asked whether to preserve §25 and clarify §36, or make §36's
+height-major order supersede §25. No fixed-assignment normalization or §44
+representative change is authorized until that choice is recorded. The
+independent failed-route sampling work continues.
+
+Architect review resolved the accounting phase boundary for the separate
+stack-safety slice: §§14/26/34 authorize private production accounting for
+F5c generalizer/walker scratch now, with independent per-lane test-ledger
+reconciliation and accurate existing aggregate retained/peak totals. Keep
+root-local scratch distinct from `component_expansion_memo`; do not add the
+public `generalization_scratch_*` family accessors or claim its F5e exposure
+certified. The conditional failed-route sample is separately authorized only
+under the producer-order addendum §3 and remains unimplemented. No
+implementation change came from the first two bounded writer attempts. A later stack-safety
+slice in `lib.rs` added an iterative row/Term walker, summary construction and
+materialization, structural comparison, and eleven private scratch lanes.
+Focused tests now include a 1,024-row ordinary-draft chain, a 2,048-level
+walker-only alternating Function chain, same-memo failure/retry, and lane/peak
+reconciliation. The focused F5c suite passes 75 tests; package check, format,
+and whitespace checks pass. Independent specification review is clean for
+that slice. Performance review keeps the overall stack-safety gate open:
+recursive draft/replay/normalization/finalization and owned-tree operations
+remain, and Union/Intersection part buffers are undercounted after ownership
+transfers. Repeated structural dedup also needs a bounded indexed strategy.
+
+Other open F5c work is iterative indexed draft processing through guarded
+owner checks, replay, incidence/reference collection, normalization/key
+construction, and finalization, plus transfer-aware scratch accounting and
+fixed-point replay/rescan reduction. Keep the approved first-member normalized
+Union representative. Do not claim F5c completion or F5e resource/scale
+certification.
+
+The 2026-09-23 indexed-draft scope check found no safe production seam for an
+arena-only substrate pass: `walk` and summary registration currently emit
+boxed `F5cPositive`/`F5cNegative`, which `build_inner` immediately consumes.
+Reconstructing boxed trees at that seam would preserve the stack risk; a
+shallow-only adapter could reject currently accepted deep inputs. The next
+stack-safety implementation must keep IDs across summary registration and the
+draft consumers, rather than stopping at a standalone arena. A subsequent
+GPT-6 Sol architect review found that a useful production slice must carry IDs
+through `walk`, summary registration, `build_inner`, and finalization. The
+implementer made no edits because the complete vertical path also needs exact
+root-scratch/closed-finalizer peak accounting. The narrower iterative-finalizer
+attempt exposed an authority boundary: F5b §9 requires returning to design for
+a cross-crate accounting callback; §6 also forbids solver-owned lane mutation
+inside the callback. A `doc(hidden)` hook still changes §24's exact API. The
+solver-owned callback-slot alternative is now rejected because invariant
+transaction-lifetime handles cannot safely be stored in solver-owned slots.
+No code or tests changed in these implementation attempts.
+
+Fresh M2 specification and performance reviews of the indexed-finalizer draft
+found Candidate B not ready for user approval. The spec review found no
+producer-side pruning/compaction proof for a reachable, orphan-free graph and
+an ambiguous error boundary. The performance review found the solver's current
+pre-finalization baseline omits the simultaneously live indexed arrays and
+member drafts, and the new scratch/growth ledger is incomplete. Both found
+count inconsistencies; performance also required separating the indexed
+linear-work target from F5 §34's closed-normalization `O(N + Σ k log₂(k+1))`
+cost. A read-only architect adjudication confirmed that the current producer
+still emits boxed trees and normalizes predicate and R bounds separately; no
+end-to-end ID-preserving producer is established. A follow-up confirmed that
+F5 §26 authorizes the all-drafts-coexist O(1) sample; the current call path
+does not take it, and its exact per-lane ledger remains incomplete. Candidate B
+remains a Draft and is not an implementation or user-approval gate.
+
+The active stack-safety work is a bounded architecture repair of the
+ID-preserving producer and complete capacity ledger. F5 §26 already authorizes
+the all-drafts-coexist baseline sample; this design work does not authorize a
+new §24 public API. Candidate B still needs a clean M2 review and explicit user
+approval before implementation. If exact accounting requires a boundary
+beyond §26's named sample and growth events, return with that precise authority
+question. Do not use callback-side solver result slots or treat `doc(hidden)`
+as private. Exact-alpha and failed-route sampling choices remain pending.
+
+The accounting-boundary Draft now specifies an O(1) event-time ticket ledger,
+the six physical-owner groups, the semantic/session class rationale, and the
+authorized §26 all-drafts-coexist sample. A fresh independent M2 specification
+and performance delta review found no remaining preapproval blocker within
+that accounting-design slice. This closes only the design contract: exact
+constructor/growth/error/unwind event proof, lane enumeration, and
+`yu-types` same-time checkpoint proof remain implementation evidence.
+
+The indexed producer is still not ready for approval. Architect review found
+the current exact alpha key search evaluates `k!` label permutations for `k`
+distinct non-owner variables; a path-expanded traversal of an O(d)-node shared
+Function DAG can likewise visit `2^d` occurrence paths. These are concrete
+counterexamples to the current method/bound, not proof that every exact bounded
+algorithm is impossible. The user decision remains: preserve unrestricted
+exact alpha with a revised worst-case contract; preserve the bound by
+restricting/proving the production forest; or weaken alpha/order independence.
+The separate failed-route accounting choice also remains open: approve a
+narrow conditional post-rollback O(1) sample, keep the sample whitelist and
+journal/reconcile every physical change, or defer that resource gate. Do not
+implement Candidate B or change either contract by assumption. Resolve these
+choices, then complete producer parity and a clean full-candidate M2 review
+before presenting the new §24 API for explicit approval.
+
+Verification on this candidate: `cargo test -p yu-solver --lib f5c_ --
+--test-threads=1` — 75 passed; `cargo check -p yu-solver --tests`,
+`cargo fmt -p yu-solver`, `cargo fmt --check`, and `git diff --check` passed.
+No full solver suite, workspace check, benchmark, or F5e 1k/2k/4k matrix was
+run in this continuation. The independent post-repair performance review
+found the remaining stack/resource risks listed above; no benchmark was run.
+
+The longer text below retains earlier F5 and syntax history; this live block
+controls the current F5 navigation.
 
 The reviewed proposal is
 [`2026-09-21-f5-general-function-scheme-foundation-draft.md`](../notes/design/2026-09-21-f5-general-function-scheme-foundation-draft.md).
@@ -19,7 +288,7 @@ non-binding Pattern evidence: `cast((f x)): A` is the production shared-grammar
 witness, while direct Cast depth retains `PATTERN_STOP_ITEM` ownership. Immediate
 next action: F5a is complete. Its focused syntax suite passed 1380 tests with
 one ignored; `yu-hir` passed 46 unit/integration tests and five compile-fail
-doctests; `yu-solver` passed 56 tests; workspace check, formatting, and diff
+doctests; the focused `yu-solver` F5c suite passed 58 tests; workspace check, formatting, and diff
 checks passed. Compiler-referee, specification, and regression review are
 clean. F5b architecture inspection found two blocking API-lifecycle decisions
 before its implementation may start:
@@ -70,16 +339,127 @@ restoration, structured incoming routing with one public source route for a
 normalized union whose public fact uses the canonical first-member
 representative, and focused closure/round-trip tests. The user approved this
 representative-fact policy on 2026-09-22. The first rollback repair now admits
-all private union members before public publication and removes an accepted
-representative fact if provenance fails; full per-use rollback of private live
-state and every availability lane remains open. Nested Union/Intersection
-products now expand through closed Function children; closed-DAG memoization
-and resource certification remain open.
-The gate remains open: component-scoped iterative summary sharing, complete
-ineligible-variable rejection, non-pure effect closure, full closed-DAG
-instantiation memoization, and end-to-end per-use failure rollback still need
-implementation before F5c can be marked complete. F5e public observation and
-scale/resource certification stay deferred.
+all private union members before public publication and restores the bounded
+private live algebra, diagnostic state, counters, public store, provenance,
+route markers, and reusable term/session journals on later failure. Its
+focused semantic, specification, and performance delta reviews are closed;
+the generation-exhaustion witness also proves the preflight failure path is
+atomic. Nested Union/Intersection products now expand through closed Function
+children. Per-use rollback now covers internal, Bottom, Int, structured, and
+normalized-Union routes under one transaction, including warm-spare begin
+failures and validation-before-transaction precedence; its semantic and
+performance delta closure reviews are clean. Component-scoped expansion
+sharing and F5e certification remain open. F5 explicitly excludes effects beyond its closed
+pure Function subset; non-pure Function effect endpoints are rejected and a
+focused rollback witness covers them. The ineligible-variable rejection gate
+is covered at FetchValue boundary zero in both polarities; the final
+Q/R/eligibility rejection helper is exercised with isolated non-generic
+targets in both polarities, with the closure interaction recorded in the
+focused test.
+The component memo now uses reverse parent/incidence/root-edge indexes,
+generation-marked active-conflict propagation, admission without per-root
+shared-DAG traversal, and five named resource lanes. A focused real expansion
+asserts the active-ancestor exclusion under `cfg(test)`; the expensive
+assertion is opt-in so scale tests do not acquire a test-only repeated walk.
+Its focused witnesses cover active-transition
+rollback, more-than-64 row collisions, cold/warm structure, guarded cycles, and
+checked lane overflow.
+The R-classification gate records owner-relative guarded traces,
+keeps equal-key recursive owners, uses one shared predicate/R variable-label
+namespace, collects Q occurrences from retained R bounds, checks missing rows,
+and computes incidence after eligibility from the expanded draft. Its focused
+F5c suite passes 58 tests, including a complete mutual trace, draft-bound
+witness, mixed exact/direct row expansion, and dense/malformed finalizer
+ordinal witnesses. Follow-up repairs index reentries by owner, use a new-only
+reachability frontier, apply side-aware trace survival, restrict grouped keys
+to final replayed/normalized candidates, cache survivor traces, and replay
+each owner bound at most once per fixed-point iteration. Independent M3
+semantic review found no new issue in the latest delta; the duplicate
+trace-replay performance finding is closed. The R gate is not closed: the
+exhaustive alpha-permutation key search remains incompatible with the §25/§34
+bounded normalized index contract. Fixed-point replay/rescans, root-wide
+closure reconstruction, component sharing, and recursive expansion depth
+remain open performance/architecture work. A future computation-valued fetch
+also needs its body-boundary level carried into eligibility and Q/R
+classification.
+
+The latest component resource repair and admission optimization raise the
+focused F5c suite to 58 tests and close the old all-root invalidation, 64-bit collision, same-key rollback,
+failed-memo recording, non-transactional-ledger, aggregate-peak, and later
+sequential-reserve evidence hazards. Independent M3 resource/spec review is
+clean. Admission no longer revisits the shared DAG per cached root, and a
+focused active-ancestor witness covers the cacheability invariant. The
+component gate remains open because row/Term expansion, summary conversion,
+normalization, and owned-tree operations can still recurse with input depth.
+
+The exact-alpha requirement over unrestricted commutative shared-variable
+forests is equivalent to a graph-canonicalization problem, while the active
+design requires O(N+S)-style normalization. This contract gap needs a user
+decision before the key implementation can be replaced: retain exact alpha
+ordering with a revised complexity contract, restrict/prove the production
+forest class for the bounded contract, or weaken alpha/order independence.
+The component memo now avoids per-root shared-DAG admission traversal, but
+generalizer expansion/materialization still needs stack-safe indexed worklists.
+The ineligible-variable rejection gate is closed. Effects beyond F5's approved
+closed-pure subset remain outside scope; invalid effect endpoints are
+rejected. Closed-DAG incoming instantiation and exact scratch accounting are
+now closed after focused 63-test verification and independent specification
+and performance delta reviews. Coverage includes per-use polarity memos,
+shared-child single visits, disjoint fresh rows, Q/R restoration order, all
+seven scratch reserve failures and retry, retained physical accounting across
+later route failure, finish-time release, and canonical §44 representative
+argument correspondence.
+
+### Latest incoming route sampling evidence (2026-09-24)
+
+The changed-failure incoming-route witnesses now cover `ValueLevels`,
+`ValueMetadata`, `ExtrusionValueMarks`, and `DiagnosticDelta` in addition to
+the previously closed exact/direct value-row lanes. The `ValueLevels` fixture isolates one capacity event, checks exact
+event-time and post-rollback retained-byte deltas, proves the event peak rises
+above baseline and survives rollback, then retries. The `ValueMetadata`
+fixture pre-reserves earlier dense rows, isolates one metadata growth event,
+and checks exact event-time totals/peaks plus the successful post-rollback
+snapshot against a fresh `IndependentResourceLedger` enumeration of current
+capacities and independently enumerated surviving nested bounds. Both restore
+the logical/public route checkpoint and verify exactly one conditional
+post-rollback sample. A third isolated fresh-row fixture now proves the
+fourth-reserve `ExtrusionValueMarks` growth event with the same event-time,
+independent post-rollback ledger, checkpoint, exactly-one-sample, and retry
+assertions.
+
+Fresh M1 specification delta reviews closed both lane witnesses. The
+`ValueMetadata` review required two evidence repairs: first to isolate the
+aggregate delta and preserve event-time peaks, then to recompute the
+post-rollback snapshot from live capacities rather than relying only on a
+baseline-plus-delta assertion. Named successful sample snapshots are now
+captured by the cfg(test)-only `incoming_sample_trace` sidecar; production
+sampling behavior is unchanged. The `DiagnosticDelta` witness records ordered
+completed capacity events, requires an earlier `FreshValueBounds` growth event,
+and derives the target lane's exact aggregate/peak changes from the immediately
+preceding completed snapshot. It also checks the post-rollback ledger, route
+checkpoint, one conditional final sample, and retry. Test bodies and the
+independent post-state enumeration remain outside `lib.rs`. `lib.rs` is
+currently 28,456 lines and
+was not modified in this lane slice; keep the separate 63-line
+`ResourceSampleChecked` extraction deferred until the accounting/measurement
+checkpoint closes.
+
+Verification for this slice: the focused incoming value-route sidecar passed
+all seven tests, `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
+and `git diff --check` passed. The full `yu-solver` library suite was not
+rerun; its last full result remains 202 passed. No benchmark or resource matrix
+was run. The successful-path sampler-cost budget remains consumed without
+accepted timing data. Next resume: reconcile the remaining reachable
+owner-to-route failure lanes under the addendum; do not call the complete §3
+sampling/accounting gate closed. All changes remain unstaged, uncommitted, and
+unpushed.
+
+Still open: exact-alpha versus bounded-normalization authority, fixed-point
+replay/rescans and stack-safe expansion/materialization, per-use rollback
+across every availability lane, and F5e public-observation/scale certification.
+The next independent code gate is a bounded audit/closure of per-use failure
+rollback across the remaining availability lanes. Do not alter exact-alpha
+behavior without the user's pending choice.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.

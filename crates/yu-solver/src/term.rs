@@ -29,6 +29,17 @@ static NEXT_TERM_ARENA_BRAND: AtomicU32 = AtomicU32::new(1);
 #[cfg(test)]
 thread_local! {
     static TEST_SEAL_COLLECTED_LEN: Cell<Option<u32>> = const { Cell::new(None) };
+    static TEST_POST_GROWTH_FAILURE: Cell<Option<(usize, usize)>> = const { Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn inject_post_growth_failure(physical_lane: usize, skip: usize) {
+    TEST_POST_GROWTH_FAILURE.with(|target| target.set(Some((physical_lane, skip))));
+}
+
+#[cfg(test)]
+pub(crate) fn post_growth_failure_pending() -> bool {
+    TEST_POST_GROWTH_FAILURE.with(|target| target.get().is_some())
 }
 
 #[cfg(test)]
@@ -409,22 +420,261 @@ pub(crate) struct BranchTermArena {
     /// immutable collected prefix.  Reusing an equal node is required for the
     /// typed pair memo to have one stable structural handle per branch.
     positions: HashMap<TermNode, Term>,
+    route_journal: Option<BranchTermJournal>,
+    route_journal_spare: Option<BranchTermJournal>,
+    capacity_events: TermCapacityEvents,
+    #[cfg(test)]
+    lane_requests: [usize; 6],
+    #[cfg(test)]
+    lane_growths: [usize; 6],
+    #[cfg(test)]
+    journal_transfers: usize,
     #[cfg(test)]
     directory_probes: AtomicUsize,
 }
+
+/// Physical owners, in retained-byte order. Reserve-injection tags are not
+/// lane identities: the map and journal reserves deliberately share tags.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TermCapacitySnapshot(
+    pub(crate) [usize; 6],
+    #[cfg(test)] pub(crate) TermLaneState,
+    #[cfg(test)] pub(crate) TermOwnerLanes,
+);
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TermOwnerLanes {
+    pub(crate) lengths: [usize; 6],
+    pub(crate) requests: [usize; 6],
+    pub(crate) growths: [usize; 6],
+    pub(crate) capacities: [usize; 6],
+    pub(crate) bytes: [usize; 6],
+    pub(crate) active: bool,
+    pub(crate) transfers: usize,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct TermLaneState {
+    pub(crate) lengths: [usize; 6],
+    pub(crate) requests: [usize; 6],
+    pub(crate) growths: [usize; 6],
+    pub(crate) journal_active: bool,
+    pub(crate) journal_transfers: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TermCapacityLane {
+    PageDescriptors = 1,
+    PagePositions = 2,
+    Interner = 3,
+    InternedJournal = 4,
+    ClaimedPagesJournal = 5,
+}
+
+// One intern can reserve the interner, interned journal, page descriptors,
+// page-position map, and claimed-page journal once each, then add one backing.
+const TERM_CAPACITY_EVENT_MAX: usize = 6;
+#[derive(Debug)]
+struct TermCapacityEvents {
+    snapshots: [Option<TermCapacitySnapshot>; TERM_CAPACITY_EVENT_MAX],
+    len: usize,
+}
+impl TermCapacityEvents {
+    fn new() -> Self {
+        Self {
+            snapshots: [None; TERM_CAPACITY_EVENT_MAX],
+            len: 0,
+        }
+    }
+    fn push(&mut self, snapshot: TermCapacitySnapshot) {
+        assert!(
+            self.len < TERM_CAPACITY_EVENT_MAX,
+            "Term constructor event bound"
+        );
+        self.snapshots[self.len] = Some(snapshot);
+        self.len += 1;
+    }
+    fn take(&mut self) -> Self {
+        std::mem::replace(self, Self::new())
+    }
+}
+
+/// A bounded rollback point for solve-time terms.  The page descriptor
+/// capacity is retained when a transaction is rolled back, but newly claimed
+/// fixed-page backing is released, and the initialized prefix plus interning
+/// directory return to the checkpoint.  The global postfix index is
+/// intentionally monotonic; rolled-back handles are never reused.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct BranchTermCheckpoint {
+    pages_len: usize,
+    last_page_initialized: u16,
+    #[cfg(test)]
+    positions_len: usize,
+    #[cfg(test)]
+    page_positions_len: usize,
+}
+
+#[derive(Debug)]
+struct BranchTermJournal {
+    checkpoint: BranchTermCheckpoint,
+    interned: Vec<TermNode>,
+    claimed_pages: Vec<u32>,
+}
+
 #[allow(
     dead_code,
     reason = "F5b fixed-page allocation is exercised by private lifecycle seams before F5d produces postfix terms"
 )]
 impl BranchTermArena {
+    #[cfg(test)]
+    pub(crate) const fn independent_lane_sizes() -> [usize; 6] {
+        [
+            std::mem::size_of::<[MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize]>(),
+            std::mem::size_of::<TermPage>(),
+            std::mem::size_of::<(u32, usize)>(),
+            std::mem::size_of::<(TermNode, Term)>(),
+            std::mem::size_of::<TermNode>(),
+            std::mem::size_of::<u32>(),
+        ]
+    }
+
+    #[cfg(test)]
+    pub(crate) fn independent_owner_lanes(&self) -> Option<TermOwnerLanes> {
+        let journal = self
+            .route_journal
+            .as_ref()
+            .or(self.route_journal_spare.as_ref());
+        let capacities = [
+            self.pages.len(),
+            self.pages.capacity(),
+            self.page_positions.capacity(),
+            self.positions.capacity(),
+            journal.map_or(0, |owner| owner.interned.capacity()),
+            journal.map_or(0, |owner| owner.claimed_pages.capacity()),
+        ];
+        let sizes = Self::independent_lane_sizes();
+        let mut bytes = [0; 6];
+        for index in 0..6 {
+            bytes[index] = capacities[index].checked_mul(sizes[index])?;
+        }
+        Some(TermOwnerLanes {
+            lengths: [
+                self.pages.len(),
+                self.pages.len(),
+                self.page_positions.len(),
+                self.positions.len(),
+                journal.map_or(0, |owner| owner.interned.len()),
+                journal.map_or(0, |owner| owner.claimed_pages.len()),
+            ],
+            requests: self.lane_requests,
+            growths: self.lane_growths,
+            capacities,
+            bytes,
+            active: self.route_journal.is_some(),
+            transfers: self.journal_transfers,
+        })
+    }
     pub(crate) fn new(lineage: Arc<TermLineage>) -> Self {
         Self {
             lineage,
             pages: Vec::new(),
             page_positions: HashMap::new(),
             positions: HashMap::new(),
+            route_journal: None,
+            route_journal_spare: None,
+            capacity_events: TermCapacityEvents::new(),
+            #[cfg(test)]
+            lane_requests: [0; 6],
+            #[cfg(test)]
+            lane_growths: [0; 6],
+            #[cfg(test)]
+            journal_transfers: 0,
             #[cfg(test)]
             directory_probes: AtomicUsize::new(0),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn checkpoint(&self) -> BranchTermCheckpoint {
+        BranchTermCheckpoint {
+            pages_len: self.pages.len(),
+            last_page_initialized: self.pages.last().map_or(0, |page| page.initialized),
+            positions_len: self.positions.len(),
+            page_positions_len: self.page_positions.len(),
+        }
+    }
+
+    pub(crate) fn begin_route(&mut self) {
+        assert!(
+            self.route_journal.is_none(),
+            "Term route transaction is not nested"
+        );
+        let mut journal = self
+            .route_journal_spare
+            .take()
+            .unwrap_or(BranchTermJournal {
+                checkpoint: BranchTermCheckpoint {
+                    pages_len: 0,
+                    last_page_initialized: 0,
+                    #[cfg(test)]
+                    positions_len: 0,
+                    #[cfg(test)]
+                    page_positions_len: 0,
+                },
+                interned: Vec::new(),
+                claimed_pages: Vec::new(),
+            });
+        #[cfg(test)]
+        {
+            self.journal_transfers += 1;
+        }
+        journal.checkpoint = BranchTermCheckpoint {
+            pages_len: self.pages.len(),
+            last_page_initialized: self.pages.last().map_or(0, |page| page.initialized),
+            #[cfg(test)]
+            positions_len: self.positions.len(),
+            #[cfg(test)]
+            page_positions_len: self.page_positions.len(),
+        };
+        journal.interned.clear();
+        journal.claimed_pages.clear();
+        self.route_journal = Some(journal);
+    }
+
+    pub(crate) fn commit_route(&mut self) {
+        let journal = self
+            .route_journal
+            .take()
+            .expect("Term route transaction is active");
+        self.route_journal_spare = Some(journal);
+        #[cfg(test)]
+        {
+            self.journal_transfers += 1;
+        }
+    }
+
+    pub(crate) fn rollback_route(&mut self) {
+        let journal = self
+            .route_journal
+            .take()
+            .expect("Term route transaction is active");
+        for node in journal.interned.iter().rev() {
+            assert!(self.positions.remove(&node).is_some());
+        }
+        for base in journal.claimed_pages.iter().rev() {
+            assert!(self.page_positions.remove(&base).is_some());
+        }
+        self.pages.truncate(journal.checkpoint.pages_len);
+        if journal.checkpoint.pages_len != 0 {
+            self.pages[journal.checkpoint.pages_len - 1]
+                .truncate_to(journal.checkpoint.last_page_initialized);
+        }
+        self.route_journal_spare = Some(journal);
+        #[cfg(test)]
+        {
+            self.journal_transfers += 1;
         }
     }
 
@@ -464,61 +714,164 @@ impl BranchTermArena {
     /// O(1) logical retained-byte observation for the branch-owned inference
     /// Term arena.  The fixed pages are counted by page descriptors, not by a
     /// traversal of initialized nodes.
-    pub(crate) fn retained_bytes(&self) -> usize {
-        let page_slots = self
-            .pages
-            .len()
-            .checked_mul(std::mem::size_of::<
-                [MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize],
-            >())
-            .expect("F5b Term page storage fits usize");
-        [
-            page_slots,
-            self.pages
-                .capacity()
-                .checked_mul(std::mem::size_of::<TermPage>())
-                .expect("F5b Term page descriptors fit usize"),
-            self.page_positions
-                .capacity()
-                .checked_mul(std::mem::size_of::<(u32, usize)>())
-                .expect("F5b Term page index fits usize"),
-            self.positions
-                .capacity()
-                .checked_mul(std::mem::size_of::<(TermNode, Term)>())
-                .expect("F5b Term interner fits usize"),
-        ]
-        .into_iter()
-        .try_fold(0usize, |total, lane| total.checked_add(lane))
-        .expect("F5b Term arena aggregate fits usize")
+    pub(crate) fn checked_retained_bytes(&self) -> Option<usize> {
+        Self::checked_capacity_bytes(self.capacity_snapshot().0)
+    }
+
+    pub(crate) fn capacity_snapshot(&self) -> TermCapacitySnapshot {
+        let journal = self
+            .route_journal
+            .as_ref()
+            .or(self.route_journal_spare.as_ref());
+        TermCapacitySnapshot(
+            [
+                self.pages.len(),
+                self.pages.capacity(),
+                self.page_positions.capacity(),
+                self.positions.capacity(),
+                journal.map_or(0, |j| j.interned.capacity()),
+                journal.map_or(0, |j| j.claimed_pages.capacity()),
+            ],
+            #[cfg(test)]
+            TermLaneState {
+                lengths: [
+                    self.pages.len(),
+                    self.pages.len(),
+                    self.page_positions.len(),
+                    self.positions.len(),
+                    journal.map_or(0, |j| j.interned.len()),
+                    journal.map_or(0, |j| j.claimed_pages.len()),
+                ],
+                requests: self.lane_requests,
+                growths: self.lane_growths,
+                journal_active: self.route_journal.is_some(),
+                journal_transfers: self.journal_transfers,
+            },
+            #[cfg(test)]
+            self.independent_owner_lanes()
+                .expect("Term owner lanes fit usize"),
+        )
+    }
+
+    pub(crate) fn take_capacity_events(
+        &mut self,
+    ) -> impl Iterator<Item = TermCapacitySnapshot> + use<> {
+        self.capacity_events.take().snapshots.into_iter().flatten()
+    }
+
+    fn record_capacity_change(&mut self, before: TermCapacitySnapshot, lane: TermCapacityLane) {
+        let after = self.capacity_snapshot();
+        if before.0[lane as usize] != after.0[lane as usize] {
+            #[cfg(test)]
+            if crate::incoming_sample_trace::in_attempt() {
+                crate::incoming_sample_trace::event(
+                    || "Term".into(),
+                    || format!("{lane:?}"),
+                    before.0[lane as usize],
+                    after.0[lane as usize],
+                );
+            }
+            #[cfg(test)]
+            {
+                self.lane_growths[lane as usize] += 1;
+            }
+            #[cfg(test)]
+            let after = self.capacity_snapshot();
+            self.capacity_events.push(after);
+        }
     }
 
     #[cfg(test)]
-    pub(crate) fn independent_retained_bytes(&self) -> usize {
-        let fixed_page_bytes = self
-            .pages
-            .len()
-            .checked_mul(std::mem::size_of::<
-                [MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize],
-            >())
-            .expect("independent Term fixed pages fit usize");
+    fn fail_after_growth(
+        &self,
+        before: TermCapacitySnapshot,
+        lane: TermCapacityLane,
+    ) -> Result<(), crate::ConstraintError> {
+        if self.capacity_snapshot().0[lane as usize] == before.0[lane as usize] {
+            return Ok(());
+        }
+        TEST_POST_GROWTH_FAILURE.with(|target| match target.get() {
+            Some((wanted, skip)) if wanted == lane as usize && skip == 0 => {
+                target.set(None);
+                Err(crate::ConstraintError::IdentityExhausted)
+            }
+            Some((wanted, skip)) if wanted == lane as usize => {
+                target.set(Some((wanted, skip - 1)));
+                Ok(())
+            }
+            _ => Ok(()),
+        })
+    }
+
+    pub(crate) fn checked_capacity_bytes(capacities: [usize; 6]) -> Option<usize> {
+        capacities
+            .into_iter()
+            .zip([
+                std::mem::size_of::<[MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize]>(),
+                std::mem::size_of::<TermPage>(),
+                std::mem::size_of::<(u32, usize)>(),
+                std::mem::size_of::<(TermNode, Term)>(),
+                std::mem::size_of::<TermNode>(),
+                std::mem::size_of::<u32>(),
+            ])
+            .try_fold(0usize, |total, (capacity, size)| {
+                total.checked_add(capacity.checked_mul(size)?)
+            })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn checked_independent_capacity_bytes(capacities: [usize; 6]) -> Option<usize> {
+        capacities
+            .into_iter()
+            .zip([
+                std::mem::size_of::<[MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize]>(),
+                std::mem::size_of::<TermPage>(),
+                std::mem::size_of::<(u32, usize)>(),
+                std::mem::size_of::<(TermNode, Term)>(),
+                std::mem::size_of::<TermNode>(),
+                std::mem::size_of::<u32>(),
+            ])
+            .try_fold(0usize, |total, (capacity, size)| {
+                total.checked_add(capacity.checked_mul(size)?)
+            })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn checked_independent_retained_bytes(&self) -> Option<usize> {
+        let fixed_page_bytes = self.pages.len().checked_mul(std::mem::size_of::<
+            [MaybeUninit<TermNode>; TERM_PAGE_SLOTS as usize],
+        >())?;
+        let journal_bytes = self
+            .route_journal
+            .as_ref()
+            .or(self.route_journal_spare.as_ref())
+            .map_or(Some(0), |journal| {
+                journal
+                    .interned
+                    .capacity()
+                    .checked_mul(std::mem::size_of::<TermNode>())?
+                    .checked_add(
+                        journal
+                            .claimed_pages
+                            .capacity()
+                            .checked_mul(std::mem::size_of::<u32>())?,
+                    )
+            })?;
         [
             fixed_page_bytes,
             self.pages
                 .capacity()
-                .checked_mul(std::mem::size_of::<TermPage>())
-                .expect("independent Term descriptors fit usize"),
+                .checked_mul(std::mem::size_of::<TermPage>())?,
             self.page_positions
                 .capacity()
-                .checked_mul(std::mem::size_of::<(u32, usize)>())
-                .expect("independent Term directory fits usize"),
+                .checked_mul(std::mem::size_of::<(u32, usize)>())?,
             self.positions
                 .capacity()
-                .checked_mul(std::mem::size_of::<(TermNode, Term)>())
-                .expect("independent Term memo fits usize"),
+                .checked_mul(std::mem::size_of::<(TermNode, Term)>())?,
+            journal_bytes,
         ]
         .into_iter()
         .try_fold(0usize, usize::checked_add)
-        .expect("independent Term storage fits usize")
     }
 
     /// Allocate only a page needed by this branch.  Descriptor and directory
@@ -530,12 +883,44 @@ impl BranchTermArena {
             .last()
             .is_none_or(|page| page.initialized == TERM_PAGE_SLOTS as u16);
         if needs_page {
-            reserve_f5b(&mut self.pages, 1, F5bCapacityLane::TermPages)?;
-            reserve_f5b(
+            #[cfg(test)]
+            {
+                self.lane_requests[1] += 1;
+            }
+            let before = self.capacity_snapshot();
+            let result = reserve_f5b(&mut self.pages, 1, F5bCapacityLane::TermPages);
+            self.record_capacity_change(before, TermCapacityLane::PageDescriptors);
+            result?;
+            #[cfg(test)]
+            {
+                self.lane_requests[2] += 1;
+            }
+            let before = self.capacity_snapshot();
+            let result = reserve_f5b(
                 &mut self.page_positions,
                 1,
                 F5bCapacityLane::TermPagePositions,
-            )?;
+            );
+            self.record_capacity_change(before, TermCapacityLane::PagePositions);
+            result?;
+            #[cfg(test)]
+            {
+                if self.route_journal.is_some() {
+                    self.lane_requests[5] += 1;
+                }
+            }
+            let before = self.capacity_snapshot();
+            if let Some(journal) = &mut self.route_journal {
+                let result = reserve_f5b(
+                    &mut journal.claimed_pages,
+                    1,
+                    F5bCapacityLane::TermPagePositions,
+                );
+                self.record_capacity_change(before, TermCapacityLane::ClaimedPagesJournal);
+                result?;
+                #[cfg(test)]
+                self.fail_after_growth(before, TermCapacityLane::ClaimedPagesJournal)?;
+            }
             let mut page =
                 TermPage::try_new().map_err(|_| crate::ConstraintError::IdentityExhausted)?;
             let base = self.claim_page()?;
@@ -544,6 +929,24 @@ impl BranchTermArena {
             debug_assert!(previous.is_none(), "a claimed page base is never reused");
             page.base = base;
             self.pages.push(page);
+            #[cfg(test)]
+            {
+                self.lane_requests[0] += 1;
+                self.lane_growths[0] += 1;
+            }
+            #[cfg(test)]
+            if crate::incoming_sample_trace::in_attempt() {
+                crate::incoming_sample_trace::event(
+                    || "Term".into(),
+                    || "PageBacking".into(),
+                    before.0[0],
+                    self.capacity_snapshot().0[0],
+                );
+            }
+            self.capacity_events.push(self.capacity_snapshot());
+            if let Some(journal) = &mut self.route_journal {
+                journal.claimed_pages.push(base);
+            }
         }
         let page = self.pages.last_mut().expect("new branch page is available");
         let index = page.push(node);
@@ -560,9 +963,33 @@ impl BranchTermArena {
         // The dedup directory is part of publication.  Reserve it before a
         // page can be claimed so a failed map growth cannot leave a committed
         // node which a later equal request fails to observe.
-        reserve_f5b(&mut self.positions, 1, F5bCapacityLane::TermInterner)?;
+        #[cfg(test)]
+        {
+            self.lane_requests[3] += 1;
+        }
+        let before = self.capacity_snapshot();
+        let result = reserve_f5b(&mut self.positions, 1, F5bCapacityLane::TermInterner);
+        self.record_capacity_change(before, TermCapacityLane::Interner);
+        result?;
+        #[cfg(test)]
+        {
+            if self.route_journal.is_some() {
+                self.lane_requests[4] += 1;
+            }
+        }
+        let before = self.capacity_snapshot();
+        if let Some(journal) = &mut self.route_journal {
+            let result = reserve_f5b(&mut journal.interned, 1, F5bCapacityLane::TermInterner);
+            self.record_capacity_change(before, TermCapacityLane::InternedJournal);
+            result?;
+            #[cfg(test)]
+            self.fail_after_growth(before, TermCapacityLane::InternedJournal)?;
+        }
         let term = self.push(node.clone())?;
-        self.positions.insert(node, term);
+        self.positions.insert(node.clone(), term);
+        if let Some(journal) = &mut self.route_journal {
+            journal.interned.push(node);
+        }
         Ok(term)
     }
 
@@ -776,6 +1203,15 @@ impl TermPage {
         self.nodes[offset].write(node);
         self.initialized += 1;
         self.base + offset as u32
+    }
+
+    fn truncate_to(&mut self, initialized: u16) {
+        debug_assert!(initialized <= self.initialized);
+        let old_initialized = self.initialized;
+        for node in &mut self.nodes[initialized as usize..old_initialized as usize] {
+            unsafe { node.assume_init_drop() };
+        }
+        self.initialized = initialized;
     }
 
     fn get(&self, offset: usize) -> Option<&TermNode> {
@@ -1044,5 +1480,28 @@ mod tests {
                 .live_variable(ComponentKind::Value, Polarity::Positive, 3)
                 .is_ok()
         );
+    }
+
+    #[test]
+    fn route_rollback_truncates_nodes_added_to_an_existing_page() {
+        let lineage = TermBuilder::new().unwrap().seal().unwrap();
+        let mut branch = BranchTermArena::new(lineage);
+        let retained = branch
+            .live_variable(ComponentKind::Value, Polarity::Positive, 1)
+            .unwrap();
+        branch.begin_route();
+        let rolled_back = branch
+            .live_variable(ComponentKind::Value, Polarity::Positive, 2)
+            .unwrap();
+
+        branch.rollback_route();
+
+        assert!(branch.term_view(retained).is_ok());
+        assert_eq!(
+            branch.term_view(rolled_back),
+            Err(TermLookupError::InvalidHandle)
+        );
+        assert_eq!(branch.pages.len(), 1);
+        assert_eq!(branch.pages[0].initialized, 1);
     }
 }
