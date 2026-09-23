@@ -844,3 +844,21 @@ helper. Lane-specific capacity setup and slot-size formulas remain explicit.
 The refactor removes 325 net lines, and a fresh specification delta review
 found no weakened or omitted assertion. Remaining diagnostic scratch lanes,
 the owner-to-route matrix, §3 accounting/measurement, F5c, and F5e remain open.
+
+## `DiagnosticReverseCursors` changed-capacity witness (2026-09-24)
+
+Extended the shared diagnostic-lane helper with a changed-post-reserve witness
+for `DiagnosticReverseCursors`. The fixture isolates its vector at zero
+capacity, while ensuring the preceding `DiagnosticReverseOffsets` vector has
+capacity for the route's one diagnostic pair plus terminal offset (two slots).
+The shared assertions cover `usize` slot accounting, event-time sample and
+peak, one conditional post-rollback sample, independent retained-ledger
+reconciliation, full checkpoint restore, and retry identity.
+
+The M1 specification delta review found a minor proof gap: the initial fixture
+reserved one predecessor slot and checked only nonzero capacity. It now
+reserves and asserts at least two slots, matching `pair_count + 1`. The exact
+test passes after the repair; the focused value-route sidecar passes twelve
+tests, package test-check, format, and whitespace checks pass. No production
+code or `lib.rs` changed. Other diagnostic scratch lanes, the owner-to-route
+matrix, §3 accounting/measurement, F5c, and F5e remain open.

@@ -577,6 +577,7 @@ enum DiagnosticReserveLane {
     Delta,
     DeltaIndices,
     ReverseOffsets,
+    ReverseCursors,
 }
 
 fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
@@ -600,6 +601,13 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
             "diagnostic-reverse-offsets-route",
             "DiagnosticReverseOffsets",
             F5bCapacityLane::DiagnosticReverseOffsets,
+            std::mem::size_of::<usize>(),
+        ),
+        DiagnosticReserveLane::ReverseCursors => (
+            "f5c-diagnostic-reverse-cursors-route",
+            "diagnostic-reverse-cursors-route",
+            "DiagnosticReverseCursors",
+            F5bCapacityLane::DiagnosticReverseCursors,
             std::mem::size_of::<usize>(),
         ),
     };
@@ -627,7 +635,7 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
         DiagnosticReserveLane::DeltaIndices => {
             session.diagnostic_delta.try_reserve(1).unwrap();
         }
-        DiagnosticReserveLane::ReverseOffsets => {
+        DiagnosticReserveLane::ReverseOffsets | DiagnosticReserveLane::ReverseCursors => {
             session.diagnostic_delta.try_reserve(1).unwrap();
             session.diagnostic_delta_indices.try_reserve(1).unwrap();
         }
@@ -655,6 +663,18 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
         DiagnosticReserveLane::ReverseOffsets => {
             session.diagnostic_reverse_offsets = Vec::new();
             assert_eq!(session.diagnostic_reverse_offsets.capacity(), 0);
+            assert!(session.diagnostic_delta.capacity() > 0);
+            assert!(session.diagnostic_delta_indices.capacity() > 0);
+        }
+        DiagnosticReserveLane::ReverseCursors => {
+            let required_offset_count = 2; // one diagnostic pair plus its terminal offset
+            session
+                .diagnostic_reverse_offsets
+                .try_reserve(required_offset_count)
+                .unwrap();
+            session.diagnostic_reverse_cursors = Vec::new();
+            assert_eq!(session.diagnostic_reverse_cursors.capacity(), 0);
+            assert!(session.diagnostic_reverse_offsets.capacity() >= required_offset_count);
             assert!(session.diagnostic_delta.capacity() > 0);
             assert!(session.diagnostic_delta_indices.capacity() > 0);
         }
@@ -756,6 +776,7 @@ fn check_diagnostic_changed_reserve(lane: DiagnosticReserveLane) {
         DiagnosticReserveLane::Delta => session.diagnostic_delta.capacity(),
         DiagnosticReserveLane::DeltaIndices => session.diagnostic_delta_indices.capacity(),
         DiagnosticReserveLane::ReverseOffsets => session.diagnostic_reverse_offsets.capacity(),
+        DiagnosticReserveLane::ReverseCursors => session.diagnostic_reverse_cursors.capacity(),
     };
     assert_eq!(target_capacity, event.new_capacity);
     let post = trace
@@ -845,6 +866,11 @@ fn f5c_incoming_diagnostic_delta_growth_samples_before_rollback_and_retries() {
 #[test]
 fn f5c_incoming_diagnostic_reverse_offsets_growth_samples_before_rollback_and_retries() {
     check_diagnostic_changed_reserve(DiagnosticReserveLane::ReverseOffsets);
+}
+
+#[test]
+fn f5c_incoming_diagnostic_reverse_cursors_growth_samples_before_rollback_and_retries() {
+    check_diagnostic_changed_reserve(DiagnosticReserveLane::ReverseCursors);
 }
 
 #[test]
