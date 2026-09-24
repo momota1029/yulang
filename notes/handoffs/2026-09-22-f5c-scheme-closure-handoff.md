@@ -1175,5 +1175,26 @@ do `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
 `git diff --check`. Primary-only M1 work follows the user's explicit request;
 no independent reviewer or benchmark was used. This verified slice is
 checkpointed as `f69dbb76` and pushed to `origin/yulang3`. Next: continue the
-residual §3 owner-to-route audit. The complete §3 accounting/measurement gate,
-F5c, and F5e remain open.
+residual §3 owner-to-route audit, now including the direct value-row lanes.
+The complete §3 accounting/measurement gate, F5c, and F5e remain open.
+
+## ValueDirectLower/Upper event and rollback witnesses (2026-09-24)
+
+Strengthened `f5c_incoming_value_direct_rows_sample_before_rollback_and_retry`
+for both direct-bound lanes. It now identifies the exact preexisting lower row
+and fresh upper row, derives each `u32` slot-byte delta from the completed
+event, and reconciles event-time semantic/session retained bytes, nested bytes,
+and peaks against the immediately preceding sample. The post-rollback sample
+and independently rebuilt ledger distinguish the surviving lower-row growth
+from the dropped fresh upper row; complete RouteCheckpoint restoration and
+retry links through canonical fact, receipt, provenance, and routed-use records
+are asserted. A small event/sample assertion helper stays in the test sidecar;
+`lib.rs` and production code are unchanged.
+
+The focused direct-row witness and all 57 single-threaded `f5c_incoming_` tests
+pass, as do `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`,
+and `git diff --check`. Primary-only M1 work follows the user's explicit
+request; no independent reviewer or benchmark was used. This verified slice
+is checkpointed as `8b118260` and pushed to `origin/yulang3`. Next: continue
+the residual §3 owner-to-route audit. The complete §3 accounting/measurement
+gate, F5c, and F5e remain open.

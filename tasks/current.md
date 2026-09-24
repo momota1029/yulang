@@ -51,7 +51,9 @@ The `ValueExactUpper` witness now distinguishes its temporary fresh-row upper
 payload from the retained preexisting lower-row growth and reconciles both at
 the post-rollback boundary. The `ValueExactLower` witness now ties its exact
 event delta and peaks to the preexisting use row and independently reconciles
-the retained allocation after rollback.
+the retained allocation after rollback. The direct-row witness now gives both
+`ValueDirectLower` and fresh-row `ValueDirectUpper` exact event/sample and
+transient-versus-retained rollback evidence.
 
 Per-use rollback remains open on full physical resource accounting. The nested
 value/effect-bound capacity subgate is now independently reviewed and closed:
@@ -612,8 +614,12 @@ witness now binds its exact event delta/peaks to the preexisting use row,
 proves that capacity survives rollback through the independent ledger and
 post-rollback sample, and checks canonical fact, receipt, provenance, and
 routed-use retry links. This M1 slice is checkpointed as `f69dbb76` and pushed
-to `origin/yulang3`. Then audit the residual owner-to-route lanes against the
-complete §3 list. Keep sampler-cost
+to `origin/yulang3`. The `ValueDirectLower`/`ValueDirectUpper` witness now
+checks exact row identity and slot deltas, event-time retained/nested totals
+and peaks, the independent post-rollback ledger, RouteCheckpoint restoration,
+and canonical/receipt/provenance/routed-use retry links. This M1 slice is
+checkpointed as `8b118260` and pushed to `origin/yulang3`. Then audit the
+residual owner-to-route lanes against the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
 method. Do not call the complete §3 sampling/accounting gate closed. The F5c
