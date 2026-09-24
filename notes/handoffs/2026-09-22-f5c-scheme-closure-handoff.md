@@ -1492,6 +1492,8 @@ filtered suite with `--no-default-features` (155 passed),
 unfiltered no-default-feature library suite was started but interrupted in the
 known broad F4 scale area; it provides no passing-suite evidence. No benchmark
 or F5e resource matrix ran; measurement budget consumed: zero.
+The implementation and records are committed and pushed at `2366de39` on
+`origin/yulang3`.
 
 Work remained primary-only at the user's explicit direction, with no
 independent reviewer. This closes only these producer-analysis walks. Recursive

@@ -25,7 +25,8 @@ guarded-owner, reference, incidence, occurrence, and Term-row traversals into
 walker ledger. `lib.rs` is now 27,542 lines, 158 fewer than before this
 extraction. The slice passes the focused `f5c_` suite (155 tests) in default
 and no-default-feature configurations, plus workspace check, formatting, and
-diff checks. Full F5c/F5e closure is not claimed: recursive replay and binder
+diff checks; checkpoint `2366de39` is pushed to `origin/yulang3`. Full F5c/F5e
+closure is not claimed: recursive replay and binder
 substitution, tree clone/drop, closed finalization inside the §24 callback, and
 co-resident draft/output-tree accounting remain open. Preserve §24/F5b; do not
 implement the unapproved indexed `yu-types` API.
