@@ -1617,4 +1617,5 @@ boxed F5c trees stack-safe. Candidate replay's remaining clone arms handle
 leaves after branching nodes are explicitly traversed; boxed output drop and
 other deep-tree ownership paths remain open. Do not claim full clone/drop or
 F5c/F5e closure. The next step is to map whether deep destruction can be made
-safe without changing the approved boxed representation or §24 boundary.
+safe without changing the approved boxed representation or §24 boundary. The
+implementation and records are checkpointed and pushed as `992df956`.

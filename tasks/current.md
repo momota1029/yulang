@@ -14,8 +14,8 @@ focused `f5c_` filter passes 161 tests; full F5c/F5e
 closure and the broader resource/public-observation gates remain open. The
 latest slice is recorded at the end of the F5c handoff and this file. The
 candidate-replay and iterative Q/R rewrite slices are pushed as `da9097db` and
-`a41b9875`. The ownership-only materialization change is verified and being
-checkpointed; keep the §24 finalizer callback/API unchanged.
+`a41b9875`. The ownership-only materialization change is verified and pushed
+as `992df956`; keep the §24 finalizer callback/API unchanged.
 
 ## Active F5 gate
 
@@ -32,8 +32,9 @@ instead of deep cloning; `lib.rs` is 27,416 lines.
 The focused `f5c_` suite passes 161 tests in default and no-default-feature
 configurations. Full F5c/F5e closure is not claimed: tree clone/drop, closed
 finalization inside the §24 callback, and co-resident draft/output-tree
-accounting remain open. Preserve §24/F5b; do not implement the unapproved
-indexed `yu-types` API.
+accounting remain open. The raw-bound materialization change is pushed in
+`992df956`. Preserve §24/F5b; do not implement the unapproved indexed
+`yu-types` API.
 The design decision is recorded in
 [`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md);
 implementation details and residual gates are at the end of the
