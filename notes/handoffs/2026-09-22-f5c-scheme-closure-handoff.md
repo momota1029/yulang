@@ -1409,3 +1409,53 @@ work within the current F5b callback/accounting boundary. Do not add the
 unapproved indexed `yu-types` API or move solver-owned allocation outside the
 existing callback; stop for a separately reviewed decision if that boundary
 cannot support the required iterative construction.
+
+## Iterative summary-to-draft materialization checkpoint (2026-09-24)
+
+`F5cSummaryStore::node_iterative` and `materialize_summary` were already
+iterative graph walks. The root-local post-summary conversion was still
+recursive: `F5cGeneralizer::materialize_positive` and
+`materialize_negative` recursively rebuilt boxed Function, Union, and
+Intersection trees while replacing `Shared` references. That conversion now
+lives in `crates/yu-solver/src/f5c_materialization.rs` as an explicit
+polarity-tagged task/value walk. It preserves child order and effect fields,
+uses the same summary mark callback for `Shared` nodes, and leaves the §44
+representative and Q/R logic unchanged. Two distinct task/value lanes were
+added to the existing walker capacity observer and independent ledger so they
+remain accounted while nested summary materialization uses its own lanes.
+`lib.rs` is 27,700 lines, 112 fewer than before this extraction.
+
+The sidecar test builds and consumes 2,048-positive-root and 2,049-negative-root
+alternating Function chains on a 64 KiB thread stack. It checks lane requests,
+growths, peaks, release, and independent-ledger reconciliation. The existing
+active-conflict tests exercise the production generalizer wrapper. Verification
+passes: `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (153 passed),
+`cargo check --workspace`, `cargo fmt --all -- --check`, and `git diff --check`.
+No benchmark or F5e matrix ran. The extra producer work is O(N), with two
+O(N)-capacity worklist lanes replacing recursive traversal; draft output-tree
+storage remains outside this newly isolated lane accounting and is still an
+open F5c accounting item.
+
+This closes only boxed-tree summary-to-draft materialization recursion. Other
+recursive generalizer paths remain in `term_value_rows`, guarded-owner
+search, replay, recursive-owner reference closure, incidence collection, and
+Q first-occurrence traversal; cloning and destruction of the boxed trees also
+remain recursive. `finalize_generalization_draft_raw` still recursively
+constructs closed nodes inside the §24 higher-ranked callback. F5b §6 does not
+permit solver-owned scratch allocation/mutation there, and transaction-branded
+`Draft*Id<'tx>` values cannot be stored in solver-owned slots across the
+callback. The indexed `yu-types` construction API is still Draft and was
+reviewed as underspecified. Therefore end-to-end stack-safe closed-tree
+construction cannot proceed without a new design/review/approval boundary;
+do not implement Candidate B or claim stack-safety/F5c closure on this slice.
+
+The complete `yu-solver` library suite was not repeated: the most recent
+single-threaded attempt stopped after more than seven minutes in
+`f4_unbounded_cycle_scale_4k_keeps_direct_frontier_linear`, with no passing
+suite result; the earlier linearity discrepancy remains unresolved. This
+checkpoint is primary-only per user direction and has no independent review.
+F5c and F5e remain open. The immediate decision is whether to preserve exact
+§24/F5b authority and leave finalizer stack safety open while continuing only
+boundary-compatible work, or to return to independently reviewed design for a
+yu-types-owned indexed finalization API (with its producer-graph and complete
+capacity-accounting gaps resolved before asking for approval).

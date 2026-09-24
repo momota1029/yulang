@@ -178,6 +178,7 @@ use yu_types::{
 
 mod scc;
 use scc::{SccComponentId, SccPlan};
+mod f5c_materialization;
 mod f5c_normalization;
 #[cfg(test)]
 mod incoming_sample_trace;
@@ -3769,10 +3770,12 @@ enum F5cWalkerLaneKind {
     NegativeParts = 8,
     MaterializeTasks = 9,
     MaterializeValues = 10,
+    DraftMaterializeTasks = 11,
+    DraftMaterializeValues = 12,
 }
 
 impl F5cWalkerLaneKind {
-    const ALL: [Self; 11] = [
+    const ALL: [Self; 13] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -3784,6 +3787,8 @@ impl F5cWalkerLaneKind {
         Self::NegativeParts,
         Self::MaterializeTasks,
         Self::MaterializeValues,
+        Self::DraftMaterializeTasks,
+        Self::DraftMaterializeValues,
     ];
 
     fn slot_size(self) -> usize {
@@ -3799,6 +3804,8 @@ impl F5cWalkerLaneKind {
             Self::NegativeParts => std::mem::size_of::<F5cNegative>(),
             Self::MaterializeTasks => std::mem::size_of::<F5cMaterializeTask>(),
             Self::MaterializeValues => std::mem::size_of::<F5cWalkValue>(),
+            Self::DraftMaterializeTasks => std::mem::size_of::<f5c_materialization::Task>(),
+            Self::DraftMaterializeValues => std::mem::size_of::<F5cWalkValue>(),
         }
     }
 }
@@ -3813,12 +3820,12 @@ struct F5cWalkerLane {
 
 #[derive(Default)]
 struct F5cWalkerResources {
-    lanes: [F5cWalkerLane; 11],
+    lanes: [F5cWalkerLane; 13],
     peak_bytes: usize,
     simultaneous_memo_peak_bytes: usize,
     observed_memo_bytes: usize,
     #[cfg(test)]
-    independent_lanes: [F5cWalkerLane; 11],
+    independent_lanes: [F5cWalkerLane; 13],
     #[cfg(test)]
     independent_peak_bytes: usize,
     #[cfg(test)]
@@ -5573,126 +5580,6 @@ impl<'a> F5cGeneralizer<'a> {
             if let Some(frame) = self.frames.last_mut() {
                 frame.tainted = true;
             }
-        }
-    }
-
-    fn materialize_positive(
-        &mut self,
-        value: F5cPositive,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
-        match value {
-            F5cPositive::Shared(id) => {
-                let session = self.session;
-                let frames = &mut self.frames;
-                let active_set = &self.active_set;
-                let provisional = &self.provisional_recursive_rows;
-                let order = &mut self.order;
-                let order_seen = &mut self.order_seen;
-                let mut active_conflict = false;
-                let materialized = self.memo.positive_value_with(id, &mut |row, _polarity| {
-                    active_conflict |= active_set.contains(&(row, Polarity::Positive))
-                        || active_set.contains(&(row, Polarity::Negative));
-                    if order_seen.insert(row) {
-                        order.push(row);
-                    }
-                    if provisional.contains(&row)
-                        || session
-                            .value_metadata
-                            .get(row as usize)
-                            .is_none_or(|metadata| metadata.non_generic)
-                        || session
-                            .value_levels
-                            .get(row as usize)
-                            .is_none_or(|level| *level == 0)
-                    {
-                        if let Some(frame) = frames.last_mut() {
-                            frame.tainted = true;
-                        }
-                    }
-                })?;
-                if active_conflict {
-                    self.taint_active_states();
-                }
-                Ok(materialized)
-            }
-            F5cPositive::Union(values) => Ok(F5cPositive::Union(
-                values
-                    .into_iter()
-                    .map(|value| self.materialize_positive(value))
-                    .collect::<Result<_, _>>()?,
-            )),
-            F5cPositive::Function {
-                argument,
-                argument_effect,
-                result_effect,
-                result,
-            } => Ok(F5cPositive::Function {
-                argument: Box::new(self.materialize_negative(*argument)?),
-                argument_effect,
-                result_effect,
-                result: Box::new(self.materialize_positive(*result)?),
-            }),
-            other => Ok(other),
-        }
-    }
-
-    fn materialize_negative(
-        &mut self,
-        value: F5cNegative,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
-        match value {
-            F5cNegative::Shared(id) => {
-                let session = self.session;
-                let frames = &mut self.frames;
-                let active_set = &self.active_set;
-                let provisional = &self.provisional_recursive_rows;
-                let order = &mut self.order;
-                let order_seen = &mut self.order_seen;
-                let mut active_conflict = false;
-                let materialized = self.memo.negative_value_with(id, &mut |row, _polarity| {
-                    active_conflict |= active_set.contains(&(row, Polarity::Positive))
-                        || active_set.contains(&(row, Polarity::Negative));
-                    if order_seen.insert(row) {
-                        order.push(row);
-                    }
-                    if provisional.contains(&row)
-                        || session
-                            .value_metadata
-                            .get(row as usize)
-                            .is_none_or(|metadata| metadata.non_generic)
-                        || session
-                            .value_levels
-                            .get(row as usize)
-                            .is_none_or(|level| *level == 0)
-                    {
-                        if let Some(frame) = frames.last_mut() {
-                            frame.tainted = true;
-                        }
-                    }
-                })?;
-                if active_conflict {
-                    self.taint_active_states();
-                }
-                Ok(materialized)
-            }
-            F5cNegative::Intersection(values) => Ok(F5cNegative::Intersection(
-                values
-                    .into_iter()
-                    .map(|value| self.materialize_negative(value))
-                    .collect::<Result<_, _>>()?,
-            )),
-            F5cNegative::Function {
-                argument,
-                argument_effect,
-                result_effect,
-                result,
-            } => Ok(F5cNegative::Function {
-                argument: Box::new(self.materialize_positive(*argument)?),
-                argument_effect,
-                result_effect,
-                result: Box::new(self.materialize_negative(*result)?),
-            }),
-            other => Ok(other),
         }
     }
 
@@ -7506,7 +7393,7 @@ struct IndependentResourceLedger {
     generalization_walker_retained_bytes: usize,
     generalization_walker_peak_bytes: usize,
     generalization_walker_capacity_growths: usize,
-    generalization_walker_lanes: [IndependentMemoLane; 11],
+    generalization_walker_lanes: [IndependentMemoLane; 13],
     closed_normalization_index_requested_slots: usize,
     closed_normalization_index_actual_capacity: usize,
     closed_normalization_index_retained_bytes: usize,
@@ -15397,6 +15284,7 @@ impl SolvedModule {
 #[allow(deprecated)]
 mod tests {
     use super::*;
+    mod f5c_materialization;
     mod f5c_scratch_reserve;
     mod f5c_value_exact_upper_route;
     use std::sync::Arc;

@@ -21,12 +21,16 @@ then runs the prescribed mergesort. The 18/24 root-order witness now reports
 18/18; reversed Union inputs also have equal complete
 normalization stats. The normalizer owns two additional accounted scratch
 lanes. The mixed-height ordering/counter subgate is implemented and pushed in
-`fc34f127` and `e81b9e84`. `cargo test -p yu-solver --lib f5c_ -- --test-threads=1`
-passes 152 tests; `cargo check --workspace`, format, and diff checks pass. Full
-F5c/F5e closure is not claimed; complete co-resident F5c draft/output-tree
-accounting also remains open. Next: continue the remaining stack-safe
-producer/finalizer work within the current F5b callback/accounting boundary; do
-not add the unapproved indexed `yu-types` API.
+`fc34f127` and `e81b9e84`. The recursive boxed-tree conversion after summary
+materialization is now iterative in `f5c_materialization.rs`, with two added
+walker lanes in the existing independent capacity ledger; a 2,049-node
+alternating Function chain passes on a 64 KiB stack. The focused `f5c_` suite
+passes 153 tests and `cargo check --workspace` passes. Full F5c/F5e closure is
+not claimed; root-local replay/incidence/occurrence walks, recursive closed
+finalization, and co-resident draft/output-tree accounting remain open. Next:
+resolve whether to preserve §24/F5b unchanged and leave finalization stack
+safety open, or return to reviewed design for a yu-types-owned indexed API; do
+not implement the unapproved API.
 The design decision is recorded in
 [`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md);
 implementation details and residual gates are at the end of the
@@ -694,6 +698,33 @@ seven minutes and is not a passing result.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.
+
+## F5c iterative summary-to-draft materialization slice (2026-09-24)
+
+`F5cSummaryStore::materialize_summary` and `node_iterative` were already
+iterative. The remaining `F5cGeneralizer::materialize_positive` and
+`materialize_negative` recursion over boxed Function/Union/Intersection trees
+is now an explicit task/value walk in `crates/yu-solver/src/f5c_materialization.rs`.
+Its task and value Vec capacities use two new entries in the existing
+generalization-walker accounting/independent-ledger arrays. `lib.rs` delegates
+these methods and is 27,700 lines, 112 fewer than the prior checkpoint; tests
+remain in the sidecar.
+
+The 2,048-positive-root and 2,049-negative-root alternating Function cases
+pass on a 64 KiB thread stack and reconcile requested slots, growths, peaks,
+and release against the independent walker ledger. The full focused
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` passes 153 tests;
+`cargo check --workspace`, format, and diff checks pass. This is only the
+summary-to-draft materialization subgate. `term_value_rows`, guarded-owner
+search, fixed-point replay, owner/reference/incidence/occurrence traversals,
+and boxed-tree cloning/dropping still contain recursive paths. The finalizer's
+positive/negative constructors recurse inside the §24 higher-ranked callback;
+F5b §6 bars allocation/mutation of solver-owned scratch there, and the
+indexed `yu-types` API remains an unapproved Draft. No full library-suite run
+was repeated: the last attempt stopped after more than seven minutes in the
+known F4 scale test, so that suite remains uncertified. No benchmark or F5e
+matrix ran. Primary-only, with no independent reviewer; F5c/F5e are not
+complete.
 
 ## Current user decision
 
