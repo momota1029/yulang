@@ -89,10 +89,11 @@ event/rollback/independent-retained-ledger witnesses.
 The store trace distinguishes session-only store bytes from semantic bytes;
 rollback preserves exact physical growth/rebuild evidence while logical state
 is restored. The M1 review's minor §44 retry-link gap is closed by assertions
-for the canonical fact, receipt, provenance, and routed-use records. Next add
-the missing independent post-rollback retained-ledger comparison to the
-existing `ValueLevels` witness, then strengthen the split `FreshValueBounds`
-incoming-route proof with exact event/sample and retained-ledger evidence.
+for the canonical fact, receipt, provenance, and routed-use records. The
+`ValueLevels` witness now independently checks the completed post-rollback
+retained/nested totals and peaks. Next consolidate the split `FreshValueBounds`
+incoming-route witnesses into exact event/sample, rollback, retained-ledger,
+and retry evidence.
 Keep live effect-row mutation outside the approved pure-Function scope. The
 successful-path sampling attempt consumed its prior process budget without a
 valid comparison; do not repeat it without a new budget and an isolating
@@ -1062,6 +1063,30 @@ whole route history. No production code changed.
 Verification: the focused routed-use test passes 1/1;
 `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
 `git diff --check` pass. The full solver suite and performance measurement were
-not run. Next: add an independent post-rollback retained-ledger comparison to
-the `ValueLevels` witness, then strengthen the split `FreshValueBounds`
-incoming-route evidence. The complete §3 gate, F5c, and F5e remain open.
+not run. The complete §3 gate, F5c, and F5e remain open.
+
+## ValueLevels incoming-route retained-ledger witness (2026-09-24)
+
+Extended `f5c_incoming_value_levels_growth_samples_before_rollback_and_retries`
+to capture the completed post-rollback sample and independently rebuild
+retained/session and nested-bound totals from surviving state. Its one
+event-time sample now checks exact semantic/session byte deltas and derives
+exact peak values from the pre-attempt peaks, observed ValueLevels capacity
+delta, and finish-output bytes. The test-derived expected peaks seed the
+independent ledger, which is compared against the post-rollback sample and
+production counters. Existing checkpoint restoration, retained physical
+capacity, no-public-route, and retry assertions remain.
+
+The first specification review found an initial compile blocker: expected peak
+locals were referenced before definition. Primary added the locals from the
+saved pre-attempt state and exact event delta; the reviewer confirmed closure.
+The focused test, package test-check, format, and whitespace checks pass. No
+production code changed. Next consolidate the split `FreshValueBounds`
+incoming-route witnesses with exact event/sample, rollback, independent
+retained-ledger, and retry evidence. The full §3 gate, F5c, and F5e remain open.
+
+The ValueLevels test and current task/progress records remain an uncommitted
+local slice at HEAD `0b2957a8`. The prior `.git` read-only failure is cleared
+in the resumed session; checkpoint and push this verified slice before
+starting another code slice. The next FreshValueBounds witness should live in
+the existing test sidecar rather than adding more test body to `lib.rs`.

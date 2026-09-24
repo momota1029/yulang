@@ -151,6 +151,15 @@ test moved from `lib.rs`, removing 54 lines. The initial M1 review's two major
 assertion gaps were closed; a fresh specification delta review found no
 remaining issue. No production code changed.
 
+The existing `ValueLevels` changed-reserve witness now captures the completed
+post-rollback sample and reconciles semantic/session retained bytes, nested
+bound bytes, and peaks against an independent ledger rebuilt from surviving
+owners. Event peaks use the saved pre-attempt peaks, exact observed capacity
+delta, and finish-output bytes. The witness keeps its one-event/one-final
+sample distinction, RouteCheckpoint restoration, and successful retry. A
+single specification review closed its initial missing-local compile blocker;
+focused verification now passes. No production code changed.
+
 Fresh value/effect outer-row reserves and extrusion-stack pushes now use the
 same event-time capacity observer. End-to-end incoming failure witnesses prove
 a post-reserve value-row growth sample, a later private-member failure with
@@ -571,11 +580,14 @@ rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
 plausible and no direct F5c path, but the failed assertion values were not
 captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
-without accepted timing data. Next resume: add the missing independent
-post-rollback retained-ledger comparison to the existing `ValueLevels`
-changed-reserve witness, then strengthen the split `FreshValueBounds` incoming
-failure proof with exact event/sample and retained-ledger evidence. Continue the
-remaining per-use lanes against the complete §3 list. Keep sampler-cost
+without accepted timing data. The verified `ValueLevels` slice and its records
+are ready for a checkpoint now that the resumed session has Git-metadata write
+access. Commit and push this slice before starting another code slice. After
+that checkpoint, consolidate the split `FreshValueBounds` incoming-route
+witnesses into an exact event/sample, rollback, independent retained-ledger,
+and retry proof. Keep its test body in the existing sidecar rather than adding
+more test code to `lib.rs`. Continue the remaining per-use lanes against
+the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
 method. Do not call the complete §3 sampling/accounting gate closed. The F5c

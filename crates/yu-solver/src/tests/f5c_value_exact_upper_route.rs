@@ -2775,6 +2775,8 @@ fn f5c_incoming_value_levels_growth_samples_before_rollback_and_retries() {
     let old_session = session.resource_ledger.inference_session_retained_bytes;
     let old_semantic_peak = session.execution_counters.semantic_arena_peak_bytes;
     let old_session_peak = session.execution_counters.inference_session_peak_bytes;
+    let old_nested_bound_bytes = session.independent_nested_capacities.total_bound_bytes();
+    let old_finish_output_bytes = session.resource_ledger.finish_output_retained_bytes;
     let sample_count = session.resource_boundary_samples;
     let post_attempts = session.incoming_post_rollback_sample_attempts;
     let post_samples = session.incoming_post_rollback_samples;
@@ -2807,6 +2809,11 @@ fn f5c_incoming_value_levels_growth_samples_before_rollback_and_retries() {
         trace.named_samples,
         [("post-rollback".into(), 1)].into_iter().collect()
     );
+    let post_rollback = trace
+        .completed_named_samples
+        .get("post-rollback")
+        .and_then(|samples| (samples.len() == 1).then_some(&samples[0]))
+        .expect("post-rollback must have one completed sample");
     assert_eq!(trace.samples, 2);
     assert_eq!(
         session.incoming_post_rollback_sample_attempts,
@@ -2829,10 +2836,38 @@ fn f5c_incoming_value_levels_growth_samples_before_rollback_and_retries() {
     assert_eq!(grown_value_levels_bytes - old_value_levels_bytes, delta);
     assert_eq!(event.semantic_retained_bytes, old_semantic + delta);
     assert_eq!(event.session_retained_bytes, old_session + delta);
-    assert!(event.semantic_peak_bytes >= event.semantic_retained_bytes);
-    assert!(event.session_peak_bytes >= event.session_retained_bytes);
+    assert_eq!(event.nested_bound_bytes, old_nested_bound_bytes);
+    let expected_semantic_peak = old_semantic_peak.max(old_semantic + delta);
+    let expected_session_peak = old_session_peak.max(old_session + delta + old_finish_output_bytes);
+    assert_eq!(event.semantic_peak_bytes, expected_semantic_peak);
+    assert_eq!(event.session_peak_bytes, expected_session_peak);
     assert!(event.semantic_peak_bytes > old_semantic_peak);
     assert!(event.session_peak_bytes > old_session_peak);
+    let (independent, independent_nested) = independent_post_rollback_value_row_resources(
+        &session,
+        expected_semantic_peak,
+        expected_session_peak,
+    );
+    assert_eq!(
+        post_rollback.semantic_retained_bytes,
+        independent.semantic_arena_retained_bytes
+    );
+    assert_eq!(
+        post_rollback.session_retained_bytes,
+        independent.inference_session_retained_bytes
+    );
+    assert_eq!(
+        post_rollback.nested_bound_bytes,
+        independent_nested.total_bound_bytes()
+    );
+    assert_eq!(
+        post_rollback.semantic_peak_bytes,
+        independent.semantic_arena_peak_bytes
+    );
+    assert_eq!(
+        post_rollback.session_peak_bytes,
+        independent.inference_session_peak_bytes
+    );
     assert_eq!(
         session.resource_ledger.semantic_arena_retained_bytes,
         old_semantic + delta
@@ -2849,8 +2884,30 @@ fn f5c_incoming_value_levels_growth_samples_before_rollback_and_retries() {
         session.execution_counters.inference_session_retained_bytes,
         session.resource_ledger.inference_session_retained_bytes
     );
-    assert!(session.execution_counters.semantic_arena_peak_bytes >= event.semantic_peak_bytes);
-    assert!(session.execution_counters.inference_session_peak_bytes >= event.session_peak_bytes);
+    assert_eq!(
+        session.resource_ledger.semantic_arena_retained_bytes,
+        post_rollback.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_retained_bytes,
+        post_rollback.session_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.semantic_arena_peak_bytes,
+        post_rollback.semantic_peak_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_peak_bytes,
+        post_rollback.session_peak_bytes
+    );
+    assert_eq!(
+        session.execution_counters.semantic_arena_peak_bytes,
+        post_rollback.semantic_peak_bytes
+    );
+    assert_eq!(
+        session.execution_counters.inference_session_peak_bytes,
+        post_rollback.session_peak_bytes
+    );
     assert!(session.store.facts().is_empty());
     assert!(session.store.provenance().is_empty());
     assert!(session.routed_uses.is_empty());
