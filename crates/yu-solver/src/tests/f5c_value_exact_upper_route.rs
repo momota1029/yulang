@@ -19,6 +19,170 @@ fn preserve_monotone_store_growth_counters(
     preserve!(provenance_rebuilds);
 }
 
+fn assert_completed_capacity_event_slot_growth(
+    trace: &incoming_sample_trace::Summary,
+    event_position: usize,
+    slot_size: usize,
+    finish_output_bytes: usize,
+) -> usize {
+    assert!(event_position > 0);
+    let event = &trace.completed_events[event_position];
+    assert!(event.new_capacity > event.old_capacity);
+    let delta = (event.new_capacity - event.old_capacity)
+        .checked_mul(slot_size)
+        .unwrap();
+    let previous = trace.completed_events[event_position - 1].sample;
+    let semantic_retained = previous.semantic_retained_bytes + delta;
+    let session_retained = previous.session_retained_bytes + delta;
+    assert_eq!(event.sample.semantic_retained_bytes, semantic_retained);
+    assert_eq!(event.sample.session_retained_bytes, session_retained);
+    assert_eq!(
+        event.sample.nested_bound_bytes,
+        previous.nested_bound_bytes + delta
+    );
+    assert_eq!(
+        event.sample.semantic_peak_bytes,
+        previous.semantic_peak_bytes.max(semantic_retained)
+    );
+    assert_eq!(
+        event.sample.session_peak_bytes,
+        previous
+            .session_peak_bytes
+            .max(session_retained + finish_output_bytes)
+    );
+    delta
+}
+
+fn assert_failed_incoming_route_samples(
+    session: &InferenceSession,
+    trace: &incoming_sample_trace::Summary,
+    route_attempts: usize,
+    sample_count: usize,
+    post_attempts: usize,
+    post_samples: usize,
+) {
+    assert_eq!(trace.attempts, 1);
+    assert_eq!(trace.matched_events, trace.event_samples);
+    assert_eq!(trace.completed_events.len(), trace.event_samples);
+    assert_eq!(
+        trace.named_samples,
+        [("post-rollback".into(), 1)].into_iter().collect()
+    );
+    assert_eq!(trace.samples, trace.event_samples + 1);
+    assert_eq!(
+        session.incoming_route_sample_attempts,
+        route_attempts + trace.samples
+    );
+    assert_eq!(
+        session.resource_boundary_samples,
+        sample_count + trace.samples
+    );
+    assert_eq!(
+        session.incoming_post_rollback_sample_attempts,
+        post_attempts + 1
+    );
+    assert_eq!(session.incoming_post_rollback_samples, post_samples + 1);
+}
+
+fn assert_post_rollback_value_row_sample(
+    session: &InferenceSession,
+    trace: &incoming_sample_trace::Summary,
+    post: &incoming_sample_trace::EventSample,
+    old_semantic_peak: usize,
+    old_session_peak: usize,
+) -> IndependentNestedCapacityLedger {
+    let semantic_peak_before_post = trace
+        .completed_events
+        .iter()
+        .fold(old_semantic_peak, |peak, event| {
+            peak.max(event.sample.semantic_peak_bytes)
+        });
+    let session_peak_before_post = trace
+        .completed_events
+        .iter()
+        .fold(old_session_peak, |peak, event| {
+            peak.max(event.sample.session_peak_bytes)
+        });
+    let (independent, nested) = independent_post_rollback_value_row_resources(
+        session,
+        semantic_peak_before_post,
+        session_peak_before_post,
+    );
+    assert_eq!(session.independent_nested_capacities, nested);
+    assert_eq!(nested.total_bound_bytes(), session.bound_payload_bytes);
+    assert_eq!(post.nested_bound_bytes, nested.total_bound_bytes());
+    assert_eq!(
+        post.semantic_retained_bytes,
+        independent.semantic_arena_retained_bytes
+    );
+    assert_eq!(
+        post.session_retained_bytes,
+        independent.inference_session_retained_bytes
+    );
+    assert_eq!(
+        post.semantic_peak_bytes,
+        independent.semantic_arena_peak_bytes
+    );
+    assert_eq!(
+        post.session_peak_bytes,
+        independent.inference_session_peak_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.semantic_arena_retained_bytes,
+        post.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_retained_bytes,
+        post.session_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.semantic_arena_peak_bytes,
+        post.semantic_peak_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_peak_bytes,
+        post.session_peak_bytes
+    );
+    assert_eq!(
+        session.execution_counters.semantic_arena_retained_bytes,
+        post.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.execution_counters.inference_session_retained_bytes,
+        post.session_retained_bytes
+    );
+    assert_eq!(
+        session.execution_counters.semantic_arena_peak_bytes,
+        post.semantic_peak_bytes
+    );
+    assert_eq!(
+        session.execution_counters.inference_session_peak_bytes,
+        post.session_peak_bytes
+    );
+    nested
+}
+
+fn assert_successful_route_publication(
+    session: &InferenceSession,
+    route_id: &DefinitionUseId,
+    receipt_serial: u64,
+) {
+    assert_eq!(session.store.facts().len(), 1);
+    let fact = &session.store.facts()[0];
+    assert!(session.store.canonical.iter().any(|(key, canonical)| {
+        *canonical == fact.id() && key.lower == fact.lower() && key.upper == fact.upper()
+    }));
+    assert_eq!(session.store.provenance().len(), 1);
+    assert_eq!(session.store.provenance()[0].fact(), fact.id());
+    assert_eq!(session.store.consumed_receipts.len(), 1);
+    assert!(session.store.consumed_receipts.contains(&receipt_serial));
+    assert_eq!(session.routed_uses.len(), 1);
+    assert_eq!(session.routed_uses[0].use_id, *route_id);
+    assert_eq!(session.routed_uses[0].fact, Some(fact.id()));
+    assert_eq!(session.routed_use_positions.len(), 1);
+    assert!(session.routed_use_positions.contains(route_id));
+}
+
 #[test]
 fn f5c_route_use_owner_failed_reserves_reconcile_after_rollback() {
     for (lane, expected_lanes) in [
@@ -3422,8 +3586,6 @@ fn f5c_incoming_value_exact_lower_growth_samples_before_rollback_and_retries() {
     let before = RouteCheckpoint::capture(&session);
     let old_exact_lower = session.independent_nested_capacities.value_exact_lower;
     let old_nested_bound_bytes = session.independent_nested_capacities.total_bound_bytes();
-    let old_semantic_retained = session.resource_ledger.semantic_arena_retained_bytes;
-    let old_session_retained = session.resource_ledger.inference_session_retained_bytes;
     let old_semantic_peak = session.resource_ledger.semantic_arena_peak_bytes;
     let old_session_peak = session.resource_ledger.inference_session_peak_bytes;
     let finish_output_bytes = session.resource_ledger.finish_output_retained_bytes;
@@ -3445,14 +3607,14 @@ fn f5c_incoming_value_exact_lower_growth_samples_before_rollback_and_retries() {
     );
     before.assert_restored(&session);
     let trace = incoming_sample_trace::finish("value-exact-lower-route", 1);
-    assert_eq!(trace.attempts, 1);
-    assert_eq!(trace.matched_events, trace.event_samples);
-    assert_eq!(trace.completed_events.len(), trace.event_samples);
-    assert_eq!(
-        trace.named_samples,
-        [("post-rollback".into(), 1)].into_iter().collect()
+    assert_failed_incoming_route_samples(
+        &session,
+        &trace,
+        route_attempts,
+        sample_count,
+        post_attempts,
+        post_samples,
     );
-    assert_eq!(trace.samples, trace.event_samples + 1);
     assert_eq!(
         trace
             .event_lanes
@@ -3472,48 +3634,11 @@ fn f5c_incoming_value_exact_lower_growth_samples_before_rollback_and_retries() {
         event.old_capacity,
         before.value_bound_capacities[use_row as usize][2]
     );
-    assert!(event.new_capacity > event.old_capacity);
-    let delta = (event.new_capacity - event.old_capacity)
-        .checked_mul(std::mem::size_of::<ValueEndpointKey>())
-        .unwrap();
-    assert!(delta > 0);
-    let previous = &trace.completed_events[event_position - 1].sample;
-    let expected_semantic_retained = previous.semantic_retained_bytes + delta;
-    let expected_session_retained = previous.session_retained_bytes + delta;
-    assert_eq!(
-        event.sample.semantic_retained_bytes,
-        expected_semantic_retained
-    );
-    assert_eq!(
-        event.sample.session_retained_bytes,
-        expected_session_retained
-    );
-    assert_eq!(
-        event.sample.nested_bound_bytes,
-        previous.nested_bound_bytes + delta
-    );
-    assert_eq!(
-        event.sample.semantic_peak_bytes,
-        previous.semantic_peak_bytes.max(expected_semantic_retained)
-    );
-    assert_eq!(
-        event.sample.session_peak_bytes,
-        previous
-            .session_peak_bytes
-            .max(expected_session_retained + finish_output_bytes)
-    );
-    assert_eq!(
-        session.incoming_route_sample_attempts,
-        route_attempts + trace.samples
-    );
-    assert_eq!(
-        session.incoming_post_rollback_sample_attempts,
-        post_attempts + 1
-    );
-    assert_eq!(session.incoming_post_rollback_samples, post_samples + 1);
-    assert_eq!(
-        session.resource_boundary_samples,
-        sample_count + trace.samples
+    let delta = assert_completed_capacity_event_slot_growth(
+        &trace,
+        event_position,
+        std::mem::size_of::<ValueEndpointKey>(),
+        finish_output_bytes,
     );
     let surviving = IndependentNestedCapacityLedger::from_surviving_rows(
         &session.bounds,
@@ -3536,80 +3661,15 @@ fn f5c_incoming_value_exact_lower_growth_samples_before_rollback_and_retries() {
         .expect("one completed post-rollback sample");
     assert_eq!(post.nested_bound_bytes, surviving.total_bound_bytes());
     assert_eq!(post.nested_bound_bytes, event.sample.nested_bound_bytes);
-    assert!(post.semantic_retained_bytes >= old_semantic_retained + delta);
-    assert!(post.session_retained_bytes >= old_session_retained + delta);
-    let semantic_peak_before_post = trace
-        .completed_events
-        .iter()
-        .fold(old_semantic_peak, |peak, event| {
-            peak.max(event.sample.semantic_peak_bytes)
-        });
-    let session_peak_before_post = trace
-        .completed_events
-        .iter()
-        .fold(old_session_peak, |peak, event| {
-            peak.max(event.sample.session_peak_bytes)
-        });
-    let (independent, independent_nested) = independent_post_rollback_value_row_resources(
-        &session,
-        semantic_peak_before_post,
-        session_peak_before_post,
-    );
-    assert_eq!(independent_nested, surviving);
-    assert_eq!(session.independent_nested_capacities, surviving);
     assert_eq!(
-        session.independent_nested_capacities.total_bound_bytes(),
-        session.bound_payload_bytes
-    );
-    assert!(session.resource_ledger.semantic_arena_retained_bytes >= old_semantic_retained);
-    assert!(session.resource_ledger.inference_session_retained_bytes >= old_session_retained);
-    assert_eq!(
-        session.execution_counters.semantic_arena_retained_bytes,
-        session.resource_ledger.semantic_arena_retained_bytes
-    );
-    assert_eq!(
-        session.execution_counters.inference_session_retained_bytes,
-        session.resource_ledger.inference_session_retained_bytes
-    );
-    assert_eq!(
-        post.semantic_retained_bytes,
-        independent.semantic_arena_retained_bytes
-    );
-    assert_eq!(
-        post.session_retained_bytes,
-        independent.inference_session_retained_bytes
-    );
-    assert_eq!(
-        post.semantic_peak_bytes,
-        independent.semantic_arena_peak_bytes
-    );
-    assert_eq!(
-        post.session_peak_bytes,
-        independent.inference_session_peak_bytes
-    );
-    assert_eq!(
-        session.resource_ledger.semantic_arena_retained_bytes,
-        post.semantic_retained_bytes
-    );
-    assert_eq!(
-        session.resource_ledger.inference_session_retained_bytes,
-        post.session_retained_bytes
-    );
-    assert_eq!(
-        session.resource_ledger.semantic_arena_peak_bytes,
-        post.semantic_peak_bytes
-    );
-    assert_eq!(
-        session.resource_ledger.inference_session_peak_bytes,
-        post.session_peak_bytes
-    );
-    assert_eq!(
-        session.execution_counters.semantic_arena_peak_bytes,
-        post.semantic_peak_bytes
-    );
-    assert_eq!(
-        session.execution_counters.inference_session_peak_bytes,
-        post.session_peak_bytes
+        assert_post_rollback_value_row_sample(
+            &session,
+            &trace,
+            post,
+            old_semantic_peak,
+            old_session_peak,
+        ),
+        surviving
     );
     assert!(session.store.facts().is_empty());
     assert!(session.store.provenance().is_empty());
@@ -3618,20 +3678,7 @@ fn f5c_incoming_value_exact_lower_growth_samples_before_rollback_and_retries() {
     assert!(session.routed_use_positions.is_empty());
 
     session.route_incoming(&route_id).unwrap();
-    assert_eq!(session.store.facts().len(), 1);
-    let fact = &session.store.facts()[0];
-    assert!(session.store.canonical.iter().any(|(key, canonical)| {
-        *canonical == fact.id() && key.lower == fact.lower() && key.upper == fact.upper()
-    }));
-    assert_eq!(session.store.provenance().len(), 1);
-    assert_eq!(session.store.provenance()[0].fact(), fact.id());
-    assert_eq!(session.store.consumed_receipts.len(), 1);
-    assert!(session.store.consumed_receipts.contains(&receipt_serial));
-    assert_eq!(session.routed_uses.len(), 1);
-    assert_eq!(session.routed_uses[0].use_id, route_id);
-    assert_eq!(session.routed_uses[0].fact, Some(fact.id()));
-    assert_eq!(session.routed_use_positions.len(), 1);
-    assert!(session.routed_use_positions.contains(&route_id));
+    assert_successful_route_publication(&session, &route_id, receipt_serial);
 }
 
 #[test]
@@ -3871,20 +3918,7 @@ fn f5c_incoming_value_exact_upper_growth_samples_before_rollback_and_retries() {
     );
 
     session.route_incoming(&route_id).unwrap();
-    assert_eq!(session.store.facts().len(), 1);
-    let fact = &session.store.facts()[0];
-    assert!(session.store.canonical.iter().any(|(key, canonical)| {
-        *canonical == fact.id() && key.lower == fact.lower() && key.upper == fact.upper()
-    }));
-    assert_eq!(session.store.provenance().len(), 1);
-    assert_eq!(session.store.provenance()[0].fact(), fact.id());
-    assert_eq!(session.store.consumed_receipts.len(), 1);
-    assert!(session.store.consumed_receipts.contains(&receipt_serial));
-    assert_eq!(session.routed_uses.len(), 1);
-    assert_eq!(session.routed_uses[0].use_id, route_id);
-    assert_eq!(session.routed_uses[0].fact, Some(fact.id()));
-    assert_eq!(session.routed_use_positions.len(), 1);
-    assert!(session.routed_use_positions.contains(&route_id));
+    assert_successful_route_publication(&session, &route_id, receipt_serial);
 }
 
 #[test]
@@ -3912,11 +3946,17 @@ fn f5c_incoming_value_direct_rows_sample_before_rollback_and_retry() {
         .unwrap();
         let target = session.batch.definition_uses()[0].target.ordinal() as usize;
         session.schemes[target] = Some(finalized.into_parts().0);
+        let use_row = session.live_components
+            [session.batch.definition_uses()[0].use_value_component]
+            .ordinal as usize;
         let before = RouteCheckpoint::capture(&session);
         let old_rows_len = session.bounds.len();
+        let old_direct_lower_bytes = session.independent_nested_capacities.value_direct_lower;
         let old_direct_upper_bytes = session.independent_nested_capacities.value_direct_upper;
-        let old_semantic_retained_bytes = session.resource_ledger.semantic_arena_retained_bytes;
-        let old_session_retained_bytes = session.resource_ledger.inference_session_retained_bytes;
+        let old_nested_bound_bytes = session.independent_nested_capacities.total_bound_bytes();
+        let old_semantic_peak = session.resource_ledger.semantic_arena_peak_bytes;
+        let old_session_peak = session.resource_ledger.inference_session_peak_bytes;
+        let finish_output_bytes = session.resource_ledger.finish_output_retained_bytes;
         let old_capacities: Vec<_> = session
             .bounds
             .iter()
@@ -3927,9 +3967,11 @@ fn f5c_incoming_value_direct_rows_sample_before_rollback_and_retry() {
                 )
             })
             .collect();
-        let samples = session.resource_boundary_samples;
+        let sample_count = session.resource_boundary_samples;
+        let route_attempts = session.incoming_route_sample_attempts;
         let post_attempts = session.incoming_post_rollback_sample_attempts;
         let post_samples = session.incoming_post_rollback_samples;
+        let receipt_serial = session.store.next_receipt;
         incoming_sample_trace::start();
         inject_next_f5b_post_reserve_failure(lane);
 
@@ -3945,91 +3987,154 @@ fn f5c_incoming_value_direct_rows_sample_before_rollback_and_retry() {
         );
         before.assert_restored(&session);
         let trace = incoming_sample_trace::finish("value-direct-route", 1);
-        assert_eq!(trace.attempts, 1, "{lane:?}");
+        assert_failed_incoming_route_samples(
+            &session,
+            &trace,
+            route_attempts,
+            sample_count,
+            post_attempts,
+            post_samples,
+        );
         assert_eq!(
             trace
                 .event_lanes
-                .get(&("value".into(), format!("{lane:?}"))),
+                .get(&("value".into(), "ValueDirectLower".into())),
             Some(&1),
             "{lane:?}"
         );
+        let (lower_position, lower_event) = trace
+            .completed_events
+            .iter()
+            .enumerate()
+            .find(|(_, event)| event.lane == "ValueDirectLower")
+            .expect("the route must grow the retained direct-lower row");
         assert_eq!(
-            trace.named_samples.get("post-rollback"),
-            Some(&1),
+            lower_event.owner,
+            format!("value-row-{use_row}"),
             "{lane:?}"
         );
         assert_eq!(
-            session.incoming_post_rollback_sample_attempts,
-            post_attempts + 1,
+            lower_event.old_capacity, old_capacities[use_row].0,
+            "{lane:?}"
+        );
+        let lower_delta = assert_completed_capacity_event_slot_growth(
+            &trace,
+            lower_position,
+            std::mem::size_of::<u32>(),
+            finish_output_bytes,
+        );
+        let (target_event, target_delta) = if lane == F5bCapacityLane::ValueDirectLower {
+            assert_eq!(
+                trace
+                    .event_lanes
+                    .get(&("value".into(), "ValueDirectUpper".into())),
+                None,
+                "{lane:?}"
+            );
+            (lower_event, lower_delta)
+        } else {
+            assert_eq!(
+                trace
+                    .event_lanes
+                    .get(&("value".into(), "ValueDirectUpper".into())),
+                Some(&1),
+                "{lane:?}"
+            );
+            let (upper_position, upper_event) = trace
+                .completed_events
+                .iter()
+                .enumerate()
+                .find(|(_, event)| event.lane == "ValueDirectUpper")
+                .expect("the fresh direct-upper row must have a capacity event");
+            let nested_event = session
+                .incoming_nested_value_direct_upper_event
+                .expect("the direct-upper event observation must be present");
+            assert!(nested_event.fresh_row, "{lane:?}");
+            assert_eq!(
+                upper_event.owner,
+                format!("value-row-{old_rows_len}"),
+                "{lane:?}"
+            );
+            assert_eq!(upper_event.old_capacity, 0, "{lane:?}");
+            assert!(lower_position < upper_position, "{lane:?}");
+            assert_eq!(upper_position + 1, trace.completed_events.len(), "{lane:?}");
+            let upper_delta = assert_completed_capacity_event_slot_growth(
+                &trace,
+                upper_position,
+                std::mem::size_of::<u32>(),
+                finish_output_bytes,
+            );
+            assert_eq!(
+                nested_event.value_direct_upper_bytes,
+                old_direct_upper_bytes + upper_delta,
+                "{lane:?}"
+            );
+            assert_eq!(
+                upper_event.sample.nested_bound_bytes,
+                old_nested_bound_bytes + lower_delta + upper_delta,
+                "{lane:?}"
+            );
+            (upper_event, upper_delta)
+        };
+        assert!(target_delta > 0, "{lane:?}");
+        assert_eq!(target_event.lane, format!("{lane:?}"), "{lane:?}");
+        assert_eq!(session.bounds.len(), old_rows_len, "{lane:?}");
+        let post = trace
+            .completed_named_samples
+            .get("post-rollback")
+            .and_then(|samples| (samples.len() == 1).then_some(&samples[0]))
+            .expect("one completed post-rollback sample");
+        let surviving = IndependentNestedCapacityLedger::from_surviving_rows(
+            &session.bounds,
+            &session.effect_bounds,
+        );
+        assert_eq!(
+            surviving.value_direct_lower,
+            old_direct_lower_bytes + lower_delta,
             "{lane:?}"
         );
         assert_eq!(
-            session.incoming_post_rollback_samples,
-            post_samples + 1,
+            surviving.value_direct_upper, old_direct_upper_bytes,
             "{lane:?}"
         );
         assert_eq!(
-            session.resource_boundary_samples,
-            samples + trace.samples,
+            surviving.total_bound_bytes(),
+            old_nested_bound_bytes + lower_delta,
+            "{lane:?}"
+        );
+        assert_eq!(session.independent_nested_capacities, surviving, "{lane:?}");
+        assert_eq!(
+            post.nested_bound_bytes,
+            surviving.total_bound_bytes(),
             "{lane:?}"
         );
         if lane == F5bCapacityLane::ValueDirectLower {
-            assert!(
-                session
-                    .bounds
-                    .iter()
-                    .zip(&old_capacities)
-                    .any(|(row, &(lower, _))| row.direct_lower_rows.capacity() > lower),
-                "the preexisting row must retain its changed capacity"
+            assert_eq!(
+                post.nested_bound_bytes,
+                target_event.sample.nested_bound_bytes
             );
         } else {
-            let event = session.incoming_nested_value_direct_upper_event.unwrap();
-            assert!(event.fresh_row);
-            assert!(event.value_direct_upper_bytes > old_direct_upper_bytes);
-            assert!(
-                event.semantic_retained_bytes
-                    >= old_semantic_retained_bytes + event.value_direct_upper_bytes
-                        - old_direct_upper_bytes
-            );
-            assert!(
-                session.resource_ledger.semantic_arena_peak_bytes >= event.semantic_retained_bytes
-            );
-            assert!(
-                event.session_retained_bytes
-                    >= old_session_retained_bytes + event.value_direct_upper_bytes
-                        - old_direct_upper_bytes
-            );
-            assert!(
-                session.resource_ledger.inference_session_peak_bytes
-                    >= event.session_retained_bytes
-            );
-            assert_eq!(session.bounds.len(), old_rows_len);
-            let surviving = IndependentNestedCapacityLedger::from_surviving_rows(
-                &session.bounds,
-                &session.effect_bounds,
-            );
-            assert_eq!(surviving.value_direct_upper, old_direct_upper_bytes);
-            assert_eq!(session.independent_nested_capacities, surviving);
+            assert!(post.nested_bound_bytes < target_event.sample.nested_bound_bytes);
         }
         assert_eq!(
-            session.independent_nested_capacities.total_bound_bytes(),
-            session.bound_payload_bytes,
+            assert_post_rollback_value_row_sample(
+                &session,
+                &trace,
+                post,
+                old_semantic_peak,
+                old_session_peak,
+            ),
+            surviving,
             "{lane:?}"
         );
-        assert_eq!(
-            session.execution_counters.inference_session_retained_bytes,
-            session.resource_ledger.inference_session_retained_bytes,
-            "{lane:?}"
-        );
-        assert_eq!(
-            session.execution_counters.semantic_arena_retained_bytes,
-            session.resource_ledger.semantic_arena_retained_bytes,
-            "{lane:?}"
-        );
+        assert!(session.store.facts().is_empty(), "{lane:?}");
+        assert!(session.store.canonical.is_empty(), "{lane:?}");
+        assert!(session.store.provenance().is_empty(), "{lane:?}");
+        assert!(session.store.consumed_receipts.is_empty(), "{lane:?}");
+        assert!(session.routed_uses.is_empty(), "{lane:?}");
+        assert!(session.routed_use_positions.is_empty(), "{lane:?}");
+
         session.route_incoming(&route_id).unwrap();
-        assert_eq!(session.store.facts().len(), 1, "{lane:?}");
-        assert_eq!(session.store.provenance().len(), 1, "{lane:?}");
-        assert_eq!(session.routed_uses.len(), 1, "{lane:?}");
-        assert_eq!(session.routed_use_positions.len(), 1, "{lane:?}");
+        assert_successful_route_publication(&session, &route_id, receipt_serial);
     }
 }
