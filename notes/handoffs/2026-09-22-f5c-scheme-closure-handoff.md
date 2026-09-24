@@ -1533,10 +1533,11 @@ yu-solver library suite was not run to completion; do not infer broader suite
 success. Work remained primary-only at the user's direction, without an
 independent reviewer.
 
-At the resumed continuation on 2026-09-24, Git metadata is writable again. The
-focused verification rerun passed and the six intended paths are explicitly
-staged. Commit this checkpoint, inspect the full outbound range, and push it
-to `origin/yulang3` before starting binder substitution.
+At the resumed continuation on 2026-09-24, Git metadata was writable again.
+The focused verification rerun passed; implementation and synchronized records
+were committed as `da9097db` and pushed to `origin/yulang3`. The next bounded
+stack-safety slice is iterative Q/R binder substitution with accounted
+scratch and exact small-tree parity.
 
 This closes only candidate replay recursion. It does not certify complete
 co-resident output-tree accounting: the two worklist lanes are accounted, but

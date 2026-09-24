@@ -12,9 +12,9 @@ order preserved. The focused `f5c_` filter passes 157 tests; full F5c/F5e
 closure and the broader resource/public-observation gates remain open. The
 latest slice is recorded at the end of the F5c handoff and this file. The
 candidate-replay slice has passed the focused verification rerun in both
-feature configurations and is staged as a coherent checkpoint. Git metadata is
-writable again; commit, inspect the full outbound range, and push this slice
-before beginning binder substitution.
+feature configurations and is committed and pushed as `da9097db` to
+`origin/yulang3`. The next bounded stack-safety slice is iterative Q/R binder
+substitution; keep the §24 finalizer callback/API unchanged.
 
 ## Active F5 gate
 
@@ -23,7 +23,8 @@ counter conflict: preserve §36 all-counter invariance with canonical
 preordering while retaining the prescribed stable-mergesort comparison count.
 That subgate is pushed in `fc34f127` and `e81b9e84`. Iterative boxed-tree
 materialization is pushed in `68952716`; producer analysis is pushed in
-`2366de39`. Candidate replay is now an iterative private transform in
+`2366de39`; iterative candidate replay is pushed in `da9097db`. Candidate
+replay is now an iterative private transform in
 `f5c_replay.rs`, with accounted task/value lanes and 4,096-deep small-stack
 tests. `lib.rs` is 27,508 lines.
 The focused `f5c_` suite passes 157 tests in default and no-default-feature
