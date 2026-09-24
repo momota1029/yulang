@@ -641,13 +641,23 @@ method. Do not call the complete §3 sampling/accounting gate closed. The F5c
 working set is preserved by checkpoint commits; inspect branch synchronization
 before any push.
 
-Still open: exact-alpha versus bounded-normalization authority, fixed-point
-replay/rescans and stack-safe expansion/materialization, full §3 successful-
-path sampling/accounting certification, and F5e public-observation/scale
-certification. The current per-use owner-to-route audit is closed for the
-approved pure-Function route set; do not widen into live effect-row mutation or
-alter exact-alpha behavior without the pending decision. The latest 137-test
-`f5c_`-filtered library suite passes. A subsequent full single-threaded library
+Mixed-height normalization authority is resolved: the user selected §36's
+height-major ordering over §25 structural-first ordering, recorded in the
+2026-09-24 addendum. Implementation remains open. The authoritative
+2026-09-23 producer-order addendum also remains unimplemented in the current
+generalizer: factorial alpha-key ranking still participates in R/Q selection,
+and recursive boxed-tree normalization/finalization remain. The indexed
+finalization API candidate is not approved; do not add a §24 API or weaken the
+F5b callback/accounting boundary. Next, replace the remaining producer-order
+key selection with first-surviving encounter and explicit predicate-then-R
+bounds traversal, then implement height-major bounded normalization only if it
+can stay within the approved API/accounting boundary. Fixed-point replay and
+component rescan limits, full §3 successful-path sampling/accounting
+certification, and F5e public-observation/scale certification also remain
+open. The current per-use owner-to-route audit is closed for the approved
+pure-Function route set; do not widen into live effect-row mutation. The latest
+137-test `f5c_`-filtered library suite passes. A subsequent full single-threaded
+library
 run was stopped during `f4_unbounded_cycle_scale_4k_keeps_direct_frontier_linear`
 after more than seven minutes of scale-test execution; it produced no final
 suite result and is not counted as passing verification. No benchmark or

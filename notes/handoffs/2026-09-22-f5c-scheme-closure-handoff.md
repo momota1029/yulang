@@ -1240,3 +1240,38 @@ F5c, and F5e remain open. Continue with the other active F5c gates without
 adding live effect-row mutation or changing the approved first-member Union
 projection. The mixed-height fixed-Q/R normalization authority question and
 the stack-safe producer/finalizer work remain separate open gates.
+
+## Mixed-height normalization choice (2026-09-24)
+
+The user selected option B: use §36's height-major descriptor ranking when
+normalized Union/Intersection children have different postorder heights. The
+choice is recorded in
+[`2026-09-24 F5c mixed-height normalization ordering`](../design/2026-09-24-f5c-mixed-height-normalization-order-addendum.md).
+Lower postorder height sorts first; descriptors at the same height use §36's
+stable lexicographic mergesort order. This supersedes §25 only for the
+conflicting mixed-height child order. §44's first-member representative and
+transactional private-member constraints remain unchanged, so the selected
+representative can change for a mixed-height Union.
+
+Current code inspection found that `F5cKeyForest::finish_grouped` still
+enumerates variable-label permutations in R/Q selection, while the post-Q/R
+normalizer and finalizer still recurse over boxed trees. The existing
+`ClosedTypeFinalizationSession::finalize_scheme` uses a higher-ranked callback;
+`finalize_generalization_draft_raw` creates transaction-branded handles and
+recursively builds children inside it. The F5b boundary forbids callback
+allocation/mutation of solver-owned lanes. The proposed indexed `yu-types`
+finalization API remains an unapproved Draft, and its prior review identified
+producer-graph/compaction and exact accounting gaps. Do not implement that API
+or move handle storage across the callback without a separate reviewed and
+user-approved boundary.
+
+Next code slice: implement the already-authoritative producer-order rule
+(first surviving `self.reentries` encounter for R, then predicate-first and
+lower-before-upper R-bound first occurrence for Q), removing factorial alpha
+ranking from binder selection. Keep that slice separate from the bounded,
+stack-safe height-major normalization implementation. The latter must include
+mixed-height positive/negative tests, §44 representative linkage, stack-depth
+and checked-failure evidence, and component-wide §36 accounting. `lib.rs` is
+28,092 lines at this resume point; prefer a private submodule and keep test
+bodies in the existing test sidecars. Branch is clean at `dbceed4d` before
+these record updates; no compiler code has changed yet.
