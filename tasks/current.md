@@ -4,6 +4,12 @@ Updated: 2026-09-24. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+Latest status (2026-09-24): the per-use owner-to-route witness crosswalk is
+closed for the approved closed-pure Function route set, including a new
+post-rollback checked-overflow witness. This does not close the full §3
+accounting/measurement gate, F5c, or F5e; the latest checkpoint is recorded at
+the end of this file and in the handoff's final section.
+
 ## Active F5 gate
 
 ### Live F5c resume status (2026-09-24)
@@ -245,16 +251,22 @@ clean.
 These choices authorize implementation, not completion. The typed-pair/
 diagnostic, outer-row/extrusion, inference-Term, ConstraintStore/routed-use,
 incoming-instantiation-scratch owner groups are implemented and independently
-reviewed. The `ValueExactUpper` incoming-route lane is now covered; the broader
-owner-to-route failure-lane audit remains open. The successful-path measurement
-also remains open: the eight-process attempt above was invalid, and a new
-experiment must first isolate every IncomingRoute sampling entrypoint.
-Keep the new test in `src/tests/f5c_value_exact_upper_route.rs`; `lib.rs` has
-only its one module declaration for this witness (28,442 lines total). An
-independent mapping found a separate mechanical 63-line `ResourceSampleChecked`
-extraction candidate, but it is deferred until the accounting/measurement
-checkpoint closes to keep this diff focused. Producer-ordered Q/R
-assignment and post-Q/R normalization
+reviewed. The primary's 2026-09-24 owner-to-route crosswalk now closes the
+per-use changed-capacity witness matrix for the approved closed-pure Function
+routes. It matched each in-scope owner family to event-time samples, rollback
+state, no-change/setup-failure behavior, and the independent ledger evidence
+required by §3. The missing final-boundary overflow witness is now covered by
+direct `route_incoming` and consuming `run()` tests in
+`src/tests/f5c_value_exact_upper_route.rs`; live effect-row mutation remains
+out of scope. This does not close the full §3 accounting/measurement gate.
+The successful-path measurement also remains open: the eight-process attempt
+above was invalid, and a new experiment must first isolate every IncomingRoute
+sampling entrypoint. Test bodies stay in the sidecar; `lib.rs` receives only a
+test-only probe variant and condition for this final-boundary failure case.
+An independent mapping found a separate mechanical 63-line
+`ResourceSampleChecked` extraction candidate, but it is deferred until the
+accounting/measurement checkpoint closes to keep this diff focused.
+Producer-ordered Q/R assignment and post-Q/R normalization
 remain paused until the separate mixed-height §25/§36 order decision is
 recorded. Component sharing, remaining iterative producer/finalizer work, and
 F5e certification also remain open. Candidate B's proposed §24 API is not
@@ -268,7 +280,9 @@ relaxation, which permits output changes only when Q/R assignment changes. The
 user has been asked whether to preserve §25 and clarify §36, or make §36's
 height-major order supersede §25. No fixed-assignment normalization or §44
 representative change is authorized until that choice is recorded. The
-independent failed-route sampling work continues.
+per-use owner-to-route audit is now closed; full §3 sampling/accounting
+certification remains open pending the successful-path measurement and other
+owner-family gates.
 
 Architect review resolved the accounting phase boundary for the separate
 stack-safety slice: §§14/26/34 authorize private production accounting for
@@ -276,8 +290,9 @@ F5c generalizer/walker scratch now, with independent per-lane test-ledger
 reconciliation and accurate existing aggregate retained/peak totals. Keep
 root-local scratch distinct from `component_expansion_memo`; do not add the
 public `generalization_scratch_*` family accessors or claim its F5e exposure
-certified. The conditional failed-route sample is separately authorized only
-under the producer-order addendum §3 and remains unimplemented. No
+certified. The conditional failed-route sample is separately authorized under
+the producer-order addendum §3 and is implemented; the per-use owner-to-route
+matrix has since been reconciled for the current closed-pure route set. No
 implementation change came from the first two bounded writer attempts. A later stack-safety
 slice in `lib.rs` added an iterative row/Term walker, summary construction and
 materialization, structural comparison, and eleven private scratch lanes.
@@ -627,11 +642,16 @@ working set is preserved by checkpoint commits; inspect branch synchronization
 before any push.
 
 Still open: exact-alpha versus bounded-normalization authority, fixed-point
-replay/rescans and stack-safe expansion/materialization, per-use rollback
-across every availability lane, and F5e public-observation/scale certification.
-The next independent code gate is a residual owner-to-route audit against §3.
-Do not widen into live effect-row mutation or alter exact-alpha behavior without
-the pending decision.
+replay/rescans and stack-safe expansion/materialization, full §3 successful-
+path sampling/accounting certification, and F5e public-observation/scale
+certification. The current per-use owner-to-route audit is closed for the
+approved pure-Function route set; do not widen into live effect-row mutation or
+alter exact-alpha behavior without the pending decision. The latest 137-test
+`f5c_`-filtered library suite passes. A subsequent full single-threaded library
+run was stopped during `f4_unbounded_cycle_scale_4k_keeps_direct_frontier_linear`
+after more than seven minutes of scale-test execution; it produced no final
+suite result and is not counted as passing verification. No benchmark or
+F5e resource matrix ran.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.

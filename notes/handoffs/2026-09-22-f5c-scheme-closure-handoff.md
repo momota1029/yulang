@@ -1198,3 +1198,45 @@ request; no independent reviewer or benchmark was used. This verified slice
 is checkpointed as `8b118260` and pushed to `origin/yulang3`. Next: continue
 the residual §3 owner-to-route audit. The complete §3 accounting/measurement
 gate, F5c, and F5e remain open.
+
+## §3 per-use owner-to-route crosswalk and final-sample overflow (2026-09-24)
+
+The primary reconciled the §3 per-use changed-capacity matrix against the
+incoming-route witnesses and the current approved closed-pure Function scope.
+Coverage now maps nested/fresh value-bound rows and outer value tables;
+metadata, direct/exact bounds, and extrusion lanes; typed-pair payload and all
+diagnostic scratch owners; all seven instantiation scratch lanes; all six
+inference-Term physical owners; active/spare journal undo and setup vectors;
+all four ConstraintStore owners; and both routed-use owners. The audit also
+confirmed the no-physical-change skip and partial-begin cleanup cases. Live
+effect-row mutation is excluded because current pure Function schemes use only
+closed `EmptyEffect`/`EffectBottom` effects.
+
+The audit found one missing witness: checked-byte overflow specifically at the
+conditional post-rollback sample boundary. A cfg(test)-only
+`IncomingPostRollback` fixed-capacity probe now reaches that exact sample after
+changed-capacity event samples and rollback. The direct-route witness verifies
+full RouteCheckpoint restoration, exactly one attempted but uncompleted final
+sample, no boundary/test-ledger sample publication for that failure, and the
+resource ledger remaining at its last completed event sample. A consuming
+`run()` witness uses partial journal setup growth, proves one final-sample
+attempt and `IdentityExhausted`, and returns no `SolvedModule`. Both test bodies
+remain in the existing value-route sidecar; `lib.rs` only gains the test probe
+variant and condition. Existing `f5c_resource_sample_overflow_publishes_nothing`
+continues to assert all-or-nothing counter and ledger publication at the
+sampler boundary.
+
+The focused `f5c_` library filter passes 137 tests, including both new
+post-rollback overflow witnesses. No production runtime behavior changed and
+no benchmark was run. A full single-threaded `yu-solver` library run was
+started but stopped during `f4_unbounded_cycle_scale_4k_keeps_direct_frontier_linear`
+after more than seven minutes; it has no final suite result and is not
+verification evidence. The successful-path sampler-cost measurement remains
+unresolved, and the previously exhausted measurement budget is unchanged.
+
+This closes the residual per-use owner-to-route witness crosswalk for the
+current pure-Function route set only. The full §3 accounting/measurement gate,
+F5c, and F5e remain open. Continue with the other active F5c gates without
+adding live effect-row mutation or changing the approved first-member Union
+projection. The mixed-height fixed-Q/R normalization authority question and
+the stack-safe producer/finalizer work remain separate open gates.

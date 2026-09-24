@@ -183,6 +183,155 @@ fn assert_successful_route_publication(
     assert!(session.routed_use_positions.contains(route_id));
 }
 
+fn closed_union_incoming_session(label: &str) -> (InferenceSession, DefinitionUseId) {
+    let (mut session, routes) = f5c_shared_closed_incoming_fixture(label);
+    session.routed_uses = Vec::new();
+    session.routed_use_positions = HashSet::new();
+    (session, routes[0].clone())
+}
+
+#[test]
+fn f5c_incoming_post_rollback_sample_overflow_is_atomic() {
+    let (mut session, route) = closed_union_incoming_session("f5c-post-rollback-overflow");
+    let before = RouteCheckpoint::capture(&session);
+    let initial_routed_use_capacity = session.routed_uses.capacity();
+    let initial_semantic_peak = session.resource_ledger.semantic_arena_peak_bytes;
+    let initial_session_peak = session.resource_ledger.inference_session_peak_bytes;
+    let initial_boundaries = session.resource_boundary_samples;
+    let initial_route_samples = session.incoming_route_sample_attempts;
+    let initial_post_attempts = session.incoming_post_rollback_sample_attempts;
+    let initial_post_samples = session.incoming_post_rollback_samples;
+    let initial_ledger_samples = session.resource_ledger.samples;
+
+    incoming_sample_trace::start();
+    inject_next_f5b_post_reserve_failure(F5bCapacityLane::RoutedUses);
+    session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::IncomingPostRollback);
+
+    assert_eq!(
+        session.route_incoming(&route),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(
+        F5B_INJECTED_POST_RESERVE_FAILURE.with(|failure| failure.get()),
+        None
+    );
+    before.assert_restored(&session);
+    assert!(session.store.facts().is_empty());
+    assert!(session.store.provenance().is_empty());
+    assert!(session.routed_uses.is_empty());
+    assert!(session.routed_use_positions.is_empty());
+    assert!(session.routed_uses.capacity() > initial_routed_use_capacity);
+
+    let trace = incoming_sample_trace::finish("post-rollback-overflow", 1);
+    assert_eq!(trace.attempts, 1);
+    assert_eq!(trace.matched_events, trace.event_samples);
+    assert_eq!(trace.completed_events.len(), trace.event_samples);
+    assert_eq!(
+        trace
+            .event_lanes
+            .get(&("routed-use".into(), "RoutedUses".into())),
+        Some(&1)
+    );
+    assert_eq!(trace.named_samples.get("post-rollback"), Some(&1));
+    assert!(!trace.completed_named_samples.contains_key("post-rollback"));
+    assert_eq!(
+        trace.samples,
+        trace.event_samples + trace.named_samples.values().sum::<usize>()
+    );
+    assert_eq!(
+        session.incoming_route_sample_attempts,
+        initial_route_samples + trace.samples
+    );
+    assert_eq!(
+        session.incoming_post_rollback_sample_attempts,
+        initial_post_attempts + 1
+    );
+    assert_eq!(session.incoming_post_rollback_samples, initial_post_samples);
+    let completed_named_samples = trace
+        .completed_named_samples
+        .values()
+        .map(Vec::len)
+        .sum::<usize>();
+    let completed_samples = trace.completed_events.len() + completed_named_samples;
+    assert_eq!(
+        session.resource_boundary_samples,
+        initial_boundaries + completed_samples
+    );
+    assert_eq!(
+        session.resource_ledger.samples,
+        initial_ledger_samples + completed_samples
+    );
+
+    let final_event = trace.completed_events.last().unwrap();
+    assert_eq!(final_event.lane, "RoutedUses");
+    assert_eq!(
+        session.resource_ledger.semantic_arena_retained_bytes,
+        final_event.sample.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_retained_bytes,
+        final_event.sample.session_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.semantic_arena_peak_bytes,
+        trace
+            .completed_events
+            .iter()
+            .fold(initial_semantic_peak, |peak, event| {
+                peak.max(event.sample.semantic_peak_bytes)
+            })
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_peak_bytes,
+        trace
+            .completed_events
+            .iter()
+            .fold(initial_session_peak, |peak, event| {
+                peak.max(event.sample.session_peak_bytes)
+            })
+    );
+}
+
+#[test]
+fn f5c_incoming_post_rollback_sample_overflow_aborts_consuming_run() {
+    let batch = collect(module(
+        "my source = 1; my sink = source",
+        "f5c-post-rollback-run-overflow",
+    ));
+    let mut session = InferenceSession::new(batch);
+    let post_attempts = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    session.incoming_post_rollback_attempt_observer = Some(post_attempts.clone());
+    session.sample_fixed_capacity_probe = Some(SampleFixedCapacityProbe::IncomingPostRollback);
+    incoming_sample_trace::start();
+    inject_next_f5b_post_reserve_failure(F5bCapacityLane::RoutedUses);
+
+    assert!(matches!(
+        session.run(),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(
+        F5B_INJECTED_POST_RESERVE_FAILURE.with(|failure| failure.get()),
+        None
+    );
+    assert_eq!(post_attempts.load(std::sync::atomic::Ordering::Relaxed), 1);
+    let trace = incoming_sample_trace::finish("post-rollback-run-overflow", 1);
+    assert_eq!(trace.attempts, 1);
+    assert_eq!(
+        trace
+            .event_lanes
+            .get(&("journal".into(), "value_row_seen".into())),
+        Some(&1)
+    );
+    assert_eq!(
+        trace
+            .event_lanes
+            .get(&("journal".into(), "effect_row_seen".into())),
+        Some(&1)
+    );
+    assert_eq!(trace.named_samples.get("post-rollback"), Some(&1));
+    assert!(!trace.completed_named_samples.contains_key("post-rollback"));
+}
+
 #[test]
 fn f5c_route_use_owner_failed_reserves_reconcile_after_rollback() {
     for (lane, expected_lanes) in [

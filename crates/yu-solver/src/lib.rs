@@ -9015,6 +9015,7 @@ enum SampleFixedCapacityProbe {
     IndependentInferenceTerm,
     IncomingNestedEvent,
     IncomingTermEvent,
+    IncomingPostRollback,
 }
 
 #[derive(Clone, Copy)]
@@ -11266,6 +11267,11 @@ impl InferenceSession {
                         Some(SampleFixedCapacityProbe::IncomingNestedEvent)
                     ) && self.incoming_route_accounting_active
                         && self.incoming_nested_event_sample_attempts != 0)
+                    || (matches!(
+                        route_probe,
+                        Some(SampleFixedCapacityProbe::IncomingPostRollback)
+                    ) && !self.incoming_route_accounting_active
+                        && self.incoming_post_rollback_sample_attempts != 0)
                 {
                     return RouteMutationJournal::checked_capacity_bytes([
                         usize::MAX,
