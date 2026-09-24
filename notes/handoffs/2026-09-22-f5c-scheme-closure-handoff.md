@@ -1151,7 +1151,29 @@ The focused witness and all 57 single-threaded `f5c_incoming_` tests pass, as
 do `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
 `git diff --check`. Primary-only M1 work follows the user's explicit request;
 no independent reviewer or benchmark was used. The verified test/record slice
-is checkpointed as `7c07b7af` and pushed to `origin/yulang3`. Next: strengthen
-`ValueExactLower`'s paired event and rollback evidence, then continue the §3
-owner-to-route audit. The complete §3
+is checkpointed as `7c07b7af` and pushed to `origin/yulang3`. The next M1
+slice strengthens `ValueExactLower`'s paired event and rollback evidence,
+then continues the §3 owner-to-route audit. The complete §3
 accounting/measurement gate, F5c, and F5e remain open.
+
+## ValueExactLower retained-row rollback witness (2026-09-24)
+
+Strengthened `f5c_incoming_value_exact_lower_growth_samples_before_rollback_and_retries`
+to bind the completed `ValueExactLower` event to the preexisting use row and
+its exact `ValueEndpointKey` capacity delta. Event-time semantic/session
+retained bytes, nested-bound bytes, and peaks are derived from the immediately
+preceding sample. Unlike the paired upper-lane witness, this lower payload
+survives rollback: the post-rollback sample and an independent retained-state
+ledger reconcile that exact delta and the surviving nested total. The witness
+also reconciles event sampling counters, RouteCheckpoint restoration, and
+retry publication through canonical fact, consumed receipt, provenance, and
+routed-use links. No production code changed; the test remains in the existing
+sidecar, with no additions to `lib.rs`.
+
+The focused witness and all 57 single-threaded `f5c_incoming_` tests pass, as
+do `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
+`git diff --check`. Primary-only M1 work follows the user's explicit request;
+no independent reviewer or benchmark was used. This verified slice is
+checkpointed as `f69dbb76` and pushed to `origin/yulang3`. Next: continue the
+residual §3 owner-to-route audit. The complete §3 accounting/measurement gate,
+F5c, and F5e remain open.
