@@ -24,7 +24,8 @@ lanes. The mixed-height ordering/counter subgate is implemented and pushed in
 `fc34f127` and `e81b9e84`. The recursive boxed-tree conversion after summary
 materialization is now iterative in `f5c_materialization.rs`, with two added
 walker lanes in the existing independent capacity ledger; a 2,049-node
-alternating Function chain passes on a 64 KiB stack. The focused `f5c_` suite
+alternating Function chain passes on a 64 KiB stack. The slice is checkpointed
+in `68952716`. The focused `f5c_` suite
 passes 153 tests and `cargo check --workspace` passes. Full F5c/F5e closure is
 not claimed; root-local replay/incidence/occurrence walks, recursive closed
 finalization, and co-resident draft/output-tree accounting remain open. Next:
@@ -708,10 +709,11 @@ is now an explicit task/value walk in `crates/yu-solver/src/f5c_materialization.
 Its task and value Vec capacities use two new entries in the existing
 generalization-walker accounting/independent-ledger arrays. `lib.rs` delegates
 these methods and is 27,700 lines, 112 fewer than the prior checkpoint; tests
-remain in the sidecar.
+remain in the sidecar. Implementation checkpoint: `68952716`.
 
-The 2,048-positive-root and 2,049-negative-root alternating Function cases
-pass on a 64 KiB thread stack and reconcile requested slots, growths, peaks,
+Alternating Function chains of depths 2,048 (positive root) and 2,049
+(negative root) pass on a 64 KiB thread stack and reconcile requested slots,
+growths, peaks,
 and release against the independent walker ledger. The full focused
 `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` passes 153 tests;
 `cargo check --workspace`, format, and diff checks pass. This is only the

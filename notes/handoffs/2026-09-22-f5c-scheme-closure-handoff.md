@@ -1424,10 +1424,13 @@ representative and Q/R logic unchanged. Two distinct task/value lanes were
 added to the existing walker capacity observer and independent ledger so they
 remain accounted while nested summary materialization uses its own lanes.
 `lib.rs` is 27,700 lines, 112 fewer than before this extraction.
+The implementation and synchronized records are checkpointed in commit
+`68952716`.
 
-The sidecar test builds and consumes 2,048-positive-root and 2,049-negative-root
-alternating Function chains on a 64 KiB thread stack. It checks lane requests,
-growths, peaks, release, and independent-ledger reconciliation. The existing
+The sidecar test builds and consumes alternating Function chains of depths
+2,048 (positive root) and 2,049 (negative root) on a 64 KiB thread stack. It
+checks lane requests, growths, peaks, release, and independent-ledger
+reconciliation. The existing
 active-conflict tests exercise the production generalizer wrapper. Verification
 passes: `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (153 passed),
 `cargo check --workspace`, `cargo fmt --all -- --check`, and `git diff --check`.
