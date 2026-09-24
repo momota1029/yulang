@@ -1,6 +1,6 @@
 # F5c normalization counter-invariance addendum
 
-Status: Authoritative; local implementation candidate, closure open
+Status: Authoritative; implementation slice complete, broader F5c closure open
 Scope: Preserve §36 normalization-counter invariance under root and
 Union/Intersection member permutations while retaining the exact comparison
 count for its prescribed stable mergesort.

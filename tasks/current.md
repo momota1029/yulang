@@ -15,14 +15,18 @@ the end of this file and in the handoff's final section.
 Latest continuation note (2026-09-24): the user selected option B for the
 counter conflict: preserve §36 all-counter invariance with canonical
 preordering, retaining the exact comparison count of the prescribed
-stable-mergesort. A local implementation candidate now preorders child keys
-and per-height descriptors using bounded insertion sort or iterative MSD
-radix distribution, then runs the prescribed mergesort. The 18/24 root-order
-witness now reports 18/18; reversed five-member Union inputs also have equal
-complete normalization stats. The normalizer owns two additional accounted
-scratch lanes. `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` passes
-152 tests; `cargo check --workspace`, format, and diff checks pass. Do not call
-F5c or F5e complete.
+stable-mergesort. The normalizer now preorders child keys and per-height
+descriptors using bounded insertion sort or iterative MSD radix distribution,
+then runs the prescribed mergesort. The 18/24 root-order witness now reports
+18/18; reversed Union inputs also have equal complete
+normalization stats. The normalizer owns two additional accounted scratch
+lanes. The mixed-height ordering/counter subgate is implemented and pushed in
+`fc34f127` and `e81b9e84`. `cargo test -p yu-solver --lib f5c_ -- --test-threads=1`
+passes 152 tests; `cargo check --workspace`, format, and diff checks pass. Full
+F5c/F5e closure is not claimed; complete co-resident F5c draft/output-tree
+accounting also remains open. Next: continue the remaining stack-safe
+producer/finalizer work within the current F5b callback/accounting boundary; do
+not add the unapproved indexed `yu-types` API.
 The design decision is recorded in
 [`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md);
 implementation details and residual gates are at the end of the

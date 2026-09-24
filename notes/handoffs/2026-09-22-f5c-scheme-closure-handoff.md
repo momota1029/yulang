@@ -1371,7 +1371,8 @@ canonical preordering schedule while keeping the exact comparison count for
 the prescribed stable mergesort. The design is recorded in
 [`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md).
 This decision supersedes the earlier instruction above to wait for the
-counter-contract choice; the implementation and other F5c gates remain open.
+counter-contract choice. The mixed-height ordering/counter subgate is now
+implemented; broader F5c gates remain open.
 
 `crates/yu-solver/src/f5c_normalization.rs` now canonicalizes both child-key
 lists and each same-height descriptor group before the existing stable
@@ -1400,7 +1401,11 @@ not measured because the selected behavior does not depend on a timing result.
 
 Work remained primary-only at the user's direction, so there was no
 independent reviewer; this is not represented as independent certification.
-This is a local candidate, not F5c/F5e closure. Next: inspect the complete diff
-and outbound range, then commit and push this honest checkpoint if the range
-remains coherent. Other F5c gates and complete resource/public-observation
-certification remain open.
+The subgate is checkpointed and pushed on `origin/yulang3` at
+`fc34f127` and `e81b9e84`; the worktree is clean. This does not close F5c/F5e,
+the full single-threaded solver suite, or complete resource/public-observation
+certification. Next: continue the remaining stack-safe producer/finalizer
+work within the current F5b callback/accounting boundary. Do not add the
+unapproved indexed `yu-types` API or move solver-owned allocation outside the
+existing callback; stop for a separately reviewed decision if that boundary
+cannot support the required iterative construction.

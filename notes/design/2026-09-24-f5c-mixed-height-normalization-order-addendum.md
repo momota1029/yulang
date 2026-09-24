@@ -1,6 +1,6 @@
 # F5c mixed-height normalization ordering addendum
 
-Status: Authoritative for mixed-height normalized child order; implementation open\
+Status: Authoritative for mixed-height normalized child order; implementation slice complete, broader F5c closure open\
 Scope: The total canonical order used for normalized Union/Intersection children when their postorder heights differ.\
 Approved-by: user, option B, 2026-09-24\
 Review context: The prior architect/M3 review and handoff identified this exact conflict and presented both alternatives; the user selected B. No new independent review was run for this narrow selection under the user's primary-only direction.\
