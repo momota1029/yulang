@@ -1902,3 +1902,82 @@ this major consistency finding; the fresh focused spec delta review found no
 blocking or major issue. Its minor stale-status wording finding was closed in
 the proposal metadata. The proposal remains unapproved; no code or tests have
 changed.
+
+## Fast resume card (2026-09-24)
+
+### Exact checkpoint
+
+At handoff start, branch `yulang3` was clean and matched `origin/yulang3` at
+`ccd39524` (`docs(f5c): align depth invariant with normalizer`). This handoff
+update is the only requested change. The user asked for a handoff, commit, and
+push before leaving; no implementation was authorized by that request.
+
+### Active gate and authority
+
+The repository rule now records the user's product priority in
+`rules/design-authority.md`: preserve Oracle-compatible behavior for practical
+inputs and keep the successful path lightweight; proportionately reject
+pathological inputs rather than building exhaustive recovery, while retaining
+basic safety and atomic public publication.
+
+The current proposed F5c slice is
+[`2026-09-24-f5c-bounded-boxed-draft-gate-draft.md`](../design/2026-09-24-f5c-bounded-boxed-draft-gate-draft.md).
+It is Reviewed but not Authoritative. Its concrete proposal is maximum
+`Normalizer::Node.height` 128; childless nodes (including empty products, if
+encountered) have height zero, and nonempty nodes have one plus the deepest
+child. A prospective node above 128 returns `IdentityExhausted` before that
+parent is built. The children and flat normalization scratch may already have
+been traversed/allocated on the failure path.
+
+The user previously delegated the practical route and accepted pathological
+input rejection in general. The exact 128 / `IdentityExhausted` boundary has
+not been explicitly approved in the recorded conversation. Repository policy
+requires that concrete boundary's approval before changing the existing §14
+deep-chain success contract or implementation. The goal tracker is blocked on
+that approval. If the user approves, first record the approval and the narrow
+§14 supersession in the design/index/task records, then begin implementation;
+if not, revise only the affected proposal and return it to focused review.
+
+### What the proposal keeps and changes
+
+- For depth-at-most-128 inputs that otherwise complete, preserve current
+  polarity, Q/R classification, binder order, normalization order,
+  §24 finalizer API, and §44 normalized-Union representative behavior.
+- Above depth 128, behavior changes from attempting deeper generalization to
+  deterministic `IdentityExhausted`; no truncation or approximation.
+- A failing `run(self)` returns no `SolvedModule`; this does not promise rollback
+  of private state or earlier private component installation.
+- This is only a stack-depth gate. It does not bound shallow width, repeated
+  shared-summary expansion, aggregate work, or total memory. F5c and F5e remain
+  open.
+
+### Review and implementation evidence
+
+Focused M2 spec and performance reviews found no blocking/major findings after
+the depth invariant repair. The performance minor is recorded above: the
+normalizer may copy child IDs and grow flat scratch before detecting excess
+height. The fresh spec delta review confirmed the childless/nonempty height
+rule; all review status is in the linked proposal. No code/test was changed and
+no benchmark was run for this gate. The prior full-suite evidence in this
+handoff does not verify the proposed 128 boundary.
+
+After approval, keep `lib.rs` additions localized to its current owners; use
+the existing `f5c_*` modules for their owned producer paths instead of a broad
+refactor. Before calling the slice complete, verify every production boxed
+producer and test both polarities: depth 128 through normalization, the
+unchanged §24 finalizer, and destruction on a 64 KiB stack; checked-error
+cleanup at 128; and depth-129 rejection before parent construction with safe
+child cleanup. Check the dynamic lane accounting after adding depth metadata,
+including `size_of::<F5cWalkValue>()`. Do not change the existing depth-2,048
+success witness or related 2,048/4,096 helper expectations until approval.
+Then run focused tests first and the single-threaded library suite once at the
+coherent gate boundary (`cargo test -p yu-solver --lib -- --test-threads=1`).
+
+### Immediate next action
+
+Wait for explicit user approval of maximum `Node.height` 128 and
+`IdentityExhausted` above it. Do not begin code or alter the depth-2,048 test
+before that approval. After approval, promote the reviewed proposal to
+Authoritative, update the task/design records, implement only this stack-safety
+slice, and checkpoint/push the coherent verified slice promptly. Do not claim
+F5c or F5e closure.
