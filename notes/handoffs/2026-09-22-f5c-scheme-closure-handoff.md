@@ -1325,6 +1325,13 @@ public counter exposure, and §44 routing of exactly the first member after
 height-major normalization (including the case where §25 structural-first
 would choose the other member).
 
+The test-only independent ledger now reads all 11 live Vec capacities and
+slot sizes before release, independently sums their co-resident peak, and
+reconciles that sum to the normalization-index peak. Normalizer growth uses
+fallible amortized `try_reserve`, avoiding exact one-slot reallocation on each
+push. Counter updates are staged on a copy, with an overflow witness proving
+that a later checked-add failure publishes no partial counters.
+
 The gate is not closed. A root-permutation probe with the same five quantified
 leaf roots, rotated as a set, produced identical normalized values but
 different exact stable-mergesort word-comparison counts: 18 and 24. This

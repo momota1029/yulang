@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
-use super::{
-    F5cNegative, F5cPositive, F5cRecursiveBound, GeneralizationDraft, SolveAvailabilityError,
-};
+#[cfg(test)]
+use super::F5cRecursiveBound;
+use super::{F5cNegative, F5cPositive, GeneralizationDraft, SolveAvailabilityError};
 
 type NodeId = usize;
 
@@ -99,7 +99,7 @@ struct Root {
     location: RootLocation,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(super) struct NormalizationStats {
     pub(super) key_writes: usize,
     pub(super) child_comparisons: usize,
@@ -112,6 +112,10 @@ pub(super) struct NormalizationStats {
     pub(super) index_peak_bytes: usize,
     pub(super) index_capacity_growths: usize,
     pub(super) index_lanes: [NormalizationLaneStats; LANE_COUNT],
+    #[cfg(test)]
+    pub(super) physical_lane_capacities: [usize; LANE_COUNT],
+    #[cfg(test)]
+    pub(super) physical_lane_slot_sizes: [usize; LANE_COUNT],
 }
 
 struct Normalizer {
@@ -147,6 +151,38 @@ impl Normalizer {
         }
     }
 
+    #[cfg(test)]
+    fn physical_lane_snapshot(&self) -> ([usize; LANE_COUNT], [usize; LANE_COUNT]) {
+        (
+            [
+                self.nodes.capacity(),
+                self.children.capacity(),
+                self.walk.capacity(),
+                self.values.capacity(),
+                self.roots.capacity(),
+                self.height_counts.capacity(),
+                self.height_offsets.capacity(),
+                self.height_nodes.capacity(),
+                self.sort_scratch.capacity(),
+                self.descriptor_words.capacity(),
+                self.output.capacity(),
+            ],
+            [
+                std::mem::size_of::<Node>(),
+                std::mem::size_of::<NodeId>(),
+                std::mem::size_of::<Walk>(),
+                std::mem::size_of::<BuiltRef>(),
+                std::mem::size_of::<Root>(),
+                std::mem::size_of::<usize>(),
+                std::mem::size_of::<usize>(),
+                std::mem::size_of::<NodeId>(),
+                std::mem::size_of::<NodeId>(),
+                std::mem::size_of::<u32>(),
+                std::mem::size_of::<Option<BuiltValue>>(),
+            ],
+        )
+    }
+
     fn reserve<T>(
         items: &mut Vec<T>,
         additional: usize,
@@ -159,7 +195,7 @@ impl Normalizer {
             .checked_add(additional)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         items
-            .try_reserve_exact(additional)
+            .try_reserve(additional)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let capacity = items.capacity();
         let slot_size = std::mem::size_of::<T>();
@@ -860,7 +896,7 @@ impl Normalizer {
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                     let mut values = Vec::new();
                     values
-                        .try_reserve_exact(len)
+                        .try_reserve(len)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for child in self.children[start..end].iter().copied() {
                         let Some(BuiltValue::Positive(value)) = self.output[child].take() else {
@@ -902,7 +938,7 @@ impl Normalizer {
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                     let mut values = Vec::new();
                     values
-                        .try_reserve_exact(len)
+                        .try_reserve(len)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for child in self.children[start..end].iter().copied() {
                         let Some(BuiltValue::Negative(value)) = self.output[child].take() else {
@@ -1092,7 +1128,14 @@ pub(super) fn normalize_component(
     normalizer.collect_drafts(drafts)?;
     normalizer.rank_all()?;
     normalizer.rebuild(drafts)?;
+    #[cfg(test)]
+    let (physical_lane_capacities, physical_lane_slot_sizes) = normalizer.physical_lane_snapshot();
     let mut stats = normalizer.stats.clone();
+    #[cfg(test)]
+    {
+        stats.physical_lane_capacities = physical_lane_capacities;
+        stats.physical_lane_slot_sizes = physical_lane_slot_sizes;
+    }
     stats.index_actual_capacity = 0;
     stats.index_retained_bytes = 0;
     for lane in &mut stats.index_lanes {
@@ -1160,17 +1203,19 @@ impl super::IndependentResourceLedger {
         let mut actual_capacity = 0usize;
         let mut retained_bytes = 0usize;
         let mut capacity_growths = 0usize;
+        let mut physical_peak_bytes = 0usize;
         let mut next = self.clone();
-        for (independent, measured) in next
-            .closed_normalization_index_lanes
-            .iter_mut()
-            .zip(stats.index_lanes)
-        {
-            let peak_from_capacity = measured
-                .peak_capacity
-                .checked_mul(measured.slot_size)
+        for index in 0..stats.index_lanes.len() {
+            let independent = &mut next.closed_normalization_index_lanes[index];
+            let measured = stats.index_lanes[index];
+            let capacity = stats.physical_lane_capacities[index];
+            let slot_size = stats.physical_lane_slot_sizes[index];
+            let physical_lane_bytes = capacity
+                .checked_mul(slot_size)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            if peak_from_capacity != measured.peak_bytes
+            if capacity != measured.peak_capacity
+                || slot_size != measured.slot_size
+                || physical_lane_bytes != measured.peak_bytes
                 || measured.actual_capacity != 0
                 || measured.retained_bytes != 0
             {
@@ -1185,10 +1230,10 @@ impl super::IndependentResourceLedger {
                 .checked_add(measured.capacity_growths)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             independent.actual_capacity = measured.actual_capacity;
-            independent.peak_capacity = independent.peak_capacity.max(measured.peak_capacity);
-            independent.slot_size = measured.slot_size;
+            independent.peak_capacity = independent.peak_capacity.max(capacity);
+            independent.slot_size = slot_size;
             independent.retained_bytes = measured.retained_bytes;
-            independent.peak_bytes = independent.peak_bytes.max(measured.peak_bytes);
+            independent.peak_bytes = independent.peak_bytes.max(physical_lane_bytes);
             requested_slots = requested_slots
                 .checked_add(measured.requested_slots)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
@@ -1201,11 +1246,15 @@ impl super::IndependentResourceLedger {
             capacity_growths = capacity_growths
                 .checked_add(measured.capacity_growths)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            physical_peak_bytes = physical_peak_bytes
+                .checked_add(physical_lane_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         }
         if requested_slots != stats.index_requested_slots
             || actual_capacity != stats.index_actual_capacity
             || retained_bytes != stats.index_retained_bytes
             || capacity_growths != stats.index_capacity_growths
+            || physical_peak_bytes != stats.index_peak_bytes
         {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
@@ -1237,6 +1286,7 @@ impl super::IndependentResourceLedger {
     }
 }
 
+#[cfg(test)]
 pub(super) fn normalize_positive(
     value: F5cPositive,
 ) -> Result<F5cPositive, SolveAvailabilityError> {
@@ -1252,6 +1302,7 @@ pub(super) fn normalize_positive(
     ))
 }
 
+#[cfg(test)]
 pub(super) fn normalize_negative(
     value: F5cNegative,
 ) -> Result<F5cNegative, SolveAvailabilityError> {
@@ -1587,15 +1638,35 @@ mod tests {
             let oracle = oracle_component_word_comparisons(
                 ordinals.iter().map(|ordinal| vec![2, *ordinal]).collect(),
             );
-            (schemes, stats.word_comparisons, oracle)
+            (schemes, stats, oracle)
         };
         let forward = run(&[0, 1, 2, 3, 4]);
         let rotated = run(&[2, 3, 4, 0, 1]);
 
         assert_eq!(forward.0, rotated.0);
-        assert_eq!(forward.1, forward.2);
-        assert_eq!(rotated.1, rotated.2);
-        assert_eq!((forward.1, rotated.1), (18, 24));
+        assert_eq!(forward.1.key_writes, rotated.1.key_writes);
+        assert_eq!(forward.1.child_comparisons, rotated.1.child_comparisons);
+        assert_eq!(forward.1.descriptor_words, rotated.1.descriptor_words);
+        assert_eq!(forward.1.index_lanes, rotated.1.index_lanes);
+        assert_eq!(
+            forward.1.physical_lane_capacities,
+            rotated.1.physical_lane_capacities
+        );
+        assert_eq!(
+            forward.1.index_requested_slots,
+            rotated.1.index_requested_slots
+        );
+        assert_eq!(
+            forward.1.index_capacity_growths,
+            rotated.1.index_capacity_growths
+        );
+        assert_eq!(forward.1.index_peak_bytes, rotated.1.index_peak_bytes);
+        assert_eq!(forward.1.word_comparisons, forward.2);
+        assert_eq!(rotated.1.word_comparisons, rotated.2);
+        assert_eq!(
+            (forward.1.word_comparisons, rotated.1.word_comparisons),
+            (18, 24)
+        );
     }
 
     #[test]
@@ -1615,7 +1686,6 @@ mod tests {
                     value = *result;
                 }
                 assert_eq!(value, F5cPositive::Int);
-                std::mem::forget(value);
             })
             .unwrap()
             .join()

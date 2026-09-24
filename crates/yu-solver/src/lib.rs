@@ -6780,10 +6780,12 @@ impl<'a> F5cGeneralizer<'a> {
         }
     }
 
+    #[cfg(test)]
     fn normalize_positive(value: F5cPositive) -> Result<F5cPositive, SolveAvailabilityError> {
         f5c_normalization::normalize_positive(value)
     }
 
+    #[cfg(test)]
     fn normalize_negative(value: F5cNegative) -> Result<F5cNegative, SolveAvailabilityError> {
         f5c_normalization::normalize_negative(value)
     }
