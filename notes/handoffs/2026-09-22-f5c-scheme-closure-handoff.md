@@ -1688,3 +1688,40 @@ representation/ownership change that avoids recursive boxed destruction.
 The current indexed-finalizer Draft is not approval-ready; do not implement it
 or claim F5c/F5e closure. No tests or benchmarks were run for this record-only
 checkpoint.
+
+## F5c ineligible-variable gate reconciliation (2026-09-24)
+
+The stale “complete ineligible-variable closure remains open” residual in the
+earlier iterative producer-analysis checkpoint is superseded by the current
+source/test audit. Under §23, expanded rows enter the generalizer's first-
+occurrence `order`, including rows reached through shared summaries when
+materialized. Eligibility requires level greater than zero and exclusion from
+the computed non-generic closure. Positive-only/negative-only elimination,
+retained R, and assigned Q are all eligibility-filtered. Before binder rewrite,
+`reject_unclassified_rows` rejects observed rows outside eligible/Q/R. The
+binder transform independently returns `IdentityExhausted` for an unmapped
+variable, so no ineligible row silently becomes Bottom or Top.
+
+Coverage exercises level-zero ineligible variables in both polarities inside
+Function children, non-generic targets in both polarities, direct non-generic
+rejection, unmapped-variable rewrite, and component failure with no installed
+scheme, closed candidate, or retained closed-byte change. Verification on
+2026-09-24:
+
+- `cargo test -p yu-solver --lib f5c_generalization_rejects -- --test-threads=1`
+  — 3 passed;
+- `cargo test -p yu-solver --lib f5c_component_rejection_installs_no_scheme_or_closed_candidate -- --test-threads=1`
+  — 1 passed;
+- `cargo test -p yu-solver --lib f5c_binder_substitution_rejects_unmapped_variables_and_releases_lanes -- --test-threads=1`
+  — 1 passed;
+- `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` — 161 passed;
+- `cargo test -p yu-solver --lib --no-default-features f5c_ -- --test-threads=1`
+  — 161 passed.
+
+This closes the §23 ineligible-variable rejection subgate for the represented
+F5c variable sources and its component no-partial-publication path. It does not
+close all generalization semantics, stack-safe finalization/destruction, the
+remaining availability-lane matrix, or F5c/F5e certification. No production
+code changed; this audit had no independent reviewer under the user's
+primary-only direction. The exact-alpha/normalization decision and other gates
+remain separate.

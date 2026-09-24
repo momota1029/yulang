@@ -31,6 +31,16 @@ not-approval-ready Draft. Exact evidence and the next boundary decision are in
 the handoff's “Owned boxed-draft destruction boundary map” section. Do not
 claim stack-safe destruction or F5c/F5e closure.
 
+§23's ineligible-variable rejection subgate is now reconciled closed for the
+represented F5c row sources: eligibility gates both one-sided elimination and
+Q/R assignment, the pre-rewrite census rejects remaining unclassified rows,
+and binder substitution independently rejects unmapped variables. Tests cover
+level-zero and non-generic variables in both polarities plus component failure
+without scheme/candidate installation. The full `f5c_` filter passes 161 tests
+in default and no-default-feature configurations. This does not close the
+remaining F5c/F5e gates; details and exact commands are at the end of the
+handoff.
+
 ## Active F5 gate
 
 Latest continuation note (2026-09-24): the user selected option B for the
