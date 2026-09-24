@@ -40,8 +40,10 @@ still needs reconciliation. Pure Function effects remain limited to closed
 `EmptyEffect`/`EffectBottom`, so live effect-row mutation lanes remain outside
 the current per-use matrix. The earlier
 direct-owner `ValueBounds` injection-site finding was closed after moving
-injection inside its transaction; the incoming `FreshValueBounds` witness also
-exists in `f5c_incoming_fresh_outer_row_growth_samples_before_rollback`.
+injection inside its transaction. The incoming `FreshValueBounds` witness is
+now `f5c_incoming_fresh_value_bounds_growth_samples_before_rollback_and_retries`
+in the route sidecar; it checks exact event/sample deltas, rollback, an
+independent retained ledger, and successful retry.
 
 Per-use rollback remains open on full physical resource accounting. The nested
 value/effect-bound capacity subgate is now independently reviewed and closed:
@@ -580,14 +582,17 @@ rerun passed 1/1; the adjacent filtered pair of linearity tests also passed
 plausible and no direct F5c path, but the failed assertion values were not
 captured, so the cause remains open and the full suite is not certified. No benchmark or resource
 matrix was run. The successful-path sampler-cost budget remains consumed
-without accepted timing data. The verified `ValueLevels` slice and its records
-are ready for a checkpoint now that the resumed session has Git-metadata write
-access. Commit and push this slice before starting another code slice. After
-that checkpoint, consolidate the split `FreshValueBounds` incoming-route
-witnesses into an exact event/sample, rollback, independent retained-ledger,
-and retry proof. Keep its test body in the existing sidecar rather than adding
-more test code to `lib.rs`. Continue the remaining per-use lanes against
-the complete §3 list. Keep sampler-cost
+without accepted timing data. The `ValueLevels` retained-ledger slice is
+checkpointed as `38d40b01` and pushed to `origin/yulang3`. The incoming
+`FreshValueBounds` witness is now consolidated in the existing route sidecar;
+it checks exact observed outer-row capacity deltas and event peaks, exactly
+one post-rollback sample, independent retained/nested reconciliation, complete
+RouteCheckpoint restoration, and retry publication. Its old test body was
+moved out of `lib.rs`, which shrank by 75 lines. The new M1 test-only slice is
+verified locally and should be committed/pushed before another code change.
+The primary handled it directly per the user's no-subagent instruction, so no
+independent reviewer was used. Next, audit the remaining per-use owner-to-route
+lanes against the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
 method. Do not call the complete §3 sampling/accounting gate closed. The F5c

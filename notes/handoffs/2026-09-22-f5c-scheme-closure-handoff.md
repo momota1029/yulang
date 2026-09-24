@@ -1081,12 +1081,29 @@ The first specification review found an initial compile blocker: expected peak
 locals were referenced before definition. Primary added the locals from the
 saved pre-attempt state and exact event delta; the reviewer confirmed closure.
 The focused test, package test-check, format, and whitespace checks pass. No
-production code changed. Next consolidate the split `FreshValueBounds`
-incoming-route witnesses with exact event/sample, rollback, independent
-retained-ledger, and retry evidence. The full §3 gate, F5c, and F5e remain open.
+production code changed. This slice is checkpointed as `38d40b01` and pushed
+to `origin/yulang3`. The full §3 gate, F5c, and F5e remain open.
 
-The ValueLevels test and current task/progress records remain an uncommitted
-local slice at HEAD `0b2957a8`. The prior `.git` read-only failure is cleared
-in the resumed session; checkpoint and push this verified slice before
-starting another code slice. The next FreshValueBounds witness should live in
-the existing test sidecar rather than adding more test body to `lib.rs`.
+## FreshValueBounds incoming-route event/rollback witness (2026-09-24)
+
+Moved the incoming fresh-outer-row failure witness from `lib.rs` into
+`crates/yu-solver/src/tests/f5c_value_exact_upper_route.rs` and strengthened
+it into a same-proof rollback/retry test. The trace identifies exactly one
+`FreshValueBounds` growth event and its completed sample; the test derives the
+outer `VariableBounds` byte delta from the observed capacity change and checks
+semantic/session retained bytes and peaks against the immediately preceding
+sample. It then asserts exactly one completed post-rollback sample, complete
+RouteCheckpoint restoration, retained physical capacity, independent
+post-rollback semantic/session/nested-ledger reconstruction, production-ledger
+reconciliation, and successful retry linkage through canonical fact, consumed
+receipt, provenance, and routed-use records. The move removes 75 test lines
+from `lib.rs`; no production code changed.
+
+The focused witness and all 57 `f5c_incoming_` tests pass, as do the package
+test check, workspace formatting check, and whitespace check. The user asked
+for primary-only work without subagents, so this M1 slice has primary diff
+inspection but no independent reviewer. No benchmark or sampler-cost
+measurement was run; that measurement budget remains exhausted without a
+valid comparison. Checkpoint this verified slice before the next code gate.
+Next: reconcile the remaining per-use owner-to-route lanes against §3. The
+full §3 gate, F5c, and F5e remain open.

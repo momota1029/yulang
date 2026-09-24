@@ -2734,6 +2734,249 @@ fn f5c_incoming_extrusion_value_marks_growth_samples_before_rollback_and_retries
 }
 
 #[test]
+fn f5c_incoming_fresh_value_bounds_growth_samples_before_rollback_and_retries() {
+    let batch = collect(module(
+        "my source = 1; my sink = source",
+        "f5c-fresh-outer-event-sample",
+    ));
+    let route_id = batch.definition_uses()[0].id.clone();
+    let mut session = InferenceSession::new(batch);
+    let draft = GeneralizationDraft {
+        quantifier_count: 1,
+        recursive_bounds: Vec::new(),
+        predicate: F5cPositive::Quantified(0),
+    };
+    let finalized = InferenceSession::finalize_generalization_draft(
+        session.finalization.as_mut().unwrap(),
+        &draft,
+        false,
+    )
+    .unwrap();
+    let target = session.batch.definition_uses()[0].target.ordinal() as usize;
+    session.schemes[target] = Some(finalized.into_parts().0);
+    while session.bounds.len() < session.bounds.capacity() {
+        session.fresh_value_at_level(1).unwrap();
+    }
+    session
+        .sample_f4_resources(ResourceBoundary::IncomingRoute)
+        .unwrap();
+
+    let before = RouteCheckpoint::capture(&session);
+    let old_bounds_len = session.bounds.len();
+    let old_bounds_capacity = session.bounds.capacity();
+    let old_value_levels_bytes = session.value_levels.capacity() * std::mem::size_of::<u32>();
+    let old_nested_bound_bytes = session.independent_nested_capacities.total_bound_bytes();
+    let old_semantic_retained = session.resource_ledger.semantic_arena_retained_bytes;
+    let old_session_retained = session.resource_ledger.inference_session_retained_bytes;
+    let old_semantic_peak = session.execution_counters.semantic_arena_peak_bytes;
+    let old_session_peak = session.execution_counters.inference_session_peak_bytes;
+    let finish_output_bytes = session.resource_ledger.finish_output_retained_bytes;
+    let route_attempts = session.incoming_route_sample_attempts;
+    let resource_samples = session.resource_boundary_samples;
+    let post_attempts = session.incoming_post_rollback_sample_attempts;
+    let post_samples = session.incoming_post_rollback_samples;
+    let receipt_serial = session.store.next_receipt;
+    F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.set(None));
+    incoming_sample_trace::start();
+    inject_next_f5b_post_reserve_failure(F5bCapacityLane::FreshValueBounds);
+
+    assert_eq!(
+        session.route_incoming(&route_id),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(
+        F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.get()),
+        None
+    );
+    before.assert_restored(&session);
+    assert_eq!(session.bounds.len(), old_bounds_len);
+    assert!(session.bounds.capacity() > old_bounds_capacity);
+    assert_eq!(
+        F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.get()),
+        Some(F5bCapacityLane::FreshValueBounds)
+    );
+
+    let trace = incoming_sample_trace::finish("fresh-value-bounds-route", 1);
+    assert_eq!(trace.attempts, 1);
+    assert_eq!(trace.matched_events, trace.event_samples);
+    assert_eq!(trace.completed_events.len(), trace.event_samples);
+    assert_eq!(
+        trace.named_samples,
+        [("post-rollback".into(), 1)].into_iter().collect()
+    );
+    assert_eq!(trace.samples, trace.event_samples + 1);
+    assert_eq!(
+        trace
+            .event_lanes
+            .get(&("typed-route".into(), "FreshValueBounds".into())),
+        Some(&1)
+    );
+    assert_eq!(
+        session.incoming_route_sample_attempts,
+        route_attempts + trace.samples
+    );
+    assert_eq!(
+        session.resource_boundary_samples,
+        resource_samples + trace.samples
+    );
+    assert_eq!(
+        session.incoming_post_rollback_sample_attempts,
+        post_attempts + 1
+    );
+    assert_eq!(session.incoming_post_rollback_samples, post_samples + 1);
+
+    let (event_position, event) = trace
+        .completed_events
+        .iter()
+        .enumerate()
+        .find(|(_, event)| event.owner == "typed-route" && event.lane == "FreshValueBounds")
+        .expect("fresh value-bounds growth must have a completed event sample");
+    assert_eq!(event.old_capacity, old_bounds_capacity);
+    assert_eq!(event.new_capacity, session.bounds.capacity());
+    let delta = (event.new_capacity - event.old_capacity)
+        .checked_mul(std::mem::size_of::<VariableBounds>())
+        .unwrap();
+    assert!(delta > 0);
+    let previous = event_position
+        .checked_sub(1)
+        .map(|position| &trace.completed_events[position].sample);
+    let (
+        previous_value_levels,
+        previous_nested,
+        previous_semantic,
+        previous_session,
+        previous_semantic_peak,
+        previous_session_peak,
+    ) = previous.map_or(
+        (
+            old_value_levels_bytes,
+            old_nested_bound_bytes,
+            old_semantic_retained,
+            old_session_retained,
+            old_semantic_peak,
+            old_session_peak,
+        ),
+        |sample| {
+            (
+                sample.value_levels_bytes,
+                sample.nested_bound_bytes,
+                sample.semantic_retained_bytes,
+                sample.session_retained_bytes,
+                sample.semantic_peak_bytes,
+                sample.session_peak_bytes,
+            )
+        },
+    );
+    assert_eq!(event.sample.value_levels_bytes, previous_value_levels);
+    assert_eq!(event.sample.nested_bound_bytes, previous_nested);
+    let expected_semantic_retained = previous_semantic + delta;
+    let expected_session_retained = previous_session + delta;
+    let expected_semantic_peak = previous_semantic_peak.max(expected_semantic_retained);
+    let expected_session_peak =
+        previous_session_peak.max(expected_session_retained + finish_output_bytes);
+    assert_eq!(
+        event.sample.semantic_retained_bytes,
+        expected_semantic_retained
+    );
+    assert_eq!(
+        event.sample.session_retained_bytes,
+        expected_session_retained
+    );
+    assert_eq!(event.sample.semantic_peak_bytes, expected_semantic_peak);
+    assert_eq!(event.sample.session_peak_bytes, expected_session_peak);
+
+    let post = trace
+        .completed_named_samples
+        .get("post-rollback")
+        .and_then(|samples| (samples.len() == 1).then_some(&samples[0]))
+        .expect("exactly one completed post-rollback sample");
+    assert_eq!(post.value_levels_bytes, event.sample.value_levels_bytes);
+    assert_eq!(post.nested_bound_bytes, event.sample.nested_bound_bytes);
+    assert_eq!(
+        post.semantic_retained_bytes,
+        event.sample.semantic_retained_bytes
+    );
+    assert_eq!(
+        post.session_retained_bytes,
+        event.sample.session_retained_bytes
+    );
+    assert_eq!(post.semantic_peak_bytes, event.sample.semantic_peak_bytes);
+    assert_eq!(post.session_peak_bytes, event.sample.session_peak_bytes);
+
+    let (independent, independent_nested) = independent_post_rollback_value_row_resources(
+        &session,
+        expected_semantic_peak,
+        expected_session_peak,
+    );
+    assert_eq!(session.independent_nested_capacities, independent_nested);
+    assert_eq!(
+        post.semantic_retained_bytes,
+        independent.semantic_arena_retained_bytes
+    );
+    assert_eq!(
+        post.session_retained_bytes,
+        independent.inference_session_retained_bytes
+    );
+    assert_eq!(
+        post.nested_bound_bytes,
+        independent_nested.total_bound_bytes()
+    );
+    assert_eq!(
+        post.semantic_peak_bytes,
+        independent.semantic_arena_peak_bytes
+    );
+    assert_eq!(
+        post.session_peak_bytes,
+        independent.inference_session_peak_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.semantic_arena_retained_bytes,
+        post.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.resource_ledger.inference_session_retained_bytes,
+        post.session_retained_bytes
+    );
+    assert_eq!(
+        session.execution_counters.semantic_arena_retained_bytes,
+        post.semantic_retained_bytes
+    );
+    assert_eq!(
+        session.execution_counters.inference_session_retained_bytes,
+        post.session_retained_bytes
+    );
+    assert_eq!(
+        session.execution_counters.semantic_arena_peak_bytes,
+        post.semantic_peak_bytes
+    );
+    assert_eq!(
+        session.execution_counters.inference_session_peak_bytes,
+        post.session_peak_bytes
+    );
+    assert!(session.store.facts().is_empty());
+    assert!(session.store.provenance().is_empty());
+    assert!(session.store.consumed_receipts.is_empty());
+    assert!(session.routed_uses.is_empty());
+    assert!(session.routed_use_positions.is_empty());
+
+    session.route_incoming(&route_id).unwrap();
+    assert_eq!(session.store.facts().len(), 1);
+    let fact = &session.store.facts()[0];
+    assert!(session.store.canonical.iter().any(|(key, canonical)| {
+        *canonical == fact.id() && key.lower == fact.lower() && key.upper == fact.upper()
+    }));
+    assert_eq!(session.store.provenance().len(), 1);
+    assert_eq!(session.store.provenance()[0].fact(), fact.id());
+    assert_eq!(session.store.consumed_receipts.len(), 1);
+    assert!(session.store.consumed_receipts.contains(&receipt_serial));
+    assert_eq!(session.routed_uses.len(), 1);
+    assert_eq!(session.routed_uses[0].use_id, route_id);
+    assert_eq!(session.routed_uses[0].fact, Some(fact.id()));
+    assert_eq!(session.routed_use_positions.len(), 1);
+    assert!(session.routed_use_positions.contains(&route_id));
+}
+
+#[test]
 fn f5c_incoming_value_levels_growth_samples_before_rollback_and_retries() {
     let batch = collect(module(
         "my source = 1; my sink = source",
