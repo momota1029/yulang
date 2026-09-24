@@ -1725,3 +1725,48 @@ full §3 accounting/measurement gate, or F5c/F5e certification. No production
 code changed; this audit had no independent reviewer under the user's
 primary-only direction. The exact-alpha/normalization decision and other gates
 remain separate.
+
+## Callback-local iterative finalizer feasibility map (2026-09-24)
+
+This was a primary-only M1 architecture feasibility check against authoritative
+F5 §§14, 24, 26 and F5b's finalization accounting amendment §§2 and 6. No code
+change was made; convergence required checking handle lifetime, transaction
+failure, joint peak accounting, and post-finalization draft destruction.
+
+A local iterative traversal is compatible with the higher-ranked callback's
+handle lifetimes in principle: task/value vectors declared inside the
+`finalize_scheme` closure could hold `Draft*Id<'tx>` values and drop before the
+closure returns, so no branded handle escapes. The current recursive helper
+already allocates per-Union/Intersection vectors of draft IDs inside that same
+callback for `positive_union`/`negative_intersection`. Checked worklist growth
+could return `IdentityExhausted`; the existing finalizer transaction then
+rolls back the overlay, preserving failure atomicity.
+
+That establishes traversal/lifetime feasibility, not an authorized complete
+implementation. The iterative task/value vectors would add solver-local
+capacity-managed heap scratch. F5b §6 freezes non-`yu-types` resource lanes
+for the callback, while `ClosedTypeAccountingCheckpoint` reports only
+`yu-types` retained-before/after and peak bytes. It has no callback-local
+scratch or event-time combined-peak field. Capturing the worklist's maximum
+outside the callback and adding it to `peak_bytes_during_call` is not exact:
+the solver worklist is dropped when the callback returns, while later
+`yu-types` validation/planning/reservation may produce that checkpoint peak.
+Adding those independent maxima would violate the fixed-baseline temporal
+accounting rule. No current lane can be updated during the callback to record
+the actual co-resident maximum.
+
+Even a stack-safe callback traversal would leave the borrowed boxed
+`GeneralizationDraft` to be recursively destroyed on both finalization success
+and early error. That remains the separate ownership/drop blocker recorded
+above. The indexed `yu-types` construction proposal remains Draft,
+unapproved, and not ready for approval; the current API offers no approved
+joint accounting protocol.
+
+Outcome: callback-local worklists are lifetime-safe in principle and preserve
+transaction rollback, but exact accounting and the subsequent deep-draft drop
+are unresolved. No bounded implementation satisfies the active goal's full
+contract under current authority. The next decision is whether to authorize a
+new independently reviewed design round for a `yu-types`-owned iterative
+construction/accounting boundary and an explicit draft-destruction strategy;
+do not implement Candidate B or change §24 without that approval. No tests or
+benchmarks ran for this read-only checkpoint.

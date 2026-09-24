@@ -31,6 +31,14 @@ not-approval-ready Draft. Exact evidence and the next boundary decision are in
 the handoff's “Owned boxed-draft destruction boundary map” section. Do not
 claim stack-safe destruction or F5c/F5e closure.
 
+The follow-up audit found callback-local iterative worklists could keep
+transaction-branded IDs inside the existing HRTB lifetime and preserve overlay
+rollback, but their heap capacity has no exact co-resident accounting path:
+F5b freezes solver lanes during the callback and the result checkpoint omits
+caller-local scratch. A successful iterative finalizer would also leave the
+owned boxed input to recursively drop. No code was added; a reviewed design
+decision on joint accounting plus draft destruction is still required.
+
 §23's ineligible-variable rejection subgate is now reconciled closed for the
 represented F5c row sources: eligibility gates both one-sided elimination and
 Q/R assignment, the pre-rewrite census rejects remaining unclassified rows,
