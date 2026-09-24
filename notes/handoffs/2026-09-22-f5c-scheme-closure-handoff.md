@@ -1619,3 +1619,72 @@ other deep-tree ownership paths remain open. Do not claim full clone/drop or
 F5c/F5e closure. The next step is to map whether deep destruction can be made
 safe without changing the approved boxed representation or §24 boundary. The
 implementation and records are checkpointed and pushed as `992df956`.
+
+## Owned boxed-draft destruction boundary map (2026-09-24)
+
+This was a primary-only M1, read-only boundary investigation at the user's
+direction. Convergence required identifying the owned-tree cleanup points and
+whether an iterative cleanup at one point would close a useful production path
+under current F5b/F5c ownership and resource rules. No code change was
+justified.
+
+`F5cPositive` and `F5cNegative` derive `Clone` and own recursive children in
+`Box` and `Vec`; neither enum has a custom destructor. Ordinary destruction of
+a deep Function chain is therefore recursive. The iterative replay,
+Q/R-substitution, materialization, and normalization walks remove recursive
+visitation, not recursive destruction:
+
+- `f5c_replay::replay` borrows its input but builds boxed output in its local
+  values vector. On a checked error, unfinished tasks and partial output
+  values are ordinarily dropped. Its 4,096-deep small-stack test forgets both
+  input and output trees after checking them.
+- `f5c_binder_substitution::substitute` and
+  `f5c_materialization::materialize_iterative` consume their owned trees into
+  local task/value vectors. Successful results leave as ordinary boxed trees;
+  on an error, remaining owned tasks and partial values are ordinarily
+  dropped. Their deep tests avoid output destruction; the raw-bound test
+  explicitly forgets the moved bounds after validating them.
+- `f5c_normalization::collect_drafts` moves nested trees into its iterative
+  `Walk` stack and `rebuild` reconstructs boxed output. An error can leave
+  nested owned values in the normalizer's work/output vectors, which then use
+  ordinary drop. On success, normalized component drafts remain boxed.
+- `execute` retains all normalized `generalization_drafts` while
+  `finalize_generalization_draft_raw` borrows each plan. Its local positive and
+  negative constructors recurse through every Function/Union/Intersection
+  child inside the existing `finalize_scheme` callback. A finalization error
+  (including the test injection before tree traversal) exits through `?` and
+  drops the still-owned draft vector; after successful finalization the vector
+  also drops at scope exit. Thus fixing only draft destruction does not make
+  this path stack-safe: deep finalization is reached first on success.
+
+An iterative owned-tree drain is expressible without changing the boxed enum,
+but a production-safe drain needs an O(depth/frontier) worklist. Its checked
+growth can itself fail after ownership has been partially peeled; returning at
+that point leaves a remainder whose ordinary destruction is recursive, while
+leaking it is not an acceptable recovery policy. No existing lane represents
+this destruction scratch or defines that partial-drain failure contract. A
+local helper would also leave the other task/value, normalizer, finalizer, and
+component-vector drop sites unchanged. Adding such a helper in isolation would
+therefore not close a bounded end-to-end path, and would add a new resource and
+failure-policy surface without a design decision.
+
+The finalizer is a separate hard boundary. F5b §6 and the current finalization
+accounting contract do not authorize persistent solver-owned scratch mutation
+inside the higher-ranked callback, and transaction-branded `Draft*Id<'tx>`
+values cannot be retained across it. The proposed indexed `yu-types` API in
+`notes/design/2026-09-23-f5c-indexed-finalization-accounting-boundary-draft.md`
+remains explicitly unapproved and its own status says it is not ready for
+approval. The §24 callback/API and boxed representation were left unchanged;
+no unsafe custom `Drop`, `mem::forget` production path, or partial cleanup lane
+was introduced.
+
+Outcome: no bounded, failure-safe production destruction slice was found under
+current authority, so this goal ends as a no-code map rather than a stack-safety
+claim. The precise next design decision is how to own and account iterative
+draft construction plus destruction across finalization: either a reviewed,
+approved `yu-types`-owned indexed finalization boundary with explicit
+transaction/peak/failure contracts, or a separately reviewed private
+representation/ownership change that avoids recursive boxed destruction.
+The current indexed-finalizer Draft is not approval-ready; do not implement it
+or claim F5c/F5e closure. No tests or benchmarks were run for this record-only
+checkpoint.

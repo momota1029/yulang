@@ -17,6 +17,20 @@ candidate-replay and iterative Q/R rewrite slices are pushed as `da9097db` and
 `a41b9875`. The ownership-only materialization change is verified and pushed
 as `992df956`; keep the §24 finalizer callback/API unchanged.
 
+Latest continuation (2026-09-24): a primary-only map confirmed that successful
+iterative replay, substitution, materialization, and normalization still return
+ordinary recursively dropped boxed trees, while checked error exits can drop
+partial task/value trees recursively. The component path also calls the
+recursive `finalize_generalization_draft_raw` before its normalized drafts are
+destroyed. Existing 4,096-deep tests intentionally forget those outputs, so
+they prove traversal but not destruction safety. No isolated cleanup helper
+was added: a fallible iterative drain would need an approved/accounted
+worklist and a safe partial-drain failure contract, and would not bypass the
+recursive §24 finalizer. The indexed finalizer remains an unapproved,
+not-approval-ready Draft. Exact evidence and the next boundary decision are in
+the handoff's “Owned boxed-draft destruction boundary map” section. Do not
+claim stack-safe destruction or F5c/F5e closure.
+
 ## Active F5 gate
 
 Latest continuation note (2026-09-24): the user selected option B for the
