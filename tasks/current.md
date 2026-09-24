@@ -12,18 +12,20 @@ the end of this file and in the handoff's final section.
 
 ## Active F5 gate
 
-Latest continuation note (2026-09-24): option B's height-major normalizer is
-implemented in local checkpoint `b07de8fe`; its focused `f5c_` suite passes
-147 tests. A separate integer-descriptor oracle test confirms the exact
-mergesort counts 18 versus 24 for a five-root rotation. Do not call the
-normalization gate complete or push this checkpoint yet. A five-root
-permutation probe over the same quantified leaf set
-produced identical normalized values but different exact mergesort comparison
-counters (18 versus 24), conflicting with F5 §36's requirement that root-order
-permutations preserve counters. The choice needed is whether to retain exact
-input-sensitive comparison counts and narrow that invariance clause, or add a
-canonical pre-ordering/comparison schedule with extra algorithm and resource
-cost. The candidate and exact evidence are in the final section of the
+Latest continuation note (2026-09-24): the user selected option B for the
+counter conflict: preserve §36 all-counter invariance with canonical
+preordering, retaining the exact comparison count of the prescribed
+stable-mergesort. A local implementation candidate now preorders child keys
+and per-height descriptors using bounded insertion sort or iterative MSD
+radix distribution, then runs the prescribed mergesort. The 18/24 root-order
+witness now reports 18/18; reversed five-member Union inputs also have equal
+complete normalization stats. The normalizer owns two additional accounted
+scratch lanes. `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` passes
+151 tests; `cargo check --workspace`, format, and diff checks pass. Do not call
+F5c or F5e complete.
+The design decision is recorded in
+[`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md);
+implementation details and residual gates are at the end of the
 [handoff](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
 ### Live F5c resume status (2026-09-24)

@@ -6,7 +6,10 @@ use super::{F5cNegative, F5cPositive, GeneralizationDraft, SolveAvailabilityErro
 
 type NodeId = usize;
 
-const LANE_COUNT: usize = 11;
+pub(super) const LANE_COUNT: usize = 13;
+const RADIX_ALPHABET: usize = 257;
+const RADIX_WORKSPACE_SLOTS: usize = RADIX_ALPHABET * 3;
+const RADIX_INSERTION_LIMIT: usize = 8;
 
 #[derive(Clone, Copy)]
 #[repr(usize)]
@@ -22,6 +25,15 @@ enum Lane {
     SortScratch,
     DescriptorWords,
     Output,
+    RadixFrames,
+    RadixWorkspace,
+}
+
+#[derive(Clone, Copy)]
+struct RadixFrame {
+    start: usize,
+    end: usize,
+    byte: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -130,6 +142,8 @@ struct Normalizer {
     sort_scratch: Vec<NodeId>,
     descriptor_words: Vec<u32>,
     output: Vec<Option<BuiltValue>>,
+    radix_frames: Vec<RadixFrame>,
+    radix_workspace: Vec<usize>,
     stats: NormalizationStats,
 }
 
@@ -147,6 +161,8 @@ impl Normalizer {
             sort_scratch: Vec::new(),
             descriptor_words: Vec::new(),
             output: Vec::new(),
+            radix_frames: Vec::new(),
+            radix_workspace: Vec::new(),
             stats: NormalizationStats::default(),
         }
     }
@@ -166,6 +182,8 @@ impl Normalizer {
                 self.sort_scratch.capacity(),
                 self.descriptor_words.capacity(),
                 self.output.capacity(),
+                self.radix_frames.capacity(),
+                self.radix_workspace.capacity(),
             ],
             [
                 std::mem::size_of::<Node>(),
@@ -179,6 +197,16 @@ impl Normalizer {
                 std::mem::size_of::<NodeId>(),
                 std::mem::size_of::<u32>(),
                 std::mem::size_of::<Option<BuiltValue>>(),
+                if self.radix_frames.capacity() == 0 {
+                    0
+                } else {
+                    std::mem::size_of::<RadixFrame>()
+                },
+                if self.radix_workspace.capacity() == 0 {
+                    0
+                } else {
+                    std::mem::size_of::<usize>()
+                },
             ],
         )
     }
@@ -708,6 +736,7 @@ impl Normalizer {
                 self.sort_node_children(node_id)?;
                 self.write_descriptor(node_id)?;
             }
+            self.radix_sort_descriptor_words(start, end)?;
             {
                 let nodes = &self.nodes;
                 let words = &self.descriptor_words;
@@ -743,6 +772,79 @@ impl Normalizer {
         Ok(())
     }
 
+    fn prepare_radix_workspaces(&mut self) -> Result<(), SolveAvailabilityError> {
+        let workspace_additional = RADIX_WORKSPACE_SLOTS
+            .checked_sub(self.radix_workspace.len())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Self::reserve(
+            &mut self.radix_workspace,
+            workspace_additional,
+            Lane::RadixWorkspace,
+            &mut self.stats,
+        )?;
+        self.radix_workspace.resize(RADIX_WORKSPACE_SLOTS, 0);
+        Ok(())
+    }
+
+    fn radix_sort_descriptor_words(
+        &mut self,
+        start: usize,
+        end: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let len = end
+            .checked_sub(start)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if len < 3 {
+            return Ok(());
+        }
+        let workspace = if len > RADIX_INSERTION_LIMIT {
+            self.prepare_radix_workspaces()?;
+            Some(self.radix_workspace.as_mut_slice())
+        } else {
+            None
+        };
+        let nodes = &self.nodes;
+        let words = &self.descriptor_words;
+        let values = &mut self.height_nodes[start..end];
+        radix_sort_node_ids(
+            values,
+            None,
+            workspace,
+            &mut self.radix_frames,
+            &mut self.stats,
+            |node_id, byte| descriptor_radix_symbol(nodes, words, node_id, byte),
+        )
+    }
+
+    fn radix_sort_key_ids(
+        &mut self,
+        start: usize,
+        len: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        if len < 3 {
+            return Ok(());
+        }
+        let workspace = if len > RADIX_INSERTION_LIMIT {
+            self.prepare_radix_workspaces()?;
+            Some(self.radix_workspace.as_mut_slice())
+        } else {
+            None
+        };
+        let end = start
+            .checked_add(len)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let nodes = &self.nodes;
+        let values = &mut self.children[start..end];
+        radix_sort_node_ids(
+            values,
+            Some(2 * std::mem::size_of::<u32>()),
+            workspace,
+            &mut self.radix_frames,
+            &mut self.stats,
+            |node_id, byte| key_id_radix_symbol(nodes, node_id, byte),
+        )
+    }
+
     fn sort_node_children(&mut self, node_id: NodeId) -> Result<(), SolveAvailabilityError> {
         let (start, len) = match self.nodes[node_id].kind {
             NodeKind::PositiveUnion { start, len }
@@ -758,6 +860,7 @@ impl Normalizer {
         let end = start
             .checked_add(len)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.radix_sort_key_ids(start, len)?;
         {
             let nodes = &self.nodes;
             let stats = &mut self.stats;
@@ -1038,9 +1141,18 @@ fn compare_key_ids(
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
     stats.word_comparisons = stats
         .word_comparisons
-        .checked_add(2)
+        .checked_add(1)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    Ok((left.height, left.rank).cmp(&(right.height, right.rank)))
+    match left.height.cmp(&right.height) {
+        Ordering::Equal => {
+            stats.word_comparisons = stats
+                .word_comparisons
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            Ok(left.rank.cmp(&right.rank))
+        }
+        ordering => Ok(ordering),
+    }
 }
 
 fn compare_descriptors(
@@ -1075,6 +1187,232 @@ fn compare_descriptors(
             .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         &mut stats.word_comparisons,
     )
+}
+
+fn descriptor_radix_symbol(
+    nodes: &[Node],
+    words: &[u32],
+    node_id: NodeId,
+    byte: usize,
+) -> Result<usize, SolveAvailabilityError> {
+    let (start, len) = nodes
+        .get(node_id)
+        .and_then(|node| node.descriptor)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let byte_len = len
+        .checked_mul(std::mem::size_of::<u32>())
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    if byte >= byte_len {
+        return Ok(0);
+    }
+    let word_offset = byte / std::mem::size_of::<u32>();
+    let byte_in_word = byte % std::mem::size_of::<u32>();
+    let word_index = start
+        .checked_add(word_offset)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let word = *words
+        .get(word_index)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let shift = (std::mem::size_of::<u32>() - byte_in_word - 1)
+        .checked_mul(u8::BITS as usize)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let byte_value = usize::try_from((word >> shift) & u32::from(u8::MAX))
+        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    byte_value
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+fn key_id_radix_symbol(
+    nodes: &[Node],
+    node_id: NodeId,
+    byte: usize,
+) -> Result<usize, SolveAvailabilityError> {
+    let node = nodes
+        .get(node_id)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let word = match byte / std::mem::size_of::<u32>() {
+        0 => node.height,
+        1 => node.rank,
+        _ => return Err(SolveAvailabilityError::IdentityExhausted),
+    };
+    let byte_in_word = byte % std::mem::size_of::<u32>();
+    let shift = (std::mem::size_of::<u32>() - byte_in_word - 1)
+        .checked_mul(u8::BITS as usize)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    let byte_value = usize::try_from((word >> shift) & u32::from(u8::MAX))
+        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    byte_value
+        .checked_add(1)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+fn compare_radix_keys(
+    left: NodeId,
+    right: NodeId,
+    fixed_byte_len: Option<usize>,
+    symbol_for: &mut impl FnMut(NodeId, usize) -> Result<usize, SolveAvailabilityError>,
+) -> Result<Ordering, SolveAvailabilityError> {
+    let mut byte = 0usize;
+    loop {
+        let left_symbol = symbol_for(left, byte)?;
+        let right_symbol = symbol_for(right, byte)?;
+        match left_symbol.cmp(&right_symbol) {
+            Ordering::Equal => {}
+            ordering => return Ok(ordering),
+        }
+        if left_symbol == 0
+            || fixed_byte_len
+                .is_some_and(|limit| byte.checked_add(1).is_some_and(|next| next >= limit))
+        {
+            return Ok(Ordering::Equal);
+        }
+        byte = byte
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    }
+}
+
+fn radix_sort_node_ids(
+    values: &mut [NodeId],
+    fixed_byte_len: Option<usize>,
+    workspace: Option<&mut [usize]>,
+    frames: &mut Vec<RadixFrame>,
+    stats: &mut NormalizationStats,
+    mut symbol_for: impl FnMut(NodeId, usize) -> Result<usize, SolveAvailabilityError>,
+) -> Result<(), SolveAvailabilityError> {
+    if values.len() < 2 {
+        return Err(SolveAvailabilityError::IdentityExhausted);
+    }
+    if values.len() <= RADIX_INSERTION_LIMIT {
+        for index in 1..values.len() {
+            let value = values[index];
+            let mut destination = index;
+            while destination > 0
+                && compare_radix_keys(
+                    value,
+                    values[destination - 1],
+                    fixed_byte_len,
+                    &mut symbol_for,
+                )? == Ordering::Less
+            {
+                values[destination] = values[destination - 1];
+                destination -= 1;
+            }
+            values[destination] = value;
+        }
+        return Ok(());
+    }
+    let workspace = workspace.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    if workspace.len() != RADIX_WORKSPACE_SLOTS {
+        return Err(SolveAvailabilityError::IdentityExhausted);
+    }
+    let (counts, rest) = workspace.split_at_mut(RADIX_ALPHABET);
+    let (starts, cursors) = rest.split_at_mut(RADIX_ALPHABET);
+    frames.clear();
+    Normalizer::push(
+        frames,
+        RadixFrame {
+            start: 0,
+            end: values.len(),
+            byte: 0,
+        },
+        Lane::RadixFrames,
+        stats,
+    )?;
+
+    while let Some(frame) = frames.pop() {
+        let frame_len = frame
+            .end
+            .checked_sub(frame.start)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if frame.end > values.len() {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        if frame_len < 2 {
+            continue;
+        }
+        counts.fill(0);
+        for node_id in &values[frame.start..frame.end] {
+            let symbol = symbol_for(*node_id, frame.byte)?;
+            let count = counts
+                .get_mut(symbol)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            *count = count
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        let mut next_start = frame.start;
+        for symbol in 0..RADIX_ALPHABET {
+            starts[symbol] = next_start;
+            cursors[symbol] = next_start;
+            next_start = next_start
+                .checked_add(counts[symbol])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        }
+        if next_start != frame.end {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        for symbol in 0..RADIX_ALPHABET {
+            let bucket_end = starts[symbol]
+                .checked_add(counts[symbol])
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            while cursors[symbol] < bucket_end {
+                let position = cursors[symbol];
+                let node_id = *values
+                    .get(position)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let destination = symbol_for(node_id, frame.byte)?;
+                if destination >= RADIX_ALPHABET {
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                }
+                if destination == symbol {
+                    cursors[symbol] = position
+                        .checked_add(1)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                } else {
+                    let destination_end = starts[destination]
+                        .checked_add(counts[destination])
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    let destination_cursor = cursors[destination];
+                    if destination_cursor >= destination_end {
+                        return Err(SolveAvailabilityError::IdentityExhausted);
+                    }
+                    values.swap(position, destination_cursor);
+                    cursors[destination] = destination_cursor
+                        .checked_add(1)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                }
+            }
+        }
+
+        let next_byte = frame
+            .byte
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if fixed_byte_len.is_some_and(|limit| next_byte >= limit) {
+            continue;
+        }
+        for symbol in (1..RADIX_ALPHABET).rev() {
+            let bucket_len = counts[symbol];
+            if bucket_len < 2 {
+                continue;
+            }
+            Normalizer::push(
+                frames,
+                RadixFrame {
+                    start: starts[symbol],
+                    end: starts[symbol]
+                        .checked_add(bucket_len)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                    byte: next_byte,
+                },
+                Lane::RadixFrames,
+                stats,
+            )?;
+        }
+    }
+    Ok(())
 }
 
 fn stable_merge_sort<T: Copy>(
@@ -1395,6 +1733,7 @@ mod tests {
     }
 
     fn oracle_component_word_comparisons(mut words: Vec<Vec<u32>>) -> usize {
+        words.sort();
         let mut comparisons = 0;
         oracle_merge_sort_words(&mut words, &mut comparisons);
         for pair in words.windows(2) {
@@ -1529,10 +1868,9 @@ mod tests {
 
     #[test]
     fn normalization_index_lanes_reconcile_after_transient_release() {
-        let mut drafts = [draft(F5cPositive::Union(vec![
-            F5cPositive::Int,
-            positive_function(F5cNegative::Top, F5cPositive::Int),
-        ]))];
+        let mut drafts = [draft(F5cPositive::Union(
+            (0..12).map(F5cPositive::Quantified).collect(),
+        ))];
         let stats = normalize_component(&mut drafts).unwrap();
         let mut independent = crate::IndependentResourceLedger::default();
 
@@ -1543,6 +1881,8 @@ mod tests {
         assert!(stats.index_requested_slots > 0);
         assert!(stats.index_capacity_growths > 0);
         assert!(stats.index_peak_bytes > 0);
+        assert!(stats.index_lanes[Lane::RadixWorkspace as usize].peak_capacity > 0);
+        assert!(stats.index_lanes[Lane::RadixFrames as usize].peak_capacity > 0);
         assert_eq!(stats.index_actual_capacity, 0);
         assert_eq!(stats.index_retained_bytes, 0);
         assert_eq!(
@@ -1584,6 +1924,42 @@ mod tests {
     }
 
     #[test]
+    fn child_key_word_counter_counts_only_lexicographic_fields_examined() {
+        let nodes = [
+            Node {
+                kind: NodeKind::PositiveInt,
+                height: 0,
+                rank: 1,
+                descriptor: None,
+            },
+            Node {
+                kind: NodeKind::PositiveInt,
+                height: 1,
+                rank: 0,
+                descriptor: None,
+            },
+            Node {
+                kind: NodeKind::PositiveInt,
+                height: 0,
+                rank: 2,
+                descriptor: None,
+            },
+        ];
+        let mut stats = NormalizationStats::default();
+
+        assert_eq!(
+            compare_key_ids(&nodes, &mut stats, 0, 1).unwrap(),
+            Ordering::Less
+        );
+        assert_eq!(stats.word_comparisons, 1);
+        assert_eq!(
+            compare_key_ids(&nodes, &mut stats, 0, 2).unwrap(),
+            Ordering::Less
+        );
+        assert_eq!(stats.word_comparisons, 3);
+    }
+
+    #[test]
     fn descriptor_order_is_independent_of_union_input_order() {
         let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
         let deep = F5cPositive::Union(vec![positive_function(
@@ -1601,20 +1977,8 @@ mod tests {
 
         assert_eq!(forward[0].predicate, reverse[0].predicate);
         assert_eq!(
-            forward_stats.key_writes, reverse_stats.key_writes,
-            "key writes are source-order independent"
-        );
-        assert_eq!(
-            forward_stats.descriptor_words, reverse_stats.descriptor_words,
-            "descriptor volume is source-order independent"
-        );
-        assert_eq!(
-            forward_stats.word_comparisons, reverse_stats.word_comparisons,
-            "the §36 operation counters are required to be source-order independent"
-        );
-        assert_eq!(
-            forward_stats.child_comparisons, reverse_stats.child_comparisons,
-            "member comparison count is source-order independent"
+            forward_stats, reverse_stats,
+            "logical and physical counters are source-order independent"
         );
     }
 
@@ -1644,29 +2008,132 @@ mod tests {
         let rotated = run(&[2, 3, 4, 0, 1]);
 
         assert_eq!(forward.0, rotated.0);
-        assert_eq!(forward.1.key_writes, rotated.1.key_writes);
-        assert_eq!(forward.1.child_comparisons, rotated.1.child_comparisons);
-        assert_eq!(forward.1.descriptor_words, rotated.1.descriptor_words);
-        assert_eq!(forward.1.index_lanes, rotated.1.index_lanes);
-        assert_eq!(
-            forward.1.physical_lane_capacities,
-            rotated.1.physical_lane_capacities
-        );
-        assert_eq!(
-            forward.1.index_requested_slots,
-            rotated.1.index_requested_slots
-        );
-        assert_eq!(
-            forward.1.index_capacity_growths,
-            rotated.1.index_capacity_growths
-        );
-        assert_eq!(forward.1.index_peak_bytes, rotated.1.index_peak_bytes);
+        assert_eq!(forward.1, rotated.1);
         assert_eq!(forward.1.word_comparisons, forward.2);
         assert_eq!(rotated.1.word_comparisons, rotated.2);
+        assert_eq!(forward.1.word_comparisons, rotated.1.word_comparisons);
         assert_eq!(
             (forward.1.word_comparisons, rotated.1.word_comparisons),
-            (18, 24)
+            (18, 18)
         );
+    }
+
+    #[test]
+    fn union_member_permutations_preserve_all_normalization_counters() {
+        let members = (0..5).map(F5cPositive::Quantified).collect::<Vec<_>>();
+        let mut forward = [draft(F5cPositive::Union(members.clone()))];
+        let mut reverse = [draft(F5cPositive::Union(
+            members.iter().rev().cloned().collect(),
+        ))];
+
+        let forward_stats = normalize_component(&mut forward).unwrap();
+        let reverse_stats = normalize_component(&mut reverse).unwrap();
+
+        assert_eq!(forward[0].predicate, reverse[0].predicate);
+        assert_eq!(forward_stats, reverse_stats);
+        assert_eq!(forward_stats.child_comparisons, 9);
+    }
+
+    #[test]
+    fn descriptor_radix_order_matches_unsigned_word_lexicographic_order() {
+        let ordinals = [
+            u32::MAX,
+            0x0001_0000,
+            0x0000_0100,
+            0xFF,
+            0,
+            0x0100_0001,
+            0x0000_0101,
+            0x0000_FF00,
+            0xFFFF_FF00,
+            0x0001_00FF,
+            0x8000_0000,
+            u32::MAX,
+        ];
+        let build = |items: &[u32]| {
+            [draft(F5cPositive::Union(
+                items.iter().copied().map(F5cPositive::Quantified).collect(),
+            ))]
+        };
+        let mut forward = build(&ordinals);
+        let mut reverse = build(&ordinals.iter().rev().copied().collect::<Vec<_>>());
+        let forward_stats = normalize_component(&mut forward).unwrap();
+        let reverse_stats = normalize_component(&mut reverse).unwrap();
+
+        let F5cPositive::Union(members) = &forward[0].predicate else {
+            panic!("the normalized root remains a Union");
+        };
+        assert_eq!(
+            members,
+            &[
+                F5cPositive::Quantified(0),
+                F5cPositive::Quantified(0xFF),
+                F5cPositive::Quantified(0x0000_0100),
+                F5cPositive::Quantified(0x0000_0101),
+                F5cPositive::Quantified(0x0000_FF00),
+                F5cPositive::Quantified(0x0001_0000),
+                F5cPositive::Quantified(0x0001_00FF),
+                F5cPositive::Quantified(0x0100_0001),
+                F5cPositive::Quantified(0x8000_0000),
+                F5cPositive::Quantified(0xFFFF_FF00),
+                F5cPositive::Quantified(u32::MAX),
+            ]
+        );
+        assert_eq!(forward[0].predicate, reverse[0].predicate);
+        assert_eq!(forward_stats, reverse_stats);
+        assert!(forward_stats.index_lanes[Lane::RadixWorkspace as usize].peak_capacity > 0);
+        assert!(forward_stats.index_lanes[Lane::RadixFrames as usize].peak_capacity > 0);
+    }
+
+    #[test]
+    fn radix_sort_orders_variable_length_descriptor_word_sequences() {
+        let keys = vec![
+            vec![],
+            vec![0],
+            vec![0, 0],
+            vec![0, 1],
+            vec![0, 0, 0],
+            vec![1],
+            vec![u32::MAX],
+            vec![0x100],
+            vec![0, u32::MAX],
+            vec![0, 1],
+        ];
+        let mut words = Vec::new();
+        let mut nodes = Vec::new();
+        for key in &keys {
+            let start = words.len();
+            words.extend_from_slice(key);
+            nodes.push(Node {
+                kind: NodeKind::PositiveInt,
+                height: 0,
+                rank: 0,
+                descriptor: Some((start, key.len())),
+            });
+        }
+        let mut values = (0..nodes.len()).rev().collect::<Vec<_>>();
+        let mut expected = keys.clone();
+        expected.sort();
+        let mut frames = Vec::new();
+        let mut workspace = vec![0; RADIX_WORKSPACE_SLOTS];
+        let mut stats = NormalizationStats::default();
+
+        radix_sort_node_ids(
+            &mut values,
+            None,
+            Some(&mut workspace),
+            &mut frames,
+            &mut stats,
+            |node_id, byte| descriptor_radix_symbol(&nodes, &words, node_id, byte),
+        )
+        .unwrap();
+
+        let actual = values
+            .iter()
+            .map(|node_id| &keys[*node_id])
+            .collect::<Vec<_>>();
+        let expected = expected.iter().collect::<Vec<_>>();
+        assert_eq!(actual, expected);
     }
 
     #[test]

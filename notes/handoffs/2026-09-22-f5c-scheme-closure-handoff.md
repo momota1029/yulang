@@ -1363,3 +1363,43 @@ open. The focused `f5c_` suite passes 147 tests. No full library suite,
 benchmark, or F5e matrix was run. Work remains primary-only with no independent
 reviewer, as explicitly requested by the user. Keep the checkpoint local and
 unpushed until the counter-contract choice and its records are resolved.
+
+## Counter-invariance option B implementation checkpoint (2026-09-24)
+
+The user selected option B: preserve §36's counter invariance by adding a
+canonical preordering schedule while keeping the exact comparison count for
+the prescribed stable mergesort. The design is recorded in
+[`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md).
+This decision supersedes the earlier instruction above to wait for the
+counter-contract choice; the implementation and other F5c gates remain open.
+
+`crates/yu-solver/src/f5c_normalization.rs` now canonicalizes both child-key
+lists and each same-height descriptor group before the existing stable
+mergesort. Inputs of three through eight keys use stable insertion
+preordering; one- and two-key inputs need no preordering. Larger sets use
+iterative in-place MSD radix distribution over big-endian
+`u32` bytes, with a low end-of-descriptor symbol for variable descriptor
+lengths. The counter-measured mergesort and following equality/dedup checks
+remain unchanged in ordering and semantics. Key-word comparison accounting
+now increments only for fields actually examined. The normalization index has
+13 physical Vec lanes: the prior 11 plus an explicit radix-frame stack and a
+771-`usize` workspace; small preorders allocate neither new lane.
+
+Focused evidence: the five-root rotation now produces the same exact count
+(18/18) and complete `NormalizationStats`; reversing a five-member Union also
+preserves its complete stats. Coverage includes >8-key unsigned byte ordering
+across `u32` boundaries, variable-length descriptor-prefix ordering, physical
+scratch-lane reconciliation, and the existing height-major/stack-depth/
+§44 representative checks. All 14 normalizer-module tests pass. The full
+single-threaded `f5c_` filter passes 151 tests, and `cargo check --workspace`,
+`cargo fmt --all -- --check`, and `git diff --check` pass. No full library
+suite, benchmark, or F5e matrix ran. Static work analysis keeps the extra
+preordering within `O(N+W)` and the existing `O(N+W+C)` total bound; timing was
+not measured because the selected behavior does not depend on a timing result.
+
+Work remained primary-only at the user's direction, so there was no
+independent reviewer; this is not represented as independent certification.
+This is a local candidate, not F5c/F5e closure. Next: inspect the complete diff
+and outbound range, then commit and push this honest checkpoint if the range
+remains coherent. Other F5c gates and complete resource/public-observation
+certification remain open.

@@ -7512,7 +7512,7 @@ struct IndependentResourceLedger {
     closed_normalization_index_retained_bytes: usize,
     closed_normalization_index_peak_bytes: usize,
     closed_normalization_index_capacity_growths: usize,
-    closed_normalization_index_lanes: [IndependentNormalizationLane; 11],
+    closed_normalization_index_lanes: [IndependentNormalizationLane; f5c_normalization::LANE_COUNT],
     instantiation_substitution_requested_slots: usize,
     instantiation_substitution_actual_capacity: usize,
     instantiation_substitution_retained_bytes: usize,
