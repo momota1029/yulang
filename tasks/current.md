@@ -4,17 +4,17 @@ Updated: 2026-09-24. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-Latest status (2026-09-24): producer analysis and candidate replay now use
-iterative task/value worklists with dedicated lanes in the existing physical
-walker ledger. Deep positive/negative boxed trees and Term chains pass on
-64 KiB stacks, with DFS, first-occurrence, polarity elimination, and product
-order preserved. The focused `f5c_` filter passes 157 tests; full F5c/F5e
+Latest status (2026-09-24): producer analysis, candidate replay, and the
+generalization Q/R rewrite now use iterative task/value worklists with dedicated
+lanes in the existing physical walker ledger. Deep positive/negative boxed
+trees and Term chains pass on 64 KiB stacks, with DFS, first-occurrence,
+polarity elimination, and product order preserved. The focused `f5c_` filter
+passes 160 tests; full F5c/F5e
 closure and the broader resource/public-observation gates remain open. The
 latest slice is recorded at the end of the F5c handoff and this file. The
-candidate-replay slice has passed the focused verification rerun in both
-feature configurations and is committed and pushed as `da9097db` to
-`origin/yulang3`. The next bounded stack-safety slice is iterative Q/R binder
-substitution; keep the §24 finalizer callback/API unchanged.
+candidate-replay slice is pushed as `da9097db`. The Q/R rewrite is verified in
+both feature configurations and staged for a separate checkpoint; keep the
+§24 finalizer callback/API unchanged.
 
 ## Active F5 gate
 
@@ -23,15 +23,14 @@ counter conflict: preserve §36 all-counter invariance with canonical
 preordering while retaining the prescribed stable-mergesort comparison count.
 That subgate is pushed in `fc34f127` and `e81b9e84`. Iterative boxed-tree
 materialization is pushed in `68952716`; producer analysis is pushed in
-`2366de39`; iterative candidate replay is pushed in `da9097db`. Candidate
-replay is now an iterative private transform in
-`f5c_replay.rs`, with accounted task/value lanes and 4,096-deep small-stack
-tests. `lib.rs` is 27,508 lines.
-The focused `f5c_` suite passes 157 tests in default and no-default-feature
-configurations. Full F5c/F5e closure is not claimed: recursive binder
-substitution, tree clone/drop, closed finalization inside the §24 callback, and
-co-resident draft/output-tree accounting remain open. Preserve §24/F5b; do not
-implement the unapproved indexed `yu-types` API.
+`2366de39`; iterative candidate replay is pushed in `da9097db`. The Q/R
+substitution rewrite is now isolated in `f5c_binder_substitution.rs`, with two
+accounted lanes and 4,096-deep small-stack tests; `lib.rs` is 27,419 lines.
+The focused `f5c_` suite passes 160 tests in default and no-default-feature
+configurations. Full F5c/F5e closure is not claimed: tree clone/drop, closed
+finalization inside the §24 callback, and co-resident draft/output-tree
+accounting remain open. Preserve §24/F5b; do not implement the unapproved
+indexed `yu-types` API.
 The design decision is recorded in
 [`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md);
 implementation details and residual gates are at the end of the

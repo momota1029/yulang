@@ -1548,3 +1548,40 @@ failure atomicity, and F5c/F5e resource/public-observation gates remain open.
 The next bounded stack-safety slice is iterative Q/R binder substitution with
 accounted scratch and exact small-tree parity; keep the finalizer callback/API
 unchanged.
+
+## Iterative generalization Q/R substitution checkpoint (2026-09-24)
+
+The recursive local `positive`/`negative` rewrites at the end of
+`F5cGeneralizer::build_inner` now live in the private
+`crates/yu-solver/src/f5c_binder_substitution.rs` task/value transform. It
+preserves R-before-Q mapping, polarity-specific elimination to `Bottom`/`Top`,
+Function polarity and canonical effects, Union/Intersection order, and the
+existing predicate-then-lower/upper processing order. No binder assignment or
+eligibility policy changed.
+
+`BinderTasks` and `BinderValues` are part of the existing generalization walker
+resource summary and independent ledger. Exact positive/negative fixtures
+cover Q, R, both polarity extremes, nested Functions, and ordered products; an
+unmapped variable remains `IdentityExhausted`. Both polarities also transform
+4,096-deep Function chains on a 64 KiB stack, and the test iteratively checks
+all outputs, lane peaks/release, and independent-ledger reconciliation.
+`lib.rs` is 27,419 lines, 89 fewer than at the candidate-replay checkpoint;
+the transform is isolated in a 230-line private module and a 240-line test
+sidecar.
+
+Verification passes: `cargo fmt --all -- --check`,
+`cargo check -p yu-solver --tests`, the focused substitution tests (3 passed),
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (160 passed), the
+same filtered suite with `--no-default-features` (160 passed),
+`cargo check --workspace`, and `git diff --check`. The full solver library
+suite was not run to completion. Static cost is O(N) visits per transformed
+tree; each invocation adds task/value worklists with O(N) worst-case capacity.
+No benchmark or F5e matrix ran; measurement budget is zero. The work remained
+primary-only at the user's direction, without independent review.
+
+This closes only recursive Q/R rewriting in `build_inner`. The task/value
+lanes do not certify co-resident boxed output payload; clone/drop and closed
+finalization within the §24 callback remain open, as do the other F5c/F5e
+resource/public-observation gates. Preserve the approved §24/F5b boundary and
+do not add the unapproved indexed `yu-types` API. Commit and push this coherent
+slice before expanding to another stack-safety path.

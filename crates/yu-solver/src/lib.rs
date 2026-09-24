@@ -178,6 +178,7 @@ use yu_types::{
 
 mod scc;
 use scc::{SccComponentId, SccPlan};
+mod f5c_binder_substitution;
 mod f5c_materialization;
 mod f5c_normalization;
 mod f5c_replay;
@@ -3777,10 +3778,12 @@ enum F5cWalkerLaneKind {
     AnalysisTasks = 13,
     ReplayTasks = 14,
     ReplayValues = 15,
+    BinderTasks = 16,
+    BinderValues = 17,
 }
 
 impl F5cWalkerLaneKind {
-    const ALL: [Self; 16] = [
+    const ALL: [Self; 18] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -3797,6 +3800,8 @@ impl F5cWalkerLaneKind {
         Self::AnalysisTasks,
         Self::ReplayTasks,
         Self::ReplayValues,
+        Self::BinderTasks,
+        Self::BinderValues,
     ];
 
     fn slot_size(self) -> usize {
@@ -3817,6 +3822,8 @@ impl F5cWalkerLaneKind {
             Self::AnalysisTasks => std::mem::size_of::<f5c_tree_analysis::Task<'static>>(),
             Self::ReplayTasks => std::mem::size_of::<f5c_replay::Task<'static>>(),
             Self::ReplayValues => std::mem::size_of::<F5cWalkValue>(),
+            Self::BinderTasks => std::mem::size_of::<f5c_binder_substitution::Task>(),
+            Self::BinderValues => std::mem::size_of::<F5cWalkValue>(),
         }
     }
 }
@@ -3831,12 +3838,12 @@ struct F5cWalkerLane {
 
 #[derive(Default)]
 struct F5cWalkerResources {
-    lanes: [F5cWalkerLane; 16],
+    lanes: [F5cWalkerLane; 18],
     peak_bytes: usize,
     simultaneous_memo_peak_bytes: usize,
     observed_memo_bytes: usize,
     #[cfg(test)]
-    independent_lanes: [F5cWalkerLane; 16],
+    independent_lanes: [F5cWalkerLane; 18],
     #[cfg(test)]
     independent_peak_bytes: usize,
     #[cfg(test)]
@@ -6910,107 +6917,8 @@ impl<'a> F5cGeneralizer<'a> {
                     && negative_only.contains(ordinal)
             })
             .collect::<HashSet<_>>();
-        fn positive(
-            value: F5cPositive,
-            q: &HashMap<u32, u32>,
-            r: &HashMap<u32, u32>,
-            positive_eliminated: &HashSet<u32>,
-            negative_eliminated: &HashSet<u32>,
-        ) -> Result<F5cPositive, SolveAvailabilityError> {
-            match value {
-                F5cPositive::Variable(ordinal) => r
-                    .get(&ordinal)
-                    .copied()
-                    .map(F5cPositive::Recursive)
-                    .or_else(|| q.get(&ordinal).copied().map(F5cPositive::Quantified))
-                    .or_else(|| {
-                        positive_eliminated
-                            .contains(&ordinal)
-                            .then_some(F5cPositive::Bottom)
-                    })
-                    .ok_or(SolveAvailabilityError::IdentityExhausted),
-                F5cPositive::Function {
-                    argument, result, ..
-                } => Ok(F5cPositive::Function {
-                    argument: Box::new(negative(
-                        *argument,
-                        q,
-                        r,
-                        positive_eliminated,
-                        negative_eliminated,
-                    )?),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(positive(
-                        *result,
-                        q,
-                        r,
-                        positive_eliminated,
-                        negative_eliminated,
-                    )?),
-                }),
-                F5cPositive::Union(values) => Ok(F5cPositive::Union(
-                    values
-                        .into_iter()
-                        .map(|value| {
-                            positive(value, q, r, positive_eliminated, negative_eliminated)
-                        })
-                        .collect::<Result<_, _>>()?,
-                )),
-                other => Ok(other),
-            }
-        }
-        fn negative(
-            value: F5cNegative,
-            q: &HashMap<u32, u32>,
-            r: &HashMap<u32, u32>,
-            positive_eliminated: &HashSet<u32>,
-            negative_eliminated: &HashSet<u32>,
-        ) -> Result<F5cNegative, SolveAvailabilityError> {
-            match value {
-                F5cNegative::Variable(ordinal) => r
-                    .get(&ordinal)
-                    .copied()
-                    .map(F5cNegative::Recursive)
-                    .or_else(|| q.get(&ordinal).copied().map(F5cNegative::Quantified))
-                    .or_else(|| {
-                        negative_eliminated
-                            .contains(&ordinal)
-                            .then_some(F5cNegative::Top)
-                    })
-                    .ok_or(SolveAvailabilityError::IdentityExhausted),
-                F5cNegative::Function {
-                    argument, result, ..
-                } => Ok(F5cNegative::Function {
-                    argument: Box::new(positive(
-                        *argument,
-                        q,
-                        r,
-                        positive_eliminated,
-                        negative_eliminated,
-                    )?),
-                    argument_effect: F5cPositiveEffect::Bottom,
-                    result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(negative(
-                        *result,
-                        q,
-                        r,
-                        positive_eliminated,
-                        negative_eliminated,
-                    )?),
-                }),
-                F5cNegative::Intersection(values) => Ok(F5cNegative::Intersection(
-                    values
-                        .into_iter()
-                        .map(|value| {
-                            negative(value, q, r, positive_eliminated, negative_eliminated)
-                        })
-                        .collect::<Result<_, _>>()?,
-                )),
-                other => Ok(other),
-            }
-        }
-        let predicate = positive(
+        let predicate = f5c_binder_substitution::substitute_positive(
+            &mut self.memo,
             predicate,
             &q,
             &r,
@@ -7025,14 +6933,16 @@ impl<'a> F5cGeneralizer<'a> {
             let (raw_lower, raw_upper) = raw_recursive_bounds
                 .remove(ordinal)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            let lower = positive(
+            let lower = f5c_binder_substitution::substitute_positive(
+                &mut self.memo,
                 raw_lower,
                 &q,
                 &r,
                 &positive_eliminated,
                 &negative_eliminated,
             )?;
-            let upper = negative(
+            let upper = f5c_binder_substitution::substitute_negative(
+                &mut self.memo,
                 raw_upper,
                 &q,
                 &r,
@@ -7196,7 +7106,7 @@ struct IndependentResourceLedger {
     generalization_walker_retained_bytes: usize,
     generalization_walker_peak_bytes: usize,
     generalization_walker_capacity_growths: usize,
-    generalization_walker_lanes: [IndependentMemoLane; 16],
+    generalization_walker_lanes: [IndependentMemoLane; 18],
     closed_normalization_index_requested_slots: usize,
     closed_normalization_index_actual_capacity: usize,
     closed_normalization_index_retained_bytes: usize,
@@ -15087,6 +14997,7 @@ impl SolvedModule {
 #[allow(deprecated)]
 mod tests {
     use super::*;
+    mod f5c_binder_substitution;
     mod f5c_materialization;
     mod f5c_replay;
     mod f5c_scratch_reserve;
