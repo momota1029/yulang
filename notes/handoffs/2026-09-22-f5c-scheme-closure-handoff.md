@@ -1389,9 +1389,10 @@ Focused evidence: the five-root rotation now produces the same exact count
 (18/18) and complete `NormalizationStats`; reversing a five-member Union also
 preserves its complete stats. Coverage includes >8-key unsigned byte ordering
 across `u32` boundaries, variable-length descriptor-prefix ordering, physical
-scratch-lane reconciliation, and the existing height-major/stack-depth/
-§44 representative checks. All 14 normalizer-module tests pass. The full
-single-threaded `f5c_` filter passes 151 tests, and `cargo check --workspace`,
+scratch-lane reconciliation, radix scratch-counter overflow before allocation
+or partition, and the existing height-major/stack-depth/§44 representative
+checks. All 15 normalizer-module tests pass. The full single-threaded `f5c_`
+filter passes 152 tests, and `cargo check --workspace`,
 `cargo fmt --all -- --check`, and `git diff --check` pass. No full library
 suite, benchmark, or F5e matrix ran. Static work analysis keeps the extra
 preordering within `O(N+W)` and the existing `O(N+W+C)` total bound; timing was

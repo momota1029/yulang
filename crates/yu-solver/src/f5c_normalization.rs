@@ -1960,6 +1960,43 @@ mod tests {
     }
 
     #[test]
+    fn radix_scratch_counter_overflow_fails_before_allocation_or_partition() {
+        let mut normalizer = Normalizer::new();
+        normalizer.stats.index_lanes[Lane::RadixWorkspace as usize].requested_slots = usize::MAX;
+        let workspace_stats_before = normalizer.stats.clone();
+
+        assert_eq!(
+            normalizer.prepare_radix_workspaces(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(normalizer.stats, workspace_stats_before);
+        assert_eq!(normalizer.radix_workspace.capacity(), 0);
+
+        let mut values = (0..9).rev().collect::<Vec<_>>();
+        let values_before = values.clone();
+        let mut frames = Vec::new();
+        let mut workspace = vec![0; RADIX_WORKSPACE_SLOTS];
+        let mut stats = NormalizationStats::default();
+        stats.index_lanes[Lane::RadixFrames as usize].requested_slots = usize::MAX;
+        let stats_before = stats.clone();
+
+        assert_eq!(
+            radix_sort_node_ids(
+                &mut values,
+                None,
+                Some(&mut workspace),
+                &mut frames,
+                &mut stats,
+                |_, _| Ok(1),
+            ),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(values, values_before);
+        assert!(frames.is_empty());
+        assert_eq!(stats, stats_before);
+    }
+
+    #[test]
     fn descriptor_order_is_independent_of_union_input_order() {
         let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
         let deep = F5cPositive::Union(vec![positive_function(

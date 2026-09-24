@@ -21,7 +21,7 @@ radix distribution, then runs the prescribed mergesort. The 18/24 root-order
 witness now reports 18/18; reversed five-member Union inputs also have equal
 complete normalization stats. The normalizer owns two additional accounted
 scratch lanes. `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` passes
-151 tests; `cargo check --workspace`, format, and diff checks pass. Do not call
+152 tests; `cargo check --workspace`, format, and diff checks pass. Do not call
 F5c or F5e complete.
 The design decision is recorded in
 [`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md);
