@@ -1879,6 +1879,26 @@ depth-2,048 test approval gate. The performance review closed the extra-scan
 concern; its minor finding clarified that `push_node` may copy child IDs and
 grow flat scratch before detecting excessive height, so rejection is not a
 zero-cost failure path. Sidecar size, successful-path cost, all-producer
-coverage, and 64 KiB stack safety remain implementation checks. The proposal
-is now marked Reviewed, not Authoritative. Next: request explicit user approval
-of depth 128 and `IdentityExhausted` above it; do not implement before that.
+coverage, and 64 KiB stack safety remain implementation checks. At that point
+the proposal was marked Reviewed, not Authoritative. A subsequent source audit
+found and corrected a mismatch between §2's childless-node depth and §3's
+induction statement; the focused spec delta reviewer accepted the latter as a
+major finding. The correction now uses the childless/nonempty rule
+consistently; a fresh focused review found no blocking or major issue and its
+minor stale-status wording finding was closed. The proposal is again marked
+Reviewed, but remains non-Authoritative pending explicit user approval.
+
+## Depth-measure source-audit correction (2026-09-24)
+
+After the focused reviews, a direct source reread of
+`Normalizer::push_node_at` found a detail the proposal's first depth definition
+did not state exactly: height increments only when `child_count != 0`. Thus a
+childless node is height zero; this includes an empty Union/Intersection if
+one reaches normalization. The Draft now follows the implementation's exact
+measure (otherwise a nonempty product is `1 + max(child heights)`). The first
+focused spec delta review found that §3's separate induction sentence still
+used the nonempty formula for every parent. The primary accepted and repaired
+this major consistency finding; the fresh focused spec delta review found no
+blocking or major issue. Its minor stale-status wording finding was closed in
+the proposal metadata. The proposal remains unapproved; no code or tests have
+changed.

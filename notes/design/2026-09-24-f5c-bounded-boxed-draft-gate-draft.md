@@ -3,8 +3,8 @@
 Status: Reviewed; pending explicit user approval
 Scope: native-stack safety of F5c boxed draft construction, finalization, and destruction
 Related authority: F5 §§14, 24–26, 32–36, 43–44; F5b closed-finalization accounting amendment §§2, 6, 9
-Reviewed-by: spec_auditor and performance_auditor; focused M2 delta review, 2026-09-24
-Decision: pending approval of maximum structural depth 128 and `IdentityExhausted` rejection above it
+Reviewed-by: spec_auditor (focused depth-definition delta reviews) and performance_auditor; M2, 2026-09-24
+Decision: pending approval of maximum `Node.height` 128 and `IdentityExhausted` rejection above it
 Supersedes: none; proposes to specify the over-limit outcome for F5 §14's deep-chain stack-safety requirement
 
 ## 1. Problem and product direction
@@ -17,7 +17,7 @@ construction alone does not prevent stack overflow.
 The user's 2026-09-24 product direction prioritizes Oracle-equivalent results
 on practical inputs and a lightweight successful path. Pathologically deep
 inputs may be rejected deterministically while accepted-input invariants and
-atomic public publication remain intact. This reviewed proposal covers only
+atomic public publication remain intact. This proposal covers only
 the stack-safety subgate: retain the current boxed representation and §24
 callback, and reject excessive structural depth before constructing an
 over-limit parent. It does not authorize implementation.
@@ -27,13 +27,15 @@ over-limit parent. It does not authorize implementation.
 For F5c boxed values, define structural depth using the existing
 `Normalizer::Node.height` measure:
 
-- a leaf has height zero;
-- each constructed Function, Union, or Intersection adds one above its deepest
-  child;
+- any node with no children has height zero, including an empty Union or
+  Intersection if one reaches normalization;
+- each nonempty Function, Union, or Intersection has height one above its
+  deepest child;
 - an alias/shared reference that emits no parent node adds no depth.
 
 Proposed maximum depth: **128**. Before constructing/attaching every parent,
-check `1 + max(child_depths)` with checked arithmetic. If that would exceed 128,
+check the existing `Node.height` rule with checked arithmetic: zero for a
+childless node, otherwise `1 + max(child_depths)`. If that would exceed 128,
 return the existing `SolveAvailabilityError::IdentityExhausted`. A depth-129
 source can have its bounded children traversed, but the depth-129 parent is
 never boxed or published to a worklist. No public error variant is added.
@@ -58,14 +60,15 @@ consumed and no partial `SolvedModule` is returned.
 Carry depth as private sidecar metadata in iterative value stacks. Do not add a
 recursive depth rescan or a public solver/`yu-types` API. Every production
 boxed-value producer must check before attaching a parent or placing it in an
-output stack. The inductive invariant is: leaves have depth zero; each
-parent's checked prospective depth is one plus its deepest child; no parent is
-constructed unless that value is at most 128. Thus a checked failure after
-children have been removed from a task/value lane can only recursively drop
-children already bounded by 128, never an over-limit partial parent. If an
-error occurs after a bounded parent is formed, that parent is likewise safe to
-drop. The small-stack failure-cleanup test below must validate this argument
-for the actual representation.
+output stack. The inductive invariant matches `Node.height`: a childless node
+has depth zero (including an empty product, if encountered); otherwise a
+parent's checked prospective depth is one above its deepest child. No parent
+is constructed unless its prospective depth is at most 128. Thus a checked
+failure after children have been removed from a task/value lane can only
+recursively drop children already bounded by 128, never an over-limit partial
+parent. If an error occurs after a bounded parent is formed, that parent is
+likewise safe to drop. The small-stack failure-cleanup test below must validate
+this argument for the actual representation.
 
 - `F5cGeneralizer::walk`: Function exits and normalized Union/Intersection
   exits;
@@ -140,12 +143,19 @@ visible to the existing walker-lane accounting.
 
 ## 5. Review and implementation gate
 
-Review result: the focused M2 spec and performance delta reviews completed on
-2026-09-24 with no blocking or major findings. The performance review's minor
-failure-path allocation note is recorded in §3.
+The focused M2 spec and performance delta reviews completed on 2026-09-24 with
+no blocking or major findings. The performance review's minor failure-path
+allocation note is recorded in §3. A subsequent source audit found that
+`Normalizer::push_node_at` assigns height zero to any childless node, including
+an empty product if encountered. The first specification delta review found
+that §3's induction sentence still used the nonempty-parent formula for all
+parents. After aligning that invariant with §2, a fresh focused spec delta
+review found no blocking or major issue. Its minor stale-status wording finding
+was closed by aligning this header and §1.
 
-Implementation remains gated on recording the user's explicit approval of the
-depth-128 rejection boundary and `IdentityExhausted` behavior.
+Focused review is clean; implementation remains gated on recording the user's
+explicit approval of the depth-128 `Node.height` boundary and
+`IdentityExhausted` behavior.
 
 After approval, implementation verification must cover both polarities,
 every production tree producer, normalized output, depth-128 successful
@@ -163,5 +173,5 @@ arbitrary depth. Run focused checks first, then the single-threaded
 `yu-solver` library suite once at the coherent gate boundary. These are stack
 safety tests, not timing benchmarks.
 
-No implementation, API, or Authoritative F5 text has changed; depth 128 remains
-a proposal pending the user's approval.
+No implementation, API, or Authoritative F5 text has changed; the corrected
+depth definition and limit remain a proposal pending the user's approval.

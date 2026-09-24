@@ -73,10 +73,16 @@ rejected it as insufficiently owned and pre-enforced. Sol's adjudication now
 recommends a narrower partial gate: cap structural depth at 128 before any
 over-depth parent is built, keep the §24 callback and boxed representation, and
 leave shallow width/shared-summary resource amplification explicitly open.
-This is stack-safety progress only, not F5c/F5e resource closure. The proposal
-has passed focused M2 spec/performance delta review with no blocking/major
-findings; it remains pending explicit user approval of the exact depth/error
-boundary. Implementation must not begin before that gate.
+This is stack-safety progress only, not F5c/F5e resource closure. The earlier
+focused M2 spec/performance delta review found no blocking/major findings. A
+primary source audit then caught one precision issue: current `Node.height`
+gives childless nodes (including an empty product, if present) depth zero. The
+first focused spec delta review found one major inconsistency: §3's inductive
+safety invariant still applied the nonempty-parent formula to empty products.
+The primary repaired it, and a fresh focused spec delta review found no
+remaining blocking/major findings; its minor stale-status wording was also
+closed. Only explicit user approval of the exact depth/error boundary remains
+before implementation.
 See
 [`F5c bounded boxed-draft gate`](../notes/design/2026-09-24-f5c-bounded-boxed-draft-gate-draft.md)
 and the appended handoff section.
