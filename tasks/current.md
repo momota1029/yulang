@@ -5,16 +5,17 @@ Updated: 2026-09-24. Branch: `yulang3`; do not modify frozen `main`.
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
 Latest status (2026-09-24): producer analysis, candidate replay, and the
-generalization Q/R rewrite now use iterative task/value worklists with dedicated
-lanes in the existing physical walker ledger. Deep positive/negative boxed
-trees and Term chains pass on 64 KiB stacks, with DFS, first-occurrence,
-polarity elimination, and product order preserved. The focused `f5c_` filter
-passes 160 tests; full F5c/F5e
+generalization Q/R rewrite use iterative task/value worklists with dedicated
+lanes in the existing physical walker ledger. Raw recursive bounds now move
+through iterative materialization instead of being deeply cloned first. Deep
+positive/negative boxed trees and Term chains pass on 64 KiB stacks, with DFS,
+first-occurrence, polarity elimination, and product order preserved. The
+focused `f5c_` filter passes 161 tests; full F5c/F5e
 closure and the broader resource/public-observation gates remain open. The
 latest slice is recorded at the end of the F5c handoff and this file. The
-candidate-replay slice is pushed as `da9097db`; the iterative Q/R rewrite is
-verified and pushed as `a41b9875` to `origin/yulang3`. Keep the §24 finalizer
-callback/API unchanged.
+candidate-replay and iterative Q/R rewrite slices are pushed as `da9097db` and
+`a41b9875`. The ownership-only materialization change is verified and being
+checkpointed; keep the §24 finalizer callback/API unchanged.
 
 ## Active F5 gate
 
@@ -25,9 +26,10 @@ That subgate is pushed in `fc34f127` and `e81b9e84`. Iterative boxed-tree
 materialization is pushed in `68952716`; producer analysis is pushed in
 `2366de39`; iterative candidate replay is pushed in `da9097db`. The Q/R
 substitution rewrite is isolated in `f5c_binder_substitution.rs`, pushed in
-`a41b9875`, with two accounted lanes and 4,096-deep small-stack tests;
-`lib.rs` is 27,419 lines.
-The focused `f5c_` suite passes 160 tests in default and no-default-feature
+`a41b9875`, with two accounted lanes and 4,096-deep small-stack tests. Raw
+recursive-bound materialization now moves values through the iterative walker
+instead of deep cloning; `lib.rs` is 27,416 lines.
+The focused `f5c_` suite passes 161 tests in default and no-default-feature
 configurations. Full F5c/F5e closure is not claimed: tree clone/drop, closed
 finalization inside the §24 callback, and co-resident draft/output-tree
 accounting remain open. Preserve §24/F5b; do not implement the unapproved

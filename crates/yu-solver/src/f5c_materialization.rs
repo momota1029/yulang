@@ -3,6 +3,7 @@ use super::{
     F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, Polarity,
     SolveAvailabilityError,
 };
+use std::collections::HashMap;
 
 pub(super) enum Task {
     Positive(F5cPositive),
@@ -190,6 +191,30 @@ pub(super) fn materialize_iterative(
     result
 }
 
+pub(super) fn materialize_bound_trees(
+    bounds: &mut HashMap<u32, (F5cPositive, F5cNegative)>,
+    mut transform: impl FnMut(F5cWalkValue) -> Result<F5cWalkValue, SolveAvailabilityError>,
+) -> Result<(), SolveAvailabilityError> {
+    for (lower, upper) in bounds.values_mut() {
+        let raw_lower = std::mem::replace(lower, F5cPositive::Bottom);
+        let F5cWalkValue::Positive(mapped_lower, _) =
+            transform(F5cWalkValue::Positive(raw_lower, true))?
+        else {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        };
+        *lower = mapped_lower;
+
+        let raw_upper = std::mem::replace(upper, F5cNegative::Top);
+        let F5cWalkValue::Negative(mapped_upper, _) =
+            transform(F5cWalkValue::Negative(raw_upper, true))?
+        else {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        };
+        *upper = mapped_upper;
+    }
+    Ok(())
+}
+
 impl F5cGeneralizer<'_> {
     fn materialize(&mut self, first: Task) -> Result<F5cWalkValue, SolveAvailabilityError> {
         let session = self.session;
@@ -256,5 +281,19 @@ impl F5cGeneralizer<'_> {
             F5cWalkValue::Negative(value, _) => Ok(value),
             F5cWalkValue::Positive(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
         }
+    }
+
+    pub(super) fn materialize_recursive_bounds(
+        &mut self,
+        bounds: &mut HashMap<u32, (F5cPositive, F5cNegative)>,
+    ) -> Result<(), SolveAvailabilityError> {
+        materialize_bound_trees(bounds, |value| match value {
+            F5cWalkValue::Positive(value, _) => self
+                .materialize_positive(value)
+                .map(|value| F5cWalkValue::Positive(value, true)),
+            F5cWalkValue::Negative(value, _) => self
+                .materialize_negative(value)
+                .map(|value| F5cWalkValue::Negative(value, true)),
+        })
     }
 }

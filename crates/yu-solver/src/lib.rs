@@ -6667,10 +6667,7 @@ impl<'a> F5cGeneralizer<'a> {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         let predicate = self.materialize_positive(predicate)?;
-        for (lower, upper) in raw_recursive_bounds.values_mut() {
-            *lower = self.materialize_positive(lower.clone())?;
-            *upper = self.materialize_negative(upper.clone())?;
-        }
+        self.materialize_recursive_bounds(&mut raw_recursive_bounds)?;
         let mut reentries_by_owner = HashMap::<u32, Vec<usize>>::new();
         for (index, trace) in self.reentries.iter().enumerate() {
             reentries_by_owner

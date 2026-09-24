@@ -1586,3 +1586,35 @@ resource/public-observation gates. Preserve the approved §24/F5b boundary and
 do not add the unapproved indexed `yu-types` API. The implementation and
 records are checkpointed and pushed as `a41b9875`; map the next boundary-safe
 stack-safety path before expanding scope.
+
+## F5c raw recursive-bound materialization ownership checkpoint (2026-09-24)
+
+The final `build_inner` materialization pass previously cloned every raw R
+lower/upper boxed tree before passing the clone to the already iterative
+materializer. Those `F5cPositive`/`F5cNegative` clones recursively traversed
+the boxed tree and kept the original and clone co-resident. The pass now moves
+each bound out with `mem::replace`, materializes it in place through the same
+`DraftMaterializeTasks`/`DraftMaterializeValues` lanes, and preserves lower
+before upper processing. The map is local to `build_inner` and is discarded on
+failure; successful draft structure and Q/R decisions are unchanged. No boxed
+representation or finalizer API changed.
+
+A 4,096-deep positive and negative bound pair passes through the shared move-
+and-materialize helper on a 64 KiB stack. The test iteratively checks child
+order and canonical effects, then reconciles both existing materialization
+lanes against the independent ledger. Verification passes: formatting,
+`git diff --check`, `cargo check -p yu-solver --tests`,
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (161 passed), the
+same filtered suite with `--no-default-features` (161 passed), and
+`cargo check --workspace`. The full solver library suite was not run to
+completion. This removes one deep-clone path; static transform complexity stays
+O(N), and peak live bound payload no longer includes the redundant clone. No
+benchmark or F5e matrix ran; measurement budget is zero. Work remained
+primary-only at the user's direction, without independent review.
+
+This does not make derived `Clone` or recursive destruction of arbitrary
+boxed F5c trees stack-safe. Candidate replay's remaining clone arms handle
+leaves after branching nodes are explicitly traversed; boxed output drop and
+other deep-tree ownership paths remain open. Do not claim full clone/drop or
+F5c/F5e closure. The next step is to map whether deep destruction can be made
+safe without changing the approved boxed representation or §24 boundary.
