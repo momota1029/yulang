@@ -1106,45 +1106,47 @@ pub(super) fn record_production_counters(
     stats: &NormalizationStats,
     counters: &mut super::ProductionCounters,
 ) -> Result<(), SolveAvailabilityError> {
-    counters.closed_normalized_key_writes = counters
+    let mut next = counters.clone();
+    next.closed_normalized_key_writes = next
         .closed_normalized_key_writes
         .checked_add(stats.key_writes)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    counters.closed_normalization_child_comparisons = counters
+    next.closed_normalization_child_comparisons = next
         .closed_normalization_child_comparisons
         .checked_add(stats.child_comparisons)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    counters.closed_normalization_descriptor_words = counters
+    next.closed_normalization_descriptor_words = next
         .closed_normalization_descriptor_words
         .checked_add(stats.descriptor_words)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    counters.closed_normalization_word_comparisons = counters
+    next.closed_normalization_word_comparisons = next
         .closed_normalization_word_comparisons
         .checked_add(stats.word_comparisons)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    counters.closed_normalization_index_requested_slots = counters
+    next.closed_normalization_index_requested_slots = next
         .closed_normalization_index_requested_slots
         .checked_add(stats.index_requested_slots)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    counters.closed_normalization_index_actual_capacity = stats.index_actual_capacity;
-    counters.closed_normalization_index_retained_bytes = stats.index_retained_bytes;
-    counters.closed_normalization_index_peak_bytes = counters
+    next.closed_normalization_index_actual_capacity = stats.index_actual_capacity;
+    next.closed_normalization_index_retained_bytes = stats.index_retained_bytes;
+    next.closed_normalization_index_peak_bytes = next
         .closed_normalization_index_peak_bytes
         .max(stats.index_peak_bytes);
-    counters.closed_normalization_index_capacity_growths = counters
+    next.closed_normalization_index_capacity_growths = next
         .closed_normalization_index_capacity_growths
         .checked_add(stats.index_capacity_growths)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    let semantic_peak = counters
+    let semantic_peak = next
         .semantic_arena_retained_bytes
         .checked_add(stats.index_peak_bytes)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    let session_peak = counters
+    let session_peak = next
         .inference_session_retained_bytes
         .checked_add(stats.index_peak_bytes)
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-    counters.semantic_arena_peak_bytes = counters.semantic_arena_peak_bytes.max(semantic_peak);
-    counters.inference_session_peak_bytes = counters.inference_session_peak_bytes.max(session_peak);
+    next.semantic_arena_peak_bytes = next.semantic_arena_peak_bytes.max(semantic_peak);
+    next.inference_session_peak_bytes = next.inference_session_peak_bytes.max(session_peak);
+    *counters = next;
     Ok(())
 }
 
@@ -1304,6 +1306,52 @@ mod tests {
         }
     }
 
+    fn oracle_compare_words(left: &[u32], right: &[u32], comparisons: &mut usize) -> Ordering {
+        for (left_word, right_word) in left.iter().zip(right) {
+            *comparisons += 1;
+            match left_word.cmp(right_word) {
+                Ordering::Equal => {}
+                ordering => return ordering,
+            }
+        }
+        left.len().cmp(&right.len())
+    }
+
+    fn oracle_merge_sort_words(values: &mut [Vec<u32>], comparisons: &mut usize) {
+        if values.len() < 2 {
+            return;
+        }
+        let middle = values.len() / 2;
+        oracle_merge_sort_words(&mut values[..middle], comparisons);
+        oracle_merge_sort_words(&mut values[middle..], comparisons);
+
+        let mut left = 0;
+        let mut right = middle;
+        let mut sorted = Vec::with_capacity(values.len());
+        while left < middle && right < values.len() {
+            if oracle_compare_words(&values[left], &values[right], comparisons) != Ordering::Greater
+            {
+                sorted.push(values[left].clone());
+                left += 1;
+            } else {
+                sorted.push(values[right].clone());
+                right += 1;
+            }
+        }
+        sorted.extend_from_slice(&values[left..middle]);
+        sorted.extend_from_slice(&values[right..]);
+        values.clone_from_slice(&sorted);
+    }
+
+    fn oracle_component_word_comparisons(mut words: Vec<Vec<u32>>) -> usize {
+        let mut comparisons = 0;
+        oracle_merge_sort_words(&mut words, &mut comparisons);
+        for pair in words.windows(2) {
+            oracle_compare_words(&pair[0], &pair[1], &mut comparisons);
+        }
+        comparisons
+    }
+
     #[test]
     fn positive_mixed_height_members_use_height_before_discriminator() {
         let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
@@ -1389,6 +1437,46 @@ mod tests {
     }
 
     #[test]
+    fn height_major_ranks_follow_height_then_descriptor_and_share_equal_keys() {
+        let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
+        let deep = F5cPositive::Union(vec![positive_function(
+            F5cNegative::Bottom,
+            F5cPositive::Int,
+        )]);
+        let mut normalizer = Normalizer::new();
+        let root = normalizer
+            .flatten_positive(F5cPositive::Union(vec![deep, shallow.clone(), shallow]))
+            .unwrap();
+
+        normalizer.rank_all().unwrap();
+
+        let NodeKind::PositiveUnion { start, len } = normalizer.nodes[root].kind else {
+            panic!("test root remains a positive Union node");
+        };
+        assert_eq!(len, 2);
+        let ordered = &normalizer.children[start..start + len];
+        let first = normalizer.nodes[ordered[0]];
+        let second = normalizer.nodes[ordered[1]];
+        assert!(first.height < second.height);
+
+        let first_descriptor = first.descriptor.unwrap();
+        let first_words = &normalizer.descriptor_words
+            [first_descriptor.0..first_descriptor.0 + first_descriptor.1];
+        let equal_function_ranks = normalizer
+            .nodes
+            .iter()
+            .filter(|node| matches!(node.kind, NodeKind::PositiveFunction { .. }))
+            .filter(|node| {
+                let (start, len) = node.descriptor.unwrap();
+                &normalizer.descriptor_words[start..start + len] == first_words
+            })
+            .map(|node| (node.height, node.rank))
+            .collect::<Vec<_>>();
+        assert_eq!(equal_function_ranks.len(), 2);
+        assert_eq!(equal_function_ranks[0], equal_function_ranks[1]);
+    }
+
+    #[test]
     fn normalization_index_lanes_reconcile_after_transient_release() {
         let mut drafts = [draft(F5cPositive::Union(vec![
             F5cPositive::Int,
@@ -1428,6 +1516,23 @@ mod tests {
     }
 
     #[test]
+    fn checked_counter_overflow_does_not_publish_a_partial_normalization_sample() {
+        let mut stats = NormalizationStats::default();
+        stats.key_writes = 1;
+        stats.child_comparisons = 1;
+        let mut counters = crate::ProductionCounters::default();
+        counters.closed_normalized_key_writes = 7;
+        counters.closed_normalization_child_comparisons = usize::MAX;
+        let before = counters.clone();
+
+        assert_eq!(
+            record_production_counters(&stats, &mut counters),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert_eq!(counters, before);
+    }
+
+    #[test]
     fn descriptor_order_is_independent_of_union_input_order() {
         let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
         let deep = F5cPositive::Union(vec![positive_function(
@@ -1460,6 +1565,37 @@ mod tests {
             forward_stats.child_comparisons, reverse_stats.child_comparisons,
             "member comparison count is source-order independent"
         );
+    }
+
+    #[test]
+    fn exact_word_comparison_counts_match_an_independent_mergesort_oracle() {
+        let run = |ordinals: &[u32]| {
+            let mut drafts = ordinals
+                .iter()
+                .copied()
+                .map(|ordinal| draft(F5cPositive::Quantified(ordinal)))
+                .collect::<Vec<_>>();
+            let stats = normalize_component(&mut drafts).unwrap();
+            let mut schemes = drafts
+                .into_iter()
+                .map(|draft| match draft.predicate {
+                    F5cPositive::Quantified(ordinal) => ordinal,
+                    _ => panic!("quantified leaf remains quantified"),
+                })
+                .collect::<Vec<_>>();
+            schemes.sort_unstable();
+            let oracle = oracle_component_word_comparisons(
+                ordinals.iter().map(|ordinal| vec![2, *ordinal]).collect(),
+            );
+            (schemes, stats.word_comparisons, oracle)
+        };
+        let forward = run(&[0, 1, 2, 3, 4]);
+        let rotated = run(&[2, 3, 4, 0, 1]);
+
+        assert_eq!(forward.0, rotated.0);
+        assert_eq!(forward.1, forward.2);
+        assert_eq!(rotated.1, rotated.2);
+        assert_eq!((forward.1, rotated.1), (18, 24));
     }
 
     #[test]

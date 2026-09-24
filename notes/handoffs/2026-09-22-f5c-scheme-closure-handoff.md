@@ -1325,14 +1325,16 @@ public counter exposure, and §44 routing of exactly the first member after
 height-major normalization (including the case where §25 structural-first
 would choose the other member).
 
-The gate is not closed. A temporary root-permutation probe with the same five
-quantified leaf roots, rotated as a set, produced identical normalized values
-but different exact stable-mergesort word-comparison counts: 18 and 24. This
+The gate is not closed. A root-permutation probe with the same five quantified
+leaf roots, rotated as a set, produced identical normalized values but
+different exact stable-mergesort word-comparison counts: 18 and 24. This
 conflicts with F5 §36's simultaneous requirements that the counter report the
 comparisons performed by the prescribed mergesort and that root-order
-permutations yield identical counters. The temporary asserting test was removed
-after establishing the counterexample; do not treat the passing filtered suite
-as evidence that this requirement is satisfied.
+permutations yield identical counters. A test-only integer-descriptor oracle
+now reproduces both counts independently from the production key builder and
+checks the output schemes are the same set; it deliberately does not assert
+counter invariance. A separate checked-overflow witness proves normalization
+counter publication is atomic.
 
 This incomplete candidate is preserved in local commit `b07de8fe` on
 `yulang3`; it is not pushed. User direction is needed before resolving that
@@ -1349,8 +1351,7 @@ second adds a new algorithm/resource decision beyond the already-selected
 height-major order. Do not silently choose either. The index ledger accounts
 its 11 physical Vec lanes only; it does not certify all simultaneously live
 F5c draft/output-tree scratch or F5e resource surfaces. Those gates remain
-open. The focused `f5c_` suite passed 144 tests after removing the temporary
-counter-invariance assertion. No full library suite, benchmark, or F5e matrix
-was run. Work remains primary-only with no independent reviewer, as explicitly
-requested by the user. Keep the checkpoint local and unpushed until the
-counter-contract choice and its records are resolved.
+open. The focused `f5c_` suite passes 147 tests. No full library suite,
+benchmark, or F5e matrix was run. Work remains primary-only with no independent
+reviewer, as explicitly requested by the user. Keep the checkpoint local and
+unpushed until the counter-contract choice and its records are resolved.
