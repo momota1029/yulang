@@ -44,6 +44,9 @@ injection inside its transaction. The incoming `FreshValueBounds` witness is
 now `f5c_incoming_fresh_value_bounds_growth_samples_before_rollback_and_retries`
 in the route sidecar; it checks exact event/sample deltas, rollback, an
 independent retained ledger, and successful retry.
+The `ExtrusionStack` witness is now also in that sidecar, with exact slot-byte
+and event-peak evidence, transient-to-retained reconciliation, RouteCheckpoint
+restoration, and retry publication.
 
 Per-use rollback remains open on full physical resource accounting. The nested
 value/effect-bound capacity subgate is now independently reviewed and closed:
@@ -591,7 +594,12 @@ RouteCheckpoint restoration, and retry publication. Its old test body was
 moved out of `lib.rs`, which shrank by 75 lines. The M1 test-only slice is
 checkpointed as `e226f8b4` and pushed to `origin/yulang3`.
 The primary handled it directly per the user's no-subagent instruction, so no
-independent reviewer was used. Next, audit the remaining per-use owner-to-route
+independent reviewer was used. The corresponding `ExtrusionStack` witness now
+derives its exact event delta and peak, proves post-rollback transient-capacity
+release against the independent retained ledger, and retries through public
+route records; that test has been moved from `lib.rs` into the same sidecar.
+This next M1 test-only slice is verified locally and should be checkpointed
+before another code change. Then audit the remaining per-use owner-to-route
 lanes against the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating

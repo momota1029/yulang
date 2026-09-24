@@ -1107,3 +1107,24 @@ measurement was run; that measurement budget remains exhausted without a
 valid comparison. This slice is checkpointed as `e226f8b4` and pushed to
 `origin/yulang3`. Next: reconcile the remaining per-use owner-to-route lanes
 against §3. The full §3 gate, F5c, and F5e remain open.
+
+## ExtrusionStack incoming-route transient/retained witness (2026-09-24)
+
+Moved `f5c_incoming_extrusion_stack_growth_samples_before_rollback` from
+`lib.rs` to the existing value-route sidecar and strengthened it into an exact
+event/rollback/retry witness. The test derives the `ExtrusionEndpoint` slot-byte
+delta from the observed capacity change, checks the target event against its
+immediately preceding sample, and proves that this is the final capacity event
+before rollback. The single post-rollback sample preserves the event peak while
+its retained totals are lower after transient route scratch is released; an
+independent ledger rebuilds surviving retained/nested state and reconciles the
+production counters. Full RouteCheckpoint restoration and retry publication
+through canonical fact, receipt, provenance, and routed-use links are asserted.
+The move removes the old test body from `lib.rs`; production code is unchanged.
+
+The focused test and all 57 `f5c_incoming_` tests pass, along with
+`cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
+`git diff --check`. Primary-only M1 work follows the user's explicit request;
+there is no independent review. No benchmark was run. The test/record slice is
+verified locally; checkpoint it before the next §3 lane audit. The complete
+§3 accounting/measurement gate, F5c, and F5e remain open.

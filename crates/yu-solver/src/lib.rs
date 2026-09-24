@@ -27250,60 +27250,6 @@ mod tests {
     }
 
     #[test]
-    fn f5c_incoming_extrusion_stack_growth_samples_before_rollback() {
-        let (mut session, routes) =
-            f5c_shared_closed_incoming_fixture("f5c-extrusion-stack-event-sample");
-        session.extrusion_stack = Vec::new();
-        let before = RouteCheckpoint::capture(&session);
-        let capacity = session.extrusion_stack.capacity();
-        assert_eq!(capacity, 0);
-        let attempts = session.incoming_route_sample_attempts;
-        let samples = session.resource_boundary_samples;
-        let final_attempts = session.incoming_post_rollback_sample_attempts;
-        let final_samples = session.incoming_post_rollback_samples;
-        F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.set(None));
-        inject_next_f5b_post_reserve_failure(F5bCapacityLane::ExtrusionStack);
-
-        assert_eq!(
-            session.route_incoming(&routes[0]),
-            Err(SolveAvailabilityError::IdentityExhausted)
-        );
-        assert_eq!(
-            F5B_INJECTED_POST_RESERVE_FAILURE.with(|injected| injected.get()),
-            None
-        );
-        before.assert_restored(&session);
-        assert!(session.extrusion_stack.capacity() > capacity);
-        assert_eq!(
-            F5C_LAST_TYPED_ROUTE_CAPACITY_EVENT_LANE.with(|observed| observed.get()),
-            Some(F5bCapacityLane::ExtrusionStack)
-        );
-        let route_attempts = session.incoming_route_sample_attempts - attempts;
-        assert!(
-            route_attempts >= 2,
-            "event and final samples must be attempted"
-        );
-        assert_eq!(session.resource_boundary_samples, samples + route_attempts);
-        assert_eq!(
-            session.incoming_post_rollback_sample_attempts,
-            final_attempts + 1
-        );
-        assert_eq!(session.incoming_post_rollback_samples, final_samples + 1);
-        assert!(session.store.facts().is_empty());
-        assert!(session.store.provenance().is_empty());
-        assert!(session.routed_uses.is_empty());
-        assert!(session.routed_use_positions.is_empty());
-        assert_eq!(
-            session.execution_counters.inference_session_retained_bytes,
-            session.resource_ledger.inference_session_retained_bytes
-        );
-        assert_eq!(
-            session.execution_counters.semantic_arena_retained_bytes,
-            session.resource_ledger.semantic_arena_retained_bytes
-        );
-    }
-
-    #[test]
     fn f5c_incoming_route_generation_exhaustion_is_atomic() {
         let batch = collect(module(
             "my source = 1; my sink = source",
