@@ -1314,9 +1314,10 @@ rank, and Union/Intersection children are sorted and deduplicated by
 `(height, rank)`. Rebuild is iterative. The module owns an 11-lane Vec index
 ledger with checked capacity arithmetic; the public `closed_normalization_index`
 family and §34/§36 normalization counters are wired into `ProductionCounters`.
-No §24 callback/API or live Union Term was added. `lib.rs` is 27,810 lines,
-82 fewer than at the pushed producer-order checkpoint; the algorithm and its
-tests live outside that already-large file.
+No §24 callback/API or live Union Term was added. `lib.rs` is 27,812 lines,
+80 fewer than at the pushed producer-order checkpoint; the algorithm and its
+tests live outside that already-large file. The later physical-capacity ledger
+and amortized-reserve repair is preserved in local commit `d1ac3062`.
 
 Tests cover positive and negative mixed-height order, duplicate collapse,
 source-order-insensitive normalized output, unclassified-node rejection, a
