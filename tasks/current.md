@@ -12,9 +12,9 @@ polarity elimination, and product order preserved. The focused `f5c_` filter
 passes 160 tests; full F5c/F5e
 closure and the broader resource/public-observation gates remain open. The
 latest slice is recorded at the end of the F5c handoff and this file. The
-candidate-replay slice is pushed as `da9097db`. The Q/R rewrite is verified in
-both feature configurations and staged for a separate checkpoint; keep the
-§24 finalizer callback/API unchanged.
+candidate-replay slice is pushed as `da9097db`; the iterative Q/R rewrite is
+verified and pushed as `a41b9875` to `origin/yulang3`. Keep the §24 finalizer
+callback/API unchanged.
 
 ## Active F5 gate
 
@@ -24,8 +24,9 @@ preordering while retaining the prescribed stable-mergesort comparison count.
 That subgate is pushed in `fc34f127` and `e81b9e84`. Iterative boxed-tree
 materialization is pushed in `68952716`; producer analysis is pushed in
 `2366de39`; iterative candidate replay is pushed in `da9097db`. The Q/R
-substitution rewrite is now isolated in `f5c_binder_substitution.rs`, with two
-accounted lanes and 4,096-deep small-stack tests; `lib.rs` is 27,419 lines.
+substitution rewrite is isolated in `f5c_binder_substitution.rs`, pushed in
+`a41b9875`, with two accounted lanes and 4,096-deep small-stack tests;
+`lib.rs` is 27,419 lines.
 The focused `f5c_` suite passes 160 tests in default and no-default-feature
 configurations. Full F5c/F5e closure is not claimed: tree clone/drop, closed
 finalization inside the §24 callback, and co-resident draft/output-tree

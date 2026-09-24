@@ -1551,8 +1551,8 @@ unchanged.
 
 ## Iterative generalization Q/R substitution checkpoint (2026-09-24)
 
-The recursive local `positive`/`negative` rewrites at the end of
-`F5cGeneralizer::build_inner` now live in the private
+Under §§8, 9, 14, and 33, the recursive local `positive`/`negative` rewrites
+at the end of `F5cGeneralizer::build_inner` now live in the private
 `crates/yu-solver/src/f5c_binder_substitution.rs` task/value transform. It
 preserves R-before-Q mapping, polarity-specific elimination to `Bottom`/`Top`,
 Function polarity and canonical effects, Union/Intersection order, and the
@@ -1583,5 +1583,6 @@ This closes only recursive Q/R rewriting in `build_inner`. The task/value
 lanes do not certify co-resident boxed output payload; clone/drop and closed
 finalization within the §24 callback remain open, as do the other F5c/F5e
 resource/public-observation gates. Preserve the approved §24/F5b boundary and
-do not add the unapproved indexed `yu-types` API. Commit and push this coherent
-slice before expanding to another stack-safety path.
+do not add the unapproved indexed `yu-types` API. The implementation and
+records are checkpointed and pushed as `a41b9875`; map the next boundary-safe
+stack-safety path before expanding scope.
