@@ -13,9 +13,9 @@ the end of this file and in the handoff's final section.
 ## Active F5 gate
 
 Latest continuation note (2026-09-24): option B's height-major normalizer is
-implemented in a local F5c checkpoint candidate and its focused `f5c_` suite
-passes 144 tests. Do not call the normalization gate complete or push this
-candidate yet. A five-root permutation probe over the same quantified leaf set
+implemented in local checkpoint `b07de8fe`; its focused `f5c_` suite passes
+144 tests. Do not call the normalization gate complete or push this checkpoint
+yet. A five-root permutation probe over the same quantified leaf set
 produced identical normalized values but different exact mergesort comparison
 counters (18 versus 24), conflicting with F5 §36's requirement that root-order
 permutations preserve counters. The choice needed is whether to retain exact

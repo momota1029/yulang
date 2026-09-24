@@ -1334,7 +1334,9 @@ permutations yield identical counters. The temporary asserting test was removed
 after establishing the counterexample; do not treat the passing filtered suite
 as evidence that this requirement is satisfied.
 
-User direction is needed before resolving that conflict:
+This incomplete candidate is preserved in local commit `b07de8fe` on
+`yulang3`; it is not pushed. User direction is needed before resolving that
+conflict:
 
 1. Keep the exact input-sensitive comparison counter and narrow the
    root-permutation invariance requirement to ranks, normalized child order,
