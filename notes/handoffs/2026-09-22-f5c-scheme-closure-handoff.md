@@ -1457,11 +1457,9 @@ single-threaded attempt stopped after more than seven minutes in
 `f4_unbounded_cycle_scale_4k_keeps_direct_frontier_linear`, with no passing
 suite result; the earlier linearity discrepancy remains unresolved. This
 checkpoint is primary-only per user direction and has no independent review.
-F5c and F5e remain open. The immediate decision is whether to preserve exact
-§24/F5b authority and leave finalizer stack safety open while continuing only
-boundary-compatible work, or to return to independently reviewed design for a
-yu-types-owned indexed finalization API (with its producer-graph and complete
-capacity-accounting gaps resolved before asking for approval).
+F5c and F5e remain open. Continue only with boundary-compatible F5c slices.
+The indexed `yu-types` finalization API remains unapproved and must not be
+implemented without a new reviewed design and explicit user approval.
 
 ## Iterative producer-analysis traversal checkpoint (2026-09-24)
 
@@ -1497,11 +1495,55 @@ The implementation and records are committed and pushed at `2366de39` on
 
 Work remained primary-only at the user's explicit direction, with no
 independent reviewer. This closes only these producer-analysis walks. Recursive
-candidate replay, recursive binder substitution in `build_inner`, boxed-tree
-clone/drop, finalization under the §24 callback, complete ineligible-variable
-closure, non-pure Function effects, per-use failure atomicity, and the wider
-F5c/F5e resource/public-observation gates remain open. Keep the approved
-§24/F5b callback boundary and the §44 first-member representative unchanged;
-do not implement the unapproved indexed `yu-types` API. The next bounded
-stack-safety slice is iterative candidate replay/binder substitution with its
-own accounted lanes and small-stack parity tests.
+binder substitution in `build_inner`, boxed-tree clone/drop, finalization under
+the §24 callback, complete ineligible-variable closure, non-pure Function
+effects, per-use failure atomicity, and the wider F5c/F5e resource/public-
+observation gates remain open. Keep the approved §24/F5b callback boundary and
+the §44 first-member representative unchanged; do not implement the unapproved
+indexed `yu-types` API. The next bounded stack-safety slice is iterative Q/R
+binder substitution with its own accounted lanes and small-stack parity tests.
+
+## Iterative candidate-replay checkpoint (2026-09-24)
+
+Candidate replay no longer recursively rebuilds F5c boxed trees. The new
+private `crates/yu-solver/src/f5c_replay.rs` worklist preserves the prior
+polarity rules: unprotected positive-only variables become `Bottom`,
+unprotected negative-only variables become `Top`, and protected variables
+remain. Function arguments/results retain depth-first order, Function effects
+are canonicalized as before, and Union/Intersection member order is unchanged.
+All production replay callsites now propagate checked task/value-lane
+exhaustion as `IdentityExhausted`; candidate membership and §44 projection were
+not modified.
+
+The `ReplayTasks` and `ReplayValues` lanes are included in the walker resource
+summary and independent test ledger. Shallow positive/negative fixtures assert
+exact replay results, including protected rows and nested product order.
+Positive and negative depth-4,096 Function chains replay on a 64 KiB stack;
+the test iteratively consumes the outputs and checks each canonical effect,
+eliminated leaf, lane peak, release, and independent ledger reconciliation.
+`lib.rs` is 27,508 lines, 34 fewer than after the prior extraction; replay code
+is isolated in a 211-line private module and 209-line test sidecar.
+
+Verification passes: `cargo check -p yu-solver --tests`,
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (157 passed), the same
+filtered suite with `--no-default-features` (157 passed),
+`cargo check --workspace`, `cargo fmt --check`, and `git diff --check`. No
+benchmark or F5e matrix ran; measurement budget consumed: zero. The full
+yu-solver library suite was not run to completion; do not infer broader suite
+success. Work remained primary-only at the user's direction, without an
+independent reviewer.
+
+At the resumed continuation on 2026-09-24, Git metadata is writable again. The
+focused verification rerun passed and the six intended paths are explicitly
+staged. Commit this checkpoint, inspect the full outbound range, and push it
+to `origin/yulang3` before starting binder substitution.
+
+This closes only candidate replay recursion. It does not certify complete
+co-resident output-tree accounting: the two worklist lanes are accounted, but
+the transformed boxed payload is a separate open F5c accounting item. Recursive
+binder substitution in `build_inner`, clone/drop, closed finalization within
+the §24 callback, ineligible-variable rejection, effect closure, per-use
+failure atomicity, and F5c/F5e resource/public-observation gates remain open.
+The next bounded stack-safety slice is iterative Q/R binder substitution with
+accounted scratch and exact small-tree parity; keep the finalizer callback/API
+unchanged.

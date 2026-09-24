@@ -180,6 +180,7 @@ mod scc;
 use scc::{SccComponentId, SccPlan};
 mod f5c_materialization;
 mod f5c_normalization;
+mod f5c_replay;
 mod f5c_tree_analysis;
 #[cfg(test)]
 mod incoming_sample_trace;
@@ -3774,10 +3775,12 @@ enum F5cWalkerLaneKind {
     DraftMaterializeTasks = 11,
     DraftMaterializeValues = 12,
     AnalysisTasks = 13,
+    ReplayTasks = 14,
+    ReplayValues = 15,
 }
 
 impl F5cWalkerLaneKind {
-    const ALL: [Self; 14] = [
+    const ALL: [Self; 16] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -3792,6 +3795,8 @@ impl F5cWalkerLaneKind {
         Self::DraftMaterializeTasks,
         Self::DraftMaterializeValues,
         Self::AnalysisTasks,
+        Self::ReplayTasks,
+        Self::ReplayValues,
     ];
 
     fn slot_size(self) -> usize {
@@ -3810,6 +3815,8 @@ impl F5cWalkerLaneKind {
             Self::DraftMaterializeTasks => std::mem::size_of::<f5c_materialization::Task>(),
             Self::DraftMaterializeValues => std::mem::size_of::<F5cWalkValue>(),
             Self::AnalysisTasks => std::mem::size_of::<f5c_tree_analysis::Task<'static>>(),
+            Self::ReplayTasks => std::mem::size_of::<f5c_replay::Task<'static>>(),
+            Self::ReplayValues => std::mem::size_of::<F5cWalkValue>(),
         }
     }
 }
@@ -3824,12 +3831,12 @@ struct F5cWalkerLane {
 
 #[derive(Default)]
 struct F5cWalkerResources {
-    lanes: [F5cWalkerLane; 14],
+    lanes: [F5cWalkerLane; 16],
     peak_bytes: usize,
     simultaneous_memo_peak_bytes: usize,
     observed_memo_bytes: usize,
     #[cfg(test)]
-    independent_lanes: [F5cWalkerLane; 14],
+    independent_lanes: [F5cWalkerLane; 16],
     #[cfg(test)]
     independent_peak_bytes: usize,
     #[cfg(test)]
@@ -6452,96 +6459,20 @@ impl<'a> F5cGeneralizer<'a> {
         let Some((lower, upper)) = raw_recursive_bounds.get(&owner) else {
             return false;
         };
-        let lower = Self::replay_positive(lower, protected, positive_only, negative_only);
-        let upper = Self::replay_negative(upper, protected, positive_only, negative_only);
         let mut memo = F5cComponentExpansionMemo::default();
+        let Ok(lower) =
+            f5c_replay::replay_positive(&mut memo, lower, protected, positive_only, negative_only)
+        else {
+            return false;
+        };
+        let Ok(upper) =
+            f5c_replay::replay_negative(&mut memo, upper, protected, positive_only, negative_only)
+        else {
+            return false;
+        };
         f5c_tree_analysis::Walker::new(&mut memo)
             .guarded_bound_survives(owner, &lower, &upper)
             .unwrap_or(false)
-    }
-
-    fn replay_positive(
-        value: &F5cPositive,
-        protected: &HashSet<u32>,
-        positive_only: &HashSet<u32>,
-        negative_only: &HashSet<u32>,
-    ) -> F5cPositive {
-        match value {
-            F5cPositive::Variable(owner)
-                if !protected.contains(owner) && positive_only.contains(owner) =>
-            {
-                F5cPositive::Bottom
-            }
-            F5cPositive::Function {
-                argument, result, ..
-            } => F5cPositive::Function {
-                argument: Box::new(Self::replay_negative(
-                    argument,
-                    protected,
-                    positive_only,
-                    negative_only,
-                )),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(Self::replay_positive(
-                    result,
-                    protected,
-                    positive_only,
-                    negative_only,
-                )),
-            },
-            F5cPositive::Union(values) => F5cPositive::Union(
-                values
-                    .iter()
-                    .map(|value| {
-                        Self::replay_positive(value, protected, positive_only, negative_only)
-                    })
-                    .collect(),
-            ),
-            other => other.clone(),
-        }
-    }
-
-    fn replay_negative(
-        value: &F5cNegative,
-        protected: &HashSet<u32>,
-        positive_only: &HashSet<u32>,
-        negative_only: &HashSet<u32>,
-    ) -> F5cNegative {
-        match value {
-            F5cNegative::Variable(owner)
-                if !protected.contains(owner) && negative_only.contains(owner) =>
-            {
-                F5cNegative::Top
-            }
-            F5cNegative::Function {
-                argument, result, ..
-            } => F5cNegative::Function {
-                argument: Box::new(Self::replay_positive(
-                    argument,
-                    protected,
-                    positive_only,
-                    negative_only,
-                )),
-                argument_effect: F5cPositiveEffect::Bottom,
-                result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(Self::replay_negative(
-                    result,
-                    protected,
-                    positive_only,
-                    negative_only,
-                )),
-            },
-            F5cNegative::Intersection(values) => F5cNegative::Intersection(
-                values
-                    .iter()
-                    .map(|value| {
-                        Self::replay_negative(value, protected, positive_only, negative_only)
-                    })
-                    .collect(),
-            ),
-            other => other.clone(),
-        }
     }
 
     #[cfg(test)]
@@ -6802,8 +6733,20 @@ impl<'a> F5cGeneralizer<'a> {
                 let Some((lower, upper)) = raw_recursive_bounds.get(owner) else {
                     continue;
                 };
-                let lower = Self::replay_positive(lower, &previous, &positive_only, &negative_only);
-                let upper = Self::replay_negative(upper, &previous, &positive_only, &negative_only);
+                let lower = f5c_replay::replay_positive(
+                    &mut self.memo,
+                    lower,
+                    &previous,
+                    &positive_only,
+                    &negative_only,
+                )?;
+                let upper = f5c_replay::replay_negative(
+                    &mut self.memo,
+                    upper,
+                    &previous,
+                    &positive_only,
+                    &negative_only,
+                )?;
                 if f5c_tree_analysis::Walker::new(&mut self.memo)
                     .guarded_bound_survives(*owner, &lower, &upper)?
                 {
@@ -6823,8 +6766,13 @@ impl<'a> F5cGeneralizer<'a> {
                         })
                     })
             });
-            let replayed_predicate =
-                Self::replay_positive(&predicate, &candidates, &positive_only, &negative_only);
+            let replayed_predicate = f5c_replay::replay_positive(
+                &mut self.memo,
+                &predicate,
+                &candidates,
+                &positive_only,
+                &negative_only,
+            )?;
             let mut reachable = HashSet::new();
             {
                 let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
@@ -6854,8 +6802,20 @@ impl<'a> F5cGeneralizer<'a> {
             let (lower, upper) = raw_recursive_bounds
                 .get(owner)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            let lower = Self::replay_positive(lower, &candidates, &positive_only, &negative_only);
-            let upper = Self::replay_negative(upper, &candidates, &positive_only, &negative_only);
+            let lower = f5c_replay::replay_positive(
+                &mut self.memo,
+                lower,
+                &candidates,
+                &positive_only,
+                &negative_only,
+            )?;
+            let upper = f5c_replay::replay_negative(
+                &mut self.memo,
+                upper,
+                &candidates,
+                &positive_only,
+                &negative_only,
+            )?;
             retained_bounds.insert(*owner, (lower, upper));
         }
         let mut surviving_bound_owners = HashSet::new();
@@ -6890,8 +6850,13 @@ impl<'a> F5cGeneralizer<'a> {
                 recursive_owners.push(trace.owner);
             }
         }
-        let retained_predicate =
-            Self::replay_positive(&predicate, &recursive_set, &positive_only, &negative_only);
+        let retained_predicate = f5c_replay::replay_positive(
+            &mut self.memo,
+            &predicate,
+            &recursive_set,
+            &positive_only,
+            &negative_only,
+        )?;
         let first_occurrences = Self::retained_occurrences(
             &retained_predicate,
             &recursive_owners,
@@ -7231,7 +7196,7 @@ struct IndependentResourceLedger {
     generalization_walker_retained_bytes: usize,
     generalization_walker_peak_bytes: usize,
     generalization_walker_capacity_growths: usize,
-    generalization_walker_lanes: [IndependentMemoLane; 14],
+    generalization_walker_lanes: [IndependentMemoLane; 16],
     closed_normalization_index_requested_slots: usize,
     closed_normalization_index_actual_capacity: usize,
     closed_normalization_index_retained_bytes: usize,
@@ -15123,6 +15088,7 @@ impl SolvedModule {
 mod tests {
     use super::*;
     mod f5c_materialization;
+    mod f5c_replay;
     mod f5c_scratch_reserve;
     mod f5c_tree_analysis;
     mod f5c_value_exact_upper_route;

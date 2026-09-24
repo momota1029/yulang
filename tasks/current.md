@@ -4,14 +4,17 @@ Updated: 2026-09-24. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-Latest status (2026-09-24): iterative producer analysis now covers guarded
-owner search, recursive-owner references, polarity incidence, first-occurrence
-ordering, and Term value-row collection. The task stack has a dedicated lane in
-the existing physical walker ledger. Both positive/negative boxed trees and a
-deep Term chain pass on 64 KiB stacks. The focused `f5c_` filter passes 155
-tests; full F5c/F5e closure and the broader resource/public-observation gates
-remain open. The latest slice is recorded at the end of the F5c handoff and
-this file.
+Latest status (2026-09-24): producer analysis and candidate replay now use
+iterative task/value worklists with dedicated lanes in the existing physical
+walker ledger. Deep positive/negative boxed trees and Term chains pass on
+64 KiB stacks, with DFS, first-occurrence, polarity elimination, and product
+order preserved. The focused `f5c_` filter passes 157 tests; full F5c/F5e
+closure and the broader resource/public-observation gates remain open. The
+latest slice is recorded at the end of the F5c handoff and this file. The
+candidate-replay slice has passed the focused verification rerun in both
+feature configurations and is staged as a coherent checkpoint. Git metadata is
+writable again; commit, inspect the full outbound range, and push this slice
+before beginning binder substitution.
 
 ## Active F5 gate
 
@@ -19,14 +22,12 @@ Latest continuation note (2026-09-24): the user selected option B for the
 counter conflict: preserve §36 all-counter invariance with canonical
 preordering while retaining the prescribed stable-mergesort comparison count.
 That subgate is pushed in `fc34f127` and `e81b9e84`. Iterative boxed-tree
-materialization is pushed in `68952716`. The new producer-analysis slice moves
-guarded-owner, reference, incidence, occurrence, and Term-row traversals into
-`f5c_tree_analysis.rs`; its `AnalysisTasks` lane is tracked by the existing
-walker ledger. `lib.rs` is now 27,542 lines, 158 fewer than before this
-extraction. The slice passes the focused `f5c_` suite (155 tests) in default
-and no-default-feature configurations, plus workspace check, formatting, and
-diff checks; checkpoint `2366de39` is pushed to `origin/yulang3`. Full F5c/F5e
-closure is not claimed: recursive replay and binder
+materialization is pushed in `68952716`; producer analysis is pushed in
+`2366de39`. Candidate replay is now an iterative private transform in
+`f5c_replay.rs`, with accounted task/value lanes and 4,096-deep small-stack
+tests. `lib.rs` is 27,508 lines.
+The focused `f5c_` suite passes 157 tests in default and no-default-feature
+configurations. Full F5c/F5e closure is not claimed: recursive binder
 substitution, tree clone/drop, closed finalization inside the §24 callback, and
 co-resident draft/output-tree accounting remain open. Preserve §24/F5b; do not
 implement the unapproved indexed `yu-types` API.
