@@ -1797,3 +1797,32 @@ design-only pass toward a reviewed `yu-types`-owned indexed boundary (which
 would require an explicit §24 change before implementation). A later producer
 should live behind a dedicated module boundary; this map does not refactor the
 already-large `lib.rs`.
+
+## User product priority and bounded finalizer direction (2026-09-24)
+
+The user now delegates the technical path choice: Yulang should match its
+frozen Oracle on practical inputs and stay lightweight; pathologically deep,
+large, or resource-intensive inputs may be rejected deterministically if
+basic safety, accepted-input invariants, and no-partial-publication remain
+intact. The durable rule is in `rules/design-authority.md` and passed a focused
+independent spec audit. This permits choosing a bounded supported-input
+envelope, but does not silently supersede narrower F5 authority.
+
+A primary-requested Sol architect review recommends first pursuing a bounded
+current-§24 implementation rather than the new indexed `yu-types` API. The
+limit must prevent over-limit boxed values from being built in the first
+place, then hold through replay, binder substitution, summary materialization,
+normalization and finalization; rejecting only before finalization is too late
+because destroying the rejected box tree may overflow. It also flags the
+callback-local Q/R/bound/product vectors as overlapping `yu-types` storage
+whose accounting is not represented by the current checkpoint. A bounded
+stack-only path might avoid those allocations, but that remains unverified.
+
+This is a conditional design direction, not an approved cap or implementation
+gate. The source audit must enumerate every production tree constructor and
+error exit, locate the earliest cheap pre-construction check, verify the public
+failure surface and callback accounting, then draft a concrete gate for
+independent spec/performance review. If that cannot preserve practical Oracle
+behavior and safe cleanup without disproportionate machinery, reconsider the
+indexed flat-graph fallback. Keep approved Q/R order, height-major
+normalization, and §44's canonical first-member projection fixed.

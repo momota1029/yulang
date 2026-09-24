@@ -785,3 +785,53 @@ and only then ask for explicit §24 approval. This section itself grants none
 of those approvals. It also does not shrink or refactor `lib.rs`; any later
 implementation should place the indexed producer/finalizer bridge behind a
 dedicated module boundary rather than growing the already large entrypoint.
+
+## 9. Delegated product priority and bounded-path recommendation (2026-09-24)
+
+Status: proposal; the user delegated technical path selection under the product
+priorities now recorded in `rules/design-authority.md`; this section is not an
+approval of a concrete limit or implementation.
+
+The user prioritizes Oracle-compatible behavior for practical inputs and a
+lightweight implementation/success path. Deterministic rejection of
+pathologically deep, large, or resource-intensive inputs is acceptable when
+the boundary is explicit and preserves memory safety, accepted-input solver
+invariants, and atomic publication. This permits a bounded supported-input
+envelope; it does not authorize silently changing results within that envelope.
+
+The primary's provisional direction is a bounded version of Boundary A: keep
+the current §24 callback and boxed representation, and reject drafts that
+exceed a conservative structural-depth limit before any over-limit box is
+created. Add a constructed-node/work budget only where the source audit shows
+that it is needed to prevent materialization or product expansion from
+creating disproportionate work/storage. This is preferred over a new public
+indexed API and end-to-end graph rewrite because it can preserve the existing
+transaction owner and ordinary-input semantics with less machinery. Boundary
+B is not selected: an iterative callback worklist does not itself solve boxed
+draft destruction or joint peak accounting. Candidate C remains the fallback
+if the bounded path cannot cover every producer and error exit without
+disproportionate machinery.
+
+A primary-requested Sol architect review recommended this same bounded path,
+subject to an exact source audit. It identified the critical placement rule:
+the limit must be checked before the first over-limit owned tree is built,
+then maintained through replay, binder substitution, materialization,
+normalization, and finalization. A late pre-finalizer rejection is unsafe
+because dropping the rejected draft can itself recurse. The review also
+flagged callback-local Q/R handle arrays, recursive-bound storage, and product
+child vectors whose capacities overlap `yu-types` finalizer storage; F5b's
+current checkpoint has no joint-peak field and the source needs accounting
+reconciliation. A bounded stack-only representation may resolve this, but that
+is an unverified possibility, not a design fact. No threshold or mechanism is
+yet chosen, and no code, test expectation, §24 API, or F5b authority changes in
+this section.
+
+The next gate is a producer/error-exit audit that determines whether depth and
+work bounds can be enforced before allocation at every owning transition,
+without adding an unbounded scan or changing successful behavior below the
+limit. It must identify how an over-limit input is reported and verify that
+partial walker values, earlier component drafts, and finalizer overlays leave
+no publication behind. Only after a concrete boundary is drafted and
+independently reviewed should implementation begin; if an existing
+Authoritative F5 contract changes, the approval and supersession gate in
+`rules/design-authority.md` still applies.

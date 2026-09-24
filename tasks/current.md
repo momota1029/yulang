@@ -49,10 +49,26 @@ call; F5b's checkpoint has no joint peak field, and the authority gives no
 explicit exclusion for these capacities. This is an accounting question, not
 an approved F5b change. The property map is primary-authored and has no
 independent review; no code or API changed. See §8 of the indexed-finalization
-Draft and the end of the handoff. The next genuine boundary choice is whether
-to keep §24 unchanged and leave this gate open, or continue a design-only pass
-for a reviewed `yu-types`-owned indexed boundary that would change §24; neither
-option authorizes implementation yet.
+Draft and the end of the handoff. The earlier choice between preserving §24
+and continuing Candidate C was superseded by the user's product direction
+below: choose the lightest route preserving Oracle behavior for practical
+inputs, with deterministic rejection permitted for pathological inputs.
+
+User direction (2026-09-24): prioritize Oracle-compatible behavior on
+practical inputs and a lightweight implementation/success path; deterministic
+rejection of pathologically deep, large, or resource-intensive files is
+acceptable when basic safety and atomic publication remain intact. This is
+recorded in `rules/design-authority.md` and passed a focused independent policy
+review. A Sol architect review recommends first testing a bounded current-§24
+path instead of the indexed API: enforce a conservative depth limit before
+constructing an over-limit boxed tree, and add a work/node budget only if the
+source audit requires one. This is provisional, not implementation approval.
+The audit must cover all tree-producing/error paths and reconcile the callback-
+local allocations identified above. Candidate C remains fallback if the
+bounded route cannot meet those conditions cheaply. Immediate next step:
+trace every production `Box::new` and its input-bound invariant, locate a
+pre-construction rejection point, and verify the existing availability-error
+surface; then seek focused spec/performance review of a concrete bounded gate.
 
 §23's ineligible-variable rejection subgate is now reconciled closed for the
 represented F5c row sources: eligibility gates both one-sided elimination and

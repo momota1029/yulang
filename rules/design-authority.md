@@ -14,6 +14,39 @@ Authority is scope-sensitive. A broad architecture document does not decide an u
 
 Implementation convenience never overrides an authoritative decision. When code and design appear inconsistent, stop the affected write, identify the exact conflict, and return it to the primary agent for adjudication or a user decision.
 
+## User-selected product priorities (2026-09-24)
+
+The user's product priority is Oracle-compatible observable behavior on the
+practical supported-input envelope, with a lightweight implementation and
+successful path. Do not trade away ordinary-input semantics for an
+implementation shortcut or a theoretical optimization.
+
+The user also accepts a bounded support envelope: pathologically deep, large,
+or resource-intensive inputs may be rejected rather than supported at
+arbitrary scale. This is permission to choose a proportionate deterministic
+limit, not a requirement to build exhaustive recovery for every malformed or
+resource-exhausting case. When choosing that boundary:
+
+- Preserve memory safety, solver invariants for accepted inputs, and atomic
+  publication. Reject before a limit can turn into stack exhaustion, runaway
+  work/allocation, or partially visible output.
+- State the measured or structural dimension and the deterministic rejection
+  point. Do not silently truncate, approximate, or return a changed result.
+- Oracle divergence is acceptable only outside the explicitly documented
+  practical envelope; treat mismatches within it as bugs.
+- Prefer the smallest mechanism that protects ordinary use. Do not add broad
+  machinery solely for fantastically large or impossible cases when an early
+  bounded rejection preserves the required safety properties.
+
+This priority guides tradeoffs but does not silently rewrite a narrower
+Authoritative language/API contract. For each affected feature, the concrete
+supported-input boundary and failure behavior must be recorded in a narrow
+addendum. If that changes an existing Authoritative contract, the addendum
+must pass independent review, receive explicit user approval, and record its
+supersession before implementation, following the approval gate below. The
+user's delegation is to choose a practical route under these priorities, not
+to conceal its observable boundary or its performance cost.
+
 ## Design status
 
 New design documents use:

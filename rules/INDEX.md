@@ -4,7 +4,9 @@
 
 ## Authority and orchestration
 
-- [`design-authority.md`](design-authority.md) — authority order, design status, approval, supersession, and legacy provenance.
+- [`design-authority.md`](design-authority.md) — authority order,
+  user-selected Oracle-fidelity/lightweight priorities and bounded rejection
+  envelope, design status, approval, supersession, and legacy provenance.
 - [`orchestration-budget.md`](orchestration-budget.md) — lightweight operating modes, reviewer limits, review convergence, delta review, measurement/verification budgets, and progress-record ownership. It is authoritative over broader reviewer-count wording elsewhere.
 - [`agent-orchestration.md`](agent-orchestration.md) — specialist roles, task routing, information isolation, review loops, and handoffs.
 - [`legacy-compatibility.md`](legacy-compatibility.md) — interpretation of historical Claude/Codex/Fable/Level terminology without reviving retired policy.
