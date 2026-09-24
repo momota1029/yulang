@@ -1721,7 +1721,7 @@ scheme, closed candidate, or retained closed-byte change. Verification on
 This closes the §23 ineligible-variable rejection subgate for the represented
 F5c variable sources and its component no-partial-publication path. It does not
 close all generalization semantics, stack-safe finalization/destruction, the
-remaining availability-lane matrix, or F5c/F5e certification. No production
+full §3 accounting/measurement gate, or F5c/F5e certification. No production
 code changed; this audit had no independent reviewer under the user's
 primary-only direction. The exact-alpha/normalization decision and other gates
 remain separate.

@@ -92,11 +92,13 @@ reconciliation, then retry successfully. The `ValueLevels`, `ValueMetadata`,
 and `ExtrusionValueMarks` witnesses prove exact aggregate growth and event-peak
 preservation. The metadata and marks tests independently recompute
 post-rollback totals from live capacities through a fresh independent ledger.
-Focused M1 specification delta reviews are clean for these lanes.
-This closes only the named lanes; the remaining owner-to-route witness matrix
-still needs reconciliation. Pure Function effects remain limited to closed
-`EmptyEffect`/`EffectBottom`, so live effect-row mutation lanes remain outside
-the current per-use matrix. The earlier
+Focused M1 specification delta reviews are clean for these lanes. The later
+§3 crosswalk at the end of the handoff reconciles the owner-to-route witness
+matrix for the current approved closed-pure Function route set, including the
+conditional final-sample overflow case. Live effect-row mutation remains
+outside this route set. The full §3 accounting/measurement gate is still open:
+the successful-path sampler-cost comparison was invalid and its conservative
+process budget is exhausted. The earlier
 direct-owner `ValueBounds` injection-site finding was closed after moving
 injection inside its transaction. The incoming `FreshValueBounds` witness is
 now `f5c_incoming_fresh_value_bounds_growth_samples_before_rollback_and_retries`
