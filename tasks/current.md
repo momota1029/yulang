@@ -39,6 +39,21 @@ caller-local scratch. A successful iterative finalizer would also leave the
 owned boxed input to recursively drop. No code was added; a reviewed design
 decision on joint accounting plus draft destruction is still required.
 
+Latest continuation (2026-09-24): the indexed-finalization Draft now has a
+proposal-only property comparison of the current callback, callback-local
+worklists, and a `yu-types`-owned indexed transaction. It makes the distinction
+explicit: iterative visitation alone does not prevent recursive destruction
+of the boxed draft. A source check also found callback-local Q/R handle arrays,
+recursive-bound storage, and product-child vectors overlapping the `yu-types`
+call; F5b's checkpoint has no joint peak field, and the authority gives no
+explicit exclusion for these capacities. This is an accounting question, not
+an approved F5b change. The property map is primary-authored and has no
+independent review; no code or API changed. See §8 of the indexed-finalization
+Draft and the end of the handoff. The next genuine boundary choice is whether
+to keep §24 unchanged and leave this gate open, or continue a design-only pass
+for a reviewed `yu-types`-owned indexed boundary that would change §24; neither
+option authorizes implementation yet.
+
 §23's ineligible-variable rejection subgate is now reconciled closed for the
 represented F5c row sources: eligibility gates both one-sided elimination and
 Q/R assignment, the pre-rewrite census rejects remaining unclassified rows,

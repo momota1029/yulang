@@ -1770,3 +1770,30 @@ new independently reviewed design round for a `yu-types`-owned iterative
 construction/accounting boundary and an explicit draft-destruction strategy;
 do not implement Candidate B or change §24 without that approval. No tests or
 benchmarks ran for this read-only checkpoint.
+
+## Property-oriented finalizer boundary map (2026-09-24)
+
+The indexed-finalization Draft's new §8 compares three choices in terms of
+preserved and lost properties: current recursive HRTB callback, local iterative
+worklists inside that callback, and a `yu-types`-owned indexed transaction with
+flat solver drafts. The key distinction is end-to-end stack safety: loops can
+remove recursive visitation, but a nested boxed input still recursively drops
+on both success and checked error cleanup. A flat representation is useful only
+if it replaces the boxed ownership path through expansion, replay, Q/R rewrite,
+normalization, finalization, and error cleanup.
+
+The source also exposes callback-local Q/R handle arrays, recursive-bound
+storage, and per-product child vectors that coexist with finalizer storage.
+F5b's result checkpoint reports only `yu-types` bytes and §6 freezes non-
+`yu-types` resource lanes; no explicit exclusion for these temporary
+capacities was found. This is recorded as an accounting question, not a ruling
+that the current counters are incorrect and not authorization to alter F5b.
+It needs adjudication before any design claims exact whole-call peak evidence.
+
+The property map is primary-authored, has no independent review, and changes
+neither code nor §24. Candidate B remains Draft and unapproved. The next
+decision is whether to preserve §24 and leave this gate open, or continue a
+design-only pass toward a reviewed `yu-types`-owned indexed boundary (which
+would require an explicit §24 change before implementation). A later producer
+should live behind a dedicated module boundary; this map does not refactor the
+already-large `lib.rs`.

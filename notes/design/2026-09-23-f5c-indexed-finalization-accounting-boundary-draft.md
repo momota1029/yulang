@@ -738,3 +738,50 @@ producer/alpha decision is resolved and the complete candidate receives a
 clean M2 review. The §26 all-drafts-coexist sample boundary is authorized; no
 additional post-failure boundary is proposed by this Draft. No code, tests,
 benchmarks, commits, or pushes changed in this design-review continuation.
+
+## 8. Property-oriented boundary comparison (2026-09-24)
+
+Status: proposal-only clarification; primary-authored; not independently
+reviewed; no implementation or §24 API change is approved by this section.
+
+This section compares what the three finalization boundaries preserve and what
+they cannot guarantee. It does not supersede the prior M2 findings or present
+Candidate B as ready for approval. The authoritative 2026-09-24 producer-order
+and normalization addenda remain in force: Q/R encounter order, height-major
+normalization, and §44's first-canonical-member public Union representative
+are not reopened here. Pending alpha/order and failed-route statements in the
+older dated review sections are historical and do not override those later
+decisions.
+
+For this gate, “stack-safe” means more than using loops while visiting nodes.
+The complete success and failure paths must also release every owned deep
+draft without recursive destruction. A nested boxed tree still recursively
+drops its children even when the algorithm that built or inspected it used an
+explicit worklist. Partial task/value trees on checked error exits count too.
+
+| Boundary | Preserves | Costs or changes | Cannot guarantee |
+|---|---|---|---|
+| **A. Current recursive callback** | Exact §24 API, transaction-scoped handles, and overlay rollback on callback error. | Recursive finalizer traversal; boxed drafts remain owned through finalization. | Stack-safe traversal or success/error destruction. Callback-local temporary-vector accounting also remains unresolved below. |
+| **B. Worklists inside the callback** | Existing method signature; handles stay within the HRTB lifetime; overlay rollback; traversal order can be made explicit. | Solver-owned heap worklists overlap finalizer storage; the current checkpoint has no exact joint-peak value, and F5b freezes those solver lanes. | Stack-safe destruction of the still-boxed input, or exact co-resident accounting under the current boundary. |
+| **C. `yu-types` indexed transaction + flat solver drafts** | Transaction ownership of handles, validation, and publication; atomic commit/rollback can remain. With producer parity, it can preserve scheme semantics, Q/R order, canonical normalization, and §44 projection. | Adds a public `#[doc(hidden)]` construction API, changes §24, and requires tracked flat arrays/maps/worklists. Indexed-pass bounds do not bound replay, R fixed-point, normalization, or the whole producer. | Safe destruction if used only as an adapter over boxed drafts; no stack-safety claim until the producer and error cleanup are flat end-to-end. |
+
+One additional source/authority mismatch is visible in the present
+`finalize_generalization_draft_raw`: its callback-local `Vec`s coexist with
+`yu-types` finalizer storage, while the F5b checkpoint measures only the
+latter. The reviewed authority contains no explicit exclusion for those
+capacities. This section records that as an accounting question to adjudicate,
+not as a claim that the current counter is wrong or permission to alter F5b.
+Any selected design must either place such storage under an already authorized
+accounting owner or obtain a reviewed, explicit boundary decision.
+
+The least scope-changing choice is to keep §24 unchanged and leave deep
+finalization/destruction open; this preserves the approved API but does not
+close stack safety. The only currently specified route that could combine
+iterative transaction construction with flat, non-recursively-dropped drafts
+is Candidate C or an equivalent `yu-types`-owned boundary. Pursuing it is a
+design-only step: first reconcile callback-local accounting, then complete
+producer parity/reachability and flat cleanup, obtain independent M2 review,
+and only then ask for explicit §24 approval. This section itself grants none
+of those approvals. It also does not shrink or refactor `lib.rs`; any later
+implementation should place the indexed producer/finalizer bridge behind a
+dedicated module boundary rather than growing the already large entrypoint.
