@@ -1126,5 +1126,6 @@ The focused test and all 57 `f5c_incoming_` tests pass, along with
 `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
 `git diff --check`. Primary-only M1 work follows the user's explicit request;
 there is no independent review. No benchmark was run. The test/record slice is
-verified locally; checkpoint it before the next §3 lane audit. The complete
-§3 accounting/measurement gate, F5c, and F5e remain open.
+checkpointed as `559a2d91` and pushed to `origin/yulang3` before the next §3
+lane audit. The complete §3 accounting/measurement gate, F5c, and F5e remain
+open.

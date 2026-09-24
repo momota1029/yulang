@@ -598,8 +598,8 @@ independent reviewer was used. The corresponding `ExtrusionStack` witness now
 derives its exact event delta and peak, proves post-rollback transient-capacity
 release against the independent retained ledger, and retries through public
 route records; that test has been moved from `lib.rs` into the same sidecar.
-This next M1 test-only slice is verified locally and should be checkpointed
-before another code change. Then audit the remaining per-use owner-to-route
+This next M1 test-only slice is checkpointed as `559a2d91` and pushed to
+`origin/yulang3`. Then audit the remaining per-use owner-to-route
 lanes against the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
