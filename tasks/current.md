@@ -588,8 +588,8 @@ checkpointed as `38d40b01` and pushed to `origin/yulang3`. The incoming
 it checks exact observed outer-row capacity deltas and event peaks, exactly
 one post-rollback sample, independent retained/nested reconciliation, complete
 RouteCheckpoint restoration, and retry publication. Its old test body was
-moved out of `lib.rs`, which shrank by 75 lines. The new M1 test-only slice is
-verified locally and should be committed/pushed before another code change.
+moved out of `lib.rs`, which shrank by 75 lines. The M1 test-only slice is
+checkpointed as `e226f8b4` and pushed to `origin/yulang3`.
 The primary handled it directly per the user's no-subagent instruction, so no
 independent reviewer was used. Next, audit the remaining per-use owner-to-route
 lanes against the complete §3 list. Keep sampler-cost

@@ -1104,6 +1104,6 @@ test check, workspace formatting check, and whitespace check. The user asked
 for primary-only work without subagents, so this M1 slice has primary diff
 inspection but no independent reviewer. No benchmark or sampler-cost
 measurement was run; that measurement budget remains exhausted without a
-valid comparison. Checkpoint this verified slice before the next code gate.
-Next: reconcile the remaining per-use owner-to-route lanes against §3. The
-full §3 gate, F5c, and F5e remain open.
+valid comparison. This slice is checkpointed as `e226f8b4` and pushed to
+`origin/yulang3`. Next: reconcile the remaining per-use owner-to-route lanes
+against §3. The full §3 gate, F5c, and F5e remain open.
