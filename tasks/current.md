@@ -66,9 +66,20 @@ source audit requires one. This is provisional, not implementation approval.
 The audit must cover all tree-producing/error paths and reconcile the callback-
 local allocations identified above. Candidate C remains fallback if the
 bounded route cannot meet those conditions cheaply. Immediate next step:
-trace every production `Box::new` and its input-bound invariant, locate a
-pre-construction rejection point, and verify the existing availability-error
-surface; then seek focused spec/performance review of a concrete bounded gate.
+the source audit found recursive finalization/drop of boxed drafts plus possible
+repeated shared-summary expansion. A first revised Draft proposed depth 128,
+65,536 output commits, and per-lane caps; independent spec/performance review
+rejected it as insufficiently owned and pre-enforced. Sol's adjudication now
+recommends a narrower partial gate: cap structural depth at 128 before any
+over-depth parent is built, keep the §24 callback and boxed representation, and
+leave shallow width/shared-summary resource amplification explicitly open.
+This is stack-safety progress only, not F5c/F5e resource closure. The proposal
+has passed focused M2 spec/performance delta review with no blocking/major
+findings; it remains pending explicit user approval of the exact depth/error
+boundary. Implementation must not begin before that gate.
+See
+[`F5c bounded boxed-draft gate`](../notes/design/2026-09-24-f5c-bounded-boxed-draft-gate-draft.md)
+and the appended handoff section.
 
 §23's ineligible-variable rejection subgate is now reconciled closed for the
 represented F5c row sources: eligibility gates both one-sided elimination and

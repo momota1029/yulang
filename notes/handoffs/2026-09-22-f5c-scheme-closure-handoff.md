@@ -1826,3 +1826,59 @@ independent spec/performance review. If that cannot preserve practical Oracle
 behavior and safe cleanup without disproportionate machinery, reconsider the
 indexed flat-graph fallback. Keep approved Q/R order, height-major
 normalization, and §44's canonical first-member projection fixed.
+
+## Bounded boxed-draft gate proposal (2026-09-24)
+
+The focused source audit confirmed the main end-to-end stack boundary: iterative
+F5c producers still create recursively dropped Box/Vec trees, and
+`finalize_generalization_draft_raw` recursively consumes those trees inside the
+unchanged §24 callback. `Term` inputs themselves are arena handles, so a guard
+can be enforced while producing solver-owned draft values rather than while
+dropping a deep source `Term`.
+
+Sol's focused architect judgment: depth metadata plus a pre-normalization
+height check is not enough unless every boxed-tree transition checks before
+constructing a parent and partial values remain bounded. A depth cap alone also
+does not bound shallow width or repeated expansion of shared summaries. Sol
+recommended a low-hundreds depth ceiling, selected through 64 KiB small-stack
+tests of finalization and both success/error destruction; keep §24 if those
+checks pass, otherwise fall back to a flat/indexed ownership path. Sol also
+recommended reusing `IdentityExhausted` for the scoped rejection rather than
+adding a public variant absent a confirmed consumer need.
+
+The primary drafted
+[`F5c bounded boxed-draft gate`](../design/2026-09-24-f5c-bounded-boxed-draft-gate-draft.md)
+for review. The first M2 pass found blocking gaps: budget ownership across the
+memo-clear/normalization boundary; insufficient check-before-parent/error-drop
+proof; ambiguous pending-lane meaning; overbroad atomicity wording; and no
+pre-scheduling charge for shared-summary expansion. The primary accepted those
+findings.
+
+A second Sol adjudication, after the broader work/byte budget failed two M2
+review rounds, selects a depth-only subgate as the lightest credible progress.
+It keeps the current boxed representation and §24 callback, proposes maximum
+structural depth 128, and requires a pre-parent check at every producer so an
+over-depth tree is never built or dropped. It explicitly does not bound shallow
+width, repeated shared-summary expansion, aggregate work, or total memory;
+those remain separate F5c/F5e resource gates. This is partial stack-safety
+progress, not general resource protection or F5c/F5e closure.
+
+The new Draft names all current production tree builders and error/drop
+boundaries, preserves §§24/44 for accepted depths, and narrows the §14
+clarification to the stack-safety sentence rather than claiming §14 promised
+unlimited depth. Sol also confirmed the narrow atomicity wording: every member
+in a component is finalized before its scheme-install loop, and consuming
+`run(self)` returns no `SolvedModule` on any error; this is no partial public
+result, not rollback of private staged arena bytes. The proposed 128 boundary
+is unverified until small-stack tests run after approval.
+
+Focused M2 `spec_auditor` and `performance_auditor` delta reviews completed on
+2026-09-24 with no blocking or major findings. The spec review closed the
+construction/error-drop proof, the narrow §14 authority boundary, and the
+depth-2,048 test approval gate. The performance review closed the extra-scan
+concern; its minor finding clarified that `push_node` may copy child IDs and
+grow flat scratch before detecting excessive height, so rejection is not a
+zero-cost failure path. Sidecar size, successful-path cost, all-producer
+coverage, and 64 KiB stack safety remain implementation checks. The proposal
+is now marked Reviewed, not Authoritative. Next: request explicit user approval
+of depth 128 and `IdentityExhausted` above it; do not implement before that.
