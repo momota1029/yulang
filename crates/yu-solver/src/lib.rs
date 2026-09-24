@@ -3641,17 +3641,10 @@ struct F5cGuardedTrace {
     path: Vec<F5cTraceHop>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum F5cAlphaRef {
-    SelfOwner,
-    Local(u32),
-}
-
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum F5cCanonicalTree {
     PositiveBottom,
     PositiveInt,
-    PositiveVariable(F5cAlphaRef),
     PositiveQuantified(u32),
     PositiveRecursive(u32),
     PositiveUnion(Vec<F5cCanonicalTree>),
@@ -3662,7 +3655,6 @@ enum F5cCanonicalTree {
     NegativeTop,
     NegativeBottom,
     NegativeInt,
-    NegativeVariable(F5cAlphaRef),
     NegativeQuantified(u32),
     NegativeRecursive(u32),
     NegativeIntersection(Vec<F5cCanonicalTree>),
@@ -3672,30 +3664,9 @@ enum F5cCanonicalTree {
     },
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct F5cCanonicalKey {
-    roots: Vec<F5cCanonicalTree>,
-}
-
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum F5cNormalizedHop {
-    Exact(F5cBoundSide),
-    Direct(F5cBoundSide, Option<F5cCanonicalKey>),
-    Function(FunctionField),
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum F5cOccurrenceHop {
-    Root(u32, F5cBoundSide),
-    Union(u32),
-    Function(FunctionField),
-}
-
 #[derive(Clone)]
 enum F5cKeyNode {
     Leaf(F5cCanonicalTree),
-    PositiveVariable(u32),
-    NegativeVariable(u32),
     PositiveUnion(Vec<usize>),
     PositiveFunction(usize, usize),
     NegativeIntersection(Vec<usize>),
@@ -3705,8 +3676,6 @@ enum F5cKeyNode {
 #[derive(Default)]
 struct F5cKeyForest {
     nodes: Vec<F5cKeyNode>,
-    variables: Vec<u32>,
-    variable_set: HashSet<u32>,
 }
 
 impl F5cKeyForest {
@@ -3716,76 +3685,65 @@ impl F5cKeyForest {
         index
     }
 
-    fn variable(&mut self, ordinal: u32, positive: bool, owner: u32) -> usize {
-        if ordinal != owner && self.variable_set.insert(ordinal) {
-            self.variables.push(ordinal);
-        }
-        let index = self.nodes.len();
-        self.nodes.push(if positive {
-            F5cKeyNode::PositiveVariable(ordinal)
-        } else {
-            F5cKeyNode::NegativeVariable(ordinal)
-        });
-        index
-    }
-
-    fn positive(&mut self, value: &F5cPositive, owner: u32) -> usize {
-        match value {
+    fn positive(&mut self, value: &F5cPositive) -> Result<usize, SolveAvailabilityError> {
+        Ok(match value {
             F5cPositive::Bottom => self.leaf(F5cCanonicalTree::PositiveBottom),
             F5cPositive::Int => self.leaf(F5cCanonicalTree::PositiveInt),
-            F5cPositive::Variable(ordinal) => self.variable(*ordinal, true, owner),
+            F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
             F5cPositive::Quantified(ordinal) => {
                 self.leaf(F5cCanonicalTree::PositiveQuantified(*ordinal))
             }
             F5cPositive::Recursive(ordinal) => {
                 self.leaf(F5cCanonicalTree::PositiveRecursive(*ordinal))
             }
-            F5cPositive::Shared(_) => unreachable!("summary IDs are materialized before keys"),
             F5cPositive::Union(values) => {
                 let children = values
                     .iter()
-                    .map(|value| self.positive(value, owner))
-                    .collect::<Vec<_>>();
+                    .map(|value| self.positive(value))
+                    .collect::<Result<Vec<_>, _>>()?;
                 self.branch(F5cKeyNode::PositiveUnion(children))
             }
             F5cPositive::Function {
                 argument, result, ..
             } => {
-                let argument = self.negative(argument, owner);
-                let result = self.positive(result, owner);
+                let argument = self.negative(argument)?;
+                let result = self.positive(result)?;
                 self.branch(F5cKeyNode::PositiveFunction(argument, result))
             }
-        }
+        })
     }
 
-    fn negative(&mut self, value: &F5cNegative, owner: u32) -> usize {
-        match value {
+    fn negative(&mut self, value: &F5cNegative) -> Result<usize, SolveAvailabilityError> {
+        Ok(match value {
             F5cNegative::Top => self.leaf(F5cCanonicalTree::NegativeTop),
             F5cNegative::Bottom => self.leaf(F5cCanonicalTree::NegativeBottom),
             F5cNegative::Int => self.leaf(F5cCanonicalTree::NegativeInt),
-            F5cNegative::Variable(ordinal) => self.variable(*ordinal, false, owner),
+            F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
             F5cNegative::Quantified(ordinal) => {
                 self.leaf(F5cCanonicalTree::NegativeQuantified(*ordinal))
             }
             F5cNegative::Recursive(ordinal) => {
                 self.leaf(F5cCanonicalTree::NegativeRecursive(*ordinal))
             }
-            F5cNegative::Shared(_) => unreachable!("summary IDs are materialized before keys"),
             F5cNegative::Intersection(values) => {
                 let children = values
                     .iter()
-                    .map(|value| self.negative(value, owner))
-                    .collect::<Vec<_>>();
+                    .map(|value| self.negative(value))
+                    .collect::<Result<Vec<_>, _>>()?;
                 self.branch(F5cKeyNode::NegativeIntersection(children))
             }
             F5cNegative::Function {
                 argument, result, ..
             } => {
-                let argument = self.positive(argument, owner);
-                let result = self.negative(result, owner);
+                let argument = self.positive(argument)?;
+                let result = self.negative(result)?;
                 self.branch(F5cKeyNode::NegativeFunction(argument, result))
             }
-        }
+        })
     }
 
     fn branch(&mut self, node: F5cKeyNode) -> usize {
@@ -3794,12 +3752,7 @@ impl F5cKeyForest {
         index
     }
 
-    fn tree(
-        &self,
-        index: usize,
-        owner: u32,
-        labels: &HashMap<u32, u32>,
-    ) -> Result<F5cCanonicalTree, SolveAvailabilityError> {
+    fn tree(&self, index: usize) -> Result<F5cCanonicalTree, SolveAvailabilityError> {
         Ok(
             match self
                 .nodes
@@ -3807,32 +3760,10 @@ impl F5cKeyForest {
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?
             {
                 F5cKeyNode::Leaf(tree) => tree.clone(),
-                F5cKeyNode::PositiveVariable(ordinal) => {
-                    F5cCanonicalTree::PositiveVariable(if *ordinal == owner {
-                        F5cAlphaRef::SelfOwner
-                    } else {
-                        F5cAlphaRef::Local(
-                            *labels
-                                .get(ordinal)
-                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
-                        )
-                    })
-                }
-                F5cKeyNode::NegativeVariable(ordinal) => {
-                    F5cCanonicalTree::NegativeVariable(if *ordinal == owner {
-                        F5cAlphaRef::SelfOwner
-                    } else {
-                        F5cAlphaRef::Local(
-                            *labels
-                                .get(ordinal)
-                                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
-                        )
-                    })
-                }
                 F5cKeyNode::PositiveUnion(children) => {
                     let mut children = children
                         .iter()
-                        .map(|child| self.tree(*child, owner, labels))
+                        .map(|child| self.tree(*child))
                         .collect::<Result<Vec<_>, _>>()?;
                     children.sort_unstable();
                     children.dedup();
@@ -3840,14 +3771,14 @@ impl F5cKeyForest {
                 }
                 F5cKeyNode::PositiveFunction(argument, result) => {
                     F5cCanonicalTree::PositiveFunction {
-                        argument: Box::new(self.tree(*argument, owner, labels)?),
-                        result: Box::new(self.tree(*result, owner, labels)?),
+                        argument: Box::new(self.tree(*argument)?),
+                        result: Box::new(self.tree(*result)?),
                     }
                 }
                 F5cKeyNode::NegativeIntersection(children) => {
                     let mut children = children
                         .iter()
-                        .map(|child| self.tree(*child, owner, labels))
+                        .map(|child| self.tree(*child))
                         .collect::<Result<Vec<_>, _>>()?;
                     children.sort_unstable();
                     children.dedup();
@@ -3855,147 +3786,19 @@ impl F5cKeyForest {
                 }
                 F5cKeyNode::NegativeFunction(argument, result) => {
                     F5cCanonicalTree::NegativeFunction {
-                        argument: Box::new(self.tree(*argument, owner, labels)?),
-                        result: Box::new(self.tree(*result, owner, labels)?),
+                        argument: Box::new(self.tree(*argument)?),
+                        result: Box::new(self.tree(*result)?),
                     }
                 }
             },
         )
     }
 
-    fn next_permutation(values: &mut [u32]) -> bool {
-        let Some(pivot) = (0..values.len().saturating_sub(1))
-            .rev()
-            .find(|index| values[*index] < values[*index + 1])
-        else {
-            return false;
-        };
-        let successor = (pivot + 1..values.len())
-            .rev()
-            .find(|index| values[*index] > values[pivot])
-            .expect("pivot has a successor");
-        values.swap(pivot, successor);
-        values[pivot + 1..].reverse();
-        true
-    }
-
-    #[cfg(test)]
-    fn finish(
-        &self,
-        roots: &[usize],
-        owner: u32,
-        unordered_roots: bool,
-    ) -> Result<F5cCanonicalKey, SolveAvailabilityError> {
-        let variable_count = u32::try_from(self.variables.len())
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        let mut permutation = (0..variable_count).collect::<Vec<_>>();
-        let mut best = None;
-        loop {
-            let labels = self
-                .variables
-                .iter()
-                .copied()
-                .zip(permutation.iter().copied())
-                .collect::<HashMap<_, _>>();
-            let mut trees = roots
-                .iter()
-                .map(|root| self.tree(*root, owner, &labels))
-                .collect::<Result<Vec<_>, _>>()?;
-            if unordered_roots {
-                trees.sort_unstable();
-            }
-            let key = F5cCanonicalKey { roots: trees };
-            if best.as_ref().is_none_or(|current| key < *current) {
-                best = Some(key);
-            }
-            if !Self::next_permutation(&mut permutation) {
-                break;
-            }
-        }
-        best.ok_or(SolveAvailabilityError::IdentityExhausted)
-    }
-
-    fn finish_grouped(
-        &self,
-        predicate: usize,
-        bounds: &[(u32, usize, usize)],
-    ) -> Result<(F5cCanonicalKey, HashMap<u32, F5cCanonicalKey>), SolveAvailabilityError> {
-        let variable_count = u32::try_from(self.variables.len())
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        let mut permutation = (0..variable_count).collect::<Vec<_>>();
-        let mut best = None;
-        loop {
-            let labels = self
-                .variables
-                .iter()
-                .copied()
-                .zip(permutation.iter().copied())
-                .collect::<HashMap<_, _>>();
-            let predicate = F5cCanonicalKey {
-                roots: vec![self.tree(predicate, u32::MAX, &labels)?],
-            };
-            let bound_keys = bounds
-                .iter()
-                .map(|(owner, lower, upper)| {
-                    Ok((
-                        *owner,
-                        F5cCanonicalKey {
-                            roots: vec![
-                                self.tree(*lower, *owner, &labels)?,
-                                self.tree(*upper, *owner, &labels)?,
-                            ],
-                        },
-                    ))
-                })
-                .collect::<Result<Vec<_>, SolveAvailabilityError>>()?;
-            let mut unordered_bounds = bound_keys
-                .iter()
-                .map(|(_, key)| key.clone())
-                .collect::<Vec<_>>();
-            unordered_bounds.sort_unstable();
-            let rank = (predicate.clone(), unordered_bounds);
-            if best.as_ref().is_none_or(|(current, _, _)| rank < *current) {
-                best = Some((rank, predicate, bound_keys));
-            }
-            if !Self::next_permutation(&mut permutation) {
-                break;
-            }
-        }
-        let (_, predicate, bounds) = best.ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        Ok((predicate, bounds.into_iter().collect()))
-    }
-
     fn unordered_root_keys(
         &self,
         roots: &[usize],
-        owner: u32,
     ) -> Result<Vec<F5cCanonicalTree>, SolveAvailabilityError> {
-        let variable_count = u32::try_from(self.variables.len())
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        let mut permutation = (0..variable_count).collect::<Vec<_>>();
-        let mut best: Option<(Vec<F5cCanonicalTree>, Vec<F5cCanonicalTree>)> = None;
-        loop {
-            let labels = self
-                .variables
-                .iter()
-                .copied()
-                .zip(permutation.iter().copied())
-                .collect::<HashMap<_, _>>();
-            let trees = roots
-                .iter()
-                .map(|root| self.tree(*root, owner, &labels))
-                .collect::<Result<Vec<_>, _>>()?;
-            let mut sorted = trees.clone();
-            sorted.sort_unstable();
-            if best.as_ref().is_none_or(|(current, _)| sorted < *current) {
-                best = Some((sorted, trees));
-            }
-            if !Self::next_permutation(&mut permutation) {
-                break;
-            }
-        }
-        best.map(|(_, trees)| trees)
-            .ok_or(SolveAvailabilityError::IdentityExhausted)
+        roots.iter().map(|root| self.tree(*root)).collect()
     }
 }
 
@@ -6875,31 +6678,6 @@ impl<'a> F5cGeneralizer<'a> {
         }
     }
 
-    fn guarded_trace_sort_key(
-        trace: &F5cGuardedTrace,
-        owner_key: &F5cCanonicalKey,
-        all_bound_keys: &HashMap<u32, F5cCanonicalKey>,
-    ) -> (u8, u8, Vec<F5cNormalizedHop>, F5cCanonicalKey) {
-        let path = trace
-            .path
-            .iter()
-            .map(|hop| match hop {
-                F5cTraceHop::Exact { side, .. } => F5cNormalizedHop::Exact(*side),
-                F5cTraceHop::Direct { side, target, .. } => {
-                    let target = all_bound_keys.get(target).cloned();
-                    F5cNormalizedHop::Direct(*side, target)
-                }
-                F5cTraceHop::Function(field) => F5cNormalizedHop::Function(*field),
-            })
-            .collect();
-        (
-            u8::from(trace.entry_polarity == Polarity::Negative),
-            u8::from(trace.reentry_polarity == Polarity::Negative),
-            path,
-            owner_key.clone(),
-        )
-    }
-
     fn guarded_trace_path_survives(
         trace: &F5cGuardedTrace,
         protected: &HashSet<u32>,
@@ -7128,6 +6906,9 @@ impl<'a> F5cGeneralizer<'a> {
 
     fn normalize_positive(value: F5cPositive) -> Result<F5cPositive, SolveAvailabilityError> {
         Ok(match value {
+            F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
             F5cPositive::Function {
                 argument, result, ..
             } => F5cPositive::Function {
@@ -7144,9 +6925,9 @@ impl<'a> F5cGeneralizer<'a> {
                 let mut forest = F5cKeyForest::default();
                 let roots = values
                     .iter()
-                    .map(|value| forest.positive(value, u32::MAX))
-                    .collect::<Vec<_>>();
-                let keys = forest.unordered_root_keys(&roots, u32::MAX)?;
+                    .map(|value| forest.positive(value))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let keys = forest.unordered_root_keys(&roots)?;
                 let mut keyed = keys.into_iter().zip(values).collect::<Vec<_>>();
                 keyed.sort_by(|left, right| left.0.cmp(&right.0));
                 keyed.dedup_by(|left, right| left.0 == right.0);
@@ -7158,6 +6939,9 @@ impl<'a> F5cGeneralizer<'a> {
 
     fn normalize_negative(value: F5cNegative) -> Result<F5cNegative, SolveAvailabilityError> {
         Ok(match value {
+            F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
             F5cNegative::Function {
                 argument, result, ..
             } => F5cNegative::Function {
@@ -7174,9 +6958,9 @@ impl<'a> F5cGeneralizer<'a> {
                 let mut forest = F5cKeyForest::default();
                 let roots = values
                     .iter()
-                    .map(|value| forest.negative(value, u32::MAX))
-                    .collect::<Vec<_>>();
-                let keys = forest.unordered_root_keys(&roots, u32::MAX)?;
+                    .map(|value| forest.negative(value))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let keys = forest.unordered_root_keys(&roots)?;
                 let mut keyed = keys.into_iter().zip(values).collect::<Vec<_>>();
                 keyed.sort_by(|left, right| left.0.cmp(&right.0));
                 keyed.dedup_by(|left, right| left.0 == right.0);
@@ -7263,60 +7047,44 @@ impl<'a> F5cGeneralizer<'a> {
         closure
     }
 
-    fn positive_occurrences(
-        value: &F5cPositive,
-        path: &mut Vec<F5cOccurrenceHop>,
-        first: &mut HashMap<u32, Vec<F5cOccurrenceHop>>,
-    ) {
+    fn positive_occurrences(value: &F5cPositive, ordered: &mut Vec<u32>, seen: &mut HashSet<u32>) {
         match value {
             F5cPositive::Variable(owner) => {
-                first.entry(*owner).or_insert_with(|| path.clone());
+                if seen.insert(*owner) {
+                    ordered.push(*owner);
+                }
             }
             F5cPositive::Function {
                 argument, result, ..
             } => {
-                path.push(F5cOccurrenceHop::Function(FunctionField::Argument));
-                Self::negative_occurrences(argument, path, first);
-                path.pop();
-                path.push(F5cOccurrenceHop::Function(FunctionField::Result));
-                Self::positive_occurrences(result, path, first);
-                path.pop();
+                Self::negative_occurrences(argument, ordered, seen);
+                Self::positive_occurrences(result, ordered, seen);
             }
             F5cPositive::Union(values) => {
-                for (index, value) in values.iter().enumerate() {
-                    path.push(F5cOccurrenceHop::Union(index as u32));
-                    Self::positive_occurrences(value, path, first);
-                    path.pop();
+                for value in values {
+                    Self::positive_occurrences(value, ordered, seen);
                 }
             }
             _ => {}
         }
     }
 
-    fn negative_occurrences(
-        value: &F5cNegative,
-        path: &mut Vec<F5cOccurrenceHop>,
-        first: &mut HashMap<u32, Vec<F5cOccurrenceHop>>,
-    ) {
+    fn negative_occurrences(value: &F5cNegative, ordered: &mut Vec<u32>, seen: &mut HashSet<u32>) {
         match value {
             F5cNegative::Variable(owner) => {
-                first.entry(*owner).or_insert_with(|| path.clone());
+                if seen.insert(*owner) {
+                    ordered.push(*owner);
+                }
             }
             F5cNegative::Function {
                 argument, result, ..
             } => {
-                path.push(F5cOccurrenceHop::Function(FunctionField::Argument));
-                Self::positive_occurrences(argument, path, first);
-                path.pop();
-                path.push(F5cOccurrenceHop::Function(FunctionField::Result));
-                Self::negative_occurrences(result, path, first);
-                path.pop();
+                Self::positive_occurrences(argument, ordered, seen);
+                Self::negative_occurrences(result, ordered, seen);
             }
             F5cNegative::Intersection(values) => {
-                for (index, value) in values.iter().enumerate() {
-                    path.push(F5cOccurrenceHop::Union(index as u32));
-                    Self::negative_occurrences(value, path, first);
-                    path.pop();
+                for value in values {
+                    Self::negative_occurrences(value, ordered, seen);
                 }
             }
             _ => {}
@@ -7327,28 +7095,22 @@ impl<'a> F5cGeneralizer<'a> {
         retained_predicate: &F5cPositive,
         recursive_owners: &[u32],
         recursive_bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
-    ) -> Result<HashMap<u32, Vec<F5cOccurrenceHop>>, SolveAvailabilityError> {
-        let mut first = HashMap::new();
-        let mut path = vec![F5cOccurrenceHop::Root(0, F5cBoundSide::Lower)];
-        Self::positive_occurrences(retained_predicate, &mut path, &mut first);
-        for (index, owner) in recursive_owners.iter().enumerate() {
+    ) -> Result<Vec<u32>, SolveAvailabilityError> {
+        let mut ordered = Vec::new();
+        let mut seen = HashSet::new();
+        Self::positive_occurrences(retained_predicate, &mut ordered, &mut seen);
+        for owner in recursive_owners {
             let (lower, upper) = recursive_bounds
                 .get(owner)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            let root =
-                u32::try_from(index + 1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-            path.clear();
-            path.push(F5cOccurrenceHop::Root(root, F5cBoundSide::Lower));
-            Self::positive_occurrences(lower, &mut path, &mut first);
-            path.clear();
-            path.push(F5cOccurrenceHop::Root(root, F5cBoundSide::Upper));
-            Self::negative_occurrences(upper, &mut path, &mut first);
+            Self::positive_occurrences(lower, &mut ordered, &mut seen);
+            Self::negative_occurrences(upper, &mut ordered, &mut seen);
         }
-        Ok(first)
+        Ok(ordered)
     }
 
     #[cfg(test)]
-    fn build(mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+    fn build(&mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
         self.build_inner(root)
     }
 
@@ -7547,40 +7309,15 @@ impl<'a> F5cGeneralizer<'a> {
                 break;
             }
         }
-        let retained_predicate = Self::normalize_positive(Self::replay_positive(
-            &predicate,
-            &candidates,
-            &positive_only,
-            &negative_only,
-        ))?;
         let mut retained_bounds = HashMap::with_capacity(candidates.len());
         for owner in &candidates {
             let (lower, upper) = raw_recursive_bounds
                 .get(owner)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            let lower = Self::normalize_positive(Self::replay_positive(
-                lower,
-                &candidates,
-                &positive_only,
-                &negative_only,
-            ))?;
-            let upper = Self::normalize_negative(Self::replay_negative(
-                upper,
-                &candidates,
-                &positive_only,
-                &negative_only,
-            ))?;
+            let lower = Self::replay_positive(lower, &candidates, &positive_only, &negative_only);
+            let upper = Self::replay_negative(upper, &candidates, &positive_only, &negative_only);
             retained_bounds.insert(*owner, (lower, upper));
         }
-        let mut forest = F5cKeyForest::default();
-        let predicate_key_root = forest.positive(&retained_predicate, u32::MAX);
-        let mut bound_key_roots = Vec::with_capacity(retained_bounds.len());
-        for (owner, (lower, upper)) in &retained_bounds {
-            let lower = forest.positive(lower, *owner);
-            let upper = forest.negative(upper, *owner);
-            bound_key_roots.push((*owner, lower, upper));
-        }
-        let (_, all_bound_keys) = forest.finish_grouped(predicate_key_root, &bound_key_roots)?;
         let surviving_bound_owners = retained_bounds
             .iter()
             .filter_map(|(owner, (lower, upper))| {
@@ -7603,71 +7340,43 @@ impl<'a> F5cGeneralizer<'a> {
                 .then_some(index)
             })
             .collect::<HashSet<_>>();
-        let mut retained_traces = Vec::new();
-        let mut retained_owner_seen = HashSet::new();
-        for admitted in &self.reentries {
-            let owner = admitted.owner;
-            if !candidates.contains(&owner) || !retained_owner_seen.insert(owner) {
-                continue;
-            }
-            let owner_traces = reentries_by_owner
-                .get(&owner)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?
-                .iter()
-                .filter(|index| surviving_traces.contains(index))
-                .map(|index| self.reentries[*index].clone())
-                .collect::<Vec<_>>();
-            let owner_key = all_bound_keys
-                .get(&owner)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            let mut owner_traces = owner_traces
-                .into_iter()
-                .map(|trace| {
-                    let key = Self::guarded_trace_sort_key(&trace, owner_key, &all_bound_keys);
-                    (key, trace)
-                })
-                .collect::<Vec<_>>();
-            owner_traces.sort_by(|left, right| left.0.cmp(&right.0));
-            if let Some((key, trace)) = owner_traces.into_iter().next() {
-                retained_traces.push((key, trace));
+        let mut recursive_owners = Vec::new();
+        let mut recursive_set = HashSet::new();
+        for (index, trace) in self.reentries.iter().enumerate() {
+            if surviving_traces.contains(&index) && recursive_set.insert(trace.owner) {
+                recursive_owners.push(trace.owner);
             }
         }
-        retained_traces.sort_by(|left, right| left.0.cmp(&right.0));
-        let recursive_owners = retained_traces
-            .into_iter()
-            .map(|(_, trace)| trace.owner)
-            .collect::<Vec<_>>();
-        let recursive_set = recursive_owners.iter().copied().collect::<HashSet<_>>();
-        let retained_predicate = Self::normalize_positive(Self::replay_positive(
-            &predicate,
-            &recursive_set,
-            &positive_only,
-            &negative_only,
-        ))?;
+        let retained_predicate =
+            Self::replay_positive(&predicate, &recursive_set, &positive_only, &negative_only);
         let first_occurrences =
             Self::retained_occurrences(&retained_predicate, &recursive_owners, &retained_bounds)?;
-        let mut quantified_owners = first_occurrences
-            .into_iter()
-            .filter_map(|(ordinal, path)| {
-                (!recursive_set.contains(&ordinal)
-                    && positive_incidences.contains(&ordinal)
-                    && negative_incidences.contains(&ordinal)
-                    && eligible(ordinal))
-                .then_some((path, ordinal))
-            })
-            .collect::<Vec<_>>();
-        quantified_owners.sort_by(|left, right| left.0.cmp(&right.0));
         let mut q = HashMap::new();
-        for (_, ordinal) in quantified_owners {
-            let next = q.len() as u32;
-            q.insert(ordinal, next);
+        for ordinal in first_occurrences {
+            if !recursive_set.contains(&ordinal)
+                && positive_incidences.contains(&ordinal)
+                && negative_incidences.contains(&ordinal)
+                && eligible(ordinal)
+            {
+                let next = u32::try_from(q.len())
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                q.insert(ordinal, next);
+            }
         }
-        let q_count = q.len() as u32;
+        let q_count =
+            u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let r = recursive_owners
             .iter()
             .enumerate()
-            .map(|(index, ordinal)| (*ordinal, q_count + index as u32))
-            .collect::<HashMap<_, _>>();
+            .map(|(index, ordinal)| {
+                let offset =
+                    u32::try_from(index).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                let binder = q_count
+                    .checked_add(offset)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                Ok((*ordinal, binder))
+            })
+            .collect::<Result<HashMap<_, _>, SolveAvailabilityError>>()?;
         Self::reject_unclassified_rows(&self.order, &recursive_set, &q, eligible)?;
         let positive_eliminated = self
             .order
@@ -23387,7 +23096,7 @@ mod tests {
     }
 
     #[test]
-    fn f5c_quantifiers_follow_normalized_occurrences_not_admission_order() {
+    fn f5c_quantifiers_follow_producer_occurrences_not_admission_order() {
         fn draft(reverse: bool) -> GeneralizationDraft {
             let batch = collect(module("my f = 1", "f5c-q-order"));
             let mut session = InferenceSession::new(batch);
@@ -23434,8 +23143,32 @@ mod tests {
         }
 
         let forward = draft(false);
+        let reverse = draft(true);
+        let simple_identity_quantifier = |draft: &GeneralizationDraft| {
+            let F5cPositive::Union(members) = &draft.predicate else {
+                panic!("the two producer bounds remain a normalized Union");
+            };
+            members.iter().find_map(|member| {
+                let F5cPositive::Function {
+                    argument, result, ..
+                } = member
+                else {
+                    return None;
+                };
+                match (argument.as_ref(), result.as_ref()) {
+                    (F5cNegative::Quantified(argument), F5cPositive::Quantified(result))
+                        if argument == result =>
+                    {
+                        Some(*argument)
+                    }
+                    _ => None,
+                }
+            })
+        };
         assert_eq!(forward.quantifier_count, 2);
-        assert_eq!(forward, draft(true));
+        assert_eq!(simple_identity_quantifier(&forward), Some(0));
+        assert_eq!(simple_identity_quantifier(&reverse), Some(1));
+        assert_ne!(forward, reverse);
     }
 
     #[test]
@@ -24322,7 +24055,7 @@ mod tests {
     }
 
     #[test]
-    fn f5c_distinct_symmetric_recursive_owners_are_retained_alpha_equivalently() {
+    fn f5c_distinct_recursive_owners_follow_first_surviving_producer_order() {
         fn draft(reverse: bool) -> GeneralizationDraft {
             let batch = collect(module("my f = 1", "f5c-symmetric-r-owners"));
             let mut session = InferenceSession::new(batch);
@@ -24335,6 +24068,7 @@ mod tests {
                 session.fresh_value_at_level(1).unwrap(),
                 session.fresh_value_at_level(1).unwrap(),
             ];
+            let first_owner = owners[0];
             if reverse {
                 owners.reverse();
             }
@@ -24346,9 +24080,13 @@ mod tests {
             );
             for owner in owners {
                 let owner_result = session.live_value_term(Polarity::Positive, owner).unwrap();
-                let top = session.negative_top_term().unwrap();
+                let argument = if owner == first_owner {
+                    session.batch.collected_leaf_term(Leaf::IntNegative)
+                } else {
+                    session.negative_top_term().unwrap()
+                };
                 let recursive = session
-                    .positive_function_term(top, effects.0, effects.1, owner_result)
+                    .positive_function_term(argument, effects.0, effects.1, owner_result)
                     .unwrap();
                 session.bounds[owner as usize]
                     .exact_non_variable_lowers
@@ -24367,146 +24105,158 @@ mod tests {
         }
 
         let forward = draft(false);
+        let reverse = draft(true);
         assert_eq!(forward.recursive_bounds.len(), 2);
-        assert_eq!(forward, draft(true));
-    }
-
-    #[test]
-    fn f5c_key_forest_distinguishes_shared_and_independent_non_owner_variables() {
-        let shared = F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(7)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Variable(7)),
-        };
-        let independent = F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(7)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Variable(8)),
-        };
-        let key = |value: &F5cPositive| {
-            let mut forest = F5cKeyForest::default();
-            let root = forest.positive(value, u32::MAX);
-            forest.finish(&[root], u32::MAX, false).unwrap()
-        };
-
-        assert_ne!(key(&shared), key(&independent));
-    }
-
-    #[test]
-    fn f5c_key_forest_canonicalizes_commutative_roots_with_shared_alpha_variables() {
-        let positive_key = |values: &[F5cPositive]| {
-            let mut forest = F5cKeyForest::default();
-            let roots = values
-                .iter()
-                .map(|value| forest.positive(value, u32::MAX))
-                .collect::<Vec<_>>();
-            forest.finish(&roots, u32::MAX, true).unwrap()
-        };
-        let negative_key = |values: &[F5cNegative]| {
-            let mut forest = F5cKeyForest::default();
-            let roots = values
-                .iter()
-                .map(|value| forest.negative(value, u32::MAX))
-                .collect::<Vec<_>>();
-            forest.finish(&roots, u32::MAX, true).unwrap()
-        };
-        let positive = [
-            F5cPositive::Variable(7),
-            F5cPositive::Function {
-                argument: Box::new(F5cNegative::Variable(8)),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(7)),
-            },
-        ];
-        let positive_reversed = [
-            F5cPositive::Function {
-                argument: Box::new(F5cNegative::Variable(18)),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(17)),
-            },
-            F5cPositive::Variable(17),
-        ];
-        assert_eq!(positive_key(&positive), positive_key(&positive_reversed));
-
-        let negative = [
-            F5cNegative::Variable(7),
-            F5cNegative::Function {
-                argument: Box::new(F5cPositive::Variable(8)),
-                argument_effect: F5cPositiveEffect::Bottom,
-                result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Variable(7)),
-            },
-        ];
-        let negative_reversed = [
-            F5cNegative::Function {
-                argument: Box::new(F5cPositive::Variable(18)),
-                argument_effect: F5cPositiveEffect::Bottom,
-                result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Variable(17)),
-            },
-            F5cNegative::Variable(17),
-        ];
-        assert_eq!(negative_key(&negative), negative_key(&negative_reversed));
-    }
-
-    #[test]
-    fn f5c_grouped_keys_preserve_cross_owner_variable_sharing() {
-        let grouped = |first_argument, second_argument| {
-            let predicate =
-                F5cPositive::Union(vec![F5cPositive::Variable(1), F5cPositive::Variable(2)]);
-            let lower = |owner, argument| F5cPositive::Function {
-                argument: Box::new(F5cNegative::Variable(argument)),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(owner)),
+        let lower_argument = |draft: &GeneralizationDraft, index: usize| {
+            let F5cPositive::Function { argument, .. } = &draft.recursive_bounds[index].lower
+            else {
+                panic!("each recursive owner keeps its Function guard");
             };
-            let mut forest = F5cKeyForest::default();
-            let predicate = forest.positive(&predicate, u32::MAX);
-            let first_lower = forest.positive(&lower(1, first_argument), 1);
-            let first_upper = forest.negative(&F5cNegative::Top, 1);
-            let second_lower = forest.positive(&lower(2, second_argument), 2);
-            let second_upper = forest.negative(&F5cNegative::Top, 2);
-            let (predicate, bounds) = forest
-                .finish_grouped(
-                    predicate,
-                    &[
-                        (1, first_lower, first_upper),
-                        (2, second_lower, second_upper),
-                    ],
-                )
-                .unwrap();
-            let mut bounds = bounds.into_values().collect::<Vec<_>>();
-            bounds.sort_unstable();
-            (predicate, bounds)
+            argument.as_ref().clone()
         };
+        assert_eq!(lower_argument(&forward, 0), F5cNegative::Int);
+        assert_eq!(lower_argument(&forward, 1), F5cNegative::Top);
+        assert_eq!(lower_argument(&reverse, 0), F5cNegative::Top);
+        assert_eq!(lower_argument(&reverse, 1), F5cNegative::Int);
+        assert_ne!(forward, reverse);
+    }
 
-        assert_ne!(grouped(9, 9), grouped(9, 10));
-        assert_eq!(grouped(9, 9), grouped(19, 19));
+    #[test]
+    fn f5c_shared_quantifier_identity_spans_predicate_and_recursive_bounds() {
+        let batch = collect(module("my f = 1", "f5c-shared-q-across-r-bounds"));
+        let mut session = InferenceSession::new(batch);
+        let root = session.batch.definitions[0].root.clone();
+        let definition = session.batch.definitions[0].definition.clone();
+        let root_row = session.live_components
+            [session.batch.root_component_positions[&root].component]
+            .ordinal;
+        let shared = session.fresh_value_at_level(1).unwrap();
+        let first_recursive = session.fresh_value_at_level(1).unwrap();
+        let second_recursive = session.fresh_value_at_level(1).unwrap();
+        let effects = (
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+        );
+        let shared_positive = session.live_value_term(Polarity::Positive, shared).unwrap();
+        let shared_negative = session.live_value_term(Polarity::Negative, shared).unwrap();
+        let identity = session
+            .positive_function_term(shared_negative, effects.0, effects.1, shared_positive)
+            .unwrap();
+        let first_result = session
+            .live_value_term(Polarity::Positive, first_recursive)
+            .unwrap();
+        let first_entry = session
+            .positive_function_term(shared_negative, effects.0, effects.1, first_result)
+            .unwrap();
+        let top = session.negative_top_term().unwrap();
+        let second_result = session
+            .live_value_term(Polarity::Positive, second_recursive)
+            .unwrap();
+        let second_entry = session
+            .positive_function_term(top, effects.0, effects.1, second_result)
+            .unwrap();
+        session.bounds[root_row as usize]
+            .exact_non_variable_lowers
+            .extend([
+                ValueEndpointKey::PositiveFunction(identity),
+                ValueEndpointKey::PositiveFunction(first_entry),
+                ValueEndpointKey::PositiveFunction(second_entry),
+            ]);
+
+        let first_recursive_result = session
+            .live_value_term(Polarity::Positive, first_recursive)
+            .unwrap();
+        let first_recursive_lower = session
+            .positive_function_term(
+                shared_negative,
+                effects.0,
+                effects.1,
+                first_recursive_result,
+            )
+            .unwrap();
+        session.bounds[first_recursive as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::PositiveFunction(first_recursive_lower));
+
+        let int_negative = session.batch.collected_leaf_term(Leaf::IntNegative);
+        let second_recursive_result = session
+            .live_value_term(Polarity::Positive, second_recursive)
+            .unwrap();
+        let second_recursive_guard = session
+            .positive_function_term(int_negative, effects.0, effects.1, second_recursive_result)
+            .unwrap();
+        session.bounds[second_recursive as usize]
+            .exact_non_variable_lowers
+            .extend([
+                ValueEndpointKey::PositiveFunction(second_recursive_guard),
+                ValueEndpointKey::ValueRow(shared),
+            ]);
+
+        let draft = session.generalization_draft(&definition).unwrap();
+        assert_eq!(draft.quantifier_count, 1);
+        assert_eq!(draft.recursive_bounds.len(), 2);
+        fn has_identity(value: &F5cPositive, ordinal: u32) -> bool {
+            match value {
+                F5cPositive::Function {
+                    argument, result, ..
+                } => {
+                    (matches!(argument.as_ref(), F5cNegative::Quantified(q) if *q == ordinal)
+                        && matches!(result.as_ref(), F5cPositive::Quantified(q) if *q == ordinal))
+                        || has_identity(result, ordinal)
+                }
+                F5cPositive::Union(values) => {
+                    values.iter().any(|value| has_identity(value, ordinal))
+                }
+                _ => false,
+            }
+        }
+        assert!(has_identity(&draft.predicate, 0));
+        let F5cPositive::Function {
+            argument,
+            result: first_result,
+            ..
+        } = &draft.recursive_bounds[0].lower
+        else {
+            panic!("the first recursive bound retains its Function guard");
+        };
+        assert_eq!(argument.as_ref(), &F5cNegative::Quantified(0));
+        assert_eq!(first_result.as_ref(), &F5cPositive::Recursive(1));
+        let F5cPositive::Union(second_parts) = &draft.recursive_bounds[1].lower else {
+            panic!("the second recursive bound retains both lower members");
+        };
+        assert!(second_parts.contains(&F5cPositive::Quantified(0)));
+        assert!(second_parts.iter().any(|part| matches!(
+            part,
+            F5cPositive::Function { result, .. }
+                if matches!(result.as_ref(), F5cPositive::Recursive(2))
+        )));
     }
 
     #[test]
     fn f5c_q_occurrence_collection_includes_recursive_dual_bounds() {
         let owner = 7;
-        let q = 9;
+        let predicate_q = 8;
+        let lower_q = 9;
+        let upper_q = 10;
         let recursive_owners = [owner];
-        let raw_bounds =
-            HashMap::from([(owner, (F5cPositive::Variable(q), F5cNegative::Variable(q)))]);
+        let raw_bounds = HashMap::from([(
+            owner,
+            (
+                F5cPositive::Variable(lower_q),
+                F5cNegative::Variable(upper_q),
+            ),
+        )]);
 
         let first = F5cGeneralizer::retained_occurrences(
-            &F5cPositive::Recursive(0),
+            &F5cPositive::Variable(predicate_q),
             &recursive_owners,
             &raw_bounds,
         )
         .unwrap();
 
-        assert_eq!(
-            first.get(&q),
-            Some(&vec![F5cOccurrenceHop::Root(1, F5cBoundSide::Lower)])
-        );
+        assert_eq!(first, [predicate_q, lower_q, upper_q]);
     }
 
     #[test]
@@ -24529,13 +24279,13 @@ mod tests {
     }
 
     #[test]
-    fn f5c_union_normalization_preserves_independent_identity_members_and_deduplicates_exact_members()
+    fn f5c_union_normalization_preserves_independent_quantified_members_and_deduplicates_exact_members()
      {
         let identity = |ordinal| F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(ordinal)),
+            argument: Box::new(F5cNegative::Quantified(ordinal)),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Variable(ordinal)),
+            result: Box::new(F5cPositive::Quantified(ordinal)),
         };
         let normalized =
             F5cGeneralizer::normalize_positive(F5cPositive::Union(vec![identity(7), identity(8)]))
@@ -24552,6 +24302,28 @@ mod tests {
             panic!("union remains normalized as a union");
         };
         assert_eq!(duplicates.len(), 1);
+    }
+
+    #[test]
+    fn f5c_post_qr_normalization_rejects_unclassified_live_nodes() {
+        for value in [
+            F5cPositive::Variable(7),
+            F5cPositive::Shared(F5cSummaryNodeId(0)),
+        ] {
+            assert_eq!(
+                F5cGeneralizer::normalize_positive(value),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+        }
+        for value in [
+            F5cNegative::Variable(7),
+            F5cNegative::Shared(F5cSummaryNodeId(0)),
+        ] {
+            assert_eq!(
+                F5cGeneralizer::normalize_negative(value),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+        }
     }
 
     #[test]
@@ -24592,7 +24364,7 @@ mod tests {
     }
 
     #[test]
-    fn f5c_reversed_exact_and_direct_admission_keeps_canonical_recursive_order() {
+    fn f5c_reversed_exact_and_direct_admission_follows_first_surviving_trace() {
         fn draft(reverse: bool) -> GeneralizationDraft {
             let batch = collect(module("my f = 1", "f5c-reversed-r-admission"));
             let mut session = InferenceSession::new(batch);
@@ -24657,7 +24429,28 @@ mod tests {
             session.generalization_draft(&definition).unwrap()
         }
 
-        assert_eq!(draft(false), draft(true));
+        let forward = draft(false);
+        let reverse = draft(true);
+        assert_eq!(forward.recursive_bounds.len(), 2);
+        assert_eq!(reverse.recursive_bounds.len(), 2);
+        let first_lower = |draft: &GeneralizationDraft| {
+            let F5cPositive::Function {
+                argument, result, ..
+            } = &draft.recursive_bounds[0].lower
+            else {
+                panic!("the first surviving trace retains its Function bound");
+            };
+            (argument.as_ref().clone(), result.as_ref().clone())
+        };
+        assert_eq!(
+            first_lower(&forward),
+            (F5cNegative::Recursive(0), F5cPositive::Int)
+        );
+        assert_eq!(
+            first_lower(&reverse),
+            (F5cNegative::Top, F5cPositive::Recursive(0))
+        );
+        assert_ne!(forward, reverse);
     }
 
     #[test]
@@ -24715,7 +24508,6 @@ mod tests {
         let batch = collect(module("my f = 1", "f5c-recursive-order"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
-        let definition = session.batch.definitions[0].definition.clone();
         let root_row = session.live_components
             [session.batch.root_component_positions[&root].component]
             .ordinal;
@@ -24750,8 +24542,16 @@ mod tests {
                 ValueEndpointKey::PositiveFunction(reenter_second),
             ]);
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let mut generalizer = F5cGeneralizer::new(&session);
+        let draft = generalizer.build(root_row).unwrap();
+        let mut stored_trace_owners = Vec::new();
+        for trace in &generalizer.reentries {
+            if !stored_trace_owners.contains(&trace.owner) {
+                stored_trace_owners.push(trace.owner);
+            }
+        }
         assert_eq!(draft.quantifier_count, 0);
+        assert_eq!(stored_trace_owners, [first_reentered, first_visited]);
         assert_eq!(draft.recursive_bounds.len(), 2);
         assert_eq!(draft.recursive_bounds[0].ordinal, 0);
         assert_eq!(draft.recursive_bounds[1].ordinal, 1);

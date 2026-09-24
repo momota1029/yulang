@@ -1265,13 +1265,41 @@ producer-graph/compaction and exact accounting gaps. Do not implement that API
 or move handle storage across the callback without a separate reviewed and
 user-approved boundary.
 
-Next code slice: implement the already-authoritative producer-order rule
-(first surviving `self.reentries` encounter for R, then predicate-first and
-lower-before-upper R-bound first occurrence for Q), removing factorial alpha
-ranking from binder selection. Keep that slice separate from the bounded,
-stack-safe height-major normalization implementation. The latter must include
-mixed-height positive/negative tests, §44 representative linkage, stack-depth
-and checked-failure evidence, and component-wide §36 accounting. `lib.rs` is
-28,092 lines at this resume point; prefer a private submodule and keep test
-bodies in the existing test sidecars. Branch is clean at `dbceed4d` before
-these record updates; no compiler code has changed yet.
+## Producer-encounter ordering implementation checkpoint (2026-09-24)
+
+The current code slice now implements the approved producer-order rule:
+retained R owners follow their first surviving trace in `self.reentries`, and
+Q ordinals follow first occurrence in the retained predicate followed by each
+R owner's lower then upper bound. A single live-identity-to-Q map spans that
+whole traversal. Factorial variable-label permutation ranking and the
+normalized-first guarded-trace sort were removed. The exact R fixture now
+asserts the unique owner sequence stored in the producer trace, and another
+producer-level fixture checks one Q identity shared by the predicate and two
+R bounds. Dense R ordinal addition now uses checked conversion/arithmetic.
+
+Mode: M2, primary-only at the user's explicit direction; no independent
+reviewer was used. Verification: `cargo fmt --check`,
+`cargo check -p yu-solver --tests`,
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (136 passed), and
+`git diff --check`. The suite also rejects leftover live `Variable`/`Shared`
+nodes before normalization. `lib.rs` is 27,892 lines, 200 fewer than the 28,092-line
+resume point, after deleting the factorial alpha-key implementation. No
+benchmark or F5e resource matrix was run.
+
+This is a partial producer-order implementation checkpoint, not closure of
+the producer-order gate. Remaining assertions include the final R-prune
+no-op, dense/reference-complete Q/R after normalization, the pre-pruning
+census case involving a later-pruned provisional R bound, hash/insertion
+variation, and §44 linkage to the exact finalized first member. Most
+importantly, the selected B normalizer is not implemented: current structural
+tree ranking remains recursive and structural-first, so it is not yet
+height-major or stack-safe. The finalizer also recursively constructs
+transaction-branded handles inside its existing higher-ranked callback. Keep
+§24 and the F5b accounting/callback boundary unchanged; if the new pass cannot
+be carried through that boundary with exact accounting, stop for a separate
+reviewed and user-approved decision. Next: implement the bounded,
+stack-safe §36 descriptor order in a private module, add mixed-height
+positive/negative and duplicate tests plus §44 representative linkage, and
+reconcile stack scratch/accounting without growing `lib.rs`. The old note's
+statement that code was unchanged is historical and superseded by this
+checkpoint.

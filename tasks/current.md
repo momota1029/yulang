@@ -266,23 +266,31 @@ test-only probe variant and condition for this final-boundary failure case.
 An independent mapping found a separate mechanical 63-line
 `ResourceSampleChecked` extraction candidate, but it is deferred until the
 accounting/measurement checkpoint closes to keep this diff focused.
-Producer-ordered Q/R assignment and post-Q/R normalization
-remain paused until the separate mixed-height §25/§36 order decision is
-recorded. Component sharing, remaining iterative producer/finalizer work, and
-F5e certification also remain open. Candidate B's proposed §24 API is not
+Producer-ordered Q/R assignment and post-Q/R normalization are active again.
+The mixed-height authority choice is resolved: §36 height-major order
+supersedes §25 structural-first order only when child heights differ. The
+latest code slice removes factorial alpha-label search from Q/R selection and
+uses first-surviving trace order for R, then predicate-first and lower-before-
+upper traversal for Q. Producer-order tests cover reversed encounters, shared
+Q identity across predicate and multiple R bounds, and exact stored trace
+order, plus explicit rejection of leftover live `Variable`/`Shared` nodes before
+normalization. The `f5c_` library filter passes 136 tests; `cargo check -p yu-solver --tests`,
+`cargo fmt --check`, and `git diff --check` pass. This is a partial
+implementation checkpoint, not closure of the producer-order or normalization
+gates. F5c stack-safe normalization, component sharing, finalizer traversal,
+and F5e certification remain open. Candidate B's proposed §24 API is not
 approved.
 
-The fixed-Q/R normalization order is now paused on a separate authority gap.
-The architect and specification preflight found that §25's structural-first
-order and §36's per-postorder-height ranks do not specify one order for mixed-
-height children. This is not covered by the approved producer-order
-relaxation, which permits output changes only when Q/R assignment changes. The
-user has been asked whether to preserve §25 and clarify §36, or make §36's
-height-major order supersede §25. No fixed-assignment normalization or §44
-representative change is authorized until that choice is recorded. The
-per-use owner-to-route audit is now closed; full §3 sampling/accounting
-certification remains open pending the successful-path measurement and other
-owner-family gates.
+The selected normalization algorithm is still unimplemented: the current
+post-Q/R pass compares recursive structural trees, does not rank mixed heights
+by §36 descriptors, and remains stack-bound. The next slice must replace it
+with bounded, stack-safe height-major ranking while retaining exact duplicate
+elimination and the §44 first-member projection. The existing higher-ranked
+finalizer callback and F5b accounting boundary must remain unchanged unless a
+separate API/accounting decision is reviewed and approved. The per-use
+owner-to-route audit is closed for the approved closed-pure Function scope;
+full §3 sampling/accounting certification still lacks a valid successful-path
+measurement.
 
 Architect review resolved the accounting phase boundary for the separate
 stack-safety slice: §§14/26/34 authorize private production accounting for
@@ -641,27 +649,28 @@ method. Do not call the complete §3 sampling/accounting gate closed. The F5c
 working set is preserved by checkpoint commits; inspect branch synchronization
 before any push.
 
-Mixed-height normalization authority is resolved: the user selected §36's
-height-major ordering over §25 structural-first ordering, recorded in the
-2026-09-24 addendum. Implementation remains open. The authoritative
-2026-09-23 producer-order addendum also remains unimplemented in the current
-generalizer: factorial alpha-key ranking still participates in R/Q selection,
-and recursive boxed-tree normalization/finalization remain. The indexed
-finalization API candidate is not approved; do not add a §24 API or weaken the
-F5b callback/accounting boundary. Next, replace the remaining producer-order
-key selection with first-surviving encounter and explicit predicate-then-R
-bounds traversal, then implement height-major bounded normalization only if it
-can stay within the approved API/accounting boundary. Fixed-point replay and
-component rescan limits, full §3 successful-path sampling/accounting
+Mixed-height authority is resolved and recorded in the 2026-09-24 addendum.
+The current code removes factorial alpha-key ranking from binder selection:
+R owners follow first surviving `self.reentries` encounter, and Q owners
+follow first occurrence through the retained predicate and then each selected
+R lower/upper bound. A shared-identity fixture and an exact stored-trace-order
+fixture cover those rules. The code remains in the working checkpoint until
+the selected normalization is implemented; no §24 API or F5b callback change
+is authorized. `lib.rs` is 27,892 lines after this slice (200 fewer than the
+28,092-line resume point), with the factorial key/permutation implementation
+removed. Checks: `cargo fmt --check`, `cargo check -p yu-solver --tests`,
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (136 passed), and
+`git diff --check`. No benchmark or F5e resource matrix ran. Next: implement
+the bounded, stack-safe §36 height-major normalizer and preserve §44's
+first-member projection; if that cannot fit the existing callback/accounting
+boundary, stop with the exact separate decision required. Fixed-point replay
+and component rescan limits, full §3 successful-path sampling/accounting
 certification, and F5e public-observation/scale certification also remain
 open. The current per-use owner-to-route audit is closed for the approved
-pure-Function route set; do not widen into live effect-row mutation. The latest
-137-test `f5c_`-filtered library suite passes. A subsequent full single-threaded
-library
-run was stopped during `f4_unbounded_cycle_scale_4k_keeps_direct_frontier_linear`
-after more than seven minutes of scale-test execution; it produced no final
-suite result and is not counted as passing verification. No benchmark or
-F5e resource matrix ran.
+pure-Function route set; do not widen into live effect-row mutation. A
+subsequent full single-threaded library run was stopped during
+`f4_unbounded_cycle_scale_4k_keeps_direct_frontier_linear` after more than
+seven minutes and is not a passing result.
 
 The older syntax-v0 vertical-implementation record below remains historical
 context and does not override this active F5 gate.
