@@ -1129,3 +1129,28 @@ there is no independent review. No benchmark was run. The test/record slice is
 checkpointed as `559a2d91` and pushed to `origin/yulang3` before the next §3
 lane audit. The complete §3 accounting/measurement gate, F5c, and F5e remain
 open.
+
+## ValueExactUpper fresh-row transient-bound witness (2026-09-24)
+
+Strengthened `f5c_incoming_value_exact_upper_growth_samples_before_rollback_and_retries`
+to capture the completed `ValueExactUpper` event sample, derive its exact
+`ValueEndpointKey` byte delta, and compute event-time semantic/session peaks
+from the immediately preceding sample. The route grows the exact-upper payload
+on the fresh row at the pre-attempt `bounds.len()`; rollback drops that row.
+The same trace also records a `ValueExactLower` growth on a preexisting row,
+whose capacity survives rollback. The one post-rollback sample and independent
+ledger now prove that split: the upper lane returns to its baseline while the
+lower lane retains its observed delta, and production retained/peak totals
+match the independent surviving-state ledger. The target upper event is the
+last capacity event, so its derived peak is reconciled directly with the final
+sample. Full RouteCheckpoint restoration and successful retry linkage through
+canonical fact, consumed receipt, provenance, and routed-use records remain
+asserted. No production code changed.
+
+The focused witness and all 57 single-threaded `f5c_incoming_` tests pass, as
+do `cargo check -p yu-solver --tests`, `cargo fmt --all -- --check`, and
+`git diff --check`. Primary-only M1 work follows the user's explicit request;
+no independent reviewer or benchmark was used. The verified test/record slice
+is pending checkpoint. Next: strengthen `ValueExactLower`'s paired event and
+rollback evidence, then continue the §3 owner-to-route audit. The complete §3
+accounting/measurement gate, F5c, and F5e remain open.

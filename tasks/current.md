@@ -47,6 +47,9 @@ independent retained ledger, and successful retry.
 The `ExtrusionStack` witness is now also in that sidecar, with exact slot-byte
 and event-peak evidence, transient-to-retained reconciliation, RouteCheckpoint
 restoration, and retry publication.
+The `ValueExactUpper` witness now distinguishes its temporary fresh-row upper
+payload from the retained preexisting lower-row growth and reconciles both at
+the post-rollback boundary.
 
 Per-use rollback remains open on full physical resource accounting. The nested
 value/effect-bound capacity subgate is now independently reviewed and closed:
@@ -598,9 +601,13 @@ independent reviewer was used. The corresponding `ExtrusionStack` witness now
 derives its exact event delta and peak, proves post-rollback transient-capacity
 release against the independent retained ledger, and retries through public
 route records; that test has been moved from `lib.rs` into the same sidecar.
-This next M1 test-only slice is checkpointed as `559a2d91` and pushed to
-`origin/yulang3`. Then audit the remaining per-use owner-to-route
-lanes against the complete §3 list. Keep sampler-cost
+The `ValueExactUpper` witness now checks the exact `ValueEndpointKey` event
+delta/peak in a fresh row, its removal at rollback, retained `ValueExactLower`
+capacity, the independent post-rollback ledger, and canonical/receipt/
+provenance/routed-use retry links. This next M1 test-only slice is verified
+locally and should be checkpointed before another code change. Then strengthen
+the paired `ValueExactLower` event/rollback evidence and audit the residual
+owner-to-route lanes against the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
 method. Do not call the complete §3 sampling/accounting gate closed. The F5c
