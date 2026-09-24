@@ -604,9 +604,9 @@ route records; that test has been moved from `lib.rs` into the same sidecar.
 The `ValueExactUpper` witness now checks the exact `ValueEndpointKey` event
 delta/peak in a fresh row, its removal at rollback, retained `ValueExactLower`
 capacity, the independent post-rollback ledger, and canonical/receipt/
-provenance/routed-use retry links. This next M1 test-only slice is verified
-locally and should be checkpointed before another code change. Then strengthen
-the paired `ValueExactLower` event/rollback evidence and audit the residual
+provenance/routed-use retry links. This M1 test-only slice is checkpointed as
+`7c07b7af` and pushed to `origin/yulang3`. Next strengthen the paired
+`ValueExactLower` event/rollback evidence and audit the residual
 owner-to-route lanes against the complete §3 list. Keep sampler-cost
 remeasurement deferred: its previous process budget was consumed without an
 accepted comparison, so another run needs a fresh budget and an isolating
