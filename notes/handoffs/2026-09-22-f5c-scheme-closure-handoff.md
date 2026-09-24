@@ -1462,3 +1462,44 @@ F5c and F5e remain open. The immediate decision is whether to preserve exact
 boundary-compatible work, or to return to independently reviewed design for a
 yu-types-owned indexed finalization API (with its producer-graph and complete
 capacity-accounting gaps resolved before asking for approval).
+
+## Iterative producer-analysis traversal checkpoint (2026-09-24)
+
+The recursive producer-side walkers for guarded-owner search, recursive-owner
+reference closure, polarity incidence, Q first-occurrence ordering, and Term
+value-row collection now use the private explicit-stack visitor in
+`crates/yu-solver/src/f5c_tree_analysis.rs`. It preserves DFS order: Function
+argument before result, Union/Intersection input order, and first-seen row
+ordering. Function children still acquire the guarded bit; Term traversal still
+ignores Function effects and skips unavailable Term views as before. No change
+was made to replay, quantifier/R rebinding, §44 projection, or finalization.
+
+The `AnalysisTasks` lane is included in the generalization walker's physical
+capacity accounting and independent test ledger. A parity test checks both
+polarities, incidence sets, guarded detection, recursive-owner references, and
+first occurrence. Positive and negative boxed Function chains plus a deep
+Term Function chain each traverse on a 64 KiB stack. The boxed inputs are
+intentionally forgotten by the small-stack test after traversal so recursive
+destruction does not obscure the traversal result; clone/drop remain separate
+open stack-safety work.
+
+`lib.rs` is 27,542 lines, 158 fewer than before this extraction; the traversal
+is isolated in a 297-line private module with a 195-line sidecar test. Checks
+pass: `cargo check -p yu-solver --tests`,
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (155 passed), the same
+filtered suite with `--no-default-features` (155 passed),
+`cargo check --workspace`, `cargo fmt --check`, and `git diff --check`. The
+unfiltered no-default-feature library suite was started but interrupted in the
+known broad F4 scale area; it provides no passing-suite evidence. No benchmark
+or F5e resource matrix ran; measurement budget consumed: zero.
+
+Work remained primary-only at the user's explicit direction, with no
+independent reviewer. This closes only these producer-analysis walks. Recursive
+candidate replay, recursive binder substitution in `build_inner`, boxed-tree
+clone/drop, finalization under the §24 callback, complete ineligible-variable
+closure, non-pure Function effects, per-use failure atomicity, and the wider
+F5c/F5e resource/public-observation gates remain open. Keep the approved
+§24/F5b callback boundary and the §44 first-member representative unchanged;
+do not implement the unapproved indexed `yu-types` API. The next bounded
+stack-safety slice is iterative candidate replay/binder substitution with its
+own accounted lanes and small-stack parity tests.

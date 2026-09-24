@@ -4,34 +4,31 @@ Updated: 2026-09-24. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-Latest status (2026-09-24): the per-use owner-to-route witness crosswalk is
-closed for the approved closed-pure Function route set, including a new
-post-rollback checked-overflow witness. This does not close the full §3
-accounting/measurement gate, F5c, or F5e; the latest checkpoint is recorded at
-the end of this file and in the handoff's final section.
+Latest status (2026-09-24): iterative producer analysis now covers guarded
+owner search, recursive-owner references, polarity incidence, first-occurrence
+ordering, and Term value-row collection. The task stack has a dedicated lane in
+the existing physical walker ledger. Both positive/negative boxed trees and a
+deep Term chain pass on 64 KiB stacks. The focused `f5c_` filter passes 155
+tests; full F5c/F5e closure and the broader resource/public-observation gates
+remain open. The latest slice is recorded at the end of the F5c handoff and
+this file.
 
 ## Active F5 gate
 
 Latest continuation note (2026-09-24): the user selected option B for the
 counter conflict: preserve §36 all-counter invariance with canonical
-preordering, retaining the exact comparison count of the prescribed
-stable-mergesort. The normalizer now preorders child keys and per-height
-descriptors using bounded insertion sort or iterative MSD radix distribution,
-then runs the prescribed mergesort. The 18/24 root-order witness now reports
-18/18; reversed Union inputs also have equal complete
-normalization stats. The normalizer owns two additional accounted scratch
-lanes. The mixed-height ordering/counter subgate is implemented and pushed in
-`fc34f127` and `e81b9e84`. The recursive boxed-tree conversion after summary
-materialization is now iterative in `f5c_materialization.rs`, with two added
-walker lanes in the existing independent capacity ledger; a 2,049-node
-alternating Function chain passes on a 64 KiB stack. The slice is checkpointed
-in `68952716`. The focused `f5c_` suite
-passes 153 tests and `cargo check --workspace` passes. Full F5c/F5e closure is
-not claimed; root-local replay/incidence/occurrence walks, recursive closed
-finalization, and co-resident draft/output-tree accounting remain open. Next:
-resolve whether to preserve §24/F5b unchanged and leave finalization stack
-safety open, or return to reviewed design for a yu-types-owned indexed API; do
-not implement the unapproved API.
+preordering while retaining the prescribed stable-mergesort comparison count.
+That subgate is pushed in `fc34f127` and `e81b9e84`. Iterative boxed-tree
+materialization is pushed in `68952716`. The new producer-analysis slice moves
+guarded-owner, reference, incidence, occurrence, and Term-row traversals into
+`f5c_tree_analysis.rs`; its `AnalysisTasks` lane is tracked by the existing
+walker ledger. `lib.rs` is now 27,542 lines, 158 fewer than before this
+extraction. The slice passes the focused `f5c_` suite (155 tests) in default
+and no-default-feature configurations, plus workspace check, formatting, and
+diff checks. Full F5c/F5e closure is not claimed: recursive replay and binder
+substitution, tree clone/drop, closed finalization inside the §24 callback, and
+co-resident draft/output-tree accounting remain open. Preserve §24/F5b; do not
+implement the unapproved indexed `yu-types` API.
 The design decision is recorded in
 [`2026-09-24 F5c normalization counter invariance`](../design/2026-09-24-f5c-normalization-counter-invariance-addendum.md);
 implementation details and residual gates are at the end of the
