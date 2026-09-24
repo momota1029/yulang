@@ -1303,3 +1303,52 @@ positive/negative and duplicate tests plus §44 representative linkage, and
 reconcile stack scratch/accounting without growing `lib.rs`. The old note's
 statement that code was unchanged is historical and superseded by this
 checkpoint.
+
+## Height-major normalization implementation checkpoint (2026-09-24)
+
+The selected option B is now implemented as a local candidate in
+`crates/yu-solver/src/f5c_normalization.rs`. Production calls a component-wide
+iterative postorder pass before `DraftsVisible`; each height group uses the
+specified stable descriptor-word mergesort, exact equal descriptors share a
+rank, and Union/Intersection children are sorted and deduplicated by
+`(height, rank)`. Rebuild is iterative. The module owns an 11-lane Vec index
+ledger with checked capacity arithmetic; the public `closed_normalization_index`
+family and §34/§36 normalization counters are wired into `ProductionCounters`.
+No §24 callback/API or live Union Term was added. `lib.rs` is 27,810 lines,
+82 fewer than at the pushed producer-order checkpoint; the algorithm and its
+tests live outside that already-large file.
+
+Tests cover positive and negative mixed-height order, duplicate collapse,
+source-order-insensitive normalized output, unclassified-node rejection, a
+4,096-Function chain on a 64 KiB stack, transient index-lane reconciliation,
+public counter exposure, and §44 routing of exactly the first member after
+height-major normalization (including the case where §25 structural-first
+would choose the other member).
+
+The gate is not closed. A temporary root-permutation probe with the same five
+quantified leaf roots, rotated as a set, produced identical normalized values
+but different exact stable-mergesort word-comparison counts: 18 and 24. This
+conflicts with F5 §36's simultaneous requirements that the counter report the
+comparisons performed by the prescribed mergesort and that root-order
+permutations yield identical counters. The temporary asserting test was removed
+after establishing the counterexample; do not treat the passing filtered suite
+as evidence that this requirement is satisfied.
+
+User direction is needed before resolving that conflict:
+
+1. Keep the exact input-sensitive comparison counter and narrow the
+   root-permutation invariance requirement to ranks, normalized child order,
+   and schemes; or
+2. Keep all-counter invariance and approve an extra deterministic
+   pre-ordering/comparison schedule plus its additional work and scratch model.
+
+The first option preserves the specified sort and reports actual work. The
+second adds a new algorithm/resource decision beyond the already-selected
+height-major order. Do not silently choose either. The index ledger accounts
+its 11 physical Vec lanes only; it does not certify all simultaneously live
+F5c draft/output-tree scratch or F5e resource surfaces. Those gates remain
+open. The focused `f5c_` suite passed 144 tests after removing the temporary
+counter-invariance assertion. No full library suite, benchmark, or F5e matrix
+was run. Work remains primary-only with no independent reviewer, as explicitly
+requested by the user. Keep the checkpoint local and unpushed until the
+counter-contract choice and its records are resolved.

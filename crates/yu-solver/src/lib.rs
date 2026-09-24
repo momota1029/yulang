@@ -178,6 +178,7 @@ use yu_types::{
 
 mod scc;
 use scc::{SccComponentId, SccPlan};
+mod f5c_normalization;
 #[cfg(test)]
 mod incoming_sample_trace;
 mod term;
@@ -1965,6 +1966,18 @@ pub struct ProductionCounters {
     generalization_shared_summary_admissions: usize,
     generalization_uncacheable_states: usize,
     generalization_shared_summary_hits: usize,
+    closed_normalized_key_writes: usize,
+    closed_normalization_child_comparisons: usize,
+    closed_normalization_hash_probes: usize,
+    closed_normalization_hash_admissions: usize,
+    closed_normalization_hash_duplicates: usize,
+    closed_normalization_descriptor_words: usize,
+    closed_normalization_word_comparisons: usize,
+    closed_normalization_index_requested_slots: usize,
+    closed_normalization_index_actual_capacity: usize,
+    closed_normalization_index_retained_bytes: usize,
+    closed_normalization_index_peak_bytes: usize,
+    closed_normalization_index_capacity_growths: usize,
     component_expansion_memo_requested_slots: usize,
     component_expansion_memo_actual_capacity: usize,
     component_expansion_memo_retained_bytes: usize,
@@ -2196,6 +2209,18 @@ impl ProductionCounters {
         generalization_shared_summary_admissions,
         generalization_uncacheable_states,
         generalization_shared_summary_hits,
+        closed_normalized_key_writes,
+        closed_normalization_child_comparisons,
+        closed_normalization_hash_probes,
+        closed_normalization_hash_admissions,
+        closed_normalization_hash_duplicates,
+        closed_normalization_descriptor_words,
+        closed_normalization_word_comparisons,
+        closed_normalization_index_requested_slots,
+        closed_normalization_index_actual_capacity,
+        closed_normalization_index_retained_bytes,
+        closed_normalization_index_peak_bytes,
+        closed_normalization_index_capacity_growths,
         component_expansion_memo_requested_slots,
         component_expansion_memo_actual_capacity,
         component_expansion_memo_retained_bytes,
@@ -2498,6 +2523,18 @@ impl ProductionCounters {
             generalization_shared_summary_admissions,
             generalization_uncacheable_states,
             generalization_shared_summary_hits,
+            closed_normalized_key_writes,
+            closed_normalization_child_comparisons,
+            closed_normalization_hash_probes,
+            closed_normalization_hash_admissions,
+            closed_normalization_hash_duplicates,
+            closed_normalization_descriptor_words,
+            closed_normalization_word_comparisons,
+            closed_normalization_index_requested_slots,
+            closed_normalization_index_actual_capacity,
+            closed_normalization_index_retained_bytes,
+            closed_normalization_index_peak_bytes,
+            closed_normalization_index_capacity_growths,
             component_expansion_memo_requested_slots,
             component_expansion_memo_actual_capacity,
             component_expansion_memo_retained_bytes,
@@ -3639,167 +3676,6 @@ struct F5cGuardedTrace {
     entry_polarity: Polarity,
     reentry_polarity: Polarity,
     path: Vec<F5cTraceHop>,
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum F5cCanonicalTree {
-    PositiveBottom,
-    PositiveInt,
-    PositiveQuantified(u32),
-    PositiveRecursive(u32),
-    PositiveUnion(Vec<F5cCanonicalTree>),
-    PositiveFunction {
-        argument: Box<F5cCanonicalTree>,
-        result: Box<F5cCanonicalTree>,
-    },
-    NegativeTop,
-    NegativeBottom,
-    NegativeInt,
-    NegativeQuantified(u32),
-    NegativeRecursive(u32),
-    NegativeIntersection(Vec<F5cCanonicalTree>),
-    NegativeFunction {
-        argument: Box<F5cCanonicalTree>,
-        result: Box<F5cCanonicalTree>,
-    },
-}
-
-#[derive(Clone)]
-enum F5cKeyNode {
-    Leaf(F5cCanonicalTree),
-    PositiveUnion(Vec<usize>),
-    PositiveFunction(usize, usize),
-    NegativeIntersection(Vec<usize>),
-    NegativeFunction(usize, usize),
-}
-
-#[derive(Default)]
-struct F5cKeyForest {
-    nodes: Vec<F5cKeyNode>,
-}
-
-impl F5cKeyForest {
-    fn leaf(&mut self, signature: F5cCanonicalTree) -> usize {
-        let index = self.nodes.len();
-        self.nodes.push(F5cKeyNode::Leaf(signature));
-        index
-    }
-
-    fn positive(&mut self, value: &F5cPositive) -> Result<usize, SolveAvailabilityError> {
-        Ok(match value {
-            F5cPositive::Bottom => self.leaf(F5cCanonicalTree::PositiveBottom),
-            F5cPositive::Int => self.leaf(F5cCanonicalTree::PositiveInt),
-            F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
-                return Err(SolveAvailabilityError::IdentityExhausted);
-            }
-            F5cPositive::Quantified(ordinal) => {
-                self.leaf(F5cCanonicalTree::PositiveQuantified(*ordinal))
-            }
-            F5cPositive::Recursive(ordinal) => {
-                self.leaf(F5cCanonicalTree::PositiveRecursive(*ordinal))
-            }
-            F5cPositive::Union(values) => {
-                let children = values
-                    .iter()
-                    .map(|value| self.positive(value))
-                    .collect::<Result<Vec<_>, _>>()?;
-                self.branch(F5cKeyNode::PositiveUnion(children))
-            }
-            F5cPositive::Function {
-                argument, result, ..
-            } => {
-                let argument = self.negative(argument)?;
-                let result = self.positive(result)?;
-                self.branch(F5cKeyNode::PositiveFunction(argument, result))
-            }
-        })
-    }
-
-    fn negative(&mut self, value: &F5cNegative) -> Result<usize, SolveAvailabilityError> {
-        Ok(match value {
-            F5cNegative::Top => self.leaf(F5cCanonicalTree::NegativeTop),
-            F5cNegative::Bottom => self.leaf(F5cCanonicalTree::NegativeBottom),
-            F5cNegative::Int => self.leaf(F5cCanonicalTree::NegativeInt),
-            F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
-                return Err(SolveAvailabilityError::IdentityExhausted);
-            }
-            F5cNegative::Quantified(ordinal) => {
-                self.leaf(F5cCanonicalTree::NegativeQuantified(*ordinal))
-            }
-            F5cNegative::Recursive(ordinal) => {
-                self.leaf(F5cCanonicalTree::NegativeRecursive(*ordinal))
-            }
-            F5cNegative::Intersection(values) => {
-                let children = values
-                    .iter()
-                    .map(|value| self.negative(value))
-                    .collect::<Result<Vec<_>, _>>()?;
-                self.branch(F5cKeyNode::NegativeIntersection(children))
-            }
-            F5cNegative::Function {
-                argument, result, ..
-            } => {
-                let argument = self.positive(argument)?;
-                let result = self.negative(result)?;
-                self.branch(F5cKeyNode::NegativeFunction(argument, result))
-            }
-        })
-    }
-
-    fn branch(&mut self, node: F5cKeyNode) -> usize {
-        let index = self.nodes.len();
-        self.nodes.push(node);
-        index
-    }
-
-    fn tree(&self, index: usize) -> Result<F5cCanonicalTree, SolveAvailabilityError> {
-        Ok(
-            match self
-                .nodes
-                .get(index)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?
-            {
-                F5cKeyNode::Leaf(tree) => tree.clone(),
-                F5cKeyNode::PositiveUnion(children) => {
-                    let mut children = children
-                        .iter()
-                        .map(|child| self.tree(*child))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    children.sort_unstable();
-                    children.dedup();
-                    F5cCanonicalTree::PositiveUnion(children)
-                }
-                F5cKeyNode::PositiveFunction(argument, result) => {
-                    F5cCanonicalTree::PositiveFunction {
-                        argument: Box::new(self.tree(*argument)?),
-                        result: Box::new(self.tree(*result)?),
-                    }
-                }
-                F5cKeyNode::NegativeIntersection(children) => {
-                    let mut children = children
-                        .iter()
-                        .map(|child| self.tree(*child))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    children.sort_unstable();
-                    children.dedup();
-                    F5cCanonicalTree::NegativeIntersection(children)
-                }
-                F5cKeyNode::NegativeFunction(argument, result) => {
-                    F5cCanonicalTree::NegativeFunction {
-                        argument: Box::new(self.tree(*argument)?),
-                        result: Box::new(self.tree(*result)?),
-                    }
-                }
-            },
-        )
-    }
-
-    fn unordered_root_keys(
-        &self,
-        roots: &[usize],
-    ) -> Result<Vec<F5cCanonicalTree>, SolveAvailabilityError> {
-        roots.iter().map(|root| self.tree(*root)).collect()
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -6905,69 +6781,11 @@ impl<'a> F5cGeneralizer<'a> {
     }
 
     fn normalize_positive(value: F5cPositive) -> Result<F5cPositive, SolveAvailabilityError> {
-        Ok(match value {
-            F5cPositive::Variable(_) | F5cPositive::Shared(_) => {
-                return Err(SolveAvailabilityError::IdentityExhausted);
-            }
-            F5cPositive::Function {
-                argument, result, ..
-            } => F5cPositive::Function {
-                argument: Box::new(Self::normalize_negative(*argument)?),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(Self::normalize_positive(*result)?),
-            },
-            F5cPositive::Union(values) => {
-                let values = values
-                    .into_iter()
-                    .map(Self::normalize_positive)
-                    .collect::<Result<Vec<_>, _>>()?;
-                let mut forest = F5cKeyForest::default();
-                let roots = values
-                    .iter()
-                    .map(|value| forest.positive(value))
-                    .collect::<Result<Vec<_>, _>>()?;
-                let keys = forest.unordered_root_keys(&roots)?;
-                let mut keyed = keys.into_iter().zip(values).collect::<Vec<_>>();
-                keyed.sort_by(|left, right| left.0.cmp(&right.0));
-                keyed.dedup_by(|left, right| left.0 == right.0);
-                F5cPositive::Union(keyed.into_iter().map(|(_, value)| value).collect())
-            }
-            other => other,
-        })
+        f5c_normalization::normalize_positive(value)
     }
 
     fn normalize_negative(value: F5cNegative) -> Result<F5cNegative, SolveAvailabilityError> {
-        Ok(match value {
-            F5cNegative::Variable(_) | F5cNegative::Shared(_) => {
-                return Err(SolveAvailabilityError::IdentityExhausted);
-            }
-            F5cNegative::Function {
-                argument, result, ..
-            } => F5cNegative::Function {
-                argument: Box::new(Self::normalize_positive(*argument)?),
-                argument_effect: F5cPositiveEffect::Bottom,
-                result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(Self::normalize_negative(*result)?),
-            },
-            F5cNegative::Intersection(values) => {
-                let values = values
-                    .into_iter()
-                    .map(Self::normalize_negative)
-                    .collect::<Result<Vec<_>, _>>()?;
-                let mut forest = F5cKeyForest::default();
-                let roots = values
-                    .iter()
-                    .map(|value| forest.negative(value))
-                    .collect::<Result<Vec<_>, _>>()?;
-                let keys = forest.unordered_root_keys(&roots)?;
-                let mut keyed = keys.into_iter().zip(values).collect::<Vec<_>>();
-                keyed.sort_by(|left, right| left.0.cmp(&right.0));
-                keyed.dedup_by(|left, right| left.0 == right.0);
-                F5cNegative::Intersection(keyed.into_iter().map(|(_, value)| value).collect())
-            }
-            other => other,
-        })
+        f5c_normalization::normalize_negative(value)
     }
 
     fn term_value_rows(&self, term: Term, rows: &mut HashSet<u32>) {
@@ -7111,7 +6929,9 @@ impl<'a> F5cGeneralizer<'a> {
 
     #[cfg(test)]
     fn build(&mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
-        self.build_inner(root)
+        let mut draft = self.build_inner(root)?;
+        f5c_normalization::normalize_component(std::slice::from_mut(&mut draft))?;
+        Ok(draft)
     }
 
     fn build_component(
@@ -7498,13 +7318,13 @@ impl<'a> F5cGeneralizer<'a> {
                 other => Ok(other),
             }
         }
-        let predicate = Self::normalize_positive(positive(
+        let predicate = positive(
             predicate,
             &q,
             &r,
             &positive_eliminated,
             &negative_eliminated,
-        )?)?;
+        )?;
         let mut recursive_bounds = Vec::with_capacity(recursive_owners.len());
         for ordinal in &recursive_owners {
             let Some(binder) = r.get(ordinal).copied() else {
@@ -7513,20 +7333,20 @@ impl<'a> F5cGeneralizer<'a> {
             let (raw_lower, raw_upper) = raw_recursive_bounds
                 .remove(ordinal)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            let lower = Self::normalize_positive(positive(
+            let lower = positive(
                 raw_lower,
                 &q,
                 &r,
                 &positive_eliminated,
                 &negative_eliminated,
-            )?)?;
-            let upper = Self::normalize_negative(negative(
+            )?;
+            let upper = negative(
                 raw_upper,
                 &q,
                 &r,
                 &positive_eliminated,
                 &negative_eliminated,
-            )?)?;
+            )?;
             recursive_bounds.push(F5cRecursiveBound {
                 ordinal: binder,
                 lower,
@@ -7685,6 +7505,12 @@ struct IndependentResourceLedger {
     generalization_walker_peak_bytes: usize,
     generalization_walker_capacity_growths: usize,
     generalization_walker_lanes: [IndependentMemoLane; 11],
+    closed_normalization_index_requested_slots: usize,
+    closed_normalization_index_actual_capacity: usize,
+    closed_normalization_index_retained_bytes: usize,
+    closed_normalization_index_peak_bytes: usize,
+    closed_normalization_index_capacity_growths: usize,
+    closed_normalization_index_lanes: [IndependentNormalizationLane; 11],
     instantiation_substitution_requested_slots: usize,
     instantiation_substitution_actual_capacity: usize,
     instantiation_substitution_retained_bytes: usize,
@@ -7698,6 +7524,18 @@ struct IndependentResourceLedger {
 struct IndependentMemoLane {
     requested_slots: usize,
     actual_capacity: usize,
+    retained_bytes: usize,
+    peak_bytes: usize,
+    capacity_growths: usize,
+}
+
+#[cfg(test)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct IndependentNormalizationLane {
+    requested_slots: usize,
+    actual_capacity: usize,
+    peak_capacity: usize,
+    slot_size: usize,
     retained_bytes: usize,
     peak_bytes: usize,
     capacity_growths: usize,
@@ -13768,6 +13606,15 @@ impl InferenceSession {
             #[cfg(test)]
             self.resource_ledger
                 .record_component_expansion_memo(&component_expansion_memo)?;
+            let normalization_stats =
+                f5c_normalization::normalize_component(&mut generalization_drafts)?;
+            #[cfg(test)]
+            self.resource_ledger
+                .record_closed_normalization_index(&normalization_stats)?;
+            f5c_normalization::record_production_counters(
+                &normalization_stats,
+                &mut self.execution_counters,
+            )?;
             self.execution_counters
                 .scc_execution_drafts_visible_barriers += 1;
             #[cfg(test)]
@@ -15033,7 +14880,9 @@ impl InferenceSession {
             F5cComponentExpansionMemo::default(),
             0,
         );
-        result
+        let mut draft = result?;
+        f5c_normalization::normalize_component(std::slice::from_mut(&mut draft))?;
+        Ok(draft)
     }
 
     fn component_generalization_draft(
@@ -15397,6 +15246,35 @@ impl InferenceSession {
             assert_eq!(
                 self.resource_ledger.inference_session_retained_bytes,
                 self.execution_counters.inference_session_retained_bytes,
+            );
+            assert_eq!(
+                self.resource_ledger
+                    .closed_normalization_index_requested_slots,
+                self.execution_counters
+                    .closed_normalization_index_requested_slots,
+            );
+            assert_eq!(
+                self.resource_ledger
+                    .closed_normalization_index_actual_capacity,
+                self.execution_counters
+                    .closed_normalization_index_actual_capacity,
+            );
+            assert_eq!(
+                self.resource_ledger
+                    .closed_normalization_index_retained_bytes,
+                self.execution_counters
+                    .closed_normalization_index_retained_bytes,
+            );
+            assert_eq!(
+                self.resource_ledger.closed_normalization_index_peak_bytes,
+                self.execution_counters
+                    .closed_normalization_index_peak_bytes,
+            );
+            assert_eq!(
+                self.resource_ledger
+                    .closed_normalization_index_capacity_growths,
+                self.execution_counters
+                    .closed_normalization_index_capacity_growths,
             );
         }
         let mut counters = self.batch.counters();
@@ -24305,6 +24183,27 @@ mod tests {
     }
 
     #[test]
+    fn f5c_normalization_counters_report_component_index_lifecycle() {
+        let solved = SolvedModule::solve(collect(module(
+            "my f = 1",
+            "f5c-normalization-index-counters",
+        )))
+        .unwrap();
+        let counters = solved.counters();
+
+        assert!(counters.closed_normalized_key_writes() > 0);
+        assert!(counters.closed_normalization_descriptor_words() > 0);
+        assert!(counters.closed_normalization_index_requested_slots() > 0);
+        assert!(counters.closed_normalization_index_capacity_growths() > 0);
+        assert!(counters.closed_normalization_index_peak_bytes() > 0);
+        assert_eq!(counters.closed_normalization_hash_probes(), 0);
+        assert_eq!(counters.closed_normalization_hash_admissions(), 0);
+        assert_eq!(counters.closed_normalization_hash_duplicates(), 0);
+        assert_eq!(counters.closed_normalization_index_actual_capacity(), 0);
+        assert_eq!(counters.closed_normalization_index_retained_bytes(), 0);
+    }
+
+    #[test]
     fn f5c_post_qr_normalization_rejects_unclassified_live_nodes() {
         for value in [
             F5cPositive::Variable(7),
@@ -24750,19 +24649,31 @@ mod tests {
         let batch = collect(module("my source = 1; my sink = source", "f5c-union-route"));
         let route_id = batch.definition_uses()[0].id.clone();
         let mut session = InferenceSession::new(batch);
-        let draft = GeneralizationDraft {
+        let shallow = F5cPositive::Function {
+            argument: Box::new(F5cNegative::Top),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Int),
+        };
+        let deep = F5cPositive::Union(vec![F5cPositive::Function {
+            argument: Box::new(F5cNegative::Bottom),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Int),
+        }]);
+        let mut draft = GeneralizationDraft {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
-            predicate: F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Int),
-                },
-            ]),
+            // Structural-first order would put the nested Union (tag 4)
+            // before the Function (tag 5); §36 height-major order picks the
+            // shallower Function as the final representative.
+            predicate: F5cPositive::Union(vec![deep.clone(), shallow.clone()]),
         };
+        f5c_normalization::normalize_component(std::slice::from_mut(&mut draft)).unwrap();
+        let F5cPositive::Union(members) = &draft.predicate else {
+            panic!("normalized predicate remains a Union");
+        };
+        assert_eq!(members, &[shallow, deep]);
         let finalized = InferenceSession::finalize_generalization_draft(
             session.finalization.as_mut().unwrap(),
             &draft,
@@ -24776,9 +24687,16 @@ mod tests {
         assert_eq!(session.routed_uses.len(), 1);
         assert_eq!(session.store.facts().len(), 1);
         assert_eq!(session.routed_use_positions.len(), 1);
+        let TermView::PositiveFunction { argument, .. } = session
+            .store
+            .term_view(session.store.facts()[0].lower())
+            .unwrap()
+        else {
+            panic!("the public fact projects the canonical first Function member");
+        };
         assert!(matches!(
-            session.store.term_view(session.store.facts()[0].lower()),
-            Ok(TermView::Leaf(Leaf::IntPositive))
+            session.store.term_view(argument),
+            Ok(TermView::NegativeTop)
         ));
         assert!(
             session
