@@ -21,16 +21,19 @@ restoration), exact raw-root order, complete raw-forest/effect witnesses, and
 module/resource-accounting scope. Raw bounds now have an explicit first-
 reentry owner order and lower-before-upper traversal; HashMap iteration is
 lookup-only. This aligns with the existing producer-order authority. The
-proposal is Reviewed, not Authoritative: **do not edit the active producer
-until the user explicitly approves this shared-interpreter/module move**.
+reviewed proposal is now user-approved for staged internal implementation
+(2026-09-26). First move the F5c generalization owner into
+`f5c_generalization.rs` without changing behavior or production callers. Review
+and push that ownership slice; then close memo transaction/active-state rollback
+gaps with focused failure witnesses before adding the shared sink. The boxed
+sink remains the production path and the flat sink remains uncalled.
 
 No code, tests, benchmarks, or resource probes ran in this design gate;
-measurement budget remains zero. Next: present the user the exact preserved
-properties and costs and request approval or deferral. If approved, first move
-the F5c generalization owner and implement/test its chronological memo undo and
-idle active-state rollback; then add the shared flat sink and complete raw-root
-forest. The §15 resource plan remains required before any probe. Indexed
-finalization, F5e, §44 rollback, and overall F5c/F5e closure remain open.
+measurement budget remains zero. The first active code slice is the ownership
+move only; no shared walker, flat sink, production cutover, benchmark, or
+resource probe is included. The §15 resource plan remains required before any
+probe. Indexed finalization, F5e, §44 rollback, and overall F5c/F5e closure
+remain open.
 
 ### Latest continuation (2026-09-26): pre-replay producer roots into FlatDraft
 

@@ -1,9 +1,9 @@
 # F5c shared producer walker with a flat candidate sink
 
-Status: Reviewed proposal; explicit user architecture approval pending; no code authorized
+Status: User-approved staged implementation; production cutover and resource probes remain unauthorized
 Scope: Candidate-side flat values at the existing F5c row/term producer task boundary
 Related authority: `2026-09-25-f5c-flat-indexed-stack-independent-draft.md` §§2–8, 15, 17–21; F5 §§22, 24–25, 32–36, 43–44
-Decision proposed: Keep one `F5cWalkTask` interpreter and parameterize its value construction through a boxed sink and a non-shipping flat sink; move F5c generalization ownership out of `lib.rs`; make no production caller cutover in this gate
+Approved staged decision: Keep one `F5cWalkTask` interpreter and parameterize its value construction through a boxed sink and a non-shipping flat sink; move F5c generalization ownership out of `lib.rs`; make no production caller cutover in this gate
 Reviewed-by: M3 `compiler_referee`, `spec_auditor`, and `performance_auditor`; blocking/major findings closed by focused delta reviews on 2026-09-26
 Supersedes: none
 
@@ -253,15 +253,16 @@ plan. Flat IDs do not remove the current worst-case quadratic number of
 first-seen member comparisons or the cost of comparing compound members.
 No numeric resource limit or successful-path margin is selected here.
 
-Review and explicit user approval precede any change to the active shared
-interpreter. A green build or test does not authorize the refactor. Any
-unresolved interface or rollback finding returns to this draft. The subsequent
-implementation remains staged: first relocate the F5c generalization owner
-and close its existing transaction/active-state rollback gaps; then add the
-shared sink and ordered flat raw-root forest; then the remaining flat
-transformations and indexed finalizer. Avoid adding a second algorithm for
-Q/R owner discovery. Before the first resource probe, prepare and independently
-review the exact §15 plan.
+The user approved this reviewed proposal on 2026-09-26. Approval authorizes the
+staged internal implementation, not production cutover, numeric resource
+limits, resource probes, or F5c/F5e acceptance. A green build or test does not
+authorize those later gates. Any unresolved interface or rollback finding
+returns to this draft. The implementation remains staged: first relocate the
+F5c generalization owner with no intended behavior change; then close its
+transaction/active-state rollback gaps; then add the shared sink and ordered
+flat raw-root forest; then the remaining flat transformations and indexed
+finalizer. Avoid adding a second algorithm for Q/R owner discovery. Before the
+first resource probe, prepare and independently review the exact §15 plan.
 
 ## 6. Explicit non-goals
 
