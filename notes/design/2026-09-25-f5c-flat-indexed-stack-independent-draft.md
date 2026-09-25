@@ -146,6 +146,23 @@ Before creating any transaction handle, validate with checked arithmetic:
   leaves, not structural edges. Every node must be reachable from the
   predicate or one of the R lower/upper roots; orphan nodes are invalid.
 
+The intended indexed validation bound is `O(V + E + B + Q)`, with scratch
+bounded by those input dimensions, but only if the implementation follows a
+direct dense-index path. Let `V` be the total positive and negative node
+count, `E` the stored child-ID entries plus logical parent-to-child
+incidences (including Function argument/result edges and repeated incidences
+from overlapping spans), `B` the recursive-bound count, and `Q` the
+quantifier count. Check `Q + B` and all index conversions; validate bound
+entry `i` as ordinal `Q + i`; resolve Q references by `ordinal < Q` and R
+references by checked `ordinal - Q` into `[0, B)`. Scan every stored child ID,
+including IDs outside selected spans. Then use a three-color iterative DFS
+from the predicate and every bound endpoint, visiting each node and outgoing
+incidence once; a gray edge is a structural cycle, and any node still white
+after all roots is an orphan. Recursive-reference leaves do not add structural
+edges. Planning and commit need their own bounded-pass source proof. The
+current callback validator has nested linear membership/duplicate searches,
+so its complexity cannot be cited as evidence for this proposed indexed path.
+
 Solver-side production must compact after normalization before constructing
 this input, so deduplicated-away nodes cannot violate the no-orphans rule.
 The producer owns F5c source semantics: it assigns Q/R with the approved
@@ -236,6 +253,12 @@ observable route. Existing shallow witnesses must compare the old and new
 closed schemes, observations, counters whose contracts remain authoritative,
 and public route/fact projections exactly.
 
+The existing F5a callback contract remains unchanged, including acceptance of
+caller-ordered selections/subsets of the created R bounds (including reordered
+and subset cases). The proposed indexed F5c producer emits dense bounds in
+`Q + i` order and must produce the same scheme for that input form; this does
+not narrow or replace the callback's broader accepted-input contract.
+
 ## 5. Resource, work, and failure boundary
 
 Structural depth itself has no fixed cap in this proposal. Every flat node,
@@ -246,16 +269,24 @@ mapping; never truncate, approximate, or silently omit a child.
 
 Keep two different limits distinct:
 
-- **Draft-size limits** cap positive/negative node admissions, child-edge
-  entries, Q/R bounds, roots, and descriptor words before the corresponding
-  lane grows. These structural dimensions also bound the indexed finalizer's
-  input and its per-node/per-edge validation/build passes.
-- **Repeat-work limits** charge actual shared-summary child-edge expansions,
-  root-local incidence/eligibility and binder-substitution steps, replay task
-  steps, and R fixed-point/replay steps before each step executes. These stop
-  path amplification and repeated root-local work even when the flat draft
-  itself stays small. They are solver-owned; do not pass a fuel counter across
-  the `yu-types` API.
+- **Draft-size limits** cap positive/negative node admissions; stored
+  child-ID entries and logical parent-to-child incidences separately; Q/R
+  bounds, roots, descriptor words, and live intermediate graph size before the
+  corresponding lane grows. Frames, maps, and finalizer scratch are bounded
+  by these admitted dimensions but still require physical-lane accounting.
+  Logical incidences are separate because overlapping spans can make them
+  exceed the stored child-array length.
+- **Repeat-work limits** use one solver-owned checked meter. One unit is one
+  actual candidate-pair check, structural node-pair comparison visit,
+  shared-summary edge expansion, root-local analysis/trace/eligibility or
+  replay visit, binder-substitution visit, R fixed-point/owner/trace visit, or
+  element copied by replay. Charge before the operation; charge both the outer
+  candidate pair and each structural node-pair visit. A copied scalar leaf is
+  one element; structural or bulk clones charge their actual copied elements.
+  Optional per-family subtotals may aid diagnosis, but do not create separate
+  independent limits. This meter stops path amplification and repeated
+  root-local work even when the final flat draft stays small; do not pass fuel
+  across the `yu-types` API.
 
 The 2026-09-25 architect adjudication found the prior `k!` alpha-permutation
 concern stale: the authoritative producer-order addendum removed that ranking
@@ -264,18 +295,23 @@ budget lane for deleted work. Closed normalization retains its authoritative
 §34 `O(N + Σ k log(k+1))` comparison contract; with node/edge admission
 limits, its work is bounded by the admitted normalized graph. The indexed
 finalizer must validate and build each supplied node/edge a bounded constant
-number of times, with scratch bounded by the same input dimensions. The source
-audit must verify these claims rather than assuming that flat IDs make them
-true.
+number of times, with scratch bounded by the same input dimensions. These are
+conditional complexity claims, not facts established by the current callback
+or by using flat IDs alone. The source audit must verify each pass and every
+charge site.
 
-No numeric size/work threshold is selected here: there is no inspected
-practical-source corpus or resource measurement that justifies a value. A
-separate reviewed resource subgate must choose limits above the observed
-practical envelope, map pre-step/pre-growth exhaustion to existing
-`IdentityExhausted`, and prove no partial publication. Until that subgate is
-closed, this design does **not** claim a concrete deterministic practical-work
-ceiling or general pathological-work rejection. This boundary is
-intentionally narrower than full F5c/F5e closure.
+No numeric size/work threshold is selected here. The repository source corpus
+has now been inspected, but it establishes only a repository-bounded surface
+envelope: it does not connect source bytes or expected signatures to expanded
+solver graph size or repeated work, and it is not evidence that external Oracle
+inputs have the same distribution. Existing synthetic stress tests cover deep
+traversals and selected lane accounting, but not every proposed charge family
+or a future flat producer/finalizer. A separate reviewed resource subgate must
+choose limits above the measured envelope, map pre-step/pre-growth exhaustion
+to existing `IdentityExhausted`, and prove no partial publication. Until that
+subgate is closed, this design does **not** claim a concrete deterministic
+practical-work ceiling or general pathological-work rejection. This boundary
+is intentionally narrower than full F5c/F5e closure.
 
 The existing F5/F4 resource contracts are not removed by this draft. Every
 new or retained physical lane remains classified and counted exactly once;
@@ -409,6 +445,13 @@ limits. The old `unordered_root_keys` permutation family is excluded because
 the authoritative producer-order decision removed it; do not reintroduce it
 as a guard or counter.
 
+The resource subgate must record the corpus selection and surface-size method,
+distinguish source size from inferred/expanded solver size, and label the
+resulting margin as repository-bounded unless a representative external Oracle
+corpus is available. Scale witnesses must report admitted nodes, stored
+entries, logical incidences, roots/bounds, each charged-work subtotal, peak
+co-resident bytes, and the first pre-growth/pre-work rejection point.
+
 If approved, implementation is still staged and reviewed separately. First
 replace the producer-owned recursive draft boundary and normalization rebuild
 with flat IDs while preserving existing output on bounded fixtures; then add
@@ -421,17 +464,18 @@ source, resource, public-observation, and scale gates close.
 
 ## 8. Open decisions after review
 
-The M3 reports found the flat/indexed boundary directionally sound but not
-approval-ready. The primary accepts the API/input, failure-epoch, normalized
-compaction, Q/R producer-order, simultaneous-accounting, and witness-coverage
-findings; these are reflected in §§2–7. The performance review's `k!`
-alpha-permutation concern is rejected as stale: the authoritative
+The initial M3 reports found the flat/indexed boundary directionally sound but
+not approval-ready. The primary accepted the API/input, failure-epoch,
+normalized compaction, Q/R producer-order, simultaneous-accounting, and
+witness-coverage findings; these are reflected in §§2–7. The performance
+review's `k!` alpha-permutation concern is rejected as stale: the authoritative
 producer-order addendum removed that path, and current-source search found no
 `unordered_root_keys`. Shared-summary path expansion and root-local
 incidence/replay plus R fixed-point repetition remain live risks. The
-architect recommends size gates plus one solver-owned charged-work meter;
-numeric thresholds remain unsupported without practical-source and scale
-evidence.
+architect recommends admitted-size gates plus one solver-owned charged-work
+meter. The subsequent source/corpus investigation in §13 confirms that numeric
+thresholds remain unsupported: repository fixtures do not expose expanded
+solver work, and no external corpus is available in this workspace.
 
 After the exact proposed §24 API, producer/finalizer ownership and parity
 obligations, failure-epoch rules, and accounting boundary have passed
@@ -567,3 +611,76 @@ prototypes, the proposed `yu-types` public API, semantic/support-limit changes,
 or F5 clause supersession. After the evidence is gathered, present the concrete
 numeric support boundary for independent review and separate user approval
 before implementation.
+
+## 13. First-stage source and scale investigation (2026-09-25)
+
+The approved investigation was performed read-only against the repository
+corpus and current F5c paths. No production or test source was changed. The
+worktree was clean at `baa8d78b` before this record update.
+
+### Practical-source envelope
+
+The stable-core manifest contains 73 cases, including 16 public-signature
+fixtures. The 16 `main.yu` files and 16 expected `signature.toml` files total
+4,513 bytes; all stable-core `main.yu` files total 10,258 bytes. These are
+surface measurements only. The runtime performance corpus has 10 cases but is
+not a type-size distribution; the phase2 parser corpus is parser-only. The
+repository has no compiler CLI/driver or corpus harness that connects these
+fixtures to F5c expanded-node, incidence, or repeated-work measurements.
+
+Some checked-in examples contain higher-order Function signatures, effects,
+and small Union/Intersection forms. They establish that those shapes occur,
+not a large-component envelope. `tail_self_recursion_100000` is value recursion,
+not a recursively defined type graph. No practical corpus witness was found
+for guarded recursive type structure or large normalized product families.
+Therefore repository fixtures can support a repository-only margin, not an
+external-practical-input claim.
+
+### Current charge-site map
+
+The exact families to meter in a future flat implementation are:
+
+| Family | Current owner/evidence | Repeat unit that needs charging |
+|---|---|---|
+| Shared summary expansion | `lib.rs` `materialize_summary`; summary child expansion | Each actually expanded child incidence, not only memoized nodes/edges |
+| Root-local census and analysis | `F5cGeneralizer::build_inner`; `f5c_tree_analysis::Walker::walk` | Each task pop, examined incidence, eligibility/order/trace check |
+| Binder substitution | `f5c_binder_substitution::substitute` and its caller in `lib.rs` | Each task/value visit and each produced child |
+| Replay and product expansion | `f5c_replay::replay`, `f5c_materialization::materialize_iterative`, product expansion in `lib.rs` | Each task visit, candidate pair and structural equality visit, and copied output element |
+| R fixed point | generalization loop in `lib.rs` | Each round, owner survival check, replay/trace visit, and copied candidate element |
+| Closed normalization | `f5c_normalization::{rank_all, rebuild}` | Preserve §34 comparison accounting; admit node/edge/descriptor dimensions before growth |
+| Indexed finalizer (proposed) | Current `yu-types::validate` and `plan`; indexed method does not exist | Direct dense ordinal lookups and iterative DFS/postorder; prove each node/incidence and each bound is processed a bounded number of times |
+
+Existing counters mostly describe retained capacities, growths, comparison
+subsets, or normalization scratch. They do not expose all task pops, shared
+path expansions, R fixed-point rounds, replay clones, or candidate-pair
+structural visits. In particular, the existing callback validator's nested
+linear membership/duplicate searches cannot justify the proposed indexed
+linear-pass claim.
+
+### Scale evidence and remaining limit
+
+The existing synthetic witnesses exercise 1,024 direct rows through summary
+admission/materialization, a 2,048-deep alternating Function walk/comparison,
+and 4,096-deep iterative replay/materialization/tree analysis on small stacks.
+They establish selected traversal feasibility and lane reconciliation, not a
+size/work ceiling: shared-DAG path amplification, many-candidate deep
+deduplication, repeated R fixed-point rounds, and indexed finalizer passes do
+not yet have exact independent visit ledgers. The depth-256 finalizer probe is
+profile/stack dependent as recorded in §1 and does not bound flat graph size.
+
+The focused `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` run passed
+162 tests in 0.64 seconds. A narrower `f5c_deep` run passed two tests. These
+were correctness checks, not benchmark samples; no benchmark/resource process
+budget was consumed and no peak-memory measurement was taken. No numeric cap
+is selected. The resource subgate still needs scale probes with independent
+counts for each draft dimension and work family, plus the actual co-resident
+lane ledger after a reviewed implementation exists.
+
+Primary disposition: accept the corpus and charge-site maps as evidence of
+what the repository does and does not establish. Keep the one-meter design and
+linear indexed-validation claim conditional as amended above. No F5 clause is
+superseded, no API or numeric boundary is approved, and production
+implementation remains unauthorized. Next: define a focused, test-only scale
+probe plan that does not add a production prototype, then return measured
+repository-bounded results for independent review before presenting any
+numeric support envelope.

@@ -2063,3 +2063,42 @@ implementation, or semantic change. The numeric support boundary must be
 independently reviewed and separately approved before implementation. Keep
 `lib.rs` as orchestration and isolate the eventual flat producer/finalizer
 bridge in dedicated modules.
+
+## First-stage flat/indexed resource investigation (2026-09-25)
+
+The user authorized repository source/corpus inspection, charge-site mapping,
+and focused scale/resource evidence only. The proposal remains Reviewed, not
+Authoritative; no public API, numeric support boundary, F5 clause
+supersession, or production implementation is approved.
+
+The stable-core corpus has 73 cases, including 16 public-signature fixtures.
+The public fixture `main.yu` plus expected `signature.toml` files total 4,513
+bytes; all stable-core `main.yu` files total 10,258 bytes. These measure source
+surface, not inferred graph size/work. The runtime corpus has 10 cases but is
+not a type-size distribution, and the repository has no compiler CLI/corpus
+harness to collect expanded F5c metrics. No external-source representativeness
+claim follows from these fixtures. The Rust test suite mostly uses synthetic
+builders.
+
+Current repeated-work owners and required charges are recorded in §13 of the
+draft. In short: actual shared-summary incidences; root-local task/edge and
+eligibility/trace visits; binder-substitution tasks; replay/product candidates,
+structural comparison visits and copied elements; R fixed-point rounds and
+owner replays; normalization admission dimensions; and, if implemented, direct
+dense indexed-finalizer passes. The finalizer's proposed `O(V+E+B+Q)` bound is
+conditional on checked direct Q/R ordinals, scanning all IDs/spans, iterative
+three-color DFS, and bounded plan/commit passes. The existing F5a callback's
+ordered-subset R contract must not be narrowed.
+
+Existing synthetic depths include 1,024 direct rows, 2,048 alternating
+Function levels, and 4,096-deep replay/materialization/tree-analysis paths.
+These establish selected traversal feasibility and accounting behavior, not a
+complete numeric work/size envelope. The current single-threaded F5c filter
+passed 162 tests (0.64 s); a `f5c_deep` filtered run passed 2 tests. No
+benchmark samples or peak-memory measurements were taken. No code source was
+changed; numeric thresholds remain unsupported.
+
+Next: define a narrowly scoped test-only scale-probe plan without a shipped
+path prototype; collect independent counts by draft dimension and repeated
+work family, then request focused independent review before presenting any
+repository-bounded numeric envelope. F5c/F5e remain open.

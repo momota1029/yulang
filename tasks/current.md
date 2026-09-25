@@ -17,17 +17,24 @@ success/error destruction and callback-local peak accounting remain.
 
 This design-only M3 gate is Reviewed after the initial review and two focused
 delta rounds; the assigned findings are closed with no remaining blocking or
-major issue in scope. The user approved the first-stage investigation on
+major issue in scope. The user approved first-stage investigation on
 2026-09-25: inspect practical source inputs, map charge sites, and gather
-focused scale/resource evidence. This does not authorize a production-path
-prototype, public API implementation, semantic change, or code edit. The
-numeric support boundary still requires independent review and separate user
-approval before implementation. Keep `lib.rs` as orchestration and any
-eventual flat producer/finalizer bridge in dedicated modules.
+focused scale/resource evidence. The read-only corpus/charge-site audit is now
+recorded in the design draft and handoff. It found repository-sized surface
+examples but no link from source to expanded solver work; the existing
+synthetic stress cases do not justify numeric limits or external-input
+representativeness. The current F5c suite was re-run: 162 passed, single
+threaded. No production or test source was changed, and no benchmark or peak
+memory measurement was taken.
 
-Immediate work: bounded read-only corpus/source audit, then only the focused
-scale measurements justified by that audit. Preserve the existing M3
-measurement budget. No production code/API changes during this investigation.
+Next: prepare only a focused test-only scale-probe plan (no shipped-path
+prototype), then independently review repository-bounded results before
+proposing any numeric support envelope. This authorization still excludes the
+public API implementation, semantic/support-limit changes, F5 clause
+supersession, and production code. Numeric limits require independent review
+and separate user approval before implementation. Keep `lib.rs` as
+orchestration and any eventual flat producer/finalizer bridge in dedicated
+modules.
 
 Latest status (2026-09-24): producer analysis, candidate replay, and the
 generalization Q/R rewrite use iterative task/value worklists with dedicated
