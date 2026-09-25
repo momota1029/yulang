@@ -4,6 +4,27 @@ Updated: 2026-09-25. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Current continuation (2026-09-25): flat indexed stack-independent design
+
+The user chose to explore deep F5c support via explicit work stacks rather
+than a fixed structural-depth cap. The active design proposal is
+[`flat indexed stack-independent F5c draft`](../notes/design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md).
+Sol's pre-write architecture report recommends flat solver-owned drafts from
+the first deep producer through normalization and error cleanup, paired with
+a `yu-types`-owned indexed finalization transaction. Merely making the
+finalizer iterative over boxed drafts is insufficient because recursive
+success/error destruction and callback-local peak accounting remain.
+
+This design-only M3 gate is Reviewed after the initial review and two focused
+delta rounds; the assigned findings are closed with no remaining blocking or
+major issue in scope. The user decision now requested is approval of the flat
+draft/indexed-finalizer architecture and API direction solely to authorize the
+practical-source, charge-site, and scale investigation. It does not authorize
+production code. Numeric size/work limits, their evidence, and a separate user
+approval remain required before implementation. No production code/API is
+authorized; keep `lib.rs` as orchestration and any eventual flat producer and
+finalizer bridge in dedicated modules.
+
 Latest status (2026-09-24): producer analysis, candidate replay, and the
 generalization Q/R rewrite use iterative task/value worklists with dedicated
 lanes in the existing physical walker ledger. Raw recursive bounds now move
@@ -17,7 +38,7 @@ candidate-replay and iterative Q/R rewrite slices are pushed as `da9097db` and
 `a41b9875`. The ownership-only materialization change is verified and pushed
 as `992df956`; keep the §24 finalizer callback/API unchanged.
 
-### Latest continuation (2026-09-25): depth-bound probe
+### Previous continuation (2026-09-25): depth-bound probe
 
 The user approved narrowing the compiler's deep-type support envelope and
 asked to try a 256-node structural-depth candidate, then reduce unnecessary

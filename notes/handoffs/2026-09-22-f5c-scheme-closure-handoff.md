@@ -2022,3 +2022,44 @@ guarantee would require a much lower limit or a larger iterative finalization
 and destruction redesign. Continue only after resolving that exact boundary;
 keep the production worktree unchanged until then. F5c/F5e closure remains
 open.
+
+## Flat indexed stack-independent design direction (2026-09-25)
+
+The user chose to explore deep F5c support with explicit stacks rather than a
+fixed structural-depth threshold. This authorizes design work only; the exact
+§24 indexed API and resource/work boundary remain subject to reviewed design
+and explicit approval before implementation.
+
+A Sol architect review recommends keeping F5c drafts flat and solver-owned
+from the first potentially deep producer through Q/R rewriting, replay,
+substitution, materialization, normalization, component staging, finalizer
+input, and error cleanup. Pair this with a `yu-types`-owned indexed finalizer
+transaction that validates IDs/spans/Q/R/reachability/cycles, constructs
+closed nodes with private explicit worklists, and preserves the existing
+transaction rollback/atomic commit. A finalizer-only loop over the current
+boxed drafts is insufficient: both successful destruction and checked-error
+cleanup can still recursively drop the boxed source or partial task/value
+trees. The current normalizer likewise cannot hand off by rebuilding boxes.
+
+Preserve existing practical-input scheme semantics, Q/R and normalized order,
+component install order, §44's first canonical Union member as the sole public
+representative, and atomic publication of that fact plus all private member
+constraints. The flat representation removes the depth-cap and caller-stack
+calibration proof, but does not remove producer parity, index validation,
+resource/peak accounting, transaction rollback, route atomicity, or work
+bounds. Existing F5 §26/§34 resource contracts remain authoritative. A
+deterministic charged-work limit covering shared expansion, R replay, ranking,
+and normalization is unresolved; do not imply pathological-work protection
+or F5c/F5e closure until that gate is settled.
+
+The proposal is recorded in
+[`2026-09-25 F5c flat indexed stack-independent draft`](../design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md).
+The initial M3 review and two focused delta rounds are adjudicated; no assigned
+blocking/major finding remains. The proposal is Reviewed, not Authoritative.
+The current user decision is whether to approve the flat-draft/indexed-finalizer
+architecture and API direction solely to authorize practical-source,
+charge-site, and scale investigation. This does not authorize production code.
+The numeric support boundary must be independently reviewed and separately
+approved before implementation. Keep `lib.rs` as orchestration and isolate
+the eventual flat producer/finalizer bridge in dedicated modules. No code,
+API, tests, or benchmark changed in this design direction review.
