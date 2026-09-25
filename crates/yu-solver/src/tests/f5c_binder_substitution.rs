@@ -411,12 +411,10 @@ fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
                 argument: crate::f5c_draft::NegativeId(0),
                 result: crate::f5c_draft::PositiveId(2),
             },
-            PositiveNode::Int,
             PositiveNode::Function {
-                argument: crate::f5c_draft::NegativeId(1),
-                result: crate::f5c_draft::PositiveId(4),
+                argument: crate::f5c_draft::NegativeId(0),
+                result: crate::f5c_draft::PositiveId(1),
             },
-            PositiveNode::Bottom,
         ]
     );
     assert_eq!(
@@ -430,11 +428,9 @@ fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
         normalized.negative_nodes,
         [
             NegativeNode::Top,
-            NegativeNode::Top,
-            NegativeNode::Top,
             NegativeNode::Function {
-                argument: crate::f5c_draft::PositiveId(6),
-                result: crate::f5c_draft::NegativeId(2),
+                argument: crate::f5c_draft::PositiveId(0),
+                result: crate::f5c_draft::NegativeId(0),
             },
         ]
     );
@@ -444,8 +440,8 @@ fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
         normalized.recursive_bounds,
         [RecursiveBound {
             ordinal: 0,
-            lower: crate::f5c_draft::PositiveId(5),
-            upper: crate::f5c_draft::NegativeId(3),
+            lower: crate::f5c_draft::PositiveId(4),
+            upper: crate::f5c_draft::NegativeId(1),
         }]
     );
 }

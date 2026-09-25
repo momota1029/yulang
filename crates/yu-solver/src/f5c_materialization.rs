@@ -552,6 +552,8 @@ mod flat_tests {
             Bottom => F5cPositive::Bottom,
             Int => F5cPositive::Int,
             Variable(row) => F5cPositive::Variable(row),
+            Quantified(index) => F5cPositive::Quantified(index),
+            Recursive(index) => F5cPositive::Recursive(index),
             Union(span) => F5cPositive::Union(
                 flat.positive_children[span.start as usize..(span.start + span.len) as usize]
                     .iter()
@@ -564,7 +566,6 @@ mod flat_tests {
                 result_effect: F5cPositiveEffect::Bottom,
                 result: Box::new(expand_positive(flat, result)),
             },
-            _ => panic!("unexpected flat positive node"),
         }
     }
 
@@ -575,6 +576,8 @@ mod flat_tests {
             Bottom => F5cNegative::Bottom,
             Int => F5cNegative::Int,
             Variable(row) => F5cNegative::Variable(row),
+            Quantified(index) => F5cNegative::Quantified(index),
+            Recursive(index) => F5cNegative::Recursive(index),
             Intersection(span) => F5cNegative::Intersection(
                 flat.negative_children[span.start as usize..(span.start + span.len) as usize]
                     .iter()
@@ -587,8 +590,86 @@ mod flat_tests {
                 result_effect: F5cNegativeEffect::Empty,
                 result: Box::new(expand_negative(flat, result)),
             },
-            _ => panic!("unexpected flat negative node"),
         }
+    }
+
+    fn assert_selected_forest_is_compact(flat: &FlatDraft) {
+        let mut positive_reached = vec![false; flat.positive_nodes.len()];
+        let mut negative_reached = vec![false; flat.negative_nodes.len()];
+        let mut positive_edges = vec![false; flat.positive_children.len()];
+        let mut negative_edges = vec![false; flat.negative_children.len()];
+        let mut work = vec![NodeRef::Positive(flat.predicate.unwrap())];
+        for bound in &flat.recursive_bounds {
+            work.push(NodeRef::Positive(bound.lower));
+            work.push(NodeRef::Negative(bound.upper));
+        }
+        while let Some(reference) = work.pop() {
+            match reference {
+                NodeRef::Positive(id) => {
+                    let index = id.0 as usize;
+                    if std::mem::replace(&mut positive_reached[index], true) {
+                        continue;
+                    }
+                    match flat.positive_nodes[index] {
+                        PositiveNode::Union(span) => {
+                            let start = span.start as usize;
+                            let end = start + span.len as usize;
+                            for edge in start..end {
+                                assert!(!std::mem::replace(&mut positive_edges[edge], true));
+                                work.push(NodeRef::Positive(flat.positive_children[edge]));
+                            }
+                        }
+                        PositiveNode::Function { argument, result } => {
+                            work.push(NodeRef::Negative(argument));
+                            work.push(NodeRef::Positive(result));
+                        }
+                        _ => {}
+                    }
+                }
+                NodeRef::Negative(id) => {
+                    let index = id.0 as usize;
+                    if std::mem::replace(&mut negative_reached[index], true) {
+                        continue;
+                    }
+                    match flat.negative_nodes[index] {
+                        NegativeNode::Intersection(span) => {
+                            let start = span.start as usize;
+                            let end = start + span.len as usize;
+                            for edge in start..end {
+                                assert!(!std::mem::replace(&mut negative_edges[edge], true));
+                                work.push(NodeRef::Negative(flat.negative_children[edge]));
+                            }
+                        }
+                        NegativeNode::Function { argument, result } => {
+                            work.push(NodeRef::Positive(argument));
+                            work.push(NodeRef::Negative(result));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        assert!(positive_reached.into_iter().all(|reached| reached));
+        assert!(negative_reached.into_iter().all(|reached| reached));
+        assert!(positive_edges.into_iter().all(|reached| reached));
+        assert!(negative_edges.into_iter().all(|reached| reached));
+
+        let mut positive_id = 0;
+        let mut negative_id = 0;
+        for reference in &flat.insertion_order {
+            match reference {
+                NodeRef::Positive(id) => {
+                    assert_eq!(id.0 as usize, positive_id);
+                    positive_id += 1;
+                }
+                NodeRef::Negative(id) => {
+                    assert_eq!(id.0 as usize, negative_id);
+                    negative_id += 1;
+                }
+            }
+        }
+        assert_eq!(positive_id, flat.positive_nodes.len());
+        assert_eq!(negative_id, flat.negative_nodes.len());
     }
 
     #[test]
@@ -899,6 +980,322 @@ mod flat_tests {
         assert!(
             matches!(boxed_negative, F5cNegative::Function { argument, result, .. }
             if matches!(*argument, F5cPositive::Int) && matches!(*result, F5cNegative::Intersection(_)))
+        );
+    }
+
+    #[test]
+    fn composed_flat_replay_substitute_normalize_matches_boxed() {
+        use super::super::f5c_draft::RecursiveBound;
+        use crate::{F5cRecursiveBound, GeneralizationDraft};
+        use std::collections::{HashMap, HashSet};
+
+        let mut source = FlatDraft::default();
+        let positive_one = source.positive(PositiveNode::Variable(1)).unwrap();
+        let positive_two = source.positive(PositiveNode::Variable(2)).unwrap();
+        let positive_three = source.positive(PositiveNode::Variable(3)).unwrap();
+        let positive_five = source.positive(PositiveNode::Variable(5)).unwrap();
+        let negative_two = source.negative(NegativeNode::Variable(2)).unwrap();
+        let negative_three = source.negative(NegativeNode::Variable(3)).unwrap();
+        let negative_four = source.negative(NegativeNode::Variable(4)).unwrap();
+        let negative_six = source.negative(NegativeNode::Variable(6)).unwrap();
+        let negative_members = source
+            .negative_span(&[
+                negative_two,
+                negative_three,
+                negative_four,
+                negative_two,
+                negative_six,
+            ])
+            .unwrap();
+        let negative_intersection = source
+            .negative(NegativeNode::Intersection(negative_members))
+            .unwrap();
+        let positive_members = source
+            .positive_span(&[
+                positive_one,
+                positive_two,
+                positive_two,
+                positive_three,
+                positive_five,
+            ])
+            .unwrap();
+        let positive_union = source
+            .positive(PositiveNode::Union(positive_members))
+            .unwrap();
+        let predicate = source
+            .positive(PositiveNode::Function {
+                argument: negative_intersection,
+                result: positive_union,
+            })
+            .unwrap();
+        let lower = source
+            .positive(PositiveNode::Function {
+                argument: negative_two,
+                result: positive_three,
+            })
+            .unwrap();
+        let upper = source
+            .negative(NegativeNode::Function {
+                argument: positive_two,
+                result: negative_three,
+            })
+            .unwrap();
+        source.quantifier_count = 1;
+        source.predicate = Some(predicate);
+        source
+            .bound(RecursiveBound {
+                ordinal: 1,
+                lower,
+                upper,
+            })
+            .unwrap();
+
+        let protected = HashSet::from([3]);
+        let positive_only = HashSet::from([1, 3]);
+        let negative_only = HashSet::from([4]);
+        let q = HashMap::from([(2, 0)]);
+        let r = HashMap::from([(3, 1)]);
+        let positive_eliminated = HashSet::from([1, 5]);
+        let negative_eliminated = HashSet::from([4, 6]);
+
+        let mut flat = FlatDraft {
+            quantifier_count: source.quantifier_count,
+            ..FlatDraft::default()
+        };
+        let mut flat_memo = F5cComponentExpansionMemo::default();
+        let NodeRef::Positive(flat_predicate) = crate::f5c_replay::replay_flat(
+            &mut flat_memo,
+            &source,
+            NodeRef::Positive(predicate),
+            &mut flat,
+            &protected,
+            &positive_only,
+            &negative_only,
+        )
+        .unwrap() else {
+            panic!("positive predicate keeps its polarity");
+        };
+        flat.predicate = Some(flat_predicate);
+        let PositiveNode::Function {
+            argument: flat_argument,
+            result: flat_result,
+        } = flat.positive_nodes[flat_predicate.0 as usize]
+        else {
+            panic!("flat replay keeps the predicate Function");
+        };
+        let PositiveNode::Union(flat_union) = flat.positive_nodes[flat_result.0 as usize] else {
+            panic!("flat replay keeps the predicate Union");
+        };
+        let union_start = flat_union.start as usize;
+        let union_end = union_start + flat_union.len as usize;
+        let union_children = &flat.positive_children[union_start..union_end];
+        assert_eq!(union_children.len(), 5);
+        assert_ne!(union_children[1], union_children[2]);
+        let NegativeNode::Intersection(flat_intersection) =
+            flat.negative_nodes[flat_argument.0 as usize]
+        else {
+            panic!("flat replay keeps the predicate Intersection");
+        };
+        let intersection_start = flat_intersection.start as usize;
+        let intersection_end = intersection_start + flat_intersection.len as usize;
+        let intersection_children = &flat.negative_children[intersection_start..intersection_end];
+        assert_eq!(intersection_children.len(), 5);
+        assert_ne!(intersection_children[0], intersection_children[3]);
+        let NodeRef::Positive(flat_lower) = crate::f5c_replay::replay_flat(
+            &mut flat_memo,
+            &source,
+            NodeRef::Positive(lower),
+            &mut flat,
+            &protected,
+            &positive_only,
+            &negative_only,
+        )
+        .unwrap() else {
+            panic!("positive lower bound keeps its polarity");
+        };
+        let NodeRef::Negative(flat_upper) = crate::f5c_replay::replay_flat(
+            &mut flat_memo,
+            &source,
+            NodeRef::Negative(upper),
+            &mut flat,
+            &protected,
+            &positive_only,
+            &negative_only,
+        )
+        .unwrap() else {
+            panic!("negative upper bound keeps its polarity");
+        };
+        flat.bound(RecursiveBound {
+            ordinal: 1,
+            lower: flat_lower,
+            upper: flat_upper,
+        })
+        .unwrap();
+        crate::f5c_binder_substitution::substitute_flat(
+            &mut flat,
+            &q,
+            &r,
+            &positive_eliminated,
+            &negative_eliminated,
+        )
+        .unwrap();
+        let (normalized_flat, flat_stats) =
+            crate::f5c_normalization::normalize_flat(&flat).unwrap();
+
+        let raw_predicate = expand_positive(&source, predicate);
+        let raw_lower = expand_positive(&source, lower);
+        let raw_upper = expand_negative(&source, upper);
+        let mut boxed_memo = F5cComponentExpansionMemo::default();
+        let replayed_predicate = crate::f5c_replay::replay_positive(
+            &mut boxed_memo,
+            &raw_predicate,
+            &protected,
+            &positive_only,
+            &negative_only,
+        )
+        .unwrap();
+        let replayed_lower = crate::f5c_replay::replay_positive(
+            &mut boxed_memo,
+            &raw_lower,
+            &protected,
+            &positive_only,
+            &negative_only,
+        )
+        .unwrap();
+        let replayed_upper = crate::f5c_replay::replay_negative(
+            &mut boxed_memo,
+            &raw_upper,
+            &protected,
+            &positive_only,
+            &negative_only,
+        )
+        .unwrap();
+        let mut boxed = [GeneralizationDraft {
+            quantifier_count: source.quantifier_count,
+            predicate: crate::f5c_binder_substitution::substitute_positive(
+                &mut boxed_memo,
+                replayed_predicate,
+                &q,
+                &r,
+                &positive_eliminated,
+                &negative_eliminated,
+            )
+            .unwrap(),
+            recursive_bounds: vec![F5cRecursiveBound {
+                ordinal: 1,
+                lower: crate::f5c_binder_substitution::substitute_positive(
+                    &mut boxed_memo,
+                    replayed_lower,
+                    &q,
+                    &r,
+                    &positive_eliminated,
+                    &negative_eliminated,
+                )
+                .unwrap(),
+                upper: crate::f5c_binder_substitution::substitute_negative(
+                    &mut boxed_memo,
+                    replayed_upper,
+                    &q,
+                    &r,
+                    &positive_eliminated,
+                    &negative_eliminated,
+                )
+                .unwrap(),
+            }],
+        }];
+        let boxed_stats = crate::f5c_normalization::normalize_component(&mut boxed).unwrap();
+
+        assert_selected_forest_is_compact(&normalized_flat);
+        assert_eq!(normalized_flat.quantifier_count, boxed[0].quantifier_count);
+        assert_eq!(
+            expand_positive(&normalized_flat, normalized_flat.predicate.unwrap()),
+            boxed[0].predicate
+        );
+        assert_eq!(normalized_flat.recursive_bounds.len(), 1);
+        assert_eq!(
+            normalized_flat.recursive_bounds[0].ordinal,
+            boxed[0].recursive_bounds[0].ordinal
+        );
+        assert_eq!(
+            expand_positive(&normalized_flat, normalized_flat.recursive_bounds[0].lower),
+            boxed[0].recursive_bounds[0].lower
+        );
+        assert_eq!(
+            expand_negative(&normalized_flat, normalized_flat.recursive_bounds[0].upper),
+            boxed[0].recursive_bounds[0].upper
+        );
+        let PositiveNode::Function {
+            result: predicate_union,
+            ..
+        } = normalized_flat.positive_nodes[normalized_flat.predicate.unwrap().0 as usize]
+        else {
+            panic!("normalized predicate remains a Function");
+        };
+        let PositiveNode::Union(predicate_union) =
+            normalized_flat.positive_nodes[predicate_union.0 as usize]
+        else {
+            panic!("normalized predicate result remains a Union");
+        };
+        let union_start = predicate_union.start as usize;
+        let union_end = union_start + predicate_union.len as usize;
+        let union_children = &normalized_flat.positive_children[union_start..union_end];
+        let bound_lower = normalized_flat.recursive_bounds[0].lower;
+        let PositiveNode::Function {
+            result: bound_recursive,
+            ..
+        } = normalized_flat.positive_nodes[bound_lower.0 as usize]
+        else {
+            panic!("normalized lower bound remains a Function");
+        };
+        assert!(
+            union_children.contains(&bound_recursive),
+            "union children {union_children:?}, lower result {bound_recursive:?}, nodes {:?}",
+            normalized_flat.positive_nodes
+        );
+        assert_eq!(predicate_union.len as usize, union_children.len());
+        assert_eq!(
+            union_children
+                .iter()
+                .map(|id| id.0)
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            union_children.len()
+        );
+        let NegativeNode::Function {
+            result: bound_negative_recursive,
+            ..
+        } = normalized_flat.negative_nodes[normalized_flat.recursive_bounds[0].upper.0 as usize]
+        else {
+            panic!("normalized upper bound remains a Function");
+        };
+        let PositiveNode::Function {
+            argument: predicate_intersection,
+            ..
+        } = normalized_flat.positive_nodes[normalized_flat.predicate.unwrap().0 as usize]
+        else {
+            panic!("normalized predicate remains a Function");
+        };
+        let NegativeNode::Intersection(predicate_intersection) =
+            normalized_flat.negative_nodes[predicate_intersection.0 as usize]
+        else {
+            panic!("normalized predicate argument remains an Intersection");
+        };
+        let intersection_start = predicate_intersection.start as usize;
+        let intersection_end = intersection_start + predicate_intersection.len as usize;
+        let intersection_children =
+            &normalized_flat.negative_children[intersection_start..intersection_end];
+        assert!(intersection_children.contains(&bound_negative_recursive));
+        assert_eq!(
+            intersection_children
+                .iter()
+                .map(|id| id.0)
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            intersection_children.len()
+        );
+        assert_eq!(
+            flat_stats,
+            crate::f5c_normalization::FlatNormalizationStats::from(&boxed_stats)
         );
     }
 }

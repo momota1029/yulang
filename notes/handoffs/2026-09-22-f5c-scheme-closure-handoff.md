@@ -2569,3 +2569,43 @@ passed. No broad suite, benchmark, or resource probe ran. The next bounded
 step is to compose flat replay with flat substitution and selected-root
 normalization against the boxed oracle. Keep production wiring, the indexed
 finalizer, §5/§15 resource closure, F5e products, and §44 rollback open.
+
+## Latest continuation (2026-09-26): composed flat downstream pipeline
+
+The fixture-only flat candidate now composes `replay_flat` on the predicate,
+lower bound, and upper bound; `substitute_flat`; and `normalize_flat`. It
+compares the complete normalized scheme and five logical normalization
+counters against the boxed replay → substitution → normalization path over
+the same source and masks. The fixture includes repeated members in both
+polarities, Q row 2 → Q0, R row 3 → R1, and polarity-specific Variables that
+survive replay and are eliminated by substitution.
+
+Before normalization the test confirms repeated source edges produced
+distinct flat IDs. After normalization it checks predicate/bound-root
+reachability for every node and child entry, dense IDs, duplicate removal,
+and shared canonical R1 IDs across roots. This exposed and fixed a real
+candidate defect: equal `(height, rank)` nodes were rebuilt as duplicate
+output IDs. `normalize_flat` now uses its already allocated `sort_scratch` as
+a first-representative table and reuses that output ID. The repair adds one
+O(N) pass with no new allocation. Existing selected-root fixture IDs were
+updated to assert canonical sharing.
+
+M2 compiler-referee/performance-auditor delta review found no actionable
+finding. The added pass is statically O(N), reuses a lane already allocated
+for ranking, and introduces no additional capacity growth. Replay's
+source-sized active arrays, occurrence-expanded DAG output, repeated-mask
+work, and rollback-retained capacity remain §5/§15 production risks; the
+composition test is not resource evidence.
+
+Verification: `cargo test -p yu-solver --lib flat_tests --
+--test-threads=1` passed (10); `cargo test -p yu-solver --lib f5c_replay --
+--test-threads=1` passed (6); `cargo test -p yu-solver --lib
+f5c_binder_substitution -- --test-threads=1` passed (7). `cargo check -p
+yu-solver --tests --message-format short`, `cargo fmt --check`, and
+`git diff --check` passed. No broad suite, benchmark, or resource probe ran;
+measurement budget remains zero.
+
+Next: feed flat summary materialization into this fixture pipeline and compare
+with the boxed oracle. Do not wire production or claim §5/§15, indexed
+finalization, F5e, §44, or F5c/F5e closure. Review the exact §15 plan before
+running any resource probe.

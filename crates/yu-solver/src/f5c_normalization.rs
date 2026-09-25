@@ -1811,6 +1811,25 @@ pub(super) fn normalize_flat(
     }
     normalizer.rank_all()?;
 
+    // Reuse the normalizer's sort scratch as a canonical NodeId -> representative
+    // map. `rank_all` leaves `height_nodes` ordered by height and descriptor,
+    // with equal normalized keys adjacent within each height group.
+    for height in 0..normalizer.height_offsets.len().checked_sub(1).ok_or(bad)? {
+        let start = normalizer.height_offsets[height];
+        let end = normalizer.height_offsets[height + 1];
+        let mut previous_rank = None;
+        let mut representative = None;
+        for position in start..end {
+            let id = normalizer.height_nodes[position];
+            let rank = normalizer.nodes[id].rank;
+            if previous_rank != Some(rank) {
+                previous_rank = Some(rank);
+                representative = Some(id);
+            }
+            normalizer.sort_scratch[id] = representative.ok_or(bad)?;
+        }
+    }
+
     let mut output = FlatDraft {
         quantifier_count: input.quantifier_count,
         ..FlatDraft::default()
@@ -1828,6 +1847,11 @@ pub(super) fn normalize_flat(
         work.push((root, false));
         while let Some((id, ready)) = work.pop() {
             if mapped[id].is_some() {
+                continue;
+            }
+            let representative = normalizer.sort_scratch[id];
+            if let Some(shared) = mapped[representative] {
+                mapped[id] = Some(shared);
                 continue;
             }
             let kind = normalizer.nodes[id].kind;
@@ -1859,7 +1883,7 @@ pub(super) fn normalize_flat(
                 Some(BuiltRef::Negative(n)) => u32::try_from(n).ok().map(NegativeId),
                 _ => None,
             };
-            mapped[id] = Some(match kind {
+            let built = match kind {
                 NodeKind::PositiveBottom => BuiltRef::Positive(
                     usize::try_from(output.positive(PositiveNode::Bottom)?.0).map_err(|_| bad)?,
                 ),
@@ -1955,7 +1979,9 @@ pub(super) fn normalize_flat(
                         .map_err(|_| bad)?,
                     )
                 }
-            });
+            };
+            mapped[id] = Some(built);
+            mapped[representative] = Some(built);
         }
     }
     let map_positive = |id: usize| match mapped[id] {

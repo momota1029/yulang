@@ -4,7 +4,37 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): fixture-only flat replay candidate
+### Latest continuation (2026-09-26): composed flat downstream pipeline
+
+The fixture-only pipeline now composes `replay_flat` for predicate/lower/upper
+roots, `substitute_flat`, and `normalize_flat`, then compares scheme fields
+and all five normalization counters with the boxed oracle. It checks repeated
+source edges have distinct IDs before normalization; Q2→Q0, R3→R1, and
+polarity-specific substitution elimination; every normalized node/child entry
+is reachable from retained roots; and duplicate members collapse while
+canonical R1 nodes share IDs across roots.
+
+The composition exposed a real candidate issue: equal normalized `(height,
+rank)` keys were rebuilt as separate flat output nodes. The normalizer now
+reuses an already allocated sort-scratch vector for a representative lookup
+and remaps equal keys to one output ID across roots. This adds one O(N) pass
+without new allocation. The older selected-root fixture now expects this
+canonical sharing. M2 compiler/performance review found no actionable delta.
+
+Verification: `cargo test -p yu-solver --lib flat_tests --
+--test-threads=1` passed (10); `cargo test -p yu-solver --lib f5c_replay --
+--test-threads=1` passed (6); `cargo test -p yu-solver --lib
+f5c_binder_substitution -- --test-threads=1` passed (7). `cargo check -p
+yu-solver --tests --message-format short`, `cargo fmt --check`, and
+`git diff --check` passed. No measurement ran; the broad suite remains
+unverified.
+
+Next: compose flat summary materialization with this pipeline. Keep production
+callers unchanged until the required design/resource gates; review §15 before
+any resource probe. Indexed finalization, §5/§15 certification, F5e, §44, and
+F5c/F5e closure remain open.
+
+### Previous continuation (2026-09-26): fixture-only flat replay candidate
 
 Added uncalled `replay_flat` in `crates/yu-solver/src/f5c_replay.rs`, with
 tests in the matching replay module. The immutable source supports repeated
