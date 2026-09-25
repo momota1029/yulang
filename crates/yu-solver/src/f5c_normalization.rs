@@ -1537,6 +1537,7 @@ pub(super) fn normalize_flat(
                 let kind = match *node {
                     PositiveNode::Bottom => NodeKind::PositiveBottom,
                     PositiveNode::Int => NodeKind::PositiveInt,
+                    PositiveNode::Variable(_) => return Err(bad),
                     PositiveNode::Quantified(n) => NodeKind::PositiveQuantified(n),
                     PositiveNode::Recursive(n) => NodeKind::PositiveRecursive(n),
                     PositiveNode::Union(span) => {
@@ -1579,6 +1580,7 @@ pub(super) fn normalize_flat(
                     NegativeNode::Top => NodeKind::NegativeTop,
                     NegativeNode::Bottom => NodeKind::NegativeBottom,
                     NegativeNode::Int => NodeKind::NegativeInt,
+                    NegativeNode::Variable(_) => return Err(bad),
                     NegativeNode::Quantified(n) => NodeKind::NegativeQuantified(n),
                     NegativeNode::Recursive(n) => NodeKind::NegativeRecursive(n),
                     NegativeNode::Intersection(span) => {
@@ -1818,8 +1820,111 @@ pub(super) fn normalize_flat(
 }
 
 #[cfg(test)]
+mod flat_variable_tests {
+    use super::*;
+
+    #[test]
+    fn closed_normalizer_rejects_both_variable_polarities() {
+        let mut positive = FlatDraft::default();
+        positive.predicate = Some(positive.positive(PositiveNode::Variable(4)).unwrap());
+        assert!(matches!(
+            normalize_flat(&positive),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+
+        let mut negative = FlatDraft::default();
+        negative.predicate = Some(negative.positive(PositiveNode::Bottom).unwrap());
+        negative.negative(NegativeNode::Variable(4)).unwrap();
+        assert!(matches!(
+            normalize_flat(&negative),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+    }
+}
+
+#[cfg(test)]
 mod flat_tests {
     use super::*;
+
+    #[test]
+    fn repeated_summary_occurrences_match_boxed_normalization() {
+        use super::super::f5c_materialization::materialize_summary_flat;
+        use super::super::{
+            F5cComponentExpansionMemo, F5cNegativeEffect, F5cPositiveEffect, F5cSummaryNode,
+            F5cSummaryNodeId, F5cSummaryNodeKind, Polarity,
+        };
+
+        let ids = (0..5).map(F5cSummaryNodeId).collect::<Vec<_>>();
+        let kinds = [
+            F5cSummaryNodeKind::PositiveInt,
+            F5cSummaryNodeKind::NegativeInt,
+            F5cSummaryNodeKind::NegativeIntersection { start: 0, len: 2 },
+            F5cSummaryNodeKind::PositiveFunction {
+                argument: ids[2],
+                result: ids[0],
+            },
+            F5cSummaryNodeKind::PositiveUnion { start: 2, len: 2 },
+        ];
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.nodes = kinds
+            .into_iter()
+            .map(|kind| F5cSummaryNode {
+                incidence: None,
+                transitive_incidence_count: 0,
+                kind,
+            })
+            .collect();
+        memo.children = vec![ids[1], ids[1], ids[3], ids[3]];
+
+        let mut flat = FlatDraft::default();
+        let NodeRef::Positive(root) =
+            materialize_summary_flat(&memo, &mut flat, ids[4], Polarity::Positive, |_, _| {})
+                .unwrap()
+        else {
+            panic!("wrong root polarity");
+        };
+        flat.predicate = Some(root);
+        let mut boxed = [GeneralizationDraft {
+            quantifier_count: 0,
+            predicate: memo.positive_value(ids[4]).unwrap(),
+            recursive_bounds: vec![],
+        }];
+        let (normalized, flat_stats) = normalize_flat(&flat).unwrap();
+        let boxed_stats = normalize_component(&mut boxed).unwrap();
+        let expected = F5cPositive::Union(vec![F5cPositive::Function {
+            argument: Box::new(F5cNegative::Intersection(vec![F5cNegative::Int])),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Int),
+        }]);
+        assert_eq!(boxed[0].predicate, expected);
+        assert_eq!(
+            normalized.positive_nodes,
+            [
+                PositiveNode::Int,
+                PositiveNode::Function {
+                    argument: NegativeId(1),
+                    result: PositiveId(0)
+                },
+                PositiveNode::Union(super::super::f5c_draft::ChildSpan { start: 0, len: 1 }),
+            ]
+        );
+        assert_eq!(
+            normalized.negative_nodes,
+            [
+                NegativeNode::Int,
+                NegativeNode::Intersection(super::super::f5c_draft::ChildSpan { start: 0, len: 1 }),
+            ]
+        );
+        assert_eq!(normalized.positive_children, [PositiveId(1)]);
+        assert_eq!(normalized.negative_children, [NegativeId(0)]);
+        assert_eq!(normalized.predicate, Some(PositiveId(2)));
+        assert_eq!(flat_stats.key_writes, boxed_stats.key_writes);
+        assert_eq!(flat_stats.child_comparisons, boxed_stats.child_comparisons);
+        assert_eq!(flat_stats.descriptor_words, boxed_stats.descriptor_words);
+        assert_eq!(flat_stats.word_comparisons, boxed_stats.word_comparisons);
+        assert_eq!(flat_stats.duplicates, boxed_stats.duplicates);
+    }
 
     #[test]
     fn flat_compound_tree_matches_boxed_normalization_counters() {

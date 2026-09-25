@@ -2408,3 +2408,44 @@ gate. Then add the `yu-types` indexed transaction. Before any resource probe,
 prepare and independently review the fresh §15 measurement plan. Numeric
 limits, production acceptance, F5c/F5e completion, F5e Function-product
 behavior, and §44 route rollback remain open.
+
+## Occurrence-preserving flat summary materializer checkpoint (2026-09-25)
+
+The fixture-only flat normalizer checkpoint is now joined by a private,
+production-unused summary-ID-to-`FlatDraft` materializer. It lives in
+`crates/yu-solver/src/f5c_materialization.rs`; raw row Variables are in
+`f5c_draft.rs`, and closed `normalize_flat` rejects unresolved Variables.
+`lib.rs` remains unchanged. The old boxed production path is still active.
+
+An architect adjudicated the reviewed sharing/counter conflict under existing
+§§2, 4, and 5: pre-normalization summary-DAG sharing is not required. Expand
+each occurrence with an explicit worklist so the boxed path's scheme shape,
+incidence order, and all five logical normalization counters remain exact;
+normalization/compaction preserves sharing that survives deduplication. The
+candidate checks every summary child is topologically earlier than its parent
+and truncates all six append-only draft lanes on checked failure. External
+callback state remains the caller's responsibility and must be discarded on
+`Err`.
+
+Focused fixtures compare both-polarity materialized structure and callback
+order with the boxed path, compare all five normalizer counters on a repeated
+summary edge, test cycle rejection, and prove late-error logical rollback.
+Independent compiler/performance delta review found no remaining blocker for
+this non-shipping helper. Primary closed the remaining minor malformed-ID
+coverage request by checking the range/topological/polarity guards directly.
+
+Important residual risk: path expansion is proportional to the occurrence
+graph and can be exponential in a compact shared DAG; a recorded depth-12
+synthetic case grows 13 summary nodes/24 edges into 8,191 output nodes/8,190
+edges. Flat output and normalization/scratch lanes overlap, failed truncation
+retains capacity, and exact work/physical peaks are not measured. Production
+connection remains blocked on §5 solve-wide size/repeat-work admission and the
+fresh independently reviewed §15 measurement plan. No numeric threshold,
+depth cap, production acceptance, or F5c/F5e closure is claimed.
+
+Verification: `cargo test -p yu-solver flat_tests --lib -- --test-threads=1`
+passed (8), `cargo fmt --check` passed, and `git diff --check` passed. No
+broad tests or measurements ran. `lib.rs` remains unchanged and the helper is
+substantial but isolated; remove the old boxed materializer only once the flat
+producer/downstream migration proves parity. Next: continue the producer-side
+flat gate; before any candidate resource probe, review the exact §15 plan.

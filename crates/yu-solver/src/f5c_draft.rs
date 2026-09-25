@@ -15,6 +15,7 @@ pub(super) struct ChildSpan {
 pub(super) enum PositiveNode {
     Bottom,
     Int,
+    Variable(u32),
     Quantified(u32),
     Recursive(u32),
     Union(ChildSpan),
@@ -29,6 +30,7 @@ pub(super) enum NegativeNode {
     Top,
     Bottom,
     Int,
+    Variable(u32),
     Quantified(u32),
     Recursive(u32),
     Intersection(ChildSpan),

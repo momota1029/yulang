@@ -778,6 +778,29 @@ seven scratch reserve failures and retry, retained physical accounting across
 later route failure, finish-time release, and canonical §44 representative
 argument correspondence.
 
+### Active F5c flat-candidate checkpoint (2026-09-25)
+
+The fixture-only `FlatDraft` normalizer checkpoint is followed by a private,
+production-unused summary-to-flat materializer in
+`crates/yu-solver/src/f5c_materialization.rs`. It uses an explicit worklist,
+expands each shared-summary occurrence to preserve existing scheme shape,
+incidence order, and normalization counters, and rejects non-topological
+summary edges. Raw row Variables are represented explicitly and rejected by
+closed normalization until producer substitution resolves them. `lib.rs`
+remains unchanged. The independent compiler/performance delta review found no
+blocking or major issue in this non-shipping slice; exact fixture parity covers
+the boxed materializer and all five logical normalization counters.
+
+This does not close the first §7 producer-boundary gate. Path expansion can be
+exponential in the compact summary DAG; flat output, task/value scratch,
+normalizer overlap, failure-retained capacities, and solve-wide §5 size/repeat-
+work admission still require the separately reviewed §15 measurement gate
+before any production call. No numeric threshold, production acceptance, or
+F5c/F5e completion is claimed. Immediate next: continue flat producer-side
+construction in module-owned slices, keeping `lib.rs` orchestration-only; do
+not add a depth cap or run candidate resource probes before the fresh plan is
+reviewed.
+
 ### Latest incoming route sampling evidence (2026-09-24)
 
 The changed-failure incoming-route witnesses now cover `ValueLevels`,

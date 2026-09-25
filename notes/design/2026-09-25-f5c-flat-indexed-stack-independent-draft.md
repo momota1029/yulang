@@ -1082,3 +1082,68 @@ Focused verification: `cargo test -p yu-solver flat_tests --lib --
 --test-threads=1` passed (3 tests), `cargo fmt --check` passed, and
 `git diff --check` passed. The broad F5c/F5e and workspace suites remain
 deferred to their coherent gate boundaries.
+
+## 17. Occurrence-preserving flat summary materializer checkpoint (2026-09-25)
+
+The next non-shipping candidate slice adds a private summary-ID-to-`FlatDraft`
+materializer in `crates/yu-solver/src/f5c_materialization.rs`. It keeps the
+existing boxed production materializer active and leaves `lib.rs` unchanged.
+The new path uses an explicit task/value worklist, appends polarity-specific
+flat IDs in child-before-parent order, preserves Function argument/result and
+Union/Intersection child order, keeps the existing pure Function effects, and
+records alias incidence before descending without emitting an alias node.
+Checked invalid IDs, forward/self/cyclic summary edges, polarity mismatches,
+and failed growth return the existing `IdentityExhausted` path. On checked
+error, the six append-only `FlatDraft` vectors return to their entry lengths;
+capacity growth is retained. Callback side effects are caller-owned, and the
+caller must discard candidate mark/order/conflict state after `Err`.
+
+Primary adjudication of the cache-versus-counter finding: the design requires
+flat ownership through producer construction and error cleanup, but does not
+require summary-DAG sharing before normalization. Existing counter semantics
+and per-occurrence incidence order are preserved by expanding each summary
+occurrence. Canonical normalization and root compaction then deduplicate and
+reuse IDs in the surviving normalized graph. This is the route consistent
+with §§2 and 4 without adding a virtual occurrence counter or changing public
+counter behavior; no new user decision or authority change was required.
+
+The corresponding cost is material and remains a hard later gate. A recorded
+synthetic binary summary DAG with 13 unique nodes and 24 stored child edges
+expands to 8,191 flat nodes and 8,190 edges at depth 12. Work and output size
+scale with the path-expanded occurrence graph, which can grow exponentially in
+the compact DAG size. The candidate currently has checked fallible growth but
+no selected numeric admission threshold or complete physical-lane ledger.
+Before production connection, implement the §5 solve-wide draft-size and
+repeat-work admission, prepare and independently review the §15 measurement
+plan, then measure raw output, work, scratch/co-resident peak, and retained
+capacity on success and failure. Do not add a structural-depth cap.
+
+Both-polarity raw `Variable(u32)` nodes were added for summary rows;
+`normalize_flat` explicitly rejects an unresolved Variable rather than
+inventing an extreme or panicking. Focused tests compare the same summary
+fixture with the boxed path for complete shallow structure and ordered
+incidence traces, exercise a late checked failure and logical append rollback,
+reject self/mutual/forward cycles, and compare all five logical normalization
+counters for repeated summary edges. Primary closed the remaining minor
+malformed-ID-fixture request by direct invariant inspection: root lookup is
+checked, every child must be earlier than its in-range parent (implying range
+validity and acyclicity), and kind/polarity mismatches return `IdentityExhausted`;
+no counterexample was found, and the focused tests already cover cycle and
+late-failure rollback.
+
+The M2 delta review used `compiler_referee` and `performance_auditor`; no
+blocking or major finding remains for this uncalled candidate helper. The
+performance report keeps path-expanded repeat work, flat/normalizer lane
+overlap, temporary Union/Intersection child copies, retained capacity, and
+numeric admission as production/resource-gate obligations, not certified
+properties. The helper adds substantial isolated code while the old boxed path
+still exists; after parity and producer migration, remove superseded boxed
+materialization rather than keeping two authorities.
+
+Verification: `cargo test -p yu-solver flat_tests --lib -- --test-threads=1`
+passed (8 tests), `cargo fmt --check` passed, and `git diff --check` passed.
+No broad suite, scale/resource/capacity probe, benchmark, or §15 measurement
+plan was run; measurement budget consumed remains zero. The first §7
+producer-boundary gate, indexed `yu-types` finalizer, physical resource
+certification, F5c/F5e completion, Function-product behavior, and §44 rollback
+remain open.
