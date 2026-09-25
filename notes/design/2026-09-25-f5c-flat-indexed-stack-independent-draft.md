@@ -1239,3 +1239,45 @@ reported before interruption. This leaves the full library suite unverified.
 Measurement budget consumed remains zero. Continue the producer-side flat
 candidate with replay; the §5/§15 resource gate, production acceptance,
 indexed finalizer, F5e Function products, and §44 rollback remain open.
+
+## 20. Fixture-only flat replay candidate (2026-09-26)
+
+Added an uncalled `replay_flat` candidate in `crates/yu-solver/src/f5c_replay.rs`.
+It reads the same immutable source draft on every call, since the R fixed point
+replays bounds and predicate under changing candidate masks. Each source edge
+occurrence emits its own output occurrence; this preserves boxed replay order
+and does not memoize shared DAG nodes. Function effect fields retain the same
+replay defaults as the boxed helper. Explicit enter/finish/leave tasks avoid
+recursive traversal and reject reachable cycles. Checked failure truncates all
+five appended node/child/order lanes; existing destination capacity and
+memoized lane request counters are not rolled back.
+
+Fixtures directly compare both root polarities with boxed replay, cover a
+repeated shared edge within one root, check elimination/protected-variable and
+Function/Union/Intersection order, exercise depth 4,096 on a 64 KiB thread
+stack, and force a reachable positive↔negative Function cycle after a child
+Union has completed. The failure witness compares quantifier count, predicate,
+both node arrays, both child arrays, recursive bounds, and insertion order
+before and after rejection. `lib.rs` and production call sites remain
+unchanged.
+
+M2 compiler-referee and performance-auditor review converged with no blocker
+to accepting this disconnected fixture checkpoint. The reviewer findings are
+not production clearances: each invocation allocates and initializes two
+active-node arrays sized to the entire source (`O(V)` even for a small selected
+root), and occurrence-preserving expansion can be exponential in a shared DAG
+and multiplies across candidate masks. The existing replay task/value lanes do
+not account for these arrays or output-draft growth. The production path must
+include those costs in §5 size/repeat-work admission and §15 co-resident peak
+evidence before wiring this helper; failed truncation also retains destination
+capacity. No reuse strategy, numeric bound, or resource margin is selected by
+this candidate review.
+
+Verification: `cargo test -p yu-solver --lib f5c_flat_replay --
+--test-threads=1` passed (4), `cargo test -p yu-solver --lib f5c_replay --
+--test-threads=1` passed (6), `cargo fmt --check`, and `git diff --check`
+passed. No broad suite, benchmark, or resource probe ran. Measurement budget
+consumed: zero. This remains a fixture-only replay candidate, not completion
+of §7's first producer gate or of F5c/F5e. Next: compose the candidate with
+flat substitution and selected-root normalization against the boxed oracle
+before connecting production callers.

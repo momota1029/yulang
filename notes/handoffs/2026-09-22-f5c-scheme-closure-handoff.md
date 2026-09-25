@@ -2531,3 +2531,41 @@ boxed replay oracle before producer wiring. Continue the first §7 producer
 gate only in bounded module-owned steps. Do not claim production acceptance,
 F5c/F5e closure, the §5/§15 resource gate, indexed finalization, F5e Function
 product certification, or §44 rollback.
+
+## Latest continuation (2026-09-26): fixture-only flat replay candidate
+
+Added uncalled `replay_flat` in `crates/yu-solver/src/f5c_replay.rs` and
+focused coverage in `crates/yu-solver/src/tests/f5c_replay.rs`. It replays an
+immutable flat source under each candidate mask, expands each shared source
+edge occurrence independently, preserves polarity/order/elimination, and
+reconstructs Functions with boxed replay's default effects. Explicit
+enter/finish/leave tasks provide stack-independent traversal and reachable
+cycle rejection. On checked failure it truncates every appended node,
+child-index, and insertion-order lane. No production caller or `lib.rs` growth
+was added.
+
+Coverage directly compares both polarities with boxed replay, includes a
+repeated edge in one root, and checks a 4,096-deep input on a 64 KiB thread
+stack. The rollback witness enters a positive↔negative Function cycle only
+after completing a child Union, then compares quantifier count, predicate,
+both node/child arrays, bounds, and insertion order with the full pre-state.
+M2 compiler-referee and performance-auditor delta review closed the two
+fixture-local test findings and found no blocker for this disconnected
+checkpoint.
+
+Production risks remain explicit: every call allocates/zeros positive and
+negative active flags sized to all source nodes, and occurrence-preserving
+shared-DAG output can amplify exponentially and repeat under each fixed-point
+mask. Replay task/value lane counters do not yet charge those flags or output
+growth. Include them in §5 draft-size/repeat-work admission and §15
+co-resident peak evidence before any production connection; rollback truncates
+logical lengths but retains destination capacity. No measurement or numeric
+boundary was selected; measurement budget remains zero.
+
+Verification: `cargo test -p yu-solver --lib f5c_flat_replay --
+--test-threads=1` passed (4); `cargo test -p yu-solver --lib f5c_replay --
+--test-threads=1` passed (6); `cargo fmt --check` and `git diff --check`
+passed. No broad suite, benchmark, or resource probe ran. The next bounded
+step is to compose flat replay with flat substitution and selected-root
+normalization against the boxed oracle. Keep production wiring, the indexed
+finalizer, §5/§15 resource closure, F5e products, and §44 rollback open.

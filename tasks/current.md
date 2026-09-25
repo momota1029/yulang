@@ -4,7 +4,38 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): selected-root normalization handoff
+### Latest continuation (2026-09-26): fixture-only flat replay candidate
+
+Added uncalled `replay_flat` in `crates/yu-solver/src/f5c_replay.rs`, with
+tests in the matching replay module. The immutable source supports repeated
+candidate-mask runs; explicit work/finish/leave tasks preserve polarity and
+child order, copy each occurrence of shared edges, and reject reachable
+cycles. Failure truncates every appended node/child/order lane. Both root
+polarities match boxed replay on the fixture, including repeated-edge
+occurrences and polarity elimination. A reachable positive↔negative Function
+cycle after a completed child Union verifies restoration of every FlatDraft
+field. A 4,096-deep replay passes on a 64 KiB thread stack. `lib.rs` and
+production callers remain unchanged.
+
+M2 compiler/performance delta reviews closed the fixture-local test findings;
+no blocker remains for this disconnected candidate. Production resource gates
+remain open: each invocation initializes source-sized active arrays, shared
+DAG occurrence expansion may be exponential and repeats across masks, task /
+value counters omit active-array and output-draft growth, and truncation keeps
+capacity. These costs must enter §5 admission and §15 peak evidence before
+wiring; no benchmark or numeric boundary was selected.
+
+Verification: `cargo test -p yu-solver --lib f5c_flat_replay --
+--test-threads=1` passed (4); the complete `f5c_replay` filter passed (6);
+`cargo fmt --check` and `git diff --check` passed. Measurement budget used is
+zero; the broad suite remains unverified.
+
+Next: compose replay with flat substitution and selected-root normalization
+against the boxed oracle before production wiring. Continue in module-owned
+slices; do not claim completion of the first §7 producer gate, §5/§15, indexed
+finalization, production acceptance, F5c/F5e, or §44 rollback.
+
+### Previous continuation (2026-09-26): selected-root normalization handoff
 
 `normalize_flat` now accepts the composed fixture-only flat substitution
 candidate without admitting unreachable raw Variable scratch into canonical
