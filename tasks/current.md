@@ -4,7 +4,38 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): composed flat downstream pipeline
+### Latest continuation (2026-09-26): summary-to-flat composed fixture
+
+The composed fixture now starts from a synthetic `F5cSummaryNode` DAG and
+materializes predicate, lower-bound, and upper-bound roots with
+`materialize_summary_flat` before flat replay, substitution, and normalization.
+Before downstream processing, each materialized root is expanded and compared
+directly with the summary memo's boxed positive/negative value. The DAG repeats
+edges in both polarities; checks confirm those occurrences initially receive
+distinct flat IDs. The final scheme and normalization counters still match the
+boxed oracle, with all normalized nodes/child entries reachable, dense IDs,
+duplicate removal, and shared canonical R1 IDs across roots.
+
+M2 spec-auditor review found no issue. Compiler-referee review caught a test
+gap: parity only after replay/substitution could hide a root-variable
+misassociation. The fixture now checks all three raw materialized roots against
+the boxed summary values before replay; focused delta review closed the finding.
+The prior normalizer repair remains one O(N) representative pass reusing
+`sort_scratch`, with no new allocation. This is candidate-fixture evidence,
+not resource evidence or production integration.
+
+Verification: the focused composed test passed; `flat_tests` passed (10);
+`cargo check -p yu-solver --tests --message-format short`, `cargo fmt --check`,
+and `git diff --check` passed. No broad suite, benchmark, or resource probe
+ran; measurement budget remains zero.
+
+Next: continue the producer/downstream candidate bridge and keep every source
+root checked against the boxed oracle before lossy replay/substitution. Keep
+production callers unchanged; inspect §15 before any resource probe. Indexed
+finalization, §5/§15 certification, F5e, §44 rollback, and F5c/F5e closure
+remain open.
+
+### Previous continuation (2026-09-26): composed flat downstream pipeline
 
 The fixture-only pipeline now composes `replay_flat` for predicate/lower/upper
 roots, `substitute_flat`, and `normalize_flat`, then compares scheme fields

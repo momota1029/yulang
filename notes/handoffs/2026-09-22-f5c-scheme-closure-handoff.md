@@ -2570,7 +2570,7 @@ step is to compose flat replay with flat substitution and selected-root
 normalization against the boxed oracle. Keep production wiring, the indexed
 finalizer, §5/§15 resource closure, F5e products, and §44 rollback open.
 
-## Latest continuation (2026-09-26): composed flat downstream pipeline
+## Previous continuation (2026-09-26): composed flat downstream pipeline
 
 The fixture-only flat candidate now composes `replay_flat` on the predicate,
 lower bound, and upper bound; `substitute_flat`; and `normalize_flat`. It
@@ -2609,3 +2609,39 @@ Next: feed flat summary materialization into this fixture pipeline and compare
 with the boxed oracle. Do not wire production or claim §5/§15, indexed
 finalization, F5e, §44, or F5c/F5e closure. Review the exact §15 plan before
 running any resource probe.
+
+## Latest continuation (2026-09-26): summary-to-flat composed fixture
+
+The composed fixture now begins with a synthetic `F5cSummaryNode` DAG and
+materializes the predicate, lower bound, and upper bound into a `FlatDraft`
+through `materialize_summary_flat`; it then runs flat replay, substitution,
+and normalization. Before replay can erase or merge distinctions, each of the
+three materialized roots is expanded and compared directly with the summary
+memo's boxed positive/negative value. Repeated edges in positive Union and
+negative Intersection remain separate occurrence IDs in the materialized
+draft.
+
+The rest of the fixture retains its prior checks: complete normalized scheme
+and five normalization counters match boxed replay → substitution →
+normalization; all output nodes and child entries are reachable from retained
+roots; IDs are dense; duplicates collapse; and canonical R1 nodes share IDs
+across roots. The normalizer's candidate repair maps equal `(height, rank)`
+keys to one output ID using its existing `sort_scratch` lane, adding one O(N)
+pass without new allocation.
+
+M2 spec-auditor review found no issue. Compiler-referee review identified that
+post-pipeline parity alone could hide root misassociation; direct boxed parity
+assertions for predicate and both bounds were added before replay, and focused
+delta review closed that finding. This remains fixture-only evidence. Replay's
+source-sized active arrays, occurrence-expanded DAG output, repeated-mask
+work, and rollback-retained capacity remain §5/§15 risks, with no resource
+probe or benchmark run (measurement budget zero).
+
+Verification: the focused composed test passed; `flat_tests` passed (10);
+`cargo check -p yu-solver --tests --message-format short`, `cargo fmt --check`,
+and `git diff --check` passed. No broad suite or resource/benchmark run.
+
+Next: continue producer/downstream candidate coverage, comparing every raw
+materialized root before lossy transforms. Keep production unchanged until
+the reviewed design and resource gates authorize it. Indexed finalization,
+§5/§15 certification, F5e, §44 rollback, and F5c/F5e closure remain open.

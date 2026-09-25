@@ -989,58 +989,79 @@ mod flat_tests {
         use crate::{F5cRecursiveBound, GeneralizationDraft};
         use std::collections::{HashMap, HashSet};
 
-        let mut source = FlatDraft::default();
-        let positive_one = source.positive(PositiveNode::Variable(1)).unwrap();
-        let positive_two = source.positive(PositiveNode::Variable(2)).unwrap();
-        let positive_three = source.positive(PositiveNode::Variable(3)).unwrap();
-        let positive_five = source.positive(PositiveNode::Variable(5)).unwrap();
-        let negative_two = source.negative(NegativeNode::Variable(2)).unwrap();
-        let negative_three = source.negative(NegativeNode::Variable(3)).unwrap();
-        let negative_four = source.negative(NegativeNode::Variable(4)).unwrap();
-        let negative_six = source.negative(NegativeNode::Variable(6)).unwrap();
-        let negative_members = source
-            .negative_span(&[
-                negative_two,
-                negative_three,
-                negative_four,
-                negative_two,
-                negative_six,
-            ])
-            .unwrap();
-        let negative_intersection = source
-            .negative(NegativeNode::Intersection(negative_members))
-            .unwrap();
-        let positive_members = source
-            .positive_span(&[
-                positive_one,
-                positive_two,
-                positive_two,
-                positive_three,
-                positive_five,
-            ])
-            .unwrap();
-        let positive_union = source
-            .positive(PositiveNode::Union(positive_members))
-            .unwrap();
-        let predicate = source
-            .positive(PositiveNode::Function {
-                argument: negative_intersection,
-                result: positive_union,
+        let ids = (0..13).map(F5cSummaryNodeId).collect::<Vec<_>>();
+        let kinds = [
+            F5cSummaryNodeKind::PositiveRow(1),
+            F5cSummaryNodeKind::PositiveRow(2),
+            F5cSummaryNodeKind::PositiveRow(3),
+            F5cSummaryNodeKind::PositiveRow(5),
+            F5cSummaryNodeKind::NegativeRow(2),
+            F5cSummaryNodeKind::NegativeRow(3),
+            F5cSummaryNodeKind::NegativeRow(4),
+            F5cSummaryNodeKind::NegativeRow(6),
+            F5cSummaryNodeKind::NegativeIntersection { start: 0, len: 5 },
+            F5cSummaryNodeKind::PositiveUnion { start: 5, len: 5 },
+            F5cSummaryNodeKind::PositiveFunction {
+                argument: ids[8],
+                result: ids[9],
+            },
+            F5cSummaryNodeKind::PositiveFunction {
+                argument: ids[4],
+                result: ids[2],
+            },
+            F5cSummaryNodeKind::NegativeFunction {
+                argument: ids[1],
+                result: ids[5],
+            },
+        ];
+        let mut summary = F5cComponentExpansionMemo::default();
+        summary.nodes = kinds
+            .into_iter()
+            .map(|kind| F5cSummaryNode {
+                incidence: None,
+                transitive_incidence_count: 0,
+                kind,
             })
-            .unwrap();
-        let lower = source
-            .positive(PositiveNode::Function {
-                argument: negative_two,
-                result: positive_three,
-            })
-            .unwrap();
-        let upper = source
-            .negative(NegativeNode::Function {
-                argument: positive_two,
-                result: negative_three,
-            })
-            .unwrap();
-        source.quantifier_count = 1;
+            .collect();
+        summary.children = [4, 5, 6, 4, 7, 0, 1, 1, 2, 3]
+            .into_iter()
+            .map(F5cSummaryNodeId)
+            .collect();
+
+        let mut source = FlatDraft {
+            quantifier_count: 1,
+            ..FlatDraft::default()
+        };
+        let NodeRef::Positive(predicate) = materialize_summary_flat(
+            &summary,
+            &mut source,
+            ids[10],
+            Polarity::Positive,
+            |_, _| {},
+        )
+        .unwrap() else {
+            panic!("positive summary root keeps its polarity");
+        };
+        let NodeRef::Positive(lower) = materialize_summary_flat(
+            &summary,
+            &mut source,
+            ids[11],
+            Polarity::Positive,
+            |_, _| {},
+        )
+        .unwrap() else {
+            panic!("positive summary bound keeps its polarity");
+        };
+        let NodeRef::Negative(upper) = materialize_summary_flat(
+            &summary,
+            &mut source,
+            ids[12],
+            Polarity::Negative,
+            |_, _| {},
+        )
+        .unwrap() else {
+            panic!("negative summary bound keeps its polarity");
+        };
         source.predicate = Some(predicate);
         source
             .bound(RecursiveBound {
@@ -1049,6 +1070,37 @@ mod flat_tests {
                 upper,
             })
             .unwrap();
+
+        let PositiveNode::Function { result, .. } = source.positive_nodes[predicate.0 as usize]
+        else {
+            panic!("materialized predicate remains a Function");
+        };
+        let PositiveNode::Union(span) = source.positive_nodes[result.0 as usize] else {
+            panic!("materialized predicate result remains a Union");
+        };
+        let start = span.start as usize;
+        assert_ne!(
+            source.positive_children[start + 1],
+            source.positive_children[start + 2]
+        );
+        let PositiveNode::Function { argument, .. } = source.positive_nodes[predicate.0 as usize]
+        else {
+            panic!("materialized predicate remains a Function");
+        };
+        let NegativeNode::Intersection(span) = source.negative_nodes[argument.0 as usize] else {
+            panic!("materialized predicate argument remains an Intersection");
+        };
+        let start = span.start as usize;
+        assert_ne!(
+            source.negative_children[start],
+            source.negative_children[start + 3]
+        );
+        let raw_predicate = summary.positive_value(ids[10]).unwrap();
+        let raw_lower = summary.positive_value(ids[11]).unwrap();
+        let raw_upper = summary.negative_value(ids[12]).unwrap();
+        assert_eq!(expand_positive(&source, predicate), raw_predicate);
+        assert_eq!(expand_positive(&source, lower), raw_lower);
+        assert_eq!(expand_negative(&source, upper), raw_upper);
 
         let protected = HashSet::from([3]);
         let positive_only = HashSet::from([1, 3]);
@@ -1142,9 +1194,6 @@ mod flat_tests {
         let (normalized_flat, flat_stats) =
             crate::f5c_normalization::normalize_flat(&flat).unwrap();
 
-        let raw_predicate = expand_positive(&source, predicate);
-        let raw_lower = expand_positive(&source, lower);
-        let raw_upper = expand_negative(&source, upper);
         let mut boxed_memo = F5cComponentExpansionMemo::default();
         let replayed_predicate = crate::f5c_replay::replay_positive(
             &mut boxed_memo,
