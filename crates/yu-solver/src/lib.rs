@@ -179,6 +179,7 @@ use yu_types::{
 mod scc;
 use scc::{SccComponentId, SccPlan};
 mod f5c_binder_substitution;
+mod f5c_draft;
 mod f5c_materialization;
 mod f5c_normalization;
 mod f5c_replay;

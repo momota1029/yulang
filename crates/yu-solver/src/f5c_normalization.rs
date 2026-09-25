@@ -2,6 +2,9 @@ use std::cmp::Ordering;
 
 #[cfg(test)]
 use super::F5cRecursiveBound;
+use super::f5c_draft::{
+    FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode, RecursiveBound,
+};
 use super::{F5cNegative, F5cPositive, GeneralizationDraft, SolveAvailabilityError};
 
 type NodeId = usize;
@@ -128,6 +131,28 @@ pub(super) struct NormalizationStats {
     pub(super) physical_lane_capacities: [usize; LANE_COUNT],
     #[cfg(test)]
     pub(super) physical_lane_slot_sizes: [usize; LANE_COUNT],
+}
+
+// Candidate-only logical counters; not the production normalization/resource ledger.
+#[derive(Debug, Eq, PartialEq)]
+pub(super) struct FlatNormalizationStats {
+    key_writes: usize,
+    child_comparisons: usize,
+    descriptor_words: usize,
+    word_comparisons: usize,
+    duplicates: usize,
+}
+
+impl From<&NormalizationStats> for FlatNormalizationStats {
+    fn from(stats: &NormalizationStats) -> Self {
+        Self {
+            key_writes: stats.key_writes,
+            child_comparisons: stats.child_comparisons,
+            descriptor_words: stats.descriptor_words,
+            word_comparisons: stats.word_comparisons,
+            duplicates: stats.duplicates,
+        }
+    }
 }
 
 struct Normalizer {
@@ -1481,6 +1506,539 @@ pub(super) fn normalize_component(
         lane.retained_bytes = 0;
     }
     Ok(stats)
+}
+
+/// Normalize a producer-owned topological flat graph without creating boxed values.
+/// Each input node may refer only to nodes already inserted in its polarity array.
+#[allow(dead_code)]
+pub(super) fn normalize_flat(
+    input: &FlatDraft,
+) -> Result<(FlatDraft, FlatNormalizationStats), SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    let mut normalizer = Normalizer::new();
+    let mut positives = Vec::new();
+    let mut negatives = Vec::new();
+    positives
+        .try_reserve(input.positive_nodes.len())
+        .map_err(|_| bad)?;
+    negatives
+        .try_reserve(input.negative_nodes.len())
+        .map_err(|_| bad)?;
+    let mut children = Vec::new();
+    for reference in &input.insertion_order {
+        children.clear();
+        match *reference {
+            NodeRef::Positive(source_id) => {
+                let source_index = usize::try_from(source_id.0).map_err(|_| bad)?;
+                if source_index != positives.len() {
+                    return Err(bad);
+                }
+                let node = input.positive_nodes.get(source_index).ok_or(bad)?;
+                let kind = match *node {
+                    PositiveNode::Bottom => NodeKind::PositiveBottom,
+                    PositiveNode::Int => NodeKind::PositiveInt,
+                    PositiveNode::Quantified(n) => NodeKind::PositiveQuantified(n),
+                    PositiveNode::Recursive(n) => NodeKind::PositiveRecursive(n),
+                    PositiveNode::Union(span) => {
+                        let start = usize::try_from(span.start).map_err(|_| bad)?;
+                        let end = start
+                            .checked_add(usize::try_from(span.len).map_err(|_| bad)?)
+                            .ok_or(bad)?;
+                        let slice = input.positive_children.get(start..end).ok_or(bad)?;
+                        children.try_reserve(slice.len()).map_err(|_| bad)?;
+                        for id in slice {
+                            children.push(
+                                *positives
+                                    .get(usize::try_from(id.0).map_err(|_| bad)?)
+                                    .ok_or(bad)?,
+                            );
+                        }
+                        NodeKind::PositiveUnion { start: 0, len: 0 }
+                    }
+                    PositiveNode::Function { argument, result } => {
+                        let a = *negatives
+                            .get(usize::try_from(argument.0).map_err(|_| bad)?)
+                            .ok_or(bad)?;
+                        let r = *positives
+                            .get(usize::try_from(result.0).map_err(|_| bad)?)
+                            .ok_or(bad)?;
+                        children.try_reserve(2).map_err(|_| bad)?;
+                        children.extend_from_slice(&[a, r]);
+                        NodeKind::PositiveFunction { start: 0 }
+                    }
+                };
+                positives.push(normalizer.push_node(kind, &children)?);
+            }
+            NodeRef::Negative(source_id) => {
+                let source_index = usize::try_from(source_id.0).map_err(|_| bad)?;
+                if source_index != negatives.len() {
+                    return Err(bad);
+                }
+                let node = input.negative_nodes.get(source_index).ok_or(bad)?;
+                let kind = match *node {
+                    NegativeNode::Top => NodeKind::NegativeTop,
+                    NegativeNode::Bottom => NodeKind::NegativeBottom,
+                    NegativeNode::Int => NodeKind::NegativeInt,
+                    NegativeNode::Quantified(n) => NodeKind::NegativeQuantified(n),
+                    NegativeNode::Recursive(n) => NodeKind::NegativeRecursive(n),
+                    NegativeNode::Intersection(span) => {
+                        let start = usize::try_from(span.start).map_err(|_| bad)?;
+                        let end = start
+                            .checked_add(usize::try_from(span.len).map_err(|_| bad)?)
+                            .ok_or(bad)?;
+                        let slice = input.negative_children.get(start..end).ok_or(bad)?;
+                        children.try_reserve(slice.len()).map_err(|_| bad)?;
+                        for id in slice {
+                            children.push(
+                                *negatives
+                                    .get(usize::try_from(id.0).map_err(|_| bad)?)
+                                    .ok_or(bad)?,
+                            );
+                        }
+                        NodeKind::NegativeIntersection { start: 0, len: 0 }
+                    }
+                    NegativeNode::Function { argument, result } => {
+                        let a = *positives
+                            .get(usize::try_from(argument.0).map_err(|_| bad)?)
+                            .ok_or(bad)?;
+                        let r = *negatives
+                            .get(usize::try_from(result.0).map_err(|_| bad)?)
+                            .ok_or(bad)?;
+                        children.try_reserve(2).map_err(|_| bad)?;
+                        children.extend_from_slice(&[a, r]);
+                        NodeKind::NegativeFunction { start: 0 }
+                    }
+                };
+                negatives.push(normalizer.push_node(kind, &children)?);
+            }
+        }
+    }
+    if positives.len() != input.positive_nodes.len()
+        || negatives.len() != input.negative_nodes.len()
+    {
+        return Err(bad);
+    }
+    let predicate = *positives
+        .get(usize::try_from(input.predicate.ok_or(bad)?.0).map_err(|_| bad)?)
+        .ok_or(bad)?;
+    let mut roots = Vec::new();
+    roots
+        .try_reserve(
+            input
+                .recursive_bounds
+                .len()
+                .checked_mul(2)
+                .and_then(|n| n.checked_add(1))
+                .ok_or(bad)?,
+        )
+        .map_err(|_| bad)?;
+    roots.push(predicate);
+    for bound in &input.recursive_bounds {
+        roots.push(
+            *positives
+                .get(usize::try_from(bound.lower.0).map_err(|_| bad)?)
+                .ok_or(bad)?,
+        );
+        roots.push(
+            *negatives
+                .get(usize::try_from(bound.upper.0).map_err(|_| bad)?)
+                .ok_or(bad)?,
+        );
+    }
+    normalizer.rank_all()?;
+
+    let mut output = FlatDraft {
+        quantifier_count: input.quantifier_count,
+        ..FlatDraft::default()
+    };
+    let mut mapped = Vec::new();
+    mapped
+        .try_reserve(normalizer.nodes.len())
+        .map_err(|_| bad)?;
+    mapped.resize(normalizer.nodes.len(), None::<BuiltRef>);
+    let mut work = Vec::new();
+    let mut positive_scratch = Vec::new();
+    let mut negative_scratch = Vec::new();
+    for &root in &roots {
+        work.try_reserve(1).map_err(|_| bad)?;
+        work.push((root, false));
+        while let Some((id, ready)) = work.pop() {
+            if mapped[id].is_some() {
+                continue;
+            }
+            let kind = normalizer.nodes[id].kind;
+            if !ready {
+                work.try_reserve(1).map_err(|_| bad)?;
+                work.push((id, true));
+                let (start, len) = match kind {
+                    NodeKind::PositiveUnion { start, len }
+                    | NodeKind::NegativeIntersection { start, len } => (start, len),
+                    NodeKind::PositiveFunction { start } | NodeKind::NegativeFunction { start } => {
+                        (start, 2)
+                    }
+                    _ => (0, 0),
+                };
+                let end = start.checked_add(len).ok_or(bad)?;
+                for &child in normalizer.children.get(start..end).ok_or(bad)?.iter().rev() {
+                    if mapped[child].is_none() {
+                        work.try_reserve(1).map_err(|_| bad)?;
+                        work.push((child, false));
+                    }
+                }
+                continue;
+            }
+            let positive = |id: usize| match mapped.get(id).copied().flatten() {
+                Some(BuiltRef::Positive(n)) => u32::try_from(n).ok().map(PositiveId),
+                _ => None,
+            };
+            let negative = |id: usize| match mapped.get(id).copied().flatten() {
+                Some(BuiltRef::Negative(n)) => u32::try_from(n).ok().map(NegativeId),
+                _ => None,
+            };
+            mapped[id] = Some(match kind {
+                NodeKind::PositiveBottom => BuiltRef::Positive(
+                    usize::try_from(output.positive(PositiveNode::Bottom)?.0).map_err(|_| bad)?,
+                ),
+                NodeKind::PositiveInt => BuiltRef::Positive(
+                    usize::try_from(output.positive(PositiveNode::Int)?.0).map_err(|_| bad)?,
+                ),
+                NodeKind::PositiveQuantified(n) => BuiltRef::Positive(
+                    usize::try_from(output.positive(PositiveNode::Quantified(n))?.0)
+                        .map_err(|_| bad)?,
+                ),
+                NodeKind::PositiveRecursive(n) => BuiltRef::Positive(
+                    usize::try_from(output.positive(PositiveNode::Recursive(n))?.0)
+                        .map_err(|_| bad)?,
+                ),
+                NodeKind::NegativeTop => BuiltRef::Negative(
+                    usize::try_from(output.negative(NegativeNode::Top)?.0).map_err(|_| bad)?,
+                ),
+                NodeKind::NegativeBottom => BuiltRef::Negative(
+                    usize::try_from(output.negative(NegativeNode::Bottom)?.0).map_err(|_| bad)?,
+                ),
+                NodeKind::NegativeInt => BuiltRef::Negative(
+                    usize::try_from(output.negative(NegativeNode::Int)?.0).map_err(|_| bad)?,
+                ),
+                NodeKind::NegativeQuantified(n) => BuiltRef::Negative(
+                    usize::try_from(output.negative(NegativeNode::Quantified(n))?.0)
+                        .map_err(|_| bad)?,
+                ),
+                NodeKind::NegativeRecursive(n) => BuiltRef::Negative(
+                    usize::try_from(output.negative(NegativeNode::Recursive(n))?.0)
+                        .map_err(|_| bad)?,
+                ),
+                NodeKind::PositiveUnion { start, len } => {
+                    let end = start.checked_add(len).ok_or(bad)?;
+                    positive_scratch.clear();
+                    positive_scratch.try_reserve(len).map_err(|_| bad)?;
+                    for &child in normalizer.children.get(start..end).ok_or(bad)? {
+                        positive_scratch.push(positive(child).ok_or(bad)?);
+                    }
+                    let span = output.positive_span(&positive_scratch)?;
+                    BuiltRef::Positive(
+                        usize::try_from(output.positive(PositiveNode::Union(span))?.0)
+                            .map_err(|_| bad)?,
+                    )
+                }
+                NodeKind::NegativeIntersection { start, len } => {
+                    let end = start.checked_add(len).ok_or(bad)?;
+                    negative_scratch.clear();
+                    negative_scratch.try_reserve(len).map_err(|_| bad)?;
+                    for &child in normalizer.children.get(start..end).ok_or(bad)? {
+                        negative_scratch.push(negative(child).ok_or(bad)?);
+                    }
+                    let span = output.negative_span(&negative_scratch)?;
+                    BuiltRef::Negative(
+                        usize::try_from(output.negative(NegativeNode::Intersection(span))?.0)
+                            .map_err(|_| bad)?,
+                    )
+                }
+                NodeKind::PositiveFunction { start } => {
+                    let argument =
+                        negative(*normalizer.children.get(start).ok_or(bad)?).ok_or(bad)?;
+                    let result = positive(
+                        *normalizer
+                            .children
+                            .get(start.checked_add(1).ok_or(bad)?)
+                            .ok_or(bad)?,
+                    )
+                    .ok_or(bad)?;
+                    BuiltRef::Positive(
+                        usize::try_from(
+                            output
+                                .positive(PositiveNode::Function { argument, result })?
+                                .0,
+                        )
+                        .map_err(|_| bad)?,
+                    )
+                }
+                NodeKind::NegativeFunction { start } => {
+                    let argument =
+                        positive(*normalizer.children.get(start).ok_or(bad)?).ok_or(bad)?;
+                    let result = negative(
+                        *normalizer
+                            .children
+                            .get(start.checked_add(1).ok_or(bad)?)
+                            .ok_or(bad)?,
+                    )
+                    .ok_or(bad)?;
+                    BuiltRef::Negative(
+                        usize::try_from(
+                            output
+                                .negative(NegativeNode::Function { argument, result })?
+                                .0,
+                        )
+                        .map_err(|_| bad)?,
+                    )
+                }
+            });
+        }
+    }
+    let map_positive = |id: usize| match mapped[id] {
+        Some(BuiltRef::Positive(n)) => u32::try_from(n).ok().map(PositiveId),
+        _ => None,
+    };
+    let map_negative = |id: usize| match mapped[id] {
+        Some(BuiltRef::Negative(n)) => u32::try_from(n).ok().map(NegativeId),
+        _ => None,
+    };
+    output.predicate = Some(map_positive(roots[0]).ok_or(bad)?);
+    for (bound, endpoints) in input
+        .recursive_bounds
+        .iter()
+        .zip(roots[1..].chunks_exact(2))
+    {
+        output.bound(RecursiveBound {
+            ordinal: bound.ordinal,
+            lower: map_positive(endpoints[0]).ok_or(bad)?,
+            upper: map_negative(endpoints[1]).ok_or(bad)?,
+        })?;
+    }
+    Ok((output, FlatNormalizationStats::from(&normalizer.stats)))
+}
+
+#[cfg(test)]
+mod flat_tests {
+    use super::*;
+
+    #[test]
+    fn flat_compound_tree_matches_boxed_normalization_counters() {
+        let mut flat = FlatDraft::default();
+        let negative_function_argument = flat.positive(PositiveNode::Int).unwrap();
+        let negative_function_result = flat.negative(NegativeNode::Int).unwrap();
+        let negative_function = flat
+            .negative(NegativeNode::Function {
+                argument: negative_function_argument,
+                result: negative_function_result,
+            })
+            .unwrap();
+        let top = flat.negative(NegativeNode::Top).unwrap();
+        let duplicate_int_a = flat.negative(NegativeNode::Int).unwrap();
+        let duplicate_int_b = flat.negative(NegativeNode::Int).unwrap();
+        let argument_children = flat
+            .negative_span(&[negative_function, top, duplicate_int_a, duplicate_int_b])
+            .unwrap();
+        let argument = flat
+            .negative(NegativeNode::Intersection(argument_children))
+            .unwrap();
+        let result = flat.positive(PositiveNode::Bottom).unwrap();
+        let function = flat
+            .positive(PositiveNode::Function { argument, result })
+            .unwrap();
+        let union_int = flat.positive(PositiveNode::Int).unwrap();
+        let union_bottom = flat.positive(PositiveNode::Bottom).unwrap();
+        let union_children = flat
+            .positive_span(&[function, union_int, union_bottom])
+            .unwrap();
+        let predicate = flat.positive(PositiveNode::Union(union_children)).unwrap();
+        flat.predicate = Some(predicate);
+        let (_, flat_stats) = normalize_flat(&flat).unwrap();
+        let mut old = [GeneralizationDraft {
+            quantifier_count: 0,
+            predicate: F5cPositive::Union(vec![
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Intersection(vec![
+                        F5cNegative::Function {
+                            argument: Box::new(F5cPositive::Int),
+                            argument_effect: super::super::F5cPositiveEffect::Bottom,
+                            result_effect: super::super::F5cNegativeEffect::Empty,
+                            result: Box::new(F5cNegative::Int),
+                        },
+                        F5cNegative::Top,
+                        F5cNegative::Int,
+                        F5cNegative::Int,
+                    ])),
+                    argument_effect: super::super::F5cNegativeEffect::Empty,
+                    result_effect: super::super::F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Bottom),
+                },
+                F5cPositive::Int,
+                F5cPositive::Bottom,
+            ]),
+            recursive_bounds: vec![],
+        }];
+        let boxed_stats = normalize_component(&mut old).unwrap();
+        assert_eq!(flat_stats.key_writes, boxed_stats.key_writes);
+        assert_eq!(flat_stats.child_comparisons, boxed_stats.child_comparisons);
+        assert_eq!(flat_stats.descriptor_words, boxed_stats.descriptor_words);
+        assert_eq!(flat_stats.word_comparisons, boxed_stats.word_comparisons);
+        assert_eq!(flat_stats.duplicates, boxed_stats.duplicates);
+    }
+
+    #[test]
+    fn flat_normalization_preserves_order_counters_sharing_and_bound_roots() {
+        let mut flat = FlatDraft::default();
+        let int = flat.positive(PositiveNode::Int).unwrap();
+        let bottom = flat.positive(PositiveNode::Bottom).unwrap();
+        let top = flat.negative(NegativeNode::Top).unwrap();
+        let nint = flat.negative(NegativeNode::Int).unwrap();
+        let nfunction = flat
+            .negative(NegativeNode::Function {
+                argument: int,
+                result: nint,
+            })
+            .unwrap();
+        let nspan = flat.negative_span(&[nfunction, nint, top, nint]).unwrap();
+        let intersection = flat.negative(NegativeNode::Intersection(nspan)).unwrap();
+        let function = flat
+            .positive(PositiveNode::Function {
+                argument: intersection,
+                result: int,
+            })
+            .unwrap();
+        let duplicate_function = flat
+            .positive(PositiveNode::Function {
+                argument: intersection,
+                result: int,
+            })
+            .unwrap();
+        let input_union_span = flat
+            .positive_span(&[function, bottom, int, duplicate_function])
+            .unwrap();
+        let predicate = flat
+            .positive(PositiveNode::Union(input_union_span))
+            .unwrap();
+        flat.predicate = Some(predicate);
+        flat.bound(RecursiveBound {
+            ordinal: 0,
+            lower: function,
+            upper: intersection,
+        })
+        .unwrap();
+        flat.bound(RecursiveBound {
+            ordinal: 1,
+            lower: int,
+            upper: nfunction,
+        })
+        .unwrap();
+        let (normalized, stats) = normalize_flat(&flat).unwrap();
+        assert_eq!(normalized.predicate, Some(PositiveId(3)));
+        assert_eq!(
+            normalized.positive_nodes,
+            [
+                PositiveNode::Bottom,
+                PositiveNode::Int,
+                PositiveNode::Function {
+                    argument: NegativeId(3),
+                    result: PositiveId(1)
+                },
+                PositiveNode::Union(super::super::f5c_draft::ChildSpan { start: 0, len: 3 }),
+            ]
+        );
+        assert_eq!(
+            normalized.negative_nodes,
+            [
+                NegativeNode::Top,
+                NegativeNode::Int,
+                NegativeNode::Function {
+                    argument: PositiveId(1),
+                    result: NegativeId(1)
+                },
+                NegativeNode::Intersection(super::super::f5c_draft::ChildSpan { start: 0, len: 3 }),
+            ]
+        );
+        assert_eq!(
+            normalized.positive_children,
+            [PositiveId(0), PositiveId(1), PositiveId(2)]
+        );
+        assert_eq!(
+            normalized.negative_children,
+            [NegativeId(0), NegativeId(1), NegativeId(2)]
+        );
+        assert_eq!(
+            normalized.recursive_bounds,
+            [
+                RecursiveBound {
+                    ordinal: 0,
+                    lower: PositiveId(2),
+                    upper: NegativeId(3)
+                },
+                RecursiveBound {
+                    ordinal: 1,
+                    lower: PositiveId(1),
+                    upper: NegativeId(2)
+                },
+            ]
+        );
+        assert_eq!(stats.duplicates, 2);
+        assert_eq!(normalized.positive_nodes.len(), 4);
+        assert_eq!(normalized.negative_nodes.len(), 4);
+        assert!(flat.positive_nodes.len() > normalized.positive_nodes.len());
+        let PositiveNode::Union(span) =
+            normalized.positive_nodes[normalized.predicate.unwrap().0 as usize]
+        else {
+            panic!("union root")
+        };
+        assert_eq!(span.len, 3);
+        let first = normalized.positive_children[span.start as usize];
+        let second = normalized.positive_children[span.start as usize + 2];
+        assert_eq!(
+            normalized.positive_nodes[first.0 as usize],
+            PositiveNode::Bottom
+        );
+        assert_eq!(second, normalized.recursive_bounds[0].lower);
+        let PositiveNode::Function { argument, .. } = normalized.positive_nodes[second.0 as usize]
+        else {
+            panic!("shared function")
+        };
+        assert_eq!(argument, normalized.recursive_bounds[0].upper);
+        assert_eq!(normalized.recursive_bounds[0].ordinal, 0);
+
+        let start = usize::try_from(input_union_span.start).unwrap();
+        let end = start + usize::try_from(input_union_span.len).unwrap();
+        flat.positive_children[start..end].reverse();
+        flat.recursive_bounds.reverse();
+        let (_, permuted_stats) = normalize_flat(&flat).unwrap();
+        assert_eq!(stats, permuted_stats);
+    }
+
+    #[test]
+    fn flat_rejects_swapped_and_duplicate_source_ids() {
+        let mut flat = FlatDraft::default();
+        let int = flat.positive(PositiveNode::Int).unwrap();
+        let bottom = flat.positive(PositiveNode::Bottom).unwrap();
+        let span = flat.positive_span(&[int, bottom]).unwrap();
+        let predicate = flat.positive(PositiveNode::Union(span)).unwrap();
+        flat.predicate = Some(predicate);
+        let (valid, _) = normalize_flat(&flat).unwrap();
+        assert_eq!(
+            valid.positive_nodes[valid.predicate.unwrap().0 as usize],
+            PositiveNode::Union(super::super::f5c_draft::ChildSpan { start: 0, len: 2 })
+        );
+
+        flat.insertion_order.swap(0, 1);
+        assert!(matches!(
+            normalize_flat(&flat),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        flat.insertion_order[0] = NodeRef::Positive(int);
+        flat.insertion_order[1] = NodeRef::Positive(int);
+        assert!(matches!(
+            normalize_flat(&flat),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert_eq!(bottom, PositiveId(1));
+    }
 }
 
 pub(super) fn record_production_counters(

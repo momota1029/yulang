@@ -1021,3 +1021,64 @@ small module-owned slices, preserving `lib.rs` as orchestration. The resource
 measurement plan remains a separate mandatory review gate before any resource,
 scale, or capacity probe. Numeric support limits, physical-lane certification,
 production acceptance, F5c/F5e completion, and release remain open.
+
+## 16. Fixture-only flat-draft normalization checkpoint (2026-09-25)
+
+The first code slice adds crate-private polarity-specific node IDs, flat node
+arrays, child spans, predicate/bound roots, and insertion-order metadata in
+`crates/yu-solver/src/f5c_draft.rs`. The new `normalize_flat` path in
+`f5c_normalization.rs` feeds the existing iterative ranker, then uses an
+explicit worklist to emit a dense, root-reachable flat result after
+Union/Intersection deduplication. It does not rebuild boxed `F5cPositive` or
+`F5cNegative` values. `lib.rs` changes only by one module declaration.
+
+Focused fixtures compare all five logical normalization counters with the old
+boxed normalizer for the same unshared shallow graph containing both-polarity
+Functions and Union/Intersection nodes. Separate witnesses assert exact flat
+node/child/root output, mixed-height order, duplicate removal, sharing,
+multiple-bound order, root/member permutation counter invariance, and checked
+rejection of swapped or duplicate source IDs. The raw fixtures are rooted
+before normalization; a distinct child subtree becomes unreachable only after
+canonical duplicate-member removal and is excluded from the dense output.
+
+Review disposition for this slice:
+
+- Initial compiler/spec/performance review found the insertion-order identity
+  bug, unchecked ID conversions, and transient-capacity stats being returned
+  after their owner was dropped. The batched repair checks per-polarity source
+  IDs, uses checked conversions, and keeps only logical fields in
+  `FlatNormalizationStats`.
+- The follow-up specification review passed the non-shipping API boundary,
+  treating complete physical-lane/co-resident-peak reconciliation as the
+  explicitly later §15 resource gate. It requested stronger compound counter
+  parity; the additional unshared compound and permutation fixtures close that
+  minor test gap.
+- The follow-up performance review passed this fixture-only, production-unused
+  helper. It classifies the additional input/output/work/scratch lanes,
+  `O(N+E+B)` copy/traversal work (in addition to ranking), and shared-child
+  worklist scheduling as later measurement/accounting obligations, not as
+  evidence of a measured support envelope.
+- A compiler review argued that an arbitrary isolated pre-normalization node
+  must not change key-write counters. Primary disposition: rejected. §36
+  counters count normalization work actually performed on supplied nodes, and
+  §2 explicitly compacts after normalization; adding a different raw node set
+  therefore changes actual key-generation work without changing the final
+  scheme. This is not the required same-input/root/member permutation
+  invariance. The final fixtures instead keep every raw node reachable before
+  deduplication and test the specified post-dedup compaction.
+
+This is only a fixture-backed building block, not completion of §7's first
+producer-boundary gate: production still uses the boxed path, and producers,
+replay, substitution, materialization, error cleanup, and ordinary draft drop
+have not moved to `FlatDraft`. `FlatNormalizationStats` is logical-only and
+must not be used as the production resource ledger. No candidate resource,
+scale, or capacity probe or benchmark ran; physical lane capacities,
+co-resident peaks, and any numeric boundary remain unmeasured and unset. The
+next implementation slice must continue the producer-side migration without
+adding implementation detail to `lib.rs`; `yu-types` indexed finalization
+remains later in the §7 order.
+
+Focused verification: `cargo test -p yu-solver flat_tests --lib --
+--test-threads=1` passed (3 tests), `cargo fmt --check` passed, and
+`git diff --check` passed. The broad F5c/F5e and workspace suites remain
+deferred to their coherent gate boundaries.

@@ -2371,3 +2371,40 @@ keeping `lib.rs` as orchestration; use focused small-fixture correctness checks.
 Before any resource/scale/capacity probe, prepare and review the fresh bounded
 measurement plan required by §15. Do not claim a numeric support boundary,
 physical certification, production acceptance, or F5c/F5e completion yet.
+
+## Fixture-only flat-draft normalization checkpoint (2026-09-25)
+
+The first implementation slice is committed separately as a checkpoint after
+review and verification. `f5c_draft.rs` defines polarity-specific IDs, flat
+node/child arrays, spans, and predicate/bound roots. `f5c_normalization.rs`
+adds an explicit-worklist flat input/output path using the existing canonical
+ranker; it compacts from the predicate and bound roots after normalization and
+does not reconstruct boxed F5c nodes. `lib.rs` contains only a module
+declaration. The old boxed production path remains active, so the first §7
+producer-boundary gate is still open.
+
+Focused coverage includes positive/negative Functions, mixed-height Union and
+Intersection ordering, duplicate elimination, shared child/root identity,
+multiple bounds and bound order, exact flat output, compound shallow counter
+parity with the boxed path, root/member permutation counter invariance, and
+swapped/duplicate source-ID rejection. All fixtures are rooted before
+normalization; a duplicated subtree becomes unreachable only after member
+deduplication. Initial review findings on ID remapping, checked conversions,
+and dropped-owner capacity stats were repaired. Primary rejected the separate
+claim that any isolated pre-normalization node must be counter-invariant:
+§36 counts actual key-generation work over supplied nodes, while §2 performs
+root compaction after normalization. Spec review accepted this scope and the
+performance review passed the non-shipping helper; physical lane/co-resident
+peak accounting remains a later hard gate. Exact review dispositions and
+evidence are in §16 of the design draft.
+
+Verification: `cargo test -p yu-solver flat_tests --lib -- --test-threads=1`
+passed (3 tests); `cargo fmt --check` and `git diff --check` passed. No broad
+suite, resource/scale/capacity probe, or benchmark ran; candidate measurement
+budget consumed is zero. `FlatNormalizationStats` contains logical counters
+only and is not production resource accounting. Next: continue producer-side
+flat migration and keep normalization/failure/drop flat through the first §7
+gate. Then add the `yu-types` indexed transaction. Before any resource probe,
+prepare and independently review the fresh §15 measurement plan. Numeric
+limits, production acceptance, F5c/F5e completion, F5e Function-product
+behavior, and §44 route rollback remain open.

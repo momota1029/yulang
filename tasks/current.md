@@ -104,14 +104,29 @@ on 2026-09-25. This removes the sequencing blocker without selecting numeric
 limits or approving production acceptance. Its focused M3 delta review is now
 clean: the architect found no issue; one minor historical-authorization wording
 issue and one major probe-plan ambiguity were repaired; fresh spec/performance
-delta review found no remaining issue. Candidate implementation may begin
-within exact draft §§2–8. Next: implement in small module-owned slices, keeping
-`lib.rs` orchestration-only. Use focused correctness tests on small fixtures;
-do not run resource/scale/capacity probes until a fresh plan specifies inputs,
-observations, environment, commands, time/process budgets, and stop criteria,
-and passes performance-auditor plus primary review. Numeric limits, physical
-reconciliation, and separate review/user approval remain hard gates before
-production acceptance. No code or probes have run yet.
+delta review found no remaining issue. The first fixture-backed flat-
+normalization slice is now implemented in `crates/yu-solver/src/f5c_draft.rs`
+and `f5c_normalization.rs`; `lib.rs` only adds the module declaration. It
+exercises canonical ordering, deduplication, root/bound remapping and
+compaction without rebuilding boxed F5c nodes. Focused review closed the ID
+mapping and stats-surface defects; specification and performance review accept
+this non-shipping slice. The compiler review's isolated-raw-node counter
+objection was rejected by primary against §2/§36; fixtures keep the raw graph
+rooted before normalization and test only specified post-dedup pruning. This
+does not complete §7's first producer-boundary gate: production callers,
+replay/substitution/materialization, and error/drop paths still use the
+recursive representation.
+
+Verification: `cargo test -p yu-solver flat_tests --lib -- --test-threads=1`
+passed (3 tests), `cargo fmt --check` passed, and `git diff --check` passed.
+No resource, scale, capacity, or benchmark probe ran; measurement budget used
+is zero. `FlatNormalizationStats` is logical-only; physical lane/co-resident
+peak reconciliation remains open. Next: continue producer-side flat migration
+in module-owned steps, keeping `lib.rs` orchestration-only; complete this first
+§7 gate before implementing the `yu-types` indexed transaction. Before the
+first candidate resource probe, prepare and review the fresh §15 plan. Numeric
+limits, production acceptance, F5c/F5e closure, F5e Function-product behavior,
+and §44 route rollback remain open.
 
 Latest status (2026-09-24): producer analysis, candidate replay, and the
 generalization Q/R rewrite use iterative task/value worklists with dedicated
