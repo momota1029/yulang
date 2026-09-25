@@ -17,9 +17,10 @@ success/error destruction and callback-local peak accounting remain.
 
 The earlier architecture portion received M3 review after the initial review
 and two focused delta rounds; that review does not certify the later source-map
-extension. Its focused review found one blocking and multiple major findings,
-addressed in a primary-only documentation repair awaiting fresh M3 delta
-review. The user approved first-stage investigation on
+extension. Its focused review found one blocking and multiple major findings;
+the resulting documentation repair passed a fresh focused M3 delta review
+with no findings. That review does not certify the full proposal. The user
+approved first-stage investigation on
 2026-09-25: inspect practical source inputs, map charge sites, and gather
 focused scale/resource evidence. The corpus/charge-site audit is recorded in
 the design draft and handoff. It found repository-sized surface examples but
@@ -44,16 +45,22 @@ finalization to explicit logical-work and separate storage-admission units.
 It also separates the post-finalization Function product in `closed_parts`
 (F5e) and §44 per-use rollback (separate gate) from the F5c draft meter.
 
-The meter's accumulation lifetime remains undecided: solve-wide accumulation
-gives a hard invocation ceiling but can reject many individually small
-components; per-component reset admits those workloads but leaves total work
-proportional to component count. No numeric cap or implementation authority is
-approved. The second focused M3 delta review accepted the stale §34 correction
-and `O(N+W+C)` boundary, then found new BLOCKING/major omissions in epoch
-scans, reentry, normalization work, rollback, and peak evidence. This primary
-repair awaits another fresh focused M3 delta review. Current probes measure
-neither the co-resident peak nor repeated R-round work; `C + 1` caps rounds
-alone. Restoration allocation and peak remain unverified.
+The meter's accumulation lifetime remains unapproved. A read-only architect
+consultation and primary adjudication recommend solve-wide accumulation: it
+gives a ceiling on charged F5c draft work across components and prevents
+component-count bypass, but can reject many individually small components.
+Per-component reset admits those workloads but leaves aggregate charged F5c
+draft work proportional to component count. Indexed-finalizer-local work, F5e
+Function products, §44 per-use routing, and physical peak/storage remain
+separately scoped and accounted; this meter caps neither total invocation work
+nor peak memory. This recommendation has no numeric cap and is
+not an approved durable choice. The second focused M3 delta review accepted
+the stale §34 correction and `O(N+W+C)` boundary, then found new BLOCKING/major
+omissions in epoch scans, reentry, normalization work, rollback, and peak
+evidence. Later repairs addressed the source-map wording; its latest focused
+M3 delta review found no blocking, major, or minor issue. Current probes
+measure neither the co-resident peak nor repeated R-round work; `C + 1` caps
+rounds alone. Restoration allocation and peak remain unverified.
 The F5c filter passed 162 tests with the manual probe ignored. The diagnostic
 was run seven times (five completed captures, two fixed compile attempts); no
 timing or process-memory measurement was taken. No production behavior or API
@@ -65,13 +72,21 @@ requirement. The documentation repair records the current `memo.admit` →
 `observe_walker()?` → `admitted_keys` boundary and requires a focused
 failure/exhaustion witness. Undo-journal admission is separate from final graph
 size; recovery without fallible allocation, invalidation/reinsertion capacity,
-and the unmeasured co-resident peak remain open. Only source-map wording
-received these rounds; the full design remains a proposal without
-implementation authority.
+and the unmeasured co-resident peak remain open. The follow-up documentation
+repair then passed a fresh focused M3 delta review with no blocking, major, or
+minor findings; the full design remains a proposal without implementation
+authority.
 
-Next: obtain fresh focused independent M3 delta review of this documentation repair and the source
-charge-site map and proposed metering units, then resolve meter lifetime and the numeric
-support envelope. No numeric limit is selected. This authorization still
+The latest focused M3 review of the separate meter-lifetime recommendation
+found major scope and approval-sequencing issues plus a minor wording issue.
+The batched repair then passed a fresh focused M3 delta review with no
+remaining blocking, major, or minor finding; the minor historical wording was
+corrected. The source-map repair's fourth focused review remains clean, but the
+full design is still unreviewed. Next: present the solve-wide versus
+per-component choice for user architecture approval without a numeric cap. A
+later numeric supported boundary requires scale and practical-input evidence,
+focused independent review, and separate user approval before implementation.
+No numeric limit is selected. This authorization still
 excludes the public API implementation, semantic/support-limit changes, F5
 clause supersession, and production code. Numeric limits require independent
 review and separate user approval before implementation. Keep `lib.rs` as

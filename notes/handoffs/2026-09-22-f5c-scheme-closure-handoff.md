@@ -2210,7 +2210,8 @@ generation. The §44 per-use atomic rollback gate also remains separate.
 
 Still unresolved: whether the single checked draft-work meter accumulates over
 one whole solve or resets per component. Solve-wide accumulation gives a hard
-per-invocation ceiling but can reject many small components; per-component
+ceiling on charged F5c draft work across the solve but can reject many small
+components; per-component
 reset admits those while aggregate work scales with component count. Numeric
 limits, practical-input margin, finalizer implementation proof, and focused
 independent review remain open. No tests or probes were rerun for this
@@ -2232,8 +2233,8 @@ trace-scan, co-resident lane, and rollback obligations. Existing public
 comparison counters retain their exact sites and semantics. Current probes
 measure neither the proposed co-resident peak nor R-loop cost.
 
-Next action: fresh focused independent M3 delta review of §§5/13 and their
-record synchronization. Solve-wide versus per-component meter lifetime,
+At that checkpoint, the next action was fresh focused independent M3 delta
+review of §§5/13 and their record synchronization. Solve-wide versus per-component meter lifetime,
 numeric caps, API shape, and implementation authority remain undecided. F5c
 and F5e closure and §44 per-use rollback remain separate open gates. No
 production code or probe changes are part of this repair.
@@ -2263,6 +2264,52 @@ failure/exhaustion witness must cover the current `memo.admit` →
 separate from final graph size. Allocation-free recovery and
 invalidation/reinsertion capacity remain unproven; co-resident peak remains
 unmeasured. Only source-map wording received these focused rounds; the full
-draft remains a proposal without implementation authority. Fresh focused
-review of this documentation repair is next. Meter lifetime, numeric cap,
-API, rollback, F5e, and §44 remain open; no gate completed.
+draft remains a proposal without implementation authority. At that point,
+fresh focused review of this documentation repair was next. Meter lifetime,
+numeric cap, API, rollback, F5e, and §44 remain open; no gate completed.
+
+## F5c source-map repair review and meter-lifetime recommendation (2026-09-25)
+
+The follow-up documentation repair passed a fresh focused M3 delta review by
+specification, compiler, and performance roles with no blocking, major, or
+minor finding. This review covered the source-map repair and synchronized
+records only; it did not certify the full proposal or close any implementation
+gate. The draft status and §13 now record that distinction.
+
+A read-only architect consultation recommends a single solve-wide work meter
+as the simplest way to bound charged F5c draft work across components in one solve.
+The tradeoff is explicit: it can reject a large ordinary solve made of many
+small components; per-component reset preserves those components but gives no
+solve-wide ceiling for charged F5c draft work across components in one solve.
+The primary records this as a recommendation for user
+approval, not a durable approved choice. No numeric cap or supported-input
+boundary is inferred from the available repository evidence. At this earlier
+checkpoint, the next action was focused independent review of the recommendation.
+After that, the meter-lifetime choice can be presented separately from the
+later numeric-boundary gate. The mutation-to-journal gap, allocation-free
+restoration, and co-resident peak
+remain unproved; no implementation authority exists.
+
+The subsequent focused M3 review of the separate meter-lifetime recommendation
+found major scope and approval-sequencing issues plus a minor wording issue; the
+source-map repair's fourth focused review remains clean. This batched wording
+repair awaited another focused independent review. The provisional solve-wide
+choice would cap charged F5c draft work across components in one solve and
+prevent component-count bypass, but might exhaust on many small components.
+Per-component reset admits those workloads while aggregate charged F5c draft
+work scales with component count. Indexed-finalizer-local work, F5e Function
+products, §44 per-use routing, and physical peak/storage remain separately
+scoped and accounted; the meter caps neither total invocation work nor peak
+memory. After this recommendation's review, present only meter lifetime for
+user architecture approval. A later numeric supported boundary needs scale
+and practical-input evidence, focused independent review, and separate user
+approval before implementation. No number, boundary, API, or implementation
+is approved; rollback/invalidation capacity and co-resident peak remain open.
+
+The repaired meter-lifetime delta passed a fresh focused M3 review with no
+remaining blocking, major, or minor finding; the minor historical wording was
+corrected. This closes only that documentation delta. Next, present the user
+with the exact solve-wide versus per-component choice, keeping the recommendation
+limited to charged F5c draft work across components and making no numeric-cap
+claim. A concrete numeric boundary remains a later evidence, review, and
+separate-approval gate. Full design approval and implementation remain open.
