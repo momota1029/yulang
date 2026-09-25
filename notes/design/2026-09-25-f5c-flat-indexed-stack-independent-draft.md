@@ -614,9 +614,10 @@ before implementation.
 
 ## 13. First-stage source and scale investigation (2026-09-25)
 
-The approved investigation was performed read-only against the repository
-corpus and current F5c paths. No production or test source was changed. The
-worktree was clean at `baa8d78b` before this record update.
+The approved investigation began with a read-only audit of the repository
+corpus and current F5c paths. A later focused probe adds one ignored,
+test-only measurement module; no production behavior or API changed. The
+worktree was clean at `baa8d78b` before the source-audit record update.
 
 ### Practical-source envelope
 
@@ -642,11 +643,11 @@ The exact families to meter in a future flat implementation are:
 
 | Family | Current owner/evidence | Repeat unit that needs charging |
 |---|---|---|
-| Shared summary expansion | `lib.rs` `materialize_summary`; summary child expansion | Each actually expanded child incidence, not only memoized nodes/edges |
-| Root-local census and analysis | `F5cGeneralizer::build_inner`; `f5c_tree_analysis::Walker::walk` | Each task pop, examined incidence, eligibility/order/trace check |
-| Binder substitution | `f5c_binder_substitution::substitute` and its caller in `lib.rs` | Each task/value visit and each produced child |
-| Replay and product expansion | `f5c_replay::replay`, `f5c_materialization::materialize_iterative`, product expansion in `lib.rs` | Each task visit, candidate pair and structural equality visit, and copied output element |
-| R fixed point | generalization loop in `lib.rs` | Each round, owner survival check, replay/trace visit, and copied candidate element |
+| Shared summary expansion | `lib.rs` `materialize_summary`; summary child expansion | Each actually expanded child incidence and produced output node, not only memoized nodes/edges |
+| Root-local census and analysis | `F5cGeneralizer::build_inner`; `f5c_tree_analysis::Walker::walk` | Each popped task, examined incidence, eligibility/order check, trace record, and trace hop |
+| Binder substitution | `f5c_binder_substitution::substitute` and its caller in `lib.rs` | Each task/source-node visit and each produced child/output element |
+| Replay and product expansion | `f5c_replay::replay`, `f5c_materialization::materialize_iterative`, product expansion in `lib.rs` | Each task/node/edge visit, candidate pair and structural equality visit, and copied output element |
+| R fixed point | `F5cGeneralizer::build_inner` loop in `lib.rs` | Each round; each candidate-owner examination at each loop stage; each lower/upper replay and guard-analysis visit; each trace record/hop; each reachability-frontier pop/reference; each candidate entry copied; and the post-convergence bound/trace pass. Underlying replay/analysis visits use their common units. |
 | Closed normalization | `f5c_normalization::{rank_all, rebuild}` | Preserve §34 comparison accounting; admit node/edge/descriptor dimensions before growth |
 | Indexed finalizer (proposed) | Current `yu-types::validate` and `plan`; indexed method does not exist | Direct dense ordinal lookups and iterative DFS/postorder; prove each node/incidence and each bound is processed a bounded number of times |
 
@@ -663,24 +664,90 @@ The existing synthetic witnesses exercise 1,024 direct rows through summary
 admission/materialization, a 2,048-deep alternating Function walk/comparison,
 and 4,096-deep iterative replay/materialization/tree analysis on small stacks.
 They establish selected traversal feasibility and lane reconciliation, not a
-size/work ceiling: shared-DAG path amplification, many-candidate deep
-deduplication, repeated R fixed-point rounds, and indexed finalizer passes do
-not yet have exact independent visit ledgers. The depth-256 finalizer probe is
-profile/stack dependent as recorded in §1 and does not bound flat graph size.
+size/work ceiling. The diagnostic below adds one shared-DAG amplification
+point and standalone replay lane counts, but many-candidate deep deduplication,
+actual R-loop work, and indexed-finalizer passes still lack independent visit
+ledgers. The depth-256 finalizer probe is profile/stack dependent as recorded
+in §1 and does not bound flat graph size.
 
-The focused `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` run passed
-162 tests in 0.64 seconds. A narrower `f5c_deep` run passed two tests. These
-were correctness checks, not benchmark samples; no benchmark/resource process
-budget was consumed and no peak-memory measurement was taken. No numeric cap
-is selected. The resource subgate still needs scale probes with independent
-counts for each draft dimension and work family, plus the actual co-resident
-lane ledger after a reviewed implementation exists.
+An ignored test-only probe measures the current normalizer across deep chains,
+wide unique/duplicate-heavy Unions, and multiple roots. It reports raw
+flattened node/child slots, existing normalization comparison counters, and
+the normalization lane ledger. Selected largest points were:
 
-Primary disposition: accept the corpus and charge-site maps as evidence of
-what the repository does and does not establish. Keep the one-meter design and
-linear indexed-validation claim conditional as amended above. No F5 clause is
-superseded, no API or numeric boundary is approved, and production
-implementation remains unauthorized. Next: define a focused, test-only scale
-probe plan that does not add a production prototype, then return measured
-repository-bounded results for independent review before presenting any
-numeric support envelope.
+| Shape | Raw nodes | Child slots | Root slots | Relevant counters | Tracked normalizer-lane peak |
+|---|---:|---:|---:|---|---:|
+| Function chain, depth 4,096 | 8,193 | 8,192 | 1 | 28,673 word comparisons | 1,972,544 bytes |
+| Unique Union, width 1,024 | 1,025 | 1,024 | 1 | 6,143 child; 24,572 word comparisons | 293,224 bytes |
+| Duplicate Function Union, width 1,024 | 3,073 | 3,072 | 1 | 1,023 duplicates; 56,312 word comparisons | 547,176 bytes |
+| Independent roots, count 128 | 128 | 0 | 128 | 1,150 word comparisons | 24,952 bytes |
+
+These are current-normalizer diagnostic values, not limits for the proposed
+flat representation. Raw node slots include members later deduplicated. The
+byte peak covers the normalizer's tracked vector lanes; it excludes heap
+allocations inside the recursive boxed input/output values and is not process
+resident memory.
+
+A follow-up extends the same ignored probe to current summary materialization
+and replay. For a synthetic binary shared-summary DAG, depth 12 has only 13
+memoized nodes and 24 stored child edges, but materializes to 8,191 output
+nodes and 8,190 edges. Its materializer scheduled 12,286 task slots; the
+tracked task-lane peak was 512 bytes. This is about 630 output nodes per
+memoized node, showing that memo storage does not bound the size of an
+unshared boxed result. The 512-byte figure covers only the task lane, not the
+materialized tree or all co-resident allocations.
+
+For a Function replay chain of depth 4,096, the existing replay lanes report
+12,289 task-slot requests and 8,193 value-slot requests, with tracked peaks of
+131,072 and 262,144 bytes respectively. On these successful cases, slot
+requests correspond to scheduled task/value entries; they do not count all
+structural comparisons, copied output payload bytes, or unrelated owner work.
+The probe therefore provides a useful replay-work signal, not a complete
+resource ledger.
+
+Static inspection of `F5cGeneralizer::build_inner` confirms repeated R-bound
+replay uses the same cumulative memo walker lanes, so a purpose-built
+generalizer fixture can expose aggregate replay task/value traffic. There is
+no separate counter for fixed-point rounds, candidate-set clone/retain work,
+per-owner bound checks, trace-hop checks, or reachability-frontier visits.
+Those remain unmeasured; lane counters alone cannot certify the R fixed-point
+cost. Substitution and indexed-finalizer work also remain unmeasured here.
+
+The source does give a useful structural bound: the fixed-point loop starts
+with eligible re-entry owners and only removes candidates; it never adds one.
+Every non-final round therefore removes at least one candidate, so the loop
+executes at most `C + 1` rounds for `C` initial candidates. This is a source
+inference, not a measured R witness. A round can still replay and inspect
+large bounds and traces, so the repeat-work meter must charge each round,
+candidate-owner examination, trace record and trace hop, reachability-frontier
+visit, plus the underlying replay and tree-analysis visits. Candidate-set
+copying must charge the copied owner entries. The
+remaining diagnostic budget is one process invocation; a dedicated R fixture
+would need a test-only loop observer to count rounds and per-owner checks.
+Given the source-level monotonicity proof and the need to keep this diagnostic
+small, no additional R probe is added in this slice. Keep the dynamic R work
+dimensions explicitly open for independent review rather than implying the
+depth-4,096 replay probe covered them.
+
+The combined manual probe command was invoked seven times while its test-only
+reporting/assertion code was finalized: five completed diagnostic runs and two
+compile attempts that exposed and then fixed test-code issues. An initial
+compiler warning was removed before the successful final run. These were
+deterministic count/capacity captures, not timing samples. The ordinary
+single-threaded `f5c_` suite passed 162 tests with the one manual probe ignored;
+the earlier narrower `f5c_deep` check passed two tests. No elapsed-time or
+process-RSS measurement was taken. No numeric cap is selected. The resource
+subgate still needs the unmeasured R-loop work dimensions and the actual
+co-resident lane ledger after a reviewed implementation exists. The probe is
+primary-authored and was not independently reviewed; it is diagnostic
+evidence only.
+
+Primary disposition: accept the corpus, charge-site maps, and normalization,
+shared-summary, and replay probes as repository-bounded diagnostic evidence.
+The R loop has a source-level `C + 1` round bound because its candidate set is
+monotone-decreasing, but per-round replay/owner/trace work is not measured.
+Keep the one-meter design and linear indexed-validation claim conditional as
+amended above. No F5 clause is superseded, no API or numeric boundary is
+approved, and production implementation remains unauthorized. Next: close
+the source charge-site-to-meter map, including the R owner/trace units, then
+obtain focused independent review before any numeric support envelope.

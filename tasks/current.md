@@ -19,22 +19,36 @@ This design-only M3 gate is Reviewed after the initial review and two focused
 delta rounds; the assigned findings are closed with no remaining blocking or
 major issue in scope. The user approved first-stage investigation on
 2026-09-25: inspect practical source inputs, map charge sites, and gather
-focused scale/resource evidence. The read-only corpus/charge-site audit is now
-recorded in the design draft and handoff. It found repository-sized surface
-examples but no link from source to expanded solver work; the existing
-synthetic stress cases do not justify numeric limits or external-input
-representativeness. The current F5c suite was re-run: 162 passed, single
-threaded. No production or test source was changed, and no benchmark or peak
-memory measurement was taken.
+focused scale/resource evidence. The corpus/charge-site audit is recorded in
+the design draft and handoff. It found repository-sized surface examples but
+no link from source to expanded solver work. The ignored test-only probe now
+covers current normalization, shared-summary materialization, and replay. At
+shared-DAG depth 12, 13 memo nodes / 24 stored edges materialize to 8,191 nodes
+and 8,190 edges; this exposes path expansion but is synthetic, not a practical
+input limit. At replay depth 4,096, existing lanes record 12,289 task-slot
+requests and 8,193 value-slot requests. The largest normalizer tracked-lane
+peak remains 1,972,544 bytes at Function depth 4,096. All these lane bytes
+omit some recursively boxed payloads and do not estimate the proposed flat
+path.
 
-Next: prepare only a focused test-only scale-probe plan (no shipped-path
-prototype), then independently review repository-bounded results before
-proposing any numeric support envelope. This authorization still excludes the
-public API implementation, semantic/support-limit changes, F5 clause
-supersession, and production code. Numeric limits require independent review
-and separate user approval before implementation. Keep `lib.rs` as
-orchestration and any eventual flat producer/finalizer bridge in dedicated
-modules.
+Static inspection shows replay lanes aggregate repeated replay scheduling.
+The R fixed-point candidate set only shrinks, so its loop has at most C+1
+rounds for C initial candidates; that is a source proof, not a measurement.
+Existing counters do not count its per-round candidate clone/retain work,
+owner and trace checks, or reachability-frontier visits. Those dimensions
+remain open.
+The F5c filter passed 162 tests with the manual probe ignored. The diagnostic
+was run seven times (five completed captures, two fixed compile attempts); no
+timing or process-memory measurement was taken. No production behavior or API
+changed.
+
+Next: finish the source charge-site-to-meter map, including R-loop owner and
+trace units, then carry it into focused independent review. No numeric support
+envelope yet. This authorization still excludes the public
+API implementation, semantic/support-limit changes, F5 clause supersession,
+and production code. Numeric limits require independent review and separate
+user approval before implementation. Keep `lib.rs` as orchestration and any
+eventual flat producer/finalizer bridge in dedicated modules.
 
 Latest status (2026-09-24): producer analysis, candidate replay, and the
 generalization Q/R rewrite use iterative task/value worklists with dedicated

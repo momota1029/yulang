@@ -2098,7 +2098,87 @@ passed 162 tests (0.64 s); a `f5c_deep` filtered run passed 2 tests. No
 benchmark samples or peak-memory measurements were taken. No code source was
 changed; numeric thresholds remain unsupported.
 
-Next: define a narrowly scoped test-only scale-probe plan without a shipped
-path prototype; collect independent counts by draft dimension and repeated
-work family, then request focused independent review before presenting any
-repository-bounded numeric envelope. F5c/F5e remain open.
+The next-action note from the initial corpus/charge-site audit was to prepare a
+test-only scale probe. The normalizer-only follow-up below fulfills that first
+measurement slice; shared-summary, replay/substitution, R fixed-point, and
+indexed-finalizer work families remain unmeasured. F5c/F5e remain open.
+
+### Normalizer-only scale probe follow-up
+
+The primary added one ignored test-only probe at
+`crates/yu-solver/src/tests/f5c_resource_probe.rs`; the sole `lib.rs` edit is
+the test-module declaration. It exercises current normalizer shapes only:
+Function chains, unique and duplicate-heavy Unions, and multiple roots. The
+reproducible command is:
+
+```text
+cargo test -p yu-solver --lib f5c_resource_probe_scale_families -- --ignored --nocapture --test-threads=1
+```
+
+Selected largest observations:
+
+| Shape | Raw nodes | Child slots | Work counter | Tracked lane peak |
+|---|---:|---:|---:|---:|
+| Function chain, depth 4,096 | 8,193 | 8,192 | 28,673 word comparisons | 1,972,544 bytes |
+| Unique Union, width 1,024 | 1,025 | 1,024 | 24,572 word comparisons | 293,224 bytes |
+| Duplicate Function Union, width 1,024 | 3,073 | 3,072 | 1,023 duplicates; 56,312 word comparisons | 547,176 bytes |
+| Independent roots, count 128 | 128 | 0 | 1,150 word comparisons | 24,952 bytes |
+
+“Raw nodes” are pre-dedup normalizer nodes. “Tracked lane peak” covers the
+normalizer's counted vectors only; nested allocations in boxed inputs and
+outputs are omitted, so it is neither total memory nor a flat-path forecast.
+The probe says nothing about shared-summary path expansion, replay,
+substitution, R fixed-point work, or indexed-finalizer scratch. It is a
+primary-authored diagnostic, not independently reviewed or a numeric limit.
+
+The probe ran three times while its test-only reporting/assertions were
+finalized; all runs passed, one initial warning was fixed, and no timing sample
+was collected. The regular F5c filter passes 162 tests with the probe ignored.
+Next: inspect existing test-visible counters for shared-summary and R/replay
+work. Avoid production instrumentation unless a narrow test-only observer is
+needed and separately reviewed.
+
+### Shared-summary and replay probe follow-up
+
+The same ignored test-only probe now also constructs a binary shared-summary
+DAG and a deep replay chain. At DAG depth 12, the memo holds 13 unique nodes
+and 24 child edges, while materialization creates 8,191 output nodes and 8,190
+edges. The materializer requested 12,286 task slots; the tracked task-lane
+peak was 512 bytes. This demonstrates path expansion in the current
+boxed-output route, not an externally representative input or a proposed
+flat-DAG output size. The lane peak omits the materialized tree and other
+co-resident storage.
+
+At replay Function depth 4,096, the existing lanes report 12,289 task-slot
+requests and 8,193 value-slot requests, with lane peaks of 131,072 and 262,144
+bytes. Successful task/value slot requests reflect scheduled entries, but not
+all comparison, copy, or owner-check work. Static inspection of
+`F5cGeneralizer::build_inner` shows cumulative replay lane accounting can
+include repeated R-bound replay, but there is no direct count for R rounds,
+candidate clone/retain operations, per-owner checks, trace-hop visits, or
+reachability-frontier visits. R fixed-point cost therefore remains
+unmeasured; substitution and finalizer work remain outside this probe too.
+
+The source loop starts from eligible re-entry owners and only removes
+candidates. Thus every non-final round removes at least one candidate and the
+loop has at most `C + 1` rounds for `C` initial candidates. This is a
+source-level bound, not an observed round count or per-round cost. A round can
+still replay and inspect large bounds/traces, so the work meter must charge
+rounds, owner and trace records, trace hops, candidate entries copied, and the
+underlying replay/tree-analysis visits.
+
+The combined manual probe command was invoked seven times: five completed
+diagnostic runs and two compile attempts that exposed and fixed test-source
+issues. One initial warning was also removed. No timing samples or process-RSS
+measurements were collected. The single-threaded `f5c_` filter passed 162
+tests with the probe ignored. These measurements are primary-authored and not
+independently reviewed. They do not establish a numeric limit or complete
+resource bound; no production behavior, API, or F5 clause changed. The last
+diagnostic process invocation is deliberately not spent on a new R-loop
+observer: source inspection already bounds round count, while a valid witness
+would need new test-only counters and still would not establish a representative
+per-round envelope.
+
+Next: finish the source charge-site-to-meter map for R owner/trace work, then
+obtain focused independent review before presenting any numeric boundary.
+Numeric boundary and production implementation remain unapproved.

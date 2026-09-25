@@ -14998,6 +14998,7 @@ mod tests {
     mod f5c_depth_limit;
     mod f5c_materialization;
     mod f5c_replay;
+    mod f5c_resource_probe;
     mod f5c_scratch_reserve;
     mod f5c_tree_analysis;
     mod f5c_value_exact_upper_route;
