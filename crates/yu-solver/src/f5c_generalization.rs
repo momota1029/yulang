@@ -3343,6 +3343,7 @@ impl<'a> F5cGeneralizer<'a> {
         }
     }
 
+    #[cfg(test)]
     fn guarded_trace_path_survives(
         trace: &F5cGuardedTrace,
         protected: &HashSet<u32>,

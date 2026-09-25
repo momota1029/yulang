@@ -181,13 +181,16 @@ use scc::{SccComponentId, SccPlan};
 mod f5c_binder_substitution;
 mod f5c_draft;
 mod f5c_generalization;
+#[cfg(test)]
 use f5c_generalization::{
-    F5cBoundSide, F5cCompareTask, F5cComponentExpansionMemo, F5cDraftWorkMeter,
-    F5cExpansionFrame, F5cExpansionKey, F5cGeneralizer, F5cGuardedTrace, F5cIncidenceEdge,
-    F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect, F5cRecursiveBound,
-    F5cReverseParentEdge, F5cRootEdge, F5cRootUndo, F5cSummaryNode, F5cSummaryNodeId,
-    F5cSummaryNodeKind, F5cTraceHop, F5cWalkTask, F5cWalkValue, F5cWalkerLaneKind,
-    F5cWalkerResources, GeneralizationDraft,
+    F5cBoundSide, F5cCompareTask, F5cExpansionFrame, F5cExpansionKey, F5cGuardedTrace,
+    F5cIncidenceEdge, F5cRecursiveBound, F5cReverseParentEdge, F5cRootEdge, F5cRootUndo,
+    F5cSummaryNode, F5cTraceHop, F5cWalkTask, F5cWalkerResources,
+};
+use f5c_generalization::{
+    F5cComponentExpansionMemo, F5cDraftWorkMeter, F5cGeneralizer, F5cNegative, F5cNegativeEffect,
+    F5cPositive, F5cPositiveEffect, F5cSummaryNodeId, F5cSummaryNodeKind, F5cWalkValue,
+    F5cWalkerLaneKind, GeneralizationDraft,
 };
 mod f5c_materialization;
 mod f5c_normalization;
