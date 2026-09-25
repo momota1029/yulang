@@ -2220,3 +2220,49 @@ Next: obtain focused independent review of the source map and metering units;
 then choose meter lifetime and a numeric support envelope with the user. Keep
 `lib.rs` orchestration-only, preserve §44's first-member representative and
 atomic route contract, and do not claim F5c/F5e completion.
+
+## F5c source-map repair resume (2026-09-25)
+
+Draft §§5/13 received a primary-only batched documentation repair addressing
+one blocking and multiple major review findings. The prior M3 architecture
+review covers the earlier architecture, not this source-map extension. The
+repaired map now follows authoritative §36 `O(N+W+C)`, accounts privately for
+the `O(N+W)` canonical preordering, and specifies scheduling, copy, epoch-wrap,
+trace-scan, co-resident lane, and rollback obligations. Existing public
+comparison counters retain their exact sites and semantics. Current probes
+measure neither the proposed co-resident peak nor R-loop cost.
+
+Next action: fresh focused independent M3 delta review of §§5/13 and their
+record synchronization. Solve-wide versus per-component meter lifetime,
+numeric caps, API shape, and implementation authority remain undecided. F5c
+and F5e closure and §44 per-use rollback remain separate open gates. No
+production code or probe changes are part of this repair.
+Scheduled-versus-popped early mismatch, epoch-wrap, exhaustion restoration,
+co-resident lane ledger, and §36 counter-oracle parity witnesses remain future
+implementation/review requirements, not evidence gathered in this repair.
+
+Second focused M3 source-map delta review accepted the stale §34 correction and
+§36 `O(N+W+C)` boundary, then identified new BLOCKING/major omissions in both
+epoch scans, reentry short circuits, normalization work, rollback journal and
+restoration, and peak evidence. The primary repaired §§5/13 and synchronized
+records. Another fresh focused M3 delta review is required; the earlier
+architecture review did not certify this extension. Restoration allocation,
+simultaneous peak, and repeated R-round work remain unverified (`C + 1` caps
+rounds only). Future implementation must prove and witness both wraps, reentry,
+normalization work/public-counter parity, exhaustion restoration without
+fallible allocation, and the simultaneous lane ledger. None ran in this round.
+Meter lifetime, numeric caps, API, production authority, F5e `closed_parts`,
+and §44 per-use remain separate open decisions/gates. No gate completed.
+
+Third focused M3 source-map delta round found no new charge-map omission. It
+accepted a rollback journal-visibility gap as an open implementation
+requirement: no fallible step may intervene between private mutation and its
+undo record; partial admission failure needs prior state journaled. A focused
+failure/exhaustion witness must cover the current `memo.admit` →
+`observe_walker()?` → `admitted_keys` boundary. Undo-journal admission is
+separate from final graph size. Allocation-free recovery and
+invalidation/reinsertion capacity remain unproven; co-resident peak remains
+unmeasured. Only source-map wording received these focused rounds; the full
+draft remains a proposal without implementation authority. Fresh focused
+review of this documentation repair is next. Meter lifetime, numeric cap,
+API, rollback, F5e, and §44 remain open; no gate completed.

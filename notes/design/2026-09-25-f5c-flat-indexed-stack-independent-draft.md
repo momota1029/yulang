@@ -1,6 +1,6 @@
 # F5c flat indexed draft and stack-independent finalization
 
-Status: Architecture reviewed; first-stage investigation approved (2026-09-25); primary source charge-site extension awaits focused review; numeric resource boundary and implementation approval remain open
+Status: Draft proposal; earlier architecture reviewed and first-stage investigation approved (2026-09-25); source-map wording received three focused M3 delta rounds and this repair awaits fresh focused review; full design, numeric resource boundary, and implementation remain unapproved
 Scope: F5c structural-depth stack use from live expansion through closed-scheme finalization and cleanup
 Related authority: F5 §§14–16, 24–26, 32–36, 43–44; F5b closed-finalization accounting amendment §§2, 6, 9
 Decision: investigate flat solver-owned drafts and a `yu-types`-owned indexed finalization transaction; no production implementation or API approval
@@ -295,6 +295,19 @@ Keep two different limits distinct:
   path amplification and repeated root-local work even when the final flat
   draft stays small; do not pass fuel across the `yu-types` API.
 
+  Charge child-edge inspection and task scheduling before each operation,
+  separately from comparison-task pops and stack-slot/storage admission.
+  Early mismatch leaves scheduled but unpopped tasks charged for scheduling,
+  not comparison. Charge each bounds-row endpoint copied before a clone and
+  separately admit storage; borrow an external session row where possible.
+  On epoch wrap, charge every entry before `root_edge_marks.fill(0)` or
+  `F5cComponentExpansionMemo::begin_visit`'s `visit_epochs.fill(0)`, called by
+  `propagate_active_row` and `invalidate_row`. Exhaustion precedes either fill
+  and takes the normal error/rollback path. In `record_reentry`, charge active
+  entries examined until the first owner match or end; on a match, charge all
+  copied path hops, then only the prefix `.any` inspects through the first
+  Function hop, or the full path if none exists. Copy and guard lengths differ.
+
   The meter's accumulation lifetime is not selected yet: a solve-wide meter
   gives a hard per-invocation ceiling but can reject a large collection of
   individually small components; resetting per component preserves those
@@ -305,10 +318,23 @@ Keep two different limits distinct:
 The 2026-09-25 architect adjudication found the prior `k!` alpha-permutation
 concern stale: the authoritative producer-order addendum removed that ranking
 path, and current-source search found no `unordered_root_keys`. Do not add a
-budget lane for deleted work. Closed normalization retains its authoritative
-§34 `O(N + Σ k log(k+1))` comparison contract; with node/edge admission
-limits, its work is bounded by the admitted normalized graph. The indexed
-finalizer must validate and build each supplied node/edge a bounded constant
+budget lane for deleted work. Authoritative F5 §36 supersedes the old §34
+complexity claim with `O(N+W+C)`: `N` is finalized nodes, `W` descriptor words,
+and `C` the exact prescribed word comparisons. The 2026-09-24 normalization
+counter addendum retains that bound and adds canonical preordering `O(N+W)`.
+Charge each prescribed §36 word comparison at its existing site, preserving
+the exact public `C` schedule. Privately charge radix frame schedule/pop/checks,
+bucket reset and 257-symbol prefix/bucket scans, histogram/distribution
+item/symbol reads, bucket-position/cursor checks, swaps/writes, and child-frame
+checks; small insertion-sort symbol comparisons and key moves; stable-merge
+tail copies, full write-back, rank/key assignments, adjacent duplicate tests
+and dedup writes; and flatten/rebuild/compaction node and incidence visits.
+Preordering charges never alter public counters. Pre-growth `N`/`W` admissions
+bound stored nodes/words and their bounded-pass visits; individual operations
+still consume private work or prescribed `C` at their sites. Together these
+bound normalization by `O(N+W+C)`, subject to future source proof and witnesses.
+The indexed finalizer must validate and build each
+supplied node/edge a bounded constant
 number of times, with scratch bounded by the same input dimensions. These are
 conditional complexity claims, not facts established by the current callback
 or by using flat IDs alone. The source audit must verify each pass and every
@@ -337,6 +363,26 @@ subgate is closed, this design does **not** claim a concrete deterministic
 practical-work ceiling or general pathological-work rejection. This boundary
 is intentionally narrower than full F5c/F5e closure.
 
+The proposed private failure invariant is that work-meter exhaustion stops
+new forward work and returns existing `IdentityExhausted` without partial
+publication. Cleanup is not interrupted by the exhausted forward meter.
+Future implementation must size-admit each undo/invalidation journal entry as
+an explicit separate dimension before its reversible mutation; final node/edge
+counts do not bound the journal. No fallible operation may separate a private
+mutation from its rollback-visible undo record. In the current source sequence,
+`memo.admit` followed by fallible `observe_walker()?` before the `admitted_keys`
+push exposes this gap. Future implementation must close it; if admission can
+partially mutate and then fail, journal enough prior state before that mutation
+to restore every failure path. A focused failure/exhaustion witness must cover
+this exact mutation-to-journal boundary. Cleanup must be bounded by admitted journal
+and memo entries, require no fallible reserve or allocation after exhaustion,
+and remain uninterruptible by the forward meter. It must restore memo
+admissions, invalidations, nodes, and edges, then return existing
+`IdentityExhausted` without a public result. Whether invalidation and
+reinsertion can restore state without allocation, and whether their capacity
+is sufficient, remain unverified. The co-resident memory peak is unmeasured;
+source proof and exhaustion witnesses remain required.
+
 The existing F5/F4 resource contracts are not removed by this draft. Every
 new or retained physical lane remains classified and counted exactly once;
 solver input/scratch and `yu-types` finalizer scratch must be reconciled at
@@ -350,8 +396,17 @@ node arrays; positive and negative child-ID arrays; recursive-bound/root
 arrays; component-summary memo nodes/edges; root-local Q/R census, trace,
 fixed-point, incidence and replay task/value lanes; normalization descriptors,
 sort/dedup scratch, compaction maps/frames and final root maps; and the outer
-all-member draft vector. This is a minimum inventory to verify against every
-constructor, nested payload, transfer, `collect`, clone, failed reserve, and
+all-member draft vector. Co-resident `build_inner` and
+`non_generic_closure` temporaries also include raw/retained bounds and row
+copies; previous/candidate/survivor/reachable/reference/adjacency/connected
+sets and frontiers; replayed bounds/predicate; traces and Q/R maps;
+comparison/work stacks; memo restoration lanes; and all-member drafts while
+finalized drafts accumulate. This is a minimum to verify, not a measured
+complete peak; `C + 1` bounds R rounds alone, not repeated round work or peak
+residency. The future lane ledger must record lifetimes, pre-growth
+admission, actual capacities after reserve success or failure, cleanup owner,
+and overlap at §26 snapshots. Verify against every constructor, nested
+payload, transfer, `collect`, clone, failed reserve, and
 drop in source; it is not permission for untracked local temporaries. In
 `yu-types`, add the positive/negative source-ID-to-draft maps, DFS color and
 frame arrays, mapped child lanes, bounds maps, existing overlay/draft lanes,
@@ -672,17 +727,18 @@ external-practical-input claim.
 
 The primary source audit maps the future meter and separate storage admissions
 to these owners. It closes source discovery, not independent review or a numeric
-limit:
+limit. The exact epoch, reentry, normalization, and rollback charges in §5
+govern these rows:
 
 | Family | Current owner/evidence | Repeat-work charge | Separate admitted-size charge |
 |---|---|---|---|
-| Summary DAG build and maintenance | `F5cComponentExpansionMemo::{push_node,push_children,admit,seed_row,propagate_active_row,invalidate_row}` and `materialize_summary` in `lib.rs` | Each attempted queue admission, work-item pop, child/incidence/root-edge/reverse-parent edge inspected, conflict-journal entry copied, and summary child actually expanded. Repeated propagation/invalidation traversals count again. | Each memo node/child edge, root/parent incidence, materialized flat node/edge, and work-lane slot before growth. Memoized size alone does not bound unshared output. |
-| Root-local expansion and census | `F5cGeneralizer::walk`, `record_reentry`, and `f5c_tree_analysis::Walker` | Each task popped; direct lower/upper row or exact endpoint examined; child/member incidence visited; active-frame comparison; trace hop copied or inspected; eligibility/order/set entry visited. Short-circuit scans charge only reached entries. | Flat nodes/edges, Q/R census/order entries, traces/hops, direct-target and task/value/frame lanes. |
-| Direct-bound deduplication | `F5cGeneralizer::walk` plus `structural_equal` | Each incoming-vs-prior candidate pair, plus every structural comparison task popped for that pair, including the mismatching task. This is potentially quadratic in distinct direct endpoints and multiplied by compared structure size. | Candidate/direct-target entries and comparison stack slots. |
+| Summary DAG build and maintenance | `F5cComponentExpansionMemo::{push_node,push_children,admit,seed_row,propagate_active_row,invalidate_row}` and `materialize_summary` in `lib.rs` | Each attempted queue admission, work-item pop, child/incidence/root-edge/reverse-parent edge inspected, conflict-journal entry copied, and summary child actually expanded. Charge each entry before `root_edge_marks` or `begin_visit`/`visit_epochs` epoch-wrap fill; repeated propagation/invalidation traversals count again. | Each memo node/child edge, root/parent incidence, materialized flat node/edge, and work-lane slot before growth. Separately size-admit each restoration/invalidations journal entry before mutation. Memoized size alone does not bound unshared output. |
+| Root-local expansion and census | `F5cGeneralizer::walk`, `record_reentry`, and `f5c_tree_analysis::Walker` | Each task popped; each bounds-row endpoint copied before cloning; child/member incidence visited and task scheduled; eligibility/order/set entry visited. In `record_reentry`, count active entries through owner match/end, all copied hops on match, and only the `.any` prefix through first Function hop (or full path if absent). | Flat nodes/edges, Q/R census/order entries, traces/hops, direct-target and task/value/frame lanes; separately admit any copied row. Borrow external session rows where possible. |
+| Direct-bound deduplication | `F5cGeneralizer::walk` plus `structural_equal` | Each incoming-vs-prior candidate pair, child edge inspected, comparison task scheduled, and comparison task popped are distinct charges. An early mismatch leaves scheduled unpopped tasks charged for scheduling only. This is potentially quadratic in distinct direct endpoints and multiplied by compared structure size. | Candidate/direct-target entries and comparison stack slots; storage admission is separate from work charges. |
 | Tree analysis and non-generic closure | `f5c_tree_analysis::{Walker, incidences_*, references_*, occurrences_*, guarded_bound_survives}` and `F5cGeneralizer::non_generic_closure` | Each task/node and child incidence visited; each bounds row/endpoint examined; each adjacency incidence inserted or checked; each frontier pop and neighbor/reference checked. Repeated calls count again. | Adjacency entries, seen/frontier entries, and traversal scratch lanes. |
 | R fixed point and trace filtering | `F5cGeneralizer::build_inner`, `guarded_trace_path_survives`, and post-convergence passes | Each round; each copied candidate owner; each owner at each retain/reachability stage; each trace record and examined hop; each lower/upper replay and guard-analysis visit; each frontier/reference; each bound and retained trace revisited after convergence. The monotone candidate set gives at most `C + 1` rounds, not a bound on cost per round. | Candidate/survivor/reachability sets, raw/retained bounds, Q/R maps, trace arrays, and frontier lanes. |
 | Replay, substitution, and raw-bound materialization | `f5c_replay::replay`, `f5c_binder_substitution::substitute`, `f5c_materialization::materialize_iterative`, and callers in `build_inner` | Each task/source-node visit and examined edge/member; each emitted flat node/edge; each leaf/container/output element copied. Repeated replay calls charge independently. | Output node/edge arrays, maps, and task/value/parts lanes before growth. |
-| Closed normalization and compaction | `f5c_normalization::{flatten,rank_all,rebuild}` and proposed root-reachability compaction | Preserve exact §34 comparison/counter semantics. §34's bounded sorting work is protected by node/child/descriptor admission limits; charge any separate graph/compaction traversal task and incidence per visit. | Raw/intermediate/final nodes, stored child IDs, logical incidences, descriptor words, roots, maps, and sort/dedup/compaction lanes. |
+| Closed normalization and compaction | `f5c_normalization::{flatten,rank_all,rebuild}` and proposed root-reachability compaction | Preserve exact public §36 `C` comparison schedule at existing sites. Privately charge the radix, insertion, merge, dedup, flatten/rebuild, and compaction operations in §5; `N`/`W` admission alone does not charge execution. Together the admissions and work charges cover `O(N+W+C)`. | Raw/intermediate/final nodes, stored child IDs, logical incidences, descriptor words, roots, maps, radix frame/workspace and sort/dedup/compaction lanes; future finite admissions and work cap cover both bounds. |
 | Indexed finalizer (proposed) | Current callback `yu-types::validate`, `plan`, and `commit`; indexed method does not exist | For the proposed direct-index path, count each supplied node, child entry/logical incidence, bound, and DFS visit. Prove validation/planning/commit passes touch each indexed item only a bounded constant number of times; this is finalizer-local work, not solver fuel. | Source-ID maps, colors/frames, mapped lanes, overlay, and commit/rollback scratch bounded by input dimensions. |
 
 The Function Cartesian product in `InferenceSession::closed_parts` is
@@ -699,6 +755,29 @@ path expansions, R fixed-point rounds, replay clones, or candidate-pair
 structural visits. In particular, the existing callback validator's nested
 linear membership/duplicate searches cannot justify the proposed indexed
 linear-pass claim.
+
+The physical-lane list in §5 is a minimum future verification inventory,
+including simultaneous `build_inner`/`non_generic_closure` temporaries and
+all-member drafts beside accumulating finalized drafts. Record lifetime,
+pre-growth admission, actual capacity after reserve success/failure, cleanup
+owner, and overlap at §26 snapshots. Current probes measure neither that
+co-resident peak nor repeated R-round work; `C + 1` caps rounds alone. The
+second focused M3 delta review accepted the corrected stale §34 claim and
+`O(N+W+C)` boundary, then found new BLOCKING/major omissions in epoch scans,
+reentry, normalization work, rollback, and peak evidence. The third focused M3
+delta round found no new charge-map omission and accepted the mutation-to-journal
+visibility gap as an open implementation requirement. This documentation repair
+awaits fresh focused review. Only source-map wording received these focused
+rounds; earlier architecture review does not certify the full proposal.
+
+Future implementation and focused review must supply exact-charge witnesses
+for scheduled versus popped comparison tasks after an early mismatch, both
+`begin_visit` and `root_edge_marks` wrap scans, reentry short circuits, and
+normalization operation coverage with §36 public-counter parity. Exhaustion
+witnesses must establish restoration without fallible allocation or public
+publication. The simultaneous lane ledger and restoration peak need source
+proof and §26 snapshot witnesses. None was run or measured for this documentation
+repair.
 
 ### Scale evidence and remaining limit
 
@@ -790,7 +869,7 @@ The R loop has a source-level `C + 1` round bound because its candidate set is
 monotone-decreasing, but per-round replay/owner/trace work is not measured.
 Keep the one-meter design and linear indexed-validation claim conditional as
 amended above. The detailed charge-site map above is a primary source-audit
-result; it has not received a fresh independent review. Its accumulation
+result; this documentation repair awaits fresh focused M3 review. Its accumulation
 lifetime (solve-wide or component-local), numeric limits, and resource evidence
 remain open. No F5 clause is superseded, no API or numeric boundary is
 approved, and production implementation remains unauthorized. Next: get a
