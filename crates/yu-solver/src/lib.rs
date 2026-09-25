@@ -14995,6 +14995,7 @@ impl SolvedModule {
 mod tests {
     use super::*;
     mod f5c_binder_substitution;
+    mod f5c_depth_limit;
     mod f5c_materialization;
     mod f5c_replay;
     mod f5c_scratch_reserve;

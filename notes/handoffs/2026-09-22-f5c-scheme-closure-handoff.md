@@ -1981,3 +1981,44 @@ before that approval. After approval, promote the reviewed proposal to
 Authoritative, update the task/design records, implement only this stack-safety
 slice, and checkpoint/push the coherent verified slice promptly. Do not claim
 F5c or F5e closure.
+
+## Candidate depth-256 stack probe (2026-09-25)
+
+This later probe supersedes the preceding 128/64 KiB candidate note. The user
+approved a bounded compiler support envelope and suggested evaluating 256;
+they also asked to slim unnecessary implementation code if that route works.
+No exact caller-stack floor or implementation behavior has been approved yet.
+
+The focused probe is
+`tests::f5c_depth_limit::f5c_candidate_depth_256_finalizes_and_drops_on_small_stack`.
+It builds one positive and one negative depth-256 Function draft, invokes the
+unchanged §24 finalizer, then normally drops the closed result, input draft,
+and finalization session.
+
+Observed results:
+
+- Debug test build, 64 KiB stack: stack overflow during finalization.
+- Debug test build, 256 KiB stack: stack overflow.
+- Debug test build, 512 KiB stack: pass.
+- Optimized release test build, 64 KiB stack: pass.
+
+Commands used:
+
+```text
+cargo test -p yu-solver --lib f5c_candidate_depth_256_finalizes_and_drops_on_small_stack -- --test-threads=1
+cargo test -p yu-solver --lib f5c_candidate_depth_256_finalizes_and_drops_on_small_stack --release -- --test-threads=1
+```
+
+The passing debug witness currently uses a 512 KiB thread. The release result
+is an observed profile-specific result, not a cross-platform guarantee. The
+test is only a finalizer/destructor feasibility probe: it does not exercise the
+production depth guard, all boxed-tree producers, depth-257 rejection, checked
+error cleanup, or route/publication atomicity.
+
+The remaining decision is the supported execution-stack envelope. A fixed
+depth-256 limit is lightweight for ordinary stacks but does not protect an
+unusually small unoptimized caller stack. Keeping a 64 KiB unoptimized-stack
+guarantee would require a much lower limit or a larger iterative finalization
+and destruction redesign. Continue only after resolving that exact boundary;
+keep the production worktree unchanged until then. F5c/F5e closure remains
+open.

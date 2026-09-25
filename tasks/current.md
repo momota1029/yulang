@@ -1,6 +1,6 @@
 # Current task: F5 general Function scheme foundation
 
-Updated: 2026-09-24. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-25. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
@@ -16,6 +16,20 @@ latest slice is recorded at the end of the F5c handoff and this file. The
 candidate-replay and iterative Q/R rewrite slices are pushed as `da9097db` and
 `a41b9875`. The ownership-only materialization change is verified and pushed
 as `992df956`; keep the §24 finalizer callback/API unchanged.
+
+### Latest continuation (2026-09-25): depth-bound probe
+
+The user approved narrowing the compiler's deep-type support envelope and
+asked to try a 256-node structural-depth candidate, then reduce unnecessary
+code if the bounded path works. A focused raw-draft witness now finalizes and
+normally drops positive and negative depth-256 trees on a 512 KiB thread stack.
+The same debug witness overflows at 64 KiB and 256 KiB; an optimized release
+build passes it at 64 KiB. This makes stack behavior profile/environment
+dependent, so an arbitrary-stack guarantee is not established. No production
+depth rejection is implemented. The exact stack floor remains an open user
+decision: accept the bounded route for ordinary stacks, lower the supported
+depth, or retain stack-independent support with a larger iterative rewrite.
+See the latest section of the F5c handoff for commands and scope.
 
 Latest continuation (2026-09-24): a primary-only map confirmed that successful
 iterative replay, substitution, materialization, and normalization still return
