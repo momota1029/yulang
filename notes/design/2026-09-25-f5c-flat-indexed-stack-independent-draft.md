@@ -926,8 +926,10 @@ review and approve a logical-work/support boundary before implementation, then
 make physical lane reconciliation a hard stop acceptance gate after
 implementation. If a test-only prototype is needed to select that logical
 boundary, it is outside the current authorization and requires a new bounded
-prototype scope and measurement budget. No prototype, probe, or test ran during
-this review.
+prototype scope and measurement budget. The earlier diagnostic campaign used
+seven of eight process invocations; its one remaining invocation is
+insufficient for prototype work and practical-margin evidence. No prototype,
+probe, or test ran during this review.
 
 Primary disposition: retain Draft status and stop before production code, public
 API work, numeric-cap selection, or further resource probes. The user must

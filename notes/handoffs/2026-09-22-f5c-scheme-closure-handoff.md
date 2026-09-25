@@ -2329,7 +2329,9 @@ implementation, yet actual solver/finalizer co-resident physical capacity and
 peak evidence require the implementation. Compiler and performance scopes had
 no findings; the specification review also found a minor stale status, closed
 by keeping the proposal Draft. Read-only follow-up consultation found no
-evidence for a practical numeric cap and no remaining probe budget. No code,
+evidence for a practical numeric cap. The earlier diagnostic campaign used
+seven of eight process invocations; its one remaining invocation is
+insufficient for prototype work and practical-margin evidence. No code,
 prototype, test, or probe ran in this review.
 
 Immediate next action: obtain the user's decision on whether to authorize a
