@@ -2646,7 +2646,7 @@ materialized root before lossy transforms. Keep production unchanged until
 the reviewed design and resource gates authorize it. Indexed finalization,
 §5/§15 certification, F5e, §44 rollback, and F5c/F5e closure remain open.
 
-## Latest continuation (2026-09-26): actual F5c producer memo bridge
+## Previous continuation (2026-09-26): actual F5c producer memo bridge
 
 The composed pipeline fixture now builds its summary graph through
 `F5cComponentExpansionMemo::positive_node` / `negative_node`, rather than
@@ -2687,3 +2687,43 @@ and bound roots without routing through boxed `GeneralizationDraft`. Keep
 `lib.rs` orchestration-only and production callers unchanged. Review the exact
 §15 measurement plan before any resource probe; §7/§15, indexed finalization,
 F5e, §44 rollback, and F5c/F5e closure remain open.
+
+## Latest continuation (2026-09-26): pre-replay producer roots into FlatDraft
+
+A new shallow guarded-self fixture follows the real `F5cGeneralizer` pre-replay
+path: it obtains the root predicate, drains dynamically discovered reentry
+owners, expands each owner's lower/upper roots, and applies the same Bottom /
+Top defaults for missing source bounds as `build_inner`. It materializes the
+boxed predicate and bounds, then encodes those full raw roots into one
+`FlatDraft`, wiring its predicate and owner-ordered recursive-bound fields.
+
+Before any replay or substitution, the test compares each root against both
+the memo's boxed summary materializer and the expanded pre-replay boxed tree.
+It checks polarity, Function fields/effects, ordered Union/Intersection
+members, and complete incidence callback vectors. A nested positive row must
+be admitted as a summary ID, referenced exactly once in both the predicate and
+lower root, and produce exactly one corresponding incidence mark. Bound
+ordinals here are source owner IDs, not final R binders.
+
+This is deliberately an intermediate bridge: the producer still returns
+boxed `F5cPositive`/`F5cNegative` trees, which the test re-encodes through
+`positive_node`/`negative_node` before flattening. It bypasses
+`GeneralizationDraft` and stops pre-replay; it does not prove direct flat
+construction from solver tasks, Q/R, normalization, final scheme, deep drop,
+resource bounds, or production parity. `lib.rs` remains unchanged.
+
+The compiler-referee review confirmed the reentry-owner and empty-bound
+selection, with one minor gap: the nested cached row's reference and incidence
+could disappear on both paths. The primary repaired this by asserting the
+nested `Shared` ID occurs once in predicate and lower, requiring its exact
+incidence count, and connecting the returned roots into the flat draft. Focused
+module tests pass (9); `cargo fmt --check` and `git diff --check` pass. No
+broad library suite, benchmark, or resource probe ran; measurement budget is
+zero.
+
+Next: move this candidate bridge from boxed-to-summary-to-flat to direct flat
+construction from producer walk results, preserving raw predicate/bound roots
+and owner order. Keep production callers unchanged until independent M3 review
+and explicit user approval. Resource probing still requires the reviewed §15
+plan; §7/§15, indexed finalization, F5e, §44 rollback, and F5c/F5e closure
+remain open.

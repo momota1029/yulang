@@ -5,6 +5,53 @@ enum FlatBoxedStep<'a> {
     Negative(crate::f5c_draft::NegativeId, &'a F5cNegative),
 }
 
+enum BoxedSummaryStep<'a> {
+    Positive(&'a F5cPositive),
+    Negative(&'a F5cNegative),
+}
+
+fn count_summary_references(root: &F5cWalkValue, target: F5cSummaryNodeId) -> usize {
+    let mut pending = match root {
+        F5cWalkValue::Positive(value, _) => vec![BoxedSummaryStep::Positive(value)],
+        F5cWalkValue::Negative(value, _) => vec![BoxedSummaryStep::Negative(value)],
+    };
+    let mut count = 0;
+    while let Some(step) = pending.pop() {
+        match step {
+            BoxedSummaryStep::Positive(F5cPositive::Shared(id)) => {
+                if *id == target {
+                    count += 1;
+                }
+            }
+            BoxedSummaryStep::Positive(F5cPositive::Union(children)) => {
+                pending.extend(children.iter().map(BoxedSummaryStep::Positive));
+            }
+            BoxedSummaryStep::Positive(F5cPositive::Function {
+                argument, result, ..
+            }) => {
+                pending.push(BoxedSummaryStep::Positive(result));
+                pending.push(BoxedSummaryStep::Negative(argument));
+            }
+            BoxedSummaryStep::Negative(F5cNegative::Shared(id)) => {
+                if *id == target {
+                    count += 1;
+                }
+            }
+            BoxedSummaryStep::Negative(F5cNegative::Intersection(children)) => {
+                pending.extend(children.iter().map(BoxedSummaryStep::Negative));
+            }
+            BoxedSummaryStep::Negative(F5cNegative::Function {
+                argument, result, ..
+            }) => {
+                pending.push(BoxedSummaryStep::Negative(result));
+                pending.push(BoxedSummaryStep::Positive(argument));
+            }
+            BoxedSummaryStep::Positive(_) | BoxedSummaryStep::Negative(_) => {}
+        }
+    }
+    count
+}
+
 // Shallow fixtures only: deep boxed values need an iterative consumer or safe destruction.
 fn assert_flat_summary_matches_boxed(
     flat: &crate::f5c_draft::FlatDraft,
@@ -451,4 +498,195 @@ fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
     assert_eq!(negative_marks, boxed_negative_marks);
     let boxed_negative = F5cWalkValue::Negative(boxed_negative, true);
     assert_flat_summary_matches_boxed(&flat_negative, flat_negative_root, &boxed_negative);
+}
+
+#[test]
+fn f5c_generalizer_guarded_self_source_roots_materialize_flat_with_boxed_parity() {
+    let batch = collect(module("my f = 1", "f5c-guarded-source-roots"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.batch.definitions[0].root.clone();
+    let root_row =
+        session.live_components[session.batch.root_component_positions[&root].component].ordinal;
+    let nested = session.fresh_value_at_level(1).unwrap();
+    session.bounds[nested as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let argument = session.negative_top_term().unwrap();
+    let argument_effect = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+    let result_effect = session
+        .batch
+        .collected_leaf_term(Leaf::EffectBottomPositive);
+    let nested_result = session.live_value_term(Polarity::Positive, nested).unwrap();
+    let nested_function = session
+        .positive_function_term(argument, argument_effect, result_effect, nested_result)
+        .unwrap();
+    session.bounds[root_row as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(nested_function));
+    let self_result = session
+        .live_value_term(Polarity::Positive, root_row)
+        .unwrap();
+    let self_function = session
+        .positive_function_term(argument, argument_effect, result_effect, self_result)
+        .unwrap();
+    let occurrence = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 202);
+    let cause = CauseId::for_occurrence(occurrence.clone());
+    session
+        .constrain_live_value(
+            CanonicalValuePairKey {
+                lower: ValueEndpointKey::PositiveFunction(self_function),
+                upper: ValueEndpointKey::ValueRow(root_row),
+            },
+            &occurrence,
+            &cause,
+        )
+        .unwrap();
+
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let predicate = generalizer.positive_row(root_row, true).unwrap();
+    let mut bounds = HashMap::new();
+    let mut owners = Vec::new();
+    let mut completed = HashSet::new();
+    let mut next_owner = 0;
+    while next_owner < generalizer.reentries.len() {
+        let owner = generalizer.reentries[next_owner].owner;
+        next_owner += 1;
+        if !completed.insert(owner) {
+            continue;
+        }
+        owners.push(owner);
+        let source = generalizer
+            .session
+            .bounds
+            .get(owner as usize)
+            .cloned()
+            .unwrap();
+        let expanded_lower = generalizer.positive_row(owner, false).unwrap();
+        let expanded_upper = generalizer.negative_row(owner).unwrap();
+        let lower =
+            if source.exact_non_variable_lowers.is_empty() && source.direct_lower_rows.is_empty() {
+                F5cPositive::Bottom
+            } else {
+                expanded_lower
+            };
+        let upper =
+            if source.exact_non_variable_uppers.is_empty() && source.direct_upper_rows.is_empty() {
+                F5cNegative::Top
+            } else {
+                expanded_upper
+            };
+        bounds.insert(owner, (lower, upper));
+    }
+    assert_eq!(owners, vec![root_row]);
+    assert!(!generalizer.invalid_effects);
+    let nested_summary = *generalizer
+        .memo
+        .roots
+        .get(&F5cExpansionKey {
+            row: nested,
+            polarity: Polarity::Positive,
+            frozen_bound_epoch: 0,
+        })
+        .expect("nested positive row is admitted as a shared summary");
+
+    let mut roots = vec![F5cWalkValue::Positive(predicate.clone(), true)];
+    for owner in &owners {
+        let (lower, upper) = &bounds[owner];
+        assert!(matches!(upper, F5cNegative::Top));
+        roots.push(F5cWalkValue::Positive(lower.clone(), true));
+        roots.push(F5cWalkValue::Negative(upper.clone(), true));
+    }
+    assert_eq!(count_summary_references(&roots[0], nested_summary), 1);
+    assert_eq!(count_summary_references(&roots[1], nested_summary), 1);
+    let boxed_predicate = generalizer.materialize_positive(predicate).unwrap();
+    generalizer
+        .materialize_recursive_bounds(&mut bounds)
+        .unwrap();
+    let mut boxed_roots = vec![F5cWalkValue::Positive(boxed_predicate, true)];
+    for owner in &owners {
+        let (lower, upper) = bounds.remove(owner).unwrap();
+        boxed_roots.push(F5cWalkValue::Positive(lower, true));
+        boxed_roots.push(F5cWalkValue::Negative(upper, true));
+    }
+
+    let mut flat = crate::f5c_draft::FlatDraft::default();
+    let mut flat_roots = Vec::with_capacity(roots.len());
+    for (root_index, (raw, boxed)) in roots.iter().zip(&boxed_roots).enumerate() {
+        let (id, polarity) = match raw {
+            F5cWalkValue::Positive(value, _) => (
+                generalizer.memo.positive_node(value, None).unwrap(),
+                Polarity::Positive,
+            ),
+            F5cWalkValue::Negative(value, _) => (
+                generalizer.memo.negative_node(value, None).unwrap(),
+                Polarity::Negative,
+            ),
+        };
+        let mut boxed_marks = Vec::new();
+        let summary_boxed = match polarity {
+            Polarity::Positive => F5cWalkValue::Positive(
+                generalizer
+                    .memo
+                    .positive_value_with(id, &mut |row, side| boxed_marks.push((row, side)))
+                    .unwrap(),
+                true,
+            ),
+            Polarity::Negative => F5cWalkValue::Negative(
+                generalizer
+                    .memo
+                    .negative_value_with(id, &mut |row, side| boxed_marks.push((row, side)))
+                    .unwrap(),
+                true,
+            ),
+        };
+        if root_index < 2 {
+            assert_eq!(
+                boxed_marks
+                    .iter()
+                    .filter(|mark| **mark == (nested, Polarity::Positive))
+                    .count(),
+                1
+            );
+        }
+        let mut flat_marks = Vec::new();
+        let flat_root = crate::f5c_materialization::materialize_summary_flat(
+            &generalizer.memo,
+            &mut flat,
+            id,
+            polarity,
+            |row, side| flat_marks.push((row, side)),
+        )
+        .unwrap();
+        assert_eq!(flat_marks, boxed_marks);
+        assert_flat_summary_matches_boxed(&flat, flat_root, &summary_boxed);
+        assert_flat_summary_matches_boxed(&flat, flat_root, boxed);
+        flat_roots.push(flat_root);
+    }
+    let Some(crate::f5c_draft::NodeRef::Positive(predicate)) = flat_roots.first().copied() else {
+        panic!("flat source draft retains its positive predicate root");
+    };
+    flat.predicate = Some(predicate);
+    let bound_roots = &flat_roots[1..];
+    assert_eq!(bound_roots.len(), owners.len() * 2);
+    for (&owner, roots) in owners.iter().zip(bound_roots.chunks_exact(2)) {
+        let crate::f5c_draft::NodeRef::Positive(lower) = roots[0] else {
+            panic!("flat recursive bound keeps a positive lower root");
+        };
+        let crate::f5c_draft::NodeRef::Negative(upper) = roots[1] else {
+            panic!("flat recursive bound keeps a negative upper root");
+        };
+        flat.bound(crate::f5c_draft::RecursiveBound {
+            ordinal: owner,
+            lower,
+            upper,
+        })
+        .unwrap();
+    }
+    assert_eq!(
+        flat.recursive_bounds
+            .iter()
+            .map(|bound| bound.ordinal)
+            .collect::<Vec<_>>(),
+        owners
+    );
 }

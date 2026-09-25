@@ -4,7 +4,40 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): actual F5c producer memo bridge
+### Latest continuation (2026-09-26): pre-replay producer roots into FlatDraft
+
+A new shallow guarded-self fixture follows the real `F5cGeneralizer` pre-replay
+path: predicate root, dynamically discovered reentry owners, lower/upper
+expansion, and Bottom/Top defaults for absent sides. It materializes the raw
+predicate and recursive-bound endpoints through the boxed path, then encodes
+those complete roots into one `FlatDraft`, including its predicate and
+owner-ordered bound root fields.
+
+The test compares every root structurally against both the boxed summary
+materializer and the pre-replay boxed tree, preserving polarity, Function
+fields/effects, and ordered members. It also compares complete incidence
+callback sequences. A nested positive row must be an admitted `Shared` ID
+referenced exactly once in both predicate and lower roots, and produce one
+matching incidence mark. The flat draft stores source owner ordinals; it stops
+before replay, Q/R substitution, normalization, and finalization. This is a
+boxed-to-summary-to-flat bridge, not yet direct flat construction from solver
+tasks. `lib.rs` remains unchanged.
+
+Compiler-referee review confirmed the owner/default path and found a minor gap
+in proving that the nested summary was actually referenced. The fixture now
+checks the exact Shared-ID occurrence and incidence count and wires all roots
+into the FlatDraft. `cargo test -p yu-solver --lib f5c_materialization:: --
+--test-threads=1` passed (9), with `cargo fmt --check` and `git diff --check`.
+No broad library suite, benchmark, or resource probe ran; measurement budget
+remains zero.
+
+Next: replace the boxed-to-summary bridge with candidate construction directly
+from producer walk results, keeping all raw roots and owner ordering in flat
+storage. Do not change production callers before the explicit M3 review and
+user approval; keep resource probing behind reviewed §15. §7/§15, indexed
+finalization, F5e, §44 rollback, and F5c/F5e closure remain open.
+
+### Previous continuation (2026-09-26): actual F5c producer memo bridge
 
 The composed fixture's source now uses `F5cComponentExpansionMemo::positive_node`
 and `negative_node` instead of directly filling summary node arrays. Repeated
