@@ -1,5 +1,7 @@
 use super::F5cSummaryNodeKind;
 use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
+#[cfg(test)]
+use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     F5cComponentExpansionMemo, F5cGeneralizer, F5cNegative, F5cNegativeEffect, F5cPositive,
     F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, Polarity,
@@ -100,11 +102,15 @@ pub(super) fn materialize_summary_flat(
                         }
                         (Polarity::Positive, F5cSummaryNodeKind::PositiveUnion { start, len }) => {
                             let children = memo.child_slice(start, len)?;
-                            if children.iter().any(|child| child.0 >= id.0) {
-                                return Err(bad);
+                            for child in children {
+                                memo.work_meter.charge(1)?; // inspected union edge
+                                if child.0 >= id.0 {
+                                    return Err(bad);
+                                }
                             }
                             push_flat_task(&mut tasks, FlatTask::Union(values.len()))?;
                             for &child in children.iter().rev() {
+                                memo.work_meter.charge(1)?; // scheduled union incidence
                                 push_flat_task(
                                     &mut tasks,
                                     FlatTask::Enter(child, Polarity::Positive),
@@ -117,11 +123,15 @@ pub(super) fn materialize_summary_flat(
                             F5cSummaryNodeKind::NegativeIntersection { start, len },
                         ) => {
                             let children = memo.child_slice(start, len)?;
-                            if children.iter().any(|child| child.0 >= id.0) {
-                                return Err(bad);
+                            for child in children {
+                                memo.work_meter.charge(1)?; // inspected intersection edge
+                                if child.0 >= id.0 {
+                                    return Err(bad);
+                                }
                             }
                             push_flat_task(&mut tasks, FlatTask::Intersection(values.len()))?;
                             for &child in children.iter().rev() {
+                                memo.work_meter.charge(1)?; // scheduled intersection incidence
                                 push_flat_task(
                                     &mut tasks,
                                     FlatTask::Enter(child, Polarity::Negative),
@@ -133,14 +143,17 @@ pub(super) fn materialize_summary_flat(
                             Polarity::Positive,
                             F5cSummaryNodeKind::PositiveFunction { argument, result },
                         ) => {
+                            memo.work_meter.charge(2)?; // inspected Function edges
                             if argument.0 >= id.0 || result.0 >= id.0 {
                                 return Err(bad);
                             }
                             push_flat_task(&mut tasks, FlatTask::PositiveFunction)?;
+                            memo.work_meter.charge(1)?; // scheduled result edge
                             push_flat_task(
                                 &mut tasks,
                                 FlatTask::Enter(result, Polarity::Positive),
                             )?;
+                            memo.work_meter.charge(1)?; // scheduled argument edge
                             push_flat_task(
                                 &mut tasks,
                                 FlatTask::Enter(argument, Polarity::Negative),
@@ -151,14 +164,17 @@ pub(super) fn materialize_summary_flat(
                             Polarity::Negative,
                             F5cSummaryNodeKind::NegativeFunction { argument, result },
                         ) => {
+                            memo.work_meter.charge(2)?; // inspected Function edges
                             if argument.0 >= id.0 || result.0 >= id.0 {
                                 return Err(bad);
                             }
                             push_flat_task(&mut tasks, FlatTask::NegativeFunction)?;
+                            memo.work_meter.charge(1)?; // scheduled result edge
                             push_flat_task(
                                 &mut tasks,
                                 FlatTask::Enter(result, Polarity::Negative),
                             )?;
+                            memo.work_meter.charge(1)?; // scheduled argument edge
                             push_flat_task(
                                 &mut tasks,
                                 FlatTask::Enter(argument, Polarity::Positive),
@@ -276,12 +292,14 @@ pub(super) fn materialize_iterative(
     let mut values = Vec::new();
     macro_rules! push_task {
         ($task:expr) => {{
+            memo.work_meter.charge(1)?; // scheduled draft-materialization task
             memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::DraftMaterializeTasks)?;
             tasks.push($task);
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
+            memo.work_meter.charge(1)?; // emitted boxed value
             memo.reserve_walker(&mut values, F5cWalkerLaneKind::DraftMaterializeValues)?;
             values.push($value);
         }};
@@ -289,7 +307,9 @@ pub(super) fn materialize_iterative(
 
     let result = (|| {
         push_task!(first);
-        while let Some(task) = tasks.pop() {
+        while !tasks.is_empty() {
+            memo.work_meter.charge(1)?; // visited source or finish task
+            let task = tasks.pop().expect("nonempty materialization tasks");
             match task {
                 Task::Positive(value) => match value {
                     F5cPositive::Shared(id) => {
@@ -298,6 +318,7 @@ pub(super) fn materialize_iterative(
                     F5cPositive::Union(children) => {
                         let start = values.len();
                         push_task!(Task::FinishPositiveUnion(start));
+                        memo.work_meter.charge(children.len())?;
                         for child in children.into_iter().rev() {
                             push_task!(Task::Positive(child));
                         }
@@ -312,7 +333,9 @@ pub(super) fn materialize_iterative(
                             argument_effect,
                             result_effect,
                         });
+                        memo.work_meter.charge(1)?; // result child edge
                         push_task!(Task::Positive(*result));
+                        memo.work_meter.charge(1)?; // argument child edge
                         push_task!(Task::Negative(*argument));
                     }
                     value => push_value!(F5cWalkValue::Positive(value, true)),
@@ -324,6 +347,7 @@ pub(super) fn materialize_iterative(
                     F5cNegative::Intersection(children) => {
                         let start = values.len();
                         push_task!(Task::FinishNegativeIntersection(start));
+                        memo.work_meter.charge(children.len())?;
                         for child in children.into_iter().rev() {
                             push_task!(Task::Negative(child));
                         }
@@ -338,13 +362,28 @@ pub(super) fn materialize_iterative(
                             argument_effect,
                             result_effect,
                         });
+                        memo.work_meter.charge(1)?; // result child edge
                         push_task!(Task::Negative(*result));
+                        memo.work_meter.charge(1)?; // argument child edge
                         push_task!(Task::Positive(*argument));
                     }
                     value => push_value!(F5cWalkValue::Negative(value, true)),
                 },
                 Task::FinishPositiveUnion(start) => {
+                    // Scheduled positive children each leave one value in this suffix.
+                    // Charge the entire drain before any boxed child is moved.
+                    let count = values
+                        .len()
+                        .checked_sub(start)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    #[cfg(test)]
+                    record_bulk_drain_boundary(
+                        F5cBulkDrainSite::RawMaterializePositive,
+                        &memo.work_meter,
+                        count,
+                    );
                     let mut children = Vec::new();
+                    memo.work_meter.charge(count)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
@@ -354,7 +393,20 @@ pub(super) fn materialize_iterative(
                     push_value!(F5cWalkValue::Positive(F5cPositive::Union(children), true));
                 }
                 Task::FinishNegativeIntersection(start) => {
+                    // Scheduled negative children each leave one value in this suffix.
+                    // Charge the entire drain before any boxed child is moved.
+                    let count = values
+                        .len()
+                        .checked_sub(start)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    #[cfg(test)]
+                    record_bulk_drain_boundary(
+                        F5cBulkDrainSite::RawMaterializeNegative,
+                        &memo.work_meter,
+                        count,
+                    );
                     let mut children = Vec::new();
+                    memo.work_meter.charge(count)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
@@ -434,6 +486,110 @@ pub(super) fn materialize_iterative(
     result
 }
 
+#[cfg(test)]
+#[test]
+fn f5c_work_bulk_drain_overflow_precedes_child_move_and_memo_can_retry() {
+    let mut memo = F5cComponentExpansionMemo::default();
+    let source = F5cPositive::Union(vec![F5cPositive::Int, F5cPositive::Bottom]);
+    let run = |memo: &mut F5cComponentExpansionMemo| {
+        materialize_iterative(
+            memo,
+            Task::Positive(source.clone()),
+            |_, _, _| unreachable!(),
+        )
+    };
+    let baseline = run(&mut memo).unwrap();
+    assert!(matches!(
+        &baseline,
+        F5cWalkValue::Positive(F5cPositive::Union(_), _)
+    ));
+    let work = memo.work_meter.get();
+    let (site, before_drain, count) =
+        super::f5c_generalization::F5C_BULK_DRAIN_BOUNDARY.with(|marker| marker.take().unwrap());
+    assert_eq!(site, F5cBulkDrainSite::RawMaterializePositive);
+    assert_eq!(count, 2);
+    assert!(before_drain < work);
+
+    let original_nodes = memo.nodes.len();
+    let original_children = memo.children.len();
+    memo.work_meter.set(usize::MAX - before_drain - (count - 1));
+    assert!(matches!(
+        run(&mut memo),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(memo.nodes.len(), original_nodes);
+    assert_eq!(memo.children.len(), original_children);
+    assert_eq!(
+        super::f5c_generalization::F5C_BULK_DRAIN_BOUNDARY.with(|marker| marker.take()),
+        Some((
+            F5cBulkDrainSite::RawMaterializePositive,
+            usize::MAX - count + 1,
+            count
+        ))
+    );
+    memo.work_meter.set(0);
+    let retry = run(&mut memo).unwrap();
+    assert!(matches!(
+        (&baseline, &retry),
+        (
+            F5cWalkValue::Positive(F5cPositive::Union(first), _),
+            F5cWalkValue::Positive(F5cPositive::Union(second), _)
+        ) if first == second
+    ));
+    assert_eq!(memo.work_meter.get(), work);
+}
+
+#[cfg(test)]
+#[test]
+fn f5c_work_negative_materialization_drain_overflow_precedes_child_move() {
+    let mut memo = F5cComponentExpansionMemo::default();
+    let source = F5cNegative::Intersection(vec![F5cNegative::Int, F5cNegative::Bottom]);
+    let run = |memo: &mut F5cComponentExpansionMemo| {
+        materialize_iterative(
+            memo,
+            Task::Negative(source.clone()),
+            |_, _, _| unreachable!(),
+        )
+    };
+    let baseline = run(&mut memo).unwrap();
+    let work = memo.work_meter.get();
+    let (site, before_drain, count) =
+        super::f5c_generalization::F5C_BULK_DRAIN_BOUNDARY.with(|marker| marker.take().unwrap());
+    assert_eq!(site, F5cBulkDrainSite::RawMaterializeNegative);
+    assert_eq!(count, 2);
+    let original_nodes = memo.nodes.len();
+    let original_children = memo.children.len();
+
+    memo.work_meter.set(usize::MAX - before_drain - (count - 1));
+    assert!(matches!(
+        run(&mut memo),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(
+        (memo.nodes.len(), memo.children.len()),
+        (original_nodes, original_children)
+    );
+    assert_eq!(
+        super::f5c_generalization::F5C_BULK_DRAIN_BOUNDARY.with(|marker| marker.take()),
+        Some((
+            F5cBulkDrainSite::RawMaterializeNegative,
+            usize::MAX - count + 1,
+            count
+        ))
+    );
+
+    memo.work_meter.set(0);
+    let retry = run(&mut memo).unwrap();
+    assert!(matches!(
+        (&baseline, &retry),
+        (
+            F5cWalkValue::Negative(F5cNegative::Intersection(first), _),
+            F5cWalkValue::Negative(F5cNegative::Intersection(second), _)
+        ) if first == second
+    ));
+    assert_eq!(memo.work_meter.get(), work);
+}
+
 pub(super) fn materialize_bound_trees(
     bounds: &mut HashMap<u32, (F5cPositive, F5cNegative)>,
     mut transform: impl FnMut(F5cWalkValue) -> Result<F5cWalkValue, SolveAvailabilityError>,
@@ -468,12 +624,11 @@ impl F5cGeneralizer<'_> {
         let order_seen = &mut self.order_seen;
         let mut active_conflict = false;
         let result = materialize_iterative(&mut self.memo, first, |memo, id, polarity| {
-            let mut mark = |row, _polarity| {
+            let work_meter = memo.work_meter.clone();
+            let mut mark = |row, _polarity| -> Result<(), SolveAvailabilityError> {
                 active_conflict |= active_set.contains(&(row, Polarity::Positive))
                     || active_set.contains(&(row, Polarity::Negative));
-                if order_seen.insert(row) {
-                    order.push(row);
-                }
+                F5cGeneralizer::register_order(&work_meter, order_seen, order, row)?;
                 if provisional.contains(&row)
                     || session
                         .value_metadata
@@ -488,6 +643,7 @@ impl F5cGeneralizer<'_> {
                         frame.tainted = true;
                     }
                 }
+                Ok(())
             };
             match polarity {
                 Polarity::Positive => Ok(F5cWalkValue::Positive(
@@ -501,7 +657,7 @@ impl F5cGeneralizer<'_> {
             }
         });
         if active_conflict {
-            self.taint_active_states();
+            self.taint_active_states()?;
         }
         result
     }
@@ -715,7 +871,8 @@ mod flat_tests {
         let mut boxed_marks = Vec::new();
         let boxed = memo
             .positive_value_with(ids[7], &mut |row, polarity| {
-                boxed_marks.push((row, polarity))
+                boxed_marks.push((row, polarity));
+                Ok(())
             })
             .unwrap();
         let mut flat = FlatDraft::default();
@@ -743,7 +900,8 @@ mod flat_tests {
         let mut boxed_negative_marks = Vec::new();
         let boxed_negative = memo
             .negative_value_with(ids[3], &mut |row, polarity| {
-                boxed_negative_marks.push((row, polarity))
+                boxed_negative_marks.push((row, polarity));
+                Ok(())
             })
             .unwrap();
         let mut flat_negative_marks = Vec::new();

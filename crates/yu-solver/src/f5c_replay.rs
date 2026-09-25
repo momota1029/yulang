@@ -1,6 +1,8 @@
 use super::f5c_draft::{
     ChildSpan, FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode,
 };
+#[cfg(test)]
+use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect,
     F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError,
@@ -78,6 +80,7 @@ pub(super) fn replay_flat(
         let mut values = Vec::new();
         macro_rules! push_task {
             ($task:expr) => {{
+                memo.work_meter.charge(1)?; // scheduled flat replay task
                 memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::ReplayTasks)?;
                 tasks.push($task);
             }};
@@ -104,7 +107,9 @@ pub(super) fn replay_flat(
                 NodeRef::Positive(id) => push_task!(FlatTask::Positive(id)),
                 NodeRef::Negative(id) => push_task!(FlatTask::Negative(id)),
             }
-            while let Some(task) = tasks.pop() {
+            while !tasks.is_empty() {
+                memo.work_meter.charge(1)?; // visited flat replay task
+                let task = tasks.pop().expect("nonempty flat replay tasks");
                 match task {
                     FlatTask::Positive(id) => {
                         let index = usize::try_from(id.0).map_err(|_| exhausted)?;
@@ -128,8 +133,11 @@ pub(super) fn replay_flat(
                             }
                             PositiveNode::Union(span) => {
                                 let children = flat_children(&source.positive_children, span)?;
-                                if children.iter().any(|child| child.0 >= id.0) {
-                                    return Err(exhausted);
+                                for child in children {
+                                    memo.work_meter.charge(1)?; // inspected union edge
+                                    if child.0 >= id.0 {
+                                        return Err(exhausted);
+                                    }
                                 }
                                 if *active_positive.get(index).ok_or(exhausted)? {
                                     return Err(exhausted);
@@ -139,10 +147,12 @@ pub(super) fn replay_flat(
                                 push_task!(FlatTask::LeavePositive(index));
                                 push_task!(FlatTask::FinishPositiveUnion(start));
                                 for &child in children.iter().rev() {
+                                    memo.work_meter.charge(1)?; // union incidence
                                     push_task!(FlatTask::Positive(child));
                                 }
                             }
                             PositiveNode::Function { argument, result } => {
+                                memo.work_meter.charge(2)?; // inspected Function edges
                                 let argument_index =
                                     usize::try_from(argument.0).map_err(|_| exhausted)?;
                                 let result_index =
@@ -158,7 +168,9 @@ pub(super) fn replay_flat(
                                 active_positive[index] = true;
                                 push_task!(FlatTask::LeavePositive(index));
                                 push_task!(FlatTask::FinishPositiveFunction);
+                                memo.work_meter.charge(1)?; // result edge
                                 push_task!(FlatTask::Positive(result));
+                                memo.work_meter.charge(1)?; // argument edge
                                 push_task!(FlatTask::Negative(argument));
                             }
                         }
@@ -186,8 +198,11 @@ pub(super) fn replay_flat(
                             }
                             NegativeNode::Intersection(span) => {
                                 let children = flat_children(&source.negative_children, span)?;
-                                if children.iter().any(|child| child.0 >= id.0) {
-                                    return Err(exhausted);
+                                for child in children {
+                                    memo.work_meter.charge(1)?; // inspected intersection edge
+                                    if child.0 >= id.0 {
+                                        return Err(exhausted);
+                                    }
                                 }
                                 if *active_negative.get(index).ok_or(exhausted)? {
                                     return Err(exhausted);
@@ -197,10 +212,12 @@ pub(super) fn replay_flat(
                                 push_task!(FlatTask::LeaveNegative(index));
                                 push_task!(FlatTask::FinishNegativeIntersection(start));
                                 for &child in children.iter().rev() {
+                                    memo.work_meter.charge(1)?; // intersection incidence
                                     push_task!(FlatTask::Negative(child));
                                 }
                             }
                             NegativeNode::Function { argument, result } => {
+                                memo.work_meter.charge(2)?; // inspected Function edges
                                 let argument_index =
                                     usize::try_from(argument.0).map_err(|_| exhausted)?;
                                 let result_index =
@@ -216,7 +233,9 @@ pub(super) fn replay_flat(
                                 active_negative[index] = true;
                                 push_task!(FlatTask::LeaveNegative(index));
                                 push_task!(FlatTask::FinishNegativeFunction);
+                                memo.work_meter.charge(1)?; // result edge
                                 push_task!(FlatTask::Negative(result));
+                                memo.work_meter.charge(1)?; // argument edge
                                 push_task!(FlatTask::Positive(argument));
                             }
                         }
@@ -359,12 +378,14 @@ fn replay(
     let mut values = Vec::new();
     macro_rules! push_task {
         ($task:expr) => {{
+            memo.work_meter.charge(1)?; // scheduled replay task
             memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::ReplayTasks)?;
             tasks.push($task);
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
+            memo.work_meter.charge(1)?; // emitted replay value
             memo.reserve_walker(&mut values, F5cWalkerLaneKind::ReplayValues)?;
             values.push($value);
         }};
@@ -372,7 +393,9 @@ fn replay(
 
     let result = (|| {
         push_task!(first);
-        while let Some(task) = tasks.pop() {
+        while !tasks.is_empty() {
+            memo.work_meter.charge(1)?; // visited source or finish task
+            let task = tasks.pop().expect("nonempty replay tasks");
             match task {
                 Task::Positive(value) => match value {
                     F5cPositive::Variable(owner)
@@ -384,13 +407,16 @@ fn replay(
                         argument, result, ..
                     } => {
                         push_task!(Task::FinishPositiveFunction);
+                        memo.work_meter.charge(1)?; // result edge
                         push_task!(Task::Positive(result));
+                        memo.work_meter.charge(1)?; // argument edge
                         push_task!(Task::Negative(argument));
                     }
                     F5cPositive::Union(children) => {
                         let start = values.len();
                         push_task!(Task::FinishPositiveUnion(start));
                         for child in children.iter().rev() {
+                            memo.work_meter.charge(1)?; // union incidence
                             push_task!(Task::Positive(child));
                         }
                     }
@@ -408,13 +434,16 @@ fn replay(
                         argument, result, ..
                     } => {
                         push_task!(Task::FinishNegativeFunction);
+                        memo.work_meter.charge(1)?; // result edge
                         push_task!(Task::Negative(result));
+                        memo.work_meter.charge(1)?; // argument edge
                         push_task!(Task::Positive(argument));
                     }
                     F5cNegative::Intersection(children) => {
                         let start = values.len();
                         push_task!(Task::FinishNegativeIntersection(start));
                         for child in children.iter().rev() {
+                            memo.work_meter.charge(1)?; // intersection incidence
                             push_task!(Task::Negative(child));
                         }
                     }
@@ -423,7 +452,20 @@ fn replay(
                     }
                 },
                 Task::FinishPositiveUnion(start) => {
+                    // Scheduled positive children each leave one value in this suffix;
+                    // the batch charge precedes the drain and output mutation.
+                    let count = values
+                        .len()
+                        .checked_sub(start)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    #[cfg(test)]
+                    record_bulk_drain_boundary(
+                        F5cBulkDrainSite::ReplayPositive,
+                        &memo.work_meter,
+                        count,
+                    );
                     let mut children = Vec::new();
+                    memo.work_meter.charge(count)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
@@ -433,7 +475,20 @@ fn replay(
                     push_value!(F5cWalkValue::Positive(F5cPositive::Union(children), true));
                 }
                 Task::FinishNegativeIntersection(start) => {
+                    // Scheduled negative children each leave one value in this suffix;
+                    // the batch charge precedes the drain and output mutation.
+                    let count = values
+                        .len()
+                        .checked_sub(start)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    #[cfg(test)]
+                    record_bulk_drain_boundary(
+                        F5cBulkDrainSite::ReplayNegative,
+                        &memo.work_meter,
+                        count,
+                    );
                     let mut children = Vec::new();
+                    memo.work_meter.charge(count)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);

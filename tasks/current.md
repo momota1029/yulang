@@ -4,6 +4,37 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): solve-wide checked work-meter subgate
+
+Added a session-owned checked logical-work meter and threaded it through the
+F5c producer, memo, analysis, materialization, replay, and substitution work
+that is currently exercised by the boxed route and flat candidates. It counts
+repeatable logical operations; it has no selected numeric limit and is not a
+physical allocation/peak-capacity ledger. Checked arithmetic failure returns
+`IdentityExhausted` instead of wrapping. The solve-wide total deliberately
+persists across failed component attempts because attempted work still
+happened, while each component memo's own published state continues to roll
+back transactionally.
+
+Overflow witnesses cover scheduling before boxed output construction, owner
+ordering, and all five boxed finish/drain owner families in both polarities;
+they verify no construction/drain past the rejected charge and successful
+retry. M2 compiler/specification/performance review convergence found no open
+blocking finding after repairs. `lib.rs` only contains session wiring and test
+registration; accounting remains in owning F5c modules.
+
+Focused checks pass: the work-meter filter (15), the F5c filter (207 passed,
+1 ignored), `cargo check -p yu-solver --lib` without warnings,
+`cargo fmt --check`, and `git diff --check`. The single-threaded
+no-default-feature `yu-solver` library suite passed (292 passed, 1 ignored;
+952.91 seconds). No benchmark or §15 resource probe ran; measurement budget
+remains zero. This closes only the logical repeat-work accounting
+prerequisite. It does not bound depth, allocations, capacity, or wall time and
+does not certify physical peak resources. Next: checkpoint this subgate, then
+continue the uncalled flat sink through the shared walker.
+Production cutover, §15 measurement, indexed finalization, remaining §44
+rollback, F5e, and overall F5c/F5e closure remain open.
+
 ### Latest continuation (2026-09-26): memo rollback gate closed
 
 The approved producer-owner move and memo transaction/active-state rollback

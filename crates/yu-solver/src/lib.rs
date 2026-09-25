@@ -182,11 +182,12 @@ mod f5c_binder_substitution;
 mod f5c_draft;
 mod f5c_generalization;
 use f5c_generalization::{
-    F5cBoundSide, F5cCompareTask, F5cComponentExpansionMemo, F5cExpansionFrame, F5cExpansionKey,
-    F5cGeneralizer, F5cGuardedTrace, F5cIncidenceEdge, F5cNegative, F5cNegativeEffect, F5cPositive,
-    F5cPositiveEffect, F5cRecursiveBound, F5cReverseParentEdge, F5cRootEdge, F5cRootUndo,
-    F5cSummaryNode, F5cSummaryNodeId, F5cSummaryNodeKind, F5cTraceHop, F5cWalkTask, F5cWalkValue,
-    F5cWalkerLaneKind, F5cWalkerResources, GeneralizationDraft,
+    F5cBoundSide, F5cCompareTask, F5cComponentExpansionMemo, F5cDraftWorkMeter,
+    F5cExpansionFrame, F5cExpansionKey, F5cGeneralizer, F5cGuardedTrace, F5cIncidenceEdge,
+    F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect, F5cRecursiveBound,
+    F5cReverseParentEdge, F5cRootEdge, F5cRootUndo, F5cSummaryNode, F5cSummaryNodeId,
+    F5cSummaryNodeKind, F5cTraceHop, F5cWalkTask, F5cWalkValue, F5cWalkerLaneKind,
+    F5cWalkerResources, GeneralizationDraft,
 };
 mod f5c_materialization;
 mod f5c_normalization;
@@ -4698,6 +4699,7 @@ pub struct SolvedModule {
 /// F3b preserves the frozen F0--F2 admission and projection behavior while
 /// placing its mutable state behind the future SCC-closure boundary.
 struct InferenceSession {
+    f5c_draft_work: F5cDraftWorkMeter,
     batch: ConstraintBatch,
     store: ConstraintStore,
     errors: Vec<SolverError>,
@@ -6463,6 +6465,7 @@ impl InferenceSession {
         let draft_capacity = batch.counters.scc_maximum_component_size;
         let routed_capacity = batch.definition_uses.len();
         let mut session = Self {
+            f5c_draft_work: F5cDraftWorkMeter::default(),
             // The solve branch receives the collected lineage directly.  The
             // retained batch is only F2 plan/recipe state; it never owns a
             // second mutable term arena or rebuilds a handle from HIR.
@@ -11698,6 +11701,7 @@ mod tests {
     mod f5c_scratch_reserve;
     mod f5c_tree_analysis;
     mod f5c_value_exact_upper_route;
+    mod f5c_work_meter;
     use std::sync::Arc;
     use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports, lower_module};
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
@@ -19429,6 +19433,7 @@ mod tests {
             assert!(non_generic.contains(&target));
             assert_eq!(
                 F5cGeneralizer::reject_unclassified_rows(
+                    &generalizer.memo.work_meter,
                     &generalizer.order,
                     &HashSet::new(),
                     &HashMap::new(),

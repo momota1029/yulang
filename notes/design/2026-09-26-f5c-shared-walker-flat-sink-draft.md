@@ -340,3 +340,38 @@ shared producer walker, followed by its remaining parity/rollback gates.
 Indexed finalization, complete ineligible/effect rejection, closed-DAG
 memoization/resource accounting, §44 end-to-end per-use rollback, and §15
 evidence remain open. Do not claim F5c/F5e completion.
+
+## 9. Solve-wide checked logical-work meter subgate (2026-09-26)
+
+The implementation now carries one `F5cDraftWorkMeter` for the lifetime of an
+inference session and shares it with each component's F5c memo/generalizer.
+Charges use checked arithmetic; arithmetic exhaustion returns
+`IdentityExhausted` rather than wrapping. There is no chosen work limit. The
+counter is logical repeat-work accounting, not a depth limit, allocation
+budget, physical-capacity ledger, wall-time guarantee, or §15 peak estimate.
+
+Its lifetime is intentionally broader than component rollback: a rejected or
+failed component has still consumed solve work, so charges remain, while the
+component memo's published roots, edges, transient marks, and appended nodes
+continue to restore transactionally. Charges cover the boxed producer and the
+currently exercised analysis/materialization/replay/substitution paths,
+including task scheduling and visits, inspected/emitted edges, owner/Q/R work,
+and bulk typed drains. Charges that guard boxed output construction and drains
+precede those operations. First-observation order registration counts the
+lookup, set insertion, and vector append; a revisit counts its lookup.
+
+Overflow witnesses assert rejection before Function construction or any of
+the five finish/drain owner families mutate their lanes, for both polarities,
+and assert a clean successful retry. The F5c filter passes (207 passed, 1
+ignored); the dedicated work-meter filter passes (15). `cargo check -p
+yu-solver --lib` passes without warnings, as do `cargo fmt --check` and
+`git diff --check`. The single-threaded no-default-feature library suite
+passed (292 passed, 1 ignored; 952.91 seconds).
+
+Static performance review found only constant-factor meter-update and lookup
+costs; no timing or successful-path margin is claimed. No benchmark or §15
+resource probe ran, and measurement budget remains zero. This closes the
+logical repeat-work subgate only. Physical retained capacity/co-resident peak,
+the reviewed §15 plan and measurements, the uncalled flat sink, indexed
+finalization, production cutover, §44 per-use rollback, F5e, and overall F5c
+closure remain open.

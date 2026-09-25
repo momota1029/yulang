@@ -1,4 +1,6 @@
 use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
+#[cfg(test)]
+use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect,
     F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError,
@@ -201,12 +203,14 @@ fn substitute(
     let mut values = Vec::new();
     macro_rules! push_task {
         ($task:expr) => {{
+            memo.work_meter.charge(1)?;
             memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::BinderTasks)?;
             tasks.push($task);
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
+            memo.work_meter.charge(1)?;
             memo.reserve_walker(&mut values, F5cWalkerLaneKind::BinderValues)?;
             values.push($value);
         }};
@@ -214,7 +218,11 @@ fn substitute(
 
     let result = (|| {
         push_task!(first);
-        while let Some(task) = tasks.pop() {
+        while !tasks.is_empty() {
+            memo.work_meter.charge(1)?;
+            let task = tasks
+                .pop()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             match task {
                 Task::Positive(value) => match value {
                     F5cPositive::Variable(ordinal) => {
@@ -235,12 +243,15 @@ fn substitute(
                         argument, result, ..
                     } => {
                         push_task!(Task::FinishPositiveFunction);
+                        memo.work_meter.charge(1)?; // result child edge
                         push_task!(Task::Positive(*result));
+                        memo.work_meter.charge(1)?; // argument child edge
                         push_task!(Task::Negative(*argument));
                     }
                     F5cPositive::Union(children) => {
                         let start = values.len();
                         push_task!(Task::FinishPositiveUnion(start));
+                        memo.work_meter.charge(children.len())?;
                         for child in children.into_iter().rev() {
                             push_task!(Task::Positive(child));
                         }
@@ -266,12 +277,15 @@ fn substitute(
                         argument, result, ..
                     } => {
                         push_task!(Task::FinishNegativeFunction);
+                        memo.work_meter.charge(1)?; // result child edge
                         push_task!(Task::Negative(*result));
+                        memo.work_meter.charge(1)?; // argument child edge
                         push_task!(Task::Positive(*argument));
                     }
                     F5cNegative::Intersection(children) => {
                         let start = values.len();
                         push_task!(Task::FinishNegativeIntersection(start));
+                        memo.work_meter.charge(children.len())?;
                         for child in children.into_iter().rev() {
                             push_task!(Task::Negative(child));
                         }
@@ -279,7 +293,20 @@ fn substitute(
                     other => push_value!(F5cWalkValue::Negative(other, true)),
                 },
                 Task::FinishPositiveUnion(start) => {
+                    // Scheduled positive children each leave one value in this suffix;
+                    // precharge before draining boxed values.
+                    let count = values
+                        .len()
+                        .checked_sub(start)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    #[cfg(test)]
+                    record_bulk_drain_boundary(
+                        F5cBulkDrainSite::SubstitutePositive,
+                        &memo.work_meter,
+                        count,
+                    );
                     let mut children = Vec::new();
+                    memo.work_meter.charge(count)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
@@ -289,7 +316,20 @@ fn substitute(
                     push_value!(F5cWalkValue::Positive(F5cPositive::Union(children), true));
                 }
                 Task::FinishNegativeIntersection(start) => {
+                    // Scheduled negative children each leave one value in this suffix;
+                    // precharge before draining boxed values.
+                    let count = values
+                        .len()
+                        .checked_sub(start)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    #[cfg(test)]
+                    record_bulk_drain_boundary(
+                        F5cBulkDrainSite::SubstituteNegative,
+                        &memo.work_meter,
+                        count,
+                    );
                     let mut children = Vec::new();
+                    memo.work_meter.charge(count)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
@@ -302,6 +342,7 @@ fn substitute(
                     ));
                 }
                 Task::FinishPositiveFunction => {
+                    memo.work_meter.charge(2)?;
                     let F5cWalkValue::Positive(result, _) = values
                         .pop()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?
@@ -325,6 +366,7 @@ fn substitute(
                     ));
                 }
                 Task::FinishNegativeFunction => {
+                    memo.work_meter.charge(2)?;
                     let F5cWalkValue::Negative(result, _) = values
                         .pop()
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?

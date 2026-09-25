@@ -462,6 +462,7 @@ fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
         .memo
         .positive_value_with(positive_root, &mut |row, polarity| {
             boxed_positive_marks.push((row, polarity));
+            Ok(())
         })
         .unwrap();
     let mut flat_positive = crate::f5c_draft::FlatDraft::default();
@@ -483,6 +484,7 @@ fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
         .memo
         .negative_value_with(negative_root, &mut |row, polarity| {
             boxed_negative_marks.push((row, polarity));
+            Ok(())
         })
         .unwrap();
     let mut flat_negative = crate::f5c_draft::FlatDraft::default();
@@ -627,14 +629,20 @@ fn f5c_generalizer_guarded_self_source_roots_materialize_flat_with_boxed_parity(
             Polarity::Positive => F5cWalkValue::Positive(
                 generalizer
                     .memo
-                    .positive_value_with(id, &mut |row, side| boxed_marks.push((row, side)))
+                    .positive_value_with(id, &mut |row, side| {
+                        boxed_marks.push((row, side));
+                        Ok(())
+                    })
                     .unwrap(),
                 true,
             ),
             Polarity::Negative => F5cWalkValue::Negative(
                 generalizer
                     .memo
-                    .negative_value_with(id, &mut |row, side| boxed_marks.push((row, side)))
+                    .negative_value_with(id, &mut |row, side| {
+                        boxed_marks.push((row, side));
+                        Ok(())
+                    })
                     .unwrap(),
                 true,
             ),

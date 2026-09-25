@@ -19,7 +19,7 @@ enum Event {
 /// The task lane remains live for this object's lifetime and is released when
 /// the bounded analysis scope ends.
 pub(super) struct Walker<'memo, 'tree> {
-    memo: &'memo mut F5cComponentExpansionMemo,
+    pub(super) memo: &'memo mut F5cComponentExpansionMemo,
     tasks: Vec<Task<'tree>>,
 }
 
@@ -32,6 +32,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
     }
 
     fn push(&mut self, task: Task<'tree>) -> Result<(), SolveAvailabilityError> {
+        self.memo.work_meter.charge(1)?; // scheduled analysis task
         self.memo
             .reserve_walker(&mut self.tasks, F5cWalkerLaneKind::AnalysisTasks)?;
         self.tasks.push(task);
@@ -47,7 +48,9 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         self.tasks.clear();
         let result = (|| {
             self.push(first)?;
-            while let Some(task) = self.tasks.pop() {
+            while !self.tasks.is_empty() {
+                self.memo.work_meter.charge(1)?; // visited source node or Term
+                let task = self.tasks.pop().expect("nonempty analysis tasks");
                 match task {
                     Task::Positive(value, guarded) => match value {
                         F5cPositive::Variable(owner) => {
@@ -58,11 +61,14 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                         F5cPositive::Function {
                             argument, result, ..
                         } => {
+                            self.memo.work_meter.charge(1)?; // result edge
                             self.push(Task::Positive(result, true))?;
+                            self.memo.work_meter.charge(1)?; // argument edge
                             self.push(Task::Negative(argument, true))?;
                         }
                         F5cPositive::Union(values) => {
                             for value in values.iter().rev() {
+                                self.memo.work_meter.charge(1)?; // union incidence
                                 self.push(Task::Positive(value, guarded))?;
                             }
                         }
@@ -77,11 +83,14 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                         F5cNegative::Function {
                             argument, result, ..
                         } => {
+                            self.memo.work_meter.charge(1)?; // result edge
                             self.push(Task::Negative(result, true))?;
+                            self.memo.work_meter.charge(1)?; // argument edge
                             self.push(Task::Positive(argument, true))?;
                         }
                         F5cNegative::Intersection(values) => {
                             for value in values.iter().rev() {
+                                self.memo.work_meter.charge(1)?; // intersection incidence
                                 self.push(Task::Negative(value, guarded))?;
                             }
                         }
@@ -106,7 +115,9 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                             | TermView::NegativeFunction {
                                 argument, result, ..
                             } => {
+                                self.memo.work_meter.charge(1)?; // result edge
                                 self.push(Task::Term(result))?;
+                                self.memo.work_meter.charge(1)?; // argument edge
                                 self.push(Task::Term(argument))?;
                             }
                             _ => {}

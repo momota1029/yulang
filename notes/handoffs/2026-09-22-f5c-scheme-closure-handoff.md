@@ -2793,3 +2793,32 @@ closed-DAG memo/resource accounting, §44 end-to-end per-use rollback, and
 independently reviewed §15 evidence.
 
 <!-- handoff-append-anchor: 2026-09-26 -->
+
+## Latest continuation (2026-09-26): checked logical-work subgate
+
+The approved shared-walker work now has a solve-wide checked logical-work
+meter in the inference session. It is shared with each F5c component memo and
+generalizer and covers the current producer, memo, analysis, materialization,
+replay, and substitution paths. Charges survive component failure because
+they represent attempted work; separately, component memo state still rolls
+back. `usize` accounting overflow returns `IdentityExhausted`. No numeric cap
+was selected, and this counter does not bound recursion depth, memory, physical
+capacity, or wall time.
+
+The meter charges before boxed Function construction and before typed finish
+drains. Witnesses cover owner ordering and all five drain-owner families in
+both polarities, with no mutation past a failed charge and a successful retry.
+M2 compiler/specification/performance delta reviews converged with no open
+blocker. Focused checks pass: work-meter filter (15), F5c filter (207 passed,
+1 ignored), warning-free `cargo check -p yu-solver --lib`, formatting, and
+`git diff --check`. The single-threaded no-default-feature library suite
+passed (292 passed, 1 ignored; 952.91 seconds).
+
+The implementation is localized in the F5c modules; `lib.rs` keeps only
+session wiring and test registration. Static review identifies constant-
+factor meter/lookup overhead, but no performance measurement was run. The
+measurement budget remains zero: no benchmark or §15 resource probe. The next
+gate remains the uncalled flat sink through the shared walker. Physical
+capacity/peak accounting, §15 plan and measurements, indexed finalization,
+production cutover, full §44 per-use rollback, F5e, and overall F5c completion
+remain open.

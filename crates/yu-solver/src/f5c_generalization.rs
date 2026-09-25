@@ -1,5 +1,90 @@
 use super::*;
 
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum F5cBulkDrainSite {
+    SummaryPositive,
+    SummaryNegative,
+    RawMaterializePositive,
+    RawMaterializeNegative,
+    RowPositive,
+    RowNegative,
+    ReplayPositive,
+    ReplayNegative,
+    SubstitutePositive,
+    SubstituteNegative,
+}
+
+#[cfg(test)]
+thread_local! {
+    pub(super) static F5C_TAINT_BOUNDARY: std::cell::Cell<Option<(usize, usize)>> = const { std::cell::Cell::new(None) };
+    pub(super) static F5C_FUNCTION_OUTPUT_CONSTRUCTION: std::cell::Cell<Option<(usize, usize)>> = const { std::cell::Cell::new(None) };
+    pub(super) static F5C_ORDER_REGISTRATION: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+    pub(super) static F5C_BULK_DRAIN_BOUNDARY: std::cell::Cell<Option<(F5cBulkDrainSite, usize, usize)>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(super) fn record_bulk_drain_boundary(
+    site: F5cBulkDrainSite,
+    meter: &F5cDraftWorkMeter,
+    count: usize,
+) {
+    F5C_BULK_DRAIN_BOUNDARY.with(|boundary| boundary.set(Some((site, meter.get(), count))));
+}
+
+#[derive(Clone, Default)]
+pub(super) struct F5cDraftWorkMeter(
+    std::rc::Rc<std::cell::Cell<usize>>,
+    #[cfg(test)] std::rc::Rc<std::cell::Cell<Option<usize>>>,
+    #[cfg(test)] std::rc::Rc<std::cell::Cell<Option<usize>>>,
+);
+
+impl F5cDraftWorkMeter {
+    pub(super) fn charge(&self, count: usize) -> Result<(), SolveAvailabilityError> {
+        let next = self
+            .0
+            .get()
+            .checked_add(count)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.0.set(next);
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(super) fn get(&self) -> usize {
+        self.0.get()
+    }
+
+    #[cfg(test)]
+    pub(super) fn set(&self, value: usize) {
+        self.0.set(value);
+    }
+
+    #[cfg(test)]
+    pub(super) fn last_persistent_mutation_work(&self) -> Option<usize> {
+        self.1.get()
+    }
+
+    #[cfg(test)]
+    pub(super) fn arm_overflow_after_root_admission(&self, ordinal: usize) {
+        self.2.set(Some(ordinal));
+    }
+
+    #[cfg(test)]
+    fn record_persistent_mutation(&self) {
+        self.1.set(Some(self.get()));
+    }
+
+    #[cfg(test)]
+    fn record_root_admission(&self, ordinal: usize) {
+        self.record_persistent_mutation();
+        if self.2.get() == Some(ordinal) {
+            self.2.set(None);
+            self.set(usize::MAX);
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum F5cPositive {
     Bottom,
@@ -479,6 +564,7 @@ impl F5cWalkerResources {
 
 #[derive(Default)]
 pub(super) struct F5cComponentExpansionMemo {
+    pub(super) work_meter: F5cDraftWorkMeter,
     pub(super) roots: HashMap<F5cExpansionKey, F5cSummaryNodeId>,
     pub(super) nodes: Vec<F5cSummaryNode>,
     pub(super) children: Vec<F5cSummaryNodeId>,
@@ -740,12 +826,14 @@ impl F5cComponentExpansionMemo {
         macro_rules! push_task {
             ($value:expr) => {{
                 let value = $value;
+                self.work_meter.charge(1)?;
                 self.reserve_walker(&mut tasks, F5cWalkerLaneKind::SummaryTasks)?;
                 tasks.push(value);
             }};
         }
         macro_rules! push_id {
             ($value:expr) => {{
+                self.work_meter.charge(1)?;
                 let value = $value;
                 self.observe_walker()?;
                 self.reserve_walker(&mut ids, F5cWalkerLaneKind::SummaryIds)?;
@@ -754,7 +842,9 @@ impl F5cComponentExpansionMemo {
         }
         let result = (|| {
             push_task!(first);
-            while let Some(task) = tasks.pop() {
+            while !tasks.is_empty() {
+                self.work_meter.charge(1)?;
+                let task = tasks.pop().expect("nonempty summary tasks");
                 match task {
                     F5cSummaryTask::Positive(value, incidence) => match value {
                         F5cPositive::Bottom => {
@@ -780,6 +870,7 @@ impl F5cComponentExpansionMemo {
                         F5cPositive::Union(children) => {
                             push_task!(F5cSummaryTask::PositiveUnion(ids.len(), incidence));
                             for child in children.iter().rev() {
+                                self.work_meter.charge(1)?;
                                 push_task!(F5cSummaryTask::Positive(child, None));
                             }
                         }
@@ -787,7 +878,9 @@ impl F5cComponentExpansionMemo {
                             argument, result, ..
                         } => {
                             push_task!(F5cSummaryTask::PositiveFunction(incidence));
+                            self.work_meter.charge(1)?;
                             push_task!(F5cSummaryTask::Positive(result, None));
+                            self.work_meter.charge(1)?;
                             push_task!(F5cSummaryTask::Negative(argument, None));
                         }
                         F5cPositive::Quantified(_) | F5cPositive::Recursive(_) => {
@@ -821,6 +914,7 @@ impl F5cComponentExpansionMemo {
                         F5cNegative::Intersection(children) => {
                             push_task!(F5cSummaryTask::NegativeIntersection(ids.len(), incidence));
                             for child in children.iter().rev() {
+                                self.work_meter.charge(1)?;
                                 push_task!(F5cSummaryTask::Negative(child, None));
                             }
                         }
@@ -828,7 +922,9 @@ impl F5cComponentExpansionMemo {
                             argument, result, ..
                         } => {
                             push_task!(F5cSummaryTask::NegativeFunction(incidence));
+                            self.work_meter.charge(1)?;
                             push_task!(F5cSummaryTask::Negative(result, None));
+                            self.work_meter.charge(1)?;
                             push_task!(F5cSummaryTask::Positive(argument, None));
                         }
                         F5cNegative::Quantified(_) | F5cNegative::Recursive(_) => {
@@ -909,13 +1005,13 @@ impl F5cComponentExpansionMemo {
         &mut self,
         id: F5cSummaryNodeId,
     ) -> Result<F5cPositive, SolveAvailabilityError> {
-        self.positive_value_with(id, &mut |_, _| {})
+        self.positive_value_with(id, &mut |_, _| Ok(()))
     }
 
     pub(super) fn positive_value_with(
         &mut self,
         id: F5cSummaryNodeId,
-        mark: &mut impl FnMut(u32, Polarity),
+        mark: &mut impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
     ) -> Result<F5cPositive, SolveAvailabilityError> {
         match self.materialize_summary(F5cMaterializeTask::Positive(id), mark)? {
             F5cWalkValue::Positive(value, _) => Ok(value),
@@ -928,13 +1024,13 @@ impl F5cComponentExpansionMemo {
         &mut self,
         id: F5cSummaryNodeId,
     ) -> Result<F5cNegative, SolveAvailabilityError> {
-        self.negative_value_with(id, &mut |_, _| {})
+        self.negative_value_with(id, &mut |_, _| Ok(()))
     }
 
     pub(super) fn negative_value_with(
         &mut self,
         id: F5cSummaryNodeId,
-        mark: &mut impl FnMut(u32, Polarity),
+        mark: &mut impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
     ) -> Result<F5cNegative, SolveAvailabilityError> {
         match self.materialize_summary(F5cMaterializeTask::Negative(id), mark)? {
             F5cWalkValue::Negative(value, _) => Ok(value),
@@ -945,19 +1041,21 @@ impl F5cComponentExpansionMemo {
     fn materialize_summary(
         &mut self,
         first: F5cMaterializeTask,
-        mark: &mut impl FnMut(u32, Polarity),
+        mark: &mut impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
     ) -> Result<F5cWalkValue, SolveAvailabilityError> {
         let mut tasks = Vec::new();
         let mut values = Vec::new();
         macro_rules! push_task {
             ($task:expr) => {{
                 let task = $task;
+                self.work_meter.charge(1)?; // scheduled task
                 self.reserve_walker(&mut tasks, F5cWalkerLaneKind::MaterializeTasks)?;
                 tasks.push(task);
             }};
         }
         macro_rules! push_value {
             ($value:expr) => {{
+                self.work_meter.charge(1)?; // emitted value
                 let value = $value;
                 self.reserve_walker(&mut values, F5cWalkerLaneKind::MaterializeValues)?;
                 values.push(value);
@@ -965,12 +1063,14 @@ impl F5cComponentExpansionMemo {
         }
         let result = (|| {
             push_task!(first);
-            while let Some(task) = tasks.pop() {
+            while !tasks.is_empty() {
+                self.work_meter.charge(1)?; // popped task
+                let task = tasks.pop().expect("nonempty materialization tasks");
                 match task {
                     F5cMaterializeTask::Positive(id) | F5cMaterializeTask::Negative(id) => {
                         let node = self.node(id)?;
                         if let Some((row, polarity)) = node.incidence {
-                            mark(row, polarity);
+                            mark(row, polarity)?;
                         }
                         match (task, node.kind) {
                             (
@@ -1009,6 +1109,7 @@ impl F5cComponentExpansionMemo {
                                 F5cSummaryNodeKind::PositiveAlias { start },
                             ) => {
                                 let child = self.child_slice(start, 1)?[0];
+                                self.work_meter.charge(1)?; // inspected alias edge
                                 push_task!(F5cMaterializeTask::Positive(child));
                             }
                             (
@@ -1016,6 +1117,7 @@ impl F5cComponentExpansionMemo {
                                 F5cSummaryNodeKind::NegativeAlias { start },
                             ) => {
                                 let child = self.child_slice(start, 1)?[0];
+                                self.work_meter.charge(1)?; // inspected alias edge
                                 push_task!(F5cMaterializeTask::Negative(child));
                             }
                             (
@@ -1025,6 +1127,7 @@ impl F5cComponentExpansionMemo {
                                 push_task!(F5cMaterializeTask::PositiveUnion(values.len()));
                                 let count = self.child_slice(start, len)?.len();
                                 for index in (0..count).rev() {
+                                    self.work_meter.charge(1)?; // inspected child edge
                                     let child = self.child_slice(start, len)?[index];
                                     push_task!(F5cMaterializeTask::Positive(child));
                                 }
@@ -1036,6 +1139,7 @@ impl F5cComponentExpansionMemo {
                                 push_task!(F5cMaterializeTask::NegativeIntersection(values.len()));
                                 let count = self.child_slice(start, len)?.len();
                                 for index in (0..count).rev() {
+                                    self.work_meter.charge(1)?; // inspected child edge
                                     let child = self.child_slice(start, len)?[index];
                                     push_task!(F5cMaterializeTask::Negative(child));
                                 }
@@ -1044,6 +1148,7 @@ impl F5cComponentExpansionMemo {
                                 F5cMaterializeTask::Positive(_),
                                 F5cSummaryNodeKind::PositiveFunction { argument, result },
                             ) => {
+                                self.work_meter.charge(2)?; // argument and result edges
                                 push_task!(F5cMaterializeTask::PositiveFunction);
                                 push_task!(F5cMaterializeTask::Positive(result));
                                 push_task!(F5cMaterializeTask::Negative(argument));
@@ -1052,6 +1157,7 @@ impl F5cComponentExpansionMemo {
                                 F5cMaterializeTask::Negative(_),
                                 F5cSummaryNodeKind::NegativeFunction { argument, result },
                             ) => {
+                                self.work_meter.charge(2)?; // argument and result edges
                                 push_task!(F5cMaterializeTask::NegativeFunction);
                                 push_task!(F5cMaterializeTask::Negative(result));
                                 push_task!(F5cMaterializeTask::Positive(argument));
@@ -1060,7 +1166,20 @@ impl F5cComponentExpansionMemo {
                         }
                     }
                     F5cMaterializeTask::PositiveUnion(start) => {
+                        // The finish task follows only positive child tasks; each child
+                        // leaves one value, so this suffix is exactly their results.
                         let mut parts = Vec::new();
+                        let count = values
+                            .len()
+                            .checked_sub(start)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        #[cfg(test)]
+                        record_bulk_drain_boundary(
+                            F5cBulkDrainSite::SummaryPositive,
+                            &self.work_meter,
+                            count,
+                        );
+                        self.work_meter.charge(count)?;
                         for child in values.drain(start..) {
                             let F5cWalkValue::Positive(value, _) = child else {
                                 return Err(SolveAvailabilityError::IdentityExhausted);
@@ -1073,7 +1192,20 @@ impl F5cComponentExpansionMemo {
                             .release(F5cWalkerLaneKind::PositiveParts);
                     }
                     F5cMaterializeTask::NegativeIntersection(start) => {
+                        // The finish task follows only negative child tasks; each child
+                        // leaves one value, so this suffix is exactly their results.
                         let mut parts = Vec::new();
+                        let count = values
+                            .len()
+                            .checked_sub(start)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        #[cfg(test)]
+                        record_bulk_drain_boundary(
+                            F5cBulkDrainSite::SummaryNegative,
+                            &self.work_meter,
+                            count,
+                        );
+                        self.work_meter.charge(count)?;
                         for child in values.drain(start..) {
                             let F5cWalkValue::Negative(value, _) = child else {
                                 return Err(SolveAvailabilityError::IdentityExhausted);
@@ -1167,6 +1299,7 @@ impl F5cComponentExpansionMemo {
     pub(super) fn begin_visit(&mut self) -> Result<(), SolveAvailabilityError> {
         self.work.clear();
         if self.visit_epoch == u32::MAX {
+            self.work_meter.charge(self.visit_epochs.len())?;
             self.visit_epochs.fill(0);
             self.visit_epoch = 1;
         } else {
@@ -1185,6 +1318,7 @@ impl F5cComponentExpansionMemo {
             .get(index)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         if mark != self.visit_epoch {
+            self.work_meter.charge(1)?;
             let (requested, growth_if_changed) = self.prepare_scratch_reserve(1)?;
             let old = self.work.capacity();
             let reservation = self.work.try_reserve(1);
@@ -1199,6 +1333,7 @@ impl F5cComponentExpansionMemo {
     pub(super) fn seed_row(&mut self, row: u32) -> Result<(), SolveAvailabilityError> {
         let mut edge = self.incidence_heads.get(&row).copied().flatten();
         while let Some(index) = edge {
+            self.work_meter.charge(1)?;
             let incidence = *self
                 .incidences
                 .get(index)
@@ -1227,18 +1362,22 @@ impl F5cComponentExpansionMemo {
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         self.begin_visit()?;
         if self.root_edge_mark_epoch == u32::MAX {
+            self.work_meter.charge(self.root_edge_marks.len())?;
             self.root_edge_marks.fill(0);
             self.root_edge_mark_epoch = 1;
         } else {
             self.root_edge_mark_epoch += 1;
         }
         self.seed_row(row)?;
-        while let Some(id) = self.work.pop() {
+        while !self.work.is_empty() {
+            self.work_meter.charge(1)?;
+            let id = self.work.pop().expect("nonempty memo work");
             let mut root_edge = *self
                 .root_heads
                 .get(id.0 as usize)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             while let Some(index) = root_edge {
+                self.work_meter.charge(1)?;
                 let edge = *self
                     .root_edges
                     .get(index)
@@ -1257,6 +1396,7 @@ impl F5cComponentExpansionMemo {
                         } else if prior == 0 {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         }
+                        self.work_meter.charge(1)?; // copied conflict-journal entry
                         *mark = self.root_edge_mark_epoch;
                         self.conflict_journal.push((edge.key, prior));
                     }
@@ -1268,6 +1408,7 @@ impl F5cComponentExpansionMemo {
                 .get(id.0 as usize)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             while let Some(index) = parent_edge {
+                self.work_meter.charge(1)?;
                 let edge = *self
                     .reverse_parents
                     .get(index)
@@ -1285,6 +1426,7 @@ impl F5cComponentExpansionMemo {
             self.commit_scratch_reserve(requested, growth, old, self.active_conflicts.capacity())?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }
+        self.work_meter.charge(self.conflict_journal.len())?; // conflict updates
         for &(key, prior) in &self.conflict_journal {
             if entering {
                 self.active_conflicts.insert(key, prior + 1);
@@ -1370,12 +1512,15 @@ impl F5cComponentExpansionMemo {
     pub(super) fn invalidate_row(&mut self, row: u32) -> Result<(), SolveAvailabilityError> {
         self.begin_visit()?;
         self.seed_row(row)?;
-        while let Some(id) = self.work.pop() {
+        while !self.work.is_empty() {
+            self.work_meter.charge(1)?;
+            let id = self.work.pop().expect("nonempty memo work");
             let mut root_edge = *self
                 .root_heads
                 .get(id.0 as usize)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             while let Some(index) = root_edge {
+                self.work_meter.charge(1)?;
                 let edge = *self
                     .root_edges
                     .get(index)
@@ -1394,6 +1539,7 @@ impl F5cComponentExpansionMemo {
                 .get(id.0 as usize)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             while let Some(index) = parent_edge {
+                self.work_meter.charge(1)?;
                 let edge = *self
                     .reverse_parents
                     .get(index)
@@ -1410,6 +1556,7 @@ impl F5cComponentExpansionMemo {
         kind: F5cSummaryNodeKind,
         incidence: Option<(u32, Polarity)>,
     ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        self.work_meter.charge(1)?;
         let id = F5cSummaryNodeId(
             u32::try_from(self.nodes.len())
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
@@ -1425,6 +1572,7 @@ impl F5cComponentExpansionMemo {
         match kind {
             F5cSummaryNodeKind::PositiveAlias { start }
             | F5cSummaryNodeKind::NegativeAlias { start } => {
+                self.work_meter.charge(1)?;
                 let child = *self
                     .child_slice(start, 1)?
                     .first()
@@ -1434,12 +1582,15 @@ impl F5cComponentExpansionMemo {
             F5cSummaryNodeKind::PositiveUnion { start, len }
             | F5cSummaryNodeKind::NegativeIntersection { start, len } => {
                 for child in self.child_slice(start, len)? {
+                    self.work_meter.charge(1)?;
                     include(*child)?;
                 }
             }
             F5cSummaryNodeKind::PositiveFunction { argument, result }
             | F5cSummaryNodeKind::NegativeFunction { argument, result } => {
+                self.work_meter.charge(1)?;
                 include(argument)?;
+                self.work_meter.charge(1)?;
                 include(result)?;
             }
             _ => {}
@@ -1526,8 +1677,11 @@ impl F5cComponentExpansionMemo {
         self.parent_heads.push(None);
         self.root_heads.push(None);
         self.visit_epochs.push(0);
+        #[cfg(test)]
+        self.work_meter.record_persistent_mutation();
         let add_parent =
             |this: &mut Self, child: F5cSummaryNodeId| -> Result<(), SolveAvailabilityError> {
+                this.work_meter.charge(1)?;
                 let head = this
                     .parent_heads
                     .get_mut(child.0 as usize)
@@ -1548,6 +1702,7 @@ impl F5cComponentExpansionMemo {
             }
             F5cSummaryNodeKind::PositiveUnion { start, len }
             | F5cSummaryNodeKind::NegativeIntersection { start, len } => {
+                self.work_meter.charge(len as usize)?;
                 let children = self.child_slice(start, len)?.to_vec();
                 for child in children {
                     add_parent(self, child)?;
@@ -1561,6 +1716,7 @@ impl F5cComponentExpansionMemo {
             _ => {}
         }
         if let Some((row, _)) = incidence {
+            self.work_meter.charge(1)?;
             let next = self.incidence_heads.get(&row).copied().flatten();
             self.incidence_heads
                 .insert(row, Some(self.incidences.len()));
@@ -1618,6 +1774,7 @@ impl F5cComponentExpansionMemo {
             self.fail_reserve_at = None;
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
+        self.work_meter.charge(ids.len())?;
         self.children.extend_from_slice(ids);
         Ok((start, len))
     }
@@ -1687,6 +1844,7 @@ impl F5cComponentExpansionMemo {
             .get(root.0 as usize)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let edge_index = self.root_edges.len();
+        self.work_meter.charge(1)?;
         self.root_edges.push(F5cRootEdge {
             root,
             key,
@@ -1697,6 +1855,8 @@ impl F5cComponentExpansionMemo {
         self.root_heads[root.0 as usize] = Some(edge_index);
         self.roots.insert(key, root);
         self.root_undo.push(F5cRootUndo::Admit(edge_index));
+        #[cfg(test)]
+        self.work_meter.record_root_admission(self.root_undo.len());
         #[cfg(test)]
         if self.fail_observation_at == Some(F5cTestObservationFailure::Admit) {
             self.pending_observation_failure = true;
@@ -2184,9 +2344,10 @@ impl<'a> F5cGeneralizer<'a> {
 
     pub(super) fn with_memo(
         session: &'a InferenceSession,
-        memo: F5cComponentExpansionMemo,
+        mut memo: F5cComponentExpansionMemo,
         frozen_bound_epoch: usize,
     ) -> Self {
+        memo.work_meter = session.f5c_draft_work.clone();
         let node_checkpoint = memo.nodes.len();
         let child_checkpoint = memo.children.len();
         let reverse_checkpoint = memo.reverse_parents.len();
@@ -2224,10 +2385,13 @@ impl<'a> F5cGeneralizer<'a> {
         }
     }
 
-    fn mark(&mut self, ordinal: u32, _polarity: Polarity) {
-        if self.order_seen.insert(ordinal) {
-            self.order.push(ordinal);
-        }
+    fn mark(&mut self, ordinal: u32, _polarity: Polarity) -> Result<(), SolveAvailabilityError> {
+        Self::register_order(
+            &self.memo.work_meter,
+            &mut self.order_seen,
+            &mut self.order,
+            ordinal,
+        )?;
         if self.provisional_recursive_rows.contains(&ordinal)
             || self
                 .session
@@ -2244,17 +2408,50 @@ impl<'a> F5cGeneralizer<'a> {
                 frame.tainted = true;
             }
         }
+        Ok(())
     }
 
-    pub(super) fn taint_active_states(&mut self) {
+    pub(super) fn register_order(
+        meter: &F5cDraftWorkMeter,
+        seen: &mut HashSet<u32>,
+        order: &mut Vec<u32>,
+        ordinal: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        F5C_ORDER_REGISTRATION.with(|marker| marker.set(Some(meter.get())));
+        meter.charge(1)?; // seen-set lookup
+        if !seen.contains(&ordinal) {
+            // Admit both operations before changing either lane.
+            meter.charge(2)?; // set insertion and ordered append
+            seen.try_reserve(1)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            order
+                .try_reserve(1)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            seen.insert(ordinal);
+            order.push(ordinal);
+        }
+        Ok(())
+    }
+
+    pub(super) fn taint_active_states(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        F5C_TAINT_BOUNDARY.with(|boundary| {
+            if boundary.get().is_none() && self.frames.len() >= 64 {
+                boundary.set(Some((self.memo.work_meter.get(), self.frames.len())));
+            }
+        });
+        self.memo.work_meter.charge(self.frames.len())?;
         for frame in &mut self.frames {
             frame.tainted = true;
         }
+        Ok(())
     }
 
-    fn taint_failed_draft(&mut self) {
+    fn taint_failed_draft(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.taint_active_states()?;
         self.fatal_taint = true;
-        self.taint_active_states();
+        Ok(())
     }
 
     fn record_uncacheable(&mut self, row: u32, polarity: Polarity) {
@@ -2324,19 +2521,31 @@ impl<'a> F5cGeneralizer<'a> {
         if self.provisional_recursive_rows.insert(ordinal) {
             self.memo.invalidate_row(ordinal)?;
         }
-        let Some((_, entry_polarity, path_start)) =
-            self.active.iter().find(|(active, _, _)| *active == ordinal)
-        else {
+        let mut entry = None;
+        for &(active, polarity, path_start) in &self.active {
+            self.memo.work_meter.charge(1)?;
+            if active == ordinal {
+                entry = Some((polarity, path_start));
+                break;
+            }
+        }
+        let Some((entry_polarity, path_start)) = entry else {
             return Ok(());
         };
-        let path = self.path[*path_start..].to_vec();
-        if path
-            .iter()
-            .any(|hop| matches!(hop, F5cTraceHop::Function(_)))
-        {
+        self.memo.work_meter.charge(self.path.len() - path_start)?;
+        let path = self.path[path_start..].to_vec();
+        let mut guarded = false;
+        for hop in &path {
+            self.memo.work_meter.charge(1)?;
+            if matches!(hop, F5cTraceHop::Function(_)) {
+                guarded = true;
+                break;
+            }
+        }
+        if guarded {
             self.reentries.push(F5cGuardedTrace {
                 owner: ordinal,
-                entry_polarity: *entry_polarity,
+                entry_polarity,
                 reentry_polarity,
                 path,
             });
@@ -2350,10 +2559,13 @@ impl<'a> F5cGeneralizer<'a> {
         stack: &mut Vec<F5cCompareTask<'b>>,
     ) -> Result<bool, SolveAvailabilityError> {
         stack.clear();
+        self.memo.work_meter.charge(1)?;
         self.memo
             .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
         stack.push(first);
-        while let Some(pair) = stack.pop() {
+        while !stack.is_empty() {
+            self.memo.work_meter.charge(1)?;
+            let pair = stack.pop().expect("nonempty comparison stack");
             match pair {
                 F5cCompareTask::Positive(left, right) => match (left, right) {
                     (F5cPositive::Bottom, F5cPositive::Bottom)
@@ -2365,6 +2577,8 @@ impl<'a> F5cGeneralizer<'a> {
                     (F5cPositive::Shared(a), F5cPositive::Shared(b)) if a == b => {}
                     (F5cPositive::Union(a), F5cPositive::Union(b)) if a.len() == b.len() => {
                         for (left, right) in a.iter().zip(b).rev() {
+                            self.memo.work_meter.charge(1)?;
+                            self.memo.work_meter.charge(1)?;
                             self.memo
                                 .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
                             stack.push(F5cCompareTask::Positive(left, right));
@@ -2384,9 +2598,12 @@ impl<'a> F5cGeneralizer<'a> {
                             result: b,
                         },
                     ) if ae == be && re == br => {
+                        self.memo.work_meter.charge(2)?;
+                        self.memo.work_meter.charge(1)?;
                         self.memo
                             .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
                         stack.push(F5cCompareTask::Positive(ar, b));
+                        self.memo.work_meter.charge(1)?;
                         self.memo
                             .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
                         stack.push(F5cCompareTask::Negative(aa, ba));
@@ -2409,6 +2626,8 @@ impl<'a> F5cGeneralizer<'a> {
                         if a.len() == b.len() =>
                     {
                         for (left, right) in a.iter().zip(b).rev() {
+                            self.memo.work_meter.charge(1)?;
+                            self.memo.work_meter.charge(1)?;
                             self.memo
                                 .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
                             stack.push(F5cCompareTask::Negative(left, right));
@@ -2428,9 +2647,12 @@ impl<'a> F5cGeneralizer<'a> {
                             result: b,
                         },
                     ) if ae == be && re == br => {
+                        self.memo.work_meter.charge(2)?;
+                        self.memo.work_meter.charge(1)?;
                         self.memo
                             .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
                         stack.push(F5cCompareTask::Negative(ar, b));
+                        self.memo.work_meter.charge(1)?;
                         self.memo
                             .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
                         stack.push(F5cCompareTask::Positive(aa, ba));
@@ -2459,6 +2681,7 @@ impl<'a> F5cGeneralizer<'a> {
         macro_rules! push_task {
             ($value:expr) => {{
                 let value = $value;
+                self.memo.work_meter.charge(1)?;
                 self.memo
                     .reserve_walker(&mut tasks, F5cWalkerLaneKind::Tasks)?;
                 tasks.push(value);
@@ -2466,6 +2689,7 @@ impl<'a> F5cGeneralizer<'a> {
         }
         macro_rules! push_value {
             ($value:expr) => {{
+                self.memo.work_meter.charge(1)?; // emitted walk value
                 let value = $value;
                 self.memo
                     .reserve_walker(&mut values, F5cWalkerLaneKind::Values)?;
@@ -2475,6 +2699,7 @@ impl<'a> F5cGeneralizer<'a> {
         macro_rules! push_direct {
             ($value:expr) => {{
                 let value = $value;
+                self.memo.work_meter.charge(1)?; // stored direct edge
                 self.memo
                     .reserve_walker(&mut direct_edges, F5cWalkerLaneKind::DirectEdges)?;
                 direct_edges.push(value);
@@ -2482,7 +2707,9 @@ impl<'a> F5cGeneralizer<'a> {
         }
         let result = (|| {
             push_task!(first);
-            while let Some(task) = tasks.pop() {
+            while !tasks.is_empty() {
+                self.memo.work_meter.charge(1)?;
+                let task = tasks.pop().expect("nonempty generalization tasks");
                 match task {
                     F5cWalkTask::EnterPath(hop) => self.path.push(hop),
                     F5cWalkTask::LeavePath => {
@@ -2494,10 +2721,10 @@ impl<'a> F5cGeneralizer<'a> {
                         root,
                     } => {
                         if self.active(row, polarity) {
-                            self.taint_active_states();
+                            self.taint_active_states()?;
                             self.record_reentry(row, polarity)?;
                             self.memo.observe_walker()?;
-                            self.mark(row, polarity);
+                            self.mark(row, polarity)?;
                             push_value!(match polarity {
                                 Polarity::Positive =>
                                     F5cWalkValue::Positive(F5cPositive::Variable(row), false),
@@ -2507,7 +2734,7 @@ impl<'a> F5cGeneralizer<'a> {
                             continue;
                         }
                         if self.active_any(row) {
-                            self.taint_active_states();
+                            self.taint_active_states()?;
                             self.record_reentry(row, polarity)?;
                             self.memo.observe_walker()?;
                         }
@@ -2520,7 +2747,7 @@ impl<'a> F5cGeneralizer<'a> {
                         if !root {
                             if let Some(id) = self.memo.roots.get(&key).copied() {
                                 if self.memo.conflicts_active(key) {
-                                    self.taint_active_states();
+                                    self.taint_active_states()?;
                                     warm_conflict = true;
                                 } else {
                                     self.shared_summary_hits = self
@@ -2543,7 +2770,7 @@ impl<'a> F5cGeneralizer<'a> {
                                 tainted: self.fatal_taint || warm_conflict,
                             });
                         }
-                        self.mark(row, polarity);
+                        self.mark(row, polarity)?;
                         self.memo.enter_active(row)?;
                         self.active.push((row, polarity, self.path.len()));
                         self.active_set.insert((row, polarity));
@@ -2568,6 +2795,7 @@ impl<'a> F5cGeneralizer<'a> {
                                 Polarity::Negative => &bounds.direct_upper_rows,
                             };
                             for (slot, target) in direct.iter().copied().enumerate() {
+                                self.memo.work_meter.charge(1)?;
                                 if !direct_targets.contains(&target) {
                                     self.memo.reserve_walker_target(&mut direct_targets)?;
                                     direct_targets.insert(target);
@@ -2575,6 +2803,7 @@ impl<'a> F5cGeneralizer<'a> {
                                 }
                             }
                             for (slot, target) in direct_edges.iter().rev().copied() {
+                                self.memo.work_meter.charge(1)?;
                                 let side = match polarity {
                                     Polarity::Positive => F5cBoundSide::Lower,
                                     Polarity::Negative => F5cBoundSide::Upper,
@@ -2601,6 +2830,7 @@ impl<'a> F5cGeneralizer<'a> {
                             Polarity::Negative => &bounds.exact_non_variable_uppers,
                         };
                         for (slot, endpoint) in exact.iter().copied().enumerate().rev() {
+                            self.memo.work_meter.charge(1)?;
                             let side = match polarity {
                                 Polarity::Positive => F5cBoundSide::Lower,
                                 Polarity::Negative => F5cBoundSide::Upper,
@@ -2619,6 +2849,23 @@ impl<'a> F5cGeneralizer<'a> {
                         root,
                         values_start,
                     } => {
+                        // Row entry schedules homogeneous bound children before this exit;
+                        // each completed child leaves one value above values_start.
+                        // Precharge the entire suffix before touching active state or values.
+                        let count = values
+                            .len()
+                            .checked_sub(values_start)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        #[cfg(test)]
+                        record_bulk_drain_boundary(
+                            match polarity {
+                                Polarity::Positive => F5cBulkDrainSite::RowPositive,
+                                Polarity::Negative => F5cBulkDrainSite::RowNegative,
+                            },
+                            &self.memo.work_meter,
+                            count,
+                        );
+                        self.memo.work_meter.charge(count)?; // drained child values
                         self.memo.leave_active(row)?;
                         self.active.pop();
                         self.active_set.remove(&(row, polarity));
@@ -2636,6 +2883,7 @@ impl<'a> F5cGeneralizer<'a> {
                                         let mut comparisons = Vec::new();
                                         let mut duplicate = false;
                                         for previous in &parts {
+                                            self.memo.work_meter.charge(1)?;
                                             if self.structural_equal(
                                                 F5cCompareTask::Positive(previous, &value),
                                                 &mut comparisons,
@@ -2685,6 +2933,7 @@ impl<'a> F5cGeneralizer<'a> {
                                         let mut comparisons = Vec::new();
                                         let mut duplicate = false;
                                         for previous in &parts {
+                                            self.memo.work_meter.charge(1)?;
                                             if self.structural_equal(
                                                 F5cCompareTask::Negative(previous, &value),
                                                 &mut comparisons,
@@ -2736,7 +2985,7 @@ impl<'a> F5cGeneralizer<'a> {
                         };
                         if frame.tainted {
                             self.record_uncacheable(row, polarity);
-                            self.taint_active_states();
+                            self.taint_active_states()?;
                             push_value!(value);
                         } else {
                             let id = match &value {
@@ -2886,10 +3135,11 @@ impl<'a> F5cGeneralizer<'a> {
                                 };
                                 if !valid {
                                     self.invalid_effects = true;
-                                    self.taint_failed_draft();
+                                    self.taint_failed_draft()?;
                                 }
                                 push_task!(F5cWalkTask::ExitFunction { polarity });
                                 push_task!(F5cWalkTask::LeavePath);
+                                self.memo.work_meter.charge(1)?; // result child edge
                                 push_task!(match polarity {
                                     Polarity::Positive | Polarity::Negative =>
                                         F5cWalkTask::EnterTerm {
@@ -2901,6 +3151,7 @@ impl<'a> F5cGeneralizer<'a> {
                                     FunctionField::Result
                                 )));
                                 push_task!(F5cWalkTask::LeavePath);
+                                self.memo.work_meter.charge(1)?; // argument child edge
                                 push_task!(match polarity {
                                     Polarity::Positive => F5cWalkTask::EnterTerm {
                                         term: argument,
@@ -2925,34 +3176,41 @@ impl<'a> F5cGeneralizer<'a> {
                         let argument = values
                             .pop()
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                        push_value!(match (polarity, argument, result) {
-                            (
-                                Polarity::Positive,
-                                F5cWalkValue::Negative(argument, argument_cacheable),
-                                F5cWalkValue::Positive(result, result_cacheable),
-                            ) => F5cWalkValue::Positive(
-                                F5cPositive::Function {
-                                    argument: Box::new(argument),
-                                    argument_effect: F5cNegativeEffect::Empty,
-                                    result_effect: F5cPositiveEffect::Bottom,
-                                    result: Box::new(result),
-                                },
-                                argument_cacheable && result_cacheable
-                            ),
-                            (
-                                Polarity::Negative,
-                                F5cWalkValue::Positive(argument, argument_cacheable),
-                                F5cWalkValue::Negative(result, result_cacheable),
-                            ) => F5cWalkValue::Negative(
-                                F5cNegative::Function {
-                                    argument: Box::new(argument),
-                                    argument_effect: F5cPositiveEffect::Bottom,
-                                    result_effect: F5cNegativeEffect::Empty,
-                                    result: Box::new(result),
-                                },
-                                argument_cacheable && result_cacheable
-                            ),
-                            _ => return Err(SolveAvailabilityError::IdentityExhausted),
+                        push_value!({
+                            #[cfg(test)]
+                            F5C_FUNCTION_OUTPUT_CONSTRUCTION.with(|marker| {
+                                let count = marker.get().map_or(0, |(_, count)| count);
+                                marker.set(Some((self.memo.work_meter.get(), count + 1)));
+                            });
+                            match (polarity, argument, result) {
+                                (
+                                    Polarity::Positive,
+                                    F5cWalkValue::Negative(argument, argument_cacheable),
+                                    F5cWalkValue::Positive(result, result_cacheable),
+                                ) => F5cWalkValue::Positive(
+                                    F5cPositive::Function {
+                                        argument: Box::new(argument),
+                                        argument_effect: F5cNegativeEffect::Empty,
+                                        result_effect: F5cPositiveEffect::Bottom,
+                                        result: Box::new(result),
+                                    },
+                                    argument_cacheable && result_cacheable,
+                                ),
+                                (
+                                    Polarity::Negative,
+                                    F5cWalkValue::Positive(argument, argument_cacheable),
+                                    F5cWalkValue::Negative(result, result_cacheable),
+                                ) => F5cWalkValue::Negative(
+                                    F5cNegative::Function {
+                                        argument: Box::new(argument),
+                                        argument_effect: F5cPositiveEffect::Bottom,
+                                        result_effect: F5cNegativeEffect::Empty,
+                                        result: Box::new(result),
+                                    },
+                                    argument_cacheable && result_cacheable,
+                                ),
+                                _ => return Err(SolveAvailabilityError::IdentityExhausted),
+                            }
                         });
                     }
                 }
@@ -2982,7 +3240,7 @@ impl<'a> F5cGeneralizer<'a> {
             }
             self.frames.truncate(frame_checkpoint);
             self.path.truncate(path_checkpoint);
-            self.taint_active_states();
+            let _ = self.taint_active_states();
         }
         self.memo.walker_resources.release(F5cWalkerLaneKind::Tasks);
         self.memo
@@ -3109,6 +3367,36 @@ impl<'a> F5cGeneralizer<'a> {
         })
     }
 
+    fn guarded_trace_path_survives_metered(
+        &self,
+        trace: &F5cGuardedTrace,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<bool, SolveAvailabilityError> {
+        for hop in &trace.path {
+            self.memo.work_meter.charge(1)?; // examined trace hop
+            if let F5cTraceHop::Direct {
+                side,
+                source,
+                target,
+                ..
+            } = hop
+            {
+                let eliminated = match side {
+                    F5cBoundSide::Lower => positive_only,
+                    F5cBoundSide::Upper => negative_only,
+                };
+                if (!protected.contains(source) && eliminated.contains(source))
+                    || (!protected.contains(target) && eliminated.contains(target))
+                {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
+    }
+
     #[cfg(test)]
     pub(super) fn guarded_trace_survives(
         trace: &F5cGuardedTrace,
@@ -3158,7 +3446,14 @@ impl<'a> F5cGeneralizer<'a> {
         let mut adjacency = vec![HashSet::new(); self.session.bounds.len()];
         let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
         for (owner, bounds) in self.session.bounds.iter().enumerate() {
+            walker.memo.work_meter.charge(1)?; // scanned bounds owner
             let owner = owner as u32;
+            let direct_count = bounds
+                .direct_lower_rows
+                .len()
+                .checked_add(bounds.direct_upper_rows.len())
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            walker.memo.work_meter.charge(direct_count)?; // copied direct adjacency endpoints
             let mut connected = bounds
                 .direct_lower_rows
                 .iter()
@@ -3170,6 +3465,7 @@ impl<'a> F5cGeneralizer<'a> {
                 .iter()
                 .chain(&bounds.exact_non_variable_uppers)
             {
+                walker.memo.work_meter.charge(1)?; // examined exact endpoint
                 match endpoint {
                     ValueEndpointKey::ValueRow(row) => {
                         connected.insert(*row);
@@ -3182,6 +3478,7 @@ impl<'a> F5cGeneralizer<'a> {
                 }
             }
             for target in connected {
+                walker.memo.work_meter.charge(1)?; // adjacency incidence
                 if let Some(neighbors) = adjacency.get_mut(owner as usize) {
                     neighbors.insert(target);
                 }
@@ -3190,19 +3487,25 @@ impl<'a> F5cGeneralizer<'a> {
                 }
             }
         }
-        let mut closure = self
-            .session
-            .value_metadata
-            .iter()
-            .enumerate()
-            .filter_map(|(ordinal, metadata)| metadata.non_generic.then_some(ordinal as u32))
-            .collect::<HashSet<_>>();
+        let mut closure = HashSet::new();
+        for (ordinal, metadata) in self.session.value_metadata.iter().enumerate() {
+            walker.memo.work_meter.charge(1)?; // metadata owner
+            if metadata.non_generic {
+                walker.memo.work_meter.charge(1)?; // closure entry
+                closure.insert(ordinal as u32);
+            }
+        }
+        walker.memo.work_meter.charge(closure.len())?; // copied frontier owners
         let mut frontier = closure.iter().copied().collect::<Vec<_>>();
-        while let Some(owner) = frontier.pop() {
+        while !frontier.is_empty() {
+            walker.memo.work_meter.charge(1)?; // closure frontier pop
+            let owner = frontier.pop().expect("nonempty closure frontier");
             let Some(neighbors) = adjacency.get(owner as usize) else {
                 continue;
             };
             for neighbor in neighbors {
+                walker.memo.work_meter.charge(1)?; // examined adjacency neighbor
+                walker.memo.work_meter.charge(1)?; // possible closure and frontier entries
                 if closure.insert(*neighbor) {
                     frontier.push(*neighbor);
                 }
@@ -3222,6 +3525,7 @@ impl<'a> F5cGeneralizer<'a> {
         let mut walker = f5c_tree_analysis::Walker::new(memo);
         walker.occurrences_positive(retained_predicate, &mut ordered, &mut seen)?;
         for owner in recursive_owners {
+            walker.memo.work_meter.charge(1)?; // retained bound owner
             let (lower, upper) = recursive_bounds
                 .get(owner)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
@@ -3293,12 +3597,14 @@ impl<'a> F5cGeneralizer<'a> {
     }
 
     pub(super) fn reject_unclassified_rows(
+        meter: &F5cDraftWorkMeter,
         order: &[u32],
         recursive_set: &HashSet<u32>,
         q: &HashMap<u32, u32>,
         eligible: impl Fn(u32) -> bool,
     ) -> Result<(), SolveAvailabilityError> {
         for ordinal in order {
+            meter.charge(1)?;
             if !eligible(*ordinal) && !recursive_set.contains(ordinal) && !q.contains_key(ordinal) {
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
@@ -3312,8 +3618,10 @@ impl<'a> F5cGeneralizer<'a> {
         let mut next_owner = 0;
         let mut completed_owners = HashSet::new();
         while next_owner < self.reentries.len() {
+            self.memo.work_meter.charge(1)?; // reentry owner
             let ordinal = self.reentries[next_owner].owner;
             next_owner += 1;
+            self.memo.work_meter.charge(1)?; // completed-owner entry
             if !completed_owners.insert(ordinal) {
                 continue;
             }
@@ -3321,8 +3629,16 @@ impl<'a> F5cGeneralizer<'a> {
                 .session
                 .bounds
                 .get(ordinal as usize)
-                .cloned()
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let copied = bounds
+                .direct_lower_rows
+                .len()
+                .checked_add(bounds.direct_upper_rows.len())
+                .and_then(|count| count.checked_add(bounds.exact_non_variable_lowers.len()))
+                .and_then(|count| count.checked_add(bounds.exact_non_variable_uppers.len()))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.memo.work_meter.charge(copied)?;
+            let bounds = bounds.clone();
             let expanded_lower = self.positive_row(ordinal, false)?;
             let expanded_upper = self.negative_row(ordinal)?;
             let lower = if bounds.exact_non_variable_lowers.is_empty()
@@ -3339,6 +3655,7 @@ impl<'a> F5cGeneralizer<'a> {
             } else {
                 expanded_upper
             };
+            self.memo.work_meter.charge(1)?; // raw bound entry
             raw_recursive_bounds.insert(ordinal, (lower, upper));
         }
         if self.invalid_effects {
@@ -3348,6 +3665,8 @@ impl<'a> F5cGeneralizer<'a> {
         self.materialize_recursive_bounds(&mut raw_recursive_bounds)?;
         let mut reentries_by_owner = HashMap::<u32, Vec<usize>>::new();
         for (index, trace) in self.reentries.iter().enumerate() {
+            self.memo.work_meter.charge(1)?; // indexed trace record
+            self.memo.work_meter.charge(1)?; // owner index entry
             reentries_by_owner
                 .entry(trace.owner)
                 .or_default()
@@ -3371,6 +3690,7 @@ impl<'a> F5cGeneralizer<'a> {
                 &mut negative_incidences,
             )?;
             for (lower, upper) in raw_recursive_bounds.values() {
+                walker.memo.work_meter.charge(1)?; // raw bound owner
                 walker.incidences_positive(
                     lower,
                     &mut positive_incidences,
@@ -3383,35 +3703,39 @@ impl<'a> F5cGeneralizer<'a> {
                 )?;
             }
         }
-        let positive_only = self
-            .order
-            .iter()
-            .copied()
-            .filter(|owner| {
-                eligible(*owner)
-                    && positive_incidences.contains(owner)
-                    && !negative_incidences.contains(owner)
-            })
-            .collect::<HashSet<_>>();
-        let negative_only = self
-            .order
-            .iter()
-            .copied()
-            .filter(|owner| {
-                eligible(*owner)
-                    && negative_incidences.contains(owner)
-                    && !positive_incidences.contains(owner)
-            })
-            .collect::<HashSet<_>>();
-        let mut candidates = reentries_by_owner
-            .keys()
-            .copied()
-            .filter(|owner| eligible(*owner))
-            .collect::<HashSet<_>>();
+        let mut positive_only = HashSet::new();
+        let mut negative_only = HashSet::new();
+        for &owner in &self.order {
+            self.memo.work_meter.charge(1)?; // metadata and eligibility owner
+            if eligible(owner) {
+                if positive_incidences.contains(&owner) && !negative_incidences.contains(&owner) {
+                    self.memo.work_meter.charge(1)?; // positive-only entry
+                    positive_only.insert(owner);
+                }
+                self.memo.work_meter.charge(1)?; // second eligibility/order scan
+                if negative_incidences.contains(&owner) && !positive_incidences.contains(&owner) {
+                    self.memo.work_meter.charge(1)?; // negative-only entry
+                    negative_only.insert(owner);
+                }
+            } else {
+                self.memo.work_meter.charge(1)?; // second eligibility/order scan
+            }
+        }
+        let mut candidates = HashSet::new();
+        for &owner in reentries_by_owner.keys() {
+            self.memo.work_meter.charge(1)?; // candidate eligibility owner
+            if eligible(owner) {
+                self.memo.work_meter.charge(1)?; // candidate entry
+                candidates.insert(owner);
+            }
+        }
         loop {
+            self.memo.work_meter.charge(1)?; // fixed-point round
+            self.memo.work_meter.charge(candidates.len())?; // copied candidate owners
             let previous = candidates.clone();
             let mut surviving_bounds = HashSet::new();
             for owner in &previous {
+                self.memo.work_meter.charge(1)?; // examined bound owner
                 let Some((lower, upper)) = raw_recursive_bounds.get(owner) else {
                     continue;
                 };
@@ -3435,19 +3759,42 @@ impl<'a> F5cGeneralizer<'a> {
                     surviving_bounds.insert(*owner);
                 }
             }
+            self.memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
+            let mut retain_error = None;
             candidates.retain(|owner| {
-                surviving_bounds.contains(owner)
-                    && reentries_by_owner.get(owner).is_some_and(|indices| {
-                        indices.iter().any(|index| {
-                            Self::guarded_trace_path_survives(
-                                &self.reentries[*index],
-                                &previous,
-                                &positive_only,
-                                &negative_only,
-                            )
-                        })
-                    })
+                if retain_error.is_some() {
+                    return true;
+                }
+                if !surviving_bounds.contains(owner) {
+                    return false;
+                }
+                let Some(indices) = reentries_by_owner.get(owner) else {
+                    return false;
+                };
+                for index in indices {
+                    if let Err(error) = self.memo.work_meter.charge(1) {
+                        retain_error = Some(error);
+                        return true;
+                    }
+                    match self.guarded_trace_path_survives_metered(
+                        &self.reentries[*index],
+                        &previous,
+                        &positive_only,
+                        &negative_only,
+                    ) {
+                        Ok(true) => return true,
+                        Ok(false) => {}
+                        Err(error) => {
+                            retain_error = Some(error);
+                            return true;
+                        }
+                    }
+                }
+                false
             });
+            if let Some(error) = retain_error {
+                return Err(error);
+            }
             let replayed_predicate = f5c_replay::replay_positive(
                 &mut self.memo,
                 &predicate,
@@ -3459,8 +3806,11 @@ impl<'a> F5cGeneralizer<'a> {
             {
                 let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
                 walker.references_positive(&replayed_predicate, &candidates, &mut reachable)?;
+                walker.memo.work_meter.charge(reachable.len())?; // copied frontier owners
                 let mut frontier = reachable.iter().copied().collect::<Vec<_>>();
-                while let Some(owner) = frontier.pop() {
+                while !frontier.is_empty() {
+                    walker.memo.work_meter.charge(1)?; // reachability frontier pop
+                    let owner = frontier.pop().expect("nonempty reachability frontier");
                     let Some((lower, upper)) = raw_recursive_bounds.get(&owner) else {
                         continue;
                     };
@@ -3468,12 +3818,15 @@ impl<'a> F5cGeneralizer<'a> {
                     walker.references_positive(lower, &candidates, &mut referenced)?;
                     walker.references_negative(upper, &candidates, &mut referenced)?;
                     for referenced_owner in referenced {
+                        walker.memo.work_meter.charge(1)?; // examined reference
+                        walker.memo.work_meter.charge(1)?; // possible frontier entry
                         if reachable.insert(referenced_owner) {
                             frontier.push(referenced_owner);
                         }
                     }
                 }
             }
+            self.memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
             candidates.retain(|owner| reachable.contains(owner));
             if candidates == previous {
                 break;
@@ -3481,6 +3834,7 @@ impl<'a> F5cGeneralizer<'a> {
         }
         let mut retained_bounds = HashMap::with_capacity(candidates.len());
         for owner in &candidates {
+            self.memo.work_meter.charge(1)?; // post-convergence bound owner
             let (lower, upper) = raw_recursive_bounds
                 .get(owner)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
@@ -3504,30 +3858,31 @@ impl<'a> F5cGeneralizer<'a> {
         {
             let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
             for (owner, (lower, upper)) in &retained_bounds {
+                walker.memo.work_meter.charge(1)?; // revisited retained bound
                 if walker.guarded_bound_survives(*owner, lower, upper)? {
                     surviving_bound_owners.insert(*owner);
                 }
             }
         }
-        let surviving_traces = self
-            .reentries
-            .iter()
-            .enumerate()
-            .filter_map(|(index, trace)| {
-                (candidates.contains(&trace.owner)
-                    && surviving_bound_owners.contains(&trace.owner)
-                    && Self::guarded_trace_path_survives(
-                        trace,
-                        &candidates,
-                        &positive_only,
-                        &negative_only,
-                    ))
-                .then_some(index)
-            })
-            .collect::<HashSet<_>>();
+        let mut surviving_traces = HashSet::new();
+        for (index, trace) in self.reentries.iter().enumerate() {
+            self.memo.work_meter.charge(1)?; // post-convergence trace record
+            if candidates.contains(&trace.owner)
+                && surviving_bound_owners.contains(&trace.owner)
+                && self.guarded_trace_path_survives_metered(
+                    trace,
+                    &candidates,
+                    &positive_only,
+                    &negative_only,
+                )?
+            {
+                surviving_traces.insert(index);
+            }
+        }
         let mut recursive_owners = Vec::new();
         let mut recursive_set = HashSet::new();
         for (index, trace) in self.reentries.iter().enumerate() {
+            self.memo.work_meter.charge(1)?; // recursive-owner ordering trace
             if surviving_traces.contains(&index) && recursive_set.insert(trace.owner) {
                 recursive_owners.push(trace.owner);
             }
@@ -3547,6 +3902,7 @@ impl<'a> F5cGeneralizer<'a> {
         )?;
         let mut q = HashMap::new();
         for ordinal in first_occurrences {
+            self.memo.work_meter.charge(1)?; // Q first occurrence
             if !recursive_set.contains(&ordinal)
                 && positive_incidences.contains(&ordinal)
                 && negative_incidences.contains(&ordinal)
@@ -3554,44 +3910,52 @@ impl<'a> F5cGeneralizer<'a> {
             {
                 let next = u32::try_from(q.len())
                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                self.memo.work_meter.charge(1)?; // Q entry
                 q.insert(ordinal, next);
             }
         }
         let q_count =
             u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        let r = recursive_owners
-            .iter()
-            .enumerate()
-            .map(|(index, ordinal)| {
-                let offset =
-                    u32::try_from(index).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                let binder = q_count
-                    .checked_add(offset)
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                Ok((*ordinal, binder))
-            })
-            .collect::<Result<HashMap<_, _>, SolveAvailabilityError>>()?;
-        Self::reject_unclassified_rows(&self.order, &recursive_set, &q, eligible)?;
-        let positive_eliminated = self
-            .order
-            .iter()
-            .copied()
-            .filter(|ordinal| {
-                !recursive_set.contains(ordinal)
-                    && !q.contains_key(ordinal)
-                    && positive_only.contains(ordinal)
-            })
-            .collect::<HashSet<_>>();
-        let negative_eliminated = self
-            .order
-            .iter()
-            .copied()
-            .filter(|ordinal| {
-                !recursive_set.contains(ordinal)
-                    && !q.contains_key(ordinal)
-                    && negative_only.contains(ordinal)
-            })
-            .collect::<HashSet<_>>();
+        let mut r = HashMap::new();
+        for (index, ordinal) in recursive_owners.iter().enumerate() {
+            self.memo.work_meter.charge(1)?; // R owner
+            let offset =
+                u32::try_from(index).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let binder = q_count
+                .checked_add(offset)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.memo.work_meter.charge(1)?; // R entry
+            r.insert(*ordinal, binder);
+        }
+        Self::reject_unclassified_rows(
+            &self.memo.work_meter,
+            &self.order,
+            &recursive_set,
+            &q,
+            eligible,
+        )?;
+        let mut positive_eliminated = HashSet::new();
+        let mut negative_eliminated = HashSet::new();
+        for ordinal in self.order.iter().copied() {
+            self.memo.work_meter.charge(1)?; // positive eliminated-set owner
+            if !recursive_set.contains(&ordinal)
+                && !q.contains_key(&ordinal)
+                && positive_only.contains(&ordinal)
+            {
+                self.memo.work_meter.charge(1)?;
+                positive_eliminated.insert(ordinal);
+            }
+        }
+        for ordinal in self.order.iter().copied() {
+            self.memo.work_meter.charge(1)?; // negative eliminated-set owner
+            if !recursive_set.contains(&ordinal)
+                && !q.contains_key(&ordinal)
+                && negative_only.contains(&ordinal)
+            {
+                self.memo.work_meter.charge(1)?;
+                negative_eliminated.insert(ordinal);
+            }
+        }
         let predicate = f5c_binder_substitution::substitute_positive(
             &mut self.memo,
             predicate,
@@ -3602,9 +3966,11 @@ impl<'a> F5cGeneralizer<'a> {
         )?;
         let mut recursive_bounds = Vec::with_capacity(recursive_owners.len());
         for ordinal in &recursive_owners {
+            self.memo.work_meter.charge(1)?; // recursive bound owner
             let Some(binder) = r.get(ordinal).copied() else {
                 continue;
             };
+            self.memo.work_meter.charge(1)?; // removed raw bound
             let (raw_lower, raw_upper) = raw_recursive_bounds
                 .remove(ordinal)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
@@ -3624,6 +3990,7 @@ impl<'a> F5cGeneralizer<'a> {
                 &positive_eliminated,
                 &negative_eliminated,
             )?;
+            self.memo.work_meter.charge(1)?; // result bound
             recursive_bounds.push(F5cRecursiveBound {
                 ordinal: binder,
                 lower,
