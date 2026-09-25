@@ -280,3 +280,26 @@ first resource probe, prepare and independently review the exact §15 plan.
 - No claim that explicit stacks alone bound allocations or make path-expanded
   Shared summaries cheap; those costs remain visible success-path/resource
   tradeoffs under the user's Oracle-and-lightweight priority.
+
+## 7. First implementation slice (2026-09-26)
+
+The first approved slice is implemented in the solver-owned
+`crates/yu-solver/src/f5c_generalization.rs`. It relocates the boxed F5c
+positive/negative draft,
+component expansion memo and transaction, task walker, and `build_inner`
+generalization owner out of `lib.rs`. `lib.rs` retains the component-draft
+invocation and surrounding solver/fact orchestration. Production callers still
+use the boxed path; no flat sink, shared generic walker, behavior change, or
+caller cutover was added.
+
+The M2 exact-conformance review found one minor visibility issue: unused
+`visit_epoch` and walker transaction/checkpoint state had been exposed to the
+parent module. Those fields are now private; `active_set` remains
+crate-internal because the materialization sibling and existing tests use it.
+The regression review found no issue. Focused primary verification passed:
+`cargo fmt --check`, `cargo check -p yu-solver --tests`,
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (183 passed, 1
+ignored), and `git diff --check`. No benchmark, resource probe, or workspace
+test suite ran. The next slice is the memo transaction/active-state rollback
+repair and failure witnesses; the flat sink and §15 resource plan remain later
+gates.

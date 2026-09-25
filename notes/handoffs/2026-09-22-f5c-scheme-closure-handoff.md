@@ -2752,13 +2752,12 @@ undo with transient active/conflict scratch returned to idle; and explicit
 co-resident resource/work categories. No code, tests, benchmark, or resource
 probe ran; measurement budget remains zero.
 
-The user approved staged internal implementation on 2026-09-26. The immediate
-slice is a no-behavior-change move of the F5c generalization owner into
-`f5c_generalization.rs`; then repair and witness memo transaction/active-state
-rollback before adding a shared sink. The boxed sink remains the production
-path, and the flat sink remains uncalled. No production cutover, resource probe,
-numeric limit, or completion claim is authorized by this approval. A clean
-build does not replace §15 resource evidence. Indexed finalization, F5e, §44
-rollback, and overall F5c/F5e closure remain open.
+The no-behavior-change owner move is complete in `f5c_generalization.rs` and
+has passed M2 specification/regression review plus focused checks. The boxed
+path remains production; the flat sink is uncalled. Next repair and witness
+memo transaction/active-state rollback, then add the shared sink. No production
+cutover, resource probe, numeric limit, or completion claim is authorized by
+this approval. A clean build does not replace §15 resource evidence. Indexed
+finalization, F5e, §44 rollback, and overall F5c/F5e closure remain open.
 
 <!-- handoff-append-anchor: 2026-09-26 -->

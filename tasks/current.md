@@ -4,7 +4,7 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): shared producer-walker design reviewed
+### Latest continuation (2026-09-26): shared producer owner moved
 
 The current `F5cGeneralizer::walk` owns the producer task decisions but returns
 boxed `F5cPositive` / `F5cNegative` values, so an isolated flat sink cannot
@@ -16,24 +16,25 @@ sink remains the current production path; the tagged Local/Shared flat sink
 remains uncalled.
 
 Three M3 reviewers converged after two focused design-repair rounds. They
-closed the rollback interleavings (including active-conflict scratch
-restoration), exact raw-root order, complete raw-forest/effect witnesses, and
-module/resource-accounting scope. Raw bounds now have an explicit first-
-reentry owner order and lower-before-upper traversal; HashMap iteration is
-lookup-only. This aligns with the existing producer-order authority. The
-reviewed proposal is now user-approved for staged internal implementation
-(2026-09-26). First move the F5c generalization owner into
-`f5c_generalization.rs` without changing behavior or production callers. Review
-and push that ownership slice; then close memo transaction/active-state rollback
-gaps with focused failure witnesses before adding the shared sink. The boxed
-sink remains the production path and the flat sink remains uncalled.
+closed rollback interleavings (including active-conflict scratch restoration),
+raw-root order, complete raw-forest/effect witnesses, and module/resource
+accounting. The user approved staged internal implementation on 2026-09-26.
 
-No code, tests, benchmarks, or resource probes ran in this design gate;
-measurement budget remains zero. The first active code slice is the ownership
-move only; no shared walker, flat sink, production cutover, benchmark, or
-resource probe is included. The §15 resource plan remains required before any
-probe. Indexed finalization, F5e, §44 rollback, and overall F5c/F5e closure
-remain open.
+The first slice moved the boxed F5c generalizer, component memo/transaction,
+walker, and `build_inner` into `f5c_generalization.rs`; `lib.rs` retains
+component draft invocation and outer orchestration. Production callers and
+behavior are unchanged, the boxed path remains active, and the flat sink is
+uncalled. M2 `spec_auditor` review found one minor visibility issue; the primary
+made unused epoch/checkpoint/walker-state fields private. M2
+`regression_auditor` found no issue.
+
+Focused checks pass: `cargo fmt --check`, `cargo check -p yu-solver --tests`,
+`cargo test -p yu-solver --lib f5c_ -- --test-threads=1` (183 passed, 1
+ignored), and `git diff --check`. No workspace-wide suite, benchmark, or
+resource probe ran. The next active slice is memo transaction/active-state
+rollback repair with focused failure witnesses. The §15 resource plan remains
+required before any resource probe. Indexed finalization, F5e, §44 rollback,
+and overall F5c/F5e closure remain open.
 
 ### Latest continuation (2026-09-26): pre-replay producer roots into FlatDraft
 
