@@ -1,5 +1,117 @@
 use super::*;
 
+enum FlatBoxedStep<'a> {
+    Positive(crate::f5c_draft::PositiveId, &'a F5cPositive),
+    Negative(crate::f5c_draft::NegativeId, &'a F5cNegative),
+}
+
+// Shallow fixtures only: deep boxed values need an iterative consumer or safe destruction.
+fn assert_flat_summary_matches_boxed(
+    flat: &crate::f5c_draft::FlatDraft,
+    root: crate::f5c_draft::NodeRef,
+    boxed: &F5cWalkValue,
+) {
+    use crate::f5c_draft::{NegativeNode, PositiveNode};
+
+    let mut pending = match (root, boxed) {
+        (crate::f5c_draft::NodeRef::Positive(id), F5cWalkValue::Positive(value, _)) => {
+            vec![FlatBoxedStep::Positive(id, value)]
+        }
+        (crate::f5c_draft::NodeRef::Negative(id), F5cWalkValue::Negative(value, _)) => {
+            vec![FlatBoxedStep::Negative(id, value)]
+        }
+        _ => panic!("flat and boxed summary roots keep their polarity"),
+    };
+
+    while let Some(step) = pending.pop() {
+        match step {
+            FlatBoxedStep::Positive(id, boxed) => {
+                match (flat.positive_nodes[id.0 as usize], boxed) {
+                    (PositiveNode::Bottom, F5cPositive::Bottom)
+                    | (PositiveNode::Int, F5cPositive::Int) => {}
+                    (PositiveNode::Variable(flat), F5cPositive::Variable(boxed)) => {
+                        assert_eq!(flat, *boxed)
+                    }
+                    (PositiveNode::Quantified(flat), F5cPositive::Quantified(boxed))
+                    | (PositiveNode::Recursive(flat), F5cPositive::Recursive(boxed)) => {
+                        assert_eq!(flat, *boxed)
+                    }
+                    (PositiveNode::Union(span), F5cPositive::Union(children)) => {
+                        let start = span.start as usize;
+                        let end = start + span.len as usize;
+                        let flat_children = &flat.positive_children[start..end];
+                        assert_eq!(flat_children.len(), children.len());
+                        pending.extend(
+                            flat_children
+                                .iter()
+                                .copied()
+                                .zip(children)
+                                .map(|(flat, boxed)| FlatBoxedStep::Positive(flat, boxed)),
+                        );
+                    }
+                    (
+                        PositiveNode::Function { argument, result },
+                        F5cPositive::Function {
+                            argument: boxed_argument,
+                            argument_effect,
+                            result_effect,
+                            result: boxed_result,
+                        },
+                    ) => {
+                        assert_eq!(*argument_effect, F5cNegativeEffect::Empty);
+                        assert_eq!(*result_effect, F5cPositiveEffect::Bottom);
+                        pending.push(FlatBoxedStep::Positive(result, boxed_result));
+                        pending.push(FlatBoxedStep::Negative(argument, boxed_argument));
+                    }
+                    _ => panic!("flat positive node matches boxed summary"),
+                }
+            }
+            FlatBoxedStep::Negative(id, boxed) => {
+                match (flat.negative_nodes[id.0 as usize], boxed) {
+                    (NegativeNode::Top, F5cNegative::Top)
+                    | (NegativeNode::Bottom, F5cNegative::Bottom)
+                    | (NegativeNode::Int, F5cNegative::Int) => {}
+                    (NegativeNode::Variable(flat), F5cNegative::Variable(boxed)) => {
+                        assert_eq!(flat, *boxed)
+                    }
+                    (NegativeNode::Quantified(flat), F5cNegative::Quantified(boxed))
+                    | (NegativeNode::Recursive(flat), F5cNegative::Recursive(boxed)) => {
+                        assert_eq!(flat, *boxed)
+                    }
+                    (NegativeNode::Intersection(span), F5cNegative::Intersection(children)) => {
+                        let start = span.start as usize;
+                        let end = start + span.len as usize;
+                        let flat_children = &flat.negative_children[start..end];
+                        assert_eq!(flat_children.len(), children.len());
+                        pending.extend(
+                            flat_children
+                                .iter()
+                                .copied()
+                                .zip(children)
+                                .map(|(flat, boxed)| FlatBoxedStep::Negative(flat, boxed)),
+                        );
+                    }
+                    (
+                        NegativeNode::Function { argument, result },
+                        F5cNegative::Function {
+                            argument: boxed_argument,
+                            argument_effect,
+                            result_effect,
+                            result: boxed_result,
+                        },
+                    ) => {
+                        assert_eq!(*argument_effect, F5cPositiveEffect::Bottom);
+                        assert_eq!(*result_effect, F5cNegativeEffect::Empty);
+                        pending.push(FlatBoxedStep::Negative(result, boxed_result));
+                        pending.push(FlatBoxedStep::Positive(argument, boxed_argument));
+                    }
+                    _ => panic!("flat negative node matches boxed summary"),
+                }
+            }
+        }
+    }
+}
+
 fn alternating_function_chain(depth: usize) -> F5cWalkValue {
     let mut value = F5cWalkValue::Positive(F5cPositive::Int, true);
     for _ in 0..depth {
@@ -237,4 +349,106 @@ fn f5c_recursive_bound_materialization_moves_deep_trees_on_small_stack() {
         })
         .unwrap();
     worker.join().unwrap();
+}
+
+#[test]
+fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
+    let batch = collect(module("my f = 1", "f5c-summary-to-flat-producer"));
+    let mut session = InferenceSession::new(batch);
+    let inner = session.fresh_value_at_level(1).unwrap();
+    let outer = session.fresh_value_at_level(1).unwrap();
+    session.bounds[inner as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    session.bounds[inner as usize]
+        .exact_non_variable_uppers
+        .push(ValueEndpointKey::IntNegative);
+
+    let negative_inner = session.live_value_term(Polarity::Negative, inner).unwrap();
+    let positive_inner = session.live_value_term(Polarity::Positive, inner).unwrap();
+    let empty_effect = session.batch.collected_leaf_term(Leaf::EmptyEffectNegative);
+    let bottom_effect = session
+        .batch
+        .collected_leaf_term(Leaf::EffectBottomPositive);
+    let positive_function = session
+        .positive_function_term(negative_inner, empty_effect, bottom_effect, positive_inner)
+        .unwrap();
+
+    let positive_inner = session.live_value_term(Polarity::Positive, inner).unwrap();
+    let negative_inner = session.live_value_term(Polarity::Negative, inner).unwrap();
+    let negative_function = session
+        .negative_function_term(positive_inner, bottom_effect, empty_effect, negative_inner)
+        .unwrap();
+    session.bounds[outer as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(positive_function));
+    session.bounds[outer as usize]
+        .exact_non_variable_uppers
+        .push(ValueEndpointKey::NegativeFunction(negative_function));
+
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let F5cPositive::Shared(positive_root) = generalizer.positive_row(outer, false).unwrap() else {
+        panic!("non-root positive expansion is represented by a summary ID");
+    };
+    let F5cNegative::Shared(negative_root) = generalizer.negative_row(outer).unwrap() else {
+        panic!("negative expansion is represented by a summary ID");
+    };
+    assert_eq!(
+        generalizer.memo.roots.get(&F5cExpansionKey {
+            row: outer,
+            polarity: Polarity::Positive,
+            frozen_bound_epoch: 0,
+        }),
+        Some(&positive_root)
+    );
+    assert_eq!(
+        generalizer.memo.roots.get(&F5cExpansionKey {
+            row: outer,
+            polarity: Polarity::Negative,
+            frozen_bound_epoch: 0,
+        }),
+        Some(&negative_root)
+    );
+
+    let mut boxed_positive_marks = Vec::new();
+    let boxed_positive = generalizer
+        .memo
+        .positive_value_with(positive_root, &mut |row, polarity| {
+            boxed_positive_marks.push((row, polarity));
+        })
+        .unwrap();
+    let mut flat_positive = crate::f5c_draft::FlatDraft::default();
+    let mut positive_marks = Vec::new();
+    let flat_positive_root = crate::f5c_materialization::materialize_summary_flat(
+        &generalizer.memo,
+        &mut flat_positive,
+        positive_root,
+        Polarity::Positive,
+        |row, polarity| positive_marks.push((row, polarity)),
+    )
+    .unwrap();
+    assert_eq!(positive_marks, boxed_positive_marks);
+    let boxed_positive = F5cWalkValue::Positive(boxed_positive, true);
+    assert_flat_summary_matches_boxed(&flat_positive, flat_positive_root, &boxed_positive);
+
+    let mut boxed_negative_marks = Vec::new();
+    let boxed_negative = generalizer
+        .memo
+        .negative_value_with(negative_root, &mut |row, polarity| {
+            boxed_negative_marks.push((row, polarity));
+        })
+        .unwrap();
+    let mut flat_negative = crate::f5c_draft::FlatDraft::default();
+    let mut negative_marks = Vec::new();
+    let flat_negative_root = crate::f5c_materialization::materialize_summary_flat(
+        &generalizer.memo,
+        &mut flat_negative,
+        negative_root,
+        Polarity::Negative,
+        |row, polarity| negative_marks.push((row, polarity)),
+    )
+    .unwrap();
+    assert_eq!(negative_marks, boxed_negative_marks);
+    let boxed_negative = F5cWalkValue::Negative(boxed_negative, true);
+    assert_flat_summary_matches_boxed(&flat_negative, flat_negative_root, &boxed_negative);
 }

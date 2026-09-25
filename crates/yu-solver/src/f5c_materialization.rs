@@ -986,47 +986,94 @@ mod flat_tests {
     #[test]
     fn composed_flat_replay_substitute_normalize_matches_boxed() {
         use super::super::f5c_draft::RecursiveBound;
-        use crate::{F5cRecursiveBound, GeneralizationDraft};
+        use crate::{
+            F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect, F5cRecursiveBound,
+            GeneralizationDraft,
+        };
         use std::collections::{HashMap, HashSet};
 
-        let ids = (0..13).map(F5cSummaryNodeId).collect::<Vec<_>>();
-        let kinds = [
-            F5cSummaryNodeKind::PositiveRow(1),
-            F5cSummaryNodeKind::PositiveRow(2),
-            F5cSummaryNodeKind::PositiveRow(3),
-            F5cSummaryNodeKind::PositiveRow(5),
-            F5cSummaryNodeKind::NegativeRow(2),
-            F5cSummaryNodeKind::NegativeRow(3),
-            F5cSummaryNodeKind::NegativeRow(4),
-            F5cSummaryNodeKind::NegativeRow(6),
-            F5cSummaryNodeKind::NegativeIntersection { start: 0, len: 5 },
-            F5cSummaryNodeKind::PositiveUnion { start: 5, len: 5 },
-            F5cSummaryNodeKind::PositiveFunction {
-                argument: ids[8],
-                result: ids[9],
-            },
-            F5cSummaryNodeKind::PositiveFunction {
-                argument: ids[4],
-                result: ids[2],
-            },
-            F5cSummaryNodeKind::NegativeFunction {
-                argument: ids[1],
-                result: ids[5],
-            },
-        ];
         let mut summary = F5cComponentExpansionMemo::default();
-        summary.nodes = kinds
-            .into_iter()
-            .map(|kind| F5cSummaryNode {
-                incidence: None,
-                transitive_incidence_count: 0,
-                kind,
-            })
-            .collect();
-        summary.children = [4, 5, 6, 4, 7, 0, 1, 1, 2, 3]
-            .into_iter()
-            .map(F5cSummaryNodeId)
-            .collect();
+        let positive_one = summary
+            .positive_node(&F5cPositive::Variable(1), None)
+            .unwrap();
+        let positive_two = summary
+            .positive_node(&F5cPositive::Variable(2), None)
+            .unwrap();
+        let positive_three = summary
+            .positive_node(&F5cPositive::Variable(3), None)
+            .unwrap();
+        let positive_five = summary
+            .positive_node(&F5cPositive::Variable(5), None)
+            .unwrap();
+        let negative_two = summary
+            .negative_node(&F5cNegative::Variable(2), None)
+            .unwrap();
+        let negative_three = summary
+            .negative_node(&F5cNegative::Variable(3), None)
+            .unwrap();
+        let negative_four = summary
+            .negative_node(&F5cNegative::Variable(4), None)
+            .unwrap();
+        let negative_six = summary
+            .negative_node(&F5cNegative::Variable(6), None)
+            .unwrap();
+        let negative_intersection = summary
+            .negative_node(
+                &F5cNegative::Intersection(vec![
+                    F5cNegative::Shared(negative_two),
+                    F5cNegative::Shared(negative_three),
+                    F5cNegative::Shared(negative_four),
+                    F5cNegative::Shared(negative_two),
+                    F5cNegative::Shared(negative_six),
+                ]),
+                None,
+            )
+            .unwrap();
+        let positive_union = summary
+            .positive_node(
+                &F5cPositive::Union(vec![
+                    F5cPositive::Shared(positive_one),
+                    F5cPositive::Shared(positive_two),
+                    F5cPositive::Shared(positive_two),
+                    F5cPositive::Shared(positive_three),
+                    F5cPositive::Shared(positive_five),
+                ]),
+                None,
+            )
+            .unwrap();
+        let predicate_summary = summary
+            .positive_node(
+                &F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Shared(negative_intersection)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Shared(positive_union)),
+                },
+                None,
+            )
+            .unwrap();
+        let lower_summary = summary
+            .positive_node(
+                &F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Shared(negative_two)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Shared(positive_three)),
+                },
+                None,
+            )
+            .unwrap();
+        let upper_summary = summary
+            .negative_node(
+                &F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Shared(positive_two)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(F5cNegative::Shared(negative_three)),
+                },
+                None,
+            )
+            .unwrap();
 
         let mut source = FlatDraft {
             quantifier_count: 1,
@@ -1035,7 +1082,7 @@ mod flat_tests {
         let NodeRef::Positive(predicate) = materialize_summary_flat(
             &summary,
             &mut source,
-            ids[10],
+            predicate_summary,
             Polarity::Positive,
             |_, _| {},
         )
@@ -1045,7 +1092,7 @@ mod flat_tests {
         let NodeRef::Positive(lower) = materialize_summary_flat(
             &summary,
             &mut source,
-            ids[11],
+            lower_summary,
             Polarity::Positive,
             |_, _| {},
         )
@@ -1055,7 +1102,7 @@ mod flat_tests {
         let NodeRef::Negative(upper) = materialize_summary_flat(
             &summary,
             &mut source,
-            ids[12],
+            upper_summary,
             Polarity::Negative,
             |_, _| {},
         )
@@ -1095,9 +1142,9 @@ mod flat_tests {
             source.negative_children[start],
             source.negative_children[start + 3]
         );
-        let raw_predicate = summary.positive_value(ids[10]).unwrap();
-        let raw_lower = summary.positive_value(ids[11]).unwrap();
-        let raw_upper = summary.negative_value(ids[12]).unwrap();
+        let raw_predicate = summary.positive_value(predicate_summary).unwrap();
+        let raw_lower = summary.positive_value(lower_summary).unwrap();
+        let raw_upper = summary.negative_value(upper_summary).unwrap();
         assert_eq!(expand_positive(&source, predicate), raw_predicate);
         assert_eq!(expand_positive(&source, lower), raw_lower);
         assert_eq!(expand_negative(&source, upper), raw_upper);

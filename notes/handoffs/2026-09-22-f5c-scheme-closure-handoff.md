@@ -2610,7 +2610,7 @@ with the boxed oracle. Do not wire production or claim §5/§15, indexed
 finalization, F5e, §44, or F5c/F5e closure. Review the exact §15 plan before
 running any resource probe.
 
-## Latest continuation (2026-09-26): summary-to-flat composed fixture
+## Previous continuation (2026-09-26): summary-to-flat composed fixture
 
 The composed fixture now begins with a synthetic `F5cSummaryNode` DAG and
 materializes the predicate, lower bound, and upper bound into a `FlatDraft`
@@ -2645,3 +2645,45 @@ Next: continue producer/downstream candidate coverage, comparing every raw
 materialized root before lossy transforms. Keep production unchanged until
 the reviewed design and resource gates authorize it. Indexed finalization,
 §5/§15 certification, F5e, §44 rollback, and F5c/F5e closure remain open.
+
+## Latest continuation (2026-09-26): actual F5c producer memo bridge
+
+The composed pipeline fixture now builds its summary graph through
+`F5cComponentExpansionMemo::positive_node` / `negative_node`, rather than
+directly filling the memo's internal node and child arrays. Repeated
+`Shared` references still produce distinct flat occurrence IDs before
+replay/substitution/normalization, and the complete downstream result remains
+compared with the boxed oracle.
+
+A separate test in `crates/yu-solver/src/tests/f5c_materialization.rs` calls
+the real `F5cGeneralizer::positive_row` and `negative_row` paths on a small
+pure-Function constraint fixture. It takes the cached summary IDs returned for
+both polarities, materializes each into a `FlatDraft`, and compares against the
+boxed `positive_value_with` / `negative_value_with` results before any lossy
+transform. The full incidence mark vectors are compared exactly and in order
+between boxed and flat materialization. Structural parity is checked with an
+explicit LIFO worklist across both polarities, Function fields/effects, and
+ordered Union/Intersection members.
+
+Evidence boundary: the test covers actual cached memo roots only; these are
+partial summary components, not the full `build_component` predicate/bound
+draft or finalized scheme. The comparison helper is explicitly shallow-fixture
+only; ordinary deep boxed-tree drop safety remains open. The candidate is
+still disconnected from production and no resource evidence was gathered.
+`lib.rs` remains unchanged.
+
+The M1 compiler-referee review found that checking only each root's first
+incidence mark was insufficient and noted the helper's boxed-drop caveat. The
+repair compares the complete positive and negative mark sequences and borrows
+the boxed value; fresh spec-auditor delta review found no actionable issue.
+
+Verification: `cargo test -p yu-solver --lib f5c_materialization:: --
+--test-threads=1` passed (8); `cargo fmt --check` and `git diff --check`
+passed. No broad library suite, benchmark, or resource probe ran; measurement
+budget remains zero.
+
+Next: extend the non-shipping source bridge toward complete producer predicate
+and bound roots without routing through boxed `GeneralizationDraft`. Keep
+`lib.rs` orchestration-only and production callers unchanged. Review the exact
+§15 measurement plan before any resource probe; §7/§15, indexed finalization,
+F5e, §44 rollback, and F5c/F5e closure remain open.

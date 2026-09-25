@@ -4,7 +4,38 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): summary-to-flat composed fixture
+### Latest continuation (2026-09-26): actual F5c producer memo bridge
+
+The composed fixture's source now uses `F5cComponentExpansionMemo::positive_node`
+and `negative_node` instead of directly filling summary node arrays. Repeated
+`Shared` references still become distinct flat occurrence IDs, then replay,
+substitution, and normalization remain checked against the boxed oracle.
+
+A separate module-owned fixture now drives `F5cGeneralizer::positive_row` and
+`negative_row` to produce real cached summary roots for a pure Function with
+both polarities. It materializes those memo roots into flat drafts and compares
+them before downstream transforms with boxed `positive_value_with` /
+`negative_value_with`. The complete incidence callback sequences must match in
+order, and a separate explicit-worklist comparison checks polarity, fields,
+effects, and ordered Union/Intersection members. Scope is deliberately narrow:
+these are internal memo roots, not the complete `build_component` draft or
+finalized scheme. The parity helper is for shallow fixtures and does not certify
+ordinary deep boxed-value drop safety. No `lib.rs` edit was needed.
+
+M1 compiler-referee review found incomplete internal incidence coverage and a
+deep-drop caveat; both were addressed, and fresh spec-auditor delta review was
+clean. Verification: `cargo test -p yu-solver --lib f5c_materialization:: --
+--test-threads=1` passed (8), along with `cargo fmt --check` and
+`git diff --check`. No broad library suite, benchmark, or resource probe ran;
+measurement budget remains zero.
+
+Next: extend the non-shipping source bridge toward full producer predicate and
+bound roots without routing through boxed `GeneralizationDraft`. Keep `lib.rs`
+orchestration-only, production callers unchanged, and resource probing behind
+the separately reviewed §15 plan. §7/§15, indexed finalization, F5e, §44
+rollback, and F5c/F5e closure remain open.
+
+### Previous continuation (2026-09-26): summary-to-flat composed fixture
 
 The composed fixture now starts from a synthetic `F5cSummaryNode` DAG and
 materializes predicate, lower-bound, and upper-bound roots with
