@@ -1,6 +1,6 @@
 # F5c flat indexed draft and stack-independent finalization
 
-Status: Draft proposal; earlier architecture reviewed and first-stage investigation approved (2026-09-25); source-map wording received three focused M3 delta rounds and its repair passed a fourth focused review with no findings; user approved solve-wide accumulation for charged F5c draft work across components (2026-09-25); full design, numeric resource boundary, and implementation remain unapproved
+Status: Draft proposal; earlier architecture and source-map/meter-lifetime deltas received focused review; user approved solve-wide accumulation for charged F5c draft work across components (2026-09-25); latest full-slice M3 review found an unresolved circular resource/implementation gate, so this proposal is not approval-ready; numeric boundary and implementation remain unapproved
 Scope: F5c structural-depth stack use from live expansion through closed-scheme finalization and cleanup
 Related authority: F5 §§14–16, 24–26, 32–36, 43–44; F5b closed-finalization accounting amendment §§2, 6, 9
 Decision: investigate flat solver-owned drafts and a `yu-types`-owned indexed finalization transaction; no production implementation or API approval
@@ -653,10 +653,12 @@ The first batched design repair is reflected in §§2–8. The first focused del
 round found two further major issues; the primary accepted both and recorded
 the batched repair in §10. A second focused delta review found no remaining
 blocking or major finding in its assigned scope; see §11. Numeric resource
-thresholds remain intentionally unresolved. This Reviewed proposal may be
-presented for architecture/API approval only; it cannot authorize production
-implementation or claim pathological-work rejection until the separate
-resource subgate is closed and approved.
+thresholds remain intentionally unresolved. At this earlier checkpoint, the
+proposal was considered for architecture/API approval only; it could not
+authorize production implementation or claim pathological-work rejection until
+the separate resource subgate was closed and approved. The later full-slice M3
+review in §14 supersedes that tentative status: keep the proposal Draft until
+the gate sequence is resolved.
 
 ## 10. First focused delta review and primary adjudication (2026-09-25)
 
@@ -703,8 +705,10 @@ no remaining blocking or major issue in scope:
   practical-work or pathological-input claim and preserves the resource
   subgate.
 
-Primary disposition: mark this proposal Reviewed. The user's later
-authorization for first-stage investigation is recorded in §12; numeric
+At this checkpoint, the primary proposed marking this proposal Reviewed. The
+later full-slice M3 review in §14 supersedes that tentative disposition: keep
+the proposal Draft until the resource/implementation gate sequence is resolved.
+The user's first-stage investigation authorization is recorded in §12; numeric
 resource limits, implementation authority, and implementation/performance
 certification remain open.
 
@@ -897,9 +901,39 @@ the full proposal. The separate meter-lifetime recommendation then passed its
 own focused M3 delta review after scope/sequence corrections, with no remaining
 blocking, major, or minor finding. The user approved solve-wide metering for
 charged F5c draft work across components on 2026-09-25. The numeric cap,
-supported-input boundary, and resource evidence remain open.
-No F5 clause is superseded, no API or numeric boundary is approved, and
-production implementation remains unauthorized. Next: proceed with the
-resource subgate for a concrete supported boundary using scale evidence and
-practical-input margin; focused independent review and separate user approval
-remain required before implementation.
+supported-input boundary, and resource evidence remain open. The subsequent
+full-slice review and primary adjudication are recorded in §14; do not treat
+the earlier proposed next step as active until the gate-sequence decision is
+resolved.
+
+## 14. Full-slice M3 review and resource-gate sequencing (2026-09-25)
+
+A full-slice M3 review by `compiler_referee`, `spec_auditor`, and
+`performance_auditor` found no issue in the compiler and performance scopes.
+The specification review found one major circularity and one minor stale-status
+statement. The major is accepted: §8 requires a concrete numeric supported-work
+boundary, independent review, and user approval before production implementation,
+while §13 requires the actual co-resident solver/finalizer capacity ledger after
+implementation. F5 §§26/34 require physical-lane reconciliation and peak
+evidence; current source/corpus and synthetic probe evidence cannot establish
+the proposed architecture's physical peak or a practical numeric margin.
+
+Read-only architect, specification, and performance consultations agree that
+current evidence does not support choosing a numeric cap. The unresolved
+sequence cannot be repaired by claiming the pre-implementation logical meter
+certifies post-implementation physical capacity. A possible sequence is to
+review and approve a logical-work/support boundary before implementation, then
+make physical lane reconciliation a hard stop acceptance gate after
+implementation. If a test-only prototype is needed to select that logical
+boundary, it is outside the current authorization and requires a new bounded
+prototype scope and measurement budget. No prototype, probe, or test ran during
+this review.
+
+Primary disposition: retain Draft status and stop before production code, public
+API work, numeric-cap selection, or further resource probes. The user must
+choose whether to authorize a bounded non-shipping test-only measurement
+prototype with a fresh budget, or to defer that route and leave the resource
+gate open while another evidence path is developed. Any revised gate ordering
+also needs explicit user approval before becoming durable design authority.
+The minor finding is closed here by correcting the tentative status above. The
+solve-wide meter-lifetime approval remains in force and is not reopened.

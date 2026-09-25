@@ -2315,3 +2315,26 @@ subgate with scale evidence and practical-input margin; focused independent
 review and separate user approval remain required before implementation. Full
 design approval, rollback/invalidation capacity, and co-resident peak remain
 open.
+
+## F5c stack-independent draft design resume (2026-09-25)
+
+The active proposal is [`flat indexed stack-independent F5c draft`](../design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md).
+The user approved solve-wide accumulation for charged F5c draft work across
+components; this chooses no numeric cap and authorizes no API or production
+implementation.
+
+The latest full-slice M3 review found one accepted major gate-sequencing issue:
+the draft requires a reviewed/approved numeric support boundary before
+implementation, yet actual solver/finalizer co-resident physical capacity and
+peak evidence require the implementation. Compiler and performance scopes had
+no findings; the specification review also found a minor stale status, closed
+by keeping the proposal Draft. Read-only follow-up consultation found no
+evidence for a practical numeric cap and no remaining probe budget. No code,
+prototype, test, or probe ran in this review.
+
+Immediate next action: obtain the user's decision on whether to authorize a
+bounded non-shipping test-only measurement prototype with a fresh explicit
+budget, or defer that route and leave the resource gate open while developing
+another evidence path. Do not choose a numeric cap, change the gate sequence,
+start API/production implementation, or claim F5c/F5e completion before that
+decision. The §44 representative and atomic route contract remain unchanged.

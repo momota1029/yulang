@@ -81,17 +81,32 @@ The latest focused M3 review of the separate meter-lifetime recommendation
 found major scope and approval-sequencing issues plus a minor wording issue.
 The batched repair then passed a fresh focused M3 delta review with no
 remaining blocking, major, or minor finding; the minor historical wording was
-corrected. The source-map repair's fourth focused review remains clean, but the
-full design is still unreviewed. The user approved solve-wide accumulation for
+corrected. The source-map repair's fourth focused review remains clean. A later
+full-slice review found one unresolved major gate-sequencing issue; the user
+approved solve-wide accumulation for
 charged F5c draft work across components on 2026-09-25. This chooses no numeric
-cap. Next: continue the resource subgate with scale and practical-input
-evidence; a concrete supported boundary still needs focused independent review
-and separate user approval before implementation. This authorization still
+cap. At that checkpoint, the next step was to continue the resource subgate
+with scale and practical-input evidence; the later full-slice review below
+supersedes that next step. A concrete supported boundary still needs focused
+independent review and separate user approval before implementation. This authorization still
 excludes the public API implementation, semantic/support-limit changes, F5
 clause supersession, and production code. Numeric limits require independent
 review and separate user approval before implementation. Keep `lib.rs` as
 orchestration and any eventual flat producer/finalizer bridge in dedicated
 modules.
+
+Latest full-slice M3 review (2026-09-25) found the resource gate sequence
+circular: the draft requires numeric support approval before production code,
+but the actual co-resident physical lane ledger is only available after an
+implementation exists. Compiler and performance review scopes found no issue;
+the specification review found this major and a minor stale-status statement.
+The primary accepted the major and retained Draft status; details and the
+corrected status are in §14 of the design draft and the latest F5c handoff.
+Do not start production/API work, select a numeric cap, or run more resource
+probes yet. Immediate next action: ask the user whether to authorize a bounded,
+non-shipping test-only measurement prototype with a fresh budget, or defer that
+route while another evidence path is developed. The meter-lifetime approval is
+unchanged. No tests or probes ran in this review.
 
 Latest status (2026-09-24): producer analysis, candidate replay, and the
 generalization Q/R rewrite use iterative task/value worklists with dedicated
