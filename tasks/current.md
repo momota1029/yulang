@@ -4,7 +4,35 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): shared producer owner moved
+### Latest continuation (2026-09-26): memo rollback gate closed
+
+The approved producer-owner move and memo transaction/active-state rollback
+gate are complete. In `f5c_generalization.rs`, persistent root admissions and
+invalidations now share one chronological undo log; rollback replays it in
+reverse and resets transient active/conflict/work/visit scratch to idle before
+truncating appended nodes. A failed child-lane reserve is propagated before
+append, while any capacity it actually retained is still charged. Same-time
+capacity samples now include the live generalizer mirror lanes, and the
+independent test ledger folds those samples rather than trusting the production
+peak scalar.
+
+Preserved behavior: the boxed producer remains the only production sink;
+summary sharing, root order, Q/R, scheme results, and public routing are
+unchanged. `lib.rs` still owns outer orchestration/resource aggregation; the
+transaction tests live in `src/tests/f5c_generalization_transactions.rs`.
+Latest M2 compiler-referee and performance-auditor delta review found no
+blocking or major issue.
+
+Verification passed: `cargo fmt --check`; `cargo test -p yu-solver --lib f5c_
+-- --test-threads=1` (192 passed, 1 ignored); and
+`cargo test -p yu-solver --lib --no-default-features -- --test-threads=1`
+(277 passed, 1 ignored; 717.77 seconds). No benchmark or resource probe ran;
+measurement budget remains zero. Next is the uncalled flat sink sharing the
+real producer walker. Production cutover, §15 measurement, indexed
+finalization, remaining §44 route atomicity, F5e, and overall F5c/F5e closure
+remain open.
+
+### Previous continuation (2026-09-26): shared producer owner moved
 
 The current `F5cGeneralizer::walk` owns the producer task decisions but returns
 boxed `F5cPositive` / `F5cNegative` values, so an isolated flat sink cannot

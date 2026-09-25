@@ -98,7 +98,7 @@ pub(super) struct F5cExpansionKey {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct F5cSummaryNodeId(pub(super) u32);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum F5cSummaryNodeKind {
     PositiveBottom,
     PositiveInt,
@@ -131,32 +131,54 @@ pub(super) enum F5cSummaryNodeKind {
     },
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct F5cSummaryNode {
     pub(super) incidence: Option<(u32, Polarity)>,
     pub(super) transitive_incidence_count: usize,
     pub(super) kind: F5cSummaryNodeKind,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct F5cReverseParentEdge {
     pub(super) child: F5cSummaryNodeId,
     pub(super) parent: F5cSummaryNodeId,
     pub(super) next: Option<usize>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct F5cIncidenceEdge {
     pub(super) node: F5cSummaryNodeId,
     pub(super) next: Option<usize>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct F5cRootEdge {
     pub(super) root: F5cSummaryNodeId,
     pub(super) key: F5cExpansionKey,
     pub(super) next: Option<usize>,
     pub(super) live: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum F5cRootUndo {
+    Admit(usize),
+    Invalidate(usize),
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum F5cTestObservationFailure {
+    Admit,
+    Enter,
+    Leave,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum F5cTestReserveFailure {
+    ActiveMirrors,
+    ChildrenAfterReserve,
+    RootUndo,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -283,9 +305,7 @@ impl F5cWalkerResources {
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let old_capacity = buffer.capacity();
-        buffer
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = buffer.try_reserve(1);
         let new_capacity = buffer.capacity();
         self.lanes[index].requested_slots = requested;
         self.lanes[index].actual_capacity = new_capacity;
@@ -314,6 +334,7 @@ impl F5cWalkerResources {
             self.observe_memo(memo_bytes)?;
             self.observed_memo_bytes = memo_bytes;
         }
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         Ok(())
     }
 
@@ -344,9 +365,7 @@ impl F5cWalkerResources {
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let old_capacity = buffer.capacity();
-        buffer
-            .try_reserve(additional)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = buffer.try_reserve(additional);
         let new_capacity = buffer.capacity();
         self.lanes[index].requested_slots = requested;
         self.lanes[index].actual_capacity = new_capacity;
@@ -376,6 +395,7 @@ impl F5cWalkerResources {
             self.observe_memo(memo_bytes)?;
             self.observed_memo_bytes = memo_bytes;
         }
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         Ok(())
     }
 
@@ -470,19 +490,31 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) root_edges: Vec<F5cRootEdge>,
     pub(super) root_edge_marks: Vec<u32>,
     pub(super) root_edge_mark_epoch: u32,
-    pub(super) invalidated_root_edges: Vec<(usize, Option<usize>)>,
+    pub(super) root_undo: Vec<F5cRootUndo>,
     pub(super) active_rows: HashMap<u32, usize>,
     pub(super) active_conflicts: HashMap<F5cExpansionKey, usize>,
     pub(super) work: Vec<F5cSummaryNodeId>,
     pub(super) conflict_journal: Vec<(F5cExpansionKey, usize)>,
     pub(super) visit_epochs: Vec<u32>,
-    visit_epoch: u32,
+    pub(super) visit_epoch: u32,
     pub(super) root_lane: F5cMemoLane,
     pub(super) node_lane: F5cMemoLane,
     pub(super) child_lane: F5cMemoLane,
     pub(super) index_lane: F5cMemoLane,
     pub(super) scratch_lane: F5cMemoLane,
     pub(super) walker_resources: F5cWalkerResources,
+    pub(super) generalizer_scratch_capacities: [usize; 3],
+    pub(super) simultaneous_peak_bytes: usize,
+    #[cfg(test)]
+    pub(super) capacity_samples: Vec<[usize; 19]>,
+    #[cfg(test)]
+    pub(super) independent_generalizer_scratch_peak_bytes: usize,
+    #[cfg(test)]
+    pub(super) fail_observation_at: Option<F5cTestObservationFailure>,
+    #[cfg(test)]
+    pub(super) fail_reserve_at: Option<(F5cTestReserveFailure, usize)>,
+    #[cfg(test)]
+    pending_observation_failure: bool,
     #[cfg(test)]
     pub(super) independent_root_growths: usize,
     #[cfg(test)]
@@ -518,6 +550,10 @@ impl F5cComponentExpansionMemo {
     }
 
     pub(super) fn observe_walker(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        if std::mem::take(&mut self.pending_observation_failure) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
         let memo_bytes = self.retained_bytes()?;
         if memo_bytes != self.walker_resources.observed_memo_bytes {
             self.walker_resources.observe_memo(memo_bytes)?;
@@ -540,6 +576,20 @@ impl F5cComponentExpansionMemo {
                 .checked_add(1)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         ))
+    }
+
+    fn reserve_root_undo(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        if self.fail_reserve_at == Some((F5cTestReserveFailure::RootUndo, self.root_undo.len())) {
+            self.fail_reserve_at = None;
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let (requested, growth) = self.prepare_index_reserve(1)?;
+        let old = self.root_undo.capacity();
+        let reservation = self.root_undo.try_reserve(1);
+        let actual = self.root_undo.capacity();
+        self.commit_index_reserve(requested, growth, old, actual)?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)
     }
 
     fn commit_index_reserve(
@@ -570,7 +620,11 @@ impl F5cComponentExpansionMemo {
         {
             self.independent_index_requests = independent_requests;
         }
-        self.index_lane.peak_bytes = self.index_lane.peak_bytes.max(self.index_retained_bytes()?);
+        if old_capacity != new_capacity {
+            self.index_lane.peak_bytes =
+                self.index_lane.peak_bytes.max(self.index_retained_bytes()?);
+            self.observe_simultaneous_peak()?;
+        }
         Ok(())
     }
 
@@ -618,10 +672,46 @@ impl F5cComponentExpansionMemo {
         {
             self.independent_scratch_requests = independent_requests;
         }
-        self.scratch_lane.peak_bytes = self
-            .scratch_lane
-            .peak_bytes
-            .max(self.scratch_retained_bytes()?);
+        if old_capacity != new_capacity {
+            self.scratch_lane.peak_bytes = self
+                .scratch_lane
+                .peak_bytes
+                .max(self.scratch_retained_bytes()?);
+            #[cfg(test)]
+            {
+                self.independent_generalizer_scratch_peak_bytes = self
+                    .independent_generalizer_scratch_peak_bytes
+                    .max(self.scratch_retained_bytes()?);
+            }
+            self.observe_simultaneous_peak()?;
+        }
+        Ok(())
+    }
+
+    fn observe_simultaneous_peak(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.simultaneous_peak_bytes = self.simultaneous_peak_bytes.max(self.retained_bytes()?);
+        #[cfg(test)]
+        self.capacity_samples.push([
+            self.roots.capacity(),
+            self.nodes.capacity(),
+            self.children.capacity(),
+            self.parent_heads.capacity(),
+            self.reverse_parents.capacity(),
+            self.incidence_heads.capacity(),
+            self.incidences.capacity(),
+            self.root_heads.capacity(),
+            self.root_edges.capacity(),
+            self.root_edge_marks.capacity(),
+            self.root_undo.capacity(),
+            self.active_rows.capacity(),
+            self.active_conflicts.capacity(),
+            self.work.capacity(),
+            self.conflict_journal.capacity(),
+            self.visit_epochs.capacity(),
+            self.generalizer_scratch_capacities[0],
+            self.generalizer_scratch_capacities[1],
+            self.generalizer_scratch_capacities[2],
+        ]);
         Ok(())
     }
 
@@ -1097,10 +1187,9 @@ impl F5cComponentExpansionMemo {
         if mark != self.visit_epoch {
             let (requested, growth_if_changed) = self.prepare_scratch_reserve(1)?;
             let old = self.work.capacity();
-            self.work
-                .try_reserve(1)
-                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let reservation = self.work.try_reserve(1);
             self.commit_scratch_reserve(requested, growth_if_changed, old, self.work.capacity())?;
+            reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             self.visit_epochs[index] = self.visit_epoch;
             self.work.push(id);
         }
@@ -1128,15 +1217,14 @@ impl F5cComponentExpansionMemo {
         self.conflict_journal.clear();
         let (journal_requested, journal_growth) = self.prepare_scratch_reserve(self.roots.len())?;
         let old_journal_capacity = self.conflict_journal.capacity();
-        self.conflict_journal
-            .try_reserve(self.roots.len())
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.conflict_journal.try_reserve(self.roots.len());
         self.commit_scratch_reserve(
             journal_requested,
             journal_growth,
             old_journal_capacity,
             self.conflict_journal.capacity(),
         )?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         self.begin_visit()?;
         if self.root_edge_mark_epoch == u32::MAX {
             self.root_edge_marks.fill(0);
@@ -1191,10 +1279,11 @@ impl F5cComponentExpansionMemo {
         if entering {
             let (requested, growth) = self.prepare_scratch_reserve(self.conflict_journal.len())?;
             let old = self.active_conflicts.capacity();
-            self.active_conflicts
-                .try_reserve(self.conflict_journal.len())
-                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let reservation = self
+                .active_conflicts
+                .try_reserve(self.conflict_journal.len());
             self.commit_scratch_reserve(requested, growth, old, self.active_conflicts.capacity())?;
+            reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }
         for &(key, prior) in &self.conflict_journal {
             if entering {
@@ -1205,45 +1294,49 @@ impl F5cComponentExpansionMemo {
                 self.active_conflicts.insert(key, prior - 1);
             }
         }
+        self.conflict_journal.clear();
         Ok(())
     }
 
     pub(super) fn enter_active(&mut self, row: u32) -> Result<(), SolveAvailabilityError> {
         let (row_requested, row_growth) = self.prepare_scratch_reserve(1)?;
         let old_row_capacity = self.active_rows.capacity();
-        self.active_rows
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.active_rows.try_reserve(1);
         self.commit_scratch_reserve(
             row_requested,
             row_growth,
             old_row_capacity,
             self.active_rows.capacity(),
         )?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (conflict_requested, conflict_growth) =
             self.prepare_scratch_reserve(self.roots.len())?;
         let old_conflict_capacity = self.active_conflicts.capacity();
-        self.active_conflicts
-            .try_reserve(self.roots.len())
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.active_conflicts.try_reserve(self.roots.len());
         self.commit_scratch_reserve(
             conflict_requested,
             conflict_growth,
             old_conflict_capacity,
             self.active_conflicts.capacity(),
         )?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let prior = self.active_rows.get(&row).copied().unwrap_or(0);
         let next = prior
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        if prior == 0 {
-            self.propagate_active_row(row, true)?;
-        }
-        self.active_rows.insert(row, next);
         self.scratch_lane.peak_bytes = self
             .scratch_lane
             .peak_bytes
             .max(self.scratch_retained_bytes()?);
+        if prior == 0 {
+            self.propagate_active_row(row, true)?;
+        }
+        self.active_rows.insert(row, next);
+        #[cfg(test)]
+        if self.fail_observation_at == Some(F5cTestObservationFailure::Enter) {
+            self.pending_observation_failure = true;
+            self.fail_observation_at = None;
+        }
         Ok(())
     }
 
@@ -1261,6 +1354,11 @@ impl F5cComponentExpansionMemo {
             self.active_rows.remove(&row);
         } else {
             self.active_rows.insert(row, next);
+        }
+        #[cfg(test)]
+        if self.fail_observation_at == Some(F5cTestObservationFailure::Leave) {
+            self.pending_observation_failure = true;
+            self.fail_observation_at = None;
         }
         Ok(())
     }
@@ -1283,21 +1381,11 @@ impl F5cComponentExpansionMemo {
                     .get(index)
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 if edge.live {
-                    let (requested, growth) = self.prepare_index_reserve(1)?;
-                    let old = self.invalidated_root_edges.capacity();
-                    self.invalidated_root_edges
-                        .try_reserve(1)
-                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    self.commit_index_reserve(
-                        requested,
-                        growth,
-                        old,
-                        self.invalidated_root_edges.capacity(),
-                    )?;
+                    self.reserve_root_undo()?;
                     self.roots.remove(&edge.key);
-                    let active_conflicts = self.active_conflicts.remove(&edge.key);
+                    self.active_conflicts.remove(&edge.key);
                     self.root_edges[index].live = false;
-                    self.invalidated_root_edges.push((index, active_conflicts));
+                    self.root_undo.push(F5cRootUndo::Invalidate(index));
                 }
                 root_edge = edge.next;
             }
@@ -1382,9 +1470,7 @@ impl F5cComponentExpansionMemo {
             .independent_node_growths
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        self.nodes
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.nodes.try_reserve(1);
         let node_grew = usize::from(self.nodes.capacity() != old);
         if node_grew != 0 {
             self.node_lane.capacity_growths = node_growth;
@@ -1395,44 +1481,42 @@ impl F5cComponentExpansionMemo {
         }
         self.node_lane.requested_slots = requested;
         self.node_lane.peak_bytes = self.node_lane.peak_bytes.max(self.node_retained_bytes()?);
+        if node_grew != 0 {
+            self.observe_simultaneous_peak()?;
+        }
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
 
         let (next, growth) = self.prepare_index_reserve(1)?;
         let old = self.parent_heads.capacity();
-        self.parent_heads
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.parent_heads.try_reserve(1);
         self.commit_index_reserve(next, growth, old, self.parent_heads.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_index_reserve(1)?;
         let old = self.root_heads.capacity();
-        self.root_heads
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.root_heads.try_reserve(1);
         self.commit_index_reserve(next, growth, old, self.root_heads.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_scratch_reserve(1)?;
         let old = self.visit_epochs.capacity();
-        self.visit_epochs
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.visit_epochs.try_reserve(1);
         self.commit_scratch_reserve(next, growth, old, self.visit_epochs.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_index_reserve(child_count)?;
         let old = self.reverse_parents.capacity();
-        self.reverse_parents
-            .try_reserve(child_count)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.reverse_parents.try_reserve(child_count);
         self.commit_index_reserve(next, growth, old, self.reverse_parents.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         if incidence.is_some() {
             let (next, growth) = self.prepare_index_reserve(1)?;
             let old = self.incidences.capacity();
-            self.incidences
-                .try_reserve(1)
-                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let reservation = self.incidences.try_reserve(1);
             self.commit_index_reserve(next, growth, old, self.incidences.capacity())?;
+            reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             let (next, growth) = self.prepare_index_reserve(1)?;
             let old = self.incidence_heads.capacity();
-            self.incidence_heads
-                .try_reserve(1)
-                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let reservation = self.incidence_heads.try_reserve(1);
             self.commit_index_reserve(next, growth, old, self.incidence_heads.capacity())?;
+            reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }
         self.nodes.push(F5cSummaryNode {
             incidence,
@@ -1512,9 +1596,7 @@ impl F5cComponentExpansionMemo {
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let old = self.children.capacity();
-        self.children
-            .try_reserve(ids.len())
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.children.try_reserve(ids.len());
         if self.children.capacity() != old {
             self.child_lane.capacity_growths = growth_if_changed;
             #[cfg(test)]
@@ -1524,8 +1606,19 @@ impl F5cComponentExpansionMemo {
         }
         self.child_lane.requested_slots = requested;
         let peak_bytes = self.child_lane.peak_bytes.max(self.child_retained_bytes()?);
-        self.children.extend_from_slice(ids);
         self.child_lane.peak_bytes = peak_bytes;
+        if self.children.capacity() != old {
+            self.observe_simultaneous_peak()?;
+        }
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        if self.fail_reserve_at
+            == Some((F5cTestReserveFailure::ChildrenAfterReserve, start as usize))
+        {
+            self.fail_reserve_at = None;
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        self.children.extend_from_slice(ids);
         Ok((start, len))
     }
 
@@ -1554,9 +1647,7 @@ impl F5cComponentExpansionMemo {
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let old = self.roots.capacity();
-        self.roots
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.roots.try_reserve(1);
         let root_grew = usize::from(self.roots.capacity() != old);
         if root_grew != 0 {
             self.root_lane.capacity_growths = root_growth;
@@ -1567,25 +1658,27 @@ impl F5cComponentExpansionMemo {
         }
         self.root_lane.requested_slots = requested;
         self.root_lane.peak_bytes = self.root_lane.peak_bytes.max(self.root_retained_bytes()?);
+        if root_grew != 0 {
+            self.observe_simultaneous_peak()?;
+        }
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
 
         let (next, growth) = self.prepare_index_reserve(1)?;
         let old = self.root_edges.capacity();
-        self.root_edges
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.root_edges.try_reserve(1);
         self.commit_index_reserve(next, growth, old, self.root_edges.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_index_reserve(1)?;
         let old = self.root_edge_marks.capacity();
-        self.root_edge_marks
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.root_edge_marks.try_reserve(1);
         self.commit_index_reserve(next, growth, old, self.root_edge_marks.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_scratch_reserve(1)?;
         let old = self.active_conflicts.capacity();
-        self.active_conflicts
-            .try_reserve(1)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reservation = self.active_conflicts.try_reserve(1);
         self.commit_scratch_reserve(next, growth, old, self.active_conflicts.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        self.reserve_root_undo()?;
         // Re-entry, conflicted warm lookup, and Shared materialization taint
         // active frames. A completed root-neutral summary therefore has no
         // active incidence when it reaches admission.
@@ -1603,6 +1696,12 @@ impl F5cComponentExpansionMemo {
         self.root_edge_marks.push(0);
         self.root_heads[root.0 as usize] = Some(edge_index);
         self.roots.insert(key, root);
+        self.root_undo.push(F5cRootUndo::Admit(edge_index));
+        #[cfg(test)]
+        if self.fail_observation_at == Some(F5cTestObservationFailure::Admit) {
+            self.pending_observation_failure = true;
+            self.fail_observation_at = None;
+        }
         Ok(())
     }
 
@@ -1666,7 +1765,7 @@ impl F5cComponentExpansionMemo {
             self.root_heads.capacity(),
             self.root_edges.capacity(),
             self.root_edge_marks.capacity(),
-            self.invalidated_root_edges.capacity(),
+            self.root_undo.capacity(),
         ]
         .into_iter()
         .try_fold(0usize, |sum, value| sum.checked_add(value))
@@ -1680,6 +1779,9 @@ impl F5cComponentExpansionMemo {
             self.work.capacity(),
             self.conflict_journal.capacity(),
             self.visit_epochs.capacity(),
+            self.generalizer_scratch_capacities[0],
+            self.generalizer_scratch_capacities[1],
+            self.generalizer_scratch_capacities[2],
         ]
         .into_iter()
         .try_fold(0usize, |sum, value| sum.checked_add(value))
@@ -1709,9 +1811,9 @@ impl F5cComponentExpansionMemo {
             self.root_edge_marks
                 .capacity()
                 .checked_mul(std::mem::size_of::<u32>()),
-            self.invalidated_root_edges
+            self.root_undo
                 .capacity()
-                .checked_mul(std::mem::size_of::<(usize, Option<usize>)>()),
+                .checked_mul(std::mem::size_of::<F5cRootUndo>()),
         ];
         lanes
             .into_iter()
@@ -1736,6 +1838,15 @@ impl F5cComponentExpansionMemo {
             self.visit_epochs
                 .capacity()
                 .checked_mul(std::mem::size_of::<u32>()),
+            self.generalizer_scratch_capacities[0]
+                .checked_mul(std::mem::size_of::<F5cExpansionFrame>()),
+            self.generalizer_scratch_capacities[1].checked_mul(std::mem::size_of::<(
+                u32,
+                Polarity,
+                usize,
+            )>()),
+            self.generalizer_scratch_capacities[2]
+                .checked_mul(std::mem::size_of::<(u32, Polarity)>()),
         ];
         lanes
             .into_iter()
@@ -1753,13 +1864,7 @@ impl F5cComponentExpansionMemo {
     }
 
     pub(super) fn peak_bytes(&self) -> Result<usize, SolveAvailabilityError> {
-        self.root_lane
-            .peak_bytes
-            .checked_add(self.node_lane.peak_bytes)
-            .and_then(|value| value.checked_add(self.child_lane.peak_bytes))
-            .and_then(|value| value.checked_add(self.index_lane.peak_bytes))
-            .and_then(|value| value.checked_add(self.scratch_lane.peak_bytes))
-            .ok_or(SolveAvailabilityError::IdentityExhausted)
+        Ok(self.simultaneous_peak_bytes)
     }
 
     pub(super) fn clear(&mut self) {
@@ -1774,27 +1879,27 @@ impl F5cComponentExpansionMemo {
         self.root_edges = Vec::new();
         self.root_edge_marks = Vec::new();
         self.root_edge_mark_epoch = 0;
-        self.invalidated_root_edges = Vec::new();
+        self.root_undo = Vec::new();
         self.active_rows = HashMap::new();
         self.active_conflicts = HashMap::new();
         self.work = Vec::new();
         self.conflict_journal = Vec::new();
         self.visit_epochs = Vec::new();
         self.walker_resources = F5cWalkerResources::default();
-    }
-
-    pub(super) fn rollback_admission(&mut self, key: F5cExpansionKey) {
-        self.roots.remove(&key);
-        self.active_conflicts.remove(&key);
-        let edge = self
-            .root_edges
-            .pop()
-            .expect("F5c rollback root edge was admitted");
-        self.root_edge_marks
-            .pop()
-            .expect("F5c rollback root edge mark was admitted");
-        assert_eq!(edge.key, key, "F5c admissions roll back in reverse order");
-        self.root_heads[edge.root.0 as usize] = edge.next;
+        self.generalizer_scratch_capacities = [0; 3];
+        self.simultaneous_peak_bytes = 0;
+        #[cfg(test)]
+        self.capacity_samples.clear();
+        #[cfg(test)]
+        {
+            self.independent_generalizer_scratch_peak_bytes = 0;
+        }
+        #[cfg(test)]
+        {
+            self.fail_observation_at = None;
+            self.fail_reserve_at = None;
+            self.pending_observation_failure = false;
+        }
     }
 
     pub(super) fn rollback_nodes(
@@ -1803,24 +1908,40 @@ impl F5cComponentExpansionMemo {
         child_checkpoint: usize,
         reverse_checkpoint: usize,
         incidence_checkpoint: usize,
-    ) {
+    ) -> Result<(), SolveAvailabilityError> {
         while self.reverse_parents.len() > reverse_checkpoint {
-            let edge = self.reverse_parents.pop().expect("reverse edge exists");
-            assert_eq!(
-                self.parent_heads[edge.child.0 as usize],
-                Some(self.reverse_parents.len()),
-                "F5c reverse edges roll back in reverse order"
-            );
-            self.parent_heads[edge.child.0 as usize] = edge.next;
+            let edge = self
+                .reverse_parents
+                .pop()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let head = self
+                .parent_heads
+                .get_mut(edge.child.0 as usize)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if *head != Some(self.reverse_parents.len()) {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            *head = edge.next;
         }
         while self.incidences.len() > incidence_checkpoint {
-            let edge = self.incidences.pop().expect("incidence edge exists");
-            let row = self.nodes[edge.node.0 as usize]
+            let edge = self
+                .incidences
+                .pop()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let row = self
+                .nodes
+                .get(edge.node.0 as usize)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .incidence
-                .expect("incidence edge owns row")
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .0;
             if let Some(next) = edge.next {
-                self.incidence_heads.insert(row, Some(next));
+                // A predecessor means this row's head already existed before
+                // the appended edge. Updating it never inserts or allocates.
+                *self
+                    .incidence_heads
+                    .get_mut(&row)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)? = Some(next);
             } else {
                 self.incidence_heads.remove(&row);
             }
@@ -1830,24 +1951,90 @@ impl F5cComponentExpansionMemo {
         self.parent_heads.truncate(node_checkpoint);
         self.root_heads.truncate(node_checkpoint);
         self.visit_epochs.truncate(node_checkpoint);
+        Ok(())
     }
 
-    pub(super) fn finish_invalidation_transaction(&mut self, checkpoint: usize, commit: bool) {
+    pub(super) fn finish_root_transaction(
+        &mut self,
+        checkpoint: usize,
+        commit: bool,
+    ) -> Result<(), SolveAvailabilityError> {
         if !commit {
-            for (index, active_conflicts) in self.invalidated_root_edges[checkpoint..]
+            let mut live = self.roots.len();
+            let mut edge_len = self.root_edges.len();
+            if self.root_edge_marks.len() != edge_len {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            for event in self
+                .root_undo
+                .get(checkpoint..)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .iter()
                 .rev()
                 .copied()
             {
-                let edge = &mut self.root_edges[index];
-                edge.live = true;
-                self.roots.insert(edge.key, edge.root);
-                if let Some(count) = active_conflicts {
-                    self.active_conflicts.insert(edge.key, count);
+                match event {
+                    F5cRootUndo::Admit(index) => {
+                        if index.checked_add(1) != Some(edge_len) {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                        let edge = self
+                            .root_edges
+                            .get(index)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        if edge.root.0 as usize >= self.root_heads.len() {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                        edge_len -= 1;
+                        live = live
+                            .checked_sub(1)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    }
+                    F5cRootUndo::Invalidate(index) => {
+                        if index >= edge_len {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                        live = live
+                            .checked_add(1)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    }
+                }
+                if live > self.roots.capacity() {
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                }
+            }
+            for event in self.root_undo[checkpoint..].iter().rev().copied() {
+                match event {
+                    F5cRootUndo::Admit(index) => {
+                        let edge = self
+                            .root_edges
+                            .pop()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        self.root_edge_marks
+                            .pop()
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        if index != self.root_edges.len() {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                        self.roots.remove(&edge.key);
+                        *self
+                            .root_heads
+                            .get_mut(edge.root.0 as usize)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)? = edge.next;
+                    }
+                    F5cRootUndo::Invalidate(index) => {
+                        let edge = self
+                            .root_edges
+                            .get_mut(index)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        edge.live = true;
+                        self.roots.insert(edge.key, edge.root);
+                    }
                 }
             }
         }
-        self.invalidated_root_edges.truncate(checkpoint);
+        self.root_undo.truncate(checkpoint);
+        Ok(())
     }
 
     pub(super) fn reset_active_scratch(&mut self) {
@@ -1855,6 +2042,10 @@ impl F5cComponentExpansionMemo {
         self.active_conflicts.clear();
         self.work.clear();
         self.conflict_journal.clear();
+        self.visit_epochs.fill(0);
+        self.visit_epoch = 0;
+        self.root_edge_marks.fill(0);
+        self.root_edge_mark_epoch = 0;
     }
 }
 
@@ -1930,12 +2121,12 @@ pub(super) struct F5cGeneralizer<'a> {
     uncacheable_seen: HashSet<F5cExpansionKey>,
     fatal_taint: bool,
     pub(super) provisional_recursive_rows: HashSet<u32>,
-    pub(super) admitted_keys: Vec<F5cExpansionKey>,
     node_checkpoint: usize,
     child_checkpoint: usize,
     reverse_checkpoint: usize,
     incidence_checkpoint: usize,
-    invalidation_checkpoint: usize,
+    root_undo_checkpoint: usize,
+    in_component: bool,
     pub(super) active: Vec<(u32, Polarity, usize)>,
     pub(super) active_set: HashSet<(u32, Polarity)>,
     #[cfg(test)]
@@ -1948,6 +2139,44 @@ pub(super) struct F5cGeneralizer<'a> {
 }
 
 impl<'a> F5cGeneralizer<'a> {
+    fn reserve_active_mirrors(&mut self, frame: bool) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        if self.memo.fail_reserve_at
+            == Some((
+                F5cTestReserveFailure::ActiveMirrors,
+                self.memo.root_undo.len(),
+            ))
+        {
+            self.memo.fail_reserve_at = None;
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        if frame {
+            let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
+            let old = self.frames.capacity();
+            let reservation = self.frames.try_reserve(1);
+            self.memo.generalizer_scratch_capacities[0] = self.frames.capacity();
+            self.memo
+                .commit_scratch_reserve(requested, growth, old, self.frames.capacity())?;
+            reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        }
+        let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
+        let old = self.active.capacity();
+        let reservation = self.active.try_reserve(1);
+        self.memo.generalizer_scratch_capacities[1] = self.active.capacity();
+        self.memo
+            .commit_scratch_reserve(requested, growth, old, self.active.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+
+        let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
+        let old = self.active_set.capacity();
+        let reservation = self.active_set.try_reserve(1);
+        self.memo.generalizer_scratch_capacities[2] = self.active_set.capacity();
+        self.memo
+            .commit_scratch_reserve(requested, growth, old, self.active_set.capacity())?;
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        Ok(())
+    }
+
     #[cfg(test)]
     pub(super) fn new(session: &'a InferenceSession) -> Self {
         Self::with_memo(session, F5cComponentExpansionMemo::default(), 0)
@@ -1962,7 +2191,11 @@ impl<'a> F5cGeneralizer<'a> {
         let child_checkpoint = memo.children.len();
         let reverse_checkpoint = memo.reverse_parents.len();
         let incidence_checkpoint = memo.incidences.len();
-        let invalidation_checkpoint = memo.invalidated_root_edges.len();
+        assert!(memo.active_rows.is_empty());
+        assert!(memo.active_conflicts.is_empty());
+        assert!(memo.work.is_empty());
+        assert!(memo.conflict_journal.is_empty());
+        let root_undo_checkpoint = memo.root_undo.len();
         Self {
             session,
             memo,
@@ -1973,12 +2206,12 @@ impl<'a> F5cGeneralizer<'a> {
             uncacheable_seen: HashSet::new(),
             fatal_taint: false,
             provisional_recursive_rows: HashSet::new(),
-            admitted_keys: Vec::new(),
             node_checkpoint,
             child_checkpoint,
             reverse_checkpoint,
             incidence_checkpoint,
-            invalidation_checkpoint,
+            root_undo_checkpoint,
+            in_component: false,
             active: Vec::new(),
             active_set: HashSet::new(),
             #[cfg(test)]
@@ -2303,15 +2536,18 @@ impl<'a> F5cGeneralizer<'a> {
                                     continue;
                                 }
                             }
+                        }
+                        self.reserve_active_mirrors(!root)?;
+                        if !root {
                             self.frames.push(F5cExpansionFrame {
                                 tainted: self.fatal_taint || warm_conflict,
                             });
                         }
                         self.mark(row, polarity);
                         self.memo.enter_active(row)?;
-                        self.memo.observe_walker()?;
                         self.active.push((row, polarity, self.path.len()));
                         self.active_set.insert((row, polarity));
+                        self.memo.observe_walker()?;
                         let bounds = self
                             .session
                             .bounds
@@ -2384,9 +2620,9 @@ impl<'a> F5cGeneralizer<'a> {
                         values_start,
                     } => {
                         self.memo.leave_active(row)?;
-                        self.memo.observe_walker()?;
                         self.active.pop();
                         self.active_set.remove(&(row, polarity));
+                        self.memo.observe_walker()?;
                         let value = match polarity {
                             Polarity::Positive => {
                                 let mut parts = Vec::new();
@@ -2503,9 +2739,6 @@ impl<'a> F5cGeneralizer<'a> {
                             self.taint_active_states();
                             push_value!(value);
                         } else {
-                            self.admitted_keys
-                                .try_reserve(1)
-                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                             let id = match &value {
                                 F5cWalkValue::Positive(value, _) => {
                                     self.memo.positive_node(value, Some((row, polarity)))?
@@ -2520,12 +2753,12 @@ impl<'a> F5cGeneralizer<'a> {
                                 frozen_bound_epoch: self.frozen_bound_epoch,
                             };
                             self.memo.admit(key, id)?;
+                            // admit records its stable edge before any fallible observation.
                             self.memo.observe_walker()?;
                             #[cfg(test)]
                             if self.assert_admission_invariant {
                                 self.assert_admitted_summary_has_no_active_incidence(id);
                             }
-                            self.admitted_keys.push(key);
                             push_value!(match polarity {
                                 Polarity::Positive =>
                                     F5cWalkValue::Positive(F5cPositive::Shared(id), true),
@@ -2740,11 +2973,12 @@ impl<'a> F5cGeneralizer<'a> {
         };
         if result.is_err() {
             while self.active.len() > active_checkpoint {
-                let (row, polarity, _) = self.active.pop().expect("active checkpoint");
-                self.active_set.remove(&(row, polarity));
-                if self.memo.leave_active(row).is_err() {
-                    self.memo.reset_active_scratch();
+                if let Some((row, polarity, _)) = self.active.pop() {
+                    self.active_set.remove(&(row, polarity));
                 }
+            }
+            if !self.in_component {
+                self.memo.reset_active_scratch();
             }
             self.frames.truncate(frame_checkpoint);
             self.path.truncate(path_checkpoint);
@@ -3016,27 +3250,40 @@ impl<'a> F5cGeneralizer<'a> {
         usize,
         usize,
     ) {
-        let result = self.build_inner(root);
+        self.in_component = true;
+        let mut result = self.build_inner(root);
         if result.is_err() {
+            let roots_restored = self
+                .memo
+                .finish_root_transaction(self.root_undo_checkpoint, false);
             self.memo.reset_active_scratch();
             self.active.clear();
             self.active_set.clear();
             self.frames.clear();
-            for key in self.admitted_keys.drain(..).rev() {
-                self.memo.rollback_admission(key);
-            }
-            self.memo
-                .finish_invalidation_transaction(self.invalidation_checkpoint, false);
-            self.memo.rollback_nodes(
+            let nodes_restored = self.memo.rollback_nodes(
                 self.node_checkpoint,
                 self.child_checkpoint,
                 self.reverse_checkpoint,
                 self.incidence_checkpoint,
             );
+            if roots_restored.is_err() || nodes_restored.is_err() {
+                result = Err(SolveAvailabilityError::IdentityExhausted);
+            }
         } else {
-            self.memo
-                .finish_invalidation_transaction(self.invalidation_checkpoint, true);
+            assert!(self.active.is_empty() && self.active_set.is_empty() && self.frames.is_empty());
+            assert!(self.memo.active_rows.is_empty() && self.memo.active_conflicts.is_empty());
+            assert!(self.memo.work.is_empty() && self.memo.conflict_journal.is_empty());
+            if let Err(error) = self
+                .memo
+                .finish_root_transaction(self.root_undo_checkpoint, true)
+            {
+                result = Err(error);
+            }
         }
+        self.frames = Vec::new();
+        self.active = Vec::new();
+        self.active_set = HashSet::new();
+        self.memo.generalizer_scratch_capacities = [0; 3];
         (
             result,
             self.memo,

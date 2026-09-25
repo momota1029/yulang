@@ -2760,4 +2760,36 @@ cutover, resource probe, numeric limit, or completion claim is authorized by
 this approval. A clean build does not replace §15 resource evidence. Indexed
 finalization, F5e, §44 rollback, and overall F5c/F5e closure remain open.
 
+## Latest continuation (2026-09-26): memo rollback gate closed
+
+The approved producer-owner move and memo transaction/active-state rollback
+gate are complete. Persistent root admission/invalidation events share one
+chronological undo log and reverse replay; failure resets transient active,
+conflict, work, visit-mark, and local-mirror state before node truncation.
+Fallible child reserve errors now return before append, while retained reserve
+capacity remains charged. Co-resident capacity samples include the memo's live
+generalizer scratch mirrors, and the independent test ledger calculates its
+peak from those snapshots.
+
+Focused failure tests cover interleaved admission/invalidation, warm Shared
+lookup after failure, nonzero entry marks, retries, and reserve failure with no
+partial child append. They are in
+`crates/yu-solver/src/tests/f5c_generalization_transactions.rs`. Latest M2
+compiler-referee and performance-auditor delta reviews found no blocking or
+major issue.
+
+Verification: `cargo fmt --check`; `cargo test -p yu-solver --lib f5c_ --
+--test-threads=1` (192 passed, 1 ignored); and
+`cargo test -p yu-solver --lib --no-default-features -- --test-threads=1`
+(277 passed, 1 ignored; 717.77 seconds); `git diff --check`. No benchmark or
+resource probe ran; measurement budget remains zero.
+
+Next: add the uncalled flat sink through the existing producer walker. The
+boxed route remains production and observable behavior is unchanged. No
+production cutover, §15 probe, numeric boundary, F5e acceptance, or overall
+F5c completion is authorized here. Remaining gates include stack-safe flat
+producer/drop and indexed finalization, complete ineligible/effect rejection,
+closed-DAG memo/resource accounting, §44 end-to-end per-use rollback, and
+independently reviewed §15 evidence.
+
 <!-- handoff-append-anchor: 2026-09-26 -->

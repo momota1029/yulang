@@ -303,3 +303,40 @@ ignored), and `git diff --check`. No benchmark, resource probe, or workspace
 test suite ran. The next slice is the memo transaction/active-state rollback
 repair and failure witnesses; the flat sink and §15 resource plan remain later
 gates.
+
+## 8. Memo transaction and active-state rollback slice (2026-09-26)
+
+The second approved implementation slice closes the component expansion memo's
+transaction/active-state rollback gate in `f5c_generalization.rs`. Persistent
+root admission and invalidation events use one chronological undo log; failure
+replays events in reverse publication order, then resets transient active
+rows/conflicts, work, visit marks, and local mirrors before truncating appended
+summary nodes. Cleanup reuses preflighted root capacity and does not allocate.
+
+Fallible `push_children` now propagates a reserve error before extending the
+child lane. If a failed reserve nevertheless retained capacity, the actual
+capacity and growth accounting are reconciled before returning. Simultaneous
+memo/generalizer scratch capacity samples are captured only on actual lane
+growth. The independent test ledger computes its peak by folding those
+snapshots and exact element sizes, rather than reading the production aggregate
+peak.
+
+Focused tests cover complete persistent-state restoration, idle transient
+state, a warm raw `Shared(summary_id)` lookup and retry, nonzero marks on
+failure entry, interleaved admit/invalidate undo, and no partial child append
+after reserve failure. The latest M2 `compiler_referee` and
+`performance_auditor` delta review found no blocking or major finding.
+Verification passed: `cargo fmt --check`; the F5c filter (192 passed, 1
+ignored); the single-threaded no-default-feature `yu-solver` library suite
+(277 passed, 1 ignored); and `git diff --check`. The broad suite took 717.77
+seconds. No benchmark or §15 resource probe ran; measurement budget remains
+zero.
+
+The boxed sink remains the sole production path. Summary sharing, owner/order
+decisions, Q/R, schemes, and public routing are preserved. The flat sink is
+still uncalled; this slice does not close §44 route atomicity or authorize a
+production cutover. Next is the uncalled flat candidate sink through the
+shared producer walker, followed by its remaining parity/rollback gates.
+Indexed finalization, complete ineligible/effect rejection, closed-DAG
+memoization/resource accounting, §44 end-to-end per-use rollback, and §15
+evidence remain open. Do not claim F5c/F5e completion.

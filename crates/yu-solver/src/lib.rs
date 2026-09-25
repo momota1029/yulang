@@ -184,8 +184,8 @@ mod f5c_generalization;
 use f5c_generalization::{
     F5cBoundSide, F5cCompareTask, F5cComponentExpansionMemo, F5cExpansionFrame, F5cExpansionKey,
     F5cGeneralizer, F5cGuardedTrace, F5cIncidenceEdge, F5cNegative, F5cNegativeEffect, F5cPositive,
-    F5cPositiveEffect, F5cRecursiveBound, F5cReverseParentEdge, F5cRootEdge, F5cSummaryNode,
-    F5cSummaryNodeId, F5cSummaryNodeKind, F5cTraceHop, F5cWalkTask, F5cWalkValue,
+    F5cPositiveEffect, F5cRecursiveBound, F5cReverseParentEdge, F5cRootEdge, F5cRootUndo,
+    F5cSummaryNode, F5cSummaryNodeId, F5cSummaryNodeKind, F5cTraceHop, F5cWalkTask, F5cWalkValue,
     F5cWalkerLaneKind, F5cWalkerResources, GeneralizationDraft,
 };
 mod f5c_materialization;
@@ -3959,7 +3959,7 @@ impl IndependentResourceLedger {
             memo.root_heads.capacity(),
             memo.root_edges.capacity(),
             memo.root_edge_marks.capacity(),
-            memo.invalidated_root_edges.capacity(),
+            memo.root_undo.capacity(),
         ];
         let index_capacity = index_capacities
             .into_iter()
@@ -3971,6 +3971,9 @@ impl IndependentResourceLedger {
             memo.work.capacity(),
             memo.conflict_journal.capacity(),
             memo.visit_epochs.capacity(),
+            memo.generalizer_scratch_capacities[0],
+            memo.generalizer_scratch_capacities[1],
+            memo.generalizer_scratch_capacities[2],
         ];
         let scratch_capacity = scratch_capacities
             .into_iter()
@@ -4007,9 +4010,9 @@ impl IndependentResourceLedger {
             memo.root_edge_marks
                 .capacity()
                 .checked_mul(std::mem::size_of::<u32>()),
-            memo.invalidated_root_edges
+            memo.root_undo
                 .capacity()
-                .checked_mul(std::mem::size_of::<(usize, Option<usize>)>()),
+                .checked_mul(std::mem::size_of::<F5cRootUndo>()),
         ]
         .into_iter()
         .try_fold(0usize, |sum, value| sum.checked_add(value?))
@@ -4030,6 +4033,15 @@ impl IndependentResourceLedger {
             memo.visit_epochs
                 .capacity()
                 .checked_mul(std::mem::size_of::<u32>()),
+            memo.generalizer_scratch_capacities[0]
+                .checked_mul(std::mem::size_of::<F5cExpansionFrame>()),
+            memo.generalizer_scratch_capacities[1].checked_mul(std::mem::size_of::<(
+                u32,
+                Polarity,
+                usize,
+            )>()),
+            memo.generalizer_scratch_capacities[2]
+                .checked_mul(std::mem::size_of::<(u32, Polarity)>()),
         ]
         .into_iter()
         .try_fold(0usize, |sum, value| sum.checked_add(value?))
@@ -4099,6 +4111,10 @@ impl IndependentResourceLedger {
                 scratch_capacity,
                 scratch_bytes,
             )?;
+            self.component_expansion_memo_scratch.peak_bytes = self
+                .component_expansion_memo_scratch
+                .peak_bytes
+                .max(memo.independent_generalizer_scratch_peak_bytes);
         } else {
             for lane in [
                 &mut self.component_expansion_memo_roots,
@@ -4118,8 +4134,44 @@ impl IndependentResourceLedger {
             .and_then(|value| value.checked_add(scratch_capacity))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         self.component_expansion_memo_retained_bytes = retained_bytes;
+        let sizes = [
+            std::mem::size_of::<(F5cExpansionKey, F5cSummaryNodeId)>(),
+            std::mem::size_of::<F5cSummaryNode>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cReverseParentEdge>(),
+            std::mem::size_of::<(u32, Option<usize>)>(),
+            std::mem::size_of::<F5cIncidenceEdge>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cRootEdge>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cRootUndo>(),
+            std::mem::size_of::<(u32, usize)>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cExpansionFrame>(),
+            std::mem::size_of::<(u32, Polarity, usize)>(),
+            std::mem::size_of::<(u32, Polarity)>(),
+        ];
+        let component_peak =
+            memo.capacity_samples
+                .iter()
+                .try_fold(retained_bytes, |peak, sample| {
+                    sample
+                        .iter()
+                        .zip(sizes)
+                        .try_fold(0usize, |sum, (&capacity, size)| {
+                            capacity
+                                .checked_mul(size)
+                                .and_then(|bytes| sum.checked_add(bytes))
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)
+                        })
+                        .map(|bytes| peak.max(bytes))
+                })?;
         self.component_expansion_memo_peak_bytes =
-            self.component_expansion_memo_peak_bytes.max(retained_bytes);
+            self.component_expansion_memo_peak_bytes.max(component_peak);
         let walker = &memo.walker_resources;
         let walker_sizes = F5cWalkerLaneKind::ALL.map(F5cWalkerLaneKind::slot_size);
         let mut walker_capacity = 0usize;
@@ -11639,6 +11691,7 @@ mod tests {
     use super::*;
     mod f5c_binder_substitution;
     mod f5c_depth_limit;
+    mod f5c_generalization_transactions;
     mod f5c_materialization;
     mod f5c_replay;
     mod f5c_resource_probe;
@@ -17832,37 +17885,6 @@ mod tests {
     }
 
     #[test]
-    fn f5c_component_expansion_memo_same_key_readmission_failure_restores_prior_root() {
-        let mut memo = F5cComponentExpansionMemo::default();
-        let key = F5cExpansionKey {
-            row: 3,
-            polarity: Polarity::Positive,
-            frozen_bound_epoch: 5,
-        };
-        let prior = memo
-            .push_node(
-                F5cSummaryNodeKind::PositiveInt,
-                Some((7, Polarity::Positive)),
-            )
-            .unwrap();
-        memo.admit(key, prior).unwrap();
-        let invalidation_checkpoint = memo.invalidated_root_edges.len();
-        memo.invalidate_row(7).unwrap();
-        assert!(!memo.roots.contains_key(&key));
-
-        let replacement = memo
-            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
-            .unwrap();
-        memo.admit(key, replacement).unwrap();
-        memo.rollback_admission(key);
-        memo.finish_invalidation_transaction(invalidation_checkpoint, false);
-
-        assert_eq!(memo.roots.get(&key), Some(&prior));
-        assert!(memo.root_edges[0].live);
-        assert_eq!(memo.root_heads[prior.0 as usize], Some(0));
-    }
-
-    #[test]
     fn f5c_component_expansion_memo_checked_accounting_exhausts() {
         let key = F5cExpansionKey {
             row: 0,
@@ -18402,7 +18424,7 @@ mod tests {
             generalizer.positive_row(ancestor, true).unwrap(),
             F5cPositive::Shared(_)
         ));
-        assert_eq!(generalizer.admitted_keys.len(), 1);
+        assert_eq!(generalizer.memo.root_undo.len(), 1);
     }
 
     #[test]
@@ -18900,7 +18922,7 @@ mod tests {
             assert_eq!(memo.children.len(), 2 * (K - 1));
             assert_eq!(uncacheable, 0);
             let admissions = memo.root_lane.requested_slots;
-            let first_retained = memo.retained_bytes().unwrap();
+            let first_peak = memo.peak_bytes().unwrap();
             let mut ledger = IndependentResourceLedger::default();
             ledger.record_component_expansion_memo(&memo).unwrap();
             assert_eq!(ledger.component_expansion_memo_roots.requested_slots, 8);
@@ -18962,7 +18984,7 @@ mod tests {
                 draft.unwrap();
                 second_memo = returned;
             }
-            let second_retained = second_memo.retained_bytes().unwrap();
+            let second_peak = second_memo.peak_bytes().unwrap();
             let second_growths = second_memo.capacity_growths().unwrap();
             ledger
                 .record_component_expansion_memo(&second_memo)
@@ -19000,7 +19022,7 @@ mod tests {
             );
             assert_eq!(
                 ledger.component_expansion_memo_peak_bytes,
-                first_retained.max(second_retained)
+                first_peak.max(second_peak)
             );
             assert_eq!(
                 ledger.component_expansion_memo_roots.peak_bytes,
