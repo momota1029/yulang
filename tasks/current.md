@@ -1,8 +1,38 @@
 # Current task: F5 general Function scheme foundation
 
-Updated: 2026-09-25. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
+
+### Latest continuation (2026-09-26): flat binder substitution candidate
+
+Added an uncalled, module-owned `FlatDraft` binder-substitution candidate in
+`crates/yu-solver/src/f5c_binder_substitution.rs`; focused tests live in the
+matching `tests/` module. It visits the predicate and every retained bound
+root iteratively, preflights reachable Variables before mutation, preserves
+IDs/spans/root/order metadata, and keeps R → Q → polarity-specific elimination
+precedence. It leaves unreachable scratch untouched and does not rebuild boxed
+trees. `lib.rs` and production callers are unchanged.
+
+M2 compiler/performance review closed the candidate-local findings after
+repair: unmapped orphan Variables no longer reject a selected root forest;
+bound-only positive/negative roots are compared with the boxed oracle; shared
+nodes are scheduled once; and ID-to-`usize` conversion is checked. The helper
+uses per-polarity seen flags and an explicit stack; this is not resource
+certification. A remaining integration blocker is concrete: `normalize_flat`
+scans all inserted nodes and rejects any raw Variable, including an orphan
+left untouched here. Before connecting the helper, isolate/compact the selected
+root forest before normalization while preserving boxed-path normalization
+counter behavior. Keep the existing post-normalization compaction too.
+
+Verification: `cargo test -p yu-solver f5c_binder_substitution --lib --
+--test-threads=1` passed (6); `cargo fmt --check`, `git diff --check`, and
+`cargo check -p yu-solver --message-format short` passed without warnings. No
+broad suite, scale/resource/capacity probe, or benchmark ran; measurement
+budget used is zero. Next: close the selected-root pre-normalization
+isolation/normalizer handoff, then continue the producer-side flat migration.
+The §5/§15 resource gate, indexed finalizer, production acceptance, F5c/F5e
+closure, Function-product behavior, and §44 rollback remain open.
 
 ### Current continuation (2026-09-25): flat indexed stack-independent design
 

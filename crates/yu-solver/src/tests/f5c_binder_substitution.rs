@@ -1,4 +1,279 @@
 use super::*;
+use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode, RecursiveBound};
+
+#[test]
+fn f5c_flat_substitution_matches_boxed_roots_and_preserves_layout() {
+    let mut flat = FlatDraft::default();
+    let p_r = flat.positive(PositiveNode::Variable(4)).unwrap();
+    let p_q = flat.positive(PositiveNode::Variable(1)).unwrap();
+    let p_gone = flat.positive(PositiveNode::Variable(5)).unwrap();
+    let p_int = flat.positive(PositiveNode::Int).unwrap();
+    let n_q = flat.negative(NegativeNode::Variable(2)).unwrap();
+    let n_r = flat.negative(NegativeNode::Variable(4)).unwrap();
+    let n_gone = flat.negative(NegativeNode::Variable(6)).unwrap();
+    let n_span = flat.negative_span(&[n_q, n_r, n_gone]).unwrap();
+    let n_intersection = flat.negative(NegativeNode::Intersection(n_span)).unwrap();
+    let p_span = flat.positive_span(&[p_r, p_q, p_gone, p_int]).unwrap();
+    let p_union = flat.positive(PositiveNode::Union(p_span)).unwrap();
+    let predicate = flat
+        .positive(PositiveNode::Function {
+            argument: n_intersection,
+            result: p_union,
+        })
+        .unwrap();
+    let upper = flat
+        .negative(NegativeNode::Function {
+            argument: p_union,
+            result: n_intersection,
+        })
+        .unwrap();
+    flat.predicate = Some(predicate);
+    flat.quantifier_count = 2;
+    flat.bound(RecursiveBound {
+        ordinal: 3,
+        lower: p_union,
+        upper,
+    })
+    .unwrap();
+
+    let before_positive = flat.positive_nodes.clone();
+    let before_negative = flat.negative_nodes.clone();
+    let before_positive_children = flat.positive_children.clone();
+    let before_negative_children = flat.negative_children.clone();
+    let before_bounds = flat.recursive_bounds.clone();
+    let before_order = flat.insertion_order.clone();
+    let q = HashMap::from([(1, 0), (2, 1), (4, 99)]);
+    let r = HashMap::from([(4, 3)]);
+    let positive_eliminated = HashSet::from([5]);
+    let negative_eliminated = HashSet::from([6]);
+
+    crate::f5c_binder_substitution::substitute_flat(
+        &mut flat,
+        &q,
+        &r,
+        &positive_eliminated,
+        &negative_eliminated,
+    )
+    .unwrap();
+
+    let positive_input = F5cPositive::Union(vec![
+        F5cPositive::Variable(4),
+        F5cPositive::Variable(1),
+        F5cPositive::Variable(5),
+        F5cPositive::Int,
+    ]);
+    let negative_input = F5cNegative::Intersection(vec![
+        F5cNegative::Variable(2),
+        F5cNegative::Variable(4),
+        F5cNegative::Variable(6),
+    ]);
+    let mut memo = F5cComponentExpansionMemo::default();
+    let oracle_positive = crate::f5c_binder_substitution::substitute_positive(
+        &mut memo,
+        F5cPositive::Function {
+            argument: Box::new(negative_input.clone()),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(positive_input.clone()),
+        },
+        &q,
+        &r,
+        &positive_eliminated,
+        &negative_eliminated,
+    )
+    .unwrap();
+    let oracle_negative = crate::f5c_binder_substitution::substitute_negative(
+        &mut memo,
+        F5cNegative::Function {
+            argument: Box::new(positive_input),
+            argument_effect: F5cPositiveEffect::Bottom,
+            result_effect: F5cNegativeEffect::Empty,
+            result: Box::new(negative_input),
+        },
+        &q,
+        &r,
+        &positive_eliminated,
+        &negative_eliminated,
+    )
+    .unwrap();
+
+    let substituted_positive = F5cPositive::Union(vec![
+        F5cPositive::Recursive(3),
+        F5cPositive::Quantified(0),
+        F5cPositive::Bottom,
+        F5cPositive::Int,
+    ]);
+    let substituted_negative = F5cNegative::Intersection(vec![
+        F5cNegative::Quantified(1),
+        F5cNegative::Recursive(3),
+        F5cNegative::Top,
+    ]);
+    assert_eq!(
+        oracle_positive,
+        F5cPositive::Function {
+            argument: Box::new(substituted_negative.clone()),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(substituted_positive.clone()),
+        }
+    );
+    assert_eq!(
+        oracle_negative,
+        F5cNegative::Function {
+            argument: Box::new(substituted_positive),
+            argument_effect: F5cPositiveEffect::Bottom,
+            result_effect: F5cNegativeEffect::Empty,
+            result: Box::new(substituted_negative),
+        }
+    );
+    assert_eq!(
+        flat.positive_nodes,
+        vec![
+            PositiveNode::Recursive(3),
+            PositiveNode::Quantified(0),
+            PositiveNode::Bottom,
+            PositiveNode::Int,
+            PositiveNode::Union(p_span),
+            PositiveNode::Function {
+                argument: n_intersection,
+                result: p_union
+            },
+        ]
+    );
+    assert_eq!(
+        flat.negative_nodes,
+        vec![
+            NegativeNode::Quantified(1),
+            NegativeNode::Recursive(3),
+            NegativeNode::Top,
+            NegativeNode::Intersection(n_span),
+            NegativeNode::Function {
+                argument: p_union,
+                result: n_intersection
+            },
+        ]
+    );
+    assert_eq!(&flat.positive_nodes[4..], &before_positive[4..]);
+    assert_eq!(&flat.negative_nodes[3..], &before_negative[3..]);
+    assert_eq!(flat.predicate, Some(predicate));
+    assert_eq!(flat.quantifier_count, 2);
+    assert_eq!(flat.recursive_bounds, before_bounds);
+    assert_eq!(flat.positive_children, before_positive_children);
+    assert_eq!(flat.negative_children, before_negative_children);
+    assert_eq!(flat.insertion_order, before_order);
+}
+
+#[test]
+fn f5c_flat_substitution_unmapped_variable_is_failure_atomic() {
+    let mut flat = FlatDraft::default();
+    let mapped = flat.positive(PositiveNode::Variable(1)).unwrap();
+    let missing = flat.negative(NegativeNode::Variable(90)).unwrap();
+    flat.predicate = Some(mapped);
+    flat.quantifier_count = 1;
+    flat.bound(RecursiveBound {
+        ordinal: 2,
+        lower: mapped,
+        upper: missing,
+    })
+    .unwrap();
+    let snapshot = (
+        flat.quantifier_count,
+        flat.predicate,
+        flat.positive_nodes.clone(),
+        flat.negative_nodes.clone(),
+        flat.positive_children.clone(),
+        flat.negative_children.clone(),
+        flat.recursive_bounds.clone(),
+        flat.insertion_order.clone(),
+    );
+    assert_eq!(
+        crate::f5c_binder_substitution::substitute_flat(
+            &mut flat,
+            &HashMap::from([(1, 0)]),
+            &HashMap::new(),
+            &HashSet::new(),
+            &HashSet::new(),
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(
+        (
+            flat.quantifier_count,
+            flat.predicate,
+            flat.positive_nodes,
+            flat.negative_nodes,
+            flat.positive_children,
+            flat.negative_children,
+            flat.recursive_bounds,
+            flat.insertion_order
+        ),
+        snapshot
+    );
+}
+
+#[test]
+fn f5c_flat_substitution_visits_bound_only_roots_and_leaves_orphans() {
+    let mut flat = FlatDraft::default();
+    let orphan = flat.positive(PositiveNode::Variable(90)).unwrap();
+    let predicate = flat.positive(PositiveNode::Int).unwrap();
+    let lower = flat.positive(PositiveNode::Variable(5)).unwrap();
+    let upper = flat.negative(NegativeNode::Variable(6)).unwrap();
+    flat.predicate = Some(predicate);
+    flat.bound(RecursiveBound {
+        ordinal: 0,
+        lower,
+        upper,
+    })
+    .unwrap();
+    let before_order = flat.insertion_order.clone();
+    let q = HashMap::from([(5, 1), (6, 2)]);
+    let r = HashMap::new();
+    let positive_eliminated = HashSet::from([5]);
+    let negative_eliminated = HashSet::from([6]);
+    let mut memo = F5cComponentExpansionMemo::default();
+    let expected_lower = crate::f5c_binder_substitution::substitute_positive(
+        &mut memo,
+        F5cPositive::Variable(5),
+        &q,
+        &r,
+        &positive_eliminated,
+        &negative_eliminated,
+    )
+    .unwrap();
+    let expected_upper = crate::f5c_binder_substitution::substitute_negative(
+        &mut memo,
+        F5cNegative::Variable(6),
+        &q,
+        &r,
+        &positive_eliminated,
+        &negative_eliminated,
+    )
+    .unwrap();
+    crate::f5c_binder_substitution::substitute_flat(
+        &mut flat,
+        &q,
+        &r,
+        &positive_eliminated,
+        &negative_eliminated,
+    )
+    .unwrap();
+    assert_eq!(expected_lower, F5cPositive::Quantified(1));
+    assert_eq!(expected_upper, F5cNegative::Quantified(2));
+    assert_eq!(
+        flat.positive_nodes[orphan.0 as usize],
+        PositiveNode::Variable(90)
+    );
+    assert_eq!(
+        flat.positive_nodes[lower.0 as usize],
+        PositiveNode::Quantified(1)
+    );
+    assert_eq!(
+        flat.negative_nodes[upper.0 as usize],
+        NegativeNode::Quantified(2)
+    );
+    assert_eq!(flat.predicate, Some(predicate));
+    assert_eq!(flat.insertion_order, before_order);
+}
 
 #[test]
 fn f5c_binder_substitution_preserves_polarity_qr_and_member_order() {

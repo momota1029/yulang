@@ -1147,3 +1147,45 @@ plan was run; measurement budget consumed remains zero. The first §7
 producer-boundary gate, indexed `yu-types` finalizer, physical resource
 certification, F5c/F5e completion, Function-product behavior, and §44 rollback
 remain open.
+
+## 18. Fixture-only flat binder substitution checkpoint (2026-09-26)
+
+The next uncalled candidate helper is `substitute_flat` in
+`crates/yu-solver/src/f5c_binder_substitution.rs`. It walks from the predicate
+and each recursive bound's lower then upper root using an explicit stack and
+per-polarity visited flags. It preflights every reachable Variable before
+writing, then applies R → Q → polarity-specific elimination, preserving node
+IDs, spans, roots, insertion order, and all non-Variable nodes. Shared nodes
+are scheduled once; no boxed tree is rebuilt. Checked ID conversions,
+node lookup, span arithmetic, and stack growth use the existing availability
+error. `lib.rs` and production callers are unchanged.
+
+The focused fixture compares positive/negative Function and
+Union/Intersection behavior with the boxed substitution oracle, exercises
+bound-only roots and shared subgraphs, proves that an unmapped reachable
+Variable leaves every logical draft field unchanged, and shows that an
+unreachable unmapped Variable remains untouched. M2 compiler/performance
+review closed the candidate-local findings. Primary removed duplicated
+insertion-order/topology validation: `normalize_flat` owns that validation,
+while visited flags already guarantee this substitution walk terminates on a
+malformed cycle. A non-test `cargo check` caught the expected unused candidate
+helper; it is explicitly marked unused while it remains unconnected.
+
+This helper is not yet composable with `normalize_flat` on a draft that retains
+unreachable Variable scratch: the helper correctly ignores it, but
+`normalize_flat` currently scans every inserted node and rejects Variables
+before root compaction. Before any producer connection, add or establish a
+selected-root isolation/compaction step before normalization, and compare
+normalization counters with the boxed selected-root path. Preserve the
+post-normalization compaction required by §2; do not feed the helper's raw
+orphan-bearing draft directly to `normalize_flat`.
+
+Verification: `cargo test -p yu-solver f5c_binder_substitution --lib --
+--test-threads=1` passed (6), `cargo fmt --check`, `git diff --check`, and
+`cargo check -p yu-solver --message-format short` passed. No broader suite or
+resource/scale/capacity probe ran; measurement budget consumed remains zero.
+The successful-path walk is O(N+E+B) for N stored nodes, E reachable
+incidences, and B retained bounds, with O(N) flags and at most O(N) stack
+slots. Its physical/co-resident peak, repeat-work admission, practical-input
+margin, and numeric support boundary remain later §5/§15 gates. This is one
+module-owned candidate slice, not closure of the first §7 producer gate.

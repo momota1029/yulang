@@ -2449,3 +2449,43 @@ broad tests or measurements ran. `lib.rs` remains unchanged and the helper is
 substantial but isolated; remove the old boxed materializer only once the flat
 producer/downstream migration proves parity. Next: continue the producer-side
 flat gate; before any candidate resource probe, review the exact §15 plan.
+
+## Flat binder substitution candidate checkpoint (2026-09-26)
+
+Added the non-production, fixture-backed `substitute_flat` helper in
+`crates/yu-solver/src/f5c_binder_substitution.rs`. It starts at the component
+predicate and retained recursive-bound lower/upper roots, walks iteratively,
+preflights all reachable Variables, and mutates only after successful
+preflight. Mapping order is R, then Q, then polarity-specific elimination to
+Positive Bottom / Negative Top. Root IDs, bound IDs, spans, insertion order,
+and non-Variable nodes remain unchanged. Shared nodes are visited once; no
+boxed reconstruction or `lib.rs` orchestration growth was added. The
+unreachable unmapped Variable witness confirms unrelated scratch does not
+change root substitution outcome.
+
+The first M2 compiler review found a false rejection from scanning unreachable
+scratch and missing bound-only root parity; both were repaired. Performance
+review asked to remove a temporary root array and avoid duplicate scheduling;
+the follow-up uses reverse root seeding and visited-on-enqueue. Primary also
+removed duplicate topology/index validation and its two per-polarity `usize`
+position tables, leaving this check to `normalize_flat`. Final M2 compiler/
+performance delta review found no blocker in the isolated helper. A compiler
+minor on `u32`→`usize` conversion was repaired with checked conversions. The
+helper is marked unused in non-test builds and remains disconnected.
+
+Important follow-on integration blocker: `substitute_flat` leaves unreachable
+scratch untouched, while `normalize_flat` currently scans all inserted nodes
+and rejects unresolved Variables. Before using this path, isolate/compact the
+selected root forest before normalization, preserving boxed-path logical
+counter behavior; also retain §2's post-normalization compaction. Do not
+connect this helper directly to `normalize_flat` or production.
+
+Verification: `cargo test -p yu-solver f5c_binder_substitution --lib --
+--test-threads=1` passed (6), `cargo fmt --check`, `git diff --check`, and
+`cargo check -p yu-solver --message-format short` passed without warnings. No
+broad tests, resource/scale/capacity probes, benchmark, or §15 plan ran;
+measurement budget used remains zero. Residual work includes the
+selected-root/normalizer handoff, flat replay and producer migration, error and
+ordinary-drop coverage, the indexed `yu-types` transaction, §5/§15 resource
+gates, F5e Function products, §44 rollback, and eventual removal of the
+superseded boxed route after parity.

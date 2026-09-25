@@ -1,3 +1,4 @@
+use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
 use super::{
     F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect,
     F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError,
@@ -11,6 +12,139 @@ pub(super) enum Task {
     FinishNegativeIntersection(usize),
     FinishPositiveFunction,
     FinishNegativeFunction,
+}
+
+/// Substitutes producer-graph nodes reachable from the scheme roots; scratch nodes remain untouched.
+/// `normalize_flat` owns insertion-order and topology validation. Isolate root-unreachable
+/// Variable scratch before normalization, which scans all inserted nodes and rejects Variables.
+#[allow(dead_code)]
+pub(super) fn substitute_flat(
+    draft: &mut FlatDraft,
+    q: &HashMap<u32, u32>,
+    r: &HashMap<u32, u32>,
+    positive_eliminated: &HashSet<u32>,
+    negative_eliminated: &HashSet<u32>,
+) -> Result<(), SolveAvailabilityError> {
+    let exhausted = SolveAvailabilityError::IdentityExhausted;
+    let mut positive_seen = Vec::new();
+    positive_seen
+        .try_reserve(draft.positive_nodes.len())
+        .map_err(|_| exhausted)?;
+    positive_seen.resize(draft.positive_nodes.len(), false);
+    let mut negative_seen = Vec::new();
+    negative_seen
+        .try_reserve(draft.negative_nodes.len())
+        .map_err(|_| exhausted)?;
+    negative_seen.resize(draft.negative_nodes.len(), false);
+    let mut stack = Vec::new();
+    macro_rules! enqueue {
+        ($node:expr) => {{
+            let node = $node;
+            let seen = match node {
+                NodeRef::Positive(id) => {
+                    positive_seen.get_mut(usize::try_from(id.0).map_err(|_| exhausted)?)
+                }
+                NodeRef::Negative(id) => {
+                    negative_seen.get_mut(usize::try_from(id.0).map_err(|_| exhausted)?)
+                }
+            }
+            .ok_or(exhausted)?;
+            if !*seen {
+                stack.try_reserve(1).map_err(|_| exhausted)?;
+                stack.push(node);
+                *seen = true;
+            }
+        }};
+    }
+    // Preflight all reachable edges and variables before touching the draft.
+    let predicate = draft.predicate.ok_or(exhausted)?;
+    for bound in draft.recursive_bounds.iter().rev() {
+        enqueue!(NodeRef::Negative(bound.upper));
+        enqueue!(NodeRef::Positive(bound.lower));
+    }
+    enqueue!(NodeRef::Positive(predicate));
+    while let Some(node) = stack.pop() {
+        match node {
+            NodeRef::Positive(id) => {
+                let index = usize::try_from(id.0).map_err(|_| exhausted)?;
+                let value = *draft.positive_nodes.get(index).ok_or(exhausted)?;
+                match value {
+                    PositiveNode::Variable(ordinal)
+                        if !r.contains_key(&ordinal)
+                            && !q.contains_key(&ordinal)
+                            && !positive_eliminated.contains(&ordinal) =>
+                    {
+                        return Err(exhausted);
+                    }
+                    PositiveNode::Union(span) => {
+                        let start = usize::try_from(span.start).map_err(|_| exhausted)?;
+                        let end = span.start.checked_add(span.len).ok_or(exhausted)?;
+                        let end = usize::try_from(end).map_err(|_| exhausted)?;
+                        let children = draft.positive_children.get(start..end).ok_or(exhausted)?;
+                        for &child in children.iter().rev() {
+                            enqueue!(NodeRef::Positive(child));
+                        }
+                    }
+                    PositiveNode::Function { argument, result } => {
+                        enqueue!(NodeRef::Positive(result));
+                        enqueue!(NodeRef::Negative(argument));
+                    }
+                    _ => {}
+                }
+            }
+            NodeRef::Negative(id) => {
+                let index = usize::try_from(id.0).map_err(|_| exhausted)?;
+                let value = *draft.negative_nodes.get(index).ok_or(exhausted)?;
+                match value {
+                    NegativeNode::Variable(ordinal)
+                        if !r.contains_key(&ordinal)
+                            && !q.contains_key(&ordinal)
+                            && !negative_eliminated.contains(&ordinal) =>
+                    {
+                        return Err(exhausted);
+                    }
+                    NegativeNode::Intersection(span) => {
+                        let start = usize::try_from(span.start).map_err(|_| exhausted)?;
+                        let end = span.start.checked_add(span.len).ok_or(exhausted)?;
+                        let end = usize::try_from(end).map_err(|_| exhausted)?;
+                        let children = draft.negative_children.get(start..end).ok_or(exhausted)?;
+                        for &child in children.iter().rev() {
+                            enqueue!(NodeRef::Negative(child));
+                        }
+                    }
+                    NegativeNode::Function { argument, result } => {
+                        enqueue!(NodeRef::Negative(result));
+                        enqueue!(NodeRef::Positive(argument));
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    for (node, seen) in draft.positive_nodes.iter_mut().zip(positive_seen) {
+        if let (true, PositiveNode::Variable(ordinal)) = (seen, *node) {
+            *node = if let Some(&mapped) = r.get(&ordinal) {
+                PositiveNode::Recursive(mapped)
+            } else if let Some(&mapped) = q.get(&ordinal) {
+                PositiveNode::Quantified(mapped)
+            } else {
+                PositiveNode::Bottom
+            };
+        }
+    }
+    for (node, seen) in draft.negative_nodes.iter_mut().zip(negative_seen) {
+        if let (true, NegativeNode::Variable(ordinal)) = (seen, *node) {
+            *node = if let Some(&mapped) = r.get(&ordinal) {
+                NegativeNode::Recursive(mapped)
+            } else if let Some(&mapped) = q.get(&ordinal) {
+                NegativeNode::Quantified(mapped)
+            } else {
+                NegativeNode::Top
+            };
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn substitute_positive(
