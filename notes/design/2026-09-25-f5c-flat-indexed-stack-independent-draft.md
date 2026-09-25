@@ -1,9 +1,9 @@
 # F5c flat indexed draft and stack-independent finalization
 
-Status: Reviewed; architecture/API approval pending; resource limits remain open; no production implementation authority
+Status: Reviewed; first-stage investigation approved (2026-09-25); numeric resource boundary and implementation approval remain open
 Scope: F5c structural-depth stack use from live expansion through closed-scheme finalization and cleanup
 Related authority: F5 §§14–16, 24–26, 32–36, 43–44; F5b closed-finalization accounting amendment §§2, 6, 9
-Decision: propose flat solver-owned drafts and a `yu-types`-owned indexed finalization transaction; not approved for implementation
+Decision: investigate flat solver-owned drafts and a `yu-types`-owned indexed finalization transaction; no production implementation or API approval
 Supersedes: proposes to replace the bounded boxed-draft candidate in `2026-09-24-f5c-bounded-boxed-draft-gate-draft.md` and the conditional Boundary A preference in §9 of `2026-09-23-f5c-indexed-finalization-accounting-boundary-draft.md`; no existing authority is superseded before user approval
 
 ## 1. User direction and decision boundary
@@ -12,6 +12,11 @@ The user chose to investigate support for structurally deep F5c schemes using
 explicit stacks rather than a fixed structural-depth threshold. This is
 authorization to prepare and review a design, not approval of a new `yu-types`
 API or production implementation.
+
+On 2026-09-25, the user approved the first-stage investigation of this
+direction: inspect practical source inputs, source charge sites, and focused
+scale behavior. This does not approve the proposed public API for implementation,
+select numeric resource limits, or authorize production code.
 
 The product target remains Oracle-equivalent behavior for practical source
 inputs and a lightweight successful path. The proposed change removes native
@@ -443,7 +448,7 @@ that needs supersession, and pass focused independent review. Only after the
 user separately approves that completed support boundary may this proposal
 become implementation-authoritative and production code begin.
 
-The first approval must explicitly select:
+The approved first-stage investigation scope is:
 
 1. the indexed cross-crate transaction and flat-draft ownership boundary;
 2. the proposed draft-size and charged-work mechanism, with numeric thresholds
@@ -451,9 +456,10 @@ The first approval must explicitly select:
 3. any F5 §14/§24/§26/§34 clauses to supersede (none are silently superseded
    by this Draft).
 
-That first approval records the architecture direction only. It does not
-make the Draft implementation-authoritative; the separate resource approval
-is still required before production code changes.
+This records authorization to investigate the architecture direction only.
+It does not make the Draft implementation-authoritative; the numeric resource
+boundary must pass independent review and receive separate user approval
+before production code changes.
 
 ## 9. Initial M3 review and primary adjudication (2026-09-25)
 
@@ -546,8 +552,18 @@ no remaining blocking or major issue in scope:
   practical-work or pathological-input claim and preserves the resource
   subgate.
 
-Primary disposition: mark this proposal Reviewed and request user approval of
-the architecture/API direction only. That approval may authorize the
-practical-source, charge-site, and scale investigation; it does not authorize
-production changes. The numeric resource boundary and implementation authority
-remain open, and no implementation/performance certification is claimed.
+Primary disposition: mark this proposal Reviewed. The user's later
+authorization for first-stage investigation is recorded in §12; numeric
+resource limits, implementation authority, and implementation/performance
+certification remain open.
+
+## 12. User authorization for first-stage investigation (2026-09-25)
+
+The user approved proceeding with this design direction for investigation only.
+Authorized work is limited to repository source/corpus inspection, mapping
+work and allocation sites, and focused scale/resource measurements within the
+repository measurement budget. This does not authorize production-path
+prototypes, the proposed `yu-types` public API, semantic/support-limit changes,
+or F5 clause supersession. After the evidence is gathered, present the concrete
+numeric support boundary for independent review and separate user approval
+before implementation.

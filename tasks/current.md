@@ -17,13 +17,17 @@ success/error destruction and callback-local peak accounting remain.
 
 This design-only M3 gate is Reviewed after the initial review and two focused
 delta rounds; the assigned findings are closed with no remaining blocking or
-major issue in scope. The user decision now requested is approval of the flat
-draft/indexed-finalizer architecture and API direction solely to authorize the
-practical-source, charge-site, and scale investigation. It does not authorize
-production code. Numeric size/work limits, their evidence, and a separate user
-approval remain required before implementation. No production code/API is
-authorized; keep `lib.rs` as orchestration and any eventual flat producer and
-finalizer bridge in dedicated modules.
+major issue in scope. The user approved the first-stage investigation on
+2026-09-25: inspect practical source inputs, map charge sites, and gather
+focused scale/resource evidence. This does not authorize a production-path
+prototype, public API implementation, semantic change, or code edit. The
+numeric support boundary still requires independent review and separate user
+approval before implementation. Keep `lib.rs` as orchestration and any
+eventual flat producer/finalizer bridge in dedicated modules.
+
+Immediate work: bounded read-only corpus/source audit, then only the focused
+scale measurements justified by that audit. Preserve the existing M3
+measurement budget. No production code/API changes during this investigation.
 
 Latest status (2026-09-24): producer analysis, candidate replay, and the
 generalization Q/R rewrite use iterative task/value worklists with dedicated

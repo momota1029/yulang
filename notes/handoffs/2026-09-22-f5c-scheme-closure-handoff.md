@@ -2056,10 +2056,10 @@ The proposal is recorded in
 [`2026-09-25 F5c flat indexed stack-independent draft`](../design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md).
 The initial M3 review and two focused delta rounds are adjudicated; no assigned
 blocking/major finding remains. The proposal is Reviewed, not Authoritative.
-The current user decision is whether to approve the flat-draft/indexed-finalizer
-architecture and API direction solely to authorize practical-source,
-charge-site, and scale investigation. This does not authorize production code.
-The numeric support boundary must be independently reviewed and separately
-approved before implementation. Keep `lib.rs` as orchestration and isolate
-the eventual flat producer/finalizer bridge in dedicated modules. No code,
-API, tests, or benchmark changed in this design direction review.
+On 2026-09-25 the user approved first-stage investigation only: inspect
+practical source inputs, map charge sites, and gather focused scale/resource
+evidence. This does not authorize a production-path prototype, API
+implementation, or semantic change. The numeric support boundary must be
+independently reviewed and separately approved before implementation. Keep
+`lib.rs` as orchestration and isolate the eventual flat producer/finalizer
+bridge in dedicated modules.
