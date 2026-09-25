@@ -2732,3 +2732,31 @@ and append/state rollback. If the design requires changing the active
 production path, stop for independent M3 review and explicit user approval.
 Resource probing still requires the reviewed §15 plan; §7/§15, indexed
 finalization, F5e, §44 rollback, and F5c/F5e closure remain open.
+
+## Latest continuation (2026-09-26): shared producer-walker design reviewed
+
+The boxed-valued `F5cGeneralizer::walk` cannot supply a flat sink with the
+actual leaf/exit decisions without a shared interpreter; a copied walker is
+rejected. A separate proposal now places the F5c generalizer, summary
+memo/transaction, ordered raw-root coordination, shared walker, and `build_inner`
+under `f5c_generalization.rs`. `lib.rs` retains component invocation and outer
+solver/fact installation. The current boxed sink remains the production path;
+the flat sink is still uncalled.
+
+The focused M3 design review used `compiler_referee`, `spec_auditor`, and
+`performance_auditor`; two repair/delta rounds closed all blocking and major
+findings. The reviewed draft specifies a tagged Local/Shared source arena held
+across the full raw-root forest; first-reentry owner order with lower-before-
+upper materialization and no hash-map-selected order; chronological root-edge
+undo with transient active/conflict scratch returned to idle; and explicit
+co-resident resource/work categories. No code, tests, benchmark, or resource
+probe ran; measurement budget remains zero.
+
+The proposal is Reviewed but not Authoritative. **Wait for explicit user
+approval before editing the active shared walker or moving its module owner.**
+If approved, first perform the module/transaction rollback slice with focused
+failure witnesses, then add the flat sink and raw-root parity. A clean build
+does not replace §15 resource evidence. Indexed finalization, F5e, §44 rollback,
+and overall F5c/F5e closure remain open.
+
+<!-- handoff-append-anchor: 2026-09-26 -->

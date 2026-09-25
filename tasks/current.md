@@ -4,6 +4,34 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): shared producer-walker design reviewed
+
+The current `F5cGeneralizer::walk` owns the producer task decisions but returns
+boxed `F5cPositive` / `F5cNegative` values, so an isolated flat sink cannot
+emit IDs at leaf/exit tasks without copying the walker. A focused M3 proposal
+now puts the F5c generalizer, summary memo/transaction, ordered raw-root
+coordination, and shared walker under `f5c_generalization.rs`; `lib.rs` keeps
+component invocation and solver/fact installation orchestration. The boxed
+sink remains the current production path; the tagged Local/Shared flat sink
+remains uncalled.
+
+Three M3 reviewers converged after two focused design-repair rounds. They
+closed the rollback interleavings (including active-conflict scratch
+restoration), exact raw-root order, complete raw-forest/effect witnesses, and
+module/resource-accounting scope. Raw bounds now have an explicit first-
+reentry owner order and lower-before-upper traversal; HashMap iteration is
+lookup-only. This aligns with the existing producer-order authority. The
+proposal is Reviewed, not Authoritative: **do not edit the active producer
+until the user explicitly approves this shared-interpreter/module move**.
+
+No code, tests, benchmarks, or resource probes ran in this design gate;
+measurement budget remains zero. Next: present the user the exact preserved
+properties and costs and request approval or deferral. If approved, first move
+the F5c generalization owner and implement/test its chronological memo undo and
+idle active-state rollback; then add the shared flat sink and complete raw-root
+forest. The §15 resource plan remains required before any probe. Indexed
+finalization, F5e, §44 rollback, and overall F5c/F5e closure remain open.
+
 ### Latest continuation (2026-09-26): pre-replay producer roots into FlatDraft
 
 A new shallow guarded-self fixture follows the real `F5cGeneralizer` pre-replay
