@@ -276,6 +276,181 @@ fn f5c_flat_substitution_visits_bound_only_roots_and_leaves_orphans() {
 }
 
 #[test]
+fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
+    let mut flat = FlatDraft::default();
+    let orphan_positive = flat.positive(PositiveNode::Variable(90)).unwrap();
+    let orphan_negative = flat.negative(NegativeNode::Variable(91)).unwrap();
+    let orphan_leaf = flat.positive(PositiveNode::Int).unwrap();
+    let orphan_members = flat.positive_span(&[orphan_positive, orphan_leaf]).unwrap();
+    flat.positive(PositiveNode::Union(orphan_members)).unwrap();
+
+    let predicate_argument = flat.negative(NegativeNode::Top).unwrap();
+    let member_int = flat.positive(PositiveNode::Int).unwrap();
+    let member_bottom = flat.positive(PositiveNode::Bottom).unwrap();
+    let members = flat.positive_span(&[member_int, member_bottom]).unwrap();
+    let result = flat.positive(PositiveNode::Union(members)).unwrap();
+    let predicate = flat
+        .positive(PositiveNode::Function {
+            argument: predicate_argument,
+            result,
+        })
+        .unwrap();
+
+    let lower_argument = flat.negative(NegativeNode::Top).unwrap();
+    let lower_result = flat.positive(PositiveNode::Int).unwrap();
+    let lower = flat
+        .positive(PositiveNode::Function {
+            argument: lower_argument,
+            result: lower_result,
+        })
+        .unwrap();
+    let upper_argument = flat.positive(PositiveNode::Bottom).unwrap();
+    let upper_result = flat.negative(NegativeNode::Top).unwrap();
+    let upper = flat
+        .negative(NegativeNode::Function {
+            argument: upper_argument,
+            result: upper_result,
+        })
+        .unwrap();
+    flat.predicate = Some(predicate);
+    flat.bound(RecursiveBound {
+        ordinal: 0,
+        lower,
+        upper,
+    })
+    .unwrap();
+
+    crate::f5c_binder_substitution::substitute_flat(
+        &mut flat,
+        &HashMap::new(),
+        &HashMap::new(),
+        &HashSet::new(),
+        &HashSet::new(),
+    )
+    .unwrap();
+    assert_eq!(
+        flat.positive_nodes[orphan_positive.0 as usize],
+        PositiveNode::Variable(90)
+    );
+    assert_eq!(
+        flat.negative_nodes[orphan_negative.0 as usize],
+        NegativeNode::Variable(91)
+    );
+
+    let (normalized, flat_stats) = crate::f5c_normalization::normalize_flat(&flat).unwrap();
+    let mut boxed = [GeneralizationDraft {
+        quantifier_count: 0,
+        predicate: F5cPositive::Function {
+            argument: Box::new(F5cNegative::Top),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Union(vec![
+                F5cPositive::Int,
+                F5cPositive::Bottom,
+            ])),
+        },
+        recursive_bounds: vec![F5cRecursiveBound {
+            ordinal: 0,
+            lower: F5cPositive::Function {
+                argument: Box::new(F5cNegative::Top),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Int),
+            },
+            upper: F5cNegative::Function {
+                argument: Box::new(F5cPositive::Bottom),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Top),
+            },
+        }],
+    }];
+    let boxed_stats = crate::f5c_normalization::normalize_component(&mut boxed).unwrap();
+
+    assert_eq!(
+        flat_stats,
+        crate::f5c_normalization::FlatNormalizationStats::from(&boxed_stats)
+    );
+    assert_eq!(
+        boxed[0].predicate,
+        F5cPositive::Function {
+            argument: Box::new(F5cNegative::Top),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Union(vec![
+                F5cPositive::Bottom,
+                F5cPositive::Int,
+            ])),
+        }
+    );
+    assert_eq!(
+        boxed[0].recursive_bounds,
+        [F5cRecursiveBound {
+            ordinal: 0,
+            lower: F5cPositive::Function {
+                argument: Box::new(F5cNegative::Top),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Int),
+            },
+            upper: F5cNegative::Function {
+                argument: Box::new(F5cPositive::Bottom),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Top),
+            },
+        }]
+    );
+    assert_eq!(
+        normalized.positive_nodes,
+        [
+            PositiveNode::Bottom,
+            PositiveNode::Int,
+            PositiveNode::Union(crate::f5c_draft::ChildSpan { start: 0, len: 2 }),
+            PositiveNode::Function {
+                argument: crate::f5c_draft::NegativeId(0),
+                result: crate::f5c_draft::PositiveId(2),
+            },
+            PositiveNode::Int,
+            PositiveNode::Function {
+                argument: crate::f5c_draft::NegativeId(1),
+                result: crate::f5c_draft::PositiveId(4),
+            },
+            PositiveNode::Bottom,
+        ]
+    );
+    assert_eq!(
+        normalized.positive_children,
+        [
+            crate::f5c_draft::PositiveId(0),
+            crate::f5c_draft::PositiveId(1),
+        ]
+    );
+    assert_eq!(
+        normalized.negative_nodes,
+        [
+            NegativeNode::Top,
+            NegativeNode::Top,
+            NegativeNode::Top,
+            NegativeNode::Function {
+                argument: crate::f5c_draft::PositiveId(6),
+                result: crate::f5c_draft::NegativeId(2),
+            },
+        ]
+    );
+    assert!(normalized.negative_children.is_empty());
+    assert_eq!(normalized.predicate, Some(crate::f5c_draft::PositiveId(3)));
+    assert_eq!(
+        normalized.recursive_bounds,
+        [RecursiveBound {
+            ordinal: 0,
+            lower: crate::f5c_draft::PositiveId(5),
+            upper: crate::f5c_draft::NegativeId(3),
+        }]
+    );
+}
+
+#[test]
 fn f5c_binder_substitution_preserves_polarity_qr_and_member_order() {
     let positive = F5cPositive::Function {
         argument: Box::new(F5cNegative::Intersection(vec![

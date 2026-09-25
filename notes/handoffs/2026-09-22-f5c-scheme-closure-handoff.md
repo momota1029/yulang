@@ -2489,3 +2489,45 @@ selected-root/normalizer handoff, flat replay and producer migration, error and
 ordinary-drop coverage, the indexed `yu-types` transaction, §5/§15 resource
 gates, F5e Function products, §44 rollback, and eventual removal of the
 superseded boxed route after parity.
+
+## Latest continuation (2026-09-26): selected-root normalization handoff
+
+`normalize_flat` now composes with the fixture-only `substitute_flat` result,
+which may retain unreachable raw Variable scratch. It marks the predicate and
+all recursive-bound lower/upper roots, then propagates selection through a
+single reverse pass over topological insertion order. The two per-polarity
+source maps carry selection state and later normalized IDs; no separate
+reachability arrays or traversal worklist are introduced. The forward pass
+still validates every source ID and structural edge against its insertion
+prefix, including orphan scratch. Only selected nodes enter ranking and the
+five logical normalization counters. Preserve the §2 post-normalization
+compaction unchanged.
+
+The composed fixture compares all five counters with the boxed selected-root
+path and asserts exact normalized flat nodes, child arrays, predicate, and
+bound endpoints. It includes a positive Function predicate with a two-member
+Union, positive/negative Function bound roots, and orphan compound/Variable
+scratch. Separate malformed-edge witnesses cover orphan and selected
+Union/Intersection spans and both Function polarities. M2 compiler-referee and
+performance-auditor delta reviews found no blocking or major issue. Static
+successful-path complexity is O(N+E+B). Two source maps remain sized to all
+raw nodes, so their co-resident peak with the normalizer and compaction lanes
+remains a §5/§15 production gate. No benchmark/resource measurement ran;
+measurement budget used is zero. This remains a sizeable uncalled candidate;
+`lib.rs` and production paths are unchanged.
+
+Verification: `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` passed
+(176 passed, 1 ignored); `cargo test -p yu-solver flat_tests --lib --
+--test-threads=1` passed (9); `cargo test -p yu-solver
+f5c_binder_substitution --lib -- --test-threads=1` passed (7);
+`cargo check -p yu-solver --tests --message-format short`, `cargo fmt --check`,
+and `git diff --check` passed. A full single-threaded yu-solver library run
+reached the unrelated F4 scale matrices: the 4k bounded-cycle case passed,
+then the run was interrupted as the F4 chain scale matrix began. No earlier
+failure was reported; the full suite is unverified.
+
+Next slice: add a fixture-only flat replay candidate and compare it with the
+boxed replay oracle before producer wiring. Continue the first §7 producer
+gate only in bounded module-owned steps. Do not claim production acceptance,
+F5c/F5e closure, the §5/§15 resource gate, indexed finalization, F5e Function
+product certification, or §44 rollback.

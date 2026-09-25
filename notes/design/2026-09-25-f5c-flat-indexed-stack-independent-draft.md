@@ -1189,3 +1189,53 @@ incidences, and B retained bounds, with O(N) flags and at most O(N) stack
 slots. Its physical/co-resident peak, repeat-work admission, practical-input
 margin, and numeric support boundary remain later §5/§15 gates. This is one
 module-owned candidate slice, not closure of the first §7 producer gate.
+
+## 19. Fixture-only selected-root normalization handoff (2026-09-26)
+
+`normalize_flat` now composes with the fixture-only `substitute_flat` result,
+which may retain unreachable raw Variable scratch. It marks the predicate and
+every recursive-bound lower/upper root, then uses one reverse pass over the
+topological insertion order to select their structural children. The existing
+per-polarity source maps carry both selection state and the eventual normalizer
+ID; this avoids a second pair of reachability arrays and avoids a traversal
+worklist. The forward source pass still verifies every insertion ID and every
+node edge against its insertion prefix, including orphan nodes, before
+unselected nodes are omitted from ranking. Reachable Variables remain invalid.
+
+This is the narrow §18 selected-forest case, not a reversal of §16's counter
+decision: raw binder scratch outside the predicate/bound forest is validated
+but does not enter the normalizer or its five logical counters. Nodes in the
+selected forest retain the boxed selected-root counter schedule. The existing
+post-normalization compaction from §2 remains unchanged.
+
+The composed fixture has a positive Function predicate with a two-member
+normalized Union, positive and negative Function bound endpoints, and an
+unreachable compound containing raw Variables. It compares all five logical
+normalization counters with the boxed selected-root oracle and asserts the
+complete flat node arrays, child arrays, predicate, and bound roots. Separate
+malformed witnesses cover orphan/selected Union and Intersection spans and
+both Function edge polarities. M2 compiler-referee and performance-auditor
+delta reviews found no blocking or major issue.
+
+Static cost is O(N+E+B) across the selected-root reverse pass, full source
+topology/insertion validation, and selected-node conversion. The two source
+maps are sized to all raw nodes, even when few are selected; their co-resident
+peak with normalizer and compaction lanes remains a §5/§15 resource obligation.
+No benchmark or resource measurement ran. The candidate remains disconnected
+from production; `lib.rs` is unchanged. The change adds a substantial isolated
+helper and test fixture, so later producer integration should remove the
+superseded boxed route once parity is established rather than keep both
+authorities.
+
+Verification: `cargo test -p yu-solver --lib f5c_ -- --test-threads=1`
+passed (176, 1 ignored); `cargo test -p yu-solver flat_tests --lib --
+--test-threads=1` passed (9); `cargo test -p yu-solver
+f5c_binder_substitution --lib -- --test-threads=1` passed (7);
+`cargo check -p yu-solver --tests --message-format short`, `cargo fmt --check`,
+and `git diff --check` passed. A full single-threaded yu-solver library run was
+started, reached the unrelated F4 scale matrices, then was interrupted after
+the 4k bounded-cycle case passed and the F4 chain matrix began; no failure was
+reported before interruption. This leaves the full library suite unverified.
+Measurement budget consumed remains zero. Continue the producer-side flat
+candidate with replay; the §5/§15 resource gate, production acceptance,
+indexed finalizer, F5e Function products, and §44 rollback remain open.

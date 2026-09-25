@@ -3,11 +3,14 @@ use std::cmp::Ordering;
 #[cfg(test)]
 use super::F5cRecursiveBound;
 use super::f5c_draft::{
-    FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode, RecursiveBound,
+    ChildSpan, FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode,
+    RecursiveBound,
 };
 use super::{F5cNegative, F5cPositive, GeneralizationDraft, SolveAvailabilityError};
 
 type NodeId = usize;
+const SOURCE_UNSELECTED: NodeId = NodeId::MAX;
+const SOURCE_SELECTED: NodeId = NodeId::MAX - 1;
 
 pub(super) const LANE_COUNT: usize = 13;
 const RADIX_ALPHABET: usize = 257;
@@ -1484,6 +1487,165 @@ fn stable_merge_sort<T: Copy>(
     Ok(())
 }
 
+fn source_id(reference: NodeRef) -> u32 {
+    match reference {
+        NodeRef::Positive(id) => id.0,
+        NodeRef::Negative(id) => id.0,
+    }
+}
+
+fn visit_source_edges(
+    input: &FlatDraft,
+    reference: NodeRef,
+    mut visit: impl FnMut(NodeRef) -> Result<(), SolveAvailabilityError>,
+) -> Result<(), SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    match reference {
+        NodeRef::Positive(id) => {
+            let node = *input
+                .positive_nodes
+                .get(usize::try_from(id.0).map_err(|_| bad)?)
+                .ok_or(bad)?;
+            match node {
+                PositiveNode::Union(span) => {
+                    let (start, end) = checked_child_range(span, input.positive_children.len())?;
+                    for &child in input.positive_children.get(start..end).ok_or(bad)? {
+                        visit(NodeRef::Positive(child))?;
+                    }
+                }
+                PositiveNode::Function { argument, result } => {
+                    visit(NodeRef::Negative(argument))?;
+                    visit(NodeRef::Positive(result))?;
+                }
+                _ => {}
+            }
+        }
+        NodeRef::Negative(id) => {
+            let node = *input
+                .negative_nodes
+                .get(usize::try_from(id.0).map_err(|_| bad)?)
+                .ok_or(bad)?;
+            match node {
+                NegativeNode::Intersection(span) => {
+                    let (start, end) = checked_child_range(span, input.negative_children.len())?;
+                    for &child in input.negative_children.get(start..end).ok_or(bad)? {
+                        visit(NodeRef::Negative(child))?;
+                    }
+                }
+                NegativeNode::Function { argument, result } => {
+                    visit(NodeRef::Positive(argument))?;
+                    visit(NodeRef::Negative(result))?;
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+fn select_source_node(
+    reference: NodeRef,
+    positives: &mut [NodeId],
+    negatives: &mut [NodeId],
+) -> Result<(), SolveAvailabilityError> {
+    let index = usize::try_from(source_id(reference))
+        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    let mapping = match reference {
+        NodeRef::Positive(_) => positives.get_mut(index),
+        NodeRef::Negative(_) => negatives.get_mut(index),
+    }
+    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    if *mapping == SOURCE_UNSELECTED {
+        *mapping = SOURCE_SELECTED;
+    }
+    Ok(())
+}
+
+fn select_root_nodes(
+    input: &FlatDraft,
+    positives: &mut [NodeId],
+    negatives: &mut [NodeId],
+) -> Result<(), SolveAvailabilityError> {
+    let bad = SolveAvailabilityError::IdentityExhausted;
+    select_source_node(
+        NodeRef::Positive(input.predicate.ok_or(bad)?),
+        positives,
+        negatives,
+    )?;
+    for bound in &input.recursive_bounds {
+        select_source_node(NodeRef::Positive(bound.lower), positives, negatives)?;
+        select_source_node(NodeRef::Negative(bound.upper), positives, negatives)?;
+    }
+    // Topological insertion order makes one reverse pass sufficient.
+    for reference in input.insertion_order.iter().rev().copied() {
+        let mapping = match reference {
+            NodeRef::Positive(_) => {
+                positives.get(usize::try_from(source_id(reference)).map_err(|_| bad)?)
+            }
+            NodeRef::Negative(_) => {
+                negatives.get(usize::try_from(source_id(reference)).map_err(|_| bad)?)
+            }
+        }
+        .copied()
+        .ok_or(bad)?;
+        if mapping == SOURCE_SELECTED {
+            visit_source_edges(input, reference, |child| {
+                select_source_node(child, positives, negatives)
+            })?;
+        }
+    }
+    Ok(())
+}
+
+fn mapped_source_node(nodes: &[NodeId], source_id: u32) -> Result<NodeId, SolveAvailabilityError> {
+    nodes
+        .get(usize::try_from(source_id).map_err(|_| SolveAvailabilityError::IdentityExhausted)?)
+        .copied()
+        .filter(|&node| node < SOURCE_SELECTED)
+        .ok_or(SolveAvailabilityError::IdentityExhausted)
+}
+
+fn checked_child_range(
+    span: ChildSpan,
+    child_count: usize,
+) -> Result<(usize, usize), SolveAvailabilityError> {
+    let start =
+        usize::try_from(span.start).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+    let end = start
+        .checked_add(
+            usize::try_from(span.len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+        )
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    if end > child_count {
+        return Err(SolveAvailabilityError::IdentityExhausted);
+    }
+    Ok((start, end))
+}
+
+fn require_prior_source_id(id: u32, inserted_count: usize) -> Result<(), SolveAvailabilityError> {
+    if usize::try_from(id).map_err(|_| SolveAvailabilityError::IdentityExhausted)? < inserted_count
+    {
+        Ok(())
+    } else {
+        Err(SolveAvailabilityError::IdentityExhausted)
+    }
+}
+
+fn validate_prior_links(
+    input: &FlatDraft,
+    reference: NodeRef,
+    positive_count: usize,
+    negative_count: usize,
+) -> Result<(), SolveAvailabilityError> {
+    visit_source_edges(input, reference, |child| {
+        let inserted_count = match child {
+            NodeRef::Positive(_) => positive_count,
+            NodeRef::Negative(_) => negative_count,
+        };
+        require_prior_source_id(source_id(child), inserted_count)
+    })
+}
+
 pub(super) fn normalize_component(
     drafts: &mut [GeneralizationDraft],
 ) -> Result<NormalizationStats, SolveAvailabilityError> {
@@ -1508,8 +1670,9 @@ pub(super) fn normalize_component(
     Ok(stats)
 }
 
-/// Normalize a producer-owned topological flat graph without creating boxed values.
-/// Each input node may refer only to nodes already inserted in its polarity array.
+/// Normalize the selected root forest without creating boxed values.
+/// Validate every source edge, but rank only nodes reachable from scheme roots;
+/// unreachable draft scratch is not part of the boxed selected-root counter schedule.
 #[allow(dead_code)]
 pub(super) fn normalize_flat(
     input: &FlatDraft,
@@ -1524,16 +1687,31 @@ pub(super) fn normalize_flat(
     negatives
         .try_reserve(input.negative_nodes.len())
         .map_err(|_| bad)?;
+    positives.resize(input.positive_nodes.len(), SOURCE_UNSELECTED);
+    negatives.resize(input.negative_nodes.len(), SOURCE_UNSELECTED);
+    select_root_nodes(input, &mut positives, &mut negatives)?;
     let mut children = Vec::new();
+    let mut positive_source_count = 0usize;
+    let mut negative_source_count = 0usize;
     for reference in &input.insertion_order {
         children.clear();
         match *reference {
             NodeRef::Positive(source_id) => {
                 let source_index = usize::try_from(source_id.0).map_err(|_| bad)?;
-                if source_index != positives.len() {
+                if source_index != positive_source_count {
                     return Err(bad);
                 }
                 let node = input.positive_nodes.get(source_index).ok_or(bad)?;
+                validate_prior_links(
+                    input,
+                    *reference,
+                    positive_source_count,
+                    negative_source_count,
+                )?;
+                positive_source_count = positive_source_count.checked_add(1).ok_or(bad)?;
+                if positives[source_index] == SOURCE_UNSELECTED {
+                    continue;
+                }
                 let kind = match *node {
                     PositiveNode::Bottom => NodeKind::PositiveBottom,
                     PositiveNode::Int => NodeKind::PositiveInt,
@@ -1548,34 +1726,36 @@ pub(super) fn normalize_flat(
                         let slice = input.positive_children.get(start..end).ok_or(bad)?;
                         children.try_reserve(slice.len()).map_err(|_| bad)?;
                         for id in slice {
-                            children.push(
-                                *positives
-                                    .get(usize::try_from(id.0).map_err(|_| bad)?)
-                                    .ok_or(bad)?,
-                            );
+                            children.push(mapped_source_node(&positives, id.0)?);
                         }
                         NodeKind::PositiveUnion { start: 0, len: 0 }
                     }
                     PositiveNode::Function { argument, result } => {
-                        let a = *negatives
-                            .get(usize::try_from(argument.0).map_err(|_| bad)?)
-                            .ok_or(bad)?;
-                        let r = *positives
-                            .get(usize::try_from(result.0).map_err(|_| bad)?)
-                            .ok_or(bad)?;
+                        let a = mapped_source_node(&negatives, argument.0)?;
+                        let r = mapped_source_node(&positives, result.0)?;
                         children.try_reserve(2).map_err(|_| bad)?;
                         children.extend_from_slice(&[a, r]);
                         NodeKind::PositiveFunction { start: 0 }
                     }
                 };
-                positives.push(normalizer.push_node(kind, &children)?);
+                positives[source_index] = normalizer.push_node(kind, &children)?;
             }
             NodeRef::Negative(source_id) => {
                 let source_index = usize::try_from(source_id.0).map_err(|_| bad)?;
-                if source_index != negatives.len() {
+                if source_index != negative_source_count {
                     return Err(bad);
                 }
                 let node = input.negative_nodes.get(source_index).ok_or(bad)?;
+                validate_prior_links(
+                    input,
+                    *reference,
+                    positive_source_count,
+                    negative_source_count,
+                )?;
+                negative_source_count = negative_source_count.checked_add(1).ok_or(bad)?;
+                if negatives[source_index] == SOURCE_UNSELECTED {
+                    continue;
+                }
                 let kind = match *node {
                     NegativeNode::Top => NodeKind::NegativeTop,
                     NegativeNode::Bottom => NodeKind::NegativeBottom,
@@ -1591,38 +1771,28 @@ pub(super) fn normalize_flat(
                         let slice = input.negative_children.get(start..end).ok_or(bad)?;
                         children.try_reserve(slice.len()).map_err(|_| bad)?;
                         for id in slice {
-                            children.push(
-                                *negatives
-                                    .get(usize::try_from(id.0).map_err(|_| bad)?)
-                                    .ok_or(bad)?,
-                            );
+                            children.push(mapped_source_node(&negatives, id.0)?);
                         }
                         NodeKind::NegativeIntersection { start: 0, len: 0 }
                     }
                     NegativeNode::Function { argument, result } => {
-                        let a = *positives
-                            .get(usize::try_from(argument.0).map_err(|_| bad)?)
-                            .ok_or(bad)?;
-                        let r = *negatives
-                            .get(usize::try_from(result.0).map_err(|_| bad)?)
-                            .ok_or(bad)?;
+                        let a = mapped_source_node(&positives, argument.0)?;
+                        let r = mapped_source_node(&negatives, result.0)?;
                         children.try_reserve(2).map_err(|_| bad)?;
                         children.extend_from_slice(&[a, r]);
                         NodeKind::NegativeFunction { start: 0 }
                     }
                 };
-                negatives.push(normalizer.push_node(kind, &children)?);
+                negatives[source_index] = normalizer.push_node(kind, &children)?;
             }
         }
     }
-    if positives.len() != input.positive_nodes.len()
-        || negatives.len() != input.negative_nodes.len()
+    if positive_source_count != input.positive_nodes.len()
+        || negative_source_count != input.negative_nodes.len()
     {
         return Err(bad);
     }
-    let predicate = *positives
-        .get(usize::try_from(input.predicate.ok_or(bad)?.0).map_err(|_| bad)?)
-        .ok_or(bad)?;
+    let predicate = mapped_source_node(&positives, input.predicate.ok_or(bad)?.0)?;
     let mut roots = Vec::new();
     roots
         .try_reserve(
@@ -1636,16 +1806,8 @@ pub(super) fn normalize_flat(
         .map_err(|_| bad)?;
     roots.push(predicate);
     for bound in &input.recursive_bounds {
-        roots.push(
-            *positives
-                .get(usize::try_from(bound.lower.0).map_err(|_| bad)?)
-                .ok_or(bad)?,
-        );
-        roots.push(
-            *negatives
-                .get(usize::try_from(bound.upper.0).map_err(|_| bad)?)
-                .ok_or(bad)?,
-        );
+        roots.push(mapped_source_node(&positives, bound.lower.0)?);
+        roots.push(mapped_source_node(&negatives, bound.upper.0)?);
     }
     normalizer.rank_all()?;
 
@@ -1824,7 +1986,7 @@ mod flat_variable_tests {
     use super::*;
 
     #[test]
-    fn closed_normalizer_rejects_both_variable_polarities() {
+    fn closed_normalizer_rejects_reachable_variables_in_both_polarities() {
         let mut positive = FlatDraft::default();
         positive.predicate = Some(positive.positive(PositiveNode::Variable(4)).unwrap());
         assert!(matches!(
@@ -1833,8 +1995,13 @@ mod flat_variable_tests {
         ));
 
         let mut negative = FlatDraft::default();
-        negative.predicate = Some(negative.positive(PositiveNode::Bottom).unwrap());
-        negative.negative(NegativeNode::Variable(4)).unwrap();
+        let argument = negative.negative(NegativeNode::Variable(4)).unwrap();
+        let result = negative.positive(PositiveNode::Bottom).unwrap();
+        negative.predicate = Some(
+            negative
+                .positive(PositiveNode::Function { argument, result })
+                .unwrap(),
+        );
         assert!(matches!(
             normalize_flat(&negative),
             Err(SolveAvailabilityError::IdentityExhausted)
@@ -2143,6 +2310,87 @@ mod flat_tests {
             Err(SolveAvailabilityError::IdentityExhausted)
         ));
         assert_eq!(bottom, PositiveId(1));
+    }
+
+    #[test]
+    fn flat_rejects_malformed_selected_and_orphan_edges() {
+        let rejects = |flat: &FlatDraft| {
+            matches!(
+                normalize_flat(flat),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            )
+        };
+
+        // An orphan positive Union may not point forward to itself.
+        let mut flat = FlatDraft::default();
+        flat.positive(PositiveNode::Bottom).unwrap();
+        let self_edge = flat.positive_span(&[PositiveId(1)]).unwrap();
+        flat.positive(PositiveNode::Union(self_edge)).unwrap();
+        flat.predicate = Some(flat.positive(PositiveNode::Int).unwrap());
+        assert!(rejects(&flat));
+
+        // An orphan negative Intersection still has to carry an in-range span.
+        let mut flat = FlatDraft::default();
+        flat.negative(NegativeNode::Intersection(
+            super::super::f5c_draft::ChildSpan {
+                start: u32::MAX,
+                len: 1,
+            },
+        ))
+        .unwrap();
+        flat.predicate = Some(flat.positive(PositiveNode::Int).unwrap());
+        assert!(rejects(&flat));
+
+        // A selected positive Union may not name a child outside its array.
+        let mut flat = FlatDraft::default();
+        let span = flat.positive_span(&[PositiveId(u32::MAX)]).unwrap();
+        flat.predicate = Some(flat.positive(PositiveNode::Union(span)).unwrap());
+        assert!(rejects(&flat));
+
+        // Selection crosses Function polarity; the referenced Intersection is invalid.
+        let mut flat = FlatDraft::default();
+        let argument = flat
+            .negative(NegativeNode::Intersection(
+                super::super::f5c_draft::ChildSpan { start: 0, len: 1 },
+            ))
+            .unwrap();
+        let result = flat.positive(PositiveNode::Bottom).unwrap();
+        flat.predicate = Some(
+            flat.positive(PositiveNode::Function { argument, result })
+                .unwrap(),
+        );
+        assert!(rejects(&flat));
+
+        // Both Function polarities reject references to later source nodes.
+        let mut flat = FlatDraft::default();
+        flat.positive(PositiveNode::Function {
+            argument: NegativeId(0),
+            result: PositiveId(1),
+        })
+        .unwrap();
+        flat.negative(NegativeNode::Top).unwrap();
+        flat.positive(PositiveNode::Int).unwrap();
+        flat.predicate = Some(flat.positive(PositiveNode::Int).unwrap());
+        assert!(rejects(&flat));
+
+        let mut flat = FlatDraft::default();
+        let invalid = flat
+            .negative(NegativeNode::Function {
+                argument: PositiveId(0),
+                result: NegativeId(1),
+            })
+            .unwrap();
+        flat.positive(PositiveNode::Bottom).unwrap();
+        flat.negative(NegativeNode::Top).unwrap();
+        let result = flat.positive(PositiveNode::Bottom).unwrap();
+        flat.predicate = Some(
+            flat.positive(PositiveNode::Function {
+                argument: invalid,
+                result,
+            })
+            .unwrap(),
+        );
+        assert!(rejects(&flat));
     }
 }
 

@@ -4,7 +4,46 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): flat binder substitution candidate
+### Latest continuation (2026-09-26): selected-root normalization handoff
+
+`normalize_flat` now accepts the composed fixture-only flat substitution
+candidate without admitting unreachable raw Variable scratch into canonical
+ranking. It seeds the predicate and all recursive-bound endpoints, then uses a
+reverse insertion-order pass to mark their topological children in the same
+per-polarity maps later used for normalizer IDs. Its forward pass validates all
+source insertion IDs and edges, including orphan topology, before skipping
+unselected nodes. Reachable Variables still reject. Post-normalization
+compaction remains intact; `lib.rs` and production callers are unchanged.
+
+The composed fixture includes a two-member normalized Union, both Function
+polarities at bound endpoints, and orphan compound/Variable scratch. It
+compares all five logical counters and asserts complete flat output, root, and
+bound mappings against the boxed selected-root oracle. Malformed orphan and
+selected spans and both Function polarities have focused rejection witnesses.
+M2 compiler/performance delta review found no blocking or major issue. The
+static successful path is O(N+E+B); its two per-polarity source maps still
+scale with all raw nodes, so physical peak and work admission remain open
+under §§5/15. The helper remains fixture-only and is not a resource-margin
+claim.
+
+Verification: `cargo test -p yu-solver --lib f5c_ -- --test-threads=1` passed
+(176 passed, 1 ignored); `cargo test -p yu-solver flat_tests --lib --
+--test-threads=1` passed (9); `cargo test -p yu-solver
+f5c_binder_substitution --lib -- --test-threads=1` passed (7);
+`cargo check -p yu-solver --tests --message-format short`, `cargo fmt --check`,
+and `git diff --check` passed. A full single-threaded yu-solver library run
+reached the unrelated F4 scale matrices; the 4k bounded-cycle case passed, then
+the run was interrupted as the F4 chain matrix began. No earlier failure was
+reported; the full suite remains unverified. No benchmark or resource probe
+ran; measurement budget used is zero.
+
+Next: add a fixture-only flat replay candidate and compare it with boxed replay
+before producer wiring. Keep `lib.rs` orchestration-only and remove old boxed
+routes only after parity. The first §7 producer gate, §5/§15 resource gate,
+indexed finalizer, production acceptance, F5e Function products, and §44
+rollback remain open.
+
+### Previous continuation (2026-09-26): flat binder substitution candidate
 
 Added an uncalled, module-owned `FlatDraft` binder-substitution candidate in
 `crates/yu-solver/src/f5c_binder_substitution.rs`; focused tests live in the
