@@ -2334,9 +2334,40 @@ seven of eight process invocations; its one remaining invocation is
 insufficient for prototype work and practical-margin evidence. No code,
 prototype, test, or probe ran in this review.
 
-Immediate next action: obtain the user's decision on whether to authorize a
-bounded non-shipping test-only measurement prototype with a fresh explicit
-budget, or defer that route and leave the resource gate open while developing
-another evidence path. Do not choose a numeric cap, change the gate sequence,
-start API/production implementation, or claim F5c/F5e completion before that
-decision. The §44 representative and atomic route contract remain unchanged.
+At this checkpoint, the immediate next action was to obtain the user's decision
+on whether to authorize a bounded non-shipping measurement candidate. The user
+later approved that sequence, as recorded below. Do not choose a numeric cap or
+claim F5c/F5e completion based only on that approval. The §44 representative
+and atomic route contract remain unchanged.
+
+## User-approved candidate-before-boundary sequence (2026-09-25)
+
+The user approved the recommended sequence: after focused M3 review of the
+revised design gate, build a non-shipping explicit-stack implementation
+candidate on `yulang3`, then measure its logical work and actual physical lane
+capacities before choosing numeric resource limits. This supersedes only the
+prior rule that numeric limits had to precede all candidate code. It does not
+authorize release, production acceptance, semantic/API expansion, or a
+structural-depth cap. No code or probes have run yet.
+
+Immediate next action: focused M3 delta review of design §15. If clean, implement
+in modular slices (keep `lib.rs` orchestration-only), commit/push coherent
+checkpoints, then run a fresh resource measurement plan under
+`rules/performance.md`. The old probe campaign has one invocation left, which
+is insufficient for this candidate. Actual physical reconciliation and separate
+review/user approval of any numeric support boundary remain hard gates before
+acceptance. The §44 representative and route transaction remain unchanged.
+
+The focused M3 delta review is now closed. First round: `architect` had no
+finding; `spec_auditor` found one minor historical-authorization wording issue;
+`performance_auditor` found one major ambiguity about measurement-plan timing
+and budget. One implementer repaired both in the design draft. A fresh focused
+`spec_auditor`/`performance_auditor` delta review found no remaining findings.
+No code, tests, resource probes, or benchmarks ran in those review rounds.
+
+Candidate implementation is now authorized within the exact reviewed draft
+scope. Immediate next action: begin a small module-owned implementation slice,
+keeping `lib.rs` as orchestration; use focused small-fixture correctness checks.
+Before any resource/scale/capacity probe, prepare and review the fresh bounded
+measurement plan required by §15. Do not claim a numeric support boundary,
+physical certification, production acceptance, or F5c/F5e completion yet.

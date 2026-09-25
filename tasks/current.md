@@ -88,25 +88,30 @@ charged F5c draft work across components on 2026-09-25. This chooses no numeric
 cap. At that checkpoint, the next step was to continue the resource subgate
 with scale and practical-input evidence; the later full-slice review below
 supersedes that next step. A concrete supported boundary still needs focused
-independent review and separate user approval before implementation. This authorization still
-excludes the public API implementation, semantic/support-limit changes, F5
-clause supersession, and production code. Numeric limits require independent
-review and separate user approval before implementation. Keep `lib.rs` as
-orchestration and any eventual flat producer/finalizer bridge in dedicated
-modules.
+independent review and separate user approval before production acceptance.
+At that earlier checkpoint, the first-stage investigation authorization
+excluded candidate code, API implementation, semantic/support-limit changes,
+and F5 clause supersession. The later explicit §15 decision supersedes only the
+candidate-code restriction; the semantic scope and production-acceptance gates
+remain. Keep `lib.rs` as orchestration and any flat producer/finalizer bridge
+in dedicated modules.
 
 Latest full-slice M3 review (2026-09-25) found the resource gate sequence
-circular: the draft requires numeric support approval before production code,
-but the actual co-resident physical lane ledger is only available after an
-implementation exists. Compiler and performance review scopes found no issue;
-the specification review found this major and a minor stale-status statement.
-The primary accepted the major and retained Draft status; details and the
-corrected status are in §14 of the design draft and the latest F5c handoff.
-Do not start production/API work, select a numeric cap, or run more resource
-probes yet. Immediate next action: ask the user whether to authorize a bounded,
-non-shipping test-only measurement prototype with a fresh budget, or defer that
-route while another evidence path is developed. The meter-lifetime approval is
-unchanged. No tests or probes ran in this review.
+circular: the draft required numeric support approval before code, but the
+actual co-resident physical lane ledger exists only after implementation. The
+user approved the recommended non-shipping candidate-before-boundary sequence
+on 2026-09-25. This removes the sequencing blocker without selecting numeric
+limits or approving production acceptance. Its focused M3 delta review is now
+clean: the architect found no issue; one minor historical-authorization wording
+issue and one major probe-plan ambiguity were repaired; fresh spec/performance
+delta review found no remaining issue. Candidate implementation may begin
+within exact draft §§2–8. Next: implement in small module-owned slices, keeping
+`lib.rs` orchestration-only. Use focused correctness tests on small fixtures;
+do not run resource/scale/capacity probes until a fresh plan specifies inputs,
+observations, environment, commands, time/process budgets, and stop criteria,
+and passes performance-auditor plus primary review. Numeric limits, physical
+reconciliation, and separate review/user approval remain hard gates before
+production acceptance. No code or probes have run yet.
 
 Latest status (2026-09-24): producer analysis, candidate replay, and the
 generalization Q/R rewrite use iterative task/value worklists with dedicated

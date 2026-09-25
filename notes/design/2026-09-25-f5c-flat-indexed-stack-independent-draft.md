@@ -1,22 +1,27 @@
 # F5c flat indexed draft and stack-independent finalization
 
-Status: Draft proposal; earlier architecture and source-map/meter-lifetime deltas received focused review; user approved solve-wide accumulation for charged F5c draft work across components (2026-09-25); latest full-slice M3 review found an unresolved circular resource/implementation gate, so this proposal is not approval-ready; numeric boundary and implementation remain unapproved
+Status: Reviewed proposal; user approved the non-shipping candidate-before-boundary sequence (2026-09-25); solve-wide charged-work meter lifetime is approved; candidate implementation may proceed within §§2–8 after focused M3 review; numeric support boundary and production acceptance remain open
 Scope: F5c structural-depth stack use from live expansion through closed-scheme finalization and cleanup
 Related authority: F5 §§14–16, 24–26, 32–36, 43–44; F5b closed-finalization accounting amendment §§2, 6, 9
-Decision: investigate flat solver-owned drafts and a `yu-types`-owned indexed finalization transaction; no production implementation or API approval
+Decision: implement and measure a non-shipping flat-draft/indexed-finalization candidate before selecting numeric resource thresholds; no production acceptance or release before independent resource review and separate user approval
 Supersedes: proposes to replace the bounded boxed-draft candidate in `2026-09-24-f5c-bounded-boxed-draft-gate-draft.md` and the conditional Boundary A preference in §9 of `2026-09-23-f5c-indexed-finalization-accounting-boundary-draft.md`; no existing authority is superseded before user approval
 
 ## 1. User direction and decision boundary
 
-The user chose to investigate support for structurally deep F5c schemes using
-explicit stacks rather than a fixed structural-depth threshold. This is
-authorization to prepare and review a design, not approval of a new `yu-types`
-API or production implementation.
+The user chose to support structurally deep F5c schemes using explicit stacks
+rather than a fixed structural-depth threshold. The user later approved the
+non-shipping candidate-before-resource-boundary sequence in §15. This permits
+candidate implementation after focused independent M3 review of that sequence;
+it does not authorize production acceptance, release, or an unreviewed
+semantic/API expansion.
 
 On 2026-09-25, the user approved the first-stage investigation of this
 direction: inspect practical source inputs, source charge sites, and focused
-scale behavior. This does not approve the proposed public API for implementation,
-select numeric resource limits, or authorize production code.
+scale behavior. That earlier approval, like the later solve-wide meter-lifetime
+approval, did not by itself authorize candidate implementation. The subsequent
+explicit approval in §15 authorizes the non-shipping candidate, contingent on
+focused review of the revised sequence; neither approval selects numeric
+resource limits or authorizes production acceptance.
 
 The product target remains Oracle-equivalent behavior for practical source
 inputs and a lightweight successful path. The proposed change removes native
@@ -582,35 +587,40 @@ scale evidence can be independently reviewed. Do not infer a reset boundary
 from implementation convenience.
 
 The user approved solve-wide accumulation for charged F5c draft work across
-components on 2026-09-25, separately from any numeric-cap decision. This does
-not approve an API or implementation. After the exact proposed §24 API,
-producer/finalizer ownership and parity obligations,
-failure-epoch rules, and accounting boundary have passed independent design
-review, present the user with two distinct gates. First,
-the user may approve the flat-draft ownership
-boundary, indexed API shape, and deterministic draft-size/repeat-work
-mechanism while numeric thresholds remain deferred. That approval authorizes
-only the practical-source, charge-site, and scale investigation in the
-resource subgate; it does not authorize production code, prototypes on a
-shipped path, or any claim of a deterministic practical-work ceiling or
-pathological-work rejection. The resource subgate must select numeric limits,
-show their practical-input margin and scale behavior, identify any F5 clause
-that needs supersession, and pass focused independent review. Only after the
-user separately approves that completed support boundary may this proposal
-become implementation-authoritative and production code begin.
+components on 2026-09-25. This fixes meter lifetime only and selects no numeric
+threshold or candidate implementation by itself. The earlier first-stage
+investigation approval likewise did not authorize the candidate. The user
+subsequently gave explicit approval for the revised sequence recorded in §15:
+after focused M3 review, build a non-shipping candidate using this proposal,
+then gather resource evidence from that candidate before choosing a numeric
+support boundary. This supersedes the former requirement that all numeric
+thresholds be selected before any candidate implementation. It does not waive
+independent review or separate user approval of the eventual supported-input
+boundary, and it does not make a candidate accepted or releasable.
 
-The approved first-stage investigation scope is:
+The candidate remains constrained by §§2–7: preserve Oracle-visible schemes,
+Q/R and canonical order, §44 representative projection and atomicity, and exact
+public observation; use flat indexed data and explicit worklists through error
+cleanup/drop; retain checked index conversion and fallible growth; and keep
+`lib.rs` as orchestration. Structural depth has no fixed cap. No numeric
+draft-size or repeat-work threshold is selected before candidate measurements,
+and no practical acceptance or pathological-input claim may be made meanwhile.
 
-1. the indexed cross-crate transaction and flat-draft ownership boundary;
-2. the proposed draft-size and charged-work mechanism, with numeric thresholds
-   deferred to the resource subgate (none are selected by this Draft);
-3. any F5 §14/§24/§26/§34 clauses to supersede (none are silently superseded
-   by this Draft).
+After candidate implementation, measure the actual logical work and physical
+lane capacities/retained/peak values at the §26/§34 boundaries, with practical
+inputs and scale cases. Physical reconciliation is a hard stop before calling
+the implementation gate complete or production-ready. If the observed work,
+storage, failure behavior, or Oracle parity is not safe and proportionate,
+stop and return to design; do not ship by treating fallible allocation alone as
+a resource policy. Independently review the resulting numeric support boundary
+and obtain separate user approval before production acceptance/release. F5e
+Function-product and §44 per-use resource/rollback gates remain separate.
 
-This records authorization to investigate the architecture direction only.
-It does not make the Draft implementation-authoritative; the numeric resource
-boundary must pass independent review and receive separate user approval
-before production code changes.
+The prior first-stage source and charge-site investigation remains useful
+background evidence, but the candidate is now the next measurement source. The
+old diagnostic campaign used seven of eight process invocations; it does not
+provide a suitable budget for the candidate campaign. Set a fresh bounded
+measurement plan under `rules/performance.md` before running scale probes.
 
 ## 9. Initial M3 review and primary adjudication (2026-09-25)
 
@@ -938,4 +948,76 @@ prototype with a fresh budget, or to defer that route and leave the resource
 gate open while another evidence path is developed. Any revised gate ordering
 also needs explicit user approval before becoming durable design authority.
 The minor finding is closed here by correcting the tentative status above. The
-solve-wide meter-lifetime approval remains in force and is not reopened.
+solve-wide meter-lifetime approval remains in force and is not reopened. This
+was the status at the close of that review; the user later approved a revised
+candidate-before-boundary sequence, recorded below.
+
+## 15. User-approved candidate-before-boundary sequence (2026-09-25)
+
+After the §14 review, the user approved the recommendation to build a
+non-shipping implementation candidate using explicit stacks, then measure that
+candidate before selecting numeric resource limits. This resolves the circular
+gate sequencing finding, contingent on a focused independent M3 delta review of
+the revised sequence before code changes begin.
+
+The user decision approves candidate implementation on `yulang3` for the scope
+already specified in §§2–7 and §8. The candidate may be committed and pushed as
+an incomplete, non-release checkpoint. It is not accepted as production-ready;
+it does not close F5c/F5e, authorize release, or authorize changes to Oracle
+semantics, Q/R ordering, the §44 representative/transaction, or the proposed
+API beyond the exact draft surface. Do not add a structural-depth cap.
+
+The pre-implementation focused M3 review gate for this sequence is now closed,
+as recorded below. The candidate must retain the flat indexed representation and explicit worklists
+through producer expansion, normalization, finalization input, failure
+cleanup, and ordinary drop; use checked index conversion and fallible growth;
+keep `lib.rs` orchestration-only; and preserve all listed parity and atomicity
+witnesses. Numeric draft-size and repeat-work thresholds remain unset while
+building the candidate. Ordinary focused correctness tests on small fixtures
+may exercise the candidate under `rules/testing.md`. Any candidate
+resource, scale, or capacity probe requires the measurement plan and review
+gate below before its first invocation.
+
+After candidate implementation and before the first candidate resource probe,
+prepare a fresh measurement plan under `rules/performance.md`. Specify input
+families and sizes; exact logical-work observations, physical lanes, and
+F5/F5c checkpoints for capacity, retained, and peak values; environment and
+build mode; exact commands; a per-process timeout; total measurement process
+count and wall-time budget; stop criteria; and how failures, retries, and
+rollback are sampled. `performance_auditor` and the primary must review the
+plan before execution. The prior campaign's remaining single process
+invocation is insufficient for this separate candidate campaign.
+
+The default campaign maximum is eight measurement process invocations and ten
+minutes total wall time. A plan exceeding either limit requires written
+`performance_auditor` justification and primary approval before execution; a
+plan exceeding sixteen invocations or twenty minutes also requires explicit
+user approval. Only dedicated resource-capture invocations consume this
+campaign budget. Correctness tests and builds that do not capture resource
+samples remain separate and governed by `rules/testing.md`.
+
+Under the reviewed plan, measure actual logical work and physical lane
+capacity/retained/peak values at the required F5/F5c boundaries, including
+practical inputs and scale behavior. Physical reconciliation is a hard stop
+before the implementation gate can be called complete or production-ready.
+Any proposed numeric supported-input boundary must pass independent review and
+receive separate user approval. If the candidate cannot preserve oracle parity,
+atomic publication, safe checked failure, or proportionate resource use, stop
+and return to design rather than accepting it.
+
+The first focused M3 review of this sequence found one accepted major
+measurement-plan ambiguity and one accepted minor historical-authorization
+wording issue. A batched documentation repair separated small-fixture
+correctness tests from resource probes, made a reviewed pre-probe plan mandatory,
+specified its contents and budget rules, and clarified the earlier approvals'
+scope. A fresh focused delta review by `spec_auditor` and
+`performance_auditor` found no remaining blocking, major, or minor finding;
+the `architect` found no issue in the first round. No code, tests, or probes ran
+during these documentation reviews.
+
+Primary disposition: the candidate-before-boundary sequence is reviewed and
+authorized within the exact draft scope. Candidate implementation may begin in
+small module-owned slices, preserving `lib.rs` as orchestration. The resource
+measurement plan remains a separate mandatory review gate before any resource,
+scale, or capacity probe. Numeric support limits, physical-lane certification,
+production acceptance, F5c/F5e completion, and release remain open.
