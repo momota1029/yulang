@@ -2721,9 +2721,14 @@ module tests pass (9); `cargo fmt --check` and `git diff --check` pass. No
 broad library suite, benchmark, or resource probe ran; measurement budget is
 zero.
 
-Next: move this candidate bridge from boxed-to-summary-to-flat to direct flat
-construction from producer walk results, preserving raw predicate/bound roots
-and owner order. Keep production callers unchanged until independent M3 review
-and explicit user approval. Resource probing still requires the reviewed §15
-plan; §7/§15, indexed finalization, F5e, §44 rollback, and F5c/F5e closure
-remain open.
+Next: do a code-level design review for an uncalled, module-local flat sink
+that shares actual producer traversal and emits IDs at leaf/exit tasks with
+cacheability metadata. An architect exploration recommends this over a copied
+test walker, while deferring a shared/generic sink refactor until the required
+interface is clear. Reuse of producer state from a module-local candidate
+without moving traversal ownership remains an unverified inference. Preserve
+active-state taint, memo admission, reentry discovery, owner order, incidence,
+and append/state rollback. If the design requires changing the active
+production path, stop for independent M3 review and explicit user approval.
+Resource probing still requires the reviewed §15 plan; §7/§15, indexed
+finalization, F5e, §44 rollback, and F5c/F5e closure remain open.

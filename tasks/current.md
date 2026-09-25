@@ -31,11 +31,15 @@ into the FlatDraft. `cargo test -p yu-solver --lib f5c_materialization:: --
 No broad library suite, benchmark, or resource probe ran; measurement budget
 remains zero.
 
-Next: replace the boxed-to-summary bridge with candidate construction directly
-from producer walk results, keeping all raw roots and owner ordering in flat
-storage. Do not change production callers before the explicit M3 review and
-user approval; keep resource probing behind reviewed §15. §7/§15, indexed
-finalization, F5e, §44 rollback, and F5c/F5e closure remain open.
+Next: do a code-level design review for an uncalled, module-local flat sink
+that shares actual producer traversal and emits flat IDs at leaf/exit tasks,
+carrying cacheability metadata. Do not copy the walker or refactor the active
+boxed sink before the interface is understood. Preserve active-state taint,
+memo admission, reentry discovery, owner order, incidence, and append/state
+rollback. If this requires changing the active production path, stop for
+independent M3 review and explicit user approval. Resource probing remains
+behind reviewed §15. §7/§15, indexed finalization, F5e, §44 rollback, and
+F5c/F5e closure remain open.
 
 ### Previous continuation (2026-09-26): actual F5c producer memo bridge
 
