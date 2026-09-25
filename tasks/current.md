@@ -82,11 +82,11 @@ found major scope and approval-sequencing issues plus a minor wording issue.
 The batched repair then passed a fresh focused M3 delta review with no
 remaining blocking, major, or minor finding; the minor historical wording was
 corrected. The source-map repair's fourth focused review remains clean, but the
-full design is still unreviewed. Next: present the solve-wide versus
-per-component choice for user architecture approval without a numeric cap. A
-later numeric supported boundary requires scale and practical-input evidence,
-focused independent review, and separate user approval before implementation.
-No numeric limit is selected. This authorization still
+full design is still unreviewed. The user approved solve-wide accumulation for
+charged F5c draft work across components on 2026-09-25. This chooses no numeric
+cap. Next: continue the resource subgate with scale and practical-input
+evidence; a concrete supported boundary still needs focused independent review
+and separate user approval before implementation. This authorization still
 excludes the public API implementation, semantic/support-limit changes, F5
 clause supersession, and production code. Numeric limits require independent
 review and separate user approval before implementation. Keep `lib.rs` as

@@ -2300,16 +2300,18 @@ Per-component reset admits those workloads while aggregate charged F5c draft
 work scales with component count. Indexed-finalizer-local work, F5e Function
 products, §44 per-use routing, and physical peak/storage remain separately
 scoped and accounted; the meter caps neither total invocation work nor peak
-memory. After this recommendation's review, present only meter lifetime for
-user architecture approval. A later numeric supported boundary needs scale
+memory. At that point, after this recommendation's review, the next step was
+to present only meter lifetime for user architecture approval. A later numeric supported boundary needs scale
 and practical-input evidence, focused independent review, and separate user
 approval before implementation. No number, boundary, API, or implementation
 is approved; rollback/invalidation capacity and co-resident peak remain open.
 
 The repaired meter-lifetime delta passed a fresh focused M3 review with no
 remaining blocking, major, or minor finding; the minor historical wording was
-corrected. This closes only that documentation delta. Next, present the user
-with the exact solve-wide versus per-component choice, keeping the recommendation
-limited to charged F5c draft work across components and making no numeric-cap
-claim. A concrete numeric boundary remains a later evidence, review, and
-separate-approval gate. Full design approval and implementation remain open.
+corrected. The user then approved solve-wide accumulation for charged F5c draft
+work across components on 2026-09-25. This fixes meter lifetime only; there is
+no numeric cap or supported-input boundary. Next: continue the resource
+subgate with scale evidence and practical-input margin; focused independent
+review and separate user approval remain required before implementation. Full
+design approval, rollback/invalidation capacity, and co-resident peak remain
+open.

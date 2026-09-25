@@ -1,6 +1,6 @@
 # F5c flat indexed draft and stack-independent finalization
 
-Status: Draft proposal; earlier architecture reviewed and first-stage investigation approved (2026-09-25); source-map wording received three focused M3 delta rounds and its repair passed a fourth focused review with no findings; the separate meter-lifetime recommendation passed focused M3 delta review with no remaining blocking/major/minor findings after one wording repair and now awaits the user's meter-lifetime choice; full design, numeric resource boundary, and implementation remain unapproved
+Status: Draft proposal; earlier architecture reviewed and first-stage investigation approved (2026-09-25); source-map wording received three focused M3 delta rounds and its repair passed a fourth focused review with no findings; user approved solve-wide accumulation for charged F5c draft work across components (2026-09-25); full design, numeric resource boundary, and implementation remain unapproved
 Scope: F5c structural-depth stack use from live expansion through closed-scheme finalization and cleanup
 Related authority: F5 §§14–16, 24–26, 32–36, 43–44; F5b closed-finalization accounting amendment §§2, 6, 9
 Decision: investigate flat solver-owned drafts and a `yu-types`-owned indexed finalization transaction; no production implementation or API approval
@@ -308,13 +308,13 @@ Keep two different limits distinct:
   copied path hops, then only the prefix `.any` inspects through the first
   Function hop, or the full path if none exists. Copy and guard lengths differ.
 
-  Provisional recommendation: use one solve-wide meter for charged F5c draft
-  work across components in one solve. It gives a hard ceiling on that charged
-  scope and prevents component-count bypass. Its cost is that a
+  User-approved meter lifetime (2026-09-25): use one solve-wide meter for
+  charged F5c draft work across components in one solve. It gives a hard ceiling
+  on that charged scope and prevents component-count bypass. Its cost is that a
   large collection of individually small components can exhaust the shared
   budget; per-component resets avoid that case but leave aggregate work
-  proportional to component count. This is a recommendation, not an approved
-  decision, and no numeric cap follows from it. Indexed-finalizer-local work,
+  proportional to component count. The user approved this lifetime only; no
+  numeric cap follows from that choice. Indexed-finalizer-local work,
   F5e Function-product generation, §44 per-use routing, and physical
   peak/storage have separate scopes and accounting; this meter does not cap
   total invocation work or peak memory. The resource subgate must measure
@@ -565,12 +565,14 @@ solver work, and no external corpus is available in this workspace.
 The source map now makes the meter units explicit. Following a read-only
 architect consultation and the user's stated priority for Oracle-compatible
 practical inputs with a lightweight path and rejection of pathological work,
-the primary provisionally recommends one solve-wide meter for charged F5c
-draft work across components. This is an inference, not an approved durable
-choice: it prevents component-count bypass of the charged F5c draft-work
-ceiling but can reject a large ordinary solve, while per-component resets
-preserve many-small-component workloads but leave aggregate charged F5c draft
-work proportional to component count. Indexed-finalizer-local work, F5e
+the primary's recommendation was one solve-wide meter for charged F5c draft
+work across components. The user approved that meter-lifetime choice on 2026-09-25. It
+prevents component-count bypass of the charged F5c draft-work ceiling but can
+reject a large ordinary solve, while per-component resets preserve
+many-small-component workloads but leave aggregate charged F5c draft work
+proportional to component count. This approval fixes only meter lifetime; it
+does not select a numeric cap or authorize an API or production code.
+Indexed-finalizer-local work, F5e
 Function-product generation, §44 per-use routing, and physical peak/storage
 remain separately scoped and accounted; neither total invocation work nor
 peak memory is capped by this meter.
@@ -579,10 +581,10 @@ ordinary. Keep the numeric cap and supported-input boundary open until measured
 scale evidence can be independently reviewed. Do not infer a reset boundary
 from implementation convenience.
 
-After focused independent review of this meter-lifetime repair, present the
-solve-wide versus per-component choice to the user as a separate
-architecture/meter-lifetime decision, with no numeric cap implied. After the
-exact proposed §24 API, producer/finalizer ownership and parity obligations,
+The user approved solve-wide accumulation for charged F5c draft work across
+components on 2026-09-25, separately from any numeric-cap decision. This does
+not approve an API or implementation. After the exact proposed §24 API,
+producer/finalizer ownership and parity obligations,
 failure-epoch rules, and accounting boundary have passed independent design
 review, present the user with two distinct gates. First,
 the user may approve the flat-draft ownership
@@ -893,11 +895,11 @@ result. Its follow-up documentation repair passed a fresh focused M3 delta
 review with no blocking, major, or minor finding; that review does not certify
 the full proposal. The separate meter-lifetime recommendation then passed its
 own focused M3 delta review after scope/sequence corrections, with no remaining
-blocking, major, or minor finding. The primary recommends solve-wide metering
-for charged F5c draft work across components, but the choice remains unapproved.
-The numeric cap, supported-input boundary, and resource evidence remain open.
+blocking, major, or minor finding. The user approved solve-wide metering for
+charged F5c draft work across components on 2026-09-25. The numeric cap,
+supported-input boundary, and resource evidence remain open.
 No F5 clause is superseded, no API or numeric boundary is approved, and
-production implementation remains unauthorized. Next: present the solve-wide
-versus per-component choice for user decision without a numeric cap. A later
-concrete supported boundary requires scale evidence, focused independent
-review, and separate user approval before implementation.
+production implementation remains unauthorized. Next: proceed with the
+resource subgate for a concrete supported boundary using scale evidence and
+practical-input margin; focused independent review and separate user approval
+remain required before implementation.
