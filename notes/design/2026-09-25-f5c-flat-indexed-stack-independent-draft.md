@@ -1,6 +1,6 @@
 # F5c flat indexed draft and stack-independent finalization
 
-Status: Reviewed; first-stage investigation approved (2026-09-25); numeric resource boundary and implementation approval remain open
+Status: Architecture reviewed; first-stage investigation approved (2026-09-25); primary source charge-site extension awaits focused review; numeric resource boundary and implementation approval remain open
 Scope: F5c structural-depth stack use from live expansion through closed-scheme finalization and cleanup
 Related authority: F5 §§14–16, 24–26, 32–36, 43–44; F5b closed-finalization accounting amendment §§2, 6, 9
 Decision: investigate flat solver-owned drafts and a `yu-types`-owned indexed finalization transaction; no production implementation or API approval
@@ -41,8 +41,7 @@ IDs; they do not own nested `Box` or per-node child `Vec` trees.
 The flat representation must remain in use through:
 
 1. component-summary expansion and root-local Q/R generalization;
-2. replay, binder substitution, raw-bound materialization, and product
-   expansion;
+2. replay, binder substitution, and raw-bound materialization;
 3. canonical normalization, ranking, deduplication, and root/member
    projection;
 4. component draft staging and indexed finalization input construction;
@@ -53,6 +52,12 @@ No accepted deep path may rebuild a recursive `F5cPositive` or
 or a finalizer-only adapter that first accepts a boxed draft, does not meet
 this boundary: Rust would still recursively drop the owned source or a partial
 task/value tree.
+
+The Function Cartesian product in `InferenceSession::closed_parts` is
+post-finalization per-use scheme instantiation, not construction of the F5c
+scheme draft. It remains outside this flat-draft boundary and in the separate
+F5e closed-DAG instantiation/resource gate. Its checked product multiplication
+detects arithmetic overflow but does not cap the number of generated pairs.
 
 The current flat `Node` representation in `f5c_normalization.rs` is a starting
 point, not the handoff contract. Its boxed `rebuild` must be replaced by flat
@@ -277,16 +282,25 @@ Keep two different limits distinct:
   Logical incidences are separate because overlapping spans can make them
   exceed the stored child-array length.
 - **Repeat-work limits** use one solver-owned checked meter. One unit is one
-  actual candidate-pair check, structural node-pair comparison visit,
-  shared-summary edge expansion, root-local analysis/trace/eligibility or
-  replay visit, binder-substitution visit, R fixed-point/owner/trace visit, or
-  element copied by replay. Charge before the operation; charge both the outer
-  candidate pair and each structural node-pair visit. A copied scalar leaf is
-  one element; structural or bulk clones charge their actual copied elements.
-  Optional per-family subtotals may aid diagnosis, but do not create separate
-  independent limits. This meter stops path amplification and repeated
-  root-local work even when the final flat draft stays small; do not pass fuel
-  across the `yu-types` API.
+  actual task/node visit, inspected child or bound incidence, summary/memo
+  edge traversal, candidate-pair check, structural node-pair comparison,
+  trace/frame inspection, R fixed-point owner check, or copied element. Charge
+  immediately before each operation or loop iteration; charge both the outer
+  candidate-pair check and every structural comparison task it schedules.
+  Candidate-set clones, copied trace hops, replay output, and other bulk copies
+  charge each copied entry. A failed early-exit comparison or trace scan charges
+  the work actually performed. Optional per-family subtotals may aid
+  diagnosis, but do not create separate independent limits. This deterministic
+  logical-work meter is not a timing or hash-table-collision counter. It stops
+  path amplification and repeated root-local work even when the final flat
+  draft stays small; do not pass fuel across the `yu-types` API.
+
+  The meter's accumulation lifetime is not selected yet: a solve-wide meter
+  gives a hard per-invocation ceiling but can reject a large collection of
+  individually small components; resetting per component preserves those
+  components but leaves aggregate work proportional to component count. The
+  resource subgate must choose and test this observable boundary together with
+  the numeric cap. Do not reset implicitly at a root or component boundary.
 
 The 2026-09-25 architect adjudication found the prior `k!` alpha-permutation
 concern stale: the authoritative producer-order addendum removed that ranking
@@ -299,6 +313,16 @@ number of times, with scratch bounded by the same input dimensions. These are
 conditional complexity claims, not facts established by the current callback
 or by using flat IDs alone. The source audit must verify each pass and every
 charge site.
+
+This F5c meter covers pre-finalization draft production and normalization
+inputs, not later per-use expansion of a finalized scheme. The Function
+Cartesian loops in `InferenceSession::closed_parts` visit generated
+argument/result pairs and append a live Term for each pair; that path has a
+checked multiplication but no pair-visit meter. Keep its memoization and
+resource accounting in the F5e gate rather than charging it to this draft
+meter. Likewise, the §44 route operation keeps its separately specified
+transactional rollback contract; this source map does not claim that the
+end-to-end per-use failure-lane gate is closed.
 
 No numeric size/work threshold is selected here. The repository source corpus
 has now been inspected, but it establishes only a repository-bounded surface
@@ -477,6 +501,13 @@ meter. The subsequent source/corpus investigation in §13 confirms that numeric
 thresholds remain unsupported: repository fixtures do not expose expanded
 solver work, and no external corpus is available in this workspace.
 
+The source map now makes the meter units explicit, but its accumulation
+lifetime is a separate observable choice. A solve-wide meter gives one hard
+per-invocation ceiling and may reject many individually small components; a
+per-component reset preserves such workloads but leaves aggregate work
+proportional to component count. Select and test this together with the numeric
+threshold; do not infer a reset boundary from implementation convenience.
+
 After the exact proposed §24 API, producer/finalizer ownership and parity
 obligations, failure-epoch rules, and accounting boundary have passed
 independent design review, present the user with two distinct gates. First,
@@ -639,17 +670,28 @@ external-practical-input claim.
 
 ### Current charge-site map
 
-The exact families to meter in a future flat implementation are:
+The primary source audit maps the future meter and separate storage admissions
+to these owners. It closes source discovery, not independent review or a numeric
+limit:
 
-| Family | Current owner/evidence | Repeat unit that needs charging |
-|---|---|---|
-| Shared summary expansion | `lib.rs` `materialize_summary`; summary child expansion | Each actually expanded child incidence and produced output node, not only memoized nodes/edges |
-| Root-local census and analysis | `F5cGeneralizer::build_inner`; `f5c_tree_analysis::Walker::walk` | Each popped task, examined incidence, eligibility/order check, trace record, and trace hop |
-| Binder substitution | `f5c_binder_substitution::substitute` and its caller in `lib.rs` | Each task/source-node visit and each produced child/output element |
-| Replay and product expansion | `f5c_replay::replay`, `f5c_materialization::materialize_iterative`, product expansion in `lib.rs` | Each task/node/edge visit, candidate pair and structural equality visit, and copied output element |
-| R fixed point | `F5cGeneralizer::build_inner` loop in `lib.rs` | Each round; each candidate-owner examination at each loop stage; each lower/upper replay and guard-analysis visit; each trace record/hop; each reachability-frontier pop/reference; each candidate entry copied; and the post-convergence bound/trace pass. Underlying replay/analysis visits use their common units. |
-| Closed normalization | `f5c_normalization::{rank_all, rebuild}` | Preserve §34 comparison accounting; admit node/edge/descriptor dimensions before growth |
-| Indexed finalizer (proposed) | Current `yu-types::validate` and `plan`; indexed method does not exist | Direct dense ordinal lookups and iterative DFS/postorder; prove each node/incidence and each bound is processed a bounded number of times |
+| Family | Current owner/evidence | Repeat-work charge | Separate admitted-size charge |
+|---|---|---|---|
+| Summary DAG build and maintenance | `F5cComponentExpansionMemo::{push_node,push_children,admit,seed_row,propagate_active_row,invalidate_row}` and `materialize_summary` in `lib.rs` | Each attempted queue admission, work-item pop, child/incidence/root-edge/reverse-parent edge inspected, conflict-journal entry copied, and summary child actually expanded. Repeated propagation/invalidation traversals count again. | Each memo node/child edge, root/parent incidence, materialized flat node/edge, and work-lane slot before growth. Memoized size alone does not bound unshared output. |
+| Root-local expansion and census | `F5cGeneralizer::walk`, `record_reentry`, and `f5c_tree_analysis::Walker` | Each task popped; direct lower/upper row or exact endpoint examined; child/member incidence visited; active-frame comparison; trace hop copied or inspected; eligibility/order/set entry visited. Short-circuit scans charge only reached entries. | Flat nodes/edges, Q/R census/order entries, traces/hops, direct-target and task/value/frame lanes. |
+| Direct-bound deduplication | `F5cGeneralizer::walk` plus `structural_equal` | Each incoming-vs-prior candidate pair, plus every structural comparison task popped for that pair, including the mismatching task. This is potentially quadratic in distinct direct endpoints and multiplied by compared structure size. | Candidate/direct-target entries and comparison stack slots. |
+| Tree analysis and non-generic closure | `f5c_tree_analysis::{Walker, incidences_*, references_*, occurrences_*, guarded_bound_survives}` and `F5cGeneralizer::non_generic_closure` | Each task/node and child incidence visited; each bounds row/endpoint examined; each adjacency incidence inserted or checked; each frontier pop and neighbor/reference checked. Repeated calls count again. | Adjacency entries, seen/frontier entries, and traversal scratch lanes. |
+| R fixed point and trace filtering | `F5cGeneralizer::build_inner`, `guarded_trace_path_survives`, and post-convergence passes | Each round; each copied candidate owner; each owner at each retain/reachability stage; each trace record and examined hop; each lower/upper replay and guard-analysis visit; each frontier/reference; each bound and retained trace revisited after convergence. The monotone candidate set gives at most `C + 1` rounds, not a bound on cost per round. | Candidate/survivor/reachability sets, raw/retained bounds, Q/R maps, trace arrays, and frontier lanes. |
+| Replay, substitution, and raw-bound materialization | `f5c_replay::replay`, `f5c_binder_substitution::substitute`, `f5c_materialization::materialize_iterative`, and callers in `build_inner` | Each task/source-node visit and examined edge/member; each emitted flat node/edge; each leaf/container/output element copied. Repeated replay calls charge independently. | Output node/edge arrays, maps, and task/value/parts lanes before growth. |
+| Closed normalization and compaction | `f5c_normalization::{flatten,rank_all,rebuild}` and proposed root-reachability compaction | Preserve exact §34 comparison/counter semantics. §34's bounded sorting work is protected by node/child/descriptor admission limits; charge any separate graph/compaction traversal task and incidence per visit. | Raw/intermediate/final nodes, stored child IDs, logical incidences, descriptor words, roots, maps, and sort/dedup/compaction lanes. |
+| Indexed finalizer (proposed) | Current callback `yu-types::validate`, `plan`, and `commit`; indexed method does not exist | For the proposed direct-index path, count each supplied node, child entry/logical incidence, bound, and DFS visit. Prove validation/planning/commit passes touch each indexed item only a bounded constant number of times; this is finalizer-local work, not solver fuel. | Source-ID maps, colors/frames, mapped lanes, overlay, and commit/rollback scratch bounded by input dimensions. |
+
+The Function Cartesian product in `InferenceSession::closed_parts` is
+intentionally not a row in this F5c draft meter: it runs after closed-scheme
+finalization. It checks `arguments.len() * results.len()` for overflow, then
+visits each pair and appends a live Function Term, but has no pair-visit cap;
+closed-DAG instantiation memoization/accounting remains an F5e gate. The §44
+route's all-private-constraints-plus-representative rollback is also a
+separate per-use gate, not proof supplied by the F5c draft meter.
 
 Existing counters mostly describe retained capacities, growths, comparison
 subsets, or normalization scratch. They do not expose all task pops, shared
@@ -747,7 +789,11 @@ shared-summary, and replay probes as repository-bounded diagnostic evidence.
 The R loop has a source-level `C + 1` round bound because its candidate set is
 monotone-decreasing, but per-round replay/owner/trace work is not measured.
 Keep the one-meter design and linear indexed-validation claim conditional as
-amended above. No F5 clause is superseded, no API or numeric boundary is
-approved, and production implementation remains unauthorized. Next: close
-the source charge-site-to-meter map, including the R owner/trace units, then
-obtain focused independent review before any numeric support envelope.
+amended above. The detailed charge-site map above is a primary source-audit
+result; it has not received a fresh independent review. Its accumulation
+lifetime (solve-wide or component-local), numeric limits, and resource evidence
+remain open. No F5 clause is superseded, no API or numeric boundary is
+approved, and production implementation remains unauthorized. Next: get a
+focused independent review of the completed charge-site map and proposed
+metering units, then resolve the meter lifetime and numeric support envelope
+with the user before implementation.

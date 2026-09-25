@@ -35,20 +35,32 @@ Static inspection shows replay lanes aggregate repeated replay scheduling.
 The R fixed-point candidate set only shrinks, so its loop has at most C+1
 rounds for C initial candidates; that is a source proof, not a measurement.
 Existing counters do not count its per-round candidate clone/retain work,
-owner and trace checks, or reachability-frontier visits. Those dimensions
-remain open.
+owner and trace checks, or reachability-frontier visits. A primary source audit
+now maps those operations, direct-bound structural deduplication, summary memo
+maintenance, tree analysis, replay/substitution, normalization, and indexed
+finalization to explicit logical-work and separate storage-admission units.
+It also separates the post-finalization Function product in `closed_parts`
+(F5e) and §44 per-use rollback (separate gate) from the F5c draft meter.
+
+The meter's accumulation lifetime remains undecided: solve-wide accumulation
+gives a hard invocation ceiling but can reject many individually small
+components; per-component reset admits those workloads but leaves total work
+proportional to component count. No numeric cap or implementation authority is
+approved. This detailed map is primary-authored and has not received a fresh
+independent review.
 The F5c filter passed 162 tests with the manual probe ignored. The diagnostic
 was run seven times (five completed captures, two fixed compile attempts); no
 timing or process-memory measurement was taken. No production behavior or API
 changed.
 
-Next: finish the source charge-site-to-meter map, including R-loop owner and
-trace units, then carry it into focused independent review. No numeric support
-envelope yet. This authorization still excludes the public
-API implementation, semantic/support-limit changes, F5 clause supersession,
-and production code. Numeric limits require independent review and separate
-user approval before implementation. Keep `lib.rs` as orchestration and any
-eventual flat producer/finalizer bridge in dedicated modules.
+Next: obtain focused independent review of the completed source charge-site
+map and proposed metering units, then resolve meter lifetime and the numeric
+support envelope. No numeric limit is selected. This authorization still
+excludes the public API implementation, semantic/support-limit changes, F5
+clause supersession, and production code. Numeric limits require independent
+review and separate user approval before implementation. Keep `lib.rs` as
+orchestration and any eventual flat producer/finalizer bridge in dedicated
+modules.
 
 Latest status (2026-09-24): producer analysis, candidate replay, and the
 generalization Q/R rewrite use iterative task/value worklists with dedicated

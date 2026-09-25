@@ -2182,3 +2182,41 @@ per-round envelope.
 Next: finish the source charge-site-to-meter map for R owner/trace work, then
 obtain focused independent review before presenting any numeric boundary.
 Numeric boundary and production implementation remain unapproved.
+
+## Current F5c resume: source charge-site map (2026-09-25)
+
+Current checkpoint before this record update: branch `yulang3`, clean at
+`664e239e` (`test(solver): probe F5c resource dimensions`), already pushed to
+`origin/yulang3`. The active goal remains the reviewed, user-approvable
+stack-independent F5c design; no production implementation, API, numeric
+limit, or F5 clause change is authorized.
+
+The primary completed a source-level map in §13 of
+`notes/design/2026-09-25-f5c-flat-indexed-stack-independent-draft.md`. It
+separates logical work charges from storage admissions and covers summary
+memo construction/maintenance, root-local walks and traces, structural
+candidate deduplication, tree analysis/non-generic closure, all R fixed-point
+stages, replay/substitution/materialization, normalization/compaction, and the
+proposed indexed finalizer. This is not a fresh independent review. The
+monotone R candidate loop has at most C+1 rounds, but per-round cost remains
+unmeasured. No extra diagnostic process was run; its remaining invocation
+budget is unchanged.
+
+Scope correction: the Function Cartesian product in
+`InferenceSession::closed_parts` runs after closed-scheme finalization, so it
+is outside the F5c draft meter and remains an F5e closed-DAG
+instantiation/resource gate. Its checked multiplication does not bound pair
+generation. The §44 per-use atomic rollback gate also remains separate.
+
+Still unresolved: whether the single checked draft-work meter accumulates over
+one whole solve or resets per component. Solve-wide accumulation gives a hard
+per-invocation ceiling but can reject many small components; per-component
+reset admits those while aggregate work scales with component count. Numeric
+limits, practical-input margin, finalizer implementation proof, and focused
+independent review remain open. No tests or probes were rerun for this
+documentation-only slice.
+
+Next: obtain focused independent review of the source map and metering units;
+then choose meter lifetime and a numeric support envelope with the user. Keep
+`lib.rs` orchestration-only, preserve §44's first-member representative and
+atomic route contract, and do not claim F5c/F5e completion.
