@@ -591,10 +591,14 @@ fn f5c_work_negative_materialization_drain_overflow_precedes_child_move() {
 }
 
 pub(super) fn materialize_bound_trees(
+    owners: &[u32],
     bounds: &mut HashMap<u32, (F5cPositive, F5cNegative)>,
     mut transform: impl FnMut(F5cWalkValue) -> Result<F5cWalkValue, SolveAvailabilityError>,
 ) -> Result<(), SolveAvailabilityError> {
-    for (lower, upper) in bounds.values_mut() {
+    for owner in owners {
+        let (lower, upper) = bounds
+            .get_mut(owner)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let raw_lower = std::mem::replace(lower, F5cPositive::Bottom);
         let F5cWalkValue::Positive(mapped_lower, _) =
             transform(F5cWalkValue::Positive(raw_lower, true))?
@@ -684,9 +688,10 @@ impl F5cGeneralizer<'_> {
 
     pub(super) fn materialize_recursive_bounds(
         &mut self,
+        owners: &[u32],
         bounds: &mut HashMap<u32, (F5cPositive, F5cNegative)>,
     ) -> Result<(), SolveAvailabilityError> {
-        materialize_bound_trees(bounds, |value| match value {
+        materialize_bound_trees(owners, bounds, |value| match value {
             F5cWalkValue::Positive(value, _) => self
                 .materialize_positive(value)
                 .map(|value| F5cWalkValue::Positive(value, true)),

@@ -3978,6 +3978,7 @@ impl IndependentResourceLedger {
             memo.generalizer_scratch_capacities[0],
             memo.generalizer_scratch_capacities[1],
             memo.generalizer_scratch_capacities[2],
+            memo.generalizer_scratch_capacities[3],
         ];
         let scratch_capacity = scratch_capacities
             .into_iter()
@@ -4046,6 +4047,7 @@ impl IndependentResourceLedger {
             )>()),
             memo.generalizer_scratch_capacities[2]
                 .checked_mul(std::mem::size_of::<(u32, Polarity)>()),
+            memo.generalizer_scratch_capacities[3].checked_mul(std::mem::size_of::<u32>()),
         ]
         .into_iter()
         .try_fold(0usize, |sum, value| sum.checked_add(value?))
@@ -4158,6 +4160,7 @@ impl IndependentResourceLedger {
             std::mem::size_of::<F5cExpansionFrame>(),
             std::mem::size_of::<(u32, Polarity, usize)>(),
             std::mem::size_of::<(u32, Polarity)>(),
+            std::mem::size_of::<u32>(),
         ];
         let component_peak =
             memo.capacity_samples

@@ -262,6 +262,7 @@ pub(super) enum F5cTestObservationFailure {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum F5cTestReserveFailure {
     ActiveMirrors,
+    RawOwnerOrder,
     ChildrenAfterReserve,
     RootUndo,
 }
@@ -589,10 +590,10 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) index_lane: F5cMemoLane,
     pub(super) scratch_lane: F5cMemoLane,
     pub(super) walker_resources: F5cWalkerResources,
-    pub(super) generalizer_scratch_capacities: [usize; 3],
+    pub(super) generalizer_scratch_capacities: [usize; 4],
     pub(super) simultaneous_peak_bytes: usize,
     #[cfg(test)]
-    pub(super) capacity_samples: Vec<[usize; 19]>,
+    pub(super) capacity_samples: Vec<[usize; 20]>,
     #[cfg(test)]
     pub(super) independent_generalizer_scratch_peak_bytes: usize,
     #[cfg(test)]
@@ -797,6 +798,7 @@ impl F5cComponentExpansionMemo {
             self.generalizer_scratch_capacities[0],
             self.generalizer_scratch_capacities[1],
             self.generalizer_scratch_capacities[2],
+            self.generalizer_scratch_capacities[3],
         ]);
         Ok(())
     }
@@ -1942,6 +1944,7 @@ impl F5cComponentExpansionMemo {
             self.generalizer_scratch_capacities[0],
             self.generalizer_scratch_capacities[1],
             self.generalizer_scratch_capacities[2],
+            self.generalizer_scratch_capacities[3],
         ]
         .into_iter()
         .try_fold(0usize, |sum, value| sum.checked_add(value))
@@ -2007,6 +2010,7 @@ impl F5cComponentExpansionMemo {
             )>()),
             self.generalizer_scratch_capacities[2]
                 .checked_mul(std::mem::size_of::<(u32, Polarity)>()),
+            self.generalizer_scratch_capacities[3].checked_mul(std::mem::size_of::<u32>()),
         ];
         lanes
             .into_iter()
@@ -2046,7 +2050,7 @@ impl F5cComponentExpansionMemo {
         self.conflict_journal = Vec::new();
         self.visit_epochs = Vec::new();
         self.walker_resources = F5cWalkerResources::default();
-        self.generalizer_scratch_capacities = [0; 3];
+        self.generalizer_scratch_capacities = [0; 4];
         self.simultaneous_peak_bytes = 0;
         #[cfg(test)]
         self.capacity_samples.clear();
@@ -3588,7 +3592,7 @@ impl<'a> F5cGeneralizer<'a> {
         self.frames = Vec::new();
         self.active = Vec::new();
         self.active_set = HashSet::new();
-        self.memo.generalizer_scratch_capacities = [0; 3];
+        self.memo.generalizer_scratch_capacities = [0; 4];
         (
             result,
             self.memo,
@@ -3616,6 +3620,7 @@ impl<'a> F5cGeneralizer<'a> {
     fn build_inner(&mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
         let predicate = self.positive_row(root, true)?;
         let mut raw_recursive_bounds = HashMap::new();
+        let mut raw_owner_order = Vec::new();
         let mut next_owner = 0;
         let mut completed_owners = HashSet::new();
         while next_owner < self.reentries.len() {
@@ -3657,13 +3662,29 @@ impl<'a> F5cGeneralizer<'a> {
                 expanded_upper
             };
             self.memo.work_meter.charge(1)?; // raw bound entry
+            self.memo.work_meter.charge(1)?; // raw owner order entry
+            let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
+            let old = raw_owner_order.capacity();
+            let reservation = raw_owner_order.try_reserve(1);
+            self.memo.generalizer_scratch_capacities[3] = raw_owner_order.capacity();
+            self.memo
+                .commit_scratch_reserve(requested, growth, old, raw_owner_order.capacity())?;
+            reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            #[cfg(test)]
+            if self.memo.fail_reserve_at
+                == Some((F5cTestReserveFailure::RawOwnerOrder, raw_owner_order.len()))
+            {
+                self.memo.fail_reserve_at = None;
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
             raw_recursive_bounds.insert(ordinal, (lower, upper));
+            raw_owner_order.push(ordinal);
         }
         if self.invalid_effects {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         let predicate = self.materialize_positive(predicate)?;
-        self.materialize_recursive_bounds(&mut raw_recursive_bounds)?;
+        self.materialize_recursive_bounds(&raw_owner_order, &mut raw_recursive_bounds)?;
         let mut reentries_by_owner = HashMap::<u32, Vec<usize>>::new();
         for (index, trace) in self.reentries.iter().enumerate() {
             self.memo.work_meter.charge(1)?; // indexed trace record
@@ -3690,7 +3711,10 @@ impl<'a> F5cGeneralizer<'a> {
                 &mut positive_incidences,
                 &mut negative_incidences,
             )?;
-            for (lower, upper) in raw_recursive_bounds.values() {
+            for owner in &raw_owner_order {
+                let (lower, upper) = raw_recursive_bounds
+                    .get(owner)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 walker.memo.work_meter.charge(1)?; // raw bound owner
                 walker.incidences_positive(
                     lower,

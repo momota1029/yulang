@@ -105,7 +105,7 @@ fn warm_child_conflict_failure_and_retry_preserve_persistent_memo() {
     assert_eq!(memo.root_edge_mark_epoch, 0);
     assert!(memo.visit_epochs.iter().all(|epoch| *epoch == 0));
     assert_eq!(memo.visit_epoch, 0);
-    assert_eq!(memo.generalizer_scratch_capacities, [0; 3]);
+    assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
     let mut raw = F5cGeneralizer::with_memo(&session, memo, 0);
     assert_eq!(
         raw.positive_row(child, false),
@@ -456,7 +456,7 @@ fn f5c_component_admission_observation_failure_restores_memo_and_retries() {
     assert!(returned.root_undo.is_empty());
     assert!(returned.active_rows.is_empty() && returned.active_conflicts.is_empty());
     assert!(returned.work.is_empty() && returned.conflict_journal.is_empty());
-    assert_eq!(returned.generalizer_scratch_capacities, [0; 3]);
+    assert_eq!(returned.generalizer_scratch_capacities, [0; 4]);
     assert!(returned.root_lane.requested_slots > 0);
     assert!(returned.index_lane.peak_bytes >= returned.index_retained_bytes().unwrap());
     let (retry, memo, _, _) =
@@ -502,13 +502,49 @@ fn f5c_component_reserve_preparation_failures_roll_back_prior_admission() {
         assert!(memo.root_undo.is_empty());
         assert!(memo.active_rows.is_empty() && memo.active_conflicts.is_empty());
         assert!(memo.work.is_empty() && memo.conflict_journal.is_empty());
-        assert_eq!(memo.generalizer_scratch_capacities, [0; 3]);
+        assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
         assert!(memo.root_lane.requested_slots > 0);
         let (retry, memo, _, _) =
             F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
         assert!(retry.is_ok());
         assert!(!memo.roots.is_empty());
     }
+}
+
+#[test]
+fn f5c_raw_owner_order_reserve_failure_rolls_back_and_retries() {
+    let batch = collect(module("my f = 1", "f5c-raw-owner-order-reserve"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    let relay = session.fresh_value_at_level(1).unwrap();
+    let argument = session.negative_top_term().unwrap();
+    let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+    let function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            result,
+        )
+        .unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(function));
+    session.bounds[relay as usize].direct_lower_rows.push(root);
+
+    let mut memo = F5cComponentExpansionMemo::default();
+    let before = persistent_memo_state!(memo);
+    memo.fail_reserve_at = Some((F5cTestReserveFailure::RawOwnerOrder, 0));
+    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+    assert_eq!(persistent_memo_state!(memo), before);
+    assert_eq!(memo.fail_reserve_at, None);
+    assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
+    assert!(memo.scratch_lane.requested_slots > 0);
+    let (retry, _, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    assert!(retry.is_ok());
 }
 
 #[test]
@@ -523,7 +559,7 @@ fn f5c_component_peak_samples_live_mirrors_and_later_retained_growth() {
     assert!(result.is_ok());
     let live_peak = memo.peak_bytes().unwrap();
     assert!(live_peak > memo.retained_bytes().unwrap());
-    assert_eq!(memo.generalizer_scratch_capacities, [0; 3]);
+    assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
     let id = memo
         .push_node(F5cSummaryNodeKind::PositiveBottom, None)
         .unwrap();

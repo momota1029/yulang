@@ -343,7 +343,7 @@ fn f5c_work_taint_frame_overflow_precedes_mutation_and_component_restores_state(
     assert!(memo.work.is_empty() && memo.conflict_journal.is_empty());
     assert!(memo.visit_epochs.is_empty());
     assert_eq!((memo.visit_epoch, memo.root_edge_mark_epoch), (0, 0));
-    assert_eq!(memo.generalizer_scratch_capacities, [0; 3]);
+    assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
     session.f5c_draft_work.set(0);
     let (retry, _, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
     assert_eq!(retry, Ok(baseline));
@@ -529,7 +529,7 @@ fn f5c_work_overflow_rolls_back_and_repeats_cleanly() {
     assert!(memo.visit_epochs.iter().all(|epoch| *epoch == 0));
     assert_eq!(memo.visit_epoch, 0);
     assert_eq!(memo.root_edge_mark_epoch, 0);
-    assert_eq!(memo.generalizer_scratch_capacities, [0; 3]);
+    assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
     let (second, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
     assert_eq!(second, Err(SolveAvailabilityError::IdentityExhausted));
     assert_eq!(session.f5c_draft_work.get(), usize::MAX);

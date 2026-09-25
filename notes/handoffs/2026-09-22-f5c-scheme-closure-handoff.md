@@ -2822,3 +2822,27 @@ gate remains the uncalled flat sink through the shared walker. Physical
 capacity/peak accounting, §15 plan and measurements, indexed finalization,
 production cutover, full §44 per-use rollback, F5e, and overall F5c completion
 remain open.
+
+## Latest continuation (2026-09-26): explicit raw reentry-owner order
+
+The boxed producer now records each unique raw reentry owner in first
+`self.reentries` encounter order and traverses recursive bounds lower before
+upper for both materialization and the pre-pruning incidence census. The
+owner-keyed map is used only for lookup. A helper-level witness proves callback
+order does not depend on map insertion order.
+
+The added owner-order vector charges one checked logical-work unit per entry,
+uses fallible scratch reservation before append, and is included in the
+simultaneous and independent retained/peak accounting. An injected reserve
+failure witness verifies rollback to idle state and successful retry. Focused
+materialization tests (12), owner-order/reserve rollback tests, formatting, and
+diff checks passed. M1 `spec_auditor` review and focused delta review found no
+remaining issue.
+
+The full producer callback/Q/R witness with a warm Shared predicate and a row
+first encountered in a later bound remains open for the candidate raw-forest
+gate. Next: extract the boxed compatibility sink behind one shared task
+interpreter, then add the uncalled flat sink and ordered forest. The boxed path
+remains production; no resource probe, benchmark, numeric boundary, production
+cutover, §44 closure, F5e acceptance, or overall F5c completion is authorized
+by this slice.

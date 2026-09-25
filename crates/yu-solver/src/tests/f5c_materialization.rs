@@ -292,6 +292,46 @@ fn f5c_draft_materialization_handles_deep_alternating_functions_on_small_stack()
 }
 
 #[test]
+fn f5c_raw_bounds_visit_first_seen_owners_lower_then_upper() {
+    let owners = [7, 3];
+    for insertion in [[3, 7], [7, 3]] {
+        let mut bounds = HashMap::new();
+        for owner in insertion {
+            bounds.insert(
+                owner,
+                (
+                    F5cPositive::Variable(owner),
+                    F5cNegative::Variable(owner + 10),
+                ),
+            );
+        }
+        let mut trace = Vec::new();
+        crate::f5c_materialization::materialize_bound_trees(&owners, &mut bounds, |value| {
+            match &value {
+                F5cWalkValue::Positive(F5cPositive::Variable(row), _) => {
+                    trace.push((*row, Polarity::Positive));
+                }
+                F5cWalkValue::Negative(F5cNegative::Variable(row), _) => {
+                    trace.push((*row, Polarity::Negative));
+                }
+                _ => panic!("fixture contains only row leaves"),
+            }
+            Ok(value)
+        })
+        .unwrap();
+        assert_eq!(
+            trace,
+            [
+                (7, Polarity::Positive),
+                (17, Polarity::Negative),
+                (3, Polarity::Positive),
+                (13, Polarity::Negative),
+            ]
+        );
+    }
+}
+
+#[test]
 fn f5c_recursive_bound_materialization_moves_deep_trees_on_small_stack() {
     const DEPTH: usize = 4096;
     let mut lower = F5cPositive::Int;
@@ -317,7 +357,7 @@ fn f5c_recursive_bound_materialization_moves_deep_trees_on_small_stack() {
         .spawn(move || {
             let mut memo = F5cComponentExpansionMemo::default();
             let mut bounds = HashMap::from([(0, (lower, upper))]);
-            crate::f5c_materialization::materialize_bound_trees(&mut bounds, |value| {
+            crate::f5c_materialization::materialize_bound_trees(&[0], &mut bounds, |value| {
                 let task = match value {
                     F5cWalkValue::Positive(value, _) => {
                         crate::f5c_materialization::Task::Positive(value)
@@ -602,7 +642,7 @@ fn f5c_generalizer_guarded_self_source_roots_materialize_flat_with_boxed_parity(
     assert_eq!(count_summary_references(&roots[1], nested_summary), 1);
     let boxed_predicate = generalizer.materialize_positive(predicate).unwrap();
     generalizer
-        .materialize_recursive_bounds(&mut bounds)
+        .materialize_recursive_bounds(&owners, &mut bounds)
         .unwrap();
     let mut boxed_roots = vec![F5cWalkValue::Positive(boxed_predicate, true)];
     for owner in &owners {

@@ -4,6 +4,30 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): explicit raw reentry-owner order
+
+The boxed producer now retains first-encounter order for unique raw reentry
+owners and uses it for recursive-bound materialization and the pre-pruning
+incidence census. The owner-keyed bounds map is lookup-only; materialization
+visits predicate first, then owners in encounter order, lower before upper.
+The new owner-order lane charges checked logical work, reserves fallibly before
+mutation, and participates in simultaneous and independent retained/peak
+capacity accounting. A reserve-failure witness verifies component rollback and
+successful retry.
+
+The helper-level test verifies lower/upper callback ordering is independent of
+map insertion order. The complete producer callback/Q/R witness with a warm
+Shared predicate and a row first encountered in a later bound remains open for
+the flat raw-forest candidate gate. M1 `spec_auditor` review and its focused
+delta review found no remaining issue. Focused checks passed: materialization
+tests (12), the owner-order and rollback/reserve tests, `cargo fmt --check`,
+and `git diff --check`. No broad library suite, benchmark, or §15 probe ran.
+
+Next: add the boxed compatibility sink behind the single shared task
+interpreter, then implement the uncalled tagged flat sink and ordered raw-root
+forest. Production cutover, resource probing, numeric limits, indexed
+finalization, §44 rollback, F5e, and overall F5c closure remain open.
+
 ### Latest continuation (2026-09-26): solve-wide checked work-meter subgate
 
 Added a session-owned checked logical-work meter and threaded it through the
