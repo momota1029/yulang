@@ -8,7 +8,7 @@
 //! headers, padding outside these Rust values, and fragmentation are excluded by
 //! the F5 byte convention. A zero-sized element contributes zero vector bytes.
 
-use std::{cell::Cell, ops::Deref};
+use std::{cell::Cell, fmt, ops::Deref};
 
 struct MeterState {
     current: Cell<Option<usize>>,
@@ -232,6 +232,20 @@ impl<T> Deref for TrackedVec<'_, T> {
     }
 }
 
+impl<T: fmt::Debug> fmt::Debug for TrackedVec<'_, T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.values.as_ref().unwrap().fmt(formatter)
+    }
+}
+
+impl<T: PartialEq> PartialEq for TrackedVec<'_, T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.values.as_ref().unwrap() == other.values.as_ref().unwrap()
+    }
+}
+
+impl<T: Eq> Eq for TrackedVec<'_, T> {}
+
 impl<T> Drop for TrackedVec<'_, T> {
     fn drop(&mut self) {
         drop(self.values.take());
@@ -336,6 +350,27 @@ mod tests {
         );
         drop(copy);
         assert_eq!(meter.current_bytes(), Some(lane.accounted_bytes()));
+    }
+
+    #[test]
+    fn value_traits_compare_and_format_contents_only() {
+        let first_meter = DraftHeapMeter::default();
+        let second_meter = DraftHeapMeter::default();
+        let mut first = TrackedVec::new(&first_meter);
+        first.try_push(3_u64).unwrap();
+        first.try_push(5).unwrap();
+        let mut second = TrackedVec::new(&second_meter);
+        second.try_push(3_u64).unwrap();
+        second.try_push(5).unwrap();
+        first.try_reserve_exact(second.capacity()).unwrap();
+
+        assert_ne!(first.capacity(), second.capacity());
+        assert_ne!(first_meter.current_bytes(), second_meter.current_bytes());
+        assert_eq!(first, second);
+        assert_eq!(format!("{first:?}"), "[3, 5]");
+        assert_eq!(format!("{first:?}"), format!("{second:?}"));
+        second.push_reserved(8);
+        assert_ne!(first, second);
     }
 
     #[test]

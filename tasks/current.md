@@ -11,14 +11,22 @@ without allocating a replacement buffer, reconciling its actual capacity into
 the borrowed source meter. Its caller contract keeps the existing scratch-lane
 charge until adoption succeeds; on failure, the caller drops the returned raw
 buffer before releasing scratch ownership. `try_clone_with` now reserves once
-and appends within that reservation.
+and appends within that reservation. `TrackedVec` also implements allocation-
+free `Debug`, `PartialEq`, and `Eq` based on Vec contents; a focused witness
+uses unequal capacities and meter totals to preserve that value contract.
 
-An M1 spec-auditor review found no blocking or major issue. Its minor failure
-drop-order evidence gap was closed with a witness that observes the caller-held
-scratch charge through returned-buffer destruction. Focused checks passed:
+An M1 spec-auditor review found no blocking or major transfer-contract issue;
+its minor failure drop-order evidence gap was closed with a witness that
+observes the caller-held scratch charge through returned-buffer destruction.
+The first value-trait review found a major test-evidence gap because equal
+vectors could have equal capacity; the focused test now forces unequal
+capacities and meter totals, and a fresh spec delta review is clean. Focused
+checks passed:
 `RUSTC_WRAPPER= cargo test -p yu-solver f5c_draft_heap::tests --lib --
---test-threads=1` (8), `RUSTC_WRAPPER= cargo check -p yu-solver --lib
---message-format short`, `cargo fmt --all --check`, and `git diff --check`.
+--test-threads=1` (8), `RUSTC_WRAPPER= cargo test -p yu-solver
+value_traits_compare_and_format_contents_only --lib -- --test-threads=1` (1),
+`RUSTC_WRAPPER= cargo check -p yu-solver --lib --message-format short`,
+`cargo fmt --all --check`, and `git diff --check`.
 No broader suite, resource probe, benchmark, or timing measurement ran.
 
 This closes only the reusable handoff primitive. No Union/Intersection source
