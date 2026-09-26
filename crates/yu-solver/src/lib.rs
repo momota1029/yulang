@@ -11700,6 +11700,7 @@ mod tests {
     use super::*;
     mod f5c_binder_substitution;
     mod f5c_depth_limit;
+    mod f5c_flat_walk_sink;
     mod f5c_generalization_transactions;
     mod f5c_materialization;
     mod f5c_replay;

@@ -2908,3 +2908,26 @@ structural equality/dedup, memo promotion, ordered full-root forest, component
 integration, and co-resident source/memo/draft accounting remain open. Next:
 implement Local/Shared sink semantics on this substrate without production
 cutover.
+
+## Latest continuation (2026-09-26): candidate flat sink over shared walker
+
+An uncalled `F5cFlatWalkSink` now uses the shared `walk_with` task interpreter.
+The source arena belongs to the generalizer and survives successive walks;
+premature commit/release is not exposed before the future raw-forest
+materializer consumes every Local root. The sink implements tagged
+Local/Shared equality, ordered first-seen dedup, cacheability, Function
+construction, and child-before-parent memo promotion. Failure rolls back memo
+roots/nodes and source lengths, restores component result counters, and keeps
+solve-wide work charges. Promotion's same-time capacity witness covers memo,
+source, and task/ID worklists; reverse-parent construction no longer clones
+child IDs into an untracked temporary vector.
+
+M2 compiler-referee/performance delta review found no remaining blocker in this
+subgate. Checks passed: formatting, the focused flat-sink filter (13), solver
+test compilation, and diff check. No benchmark or §15 probe ran.
+
+The flat sink remains test-only. The full ordered predicate/bound forest,
+Local/Shared-to-FlatDraft materialization, full callback/Q/R parity,
+source/memo/FlatDraft co-residency, and remaining §5 witnesses are still open.
+Production remains boxed; no numeric cap, resource probe, §44 closure, F5e, or
+overall F5c completion is authorized.

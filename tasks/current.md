@@ -4,6 +4,32 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): candidate flat sink over shared walker
+
+An uncalled `F5cFlatWalkSink` now uses the same `walk_with` task interpreter
+as the boxed compatibility sink. Its source arena is owned by the
+generalizer, so Local IDs remain live across successive walks; no API can
+commit/release the arena before a future full-forest materialization boundary.
+The candidate implements polarity-tagged Local/Shared equality, ordered first
+survivors, cacheability propagation, Function construction, and
+child-before-parent promotion into existing memo lanes. Candidate failures
+roll back memo roots/nodes and source lengths, restore result counters, and
+retain solve-wide work charges. A same-time promotion witness accounts for
+memo, source, and both promotion worklists; reverse-parent construction no
+longer clones child IDs into an untracked temporary vector.
+
+M2 compiler-referee/performance delta reviews converged after repairs. Focused
+checks pass: `cargo fmt --check`, `cargo test -p yu-solver --lib
+f5c_flat_walk_sink -- --test-threads=1` (13), `cargo check -p yu-solver
+--tests`, and `git diff --check`. No benchmark or §15 probe ran.
+
+This is not the complete flat candidate gate. The candidate remains
+test-only; ordered whole-component predicate/bounds orchestration,
+Local/Shared-to-FlatDraft materialization, complete callback and Q/R parity,
+FlatDraft co-resident accounting, and overall §5 witness closure remain next.
+Production stays boxed; no production cutover, numeric resource limit, §44
+closure, F5e acceptance, or overall F5c completion is authorized.
+
 ### Latest continuation (2026-09-26): explicit raw reentry-owner order
 
 The boxed producer now retains first-encounter order for unique raw reentry

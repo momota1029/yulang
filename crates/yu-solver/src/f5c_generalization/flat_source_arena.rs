@@ -72,7 +72,7 @@ pub(super) enum NegativeNode {
     },
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub(super) struct Checkpoint {
     positive_nodes: usize,
     negative_nodes: usize,
@@ -82,10 +82,10 @@ pub(super) struct Checkpoint {
 
 #[derive(Default)]
 pub(super) struct FlatSourceArena {
-    positive_nodes: Vec<PositiveNode>,
-    negative_nodes: Vec<NegativeNode>,
-    positive_children: Vec<PositiveRef>,
-    negative_children: Vec<NegativeRef>,
+    pub(super) positive_nodes: Vec<PositiveNode>,
+    pub(super) negative_nodes: Vec<NegativeNode>,
+    pub(super) positive_children: Vec<PositiveRef>,
+    pub(super) negative_children: Vec<NegativeRef>,
 }
 
 impl FlatSourceArena {
@@ -125,18 +125,6 @@ impl FlatSourceArena {
             .truncate(checkpoint.positive_children);
         self.negative_children
             .truncate(checkpoint.negative_children);
-    }
-
-    pub(super) fn release(&mut self, resources: &mut F5cWalkerResources) {
-        *self = Self::default();
-        for kind in [
-            F5cWalkerLaneKind::SourcePositiveNodes,
-            F5cWalkerLaneKind::SourceNegativeNodes,
-            F5cWalkerLaneKind::SourcePositiveChildren,
-            F5cWalkerLaneKind::SourceNegativeChildren,
-        ] {
-            resources.release(kind);
-        }
     }
 
     fn positive_id(&self) -> Result<PositiveId, SolveAvailabilityError> {
@@ -353,8 +341,6 @@ mod tests {
             arena.positive_children.capacity()
         );
         assert!(resources.simultaneous_memo_peak_bytes >= resources.retained_bytes().unwrap() + 19);
-        arena.release(&mut resources);
-        assert_eq!(resources.retained_bytes().unwrap(), 0);
     }
 
     #[test]

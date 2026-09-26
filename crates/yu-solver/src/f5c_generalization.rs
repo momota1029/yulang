@@ -185,6 +185,10 @@ pub(super) struct F5cSummaryNodeId(pub(super) u32);
 
 #[allow(dead_code)] // The candidate source arena is wired to the walker in the next gate.
 mod flat_source_arena;
+#[allow(dead_code)] // The candidate is exercised only by module-local test entrypoints.
+mod flat_walk_sink;
+#[cfg(test)]
+pub(super) use flat_walk_sink::{F5cFlatWalkSink, FlatWalkValue};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum F5cSummaryNodeKind {
@@ -301,10 +305,15 @@ pub(super) enum F5cWalkerLaneKind {
     SourceNegativeNodes = 19,
     SourcePositiveChildren = 20,
     SourceNegativeChildren = 21,
+    FlatComparison = 22,
+    FlatPositiveParts = 23,
+    FlatNegativeParts = 24,
+    FlatPromotionTasks = 25,
+    FlatPromotionIds = 26,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 22] = [
+    pub(super) const ALL: [Self; 27] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -327,6 +336,11 @@ impl F5cWalkerLaneKind {
         Self::SourceNegativeNodes,
         Self::SourcePositiveChildren,
         Self::SourceNegativeChildren,
+        Self::FlatComparison,
+        Self::FlatPositiveParts,
+        Self::FlatNegativeParts,
+        Self::FlatPromotionTasks,
+        Self::FlatPromotionIds,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -353,6 +367,11 @@ impl F5cWalkerLaneKind {
             Self::SourceNegativeNodes => std::mem::size_of::<flat_source_arena::NegativeNode>(),
             Self::SourcePositiveChildren => std::mem::size_of::<flat_source_arena::PositiveRef>(),
             Self::SourceNegativeChildren => std::mem::size_of::<flat_source_arena::NegativeRef>(),
+            Self::FlatComparison => std::mem::size_of::<flat_walk_sink::CompareTask>(),
+            Self::FlatPositiveParts => std::mem::size_of::<flat_source_arena::PositiveRef>(),
+            Self::FlatNegativeParts => std::mem::size_of::<flat_source_arena::NegativeRef>(),
+            Self::FlatPromotionTasks => std::mem::size_of::<flat_walk_sink::PromotionTask>(),
+            Self::FlatPromotionIds => std::mem::size_of::<F5cSummaryNodeId>(),
         }
     }
 }
@@ -367,13 +386,13 @@ pub(super) struct F5cWalkerLane {
 
 #[derive(Default)]
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 22],
+    pub(super) lanes: [F5cWalkerLane; 27],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 22],
+    pub(super) independent_lanes: [F5cWalkerLane; 27],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -1741,8 +1760,11 @@ impl F5cComponentExpansionMemo {
             F5cSummaryNodeKind::PositiveUnion { start, len }
             | F5cSummaryNodeKind::NegativeIntersection { start, len } => {
                 self.work_meter.charge(len as usize)?;
-                let children = self.child_slice(start, len)?.to_vec();
-                for child in children {
+                for offset in 0..len as usize {
+                    let child = *self
+                        .children
+                        .get(start as usize + offset)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                     add_parent(self, child)?;
                 }
             }
@@ -2314,6 +2336,8 @@ pub(super) enum F5cMaterializeTask {
 pub(super) struct F5cGeneralizer<'a> {
     pub(super) session: &'a InferenceSession,
     pub(super) memo: F5cComponentExpansionMemo,
+    #[cfg(test)]
+    pub(super) flat_sink: F5cFlatWalkSink,
     frozen_bound_epoch: usize,
     pub(super) frames: Vec<F5cExpansionFrame>,
     pub(super) shared_summary_hits: usize,
@@ -2687,6 +2711,8 @@ impl<'a> F5cGeneralizer<'a> {
         Self {
             session,
             memo,
+            #[cfg(test)]
+            flat_sink: F5cFlatWalkSink::default(),
             frozen_bound_epoch,
             frames: Vec::new(),
             shared_summary_hits: 0,
@@ -3451,6 +3477,66 @@ impl<'a> F5cGeneralizer<'a> {
         first: F5cWalkTask,
     ) -> Result<F5cWalkValue, SolveAvailabilityError> {
         self.walk_with(first, &mut F5cBoxedWalkSink)
+    }
+
+    #[cfg(test)]
+    pub(super) fn walk_flat(
+        &mut self,
+        first: F5cWalkTask,
+    ) -> Result<FlatWalkValue, SolveAvailabilityError> {
+        // The source and memo have the same owner. Keep the sink attached even
+        // when a walk fails so retained capacities remain accounted for.
+        let mut sink = std::mem::take(&mut self.flat_sink);
+        let result = self.walk_flat_with_sink(first, &mut sink);
+        self.flat_sink = sink;
+        result
+    }
+
+    #[cfg(test)]
+    fn walk_flat_with_sink(
+        &mut self,
+        first: F5cWalkTask,
+        sink: &mut F5cFlatWalkSink,
+    ) -> Result<FlatWalkValue, SolveAvailabilityError> {
+        let checkpoint = *sink
+            .component_checkpoint
+            .get_or_insert_with(|| sink.arena.checkpoint());
+        let counter_checkpoint = *sink
+            .counter_checkpoint
+            .get_or_insert((self.shared_summary_hits, self.uncacheable_states));
+        self.in_component = true;
+        let result = self.walk_with(first, sink);
+        if result.is_err() {
+            sink.arena.rollback(checkpoint);
+            sink.component_checkpoint = None;
+            sink.counter_checkpoint = None;
+            (self.shared_summary_hits, self.uncacheable_states) = counter_checkpoint;
+            let roots_restored = self
+                .memo
+                .finish_root_transaction(self.root_undo_checkpoint, false);
+            self.memo.reset_active_scratch();
+            self.active.clear();
+            self.active_set.clear();
+            self.frames.clear();
+            self.path.clear();
+            self.order.clear();
+            self.order_seen.clear();
+            self.reentries.clear();
+            self.provisional_recursive_rows.clear();
+            self.uncacheable_seen.clear();
+            self.fatal_taint = false;
+            self.invalid_effects = false;
+            let nodes_restored = self.memo.rollback_nodes(
+                self.node_checkpoint,
+                self.child_checkpoint,
+                self.reverse_checkpoint,
+                self.incidence_checkpoint,
+            );
+            if roots_restored.is_err() || nodes_restored.is_err() {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+        }
+        result
     }
 
     pub(super) fn positive_row(
