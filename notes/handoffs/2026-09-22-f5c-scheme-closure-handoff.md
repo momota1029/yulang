@@ -2792,8 +2792,6 @@ producer/drop and indexed finalization, complete ineligible/effect rejection,
 closed-DAG memo/resource accounting, §44 end-to-end per-use rollback, and
 independently reviewed §15 evidence.
 
-<!-- handoff-append-anchor: 2026-09-26 -->
-
 ## Latest continuation (2026-09-26): checked logical-work subgate
 
 The approved shared-walker work now has a solve-wide checked logical-work
@@ -3001,3 +2999,35 @@ remaining §5 witnesses are still open. Production remains boxed. Next: build
 the indexed analysis/Q/R bridge under the existing boxed order authority while
 keeping the candidate component transaction open through every later fallible
 stage; do not copy the boxed analysis algorithm or cut over production.
+
+## Latest continuation (2026-09-26): shared FlatDraft tree-analysis adapter
+
+The boxed tree-analysis event scheduler now also accepts test-only FlatDraft
+IDs. It drives incidence, references, unique first-occurrence collection, and
+guarded-bound queries without a second traversal loop. Full event traces for
+repeated positive/negative shared child IDs match equivalent boxed trees,
+including guard state and early exit. Checked invalid roots, children, and
+spans fail with `IdentityExhausted`, clear pending tasks, and permit retry;
+logical work charges match exactly on the repeated-edge witness. The existing
+4,096-depth 64 KiB test passes after boxing its large captured `ConstraintStore`
+before spawning the worker.
+
+M1 `spec_auditor` review found two major witness gaps; one implementation repair
+added full trace/malformed/rollback/work evidence, and a focused delta review
+found no remaining issue. Checks passed: FlatDraft trace/failure test, the
+small-stack analysis test, solver test-target compilation, `cargo fmt --check`,
+and `git diff --check`. No broad suite, benchmark, or §15 probe ran. A separate
+compile-fix commit restores non-test solver library compilation for the flat
+candidate support.
+
+This closes only the shared analysis adapter subgate. The raw forest still
+does not use this adapter in the full boxed Q/R orchestration; the candidate
+memo transaction still commits before later analysis, and complete callback/
+Q/R parity and late-failure rollback remain open. Next: factor the current
+boxed incidence/R/Q fixed point over boxed and FlatDraft replay sources without
+duplicating its owner/order algorithm, then retain the memo transaction through
+all candidate transformations. Production remains boxed; no resource probe,
+numeric boundary, §44 closure, F5e acceptance, or overall F5c closure is
+authorized.
+
+<!-- handoff-append-anchor: 2026-09-26 -->

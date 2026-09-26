@@ -375,3 +375,30 @@ logical repeat-work subgate only. Physical retained capacity/co-resident peak,
 the reviewed §15 plan and measurements, the uncalled flat sink, indexed
 finalization, production cutover, §44 per-use rollback, F5e, and overall F5c
 closure remain open.
+
+## 10. FlatDraft tree-analysis adapter slice (2026-09-26)
+
+The existing explicit-stack analysis walker now has a test-only FlatDraft-ID
+input path through the same event scheduler used for boxed values. It preserves
+polarity, Function argument/result guard changes, ordered depth-first events,
+and repeated-edge occurrence visits. Existing boxed analysis callers and the
+production producer remain unchanged.
+
+Focused witnesses compare full `(owner, polarity, guarded)` traces for
+positive and negative repeated child IDs, early termination, unique occurrence
+order, incidence/reference sets, and guarded-bound results. Invalid root/child
+IDs and overflowing/out-of-array spans return `IdentityExhausted`, clear
+pending tasks, and allow a valid retry. Repeated-edge work charges are equal
+for the boxed and indexed inputs. M1 `spec_auditor` review initially found
+missing event/invalid-input witnesses; a batched repair and focused delta review
+closed both findings. The existing 4,096-depth 64 KiB stack witness also passes
+after heap-owning its large captured store before worker creation.
+
+Verification passed: the new FlatDraft trace/failure test, the small-stack
+analysis test, `cargo check -p yu-solver --tests --message-format short`,
+`cargo fmt --check`, and `git diff --check`. No broad suite, benchmark, or §15
+probe ran. The production path remains boxed. Next: route FlatDraft roots
+through the same incidence/R/Q ordering core as boxed roots, and keep the
+candidate component memo transaction open through every subsequent fallible
+stage. Full callback/Q/R parity, late rollback, resource certification,
+indexed finalization, and production cutover remain open.

@@ -4,6 +4,30 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): FlatDraft tree-analysis adapter
+
+The existing explicit-stack tree-analysis walker now accepts test-only
+FlatDraft IDs through the same event scheduler used by boxed values. New
+witnesses compare full `(owner, polarity, guarded)` event traces for repeated
+positive and negative child IDs, early exits, incidence/reference/first-
+occurrence results, and guarded-bound results. Invalid IDs and child spans
+return `IdentityExhausted`, clear pending tasks, and permit retry; repeated
+edge work charges match the boxed path exactly.
+
+The M1 `spec_auditor` delta review closed after repairing trace multiplicity,
+malformed-input, cleanup, and work-charge gaps. Focused analysis and 4,096-deep
+small-stack checks pass, solver test targets compile, and format/diff checks
+pass. A separate compile-fix commit restored non-test `yu-solver` library
+compilation for the already-approved candidate helpers. No broad suite or
+resource probe ran. Production remains boxed.
+
+Next: share the existing boxed incidence/Q/R orchestration with FlatDraft
+roots, keep the component memo transaction open through replay, Q/R assignment,
+substitution, and normalization, and add full callback/Q/R parity plus late
+failure rollback evidence. The candidate remains test-only; no production
+cutover, numeric resource limit, §15 measurement, §44 closure, F5e acceptance,
+or overall F5c completion is authorized.
+
 ### Latest continuation (2026-09-26): candidate flat sink over shared walker
 
 An uncalled `F5cFlatWalkSink` now uses the same `walk_with` task interpreter

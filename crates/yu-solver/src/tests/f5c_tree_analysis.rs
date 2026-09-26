@@ -1,6 +1,327 @@
 use super::*;
 
 #[test]
+fn f5c_flat_analysis_traces_repeated_edges_and_recovers_from_bad_indices() {
+    use crate::f5c_draft::{
+        ChildSpan, FlatDraft, NegativeId, NegativeNode, PositiveId, PositiveNode,
+    };
+    use crate::f5c_tree_analysis::Task;
+
+    let mut flat = FlatDraft::default();
+    let positive = flat.positive(PositiveNode::Variable(7)).unwrap();
+    let negative = flat.negative(NegativeNode::Variable(8)).unwrap();
+    let function = flat
+        .positive(PositiveNode::Function {
+            argument: negative,
+            result: positive,
+        })
+        .unwrap();
+    flat.positive_children
+        .extend([positive, function, positive, function]);
+    let positive_root = flat
+        .positive(PositiveNode::Union(ChildSpan { start: 0, len: 4 }))
+        .unwrap();
+    let negative_function = flat
+        .negative(NegativeNode::Function {
+            argument: positive,
+            result: negative,
+        })
+        .unwrap();
+    flat.negative_children
+        .extend([negative, negative_function, negative, negative_function]);
+    let negative_root = flat
+        .negative(NegativeNode::Intersection(ChildSpan { start: 0, len: 4 }))
+        .unwrap();
+    let boxed_positive = F5cPositive::Union(vec![
+        F5cPositive::Variable(7),
+        F5cPositive::Function {
+            argument: Box::new(F5cNegative::Variable(8)),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Variable(7)),
+        },
+        F5cPositive::Variable(7),
+        F5cPositive::Function {
+            argument: Box::new(F5cNegative::Variable(8)),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Variable(7)),
+        },
+    ]);
+    let boxed_negative = F5cNegative::Intersection(vec![
+        F5cNegative::Variable(8),
+        F5cNegative::Function {
+            argument: Box::new(F5cPositive::Variable(7)),
+            argument_effect: F5cPositiveEffect::Bottom,
+            result_effect: F5cNegativeEffect::Empty,
+            result: Box::new(F5cNegative::Variable(8)),
+        },
+        F5cNegative::Variable(8),
+        F5cNegative::Function {
+            argument: Box::new(F5cPositive::Variable(7)),
+            argument_effect: F5cPositiveEffect::Bottom,
+            result_effect: F5cNegativeEffect::Empty,
+            result: Box::new(F5cNegative::Variable(8)),
+        },
+    ]);
+    let mut memo = F5cComponentExpansionMemo::default();
+    let mut walker = crate::f5c_tree_analysis::Walker::new(&mut memo);
+    for (lower, upper) in [
+        (PositiveId(u32::MAX), negative_root),
+        (positive_root, NegativeId(u32::MAX)),
+    ] {
+        assert!(matches!(
+            walker.flat_guarded_bound_survives(&flat, 7, lower, upper),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+    }
+    for limit in [usize::MAX, 3] {
+        assert_eq!(
+            walker
+                .trace_values(Some(&flat), Task::FlatPositive(positive_root, false), limit)
+                .unwrap(),
+            walker
+                .trace_values(None, Task::Positive(&boxed_positive, false), limit)
+                .unwrap()
+        );
+        assert_eq!(
+            walker
+                .trace_values(Some(&flat), Task::FlatNegative(negative_root, false), limit)
+                .unwrap(),
+            walker
+                .trace_values(None, Task::Negative(&boxed_negative, false), limit)
+                .unwrap()
+        );
+    }
+    let before = walker.memo.work_meter.get();
+    walker
+        .trace_values(
+            Some(&flat),
+            Task::FlatPositive(positive_root, false),
+            usize::MAX,
+        )
+        .unwrap();
+    let flat_charge = walker.memo.work_meter.get() - before;
+    let before = walker.memo.work_meter.get();
+    walker
+        .trace_values(None, Task::Positive(&boxed_positive, false), usize::MAX)
+        .unwrap();
+    assert_eq!(flat_charge, walker.memo.work_meter.get() - before);
+    assert_eq!(flat_charge, 26); // 9 visits, 9 scheduled tasks, 8 child edges.
+
+    for task in [
+        Task::FlatPositive(PositiveId(u32::MAX), false),
+        Task::FlatNegative(NegativeId(u32::MAX), false),
+    ] {
+        assert!(matches!(
+            walker.trace_values(Some(&flat), task, usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(walker.tasks_are_clear_for_test());
+        assert_eq!(
+            walker
+                .trace_values(Some(&flat), Task::FlatPositive(positive, false), usize::MAX)
+                .unwrap(),
+            vec![(7, Polarity::Positive, false)]
+        );
+    }
+    for span in [
+        ChildSpan {
+            start: u32::MAX,
+            len: 2,
+        },
+        ChildSpan { start: 0, len: 5 },
+    ] {
+        let bad_positive = flat.positive(PositiveNode::Union(span)).unwrap();
+        let bad_negative = flat.negative(NegativeNode::Intersection(span)).unwrap();
+        for task in [
+            Task::FlatPositive(bad_positive, false),
+            Task::FlatNegative(bad_negative, false),
+        ] {
+            assert!(matches!(
+                walker.trace_values(Some(&flat), task, usize::MAX),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            ));
+            assert!(walker.tasks_are_clear_for_test());
+            assert_eq!(
+                walker
+                    .trace_values(Some(&flat), Task::FlatNegative(negative, false), usize::MAX)
+                    .unwrap(),
+                vec![(8, Polarity::Negative, false)]
+            );
+        }
+    }
+    flat.positive_children[0] = PositiveId(u32::MAX);
+    assert!(matches!(
+        walker.trace_values(
+            Some(&flat),
+            Task::FlatPositive(positive_root, false),
+            usize::MAX
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert!(walker.tasks_are_clear_for_test());
+    flat.positive_children[0] = positive;
+    flat.negative_children[0] = NegativeId(u32::MAX);
+    assert!(matches!(
+        walker.trace_values(
+            Some(&flat),
+            Task::FlatNegative(negative_root, false),
+            usize::MAX
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert!(walker.tasks_are_clear_for_test());
+    flat.negative_children[0] = negative;
+    assert_eq!(
+        walker
+            .trace_values(Some(&flat), Task::FlatNegative(negative_root, false), 3)
+            .unwrap(),
+        walker
+            .trace_values(None, Task::Negative(&boxed_negative, false), 3)
+            .unwrap()
+    );
+}
+
+#[test]
+fn f5c_flat_tree_analysis_matches_boxed_dfs_and_guarding() {
+    use crate::f5c_draft::{ChildSpan, FlatDraft, NegativeNode, NodeRef, PositiveNode};
+    let mut flat = FlatDraft::default();
+    let first = flat.positive(PositiveNode::Variable(3)).unwrap();
+    let argument = flat.negative(NegativeNode::Variable(4)).unwrap();
+    let result = flat.positive(PositiveNode::Variable(3)).unwrap();
+    let function = flat
+        .positive(PositiveNode::Function { argument, result })
+        .unwrap();
+    let last = flat.positive(PositiveNode::Variable(5)).unwrap();
+    flat.positive_children.extend([first, function, last]);
+    let span = ChildSpan { start: 0, len: 3 };
+    let root = flat.positive(PositiveNode::Union(span)).unwrap();
+    let top = flat.negative(NegativeNode::Top).unwrap();
+    let boxed = F5cPositive::Union(vec![
+        F5cPositive::Variable(3),
+        F5cPositive::Function {
+            argument: Box::new(F5cNegative::Variable(4)),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Variable(3)),
+        },
+        F5cPositive::Variable(5),
+    ]);
+    let mut memo = F5cComponentExpansionMemo::default();
+    let mut flat_order = Vec::new();
+    let mut boxed_order = Vec::new();
+    let mut flat_seen = HashSet::new();
+    let mut boxed_seen = HashSet::new();
+    let mut flat_positive = HashSet::new();
+    let mut flat_negative = HashSet::new();
+    let mut boxed_positive = HashSet::new();
+    let mut boxed_negative = HashSet::new();
+    let mut flat_references = HashSet::new();
+    let mut boxed_references = HashSet::new();
+    let owners = HashSet::from([4, 5]);
+    let mut walker = crate::f5c_tree_analysis::Walker::new(&mut memo);
+    walker
+        .flat_occurrences(
+            &flat,
+            NodeRef::Positive(root),
+            &mut flat_order,
+            &mut flat_seen,
+        )
+        .unwrap();
+    walker
+        .occurrences_positive(&boxed, &mut boxed_order, &mut boxed_seen)
+        .unwrap();
+    walker
+        .flat_incidences(
+            &flat,
+            NodeRef::Positive(root),
+            &mut flat_positive,
+            &mut flat_negative,
+        )
+        .unwrap();
+    walker
+        .incidences_positive(&boxed, &mut boxed_positive, &mut boxed_negative)
+        .unwrap();
+    walker
+        .flat_references(
+            &flat,
+            NodeRef::Positive(root),
+            &owners,
+            &mut flat_references,
+        )
+        .unwrap();
+    walker
+        .references_positive(&boxed, &owners, &mut boxed_references)
+        .unwrap();
+    assert_eq!(flat_order, boxed_order);
+    assert_eq!(
+        (flat_positive, flat_negative),
+        (boxed_positive, boxed_negative)
+    );
+    assert_eq!(flat_references, boxed_references);
+    assert_eq!(
+        walker
+            .flat_guarded_bound_survives(&flat, 3, root, top)
+            .unwrap(),
+        walker
+            .guarded_bound_survives(3, &boxed, &F5cNegative::Top)
+            .unwrap()
+    );
+
+    drop(walker);
+    let negative_first = flat.negative(NegativeNode::Variable(8)).unwrap();
+    let negative_argument = flat.positive(PositiveNode::Variable(6)).unwrap();
+    let negative_result = flat.negative(NegativeNode::Variable(8)).unwrap();
+    let negative_function = flat
+        .negative(NegativeNode::Function {
+            argument: negative_argument,
+            result: negative_result,
+        })
+        .unwrap();
+    flat.negative_children
+        .extend([negative_first, negative_function]);
+    let negative_root = flat
+        .negative(NegativeNode::Intersection(ChildSpan { start: 0, len: 2 }))
+        .unwrap();
+    let boxed_negative_root = F5cNegative::Intersection(vec![
+        F5cNegative::Variable(8),
+        F5cNegative::Function {
+            argument: Box::new(F5cPositive::Variable(6)),
+            argument_effect: F5cPositiveEffect::Bottom,
+            result_effect: F5cNegativeEffect::Empty,
+            result: Box::new(F5cNegative::Variable(8)),
+        },
+    ]);
+    let mut walker = crate::f5c_tree_analysis::Walker::new(&mut memo);
+    let mut flat_order = Vec::new();
+    let mut boxed_order = Vec::new();
+    let mut flat_seen = HashSet::new();
+    let mut boxed_seen = HashSet::new();
+    walker
+        .flat_occurrences(
+            &flat,
+            NodeRef::Negative(negative_root),
+            &mut flat_order,
+            &mut flat_seen,
+        )
+        .unwrap();
+    walker
+        .occurrences_negative(&boxed_negative_root, &mut boxed_order, &mut boxed_seen)
+        .unwrap();
+    assert_eq!(flat_order, boxed_order);
+    assert_eq!(flat_order, [8, 6]);
+    assert_eq!(
+        walker
+            .flat_guarded_bound_survives(&flat, 8, root, negative_root)
+            .unwrap(),
+        walker
+            .guarded_bound_survives(8, &boxed, &boxed_negative_root)
+            .unwrap()
+    );
+}
+
+#[test]
 fn f5c_tree_analysis_preserves_depth_first_polarity_and_first_occurrence() {
     let value = F5cPositive::Union(vec![
         F5cPositive::Variable(3),
@@ -174,7 +495,7 @@ fn f5c_tree_and_term_analysis_are_stack_safe_on_small_stacks() {
             .positive_function_term(argument, argument_effect, result_effect, term)
             .unwrap();
     }
-    let store = session.store;
+    let store = Box::new(session.store);
     let worker = std::thread::Builder::new()
         .stack_size(64 * 1024)
         .spawn(move || {
