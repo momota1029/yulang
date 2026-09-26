@@ -10,7 +10,7 @@ use super::{
 use std::collections::HashMap;
 
 #[derive(Clone, Copy)]
-enum FlatTask {
+pub(super) enum FlatTask {
     Enter(F5cSummaryNodeId, Polarity),
     Union(usize),
     Intersection(usize),
@@ -253,6 +253,396 @@ pub(super) fn materialize_summary_flat(
         }
         values.pop().ok_or(bad)
     })();
+    if result.is_err() {
+        draft.positive_nodes.truncate(checkpoint.0);
+        draft.negative_nodes.truncate(checkpoint.1);
+        draft.positive_children.truncate(checkpoint.2);
+        draft.negative_children.truncate(checkpoint.3);
+        draft.recursive_bounds.truncate(checkpoint.4);
+        draft.insertion_order.truncate(checkpoint.5);
+    }
+    result
+}
+
+/// Candidate-only occurrence expansion; the caller owns callback-state rollback.
+#[allow(dead_code)]
+pub(super) fn materialize_summary_flat_checked(
+    memo: &mut F5cComponentExpansionMemo,
+    draft: &mut FlatDraft,
+    root: F5cSummaryNodeId,
+    polarity: Polarity,
+    mut mark: impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
+) -> Result<NodeRef, SolveAvailabilityError> {
+    use super::f5c_draft::ChildSpan;
+    let checkpoint = (
+        draft.positive_nodes.len(),
+        draft.negative_nodes.len(),
+        draft.positive_children.len(),
+        draft.negative_children.len(),
+        draft.recursive_bounds.len(),
+        draft.insertion_order.len(),
+    );
+    let mut tasks = Vec::new();
+    let mut values: Vec<NodeRef> = Vec::new();
+    let result = (|| {
+        let bad = SolveAvailabilityError::IdentityExhausted;
+        macro_rules! reserve {
+            ($buffer:expr, $lane:expr, $n:expr) => {{
+                let n = $n;
+                let bytes = memo.retained_bytes()?;
+                memo.walker_resources.reserve($buffer, $lane, n, bytes)?;
+            }};
+        }
+        macro_rules! task {
+            ($value:expr) => {{
+                memo.work_meter.charge(1)?;
+                reserve!(&mut tasks, F5cWalkerLaneKind::FlatMaterializeTasks, 1);
+                tasks.push($value);
+            }};
+        }
+        macro_rules! value {
+            ($value:expr) => {{
+                reserve!(&mut values, F5cWalkerLaneKind::FlatMaterializeValues, 1);
+                values.push($value);
+            }};
+        }
+        task!(FlatTask::Enter(root, polarity));
+        while let Some(task) = tasks.pop() {
+            memo.work_meter.charge(1)?;
+            match task {
+                FlatTask::Enter(id, expected) => {
+                    let index = usize::try_from(id.0).map_err(|_| bad)?;
+                    let node = *memo.nodes.get(index).ok_or(bad)?;
+                    if let Some((row, p)) = node.incidence {
+                        mark(row, p)?;
+                    }
+                    match (expected, node.kind) {
+                        (Polarity::Positive, F5cSummaryNodeKind::PositiveBottom) => {
+                            reserve!(
+                                &mut draft.positive_nodes,
+                                F5cWalkerLaneKind::DraftPositiveNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Positive(draft.positive(PositiveNode::Bottom)?));
+                        }
+                        (Polarity::Positive, F5cSummaryNodeKind::PositiveInt) => {
+                            reserve!(
+                                &mut draft.positive_nodes,
+                                F5cWalkerLaneKind::DraftPositiveNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Positive(draft.positive(PositiveNode::Int)?));
+                        }
+                        (Polarity::Positive, F5cSummaryNodeKind::PositiveRow(row)) => {
+                            reserve!(
+                                &mut draft.positive_nodes,
+                                F5cWalkerLaneKind::DraftPositiveNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Positive(
+                                draft.positive(PositiveNode::Variable(row))?
+                            ));
+                        }
+                        (Polarity::Negative, F5cSummaryNodeKind::NegativeTop) => {
+                            reserve!(
+                                &mut draft.negative_nodes,
+                                F5cWalkerLaneKind::DraftNegativeNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Negative(draft.negative(NegativeNode::Top)?));
+                        }
+                        (Polarity::Negative, F5cSummaryNodeKind::NegativeBottom) => {
+                            reserve!(
+                                &mut draft.negative_nodes,
+                                F5cWalkerLaneKind::DraftNegativeNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Negative(draft.negative(NegativeNode::Bottom)?));
+                        }
+                        (Polarity::Negative, F5cSummaryNodeKind::NegativeInt) => {
+                            reserve!(
+                                &mut draft.negative_nodes,
+                                F5cWalkerLaneKind::DraftNegativeNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Negative(draft.negative(NegativeNode::Int)?));
+                        }
+                        (Polarity::Negative, F5cSummaryNodeKind::NegativeRow(row)) => {
+                            reserve!(
+                                &mut draft.negative_nodes,
+                                F5cWalkerLaneKind::DraftNegativeNodes,
+                                1
+                            );
+                            reserve!(
+                                &mut draft.insertion_order,
+                                F5cWalkerLaneKind::DraftInsertionOrder,
+                                1
+                            );
+                            memo.work_meter.charge(1)?;
+                            value!(NodeRef::Negative(
+                                draft.negative(NegativeNode::Variable(row))?
+                            ));
+                        }
+                        (Polarity::Positive, F5cSummaryNodeKind::PositiveAlias { start })
+                        | (Polarity::Negative, F5cSummaryNodeKind::NegativeAlias { start }) => {
+                            let child = memo.child_slice(start, 1)?[0];
+                            memo.work_meter.charge(1)?;
+                            if child.0 >= id.0 {
+                                return Err(bad);
+                            }
+                            task!(FlatTask::Enter(child, expected));
+                        }
+                        (Polarity::Positive, F5cSummaryNodeKind::PositiveUnion { start, len })
+                        | (
+                            Polarity::Negative,
+                            F5cSummaryNodeKind::NegativeIntersection { start, len },
+                        ) => {
+                            let children = memo.child_slice(start, len)?;
+                            let count = children.len();
+                            for child in children {
+                                memo.work_meter.charge(1)?;
+                                if child.0 >= id.0 {
+                                    return Err(bad);
+                                }
+                            }
+                            match expected {
+                                Polarity::Positive => task!(FlatTask::Union(values.len())),
+                                Polarity::Negative => task!(FlatTask::Intersection(values.len())),
+                            }
+                            for index in (0..count).rev() {
+                                let child = memo.child_slice(start, len)?[index];
+                                task!(FlatTask::Enter(child, expected));
+                            }
+                        }
+                        (
+                            Polarity::Positive,
+                            F5cSummaryNodeKind::PositiveFunction { argument, result },
+                        )
+                        | (
+                            Polarity::Negative,
+                            F5cSummaryNodeKind::NegativeFunction { argument, result },
+                        ) => {
+                            memo.work_meter.charge(2)?;
+                            if argument.0 >= id.0 || result.0 >= id.0 {
+                                return Err(bad);
+                            }
+                            match expected {
+                                Polarity::Positive => task!(FlatTask::PositiveFunction),
+                                Polarity::Negative => task!(FlatTask::NegativeFunction),
+                            }
+                            task!(FlatTask::Enter(result, expected));
+                            let opposite = match expected {
+                                Polarity::Positive => Polarity::Negative,
+                                Polarity::Negative => Polarity::Positive,
+                            };
+                            task!(FlatTask::Enter(argument, opposite));
+                        }
+                        _ => return Err(bad),
+                    }
+                }
+                FlatTask::Union(start) => {
+                    let count = values.len().checked_sub(start).ok_or(bad)?;
+                    let span = ChildSpan {
+                        start: u32::try_from(draft.positive_children.len()).map_err(|_| bad)?,
+                        len: u32::try_from(count).map_err(|_| bad)?,
+                    };
+                    span.start.checked_add(span.len).ok_or(bad)?;
+                    reserve!(
+                        &mut draft.positive_children,
+                        F5cWalkerLaneKind::DraftPositiveChildren,
+                        count
+                    );
+                    #[cfg(test)]
+                    record_bulk_drain_boundary(
+                        F5cBulkDrainSite::FlatMaterializePositive,
+                        &memo.work_meter,
+                        count,
+                    );
+                    memo.work_meter.charge(count)?;
+                    for item in values.drain(start..) {
+                        let NodeRef::Positive(child) = item else {
+                            return Err(bad);
+                        };
+                        draft.positive_children.push(child);
+                    }
+                    reserve!(
+                        &mut draft.positive_nodes,
+                        F5cWalkerLaneKind::DraftPositiveNodes,
+                        1
+                    );
+                    reserve!(
+                        &mut draft.insertion_order,
+                        F5cWalkerLaneKind::DraftInsertionOrder,
+                        1
+                    );
+                    memo.work_meter.charge(1)?;
+                    value!(NodeRef::Positive(
+                        draft.positive(PositiveNode::Union(span))?
+                    ));
+                }
+                FlatTask::Intersection(start) => {
+                    let count = values.len().checked_sub(start).ok_or(bad)?;
+                    let span = ChildSpan {
+                        start: u32::try_from(draft.negative_children.len()).map_err(|_| bad)?,
+                        len: u32::try_from(count).map_err(|_| bad)?,
+                    };
+                    span.start.checked_add(span.len).ok_or(bad)?;
+                    reserve!(
+                        &mut draft.negative_children,
+                        F5cWalkerLaneKind::DraftNegativeChildren,
+                        count
+                    );
+                    #[cfg(test)]
+                    record_bulk_drain_boundary(
+                        F5cBulkDrainSite::FlatMaterializeNegative,
+                        &memo.work_meter,
+                        count,
+                    );
+                    memo.work_meter.charge(count)?;
+                    for item in values.drain(start..) {
+                        let NodeRef::Negative(child) = item else {
+                            return Err(bad);
+                        };
+                        draft.negative_children.push(child);
+                    }
+                    reserve!(
+                        &mut draft.negative_nodes,
+                        F5cWalkerLaneKind::DraftNegativeNodes,
+                        1
+                    );
+                    reserve!(
+                        &mut draft.insertion_order,
+                        F5cWalkerLaneKind::DraftInsertionOrder,
+                        1
+                    );
+                    memo.work_meter.charge(1)?;
+                    value!(NodeRef::Negative(
+                        draft.negative(NegativeNode::Intersection(span))?
+                    ));
+                }
+                FlatTask::PositiveFunction => {
+                    let NodeRef::Positive(result) = values.pop().ok_or(bad)? else {
+                        return Err(bad);
+                    };
+                    let NodeRef::Negative(argument) = values.pop().ok_or(bad)? else {
+                        return Err(bad);
+                    };
+                    reserve!(
+                        &mut draft.positive_nodes,
+                        F5cWalkerLaneKind::DraftPositiveNodes,
+                        1
+                    );
+                    reserve!(
+                        &mut draft.insertion_order,
+                        F5cWalkerLaneKind::DraftInsertionOrder,
+                        1
+                    );
+                    memo.work_meter.charge(1)?;
+                    value!(NodeRef::Positive(
+                        draft.positive(PositiveNode::Function { argument, result })?
+                    ));
+                }
+                FlatTask::NegativeFunction => {
+                    let NodeRef::Negative(result) = values.pop().ok_or(bad)? else {
+                        return Err(bad);
+                    };
+                    let NodeRef::Positive(argument) = values.pop().ok_or(bad)? else {
+                        return Err(bad);
+                    };
+                    reserve!(
+                        &mut draft.negative_nodes,
+                        F5cWalkerLaneKind::DraftNegativeNodes,
+                        1
+                    );
+                    reserve!(
+                        &mut draft.insertion_order,
+                        F5cWalkerLaneKind::DraftInsertionOrder,
+                        1
+                    );
+                    memo.work_meter.charge(1)?;
+                    value!(NodeRef::Negative(
+                        draft.negative(NegativeNode::Function { argument, result })?
+                    ));
+                }
+            }
+            #[cfg(test)]
+            {
+                let task_lane = F5cWalkerLaneKind::FlatMaterializeTasks as usize;
+                let value_lane = F5cWalkerLaneKind::FlatMaterializeValues as usize;
+                memo.checked_materialization_scratch_sample = Some([
+                    memo.retained_bytes()?,
+                    memo.walker_resources.lanes[F5cWalkerLaneKind::SourcePositiveNodes as usize]
+                        .actual_capacity,
+                    memo.walker_resources.lanes[F5cWalkerLaneKind::SourceNegativeNodes as usize]
+                        .actual_capacity,
+                    memo.walker_resources.lanes[F5cWalkerLaneKind::SourcePositiveChildren as usize]
+                        .actual_capacity,
+                    memo.walker_resources.lanes[F5cWalkerLaneKind::SourceNegativeChildren as usize]
+                        .actual_capacity,
+                    draft.positive_nodes.capacity(),
+                    draft.negative_nodes.capacity(),
+                    draft.positive_children.capacity(),
+                    draft.negative_children.capacity(),
+                    draft.recursive_bounds.capacity(),
+                    draft.insertion_order.capacity(),
+                    tasks.capacity(),
+                    values.capacity(),
+                ]);
+                debug_assert_eq!(
+                    tasks.capacity(),
+                    memo.walker_resources.lanes[task_lane].actual_capacity
+                );
+                debug_assert_eq!(
+                    values.capacity(),
+                    memo.walker_resources.lanes[value_lane].actual_capacity
+                );
+            }
+        }
+        if values.len() != 1 {
+            return Err(bad);
+        }
+        values.pop().ok_or(bad)
+    })();
+    memo.walker_resources
+        .release(F5cWalkerLaneKind::FlatMaterializeTasks);
+    memo.walker_resources
+        .release(F5cWalkerLaneKind::FlatMaterializeValues);
     if result.is_err() {
         draft.positive_nodes.truncate(checkpoint.0);
         draft.negative_nodes.truncate(checkpoint.1);
@@ -831,6 +1221,389 @@ mod flat_tests {
         }
         assert_eq!(positive_id, flat.positive_nodes.len());
         assert_eq!(negative_id, flat.negative_nodes.len());
+    }
+
+    #[test]
+    fn externally_reserved_flat_draft_publication_keeps_capacity() {
+        use super::super::f5c_draft::{NegativeId, PositiveId};
+        let mut memo = F5cComponentExpansionMemo::default();
+        let mut draft = FlatDraft::default();
+        let bytes = memo.retained_bytes().unwrap();
+        for (kind, reserve) in [
+            (F5cWalkerLaneKind::DraftPositiveNodes, 1),
+            (F5cWalkerLaneKind::DraftNegativeNodes, 1),
+            (F5cWalkerLaneKind::DraftPositiveChildren, 2),
+            (F5cWalkerLaneKind::DraftNegativeChildren, 2),
+            (F5cWalkerLaneKind::DraftInsertionOrder, 2),
+        ] {
+            match kind {
+                F5cWalkerLaneKind::DraftPositiveNodes => memo
+                    .walker_resources
+                    .reserve(&mut draft.positive_nodes, kind, reserve, bytes)
+                    .unwrap(),
+                F5cWalkerLaneKind::DraftNegativeNodes => memo
+                    .walker_resources
+                    .reserve(&mut draft.negative_nodes, kind, reserve, bytes)
+                    .unwrap(),
+                F5cWalkerLaneKind::DraftPositiveChildren => memo
+                    .walker_resources
+                    .reserve(&mut draft.positive_children, kind, reserve, bytes)
+                    .unwrap(),
+                F5cWalkerLaneKind::DraftNegativeChildren => memo
+                    .walker_resources
+                    .reserve(&mut draft.negative_children, kind, reserve, bytes)
+                    .unwrap(),
+                F5cWalkerLaneKind::DraftInsertionOrder => memo
+                    .walker_resources
+                    .reserve(&mut draft.insertion_order, kind, reserve, bytes)
+                    .unwrap(),
+                _ => unreachable!(),
+            }
+        }
+        let capacities = [
+            draft.positive_nodes.capacity(),
+            draft.negative_nodes.capacity(),
+            draft.positive_children.capacity(),
+            draft.negative_children.capacity(),
+            draft.insertion_order.capacity(),
+        ];
+        draft.positive(PositiveNode::Int).unwrap();
+        draft.negative(NegativeNode::Int).unwrap();
+        draft.positive_span(&[PositiveId(0); 2]).unwrap();
+        draft.negative_span(&[NegativeId(0); 2]).unwrap();
+        assert_eq!(
+            capacities,
+            [
+                draft.positive_nodes.capacity(),
+                draft.negative_nodes.capacity(),
+                draft.positive_children.capacity(),
+                draft.negative_children.capacity(),
+                draft.insertion_order.capacity()
+            ]
+        );
+    }
+
+    #[test]
+    fn checked_flat_aggregate_overflow_preserves_children_and_retries() {
+        for polarity in [Polarity::Positive, Polarity::Negative] {
+            let mut memo = F5cComponentExpansionMemo::default();
+            let leaf_kind = match polarity {
+                Polarity::Positive => F5cSummaryNodeKind::PositiveInt,
+                Polarity::Negative => F5cSummaryNodeKind::NegativeInt,
+            };
+            let aggregate_kind = match polarity {
+                Polarity::Positive => F5cSummaryNodeKind::PositiveUnion { start: 0, len: 2 },
+                Polarity::Negative => F5cSummaryNodeKind::NegativeIntersection { start: 0, len: 2 },
+            };
+            memo.nodes = vec![
+                F5cSummaryNode {
+                    incidence: None,
+                    transitive_incidence_count: 0,
+                    kind: leaf_kind,
+                },
+                F5cSummaryNode {
+                    incidence: None,
+                    transitive_incidence_count: 0,
+                    kind: aggregate_kind,
+                },
+            ];
+            memo.children = vec![F5cSummaryNodeId(0); 2];
+            let mut draft = FlatDraft::default();
+            let root = F5cSummaryNodeId(1);
+            let run = |memo: &mut F5cComponentExpansionMemo, draft: &mut FlatDraft| {
+                materialize_summary_flat_checked(memo, draft, root, polarity, |_, _| Ok(()))
+            };
+            run(&mut memo, &mut draft).unwrap();
+            let (site, before_drain, count) =
+                super::super::f5c_generalization::F5C_BULK_DRAIN_BOUNDARY
+                    .with(|marker| marker.take().unwrap());
+            assert_eq!(
+                site,
+                match polarity {
+                    Polarity::Positive => F5cBulkDrainSite::FlatMaterializePositive,
+                    Polarity::Negative => F5cBulkDrainSite::FlatMaterializeNegative,
+                }
+            );
+            assert_eq!(count, 2);
+            let before = (
+                draft.positive_nodes.clone(),
+                draft.negative_nodes.clone(),
+                draft.positive_children.clone(),
+                draft.negative_children.clone(),
+                draft.insertion_order.clone(),
+            );
+            memo.work_meter.set(usize::MAX - before_drain - (count - 1));
+            assert!(run(&mut memo, &mut draft).is_err());
+            assert_eq!(before.0, draft.positive_nodes);
+            assert_eq!(before.1, draft.negative_nodes);
+            assert_eq!(before.2, draft.positive_children);
+            assert_eq!(before.3, draft.negative_children);
+            assert_eq!(before.4, draft.insertion_order);
+            assert_eq!(
+                super::super::f5c_generalization::F5C_BULK_DRAIN_BOUNDARY
+                    .with(|marker| marker.take()),
+                Some((site, usize::MAX - count + 1, count))
+            );
+            memo.work_meter.set(0);
+            run(&mut memo, &mut draft).unwrap();
+        }
+    }
+
+    #[test]
+    fn checked_summary_flat_reserve_failure_keeps_draft_capacity_and_rolls_back() {
+        let mut memo = F5cComponentExpansionMemo::default();
+        let leaf = F5cSummaryNodeId(0);
+        memo.nodes = vec![
+            F5cSummaryNode {
+                incidence: None,
+                transitive_incidence_count: 0,
+                kind: F5cSummaryNodeKind::PositiveInt,
+            },
+            F5cSummaryNode {
+                incidence: None,
+                transitive_incidence_count: 0,
+                kind: F5cSummaryNodeKind::PositiveUnion { start: 0, len: 2 },
+            },
+        ];
+        memo.children = vec![leaf, leaf];
+        let mut flat = FlatDraft::default();
+        memo.walker_resources.lanes[F5cWalkerLaneKind::DraftPositiveChildren as usize]
+            .requested_slots = usize::MAX;
+        assert!(
+            materialize_summary_flat_checked(
+                &mut memo,
+                &mut flat,
+                F5cSummaryNodeId(1),
+                Polarity::Positive,
+                |_, _| Ok(())
+            )
+            .is_err()
+        );
+        assert!(flat.positive_nodes.is_empty());
+        assert!(flat.positive_children.is_empty());
+        assert!(flat.insertion_order.is_empty());
+        assert_eq!(
+            memo.walker_resources.lanes[F5cWalkerLaneKind::DraftPositiveNodes as usize]
+                .actual_capacity,
+            flat.positive_nodes.capacity()
+        );
+        assert_eq!(
+            memo.walker_resources.lanes[F5cWalkerLaneKind::DraftInsertionOrder as usize]
+                .actual_capacity,
+            flat.insertion_order.capacity()
+        );
+        assert!(
+            memo.walker_resources.simultaneous_memo_peak_bytes
+                >= memo.retained_bytes().unwrap() + memo.walker_resources.retained_bytes().unwrap()
+        );
+    }
+
+    #[test]
+    fn checked_summary_flat_preserves_both_function_field_orders() {
+        let mut memo = F5cComponentExpansionMemo::default();
+        let ids = (0..6).map(F5cSummaryNodeId).collect::<Vec<_>>();
+        let kinds = [
+            F5cSummaryNodeKind::PositiveRow(10),
+            F5cSummaryNodeKind::NegativeRow(20),
+            F5cSummaryNodeKind::PositiveFunction {
+                argument: ids[1],
+                result: ids[0],
+            },
+            F5cSummaryNodeKind::NegativeFunction {
+                argument: ids[0],
+                result: ids[1],
+            },
+            F5cSummaryNodeKind::PositiveUnion { start: 0, len: 2 },
+            F5cSummaryNodeKind::NegativeIntersection { start: 2, len: 2 },
+        ];
+        memo.nodes = kinds
+            .into_iter()
+            .enumerate()
+            .map(|(index, kind)| F5cSummaryNode {
+                incidence: Some((
+                    index as u32,
+                    if matches!(index, 1 | 3 | 5) {
+                        Polarity::Negative
+                    } else {
+                        Polarity::Positive
+                    },
+                )),
+                transitive_incidence_count: 1,
+                kind,
+            })
+            .collect();
+        memo.children = vec![ids[2], ids[2], ids[3], ids[3]];
+        let mut flat = FlatDraft::default();
+        let mut positive_marks = Vec::new();
+        let positive = materialize_summary_flat_checked(
+            &mut memo,
+            &mut flat,
+            ids[4],
+            Polarity::Positive,
+            |row, polarity| {
+                positive_marks.push((row, polarity));
+                Ok(())
+            },
+        )
+        .unwrap();
+        let mut negative_marks = Vec::new();
+        let negative = materialize_summary_flat_checked(
+            &mut memo,
+            &mut flat,
+            ids[5],
+            Polarity::Negative,
+            |row, polarity| {
+                negative_marks.push((row, polarity));
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            positive_marks
+                .iter()
+                .map(|(row, _)| *row)
+                .collect::<Vec<_>>(),
+            vec![4, 2, 1, 0, 2, 1, 0]
+        );
+        assert_eq!(
+            negative_marks
+                .iter()
+                .map(|(row, _)| *row)
+                .collect::<Vec<_>>(),
+            vec![5, 3, 0, 1, 3, 0, 1]
+        );
+        let NodeRef::Positive(positive) = positive else {
+            panic!("wrong polarity");
+        };
+        let NodeRef::Negative(negative) = negative else {
+            panic!("wrong polarity");
+        };
+        assert_eq!(
+            expand_positive(&flat, positive),
+            F5cPositive::Union(vec![
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Variable(20)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Variable(10))
+                },
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Variable(20)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Variable(10))
+                },
+            ])
+        );
+        assert_eq!(
+            expand_negative(&flat, negative),
+            F5cNegative::Intersection(vec![
+                F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Variable(10)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(F5cNegative::Variable(20))
+                },
+                F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Variable(10)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(F5cNegative::Variable(20))
+                },
+            ])
+        );
+    }
+
+    #[test]
+    fn checked_summary_flat_repeats_occurrences_and_rolls_back_callback_failure() {
+        let mut memo = F5cComponentExpansionMemo::default();
+        let leaf = F5cSummaryNodeId(0);
+        let union = F5cSummaryNodeId(1);
+        memo.nodes = vec![
+            F5cSummaryNode {
+                incidence: Some((7, Polarity::Positive)),
+                transitive_incidence_count: 1,
+                kind: F5cSummaryNodeKind::PositiveRow(7),
+            },
+            F5cSummaryNode {
+                incidence: Some((8, Polarity::Positive)),
+                transitive_incidence_count: 3,
+                kind: F5cSummaryNodeKind::PositiveUnion { start: 0, len: 2 },
+            },
+        ];
+        memo.children = vec![leaf, leaf];
+        let mut flat = FlatDraft::default();
+        let mut marks = Vec::new();
+        let NodeRef::Positive(root) = materialize_summary_flat_checked(
+            &mut memo,
+            &mut flat,
+            union,
+            Polarity::Positive,
+            |row, polarity| {
+                marks.push((row, polarity));
+                Ok(())
+            },
+        )
+        .unwrap() else {
+            panic!("wrong polarity");
+        };
+        assert_eq!(
+            marks,
+            vec![
+                (8, Polarity::Positive),
+                (7, Polarity::Positive),
+                (7, Polarity::Positive)
+            ]
+        );
+        let PositiveNode::Union(span) = flat.positive_nodes[root.0 as usize] else {
+            panic!("wrong root");
+        };
+        let children =
+            &flat.positive_children[span.start as usize..(span.start + span.len) as usize];
+        assert_ne!(children[0], children[1]);
+        let lengths = (
+            flat.positive_nodes.len(),
+            flat.negative_nodes.len(),
+            flat.positive_children.len(),
+            flat.negative_children.len(),
+            flat.recursive_bounds.len(),
+            flat.insertion_order.len(),
+        );
+        let err = materialize_summary_flat_checked(
+            &mut memo,
+            &mut flat,
+            union,
+            Polarity::Positive,
+            |row, _| {
+                if row == 7 {
+                    Err(SolveAvailabilityError::IdentityExhausted)
+                } else {
+                    Ok(())
+                }
+            },
+        );
+        assert!(err.is_err());
+        assert_eq!(
+            lengths,
+            (
+                flat.positive_nodes.len(),
+                flat.negative_nodes.len(),
+                flat.positive_children.len(),
+                flat.negative_children.len(),
+                flat.recursive_bounds.len(),
+                flat.insertion_order.len()
+            )
+        );
+        assert_eq!(
+            memo.walker_resources.lanes[F5cWalkerLaneKind::DraftPositiveNodes as usize]
+                .actual_capacity,
+            flat.positive_nodes.capacity()
+        );
+        assert_eq!(
+            memo.walker_resources.lanes[F5cWalkerLaneKind::DraftInsertionOrder as usize]
+                .actual_capacity,
+            flat.insertion_order.capacity()
+        );
     }
 
     #[test]

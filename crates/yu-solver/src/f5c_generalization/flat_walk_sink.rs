@@ -54,6 +54,15 @@ pub(crate) struct F5cFlatWalkSink {
 
 #[cfg(test)]
 impl F5cFlatWalkSink {
+    pub(crate) fn source_capacities(&self) -> [usize; 4] {
+        [
+            self.arena.positive_nodes.capacity(),
+            self.arena.negative_nodes.capacity(),
+            self.arena.positive_children.capacity(),
+            self.arena.negative_children.capacity(),
+        ]
+    }
+
     pub(crate) fn arena_is_empty(&self) -> bool {
         let checkpoint = self.arena.checkpoint();
         let empty = FlatSourceArena::default().checkpoint();

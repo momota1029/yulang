@@ -2931,3 +2931,24 @@ Local/Shared-to-FlatDraft materialization, full callback/Q/R parity,
 source/memo/FlatDraft co-residency, and remaining §5 witnesses are still open.
 Production remains boxed; no numeric cap, resource probe, §44 closure, F5e, or
 overall F5c completion is authorized.
+
+## Latest continuation (2026-09-26): checked Shared-to-FlatDraft materializer
+
+Added a candidate-only iterative Shared-summary occurrence materializer with
+a fallible incidence callback and rollback of all six FlatDraft lengths.
+Repeated Shared refs emit separate occurrences and callbacks in traversal
+order. Exact-size walker lanes track candidate-flat tasks/values and all six
+FlatDraft vectors. A same-time witness checks source, memo, draft, and scratch
+capacity; externally pre-reserved append does not grow a second time.
+Union/Intersection drain work is charged before child movement; positive and
+negative overflow witnesses verify no partial move and successful retry.
+
+M2 spec/performance delta review found no remaining blocker. The
+`f5c_materialization::` filter passed (17), the flat sink filter passed (14),
+the solver test targets compile, and formatting/diff checks passed. No
+benchmark or §15 probe ran.
+
+This covers Shared occurrence materialization only. Local source
+materialization, the full ordered predicate/bounds forest, callback/Q/R
+parity, component-wide draft/memo rollback, and later FlatDraft/finalizer
+co-residency remain open; production remains boxed.

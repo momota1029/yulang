@@ -7,6 +7,8 @@ pub(super) enum F5cBulkDrainSite {
     SummaryNegative,
     RawMaterializePositive,
     RawMaterializeNegative,
+    FlatMaterializePositive,
+    FlatMaterializeNegative,
     RowPositive,
     RowNegative,
     ReplayPositive,
@@ -310,10 +312,18 @@ pub(super) enum F5cWalkerLaneKind {
     FlatNegativeParts = 24,
     FlatPromotionTasks = 25,
     FlatPromotionIds = 26,
+    DraftPositiveNodes = 27,
+    DraftNegativeNodes = 28,
+    DraftPositiveChildren = 29,
+    DraftNegativeChildren = 30,
+    DraftRecursiveBounds = 31,
+    DraftInsertionOrder = 32,
+    FlatMaterializeTasks = 33,
+    FlatMaterializeValues = 34,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 27] = [
+    pub(super) const ALL: [Self; 35] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -341,6 +351,14 @@ impl F5cWalkerLaneKind {
         Self::FlatNegativeParts,
         Self::FlatPromotionTasks,
         Self::FlatPromotionIds,
+        Self::DraftPositiveNodes,
+        Self::DraftNegativeNodes,
+        Self::DraftPositiveChildren,
+        Self::DraftNegativeChildren,
+        Self::DraftRecursiveBounds,
+        Self::DraftInsertionOrder,
+        Self::FlatMaterializeTasks,
+        Self::FlatMaterializeValues,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -358,6 +376,8 @@ impl F5cWalkerLaneKind {
             Self::MaterializeValues => std::mem::size_of::<F5cWalkValue>(),
             Self::DraftMaterializeTasks => std::mem::size_of::<f5c_materialization::Task>(),
             Self::DraftMaterializeValues => std::mem::size_of::<F5cWalkValue>(),
+            Self::FlatMaterializeTasks => std::mem::size_of::<f5c_materialization::FlatTask>(),
+            Self::FlatMaterializeValues => std::mem::size_of::<f5c_draft::NodeRef>(),
             Self::AnalysisTasks => std::mem::size_of::<f5c_tree_analysis::Task<'static>>(),
             Self::ReplayTasks => std::mem::size_of::<f5c_replay::Task<'static>>(),
             Self::ReplayValues => std::mem::size_of::<F5cWalkValue>(),
@@ -372,6 +392,12 @@ impl F5cWalkerLaneKind {
             Self::FlatNegativeParts => std::mem::size_of::<flat_source_arena::NegativeRef>(),
             Self::FlatPromotionTasks => std::mem::size_of::<flat_walk_sink::PromotionTask>(),
             Self::FlatPromotionIds => std::mem::size_of::<F5cSummaryNodeId>(),
+            Self::DraftPositiveNodes => std::mem::size_of::<f5c_draft::PositiveNode>(),
+            Self::DraftNegativeNodes => std::mem::size_of::<f5c_draft::NegativeNode>(),
+            Self::DraftPositiveChildren => std::mem::size_of::<f5c_draft::PositiveId>(),
+            Self::DraftNegativeChildren => std::mem::size_of::<f5c_draft::NegativeId>(),
+            Self::DraftRecursiveBounds => std::mem::size_of::<f5c_draft::RecursiveBound>(),
+            Self::DraftInsertionOrder => std::mem::size_of::<f5c_draft::NodeRef>(),
         }
     }
 }
@@ -384,19 +410,36 @@ pub(super) struct F5cWalkerLane {
     pub(super) capacity_growths: usize,
 }
 
-#[derive(Default)]
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 27],
+    pub(super) lanes: [F5cWalkerLane; 35],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 27],
+    pub(super) independent_lanes: [F5cWalkerLane; 35],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
     pub(super) independent_simultaneous_memo_peak_bytes: usize,
+}
+
+impl Default for F5cWalkerResources {
+    fn default() -> Self {
+        Self {
+            lanes: [F5cWalkerLane::default(); 35],
+            peak_bytes: 0,
+            simultaneous_memo_peak_bytes: 0,
+            observed_memo_bytes: 0,
+            value_slot_size: 0,
+            #[cfg(test)]
+            independent_lanes: [F5cWalkerLane::default(); 35],
+            #[cfg(test)]
+            independent_peak_bytes: 0,
+            #[cfg(test)]
+            independent_simultaneous_memo_peak_bytes: 0,
+        }
+    }
 }
 
 impl F5cWalkerResources {
@@ -649,6 +692,8 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) simultaneous_peak_bytes: usize,
     #[cfg(test)]
     pub(super) capacity_samples: Vec<[usize; 20]>,
+    #[cfg(test)]
+    pub(super) checked_materialization_scratch_sample: Option<[usize; 13]>,
     #[cfg(test)]
     pub(super) independent_generalizer_scratch_peak_bytes: usize,
     #[cfg(test)]

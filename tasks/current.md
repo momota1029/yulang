@@ -30,6 +30,27 @@ FlatDraft co-resident accounting, and overall §5 witness closure remain next.
 Production stays boxed; no production cutover, numeric resource limit, §44
 closure, F5e acceptance, or overall F5c completion is authorized.
 
+### Latest continuation (2026-09-26): checked Shared-to-FlatDraft materializer
+
+Added a candidate-only iterative Shared-summary occurrence materializer with
+a fallible incidence callback and transactional rollback of all six
+FlatDraft lanes. It preserves child and Function order, expands repeated
+Shared occurrences separately, pre-reserves and accounts task/value plus all
+FlatDraft lanes using exact element sizes, and observes simultaneous live
+source/memo/draft/scratch capacity. Union/Intersection drain work is charged
+before moving any child; positive and negative overflow witnesses verify no
+partial move and retry.
+
+M2 spec/performance delta review found no remaining blocker. Focused checks
+passed: the `f5c_materialization::` filter (17), the flat sink filter (14),
+the co-resident materializer witness, `cargo check -p yu-solver --tests`,
+formatting, and diff checks. No benchmark or §15 probe ran.
+
+This helper covers Shared materialization only. The test-only Local/Shared raw
+forest builder, source Local materialization, ordered owner-bound append,
+whole-component draft/memo rollback, callback/Q/R parity, and final
+source/memo/FlatDraft lifecycle remain open.
+
 ### Latest continuation (2026-09-26): explicit raw reentry-owner order
 
 The boxed producer now retains first-encounter order for unique raw reentry

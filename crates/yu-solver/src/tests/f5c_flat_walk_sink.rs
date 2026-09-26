@@ -718,3 +718,157 @@ fn flat_local_root_remains_readable_across_successive_walks() {
     assert!(generalizer.flat_sink.local_positive_is(first_root, true));
     assert!(generalizer.flat_sink.local_positive_is(second_root, false));
 }
+
+#[test]
+fn checked_materialization_observes_co_resident_source_memo_draft_and_scratch() {
+    use crate::f5c_draft::FlatDraft;
+    use crate::f5c_generalization::F5cWalkerLaneKind;
+    use crate::f5c_materialization::materialize_summary_flat_checked;
+
+    let batch = collect(module("my f = 1", "f5c-flat-co-resident-materialization"));
+    let mut session = InferenceSession::new(batch);
+    let row = session.fresh_value_at_level(1).unwrap();
+    session.bounds[row as usize]
+        .exact_non_variable_lowers
+        .extend([
+            ValueEndpointKey::IntPositive,
+            ValueEndpointKey::BottomPositive,
+        ]);
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let value = generalizer
+        .walk_flat(F5cWalkTask::EnterRow {
+            row,
+            polarity: Polarity::Positive,
+            root: false,
+        })
+        .unwrap();
+    let shared = value.positive_shared_id().unwrap();
+    let source = generalizer.flat_sink.source_capacities();
+    assert!(source[0] > 0 && source[2] > 0);
+    assert!(generalizer.memo.nodes.capacity() > 0);
+
+    let mut draft = FlatDraft::default();
+    materialize_summary_flat_checked(
+        &mut generalizer.memo,
+        &mut draft,
+        shared,
+        Polarity::Positive,
+        |_, _| Ok(()),
+    )
+    .unwrap();
+    let memo = &generalizer.memo;
+    let scratch = memo.checked_materialization_scratch_sample.unwrap();
+    assert!(scratch[11] > 0 && scratch[12] > 0);
+    let actual = [
+        (F5cWalkerLaneKind::SourcePositiveNodes, source[0]),
+        (F5cWalkerLaneKind::SourceNegativeNodes, source[1]),
+        (F5cWalkerLaneKind::SourcePositiveChildren, source[2]),
+        (F5cWalkerLaneKind::SourceNegativeChildren, source[3]),
+        (
+            F5cWalkerLaneKind::DraftPositiveNodes,
+            draft.positive_nodes.capacity(),
+        ),
+        (
+            F5cWalkerLaneKind::DraftNegativeNodes,
+            draft.negative_nodes.capacity(),
+        ),
+        (
+            F5cWalkerLaneKind::DraftPositiveChildren,
+            draft.positive_children.capacity(),
+        ),
+        (
+            F5cWalkerLaneKind::DraftNegativeChildren,
+            draft.negative_children.capacity(),
+        ),
+        (
+            F5cWalkerLaneKind::DraftRecursiveBounds,
+            draft.recursive_bounds.capacity(),
+        ),
+        (
+            F5cWalkerLaneKind::DraftInsertionOrder,
+            draft.insertion_order.capacity(),
+        ),
+    ];
+    for (kind, capacity) in actual {
+        assert_eq!(
+            memo.walker_resources.lanes[kind as usize].actual_capacity,
+            capacity
+        );
+        assert_eq!(
+            memo.walker_resources.independent_lanes[kind as usize].actual_capacity,
+            capacity
+        );
+    }
+    assert!(draft.positive_nodes.capacity() > 0 && draft.positive_children.capacity() > 0);
+    assert_eq!(draft.recursive_bounds.capacity(), 0);
+    let source_and_draft_bytes: usize = actual
+        .iter()
+        .map(|(kind, capacity)| capacity * kind.slot_size())
+        .sum();
+    assert_eq!(
+        F5cWalkerLaneKind::FlatMaterializeTasks.slot_size(),
+        std::mem::size_of::<crate::f5c_materialization::FlatTask>()
+    );
+    assert_eq!(
+        F5cWalkerLaneKind::FlatMaterializeValues.slot_size(),
+        std::mem::size_of::<crate::f5c_draft::NodeRef>()
+    );
+    let sampled_lanes = [
+        F5cWalkerLaneKind::SourcePositiveNodes,
+        F5cWalkerLaneKind::SourceNegativeNodes,
+        F5cWalkerLaneKind::SourcePositiveChildren,
+        F5cWalkerLaneKind::SourceNegativeChildren,
+        F5cWalkerLaneKind::DraftPositiveNodes,
+        F5cWalkerLaneKind::DraftNegativeNodes,
+        F5cWalkerLaneKind::DraftPositiveChildren,
+        F5cWalkerLaneKind::DraftNegativeChildren,
+        F5cWalkerLaneKind::DraftRecursiveBounds,
+        F5cWalkerLaneKind::DraftInsertionOrder,
+        F5cWalkerLaneKind::FlatMaterializeTasks,
+        F5cWalkerLaneKind::FlatMaterializeValues,
+    ];
+    let sampled_bytes: usize = sampled_lanes
+        .iter()
+        .zip(&scratch[1..])
+        .map(|(kind, capacity)| kind.slot_size() * capacity)
+        .sum();
+    let simultaneous = scratch[0] + sampled_bytes;
+    assert!(sampled_bytes >= source_and_draft_bytes);
+    assert_eq!(&scratch[1..5], &source);
+    assert_eq!(
+        &scratch[5..11],
+        &actual[4..]
+            .iter()
+            .map(|(_, capacity)| *capacity)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(scratch[0], memo.retained_bytes().unwrap());
+    let mut ledger = IndependentResourceLedger::default();
+    ledger.record_component_expansion_memo(memo).unwrap();
+    for (kind, capacity) in sampled_lanes.iter().zip(&scratch[1..]) {
+        if matches!(
+            kind,
+            F5cWalkerLaneKind::FlatMaterializeTasks | F5cWalkerLaneKind::FlatMaterializeValues
+        ) {
+            assert!(
+                memo.walker_resources.independent_lanes[*kind as usize].peak_bytes
+                    >= capacity * kind.slot_size()
+            );
+            assert_eq!(
+                ledger.generalization_walker_lanes[*kind as usize].peak_bytes,
+                memo.walker_resources.independent_lanes[*kind as usize].peak_bytes
+            );
+        } else {
+            assert_eq!(
+                ledger.generalization_walker_lanes[*kind as usize].actual_capacity,
+                *capacity
+            );
+        }
+    }
+    assert!(memo.walker_resources.simultaneous_memo_peak_bytes >= simultaneous);
+    assert!(
+        memo.walker_resources
+            .independent_simultaneous_memo_peak_bytes
+            >= simultaneous
+    );
+}

@@ -3750,7 +3750,7 @@ struct IndependentResourceLedger {
     generalization_walker_retained_bytes: usize,
     generalization_walker_peak_bytes: usize,
     generalization_walker_capacity_growths: usize,
-    generalization_walker_lanes: [IndependentMemoLane; 18],
+    generalization_walker_lanes: Vec<IndependentMemoLane>,
     closed_normalization_index_requested_slots: usize,
     closed_normalization_index_actual_capacity: usize,
     closed_normalization_index_retained_bytes: usize,
@@ -4180,6 +4180,8 @@ impl IndependentResourceLedger {
         self.component_expansion_memo_peak_bytes =
             self.component_expansion_memo_peak_bytes.max(component_peak);
         let walker = &memo.walker_resources;
+        self.generalization_walker_lanes
+            .resize_with(F5cWalkerLaneKind::ALL.len(), IndependentMemoLane::default);
         let walker_sizes = F5cWalkerLaneKind::ALL.map(F5cWalkerLaneKind::slot_size);
         let mut walker_capacity = 0usize;
         let mut walker_bytes = 0usize;
