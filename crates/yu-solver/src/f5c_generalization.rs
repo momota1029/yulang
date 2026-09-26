@@ -379,10 +379,16 @@ pub(super) enum F5cWalkerLaneKind {
     BoxedReentryIndices = 88,
     BoxedPositiveOnly = 89,
     BoxedNegativeOnly = 90,
+    RCandidates = 91,
+    RPrevious = 92,
+    RSurvivingBounds = 93,
+    RReachable = 94,
+    RFrontier = 95,
+    RReferenced = 96,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 91] = [
+    pub(super) const ALL: [Self; 97] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -474,6 +480,12 @@ impl F5cWalkerLaneKind {
         Self::BoxedReentryIndices,
         Self::BoxedPositiveOnly,
         Self::BoxedNegativeOnly,
+        Self::RCandidates,
+        Self::RPrevious,
+        Self::RSurvivingBounds,
+        Self::RReachable,
+        Self::RFrontier,
+        Self::RReferenced,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -568,9 +580,15 @@ impl F5cWalkerLaneKind {
             Self::Path | Self::ReentryPaths => std::mem::size_of::<F5cTraceHop>(),
             Self::Reentries => std::mem::size_of::<F5cGuardedTrace>(),
             Self::BoxedRawBounds => std::mem::size_of::<(u32, (F5cPositive, F5cNegative))>(),
-            Self::BoxedCompletedOwners | Self::BoxedPositiveOnly | Self::BoxedNegativeOnly => {
-                std::mem::size_of::<u32>()
-            }
+            Self::BoxedCompletedOwners
+            | Self::BoxedPositiveOnly
+            | Self::BoxedNegativeOnly
+            | Self::RCandidates
+            | Self::RPrevious
+            | Self::RSurvivingBounds
+            | Self::RReachable
+            | Self::RFrontier
+            | Self::RReferenced => std::mem::size_of::<u32>(),
             Self::BoxedReentriesByOwner => std::mem::size_of::<(u32, Vec<usize>)>(),
             Self::BoxedReentryIndices => std::mem::size_of::<usize>(),
         }
@@ -603,13 +621,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 91],
+    pub(super) lanes: [F5cWalkerLane; 97],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 91],
+    pub(super) independent_lanes: [F5cWalkerLane; 97],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -622,13 +640,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 91],
+            lanes: [F5cWalkerLane::default(); 97],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 91],
+            independent_lanes: [F5cWalkerLane::default(); 97],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
@@ -1103,16 +1121,14 @@ impl F5cWalkerResources {
         Ok(())
     }
 
-    pub(super) fn insert_physical_set(
+    pub(super) fn reserve_physical_set_insert(
         &mut self,
         buffer: &mut HashSet<u32>,
-        value: u32,
         kind: F5cWalkerLaneKind,
         memo_bytes: usize,
         needs_growth: bool,
     ) -> Result<(), SolveAvailabilityError> {
         if !needs_growth {
-            buffer.insert(value);
             return Ok(());
         }
         let index = kind as usize;
@@ -1158,7 +1174,6 @@ impl F5cWalkerResources {
             self.observed_memo_bytes = memo_bytes;
         }
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        buffer.insert(value);
         Ok(())
     }
 
@@ -1393,6 +1408,8 @@ pub(super) struct F5cComponentExpansionMemo {
     #[cfg(test)]
     pub(super) boxed_raw_lanes_live_sample: Option<([usize; 6], [usize; 6])>,
     #[cfg(test)]
+    pub(super) r_fixed_point_live_sample: Option<([usize; 6], [usize; 6])>,
+    #[cfg(test)]
     pub(super) independent_generalizer_scratch_peak_bytes: usize,
     #[cfg(test)]
     pub(super) fail_observation_at: Option<F5cTestObservationFailure>,
@@ -1440,6 +1457,17 @@ impl F5cComponentExpansionMemo {
         value: u32,
         kind: F5cWalkerLaneKind,
     ) -> Result<(), SolveAvailabilityError> {
+        self.reserve_physical_set_insert(set, value, kind)?;
+        set.insert(value);
+        Ok(())
+    }
+
+    fn reserve_physical_set_insert(
+        &mut self,
+        set: &mut HashSet<u32>,
+        value: u32,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
         // Memo capacity may have changed since the last walker observation.
         // Reconcile it only when this insertion can grow the physical table.
         self.walker_resources.record_physical_set_attempt(kind)?;
@@ -1454,7 +1482,7 @@ impl F5cComponentExpansionMemo {
             return Ok(());
         }
         self.walker_resources
-            .insert_physical_set(set, value, kind, memo_bytes, full)
+            .reserve_physical_set_insert(set, kind, memo_bytes, full)
     }
 
     pub(super) fn observe_walker(&mut self) -> Result<(), SolveAvailabilityError> {
@@ -2884,6 +2912,7 @@ impl F5cComponentExpansionMemo {
         #[cfg(test)]
         {
             self.boxed_raw_lanes_live_sample = None;
+            self.r_fixed_point_live_sample = None;
         }
         #[cfg(test)]
         {
@@ -3318,7 +3347,12 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         candidates: &HashSet<u32>,
         reachable: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
-        walker.references_positive(predicate, candidates, reachable)
+        walker.references_positive_with_lane(
+            predicate,
+            candidates,
+            reachable,
+            Some(F5cWalkerLaneKind::RReachable),
+        )
     }
 
     fn references_bound<'tree>(
@@ -3331,8 +3365,18 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         let Some((lower, upper)) = self.bounds.get(&owner) else {
             return Ok(());
         };
-        walker.references_positive(lower, candidates, referenced)?;
-        walker.references_negative(upper, candidates, referenced)
+        walker.references_positive_with_lane(
+            lower,
+            candidates,
+            referenced,
+            Some(F5cWalkerLaneKind::RReferenced),
+        )?;
+        walker.references_negative_with_lane(
+            upper,
+            candidates,
+            referenced,
+            Some(F5cWalkerLaneKind::RReferenced),
+        )
     }
 
     fn release_replay_scratch(&mut self) {}
@@ -3497,11 +3541,12 @@ impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
         candidates: &HashSet<u32>,
         reachable: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
-        walker.flat_references(
+        walker.flat_references_with_lane(
             &self.output,
             f5c_draft::NodeRef::Positive(*predicate),
             candidates,
             reachable,
+            Some(F5cWalkerLaneKind::RReachable),
         )
     }
 
@@ -3516,17 +3561,19 @@ impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
         let Some((lower, upper)) = self.bounds.get(&owner) else {
             return Ok(());
         };
-        walker.flat_references(
+        walker.flat_references_with_lane(
             self.source,
             NodeRef::Positive(*lower),
             candidates,
             referenced,
+            Some(F5cWalkerLaneKind::RReferenced),
         )?;
-        walker.flat_references(
+        walker.flat_references_with_lane(
             self.source,
             NodeRef::Negative(*upper),
             candidates,
             referenced,
+            Some(F5cWalkerLaneKind::RReferenced),
         )
     }
 
@@ -5824,7 +5871,7 @@ impl<'a> F5cGeneralizer<'a> {
             if fail_after_first_post_output {
                 f5c_replay::inject_failure_after_flat_output();
             }
-            Self::post_r_selection(
+            let selection = Self::post_r_selection(
                 &mut self.memo,
                 &mut source,
                 &candidates,
@@ -5836,7 +5883,12 @@ impl<'a> F5cGeneralizer<'a> {
                 positive_only,
                 negative_only,
                 eligible,
-            )
+            );
+            drop(candidates);
+            self.memo
+                .walker_resources
+                .release(F5cWalkerLaneKind::RCandidates);
+            selection
         })();
         let output = source.output;
         match result {
@@ -6367,101 +6419,205 @@ impl<'a> F5cGeneralizer<'a> {
         negative_only: &HashSet<u32>,
     ) -> Result<HashSet<u32>, SolveAvailabilityError> {
         let mut candidates = HashSet::new();
-        for &owner in reentries_by_owner.keys() {
-            memo.work_meter.charge(1)?; // candidate eligibility owner
-            if eligible(owner) {
-                memo.work_meter.charge(1)?; // candidate entry
-                candidates.insert(owner);
-            }
-        }
-        loop {
-            memo.work_meter.charge(1)?; // fixed-point round
-            memo.work_meter.charge(candidates.len())?; // copied candidate owners
-            let previous = candidates.clone();
-            let mut surviving_bounds = HashSet::new();
-            for owner in &previous {
-                memo.work_meter.charge(1)?; // examined bound owner
-                let Some(bound) =
-                    source.replay_bound(memo, *owner, &previous, positive_only, negative_only)?
-                else {
-                    continue;
-                };
-                let survives = source.guarded_bound_survives(memo, *owner, &bound)?;
-                source.release_replay_scratch();
-                if survives {
-                    surviving_bounds.insert(*owner);
+        let result = (|| {
+            for &owner in reentries_by_owner.keys() {
+                memo.work_meter.charge(1)?; // candidate eligibility owner
+                if eligible(owner) {
+                    memo.work_meter.charge(1)?; // candidate entry
+                    memo.insert_physical_set(
+                        &mut candidates,
+                        owner,
+                        F5cWalkerLaneKind::RCandidates,
+                    )?;
                 }
             }
-            source.release_replay_scratch();
-            memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
-            let mut retain_error = None;
-            candidates.retain(|owner| {
-                if retain_error.is_some() {
-                    return true;
-                }
-                if !surviving_bounds.contains(owner) {
-                    return false;
-                }
-                let Some(indices) = reentries_by_owner.get(owner) else {
-                    return false;
-                };
-                for index in indices {
-                    if let Err(error) = memo.work_meter.charge(1) {
-                        retain_error = Some(error);
-                        return true;
+            loop {
+                memo.work_meter.charge(1)?; // fixed-point round
+                let mut previous = HashSet::new();
+                let round = (|| {
+                    for &owner in &candidates {
+                        memo.reserve_physical_set_insert(
+                            &mut previous,
+                            owner,
+                            F5cWalkerLaneKind::RPrevious,
+                        )?;
+                        memo.work_meter.charge(1)?; // copied candidate owner
+                        previous.insert(owner);
                     }
-                    match Self::guarded_trace_path_survives_with_meter(
-                        memo,
-                        &reentries[*index],
-                        &previous,
-                        positive_only,
-                        negative_only,
-                    ) {
-                        Ok(true) => return true,
-                        Ok(false) => {}
-                        Err(error) => {
-                            retain_error = Some(error);
+                    let mut surviving_bounds = HashSet::new();
+                    for owner in &previous {
+                        memo.work_meter.charge(1)?; // examined bound owner
+                        let Some(bound) = source.replay_bound(
+                            memo,
+                            *owner,
+                            &previous,
+                            positive_only,
+                            negative_only,
+                        )?
+                        else {
+                            continue;
+                        };
+                        let survives = source.guarded_bound_survives(memo, *owner, &bound)?;
+                        source.release_replay_scratch();
+                        if survives {
+                            memo.insert_physical_set(
+                                &mut surviving_bounds,
+                                *owner,
+                                F5cWalkerLaneKind::RSurvivingBounds,
+                            )?;
+                        }
+                    }
+                    source.release_replay_scratch();
+                    memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
+                    let mut retain_error = None;
+                    candidates.retain(|owner| {
+                        if retain_error.is_some() {
                             return true;
                         }
-                    }
-                }
-                false
-            });
-            if let Some(error) = retain_error {
-                return Err(error);
-            }
-            let replayed_predicate =
-                source.replay_predicate(memo, &candidates, positive_only, negative_only)?;
-            let mut reachable = HashSet::new();
-            {
-                let mut walker = f5c_tree_analysis::Walker::new(memo);
-                source.references_predicate(
-                    &mut walker,
-                    &replayed_predicate,
-                    &candidates,
-                    &mut reachable,
-                )?;
-                walker.memo.work_meter.charge(reachable.len())?; // copied frontier owners
-                let mut frontier = reachable.iter().copied().collect::<Vec<_>>();
-                while !frontier.is_empty() {
-                    walker.memo.work_meter.charge(1)?; // reachability frontier pop
-                    let owner = frontier.pop().expect("nonempty reachability frontier");
-                    let mut referenced = HashSet::new();
-                    source.references_bound(&mut walker, owner, &candidates, &mut referenced)?;
-                    for referenced_owner in referenced {
-                        walker.memo.work_meter.charge(1)?; // examined reference
-                        walker.memo.work_meter.charge(1)?; // possible frontier entry
-                        if reachable.insert(referenced_owner) {
-                            frontier.push(referenced_owner);
+                        if !surviving_bounds.contains(owner) {
+                            return false;
                         }
+                        let Some(indices) = reentries_by_owner.get(owner) else {
+                            return false;
+                        };
+                        for index in indices {
+                            if let Err(error) = memo.work_meter.charge(1) {
+                                retain_error = Some(error);
+                                return true;
+                            }
+                            match Self::guarded_trace_path_survives_with_meter(
+                                memo,
+                                &reentries[*index],
+                                &previous,
+                                positive_only,
+                                negative_only,
+                            ) {
+                                Ok(true) => return true,
+                                Ok(false) => {}
+                                Err(error) => {
+                                    retain_error = Some(error);
+                                    return true;
+                                }
+                            }
+                        }
+                        false
+                    });
+                    if let Some(error) = retain_error {
+                        return Err(error);
                     }
+                    let replayed_predicate =
+                        source.replay_predicate(memo, &candidates, positive_only, negative_only)?;
+                    let mut reachable = HashSet::new();
+                    {
+                        let mut walker = f5c_tree_analysis::Walker::new(memo);
+                        source.references_predicate(
+                            &mut walker,
+                            &replayed_predicate,
+                            &candidates,
+                            &mut reachable,
+                        )?;
+                        let mut frontier = Vec::new();
+                        let frontier_result: Result<(), SolveAvailabilityError> = (|| {
+                            for &owner in &reachable {
+                                walker
+                                    .memo
+                                    .reserve_walker(&mut frontier, F5cWalkerLaneKind::RFrontier)?;
+                                walker.memo.work_meter.charge(1)?; // copied frontier owner
+                                frontier.push(owner);
+                            }
+                            while !frontier.is_empty() {
+                                walker.memo.work_meter.charge(1)?; // reachability frontier pop
+                                let owner = frontier.pop().expect("nonempty reachability frontier");
+                                let mut referenced = HashSet::new();
+                                let reference_result: Result<(), SolveAvailabilityError> = (|| {
+                                    source.references_bound(
+                                        &mut walker,
+                                        owner,
+                                        &candidates,
+                                        &mut referenced,
+                                    )?;
+                                    #[cfg(test)]
+                                    {
+                                        let kinds = [
+                                            F5cWalkerLaneKind::RCandidates,
+                                            F5cWalkerLaneKind::RPrevious,
+                                            F5cWalkerLaneKind::RSurvivingBounds,
+                                            F5cWalkerLaneKind::RReachable,
+                                            F5cWalkerLaneKind::RFrontier,
+                                            F5cWalkerLaneKind::RReferenced,
+                                        ];
+                                        let physical = [
+                                            candidates.capacity(),
+                                            previous.capacity(),
+                                            surviving_bounds.capacity(),
+                                            reachable.capacity(),
+                                            frontier.capacity(),
+                                            referenced.capacity(),
+                                        ];
+                                        let reported = kinds.map(|kind| {
+                                            walker.memo.walker_resources.lanes[kind as usize]
+                                                .actual_capacity
+                                        });
+                                        walker.memo.r_fixed_point_live_sample =
+                                            Some((physical, reported));
+                                    }
+                                    for referenced_owner in referenced.iter().copied() {
+                                        walker.memo.work_meter.charge(1)?; // examined reference
+                                        walker.memo.work_meter.charge(1)?; // possible frontier entry
+                                        let new_owner = !reachable.contains(&referenced_owner);
+                                        if new_owner {
+                                            walker.memo.insert_physical_set(
+                                                &mut reachable,
+                                                referenced_owner,
+                                                F5cWalkerLaneKind::RReachable,
+                                            )?;
+                                            walker.memo.reserve_walker(
+                                                &mut frontier,
+                                                F5cWalkerLaneKind::RFrontier,
+                                            )?;
+                                            frontier.push(referenced_owner);
+                                        }
+                                    }
+                                    Ok(())
+                                })(
+                                );
+                                drop(referenced);
+                                walker
+                                    .memo
+                                    .walker_resources
+                                    .release(F5cWalkerLaneKind::RReferenced);
+                                reference_result?;
+                            }
+                            Ok(())
+                        })(
+                        );
+                        drop(frontier);
+                        walker
+                            .memo
+                            .walker_resources
+                            .release(F5cWalkerLaneKind::RFrontier);
+                        frontier_result?;
+                    }
+                    memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
+                    candidates.retain(|owner| reachable.contains(owner));
+                    Ok(candidates == previous)
+                })();
+                drop(previous);
+                memo.walker_resources.release(F5cWalkerLaneKind::RPrevious);
+                memo.walker_resources
+                    .release(F5cWalkerLaneKind::RSurvivingBounds);
+                memo.walker_resources.release(F5cWalkerLaneKind::RReachable);
+                if round? {
+                    break;
                 }
             }
-            memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
-            candidates.retain(|owner| reachable.contains(owner));
-            if candidates == previous {
-                break;
-            }
+            Ok(())
+        })();
+        if let Err(error) = result {
+            drop(candidates);
+            memo.walker_resources
+                .release(F5cWalkerLaneKind::RCandidates);
+            return Err(error);
         }
         Ok(candidates)
     }
@@ -6677,14 +6833,7 @@ impl<'a> F5cGeneralizer<'a> {
             &positive_only,
             &negative_only,
         )?;
-        let F5cPostRSelection {
-            retained_bounds: _,
-            retained_predicate: _,
-            recursive_owners,
-            recursive_set,
-            q,
-            r,
-        } = Self::post_r_selection(
+        let selection = Self::post_r_selection(
             &mut self.memo,
             &mut r_source,
             &candidates,
@@ -6696,7 +6845,19 @@ impl<'a> F5cGeneralizer<'a> {
             &positive_only,
             &negative_only,
             eligible,
-        )?;
+        );
+        drop(candidates);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::RCandidates);
+        let F5cPostRSelection {
+            retained_bounds: _,
+            retained_predicate: _,
+            recursive_owners,
+            recursive_set,
+            q,
+            r,
+        } = selection?;
         let q_count =
             u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let mut positive_eliminated = HashSet::new();

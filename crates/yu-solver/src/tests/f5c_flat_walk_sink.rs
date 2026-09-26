@@ -242,8 +242,9 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
     });
     let index = HashMap::from([(1, vec![0]), (2, vec![1])]);
     let empty = HashSet::new();
+    let mut boxed_memo = F5cComponentExpansionMemo::default();
     let boxed = F5cGeneralizer::boxed_r_candidates_for_test(
-        &mut F5cComponentExpansionMemo::default(),
+        &mut boxed_memo,
         &F5cPositive::Variable(1),
         &boxed_bounds,
         &reentries,
@@ -253,8 +254,9 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
         &empty,
     )
     .unwrap();
+    let mut flat_memo = F5cComponentExpansionMemo::default();
     let indexed = F5cGeneralizer::flat_r_candidates_for_test(
-        &mut F5cComponentExpansionMemo::default(),
+        &mut flat_memo,
         &flat,
         &flat_bounds,
         &reentries,
@@ -266,6 +268,105 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
     .unwrap();
     assert_eq!(boxed, HashSet::from([1]));
     assert_eq!(indexed, boxed);
+    assert_eq!(
+        boxed_memo.walker_resources.lanes[F5cWalkerLaneKind::RCandidates as usize].actual_capacity,
+        boxed.capacity()
+    );
+    assert_eq!(
+        flat_memo.walker_resources.lanes[F5cWalkerLaneKind::RCandidates as usize].actual_capacity,
+        indexed.capacity()
+    );
+    for memo in [&boxed_memo, &flat_memo] {
+        let (physical, reported) = memo.r_fixed_point_live_sample.unwrap();
+        assert_eq!(physical, reported);
+        assert!(physical[0] > 0 && physical[1] > 0);
+        assert!(physical[3] > 0 && physical[4] > 0 && physical[5] > 0);
+        for kind in [
+            F5cWalkerLaneKind::RPrevious,
+            F5cWalkerLaneKind::RSurvivingBounds,
+            F5cWalkerLaneKind::RReachable,
+            F5cWalkerLaneKind::RFrontier,
+            F5cWalkerLaneKind::RReferenced,
+        ] {
+            assert_eq!(
+                memo.walker_resources.lanes[kind as usize].actual_capacity,
+                0
+            );
+        }
+    }
+    drop(indexed);
+    drop(boxed);
+    for memo in [&mut boxed_memo, &mut flat_memo] {
+        memo.walker_resources
+            .release(F5cWalkerLaneKind::RCandidates);
+    }
+    let failed_lane = F5cWalkerLaneKind::RReferenced as usize;
+    boxed_memo.walker_resources.lanes[failed_lane].requested_slots = usize::MAX;
+    let failed = F5cGeneralizer::boxed_r_candidates_for_test(
+        &mut boxed_memo,
+        &F5cPositive::Variable(1),
+        &boxed_bounds,
+        &reentries,
+        &index,
+        |_| true,
+        &empty,
+        &empty,
+    );
+    assert!(failed.is_err());
+    for kind in [
+        F5cWalkerLaneKind::RCandidates,
+        F5cWalkerLaneKind::RPrevious,
+        F5cWalkerLaneKind::RSurvivingBounds,
+        F5cWalkerLaneKind::RReachable,
+        F5cWalkerLaneKind::RFrontier,
+        F5cWalkerLaneKind::RReferenced,
+    ] {
+        assert_eq!(
+            boxed_memo.walker_resources.lanes[kind as usize].actual_capacity,
+            0
+        );
+    }
+    boxed_memo.walker_resources.lanes[failed_lane].requested_slots = 0;
+    let retry = F5cGeneralizer::boxed_r_candidates_for_test(
+        &mut boxed_memo,
+        &F5cPositive::Variable(1),
+        &boxed_bounds,
+        &reentries,
+        &index,
+        |_| true,
+        &empty,
+        &empty,
+    )
+    .unwrap();
+    assert_eq!(retry, HashSet::from([1]));
+    drop(retry);
+    boxed_memo
+        .walker_resources
+        .release(F5cWalkerLaneKind::RCandidates);
+
+    let previous_lane = F5cWalkerLaneKind::RPrevious as usize;
+    let mut failed_work = [0; 2];
+    for (failure_index, requested_slots) in [usize::MAX, usize::MAX - 1].into_iter().enumerate() {
+        boxed_memo.walker_resources.lanes[previous_lane].requested_slots = requested_slots;
+        boxed_memo.work_meter.set(0);
+        let failed = F5cGeneralizer::boxed_r_candidates_for_test(
+            &mut boxed_memo,
+            &F5cPositive::Variable(1),
+            &boxed_bounds,
+            &reentries,
+            &index,
+            |_| true,
+            &empty,
+            &empty,
+        );
+        assert!(failed.is_err());
+        failed_work[failure_index] = boxed_memo.work_meter.get();
+        assert_eq!(
+            boxed_memo.walker_resources.lanes[previous_lane].actual_capacity,
+            0
+        );
+    }
+    assert_eq!(failed_work[1], failed_work[0] + 1);
 }
 
 #[test]

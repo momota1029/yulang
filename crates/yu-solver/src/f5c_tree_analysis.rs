@@ -304,17 +304,31 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         owners: &HashSet<u32>,
         out: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
+        self.references_positive_with_lane(value, owners, out, None)
+    }
+
+    pub(super) fn references_positive_with_lane(
+        &mut self,
+        value: &'tree F5cPositive,
+        owners: &HashSet<u32>,
+        out: &mut HashSet<u32>,
+        lane: Option<F5cWalkerLaneKind>,
+    ) -> Result<(), SolveAvailabilityError> {
         self.walk(
             Task::Positive(value, false),
             None,
             #[cfg(test)]
             None,
-            |event, _memo| {
+            |event, memo| {
                 Ok({
                     if let Event::Value(owner, _, _) = event
                         && owners.contains(&owner)
                     {
-                        out.insert(owner);
+                        if let Some(kind) = lane {
+                            memo.insert_physical_set(out, owner, kind)?;
+                        } else {
+                            out.insert(owner);
+                        }
                     }
                     true
                 })
@@ -322,23 +336,28 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         )
     }
 
-    pub(super) fn references_negative(
+    pub(super) fn references_negative_with_lane(
         &mut self,
         value: &'tree F5cNegative,
         owners: &HashSet<u32>,
         out: &mut HashSet<u32>,
+        lane: Option<F5cWalkerLaneKind>,
     ) -> Result<(), SolveAvailabilityError> {
         self.walk(
             Task::Negative(value, false),
             None,
             #[cfg(test)]
             None,
-            |event, _memo| {
+            |event, memo| {
                 Ok({
                     if let Event::Value(owner, _, _) = event
                         && owners.contains(&owner)
                     {
-                        out.insert(owner);
+                        if let Some(kind) = lane {
+                            memo.insert_physical_set(out, owner, kind)?;
+                        } else {
+                            out.insert(owner);
+                        }
                     }
                     true
                 })
@@ -609,11 +628,27 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         owners: &HashSet<u32>,
         out: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
-        self.flat_events(draft, root, |owner, _, _| {
+        self.flat_references_with_lane(draft, root, owners, out, None)
+    }
+
+    #[cfg(test)]
+    pub(super) fn flat_references_with_lane(
+        &mut self,
+        draft: &FlatDraft,
+        root: NodeRef,
+        owners: &HashSet<u32>,
+        out: &mut HashSet<u32>,
+        lane: Option<F5cWalkerLaneKind>,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.flat_events_checked(draft, root, |owner, _, _, memo| {
             if owners.contains(&owner) {
-                out.insert(owner);
+                if let Some(kind) = lane {
+                    memo.insert_physical_set(out, owner, kind)?;
+                } else {
+                    out.insert(owner);
+                }
             }
-            true
+            Ok(true)
         })
     }
 

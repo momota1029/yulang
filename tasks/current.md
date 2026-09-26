@@ -4,6 +4,41 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): shared R fixed-point physical lanes
+
+Six typed lanes now account the R candidate set, per-round previous set,
+surviving bounds, reachable owners, frontier Vec, and per-owner referenced
+set. Candidate storage remains live through post-R selection; round-local
+collections drop before their lane is released on success or error. Boxed and
+FlatDraft reference discovery route insertions through the same physical-set
+owner. The focused live witness compares all six actual capacities with their
+lane records while collections coexist, then checks transient-lane cleanup,
+failure rollback, and retry.
+
+The M2 spec-auditor/performance-auditor round found one major copy-charge
+defect: `previous` and initial frontier entries had been charged in batches
+before fallible insertion. The repair now admits storage and charges each
+completed copy immediately before insertion; a failed second copy charges only
+the first. Fresh spec delta review closed the finding. The performance review
+also noted that the existing `candidates == previous` equality performs one
+linear set comparison without a dedicated work-meter charge. This remains a
+minor, bounded per-round pass alongside already charged candidate-copy and
+owner-scan work; include it in the full §5 work-accounting reconciliation.
+
+Focused checks passed after repair: `RUSTC_WRAPPER= cargo check -p yu-solver
+--tests`, tree-analysis tests (4), flat-walk tests (36), work-meter tests
+(13), the R candidate parity/lane witness (1), `cargo fmt --all --check`, and
+`git diff --check`. No broad suite, resource probe, benchmark, or timing
+measurement ran.
+
+This closes the shared R fixed-point lane slice. Next account the post-R
+selection collections in their existing owners; then close boxed normalizer
+failed-reserve observation and the solver/draft/finalizer same-time ledger.
+Independent physical-lane reconciliation and fresh §15 plan review remain
+prerequisites to any probe. Production stays boxed; no admission boundary,
+numeric limit, cutover, §44 closure, F5e acceptance, or overall F5c acceptance
+is claimed.
+
 ### Latest continuation (2026-09-27): raw owner-loop physical lanes
 
 The remaining `build_inner_work` raw owner collections now use six typed
@@ -27,10 +62,11 @@ Q/R/normalization parity (1), `cargo fmt --all --check`, and `git diff
 
 The focused live-lane witness reconstructs capacities from the six actual
 collections and covers map-then-nested-vector reserve failure, rollback, and
-retry. This closes only the raw owner-loop lanes. Next account the shared R
-fixed-point and post-R collections, then close boxed normalizer failed-reserve
-observation and the solver/draft/finalizer same-time ledger. The full independent
-physical ledger and fresh §15 plan review remain prerequisites to any probe.
+retry. This closes only the raw owner-loop lanes. The shared R fixed-point
+slice is now closed; post-R collections remain, followed by boxed normalizer
+failed-reserve observation and the solver/draft/finalizer same-time ledger.
+The full independent physical ledger and fresh §15 plan review remain
+prerequisites to any probe.
 Production stays boxed; no admission boundary, numeric limit, cutover, §44,
 F5e, or overall F5c acceptance is claimed.
 

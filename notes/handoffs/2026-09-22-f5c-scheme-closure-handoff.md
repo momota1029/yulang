@@ -3330,6 +3330,38 @@ ledger closes should the fresh §15 probe plan be independently reviewed.
 Production remains boxed; no admission boundary, numeric limit, cutover, §44,
 F5e, or overall F5c acceptance is claimed.
 
+## Latest continuation (2026-09-27): shared R fixed-point physical lanes
+
+Six typed lanes now account the R candidate set, per-round previous set,
+surviving bounds, reachable owners, frontier Vec, and per-owner referenced
+set. Candidate storage stays live through post-R selection; transient
+collections drop before their lanes release on success and errors. Boxed and
+FlatDraft reference discovery uses the shared physical-set insertion owner.
+The live witness compares capacities from the actual six collections with
+their lane records while co-resident and covers transient cleanup, failed
+reserve, rollback, and retry.
+
+The M2 spec-auditor/performance-auditor round found a major stale work charge:
+previous-set and initial-frontier entries were precharged before fallible
+insertion. The repair now admits storage and charges each completed copy just
+before insertion; failed second insertion counts only the first copy. Fresh
+spec delta review closed that finding. The performance review noted that the
+existing `candidates == previous` equality is a minor unmetered linear pass per
+round; include it in the complete §5 work-accounting reconciliation.
+
+Focused checks passed after repair: solver test-target check, tree-analysis
+tests (4), flat-walk tests (36), work-meter tests (13), R parity/lane witness
+(1), formatting, and diff checks. No broad suite, probe, benchmark, or timing
+measurement ran.
+
+Next close post-R selection lanes in the existing solver owner, then boxed
+normalizer failed-reserve observation and the solver/draft/finalizer same-time
+ledger. Independently reconstruct every physical lane and draft/finalizer
+co-residency before fresh §15 plan review. No probe has run under this
+candidate campaign; its measurement budget remains zero. Production remains
+boxed, with no numeric limit, cutover, §44 closure, F5e acceptance, or overall
+F5c acceptance claimed.
+
 ## Latest continuation (2026-09-27): raw owner-loop physical lanes
 
 Six typed lanes now account `build_inner_work`'s raw bounds map,
