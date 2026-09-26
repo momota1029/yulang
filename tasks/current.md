@@ -56,6 +56,28 @@ component rollback boundaries; no flat arena or runtime behavior was added.
 Next: add the checked tagged source arena with explicit node/edge lanes and
 independent accounting, then connect those operations to the sink.
 
+### Latest continuation (2026-09-26): tagged flat source arena substrate
+
+A non-production source arena now stores polarity-specific Local IDs and
+Shared summary IDs, scalar/Function nodes, and ordered tagged child spans in
+four flat lanes. It stores no recursive boxes or child vectors. Append checks
+IDs and spans, reserves all needed lanes, charges solve-wide work, and only
+then publishes nodes/edges. Rollback truncates every lane; release drops the
+lanes and resets live capacity. The four capacities are included in the
+walker ledger and simultaneous memo peak.
+
+The independent spec and performance audits found no blocking issue. Four
+focused tests cover tags/order/Functions, overflow/no-publication, partial
+reserve failure, and rollback. `cargo test -p yu-solver --lib
+flat_source_arena -- --test-threads=1`, `cargo check -p yu-solver --lib`,
+`cargo fmt --check`, and `git diff --check` passed. The arena remains uncalled
+by the walker; sink construction, Local structural comparison/dedup,
+child-before-parent memo promotion, the full raw forest, and source/memo/draft
+co-resident peak evidence remain open.
+
+Next: implement Local/Shared sink semantics on this substrate, first closing
+structural equality/dedup and promotion without production cutover.
+
 ### Latest continuation (2026-09-26): boxed sink on shared interpreter
 
 The existing producer task machine now runs through one generic

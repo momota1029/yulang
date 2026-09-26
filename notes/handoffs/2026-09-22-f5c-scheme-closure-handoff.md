@@ -2889,3 +2889,22 @@ found no issue; solver library check and diff check passed. No flat arena was
 added. Candidate implementation must keep mutations within the sink-owned
 representation and component rollback boundaries. Next: add the checked
 tagged source arena and explicit node/edge accounting lanes.
+
+## Latest continuation (2026-09-26): tagged flat source arena substrate
+
+A non-production arena now stores polarity-specific Local IDs and Shared
+summary IDs, scalar/Function nodes, and ordered tagged child spans in four flat
+lanes. It owns no recursive boxes or child vectors. Append checks IDs/spans,
+reserves all required lanes, charges solve-wide work, and publishes only after
+those steps. Rollback truncates all lanes; release drops them and clears live
+capacity. The four lanes participate in the walker ledger and simultaneous
+memo peak.
+
+Independent spec and performance reviews found no blocker. Four focused
+tests cover tagged order/Functions, work-charge failure, partial reserve
+failure, and rollback; solver library check, formatting, and diff checks pass.
+The arena remains uncalled by the shared walker. Sink construction,
+structural equality/dedup, memo promotion, ordered full-root forest, component
+integration, and co-resident source/memo/draft accounting remain open. Next:
+implement Local/Shared sink semantics on this substrate without production
+cutover.

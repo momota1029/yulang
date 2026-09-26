@@ -183,6 +183,9 @@ pub(super) struct F5cExpansionKey {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct F5cSummaryNodeId(pub(super) u32);
 
+#[allow(dead_code)] // The candidate source arena is wired to the walker in the next gate.
+mod flat_source_arena;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum F5cSummaryNodeKind {
     PositiveBottom,
@@ -294,10 +297,14 @@ pub(super) enum F5cWalkerLaneKind {
     ReplayValues = 15,
     BinderTasks = 16,
     BinderValues = 17,
+    SourcePositiveNodes = 18,
+    SourceNegativeNodes = 19,
+    SourcePositiveChildren = 20,
+    SourceNegativeChildren = 21,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 18] = [
+    pub(super) const ALL: [Self; 22] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -316,6 +323,10 @@ impl F5cWalkerLaneKind {
         Self::ReplayValues,
         Self::BinderTasks,
         Self::BinderValues,
+        Self::SourcePositiveNodes,
+        Self::SourceNegativeNodes,
+        Self::SourcePositiveChildren,
+        Self::SourceNegativeChildren,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -338,6 +349,10 @@ impl F5cWalkerLaneKind {
             Self::ReplayValues => std::mem::size_of::<F5cWalkValue>(),
             Self::BinderTasks => std::mem::size_of::<f5c_binder_substitution::Task>(),
             Self::BinderValues => std::mem::size_of::<F5cWalkValue>(),
+            Self::SourcePositiveNodes => std::mem::size_of::<flat_source_arena::PositiveNode>(),
+            Self::SourceNegativeNodes => std::mem::size_of::<flat_source_arena::NegativeNode>(),
+            Self::SourcePositiveChildren => std::mem::size_of::<flat_source_arena::PositiveRef>(),
+            Self::SourceNegativeChildren => std::mem::size_of::<flat_source_arena::NegativeRef>(),
         }
     }
 }
@@ -352,13 +367,13 @@ pub(super) struct F5cWalkerLane {
 
 #[derive(Default)]
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 18],
+    pub(super) lanes: [F5cWalkerLane; 22],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 18],
+    pub(super) independent_lanes: [F5cWalkerLane; 22],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
