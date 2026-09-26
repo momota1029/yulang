@@ -320,10 +320,13 @@ pub(super) enum F5cWalkerLaneKind {
     DraftInsertionOrder = 32,
     FlatMaterializeTasks = 33,
     FlatMaterializeValues = 34,
+    FlatSourceMaterializeTasks = 35,
+    FlatSourceMaterializeValues = 36,
+    FlatSourceMaterializeRoots = 37,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 35] = [
+    pub(super) const ALL: [Self; 38] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -359,6 +362,9 @@ impl F5cWalkerLaneKind {
         Self::DraftInsertionOrder,
         Self::FlatMaterializeTasks,
         Self::FlatMaterializeValues,
+        Self::FlatSourceMaterializeTasks,
+        Self::FlatSourceMaterializeValues,
+        Self::FlatSourceMaterializeRoots,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -378,6 +384,11 @@ impl F5cWalkerLaneKind {
             Self::DraftMaterializeValues => std::mem::size_of::<F5cWalkValue>(),
             Self::FlatMaterializeTasks => std::mem::size_of::<f5c_materialization::FlatTask>(),
             Self::FlatMaterializeValues => std::mem::size_of::<f5c_draft::NodeRef>(),
+            Self::FlatSourceMaterializeTasks => {
+                std::mem::size_of::<flat_walk_sink::SourceMaterializeTask>()
+            }
+            Self::FlatSourceMaterializeValues => std::mem::size_of::<f5c_draft::NodeRef>(),
+            Self::FlatSourceMaterializeRoots => std::mem::size_of::<f5c_draft::NodeRef>(),
             Self::AnalysisTasks => std::mem::size_of::<f5c_tree_analysis::Task<'static>>(),
             Self::ReplayTasks => std::mem::size_of::<f5c_replay::Task<'static>>(),
             Self::ReplayValues => std::mem::size_of::<F5cWalkValue>(),
@@ -411,13 +422,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 35],
+    pub(super) lanes: [F5cWalkerLane; 38],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 35],
+    pub(super) independent_lanes: [F5cWalkerLane; 38],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -427,13 +438,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 35],
+            lanes: [F5cWalkerLane::default(); 38],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 35],
+            independent_lanes: [F5cWalkerLane::default(); 38],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]

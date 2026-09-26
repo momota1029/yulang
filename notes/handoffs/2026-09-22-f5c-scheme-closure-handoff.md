@@ -2952,3 +2952,20 @@ This covers Shared occurrence materialization only. Local source
 materialization, the full ordered predicate/bounds forest, callback/Q/R
 parity, component-wide draft/memo rollback, and later FlatDraft/finalizer
 co-residency remain open; production remains boxed.
+
+## Latest continuation (2026-09-26): checked Local/Shared batch materializer
+
+Added an iterative candidate materializer for caller-ordered Local and Shared
+roots. It preserves polarity, Function field order, and ordered children;
+Shared refs flow through checked occurrence expansion. One batch checkpoint
+restores all six FlatDraft lengths and the caller-owned output length on error,
+while the source arena remains available and work accounting remains monotonic.
+Exact-size task/value/root lanes cover scratch and retained output capacity. The
+output lane observes preallocated capacity even for empty batches and is
+released only after the caller drops the output vector.
+
+M2 spec/performance delta audits found no remaining blocker after repairing the
+output-lane lifetime contract. The focused materialization tests passed (3),
+solver test targets compile, and fmt/diff checks pass. No benchmark or §15
+probe ran. The ordered predicate/bounds forest, callback and Q/R parity,
+component-wide memo rollback, and production cutover remain open.

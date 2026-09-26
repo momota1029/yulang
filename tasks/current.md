@@ -51,6 +51,23 @@ forest builder, source Local materialization, ordered owner-bound append,
 whole-component draft/memo rollback, callback/Q/R parity, and final
 source/memo/FlatDraft lifecycle remain open.
 
+### Latest continuation (2026-09-26): checked Local/Shared batch materializer
+
+Added an iterative, candidate-only materializer for ordered Local and Shared
+roots. Local Functions, Unions, and Intersections preserve child order and
+polarity; Shared occurrences reuse the checked summary expansion path. A batch
+failure restores all six FlatDraft lengths and the caller's root-output length,
+while retaining the source arena and monotonic work charges. New task/value/root
+lanes account exact element sizes; an output vector's capacity stays accounted
+until the caller drops it and calls the documented release method, including
+for an empty batch with preallocated capacity.
+
+M2 spec/performance delta reviews found no remaining blocker after the output
+lane lifecycle repair. The focused materialization tests passed (3), solver
+test targets compile, and fmt/diff checks pass. No benchmark or §15 probe ran.
+The ordered whole-component root forest, callback/Q/R parity, component-wide
+memo rollback, and production cutover remain open; production stays boxed.
+
 ### Latest continuation (2026-09-26): explicit raw reentry-owner order
 
 The boxed producer now retains first-encounter order for unique raw reentry
