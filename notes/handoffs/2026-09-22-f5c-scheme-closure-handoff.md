@@ -2863,3 +2863,18 @@ and successful-path timing remain unmeasured under §15. Next: implement the
 uncalled tagged flat sink and ordered forest with complete parity and rollback
 evidence. Production cutover, §15 probes, numeric limits, §44 closure, F5e,
 and overall F5c completion remain open.
+
+## Latest continuation (2026-09-26): fallible sink constructors
+
+The five `F5cWalkSink` value constructors now return
+`Result<Value, SolveAvailabilityError>`; the generic interpreter propagates
+those errors through its existing cleanup and component rollback. The boxed
+sink returns the same prior values inside `Ok`, with task order and work-meter
+charges unchanged. M1 compiler-referee delta review found no issue. Formatting,
+solver library check, and diff checks passed. No test was added because the
+boxed sink has no fallible construction path; injected flat-sink growth and
+rollback witnesses remain required.
+
+Next: build the checked Local/Shared source arena and promotion/materialization
+bridge, then wire it through the shared walker and the ordered raw-root forest.
+This interface preparation does not close the flat-sink gate.

@@ -28,6 +28,21 @@ interpreter, then implement the uncalled tagged flat sink and ordered raw-root
 forest. Production cutover, resource probing, numeric limits, indexed
 finalization, §44 rollback, F5e, and overall F5c closure remain open.
 
+### Latest continuation (2026-09-26): fallible sink constructors
+
+The five value-construction methods on `F5cWalkSink` now return
+`Result<Value, SolveAvailabilityError>`, and the shared interpreter
+propagates errors through its existing cleanup and component rollback path.
+The boxed sink returns the same previous values inside `Ok`; task ordering and
+work charges are unchanged. M1 `compiler_referee` delta review found no issue.
+`cargo fmt --check`, `cargo check -p yu-solver --lib`, and `git diff --check`
+passed. No test was added because the boxed sink cannot produce a constructor
+error; the flat sink's injected growth-failure witnesses remain required.
+
+Next: build the checked Local/Shared source arena and its promotion/materialize
+bridge, then connect it through `walk_with` and the ordered forest. This
+interface preparation does not close the flat-sink gate.
+
 ### Latest continuation (2026-09-26): boxed sink on shared interpreter
 
 The existing producer task machine now runs through one generic
