@@ -2,6 +2,89 @@ use super::*;
 use crate::f5c_generalization::{F5cTestObservationFailure, F5cTestReserveFailure, F5cWalkTask};
 
 #[test]
+fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
+    use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
+    use std::collections::{HashMap, HashSet};
+
+    let mut flat = FlatDraft::default();
+    let predicate_variable = flat.positive(PositiveNode::Variable(10)).unwrap();
+    let predicate_argument = flat.negative(NegativeNode::Variable(11)).unwrap();
+    let predicate_result = flat.positive(PositiveNode::Variable(12)).unwrap();
+    let predicate_function = flat
+        .positive(PositiveNode::Function {
+            argument: predicate_argument,
+            result: predicate_result,
+        })
+        .unwrap();
+    let predicate_span = flat
+        .positive_span(&[predicate_variable, predicate_function])
+        .unwrap();
+    flat.predicate = Some(flat.positive(PositiveNode::Union(predicate_span)).unwrap());
+    let lower_first = flat.positive(PositiveNode::Variable(20)).unwrap();
+    let upper_first = flat.negative(NegativeNode::Variable(21)).unwrap();
+    let lower_second = flat.positive(PositiveNode::Variable(30)).unwrap();
+    let upper_argument = flat.positive(PositiveNode::Variable(32)).unwrap();
+    let upper_result = flat.negative(NegativeNode::Variable(33)).unwrap();
+    let upper_second = flat
+        .negative(NegativeNode::Function {
+            argument: upper_argument,
+            result: upper_result,
+        })
+        .unwrap();
+    let order = [2, 1];
+    let flat_bounds = HashMap::from([
+        (1, (lower_first, upper_first)),
+        (2, (lower_second, upper_second)),
+    ]);
+    let boxed_predicate = F5cPositive::Union(vec![
+        F5cPositive::Variable(10),
+        F5cPositive::Function {
+            argument: Box::new(F5cNegative::Variable(11)),
+            argument_effect: F5cNegativeEffect::Empty,
+            result_effect: F5cPositiveEffect::Bottom,
+            result: Box::new(F5cPositive::Variable(12)),
+        },
+    ]);
+    let boxed_bounds = HashMap::from([
+        (1, (F5cPositive::Variable(20), F5cNegative::Variable(21))),
+        (
+            2,
+            (
+                F5cPositive::Variable(30),
+                F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Variable(32)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(F5cNegative::Variable(33)),
+                },
+            ),
+        ),
+    ]);
+    let boxed = F5cGeneralizer::boxed_raw_forest_incidences_for_test(
+        &mut F5cComponentExpansionMemo::default(),
+        &boxed_predicate,
+        &order,
+        &boxed_bounds,
+    )
+    .unwrap();
+    let indexed = F5cGeneralizer::flat_raw_forest_incidences_for_test(
+        &mut F5cComponentExpansionMemo::default(),
+        &flat,
+        &order,
+        &flat_bounds,
+    )
+    .unwrap();
+    assert_eq!(
+        boxed,
+        (
+            HashSet::from([10, 12, 20, 30, 32]),
+            HashSet::from([11, 21, 33])
+        )
+    );
+    assert_eq!(indexed, boxed);
+}
+
+#[test]
 fn raw_forest_orders_recursive_bounds_and_defaults() {
     let batch = collect(module("my f = 1", "f5c-raw-forest"));
     let mut session = InferenceSession::new(batch);
@@ -25,6 +108,10 @@ fn raw_forest_orders_recursive_bounds_and_defaults() {
     session.bounds[relay as usize].direct_lower_rows.push(owner);
     let mut generalizer = F5cGeneralizer::new(&session);
     let forest = generalizer.build_raw_forest(owner).unwrap();
+    let (positive_incidences, negative_incidences) =
+        generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    assert!(positive_incidences.contains(&owner));
+    assert!(negative_incidences.is_empty());
     assert_eq!(forest.raw_owner_order, vec![owner]);
     assert_eq!(forest.raw_bounds.len(), 1);
     assert!(forest.draft.predicate.is_some());

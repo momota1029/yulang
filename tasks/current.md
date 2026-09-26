@@ -4,6 +4,29 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): shared raw-incidence census slice
+
+Boxed `build_inner` and the test-only FlatDraft raw forest now call one
+predicate-first incidence census through the existing Walker event scheduler.
+Both visit raw owners in declared order and lower before upper; the existing
+raw-bound-owner charge stays at the same point. An exact-set parity witness
+covers predicate roots, two ordered owners, both polarities, and guarded
+Function edges. A warm Shared callback remains covered by the separate raw
+forest fixture because FlatDraft has no Shared node form.
+
+M3 compiler-referee/spec-auditor/performance delta reviews found no blocker or
+major issue. The minor parity-evidence gap closed with the focused exact-set
+witness and primary diff review. Nine focused raw-forest tests, solver library
+and test-target checks, formatting, and diff checks pass. No broad suite or
+measurement ran; performance measurement budget remains zero.
+
+This shares only the pre-pruning incidence census. R fixed-point filtering,
+retained occurrence order, Q/R binder assignment, flat replay/substitution/
+normalization, full callback/Q/R parity, and rollback after an actual later
+stage remain open. Next: carry the single shared core through the R and Q
+ordering loops while keeping the candidate memo transaction open through all
+fallible stages. Production remains boxed.
+
 ### Latest continuation (2026-09-26): raw-forest memo transaction precursor
 
 The test-only ordered raw-forest builder now keeps its memo root transaction

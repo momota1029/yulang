@@ -4295,6 +4295,95 @@ impl<'a> F5cGeneralizer<'a> {
         Ok(ordered)
     }
 
+    fn raw_forest_incidences<'tree>(
+        memo: &mut F5cComponentExpansionMemo,
+        raw_owner_order: &[u32],
+        mut visit: impl FnMut(
+            &mut f5c_tree_analysis::Walker<'_, 'tree>,
+            Option<u32>,
+            &mut HashSet<u32>,
+            &mut HashSet<u32>,
+        ) -> Result<(), SolveAvailabilityError>,
+    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
+        let mut positive = HashSet::new();
+        let mut negative = HashSet::new();
+        let mut walker = f5c_tree_analysis::Walker::new(memo);
+        visit(&mut walker, None, &mut positive, &mut negative)?;
+        for &owner in raw_owner_order {
+            walker.memo.work_meter.charge(1)?; // raw bound owner
+            visit(&mut walker, Some(owner), &mut positive, &mut negative)?;
+        }
+        Ok((positive, negative))
+    }
+
+    #[cfg(test)]
+    pub(super) fn boxed_raw_forest_incidences_for_test(
+        memo: &mut F5cComponentExpansionMemo,
+        predicate: &F5cPositive,
+        raw_owner_order: &[u32],
+        raw_bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
+    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
+        Self::raw_forest_incidences(
+            memo,
+            raw_owner_order,
+            |walker, owner, positive, negative| {
+                if let Some(owner) = owner {
+                    let (lower, upper) = raw_bounds
+                        .get(&owner)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    walker.incidences_positive(lower, positive, negative)?;
+                    walker.incidences_negative(upper, positive, negative)
+                } else {
+                    walker.incidences_positive(predicate, positive, negative)
+                }
+            },
+        )
+    }
+
+    #[cfg(test)]
+    pub(super) fn flat_raw_forest_incidences(
+        &mut self,
+        forest: &F5cRawForest,
+    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
+        if !self.raw_forest_live {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        Self::flat_raw_forest_incidences_for_test(
+            &mut self.memo,
+            &forest.draft,
+            &forest.raw_owner_order,
+            &forest.raw_bounds,
+        )
+    }
+
+    #[cfg(test)]
+    pub(super) fn flat_raw_forest_incidences_for_test(
+        memo: &mut F5cComponentExpansionMemo,
+        draft: &f5c_draft::FlatDraft,
+        raw_owner_order: &[u32],
+        raw_bounds: &HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
+        use f5c_draft::NodeRef;
+        Self::raw_forest_incidences(
+            memo,
+            raw_owner_order,
+            |walker, owner, positive, negative| {
+                if let Some(owner) = owner {
+                    let (lower, upper) = raw_bounds
+                        .get(&owner)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    walker.flat_incidences(draft, NodeRef::Positive(*lower), positive, negative)?;
+                    walker.flat_incidences(draft, NodeRef::Negative(*upper), positive, negative)
+                } else {
+                    let predicate = draft
+                        .predicate
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    walker.flat_incidences(draft, NodeRef::Positive(predicate), positive, negative)
+                }
+            },
+        )
+    }
+
     #[cfg(test)]
     pub(super) fn build(
         &mut self,
@@ -4457,32 +4546,21 @@ impl<'a> F5cGeneralizer<'a> {
                 .is_some_and(|level| *level > 0)
                 && !non_generic.contains(&ordinal)
         };
-        let mut positive_incidences = HashSet::new();
-        let mut negative_incidences = HashSet::new();
-        {
-            let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
-            walker.incidences_positive(
-                &predicate,
-                &mut positive_incidences,
-                &mut negative_incidences,
-            )?;
-            for owner in &raw_owner_order {
-                let (lower, upper) = raw_recursive_bounds
-                    .get(owner)
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                walker.memo.work_meter.charge(1)?; // raw bound owner
-                walker.incidences_positive(
-                    lower,
-                    &mut positive_incidences,
-                    &mut negative_incidences,
-                )?;
-                walker.incidences_negative(
-                    upper,
-                    &mut positive_incidences,
-                    &mut negative_incidences,
-                )?;
-            }
-        }
+        let (positive_incidences, negative_incidences) = Self::raw_forest_incidences(
+            &mut self.memo,
+            &raw_owner_order,
+            |walker, owner, positive, negative| {
+                if let Some(owner) = owner {
+                    let (lower, upper) = raw_recursive_bounds
+                        .get(&owner)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    walker.incidences_positive(lower, positive, negative)?;
+                    walker.incidences_negative(upper, positive, negative)
+                } else {
+                    walker.incidences_positive(&predicate, positive, negative)
+                }
+            },
+        )?;
         let mut positive_only = HashSet::new();
         let mut negative_only = HashSet::new();
         for &owner in &self.order {

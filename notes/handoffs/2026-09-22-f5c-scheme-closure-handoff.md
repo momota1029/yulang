@@ -3055,4 +3055,28 @@ same transaction through every fallible candidate stage. Production remains
 boxed; no resource probe, numeric boundary, §44 closure, F5e acceptance, or
 overall F5c closure is authorized.
 
+## Latest continuation (2026-09-26): shared raw-incidence census
+
+Boxed `build_inner` and the test-only FlatDraft raw forest now invoke one
+predicate-first incidence census through the existing tree-analysis Walker.
+It visits owners in recorded order, lower before upper, and retains the prior
+raw-bound-owner work charge. An exact-set parity fixture covers predicate
+contributions, two declared owners, both polarities, and Function guard edges.
+FlatDraft has no Shared node representation; the warm Shared callback check
+remains in the separate forest fixture.
+
+M3 compiler-referee, spec-auditor, and static performance delta reviews found
+no blocker or major issue. The minor evidence gap closed with the exact-set
+fixture and primary diff review. Nine focused raw-forest tests, solver library
+and test-target checks, formatting, and diff checks passed. No benchmark or §15
+resource probe ran; measurement budget remains zero.
+
+This shares only incidence collection. R fixed-point filtering, retained
+occurrence order, Q/R binder assignment, flat replay/substitution/normalization,
+full callback/Q/R parity, and actual later-stage rollback remain open. Next:
+extend the one shared algorithm through R and Q assignment while retaining the
+memo transaction until all fallible candidate stages succeed. Production stays
+boxed; no resource probe, numeric boundary, §44 closure, F5e acceptance, or
+overall F5c completion is authorized.
+
 <!-- handoff-append-anchor: 2026-09-26 -->

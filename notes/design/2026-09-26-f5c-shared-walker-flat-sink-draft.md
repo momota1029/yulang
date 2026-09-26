@@ -427,3 +427,28 @@ normalization stages. Full callback/Q/R order parity and a failure from an
 actual later fallible stage must still prove rollback through the same open
 transaction. Production remains boxed; no resource probe, numeric boundary,
 §44 closure, F5e acceptance, or overall F5c completion is authorized.
+
+## 12. Shared raw-incidence census slice (2026-09-26)
+
+The boxed `build_inner` producer and the test-only FlatDraft raw-forest path now
+call one `raw_forest_incidences` implementation. It visits the predicate first,
+then unique raw owners in their recorded order, charging one raw-bound-owner
+unit before visiting each lower root and then upper root. Both representation
+adapters use the existing Walker event scheduler and return the same positive
+and negative incidence sets for the focused parity fixture.
+
+The paired witness covers predicate contributions, two owners whose declared
+order differs from map insertion order, positive lower roots, negative upper
+roots, and Function guard traversal. FlatDraft has no Shared node form, so the
+warm Shared raw-forest callback witness remains separate. M3 compiler-referee,
+spec-auditor, and static performance reviews found no blocking or major issue.
+The minor parity evidence gap closed with the exact-set fixture and primary
+diff review. Nine focused raw-forest tests, solver library/test-target checks,
+formatting, and diff checks passed. No benchmark or §15 probe ran.
+
+This slice shares only the pre-pruning incidence census. The R fixed point,
+retained-occurrence pass, Q/R binder assignment, flat replay/substitution/
+normalization, full callback/Q/R parity, and rollback after an actual later
+fallible stage remain open. Production still calls the boxed producer and
+remains the only production path. No resource certification, numeric boundary,
+§44 closure, F5e acceptance, or overall F5c completion is authorized.
