@@ -4,6 +4,32 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): raw-forest memo transaction precursor
+
+The test-only ordered raw-forest builder now keeps its memo root transaction
+open after materialization. Releasing the forest commits it; aborting drops
+the candidate output lanes and rolls back root admissions/invalidations and
+appended memo nodes. Any root/node rollback error poisons the candidate
+generalizer at the shared rollback owner, and both flat candidate entrypoints
+reject reuse. A warm-root witness compares persistent root, edge, node,
+reverse-parent, and incidence lanes after invalidation/re-admission and abort,
+checks idle transient state, and retries the same forest. Separate witnesses
+cover rollback failure from explicit abort and raw-forest construction.
+
+M2 compiler-referee and spec-auditor delta reviews closed after repairs.
+Focused raw-forest tests (8), solver library and test-target checks, formatting,
+and diff checks pass. No broad suite, benchmark, or §15 resource probe ran.
+This proves rollback only at the raw-forest boundary: the builder is not yet
+connected to the shared Q/R/replay/substitution/normalization path, so actual
+later-stage failure rollback and full callback/Q/R parity remain open.
+Production remains boxed.
+
+Next: factor the existing boxed incidence/Q/R algorithm over boxed and
+FlatDraft operations without duplicating its ordering or work accounting, then
+keep the candidate memo transaction open through every fallible downstream
+stage. No production cutover, numeric resource boundary, §44 closure, F5e
+acceptance, or overall F5c completion is authorized.
+
 ### Latest continuation (2026-09-26): FlatDraft tree-analysis adapter
 
 The existing explicit-stack tree-analysis walker now accepts test-only

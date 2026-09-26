@@ -2494,6 +2494,8 @@ pub(super) struct F5cGeneralizer<'a> {
     pub(super) flat_sink: F5cFlatWalkSink,
     #[cfg(test)]
     raw_forest_live: bool,
+    #[cfg(test)]
+    raw_forest_rollback_failed: bool,
     frozen_bound_epoch: usize,
     pub(super) frames: Vec<F5cExpansionFrame>,
     pub(super) shared_summary_hits: usize,
@@ -2879,6 +2881,8 @@ impl<'a> F5cGeneralizer<'a> {
             flat_sink: F5cFlatWalkSink::default(),
             #[cfg(test)]
             raw_forest_live: false,
+            #[cfg(test)]
+            raw_forest_rollback_failed: false,
             frozen_bound_epoch,
             frames: Vec::new(),
             shared_summary_hits: 0,
@@ -3650,7 +3654,7 @@ impl<'a> F5cGeneralizer<'a> {
         &mut self,
         first: F5cWalkTask,
     ) -> Result<FlatWalkValue, SolveAvailabilityError> {
-        if self.raw_forest_live {
+        if self.raw_forest_live || self.raw_forest_rollback_failed {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         // The source and memo have the same owner. Keep the sink attached even
@@ -3667,7 +3671,7 @@ impl<'a> F5cGeneralizer<'a> {
         &mut self,
         root: u32,
     ) -> Result<F5cRawForest, SolveAvailabilityError> {
-        if self.raw_forest_live {
+        if self.raw_forest_live || self.raw_forest_rollback_failed {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         use f5c_draft::{NegativeId, NodeRef, PositiveId};
@@ -3870,8 +3874,6 @@ impl<'a> F5cGeneralizer<'a> {
             self.abort_flat_component()?;
             return Err(error);
         }
-        self.memo
-            .finish_root_transaction(self.root_undo_checkpoint, true)?;
         drop(std::mem::take(&mut self.flat_sink.arena));
         self.flat_sink.component_checkpoint = None;
         self.flat_sink.counter_checkpoint = None;
@@ -3898,6 +3900,32 @@ impl<'a> F5cGeneralizer<'a> {
             self.raw_forest_live,
             "one live raw forest owns the candidate output lanes"
         );
+        self.memo
+            .finish_root_transaction(self.root_undo_checkpoint, true)
+            .expect("raw forest commit must use its live root checkpoint");
+        self.release_raw_forest_lanes(forest);
+        self.node_checkpoint = self.memo.nodes.len();
+        self.child_checkpoint = self.memo.children.len();
+        self.reverse_checkpoint = self.memo.reverse_parents.len();
+        self.incidence_checkpoint = self.memo.incidences.len();
+        self.root_undo_checkpoint = self.memo.root_undo.len();
+        self.reset_after_raw_forest();
+    }
+
+    #[cfg(test)]
+    pub(super) fn abort_raw_forest(
+        &mut self,
+        forest: F5cRawForest,
+    ) -> Result<(), SolveAvailabilityError> {
+        assert!(self.raw_forest_live);
+        self.release_raw_forest_lanes(forest);
+        let rollback = self.abort_flat_component();
+        self.reset_after_raw_forest();
+        rollback
+    }
+
+    #[cfg(test)]
+    fn release_raw_forest_lanes(&mut self, forest: F5cRawForest) {
         drop(forest);
         for kind in [
             F5cWalkerLaneKind::RawOwnerOrder,
@@ -3912,11 +3940,10 @@ impl<'a> F5cGeneralizer<'a> {
         ] {
             self.memo.walker_resources.release(kind);
         }
-        self.node_checkpoint = self.memo.nodes.len();
-        self.child_checkpoint = self.memo.children.len();
-        self.reverse_checkpoint = self.memo.reverse_parents.len();
-        self.incidence_checkpoint = self.memo.incidences.len();
-        self.root_undo_checkpoint = self.memo.root_undo.len();
+    }
+
+    #[cfg(test)]
+    fn reset_after_raw_forest(&mut self) {
         self.memo.reset_active_scratch();
         self.frames = Vec::new();
         self.active = Vec::new();
@@ -3989,8 +4016,11 @@ impl<'a> F5cGeneralizer<'a> {
             self.reverse_checkpoint,
             self.incidence_checkpoint,
         );
-        roots?;
-        nodes
+        let rollback = roots.and(nodes);
+        if rollback.is_err() {
+            self.raw_forest_rollback_failed = true;
+        }
+        rollback
     }
 
     pub(super) fn positive_row(

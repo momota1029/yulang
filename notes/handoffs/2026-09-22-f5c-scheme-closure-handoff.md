@@ -3030,4 +3030,29 @@ all candidate transformations. Production remains boxed; no resource probe,
 numeric boundary, §44 closure, F5e acceptance, or overall F5c closure is
 authorized.
 
+## Latest continuation (2026-09-26): raw-forest memo transaction precursor
+
+The test-only raw-forest builder now leaves its memo root transaction open after
+materialization. Releasing the forest commits and advances memo checkpoints;
+aborting drops its lanes and restores root admissions/invalidations and appended
+memo nodes. The shared abort owner poisons the candidate generalizer on any
+rollback error, including construction-failure and flat-walk exits, and both
+candidate entrypoints reject reuse afterward.
+
+The warm-root abort witness invalidates and re-admits a retained key, compares
+root maps/heads/edges/marks/undo and node/child/parent/incidence lanes, checks
+idle transient state, then retries the same forest. Separate corruption
+witnesses cover explicit abort and construction rollback failures. M2
+compiler-referee/spec-auditor delta reviews closed. Eight focused raw-forest
+tests, solver library and test-target checks, `cargo fmt --check`, and
+`git diff --check` pass. No broad suite or §15 resource probe ran.
+
+This proves only raw-forest-boundary rollback. The forest is not yet connected
+to shared Q/R, replay, substitution, or normalization, so actual later-stage
+failure rollback and full callback/Q/R parity remain open. Next: adapt the
+existing single boxed incidence/Q/R algorithm to FlatDraft IDs and retain the
+same transaction through every fallible candidate stage. Production remains
+boxed; no resource probe, numeric boundary, §44 closure, F5e acceptance, or
+overall F5c closure is authorized.
+
 <!-- handoff-append-anchor: 2026-09-26 -->

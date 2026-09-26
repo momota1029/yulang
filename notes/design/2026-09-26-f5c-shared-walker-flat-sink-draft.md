@@ -402,3 +402,28 @@ through the same incidence/R/Q ordering core as boxed roots, and keep the
 candidate component memo transaction open through every subsequent fallible
 stage. Full callback/Q/R parity, late rollback, resource certification,
 indexed finalization, and production cutover remain open.
+
+## 11. Raw-forest memo transaction precursor (2026-09-26)
+
+The test-only ordered raw-forest builder leaves its memo root transaction open
+after materialization. Releasing a forest commits the root transaction and
+advances the memo checkpoints; aborting releases the forest lanes and rolls
+back root admission/invalidation events plus appended nodes. Any rollback error
+poisons the candidate generalizer at the shared abort owner, including errors
+from construction-failure and flat-walk exits, and both flat entrypoints reject
+reuse afterward.
+
+The M2 compiler-referee/spec-auditor delta reviews closed after the abort
+witness was expanded to start from a warm root, invalidate and re-admit its
+key, compare every persistent semantic root/node/edge/head/undo/incidence lane
+after abort, verify transient state is idle, and retry the same forest.
+Separate injected corruption witnesses cover explicit-abort and construction
+rollback errors. Focused raw-forest tests (8), solver library and test-target
+checks, formatting, and diff checks pass.
+
+This is a raw-forest transaction precursor only. The FlatDraft forest is not
+yet connected to the shared incidence/Q/R, replay, substitution, and
+normalization stages. Full callback/Q/R order parity and a failure from an
+actual later fallible stage must still prove rollback through the same open
+transaction. Production remains boxed; no resource probe, numeric boundary,
+§44 closure, F5e acceptance, or overall F5c completion is authorized.

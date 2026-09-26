@@ -160,6 +160,164 @@ fn raw_forest_release_advances_memo_checkpoint_before_later_failure() {
 }
 
 #[test]
+fn raw_forest_late_failure_rolls_back_memo_and_retries() {
+    let batch = collect(module("my f = 1", "f5c-raw-late-failure"));
+    let mut session = InferenceSession::new(batch);
+    let child = session.fresh_value_at_level(1).unwrap();
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[child as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::ValueRow(child));
+    let mut warming = F5cGeneralizer::new(&session);
+    warming
+        .walk_flat(F5cWalkTask::EnterRow {
+            row: child,
+            polarity: Polarity::Positive,
+            root: false,
+        })
+        .unwrap();
+    let memo = std::mem::take(&mut warming.memo);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let child_key = crate::f5c_generalization::F5cExpansionKey {
+        row: child,
+        polarity: Polarity::Positive,
+        frozen_bound_epoch: 0,
+    };
+    assert!(generalizer.memo.roots.contains_key(&child_key));
+    let before = (
+        generalizer.memo.roots.clone(),
+        generalizer.memo.root_heads.clone(),
+        generalizer.memo.root_edges.clone(),
+        generalizer.memo.root_edge_marks.clone(),
+        generalizer.memo.root_undo.clone(),
+    );
+    let before_nodes = (
+        generalizer.memo.nodes.clone(),
+        generalizer.memo.children.clone(),
+        generalizer.memo.parent_heads.clone(),
+        generalizer.memo.reverse_parents.clone(),
+        generalizer.memo.incidence_heads.clone(),
+        generalizer.memo.incidences.clone(),
+    );
+    // The raw forest API has no later Q/R stage; invalidate a retained root
+    // inside its memo transaction, then let the forest re-admit that key.
+    generalizer.memo.invalidate_row(child).unwrap();
+    assert!(!generalizer.memo.roots.contains_key(&child_key));
+    let forest = generalizer.build_raw_forest(root).unwrap();
+    assert!(generalizer.memo.roots.contains_key(&child_key));
+    assert!(
+        generalizer
+            .memo
+            .root_undo
+            .iter()
+            .any(|event| matches!(event, crate::f5c_generalization::F5cRootUndo::Invalidate(_)))
+    );
+    assert!(
+        generalizer
+            .memo
+            .root_undo
+            .iter()
+            .any(|event| matches!(event, crate::f5c_generalization::F5cRootUndo::Admit(_)))
+    );
+    generalizer.abort_raw_forest(forest).unwrap();
+    assert_eq!(
+        (
+            generalizer.memo.roots.clone(),
+            generalizer.memo.root_heads.clone(),
+            generalizer.memo.root_edges.clone(),
+            generalizer.memo.root_edge_marks.clone(),
+            generalizer.memo.root_undo.clone(),
+        ),
+        before
+    );
+    assert_eq!(
+        (
+            generalizer.memo.nodes.clone(),
+            generalizer.memo.children.clone(),
+            generalizer.memo.parent_heads.clone(),
+            generalizer.memo.reverse_parents.clone(),
+            generalizer.memo.incidence_heads.clone(),
+            generalizer.memo.incidences.clone(),
+        ),
+        before_nodes
+    );
+    assert!(generalizer.memo.active_rows.is_empty());
+    assert!(generalizer.memo.active_conflicts.is_empty());
+    assert!(generalizer.memo.work.is_empty());
+    assert!(generalizer.memo.conflict_journal.is_empty());
+    assert_eq!(generalizer.memo.root_edge_mark_epoch, 0);
+    assert_eq!(generalizer.memo.visit_epoch, 0);
+    assert!(
+        generalizer
+            .memo
+            .visit_epochs
+            .iter()
+            .all(|epoch| *epoch == 0)
+    );
+    assert!(generalizer.flat_sink.arena_is_empty());
+    let retry = generalizer.build_raw_forest(root).unwrap();
+    assert_eq!(retry.callback_trace, vec![(child, Polarity::Positive)]);
+    generalizer.release_raw_forest(retry);
+}
+
+#[test]
+fn raw_forest_failed_rollback_releases_lifecycle_without_reuse() {
+    let batch = collect(module("my f = 1", "f5c-raw-rollback-failure"));
+    let mut session = InferenceSession::new(batch);
+    let row = session.fresh_value_at_level(1).unwrap();
+    session.bounds[row as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let forest = generalizer.build_raw_forest(row).unwrap();
+    generalizer.memo.root_edge_marks.push(0);
+    assert!(generalizer.abort_raw_forest(forest).is_err());
+    assert!(generalizer.memo.active_rows.is_empty());
+    assert!(generalizer.memo.active_conflicts.is_empty());
+    assert!(generalizer.memo.work.is_empty());
+    assert!(generalizer.memo.conflict_journal.is_empty());
+    assert!(generalizer.build_raw_forest(row).is_err());
+    assert!(
+        generalizer
+            .walk_flat(F5cWalkTask::EnterRow {
+                row,
+                polarity: Polarity::Positive,
+                root: false,
+            })
+            .is_err()
+    );
+}
+
+#[test]
+fn raw_forest_construction_error_with_failed_rollback_rejects_reuse() {
+    let batch = collect(module("my f = 1", "f5c-raw-construction-rollback-failure"));
+    let mut session = InferenceSession::new(batch);
+    let row = session.fresh_value_at_level(1).unwrap();
+    session.bounds[row as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut generalizer = F5cGeneralizer::new(&session);
+    generalizer.memo.root_edge_marks.push(0);
+    let roots_lane = crate::f5c_generalization::F5cWalkerLaneKind::RawRoots as usize;
+    generalizer.memo.walker_resources.lanes[roots_lane].requested_slots = usize::MAX;
+    assert!(generalizer.build_raw_forest(row).is_err());
+    generalizer.memo.walker_resources.lanes[roots_lane].requested_slots = 0;
+    assert!(generalizer.build_raw_forest(row).is_err());
+    assert!(
+        generalizer
+            .walk_flat(F5cWalkTask::EnterRow {
+                row,
+                polarity: Polarity::Positive,
+                root: false,
+            })
+            .is_err()
+    );
+}
+
+#[test]
 fn raw_forest_table_overflow_preflights_before_allocation_and_retries() {
     use crate::f5c_generalization::F5cWalkerLaneKind;
     for kind in [
