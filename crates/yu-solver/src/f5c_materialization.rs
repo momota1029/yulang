@@ -2336,5 +2336,6 @@ mod flat_tests {
             flat_stats,
             crate::f5c_normalization::FlatNormalizationStats::from(&boxed_stats)
         );
+        crate::f5c_replay::release_flat_output(&mut flat_memo, flat);
     }
 }

@@ -4,6 +4,38 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): shared R fixed-point slice
+
+Boxed production and the test-only FlatDraft adapter now use one R-candidate
+fixed-point loop for eligibility, guarded-bound replay, trace pruning,
+predicate replay, raw-bound reachability, and convergence. Production remains
+boxed. The FlatDraft raw-forest wrapper owns the live memo transaction and
+aborts it on R failure. Its failure witness completes a replay that emitted
+nodes, fails on the next replay, compares persistent memo state, checks idle
+scratch and monotonic work, then retries a warm lookup.
+
+Replay charges source-wide active-array initialization before allocating, and
+accounts both active arrays plus all five retained replay-output lanes while
+source, memo, and forest remain live. It drops output before releasing those
+lanes; direct replay fixtures follow the same lifecycle.
+
+M3 compiler-referee/spec-auditor/performance delta reviews found no blocker or
+major issue. Two minor evidence/lifecycle points were closed with additional
+lane assertions and drop-order cleanup. Focused checks pass: flat-walker tests
+(25), replay tests (6), generalization-transaction tests (11), the composed
+replay/substitution/normalization witness (1), solver lib/test-target checks,
+formatting, and diff checks. No broad suite or resource measurement ran;
+measurement budget remains zero.
+
+Only the R fixed-point loop is shared. Post-convergence retained-R assembly,
+Q/R ordinal assignment, flat substitution/normalization integration, full
+callback/Q/R parity, and rollback through those later fallible stages remain
+open. Next: carry the same boxed ordering through retained-R assembly and Q/R
+ordinal assignment while retaining the candidate memo transaction through
+all later fallible stages. Production remains boxed; no resource probe,
+numeric boundary, §44 closure, F5e acceptance, or overall F5c completion is
+authorized.
+
 ### Latest continuation (2026-09-26): shared raw-incidence census slice
 
 Boxed `build_inner` and the test-only FlatDraft raw forest now call one

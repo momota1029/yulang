@@ -85,6 +85,215 @@ fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
 }
 
 #[test]
+fn r_candidate_fixed_point_matches_boxed_and_flat() {
+    use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
+    use crate::f5c_generalization::F5cGuardedTrace;
+    use std::collections::{HashMap, HashSet};
+
+    let mut flat = FlatDraft::default();
+    flat.predicate = Some(flat.positive(PositiveNode::Variable(1)).unwrap());
+    let argument = flat.negative(NegativeNode::Top).unwrap();
+    let guarded_one = flat.positive(PositiveNode::Variable(1)).unwrap();
+    let guarded_two = flat.positive(PositiveNode::Variable(2)).unwrap();
+    let lower_one = flat
+        .positive(PositiveNode::Function {
+            argument,
+            result: guarded_one,
+        })
+        .unwrap();
+    let lower_two = flat
+        .positive(PositiveNode::Function {
+            argument,
+            result: guarded_two,
+        })
+        .unwrap();
+    let upper = flat.negative(NegativeNode::Top).unwrap();
+    let flat_bounds = HashMap::from([(1, (lower_one, upper)), (2, (lower_two, upper))]);
+    let boxed_bound = |owner| {
+        (
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Top),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(owner)),
+            },
+            F5cNegative::Top,
+        )
+    };
+    let boxed_bounds = HashMap::from([(1, boxed_bound(1)), (2, boxed_bound(2))]);
+    let reentries = [1, 2].map(|owner| F5cGuardedTrace {
+        owner,
+        entry_polarity: Polarity::Positive,
+        reentry_polarity: Polarity::Positive,
+        path: Vec::new(),
+    });
+    let index = HashMap::from([(1, vec![0]), (2, vec![1])]);
+    let empty = HashSet::new();
+    let boxed = F5cGeneralizer::boxed_r_candidates_for_test(
+        &mut F5cComponentExpansionMemo::default(),
+        &F5cPositive::Variable(1),
+        &boxed_bounds,
+        &reentries,
+        &index,
+        |_| true,
+        &empty,
+        &empty,
+    )
+    .unwrap();
+    let indexed = F5cGeneralizer::flat_r_candidates_for_test(
+        &mut F5cComponentExpansionMemo::default(),
+        &flat,
+        &flat_bounds,
+        &reentries,
+        &index,
+        |_| true,
+        &empty,
+        &empty,
+    )
+    .unwrap();
+    assert_eq!(boxed, HashSet::from([1]));
+    assert_eq!(indexed, boxed);
+}
+
+#[test]
+fn flat_r_replay_failure_aborts_raw_forest_and_retries_warm_lookup() {
+    use crate::f5c_generalization::F5cGuardedTrace;
+    use std::collections::{HashMap, HashSet};
+
+    let batch = collect(module("my f = 1", "f5c-flat-r-rollback"));
+    let mut session = InferenceSession::new(batch);
+    let warm = session.fresh_value_at_level(1).unwrap();
+    let owner = session.fresh_value_at_level(1).unwrap();
+    let relay = session.fresh_value_at_level(1).unwrap();
+    session.bounds[warm as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let argument = session.negative_top_term().unwrap();
+    let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+    let function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            result,
+        )
+        .unwrap();
+    session.bounds[owner as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(function));
+    session.bounds[relay as usize].direct_lower_rows.push(owner);
+    let (result, memo, _, _) = F5cGeneralizer::new(&session).build_component(warm);
+    assert!(result.is_ok());
+    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    generalizer.memo.reset_active_scratch();
+    let before = (
+        generalizer.memo.roots.clone(),
+        generalizer.memo.nodes.clone(),
+        generalizer.memo.children.clone(),
+        generalizer.memo.parent_heads.clone(),
+        generalizer.memo.reverse_parents.clone(),
+        generalizer.memo.incidence_heads.clone(),
+        generalizer.memo.incidences.clone(),
+        generalizer.memo.root_heads.clone(),
+        generalizer.memo.root_edges.clone(),
+        (
+            generalizer.memo.root_edge_marks.clone(),
+            generalizer.memo.root_edge_mark_epoch,
+            generalizer.memo.root_undo.clone(),
+            generalizer.memo.visit_epochs.clone(),
+            generalizer.memo.visit_epoch,
+        ),
+    );
+    let forest = generalizer.build_raw_forest(owner).unwrap();
+    assert_eq!(forest.raw_owner_order, vec![owner]);
+    let trace = F5cGuardedTrace {
+        owner,
+        entry_polarity: Polarity::Positive,
+        reentry_polarity: Polarity::Positive,
+        path: Vec::new(),
+    };
+    let index = HashMap::from([(owner, vec![0])]);
+    let work_before = generalizer.memo.work_meter.get();
+    crate::f5c_replay::inject_failure_after_flat_output();
+    let error = generalizer.flat_r_with_raw_forest_for_test(
+        forest,
+        &[trace],
+        &index,
+        |_| true,
+        &HashSet::new(),
+        &HashSet::new(),
+    );
+    assert_eq!(error.err(), Some(SolveAvailabilityError::IdentityExhausted));
+    assert!(crate::f5c_replay::failed_after_flat_output_count() > 0);
+    assert!(generalizer.memo.work_meter.get() > work_before);
+    for lane in [
+        F5cWalkerLaneKind::ReplayActivePositive,
+        F5cWalkerLaneKind::ReplayActiveNegative,
+        F5cWalkerLaneKind::ReplayOutputPositiveNodes,
+        F5cWalkerLaneKind::ReplayOutputNegativeNodes,
+        F5cWalkerLaneKind::ReplayOutputPositiveChildren,
+        F5cWalkerLaneKind::ReplayOutputNegativeChildren,
+        F5cWalkerLaneKind::ReplayOutputInsertionOrder,
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+        assert_eq!(
+            generalizer.memo.walker_resources.independent_lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
+    assert!(
+        generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::ReplayActivePositive as usize]
+            .peak_bytes
+            > 0
+    );
+    assert!(
+        generalizer.memo.walker_resources.lanes
+            [F5cWalkerLaneKind::ReplayOutputPositiveNodes as usize]
+            .peak_bytes
+            > 0
+    );
+    assert_eq!(
+        (
+            generalizer.memo.roots.clone(),
+            generalizer.memo.nodes.clone(),
+            generalizer.memo.children.clone(),
+            generalizer.memo.parent_heads.clone(),
+            generalizer.memo.reverse_parents.clone(),
+            generalizer.memo.incidence_heads.clone(),
+            generalizer.memo.incidences.clone(),
+            generalizer.memo.root_heads.clone(),
+            generalizer.memo.root_edges.clone(),
+            (
+                generalizer.memo.root_edge_marks.clone(),
+                generalizer.memo.root_edge_mark_epoch,
+                generalizer.memo.root_undo.clone(),
+                generalizer.memo.visit_epochs.clone(),
+                generalizer.memo.visit_epoch,
+            ),
+        ),
+        before,
+    );
+    assert!(generalizer.memo.root_undo.is_empty());
+    assert!(generalizer.memo.active_rows.is_empty());
+    assert!(generalizer.memo.active_conflicts.is_empty());
+    assert!(generalizer.memo.work.is_empty());
+    assert!(generalizer.memo.conflict_journal.is_empty());
+    assert!(generalizer.active.is_empty() && generalizer.active_set.is_empty());
+    assert!(generalizer.frames.is_empty() && generalizer.path.is_empty());
+    assert!(generalizer.flat_sink.arena_is_empty());
+    generalizer.memo.work_meter.set(0);
+    assert!(matches!(
+        generalizer.positive_row(warm, false).unwrap(),
+        F5cPositive::Shared(_)
+    ));
+}
+
+#[test]
 fn raw_forest_orders_recursive_bounds_and_defaults() {
     let batch = collect(module("my f = 1", "f5c-raw-forest"));
     let mut session = InferenceSession::new(batch);

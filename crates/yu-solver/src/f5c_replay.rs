@@ -9,6 +9,23 @@ use super::{
 };
 use std::collections::HashSet;
 
+#[cfg(test)]
+thread_local! {
+    static FAIL_AFTER_FLAT_OUTPUT: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+    static FAILED_AFTER_OUTPUT_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn inject_failure_after_flat_output() {
+    FAIL_AFTER_FLAT_OUTPUT.with(|flag| flag.set(1));
+    FAILED_AFTER_OUTPUT_COUNT.with(|count| count.set(0));
+}
+
+#[cfg(test)]
+pub(super) fn failed_after_flat_output_count() -> usize {
+    FAILED_AFTER_OUTPUT_COUNT.with(std::cell::Cell::get)
+}
+
 pub(super) enum Task<'tree> {
     Positive(&'tree F5cPositive),
     Negative(&'tree F5cNegative),
@@ -16,6 +33,59 @@ pub(super) enum Task<'tree> {
     FinishNegativeIntersection(usize),
     FinishPositiveFunction,
     FinishNegativeFunction,
+}
+
+#[cfg(test)]
+pub(super) fn observe_flat_output(
+    memo: &mut F5cComponentExpansionMemo,
+    output: &mut FlatDraft,
+) -> Result<(), SolveAvailabilityError> {
+    let memo_bytes = memo.retained_bytes()?;
+    let resources = &mut memo.walker_resources;
+    resources.reserve(
+        &mut output.positive_nodes,
+        F5cWalkerLaneKind::ReplayOutputPositiveNodes,
+        0,
+        memo_bytes,
+    )?;
+    resources.reserve(
+        &mut output.negative_nodes,
+        F5cWalkerLaneKind::ReplayOutputNegativeNodes,
+        0,
+        memo_bytes,
+    )?;
+    resources.reserve(
+        &mut output.positive_children,
+        F5cWalkerLaneKind::ReplayOutputPositiveChildren,
+        0,
+        memo_bytes,
+    )?;
+    resources.reserve(
+        &mut output.negative_children,
+        F5cWalkerLaneKind::ReplayOutputNegativeChildren,
+        0,
+        memo_bytes,
+    )?;
+    resources.reserve(
+        &mut output.insertion_order,
+        F5cWalkerLaneKind::ReplayOutputInsertionOrder,
+        0,
+        memo_bytes,
+    )
+}
+
+#[cfg(test)]
+pub(super) fn release_flat_output(memo: &mut F5cComponentExpansionMemo, output: FlatDraft) {
+    drop(output);
+    for lane in [
+        F5cWalkerLaneKind::ReplayOutputPositiveNodes,
+        F5cWalkerLaneKind::ReplayOutputNegativeNodes,
+        F5cWalkerLaneKind::ReplayOutputPositiveChildren,
+        F5cWalkerLaneKind::ReplayOutputNegativeChildren,
+        F5cWalkerLaneKind::ReplayOutputInsertionOrder,
+    ] {
+        memo.walker_resources.release(lane);
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -65,15 +135,43 @@ pub(super) fn replay_flat(
     );
     let result = (|| {
         let exhausted = SolveAvailabilityError::IdentityExhausted;
+        let active_len = source
+            .positive_nodes
+            .len()
+            .checked_add(source.negative_nodes.len())
+            .ok_or(exhausted)?;
+        memo.work_meter.charge(active_len)?; // initialized replay-active slots
         let mut active_positive = Vec::new();
-        active_positive
-            .try_reserve_exact(source.positive_nodes.len())
-            .map_err(|_| exhausted)?;
+        let memo_bytes = memo.retained_bytes()?;
+        let allocation = memo.walker_resources.reserve(
+            &mut active_positive,
+            F5cWalkerLaneKind::ReplayActivePositive,
+            source.positive_nodes.len(),
+            memo_bytes,
+        );
+        if let Err(error) = allocation {
+            drop(active_positive);
+            memo.walker_resources
+                .release(F5cWalkerLaneKind::ReplayActivePositive);
+            return Err(error);
+        }
         active_positive.resize(source.positive_nodes.len(), false);
         let mut active_negative = Vec::new();
-        active_negative
-            .try_reserve_exact(source.negative_nodes.len())
-            .map_err(|_| exhausted)?;
+        let allocation = memo.walker_resources.reserve(
+            &mut active_negative,
+            F5cWalkerLaneKind::ReplayActiveNegative,
+            source.negative_nodes.len(),
+            memo_bytes,
+        );
+        if let Err(error) = allocation {
+            drop(active_positive);
+            drop(active_negative);
+            memo.walker_resources
+                .release(F5cWalkerLaneKind::ReplayActivePositive);
+            memo.walker_resources
+                .release(F5cWalkerLaneKind::ReplayActiveNegative);
+            return Err(error);
+        }
         active_negative.resize(source.negative_nodes.len(), false);
 
         let mut tasks = Vec::new();
@@ -109,6 +207,11 @@ pub(super) fn replay_flat(
             }
             while !tasks.is_empty() {
                 memo.work_meter.charge(1)?; // visited flat replay task
+                #[cfg(test)]
+                if FAIL_AFTER_FLAT_OUTPUT.with(|flag| flag.get()) == 2 {
+                    FAIL_AFTER_FLAT_OUTPUT.with(|flag| flag.set(0));
+                    return Err(exhausted);
+                }
                 let task = tasks.pop().expect("nonempty flat replay tasks");
                 match task {
                     FlatTask::Positive(id) => {
@@ -313,6 +416,28 @@ pub(super) fn replay_flat(
             }
             values.pop().ok_or(exhausted)
         })();
+        #[cfg(test)]
+        if replayed.is_ok() && FAIL_AFTER_FLAT_OUTPUT.with(|flag| flag.get()) == 1 {
+            let emitted = output.positive_nodes.len() - checkpoint.0 + output.negative_nodes.len()
+                - checkpoint.1;
+            if emitted > 0 {
+                FAILED_AFTER_OUTPUT_COUNT.with(|count| count.set(emitted));
+                FAIL_AFTER_FLAT_OUTPUT.with(|flag| flag.set(2));
+            }
+        }
+        #[cfg(test)]
+        let observed = observe_flat_output(memo, output);
+        #[cfg(test)]
+        let replayed = match observed {
+            Ok(()) => replayed,
+            Err(error) => Err(error),
+        };
+        drop(active_positive);
+        drop(active_negative);
+        memo.walker_resources
+            .release(F5cWalkerLaneKind::ReplayActivePositive);
+        memo.walker_resources
+            .release(F5cWalkerLaneKind::ReplayActiveNegative);
         memo.walker_resources
             .release(F5cWalkerLaneKind::ReplayTasks);
         memo.walker_resources

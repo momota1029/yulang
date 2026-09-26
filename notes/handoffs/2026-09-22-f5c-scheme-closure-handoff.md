@@ -3079,4 +3079,38 @@ memo transaction until all fallible candidate stages succeed. Production stays
 boxed; no resource probe, numeric boundary, §44 closure, F5e acceptance, or
 overall F5c completion is authorized.
 
+## Latest continuation (2026-09-26): shared R fixed-point
+
+Boxed production and the test-only FlatDraft adapter now run one
+`r_candidates` fixed-point loop for candidate eligibility, lower/upper bound
+replay and guarded-bound filtering, trace pruning, predicate replay,
+raw-bound reachability, and convergence. The boxed adapter retains the prior
+ordering and charge sites. Flat replay uses the same Walker analysis and keeps
+output lanes across replays for reuse.
+
+The test-only raw-forest wrapper owns the live memo transaction through R and
+aborts on an R error. Its failure witness completes a replay that emitted
+nodes, fails on a later replay, compares all persistent root/node/edge/index
+and visit state, checks idle transient state and monotonic work, then retries a
+warm lookup. Replay precharges source-sized active-array initialization and
+accounts two active arrays and all five replay-output lanes while source, memo,
+and forest coexist. Output is dropped before its lane release, including at
+direct fixture call sites.
+
+M3 compiler-referee/spec-auditor/performance delta reviews closed with no
+blocking or major issue. The minor missing output-child release assertions and
+one error-path drop-order precision point were repaired and verified with
+focused checks. Flat-walker tests (25), replay tests (6), transaction tests
+(11), the composed replay/substitution/normalization witness (1), solver
+library/test-target checks, formatting, and diff checks pass. No broad suite or
+resource measurement ran; measurement budget remains zero.
+
+Only the R fixed-point loop is shared. Post-convergence retained-R assembly,
+Q/R ordinal assignment, full callback/Q/R parity, flat substitution and
+normalization integration, and later-stage rollback remain open. Immediate
+next: extend the common path through retained-R assembly and Q/R ordinals while
+keeping the memo transaction open through each later fallible stage. Production
+remains boxed; no §15 probe, resource boundary, §44 closure, F5e acceptance, or
+overall F5c completion is authorized.
+
 <!-- handoff-append-anchor: 2026-09-26 -->

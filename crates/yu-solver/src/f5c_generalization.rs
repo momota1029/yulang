@@ -328,10 +328,17 @@ pub(super) enum F5cWalkerLaneKind {
     RawOwnerSeen = 40,
     RawRoots = 41,
     RawCallbackTrace = 42,
+    ReplayActivePositive = 43,
+    ReplayActiveNegative = 44,
+    ReplayOutputPositiveNodes = 45,
+    ReplayOutputNegativeNodes = 46,
+    ReplayOutputPositiveChildren = 47,
+    ReplayOutputNegativeChildren = 48,
+    ReplayOutputInsertionOrder = 49,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 43] = [
+    pub(super) const ALL: [Self; 50] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -375,6 +382,13 @@ impl F5cWalkerLaneKind {
         Self::RawOwnerSeen,
         Self::RawRoots,
         Self::RawCallbackTrace,
+        Self::ReplayActivePositive,
+        Self::ReplayActiveNegative,
+        Self::ReplayOutputPositiveNodes,
+        Self::ReplayOutputNegativeNodes,
+        Self::ReplayOutputPositiveChildren,
+        Self::ReplayOutputNegativeChildren,
+        Self::ReplayOutputInsertionOrder,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -426,6 +440,12 @@ impl F5cWalkerLaneKind {
             Self::DraftNegativeChildren => std::mem::size_of::<f5c_draft::NegativeId>(),
             Self::DraftRecursiveBounds => std::mem::size_of::<f5c_draft::RecursiveBound>(),
             Self::DraftInsertionOrder => std::mem::size_of::<f5c_draft::NodeRef>(),
+            Self::ReplayActivePositive | Self::ReplayActiveNegative => std::mem::size_of::<bool>(),
+            Self::ReplayOutputPositiveNodes => std::mem::size_of::<f5c_draft::PositiveNode>(),
+            Self::ReplayOutputNegativeNodes => std::mem::size_of::<f5c_draft::NegativeNode>(),
+            Self::ReplayOutputPositiveChildren => std::mem::size_of::<f5c_draft::PositiveId>(),
+            Self::ReplayOutputNegativeChildren => std::mem::size_of::<f5c_draft::NegativeId>(),
+            Self::ReplayOutputInsertionOrder => std::mem::size_of::<f5c_draft::NodeRef>(),
         }
     }
 }
@@ -439,13 +459,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 43],
+    pub(super) lanes: [F5cWalkerLane; 50],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 43],
+    pub(super) independent_lanes: [F5cWalkerLane; 50],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -455,13 +475,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 43],
+            lanes: [F5cWalkerLane::default(); 50],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 43],
+            independent_lanes: [F5cWalkerLane::default(); 50],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
@@ -645,7 +665,7 @@ impl F5cWalkerResources {
         } else {
             kind.slot_size()
         };
-        let old_capacity = buffer.capacity();
+        let old_capacity = self.lanes[index].actual_capacity;
         let reservation = buffer.try_reserve(additional);
         let new_capacity = buffer.capacity();
         self.lanes[index].requested_slots = requested;
@@ -2528,6 +2548,272 @@ pub(super) struct F5cRawForest {
     pub(super) callback_trace: Vec<(u32, Polarity)>,
 }
 
+trait F5cRCandidateSource {
+    type ReplayedBound;
+    type ReplayedPredicate;
+
+    fn replay_bound(
+        &mut self,
+        memo: &mut F5cComponentExpansionMemo,
+        owner: u32,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<Option<Self::ReplayedBound>, SolveAvailabilityError>;
+
+    fn guarded_bound_survives(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        owner: u32,
+        bound: &Self::ReplayedBound,
+    ) -> Result<bool, SolveAvailabilityError>;
+
+    fn replay_predicate(
+        &mut self,
+        memo: &mut F5cComponentExpansionMemo,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<Self::ReplayedPredicate, SolveAvailabilityError>;
+
+    fn references_predicate<'tree>(
+        &'tree self,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        predicate: &'tree Self::ReplayedPredicate,
+        candidates: &HashSet<u32>,
+        reachable: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError>;
+
+    fn references_bound<'tree>(
+        &'tree self,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        owner: u32,
+        candidates: &HashSet<u32>,
+        referenced: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError>;
+
+    fn release_replay_scratch(&mut self);
+}
+
+struct F5cBoxedRCandidateSource<'a> {
+    predicate: &'a F5cPositive,
+    bounds: &'a HashMap<u32, (F5cPositive, F5cNegative)>,
+}
+
+impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
+    type ReplayedBound = (F5cPositive, F5cNegative);
+    type ReplayedPredicate = F5cPositive;
+
+    fn replay_bound(
+        &mut self,
+        memo: &mut F5cComponentExpansionMemo,
+        owner: u32,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<Option<Self::ReplayedBound>, SolveAvailabilityError> {
+        let Some((lower, upper)) = self.bounds.get(&owner) else {
+            return Ok(None);
+        };
+        Ok(Some((
+            f5c_replay::replay_positive(memo, lower, protected, positive_only, negative_only)?,
+            f5c_replay::replay_negative(memo, upper, protected, positive_only, negative_only)?,
+        )))
+    }
+
+    fn guarded_bound_survives(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        owner: u32,
+        bound: &Self::ReplayedBound,
+    ) -> Result<bool, SolveAvailabilityError> {
+        f5c_tree_analysis::Walker::new(memo).guarded_bound_survives(owner, &bound.0, &bound.1)
+    }
+
+    fn replay_predicate(
+        &mut self,
+        memo: &mut F5cComponentExpansionMemo,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<Self::ReplayedPredicate, SolveAvailabilityError> {
+        f5c_replay::replay_positive(
+            memo,
+            self.predicate,
+            protected,
+            positive_only,
+            negative_only,
+        )
+    }
+
+    fn references_predicate<'tree>(
+        &'tree self,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        predicate: &'tree Self::ReplayedPredicate,
+        candidates: &HashSet<u32>,
+        reachable: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        walker.references_positive(predicate, candidates, reachable)
+    }
+
+    fn references_bound<'tree>(
+        &'tree self,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        owner: u32,
+        candidates: &HashSet<u32>,
+        referenced: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        let Some((lower, upper)) = self.bounds.get(&owner) else {
+            return Ok(());
+        };
+        walker.references_positive(lower, candidates, referenced)?;
+        walker.references_negative(upper, candidates, referenced)
+    }
+
+    fn release_replay_scratch(&mut self) {}
+}
+
+#[cfg(test)]
+struct F5cFlatRCandidateSource<'a> {
+    source: &'a f5c_draft::FlatDraft,
+    output: f5c_draft::FlatDraft,
+    bounds: &'a HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+}
+
+#[cfg(test)]
+impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
+    type ReplayedBound = (f5c_draft::PositiveId, f5c_draft::NegativeId);
+    type ReplayedPredicate = f5c_draft::PositiveId;
+
+    fn replay_bound(
+        &mut self,
+        memo: &mut F5cComponentExpansionMemo,
+        owner: u32,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<Option<Self::ReplayedBound>, SolveAvailabilityError> {
+        use f5c_draft::NodeRef;
+        let Some((lower, upper)) = self.bounds.get(&owner) else {
+            return Ok(None);
+        };
+        let NodeRef::Positive(lower) = f5c_replay::replay_flat(
+            memo,
+            self.source,
+            NodeRef::Positive(*lower),
+            &mut self.output,
+            protected,
+            positive_only,
+            negative_only,
+        )?
+        else {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        };
+        let NodeRef::Negative(upper) = f5c_replay::replay_flat(
+            memo,
+            self.source,
+            NodeRef::Negative(*upper),
+            &mut self.output,
+            protected,
+            positive_only,
+            negative_only,
+        )?
+        else {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        };
+        Ok(Some((lower, upper)))
+    }
+
+    fn guarded_bound_survives(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        owner: u32,
+        bound: &Self::ReplayedBound,
+    ) -> Result<bool, SolveAvailabilityError> {
+        f5c_tree_analysis::Walker::new(memo).flat_guarded_bound_survives(
+            &self.output,
+            owner,
+            bound.0,
+            bound.1,
+        )
+    }
+
+    fn replay_predicate(
+        &mut self,
+        memo: &mut F5cComponentExpansionMemo,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<Self::ReplayedPredicate, SolveAvailabilityError> {
+        use f5c_draft::NodeRef;
+        let predicate = self
+            .source
+            .predicate
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let NodeRef::Positive(predicate) = f5c_replay::replay_flat(
+            memo,
+            self.source,
+            NodeRef::Positive(predicate),
+            &mut self.output,
+            protected,
+            positive_only,
+            negative_only,
+        )?
+        else {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        };
+        Ok(predicate)
+    }
+
+    fn references_predicate<'tree>(
+        &'tree self,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        predicate: &'tree Self::ReplayedPredicate,
+        candidates: &HashSet<u32>,
+        reachable: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        walker.flat_references(
+            &self.output,
+            f5c_draft::NodeRef::Positive(*predicate),
+            candidates,
+            reachable,
+        )
+    }
+
+    fn references_bound<'tree>(
+        &'tree self,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        owner: u32,
+        candidates: &HashSet<u32>,
+        referenced: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        use f5c_draft::NodeRef;
+        let Some((lower, upper)) = self.bounds.get(&owner) else {
+            return Ok(());
+        };
+        walker.flat_references(
+            self.source,
+            NodeRef::Positive(*lower),
+            candidates,
+            referenced,
+        )?;
+        walker.flat_references(
+            self.source,
+            NodeRef::Negative(*upper),
+            candidates,
+            referenced,
+        )
+    }
+
+    fn release_replay_scratch(&mut self) {
+        self.output.positive_nodes.clear();
+        self.output.negative_nodes.clear();
+        self.output.positive_children.clear();
+        self.output.negative_children.clear();
+        self.output.insertion_order.clear();
+    }
+}
+
 trait F5cWalkSink {
     type Value;
     fn variable(
@@ -4134,8 +4420,24 @@ impl<'a> F5cGeneralizer<'a> {
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
     ) -> Result<bool, SolveAvailabilityError> {
+        Self::guarded_trace_path_survives_with_meter(
+            &self.memo,
+            trace,
+            protected,
+            positive_only,
+            negative_only,
+        )
+    }
+
+    fn guarded_trace_path_survives_with_meter(
+        memo: &F5cComponentExpansionMemo,
+        trace: &F5cGuardedTrace,
+        protected: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<bool, SolveAvailabilityError> {
         for hop in &trace.path {
-            self.memo.work_meter.charge(1)?; // examined trace hop
+            memo.work_meter.charge(1)?; // examined trace hop
             if let F5cTraceHop::Direct {
                 side,
                 source,
@@ -4385,6 +4687,87 @@ impl<'a> F5cGeneralizer<'a> {
     }
 
     #[cfg(test)]
+    pub(super) fn flat_r_candidates_for_test(
+        memo: &mut F5cComponentExpansionMemo,
+        draft: &f5c_draft::FlatDraft,
+        bounds: &HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+        reentries: &[F5cGuardedTrace],
+        reentries_by_owner: &HashMap<u32, Vec<usize>>,
+        eligible: impl Fn(u32) -> bool,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<HashSet<u32>, SolveAvailabilityError> {
+        let mut source = F5cFlatRCandidateSource {
+            source: draft,
+            output: f5c_draft::FlatDraft::default(),
+            bounds,
+        };
+        let result = Self::r_candidates(
+            memo,
+            &mut source,
+            reentries,
+            reentries_by_owner,
+            eligible,
+            positive_only,
+            negative_only,
+        );
+        f5c_replay::release_flat_output(memo, source.output);
+        result
+    }
+
+    #[cfg(test)]
+    pub(super) fn flat_r_with_raw_forest_for_test(
+        &mut self,
+        forest: F5cRawForest,
+        reentries: &[F5cGuardedTrace],
+        reentries_by_owner: &HashMap<u32, Vec<usize>>,
+        eligible: impl Fn(u32) -> bool,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<(HashSet<u32>, F5cRawForest), SolveAvailabilityError> {
+        let result = Self::flat_r_candidates_for_test(
+            &mut self.memo,
+            &forest.draft,
+            &forest.raw_bounds,
+            reentries,
+            reentries_by_owner,
+            eligible,
+            positive_only,
+            negative_only,
+        );
+        match result {
+            Ok(candidates) => Ok((candidates, forest)),
+            Err(error) => {
+                self.abort_raw_forest(forest)?;
+                Err(error)
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn boxed_r_candidates_for_test(
+        memo: &mut F5cComponentExpansionMemo,
+        predicate: &F5cPositive,
+        bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
+        reentries: &[F5cGuardedTrace],
+        reentries_by_owner: &HashMap<u32, Vec<usize>>,
+        eligible: impl Fn(u32) -> bool,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<HashSet<u32>, SolveAvailabilityError> {
+        let mut source = F5cBoxedRCandidateSource { predicate, bounds };
+        Self::r_candidates(
+            memo,
+            &mut source,
+            reentries,
+            reentries_by_owner,
+            eligible,
+            positive_only,
+            negative_only,
+        )
+    }
+
+    #[cfg(test)]
     pub(super) fn build(
         &mut self,
         root: u32,
@@ -4459,6 +4842,115 @@ impl<'a> F5cGeneralizer<'a> {
             }
         }
         Ok(())
+    }
+
+    fn r_candidates<S: F5cRCandidateSource>(
+        memo: &mut F5cComponentExpansionMemo,
+        source: &mut S,
+        reentries: &[F5cGuardedTrace],
+        reentries_by_owner: &HashMap<u32, Vec<usize>>,
+        eligible: impl Fn(u32) -> bool,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+    ) -> Result<HashSet<u32>, SolveAvailabilityError> {
+        let mut candidates = HashSet::new();
+        for &owner in reentries_by_owner.keys() {
+            memo.work_meter.charge(1)?; // candidate eligibility owner
+            if eligible(owner) {
+                memo.work_meter.charge(1)?; // candidate entry
+                candidates.insert(owner);
+            }
+        }
+        loop {
+            memo.work_meter.charge(1)?; // fixed-point round
+            memo.work_meter.charge(candidates.len())?; // copied candidate owners
+            let previous = candidates.clone();
+            let mut surviving_bounds = HashSet::new();
+            for owner in &previous {
+                memo.work_meter.charge(1)?; // examined bound owner
+                let Some(bound) =
+                    source.replay_bound(memo, *owner, &previous, positive_only, negative_only)?
+                else {
+                    continue;
+                };
+                let survives = source.guarded_bound_survives(memo, *owner, &bound)?;
+                source.release_replay_scratch();
+                if survives {
+                    surviving_bounds.insert(*owner);
+                }
+            }
+            source.release_replay_scratch();
+            memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
+            let mut retain_error = None;
+            candidates.retain(|owner| {
+                if retain_error.is_some() {
+                    return true;
+                }
+                if !surviving_bounds.contains(owner) {
+                    return false;
+                }
+                let Some(indices) = reentries_by_owner.get(owner) else {
+                    return false;
+                };
+                for index in indices {
+                    if let Err(error) = memo.work_meter.charge(1) {
+                        retain_error = Some(error);
+                        return true;
+                    }
+                    match Self::guarded_trace_path_survives_with_meter(
+                        memo,
+                        &reentries[*index],
+                        &previous,
+                        positive_only,
+                        negative_only,
+                    ) {
+                        Ok(true) => return true,
+                        Ok(false) => {}
+                        Err(error) => {
+                            retain_error = Some(error);
+                            return true;
+                        }
+                    }
+                }
+                false
+            });
+            if let Some(error) = retain_error {
+                return Err(error);
+            }
+            let replayed_predicate =
+                source.replay_predicate(memo, &candidates, positive_only, negative_only)?;
+            let mut reachable = HashSet::new();
+            {
+                let mut walker = f5c_tree_analysis::Walker::new(memo);
+                source.references_predicate(
+                    &mut walker,
+                    &replayed_predicate,
+                    &candidates,
+                    &mut reachable,
+                )?;
+                walker.memo.work_meter.charge(reachable.len())?; // copied frontier owners
+                let mut frontier = reachable.iter().copied().collect::<Vec<_>>();
+                while !frontier.is_empty() {
+                    walker.memo.work_meter.charge(1)?; // reachability frontier pop
+                    let owner = frontier.pop().expect("nonempty reachability frontier");
+                    let mut referenced = HashSet::new();
+                    source.references_bound(&mut walker, owner, &candidates, &mut referenced)?;
+                    for referenced_owner in referenced {
+                        walker.memo.work_meter.charge(1)?; // examined reference
+                        walker.memo.work_meter.charge(1)?; // possible frontier entry
+                        if reachable.insert(referenced_owner) {
+                            frontier.push(referenced_owner);
+                        }
+                    }
+                }
+            }
+            memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
+            candidates.retain(|owner| reachable.contains(owner));
+            if candidates == previous {
+                break;
+            }
+        }
+        Ok(candidates)
     }
 
     fn build_inner(&mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
@@ -4579,117 +5071,19 @@ impl<'a> F5cGeneralizer<'a> {
                 self.memo.work_meter.charge(1)?; // second eligibility/order scan
             }
         }
-        let mut candidates = HashSet::new();
-        for &owner in reentries_by_owner.keys() {
-            self.memo.work_meter.charge(1)?; // candidate eligibility owner
-            if eligible(owner) {
-                self.memo.work_meter.charge(1)?; // candidate entry
-                candidates.insert(owner);
-            }
-        }
-        loop {
-            self.memo.work_meter.charge(1)?; // fixed-point round
-            self.memo.work_meter.charge(candidates.len())?; // copied candidate owners
-            let previous = candidates.clone();
-            let mut surviving_bounds = HashSet::new();
-            for owner in &previous {
-                self.memo.work_meter.charge(1)?; // examined bound owner
-                let Some((lower, upper)) = raw_recursive_bounds.get(owner) else {
-                    continue;
-                };
-                let lower = f5c_replay::replay_positive(
-                    &mut self.memo,
-                    lower,
-                    &previous,
-                    &positive_only,
-                    &negative_only,
-                )?;
-                let upper = f5c_replay::replay_negative(
-                    &mut self.memo,
-                    upper,
-                    &previous,
-                    &positive_only,
-                    &negative_only,
-                )?;
-                if f5c_tree_analysis::Walker::new(&mut self.memo)
-                    .guarded_bound_survives(*owner, &lower, &upper)?
-                {
-                    surviving_bounds.insert(*owner);
-                }
-            }
-            self.memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
-            let mut retain_error = None;
-            candidates.retain(|owner| {
-                if retain_error.is_some() {
-                    return true;
-                }
-                if !surviving_bounds.contains(owner) {
-                    return false;
-                }
-                let Some(indices) = reentries_by_owner.get(owner) else {
-                    return false;
-                };
-                for index in indices {
-                    if let Err(error) = self.memo.work_meter.charge(1) {
-                        retain_error = Some(error);
-                        return true;
-                    }
-                    match self.guarded_trace_path_survives_metered(
-                        &self.reentries[*index],
-                        &previous,
-                        &positive_only,
-                        &negative_only,
-                    ) {
-                        Ok(true) => return true,
-                        Ok(false) => {}
-                        Err(error) => {
-                            retain_error = Some(error);
-                            return true;
-                        }
-                    }
-                }
-                false
-            });
-            if let Some(error) = retain_error {
-                return Err(error);
-            }
-            let replayed_predicate = f5c_replay::replay_positive(
-                &mut self.memo,
-                &predicate,
-                &candidates,
-                &positive_only,
-                &negative_only,
-            )?;
-            let mut reachable = HashSet::new();
-            {
-                let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
-                walker.references_positive(&replayed_predicate, &candidates, &mut reachable)?;
-                walker.memo.work_meter.charge(reachable.len())?; // copied frontier owners
-                let mut frontier = reachable.iter().copied().collect::<Vec<_>>();
-                while !frontier.is_empty() {
-                    walker.memo.work_meter.charge(1)?; // reachability frontier pop
-                    let owner = frontier.pop().expect("nonempty reachability frontier");
-                    let Some((lower, upper)) = raw_recursive_bounds.get(&owner) else {
-                        continue;
-                    };
-                    let mut referenced = HashSet::new();
-                    walker.references_positive(lower, &candidates, &mut referenced)?;
-                    walker.references_negative(upper, &candidates, &mut referenced)?;
-                    for referenced_owner in referenced {
-                        walker.memo.work_meter.charge(1)?; // examined reference
-                        walker.memo.work_meter.charge(1)?; // possible frontier entry
-                        if reachable.insert(referenced_owner) {
-                            frontier.push(referenced_owner);
-                        }
-                    }
-                }
-            }
-            self.memo.work_meter.charge(candidates.capacity())?; // complete retain bucket scan
-            candidates.retain(|owner| reachable.contains(owner));
-            if candidates == previous {
-                break;
-            }
-        }
+        let mut r_source = F5cBoxedRCandidateSource {
+            predicate: &predicate,
+            bounds: &raw_recursive_bounds,
+        };
+        let candidates = Self::r_candidates(
+            &mut self.memo,
+            &mut r_source,
+            &self.reentries,
+            &reentries_by_owner,
+            eligible,
+            &positive_only,
+            &negative_only,
+        )?;
         let mut retained_bounds = HashMap::with_capacity(candidates.len());
         for owner in &candidates {
             self.memo.work_meter.charge(1)?; // post-convergence bound owner

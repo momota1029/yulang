@@ -452,3 +452,42 @@ normalization, full callback/Q/R parity, and rollback after an actual later
 fallible stage remain open. Production still calls the boxed producer and
 remains the only production path. No resource certification, numeric boundary,
 §44 closure, F5e acceptance, or overall F5c completion is authorized.
+
+## 13. Shared R fixed-point slice (2026-09-26)
+
+The boxed producer and test-only FlatDraft adapter now use one `r_candidates`
+loop for candidate eligibility, bound replay and guarded-bound filtering,
+guarded trace pruning, predicate replay, raw-bound reference reachability, and
+fixed-point convergence. The boxed adapter preserves the prior replay order,
+work-charge sites, and candidate behavior. The FlatDraft adapter replays into
+its retained output arena and uses the same Walker analysis operations.
+
+The raw-forest test wrapper owns the open memo transaction across R filtering.
+On any R error it aborts the forest, rolls back root mutations and appended
+memo state, resets transient lanes, and poisons the candidate on rollback
+failure. The failure witness allows one replay to emit output before a later
+replay fails, compares persistent roots, edge/index/node lanes and visit state,
+verifies idle transient state and monotonic work, then retries a warm lookup.
+
+Flat replay charges initialization for both source-wide active arrays before
+allocation. The arrays and the five retained output lanes have distinct
+capacity accounting and participate in co-resident observations with source,
+memo, and forest storage. Replay drops temporary arrays before releasing their
+lanes; the R owner drops output before releasing its five lanes. Direct replay
+fixtures use the same release lifecycle.
+
+The M3 compiler-referee, spec-auditor, and performance-auditor delta reviews
+found no remaining blocking or major issue. A minor rollback assertion gap was
+closed by checking all five output lanes; a minor error-path drop-order gap was
+closed by dropping the second active array before releasing its lane. Focused
+flat-walker (25), replay (6), generalization-transaction (11), and composed
+replay/substitution/normalization (1) tests pass, as do solver library and
+test-target checks, formatting, and diff checks. No resource measurement or
+§15 probe ran.
+
+This slice shares only the R fixed-point filter. Post-convergence retained-R
+assembly and order, Q/R ordinal assignment, flat substitution and
+normalization integration, complete callback/Q/R parity, and rollback through
+those later fallible stages remain open. Production remains boxed. No resource
+certification, numeric boundary, §44 closure, F5e acceptance, or overall F5c
+completion is authorized.

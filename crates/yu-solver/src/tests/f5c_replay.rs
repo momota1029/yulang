@@ -333,6 +333,7 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
         &output.negative_children[2..],
         &[NegativeId(4), NegativeId(6)]
     );
+    crate::f5c_replay::release_flat_output(&mut memo, output);
 }
 
 #[test]
@@ -380,6 +381,7 @@ fn f5c_flat_replay_preserves_repeated_edge_occurrences() {
     assert_eq!(output.positive_children, vec![PositiveId(0), PositiveId(1)]);
     let expanded = F5cPositive::Union(vec![F5cPositive::Int, F5cPositive::Int]);
     assert_eq!(expanded, expected);
+    crate::f5c_replay::release_flat_output(&mut memo, output);
 }
 
 #[test]
@@ -452,15 +454,16 @@ fn f5c_flat_replay_restores_output_after_a_late_cycle() {
         (
             output.quantifier_count,
             output.predicate,
-            output.positive_nodes,
-            output.negative_nodes,
-            output.positive_children,
-            output.negative_children,
-            output.recursive_bounds,
-            output.insertion_order,
+            output.positive_nodes.clone(),
+            output.negative_nodes.clone(),
+            output.positive_children.clone(),
+            output.negative_children.clone(),
+            output.recursive_bounds.clone(),
+            output.insertion_order.clone(),
         ),
         before
     );
+    crate::f5c_replay::release_flat_output(&mut memo, output);
 }
 
 #[test]
@@ -524,6 +527,7 @@ fn f5c_flat_replay_handles_deep_drafts_on_a_small_stack() {
                     0
                 );
             }
+            crate::f5c_replay::release_flat_output(&mut memo, output);
         })
         .unwrap();
     worker.join().unwrap();
