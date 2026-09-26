@@ -274,6 +274,7 @@ pub(super) enum F5cTestReserveFailure {
     OrderAfterSeen,
     ReentryPathAfterReserve,
     RawOwnerOrder,
+    BoxedReentryIndices,
     ChildrenAfterReserve,
     RootUndo,
 }
@@ -372,10 +373,16 @@ pub(super) enum F5cWalkerLaneKind {
     OrderSeen = 82,
     Reentries = 83,
     ReentryPaths = 84,
+    BoxedRawBounds = 85,
+    BoxedCompletedOwners = 86,
+    BoxedReentriesByOwner = 87,
+    BoxedReentryIndices = 88,
+    BoxedPositiveOnly = 89,
+    BoxedNegativeOnly = 90,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 85] = [
+    pub(super) const ALL: [Self; 91] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -461,6 +468,12 @@ impl F5cWalkerLaneKind {
         Self::OrderSeen,
         Self::Reentries,
         Self::ReentryPaths,
+        Self::BoxedRawBounds,
+        Self::BoxedCompletedOwners,
+        Self::BoxedReentriesByOwner,
+        Self::BoxedReentryIndices,
+        Self::BoxedPositiveOnly,
+        Self::BoxedNegativeOnly,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -554,6 +567,12 @@ impl F5cWalkerLaneKind {
             }
             Self::Path | Self::ReentryPaths => std::mem::size_of::<F5cTraceHop>(),
             Self::Reentries => std::mem::size_of::<F5cGuardedTrace>(),
+            Self::BoxedRawBounds => std::mem::size_of::<(u32, (F5cPositive, F5cNegative))>(),
+            Self::BoxedCompletedOwners | Self::BoxedPositiveOnly | Self::BoxedNegativeOnly => {
+                std::mem::size_of::<u32>()
+            }
+            Self::BoxedReentriesByOwner => std::mem::size_of::<(u32, Vec<usize>)>(),
+            Self::BoxedReentryIndices => std::mem::size_of::<usize>(),
         }
     }
 }
@@ -584,13 +603,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 85],
+    pub(super) lanes: [F5cWalkerLane; 91],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 85],
+    pub(super) independent_lanes: [F5cWalkerLane; 91],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -603,13 +622,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 85],
+            lanes: [F5cWalkerLane::default(); 91],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 85],
+            independent_lanes: [F5cWalkerLane::default(); 91],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
@@ -622,6 +641,118 @@ impl Default for F5cWalkerResources {
 }
 
 impl F5cWalkerResources {
+    fn reserve_boxed_map<K: Eq + std::hash::Hash, V>(
+        &mut self,
+        map: &mut HashMap<K, V>,
+        kind: F5cWalkerLaneKind,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let index = kind as usize;
+        let requested = self.lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let growth = self.lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_requested = self.independent_lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth = self.independent_lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = map.capacity();
+        let reservation = map.try_reserve(1);
+        let capacity = map.capacity();
+        self.lanes[index].requested_slots = requested;
+        self.lanes[index].actual_capacity = capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].requested_slots = independent_requested;
+            self.independent_lanes[index].actual_capacity = capacity;
+        }
+        if capacity != old {
+            self.lanes[index].capacity_growths = growth;
+            self.lanes[index].peak_bytes = self.lanes[index].peak_bytes.max(
+                capacity
+                    .checked_mul(kind.slot_size())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].capacity_growths = independent_growth;
+                self.independent_lanes[index].peak_bytes = self.lanes[index].peak_bytes;
+            }
+            self.observe_memo(memo_bytes)?;
+            self.observed_memo_bytes = memo_bytes;
+        }
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn reserve_boxed_indices(
+        &mut self,
+        indices: &mut Vec<usize>,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let kind = F5cWalkerLaneKind::BoxedReentryIndices;
+        let index = kind as usize;
+        let requested = self.lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let growth = self.lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_requested = self.independent_lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth = self.independent_lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = indices.capacity();
+        let reservation = indices.try_reserve(1);
+        let delta = indices
+            .capacity()
+            .checked_sub(old)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let capacity = self.lanes[index]
+            .actual_capacity
+            .checked_add(delta)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.lanes[index].requested_slots = requested;
+        self.lanes[index].actual_capacity = capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].requested_slots = independent_requested;
+            self.independent_lanes[index].actual_capacity = capacity;
+        }
+        if delta != 0 {
+            self.lanes[index].capacity_growths = growth;
+            self.lanes[index].peak_bytes = self.lanes[index].peak_bytes.max(
+                capacity
+                    .checked_mul(kind.slot_size())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].capacity_growths = independent_growth;
+                self.independent_lanes[index].peak_bytes = self.lanes[index].peak_bytes;
+            }
+            self.observe_memo(memo_bytes)?;
+            self.observed_memo_bytes = memo_bytes;
+        }
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
     fn reserve_generalizer_set<T: Eq + std::hash::Hash>(
         &mut self,
         set: &mut HashSet<T>,
@@ -1259,6 +1390,8 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) checked_materialization_scratch_sample: Option<[usize; 13]>,
     #[cfg(test)]
     pub(super) boxed_materialization_callback_trace: Vec<(u32, Polarity)>,
+    #[cfg(test)]
+    pub(super) boxed_raw_lanes_live_sample: Option<([usize; 6], [usize; 6])>,
     #[cfg(test)]
     pub(super) independent_generalizer_scratch_peak_bytes: usize,
     #[cfg(test)]
@@ -2748,6 +2881,10 @@ impl F5cComponentExpansionMemo {
         self.simultaneous_peak_bytes = 0;
         #[cfg(test)]
         self.capacity_samples.clear();
+        #[cfg(test)]
+        {
+            self.boxed_raw_lanes_live_sample = None;
+        }
         #[cfg(test)]
         {
             self.independent_generalizer_scratch_peak_bytes = 0;
@@ -4837,14 +4974,6 @@ impl<'a> F5cGeneralizer<'a> {
                     .bounds
                     .get(owner as usize)
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                let copied = bounds
-                    .direct_lower_rows
-                    .len()
-                    .checked_add(bounds.direct_upper_rows.len())
-                    .and_then(|n| n.checked_add(bounds.exact_non_variable_lowers.len()))
-                    .and_then(|n| n.checked_add(bounds.exact_non_variable_uppers.len()))
-                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                self.memo.work_meter.charge(copied)?;
                 let has_lower = !bounds.exact_non_variable_lowers.is_empty()
                     || !bounds.direct_lower_rows.is_empty();
                 let has_upper = !bounds.exact_non_variable_uppers.is_empty()
@@ -6343,6 +6472,12 @@ impl<'a> F5cGeneralizer<'a> {
             F5cWalkerLaneKind::ClosureResult,
             F5cWalkerLaneKind::RawPositiveIncidences,
             F5cWalkerLaneKind::RawNegativeIncidences,
+            F5cWalkerLaneKind::BoxedRawBounds,
+            F5cWalkerLaneKind::BoxedCompletedOwners,
+            F5cWalkerLaneKind::BoxedReentriesByOwner,
+            F5cWalkerLaneKind::BoxedReentryIndices,
+            F5cWalkerLaneKind::BoxedPositiveOnly,
+            F5cWalkerLaneKind::BoxedNegativeOnly,
         ] {
             self.memo.walker_resources.release(kind);
         }
@@ -6353,6 +6488,10 @@ impl<'a> F5cGeneralizer<'a> {
         &mut self,
         root: u32,
     ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+        #[cfg(test)]
+        {
+            self.memo.boxed_raw_lanes_live_sample = None;
+        }
         let predicate = self.positive_row(root, true)?;
         let mut raw_recursive_bounds = HashMap::new();
         let mut raw_owner_order = Vec::new();
@@ -6363,41 +6502,43 @@ impl<'a> F5cGeneralizer<'a> {
             let ordinal = self.reentries[next_owner].owner;
             next_owner += 1;
             self.memo.work_meter.charge(1)?; // completed-owner entry
-            if !completed_owners.insert(ordinal) {
+            if completed_owners.contains(&ordinal) {
                 continue;
             }
+            self.memo.walker_resources.reserve_generalizer_set(
+                &mut completed_owners,
+                F5cWalkerLaneKind::BoxedCompletedOwners,
+                self.memo.retained_bytes()?,
+            )?;
+            completed_owners.insert(ordinal);
             let bounds = self
                 .session
                 .bounds
                 .get(ordinal as usize)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            let copied = bounds
-                .direct_lower_rows
-                .len()
-                .checked_add(bounds.direct_upper_rows.len())
-                .and_then(|count| count.checked_add(bounds.exact_non_variable_lowers.len()))
-                .and_then(|count| count.checked_add(bounds.exact_non_variable_uppers.len()))
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            self.memo.work_meter.charge(copied)?;
-            let bounds = bounds.clone();
+            let lower_empty =
+                bounds.exact_non_variable_lowers.is_empty() && bounds.direct_lower_rows.is_empty();
+            let upper_empty =
+                bounds.exact_non_variable_uppers.is_empty() && bounds.direct_upper_rows.is_empty();
             let expanded_lower = self.positive_row(ordinal, false)?;
             let expanded_upper = self.negative_row(ordinal)?;
-            let lower = if bounds.exact_non_variable_lowers.is_empty()
-                && bounds.direct_lower_rows.is_empty()
-            {
+            let lower = if lower_empty {
                 F5cPositive::Bottom
             } else {
                 expanded_lower
             };
-            let upper = if bounds.exact_non_variable_uppers.is_empty()
-                && bounds.direct_upper_rows.is_empty()
-            {
+            let upper = if upper_empty {
                 F5cNegative::Top
             } else {
                 expanded_upper
             };
             self.memo.work_meter.charge(1)?; // raw bound entry
             self.memo.work_meter.charge(1)?; // raw owner order entry
+            self.memo.walker_resources.reserve_boxed_map(
+                &mut raw_recursive_bounds,
+                F5cWalkerLaneKind::BoxedRawBounds,
+                self.memo.retained_bytes()?,
+            )?;
             let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
             let old = raw_owner_order.capacity();
             let reservation = raw_owner_order.try_reserve(1);
@@ -6424,10 +6565,31 @@ impl<'a> F5cGeneralizer<'a> {
         for (index, trace) in self.reentries.iter().enumerate() {
             self.memo.work_meter.charge(1)?; // indexed trace record
             self.memo.work_meter.charge(1)?; // owner index entry
-            reentries_by_owner
-                .entry(trace.owner)
-                .or_default()
-                .push(index);
+            if let Some(indices) = reentries_by_owner.get_mut(&trace.owner) {
+                self.memo
+                    .walker_resources
+                    .reserve_boxed_indices(indices, self.memo.retained_bytes()?)?;
+                indices.push(index);
+            } else {
+                self.memo.walker_resources.reserve_boxed_map(
+                    &mut reentries_by_owner,
+                    F5cWalkerLaneKind::BoxedReentriesByOwner,
+                    self.memo.retained_bytes()?,
+                )?;
+                let mut indices = Vec::new();
+                self.memo
+                    .walker_resources
+                    .reserve_boxed_indices(&mut indices, self.memo.retained_bytes()?)?;
+                #[cfg(test)]
+                if self.memo.fail_reserve_at
+                    == Some((F5cTestReserveFailure::BoxedReentryIndices, index))
+                {
+                    self.memo.fail_reserve_at = None;
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                }
+                indices.push(index);
+                reentries_by_owner.insert(trace.owner, indices);
+            }
         }
         let non_generic = self.non_generic_closure()?;
         let eligible = |ordinal: u32| {
@@ -6459,16 +6621,48 @@ impl<'a> F5cGeneralizer<'a> {
             if eligible(owner) {
                 if positive_incidences.contains(&owner) && !negative_incidences.contains(&owner) {
                     self.memo.work_meter.charge(1)?; // positive-only entry
+                    self.memo.walker_resources.reserve_generalizer_set(
+                        &mut positive_only,
+                        F5cWalkerLaneKind::BoxedPositiveOnly,
+                        self.memo.retained_bytes()?,
+                    )?;
                     positive_only.insert(owner);
                 }
                 self.memo.work_meter.charge(1)?; // second eligibility/order scan
                 if negative_incidences.contains(&owner) && !positive_incidences.contains(&owner) {
                     self.memo.work_meter.charge(1)?; // negative-only entry
+                    self.memo.walker_resources.reserve_generalizer_set(
+                        &mut negative_only,
+                        F5cWalkerLaneKind::BoxedNegativeOnly,
+                        self.memo.retained_bytes()?,
+                    )?;
                     negative_only.insert(owner);
                 }
             } else {
                 self.memo.work_meter.charge(1)?; // second eligibility/order scan
             }
+        }
+        #[cfg(test)]
+        {
+            let kinds = [
+                F5cWalkerLaneKind::BoxedRawBounds,
+                F5cWalkerLaneKind::BoxedCompletedOwners,
+                F5cWalkerLaneKind::BoxedReentriesByOwner,
+                F5cWalkerLaneKind::BoxedReentryIndices,
+                F5cWalkerLaneKind::BoxedPositiveOnly,
+                F5cWalkerLaneKind::BoxedNegativeOnly,
+            ];
+            let physical = [
+                raw_recursive_bounds.capacity(),
+                completed_owners.capacity(),
+                reentries_by_owner.capacity(),
+                reentries_by_owner.values().map(Vec::capacity).sum(),
+                positive_only.capacity(),
+                negative_only.capacity(),
+            ];
+            let reported =
+                kinds.map(|kind| self.memo.walker_resources.lanes[kind as usize].actual_capacity);
+            self.memo.boxed_raw_lanes_live_sample = Some((physical, reported));
         }
         let mut r_source = F5cBoxedRCandidateSource {
             predicate: &predicate,

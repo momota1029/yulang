@@ -10,6 +10,12 @@ fn assert_generalizer_physical_lanes_idle(memo: &F5cComponentExpansionMemo) {
         F5cWalkerLaneKind::OrderSeen,
         F5cWalkerLaneKind::Reentries,
         F5cWalkerLaneKind::ReentryPaths,
+        F5cWalkerLaneKind::BoxedRawBounds,
+        F5cWalkerLaneKind::BoxedCompletedOwners,
+        F5cWalkerLaneKind::BoxedReentriesByOwner,
+        F5cWalkerLaneKind::BoxedReentryIndices,
+        F5cWalkerLaneKind::BoxedPositiveOnly,
+        F5cWalkerLaneKind::BoxedNegativeOnly,
     ] {
         let lane = memo.walker_resources.lanes[kind as usize];
         assert_eq!(lane.actual_capacity, 0, "lane {}", kind as usize);
@@ -566,8 +572,53 @@ fn f5c_raw_owner_order_reserve_failure_rolls_back_and_retries() {
     assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
     assert_generalizer_physical_lanes_idle(&memo);
     assert!(memo.scratch_lane.requested_slots > 0);
-    let (retry, _, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (retry, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
     assert!(retry.is_ok());
+    let (physical, reported) = memo.boxed_raw_lanes_live_sample.unwrap();
+    assert_eq!(physical, reported);
+    assert!(physical[..4].iter().all(|capacity| *capacity > 0));
+}
+
+#[test]
+fn f5c_boxed_reentry_second_lane_failure_rolls_back_and_retries() {
+    let batch = collect(module("my f = 1", "f5c-boxed-reentry-index-reserve"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    let relay = session.fresh_value_at_level(1).unwrap();
+    let argument = session.negative_top_term().unwrap();
+    let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+    let function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            result,
+        )
+        .unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(function));
+    session.bounds[relay as usize].direct_lower_rows.push(root);
+    let mut memo = F5cComponentExpansionMemo::default();
+    let before = persistent_memo_state!(memo);
+    memo.fail_reserve_at = Some((F5cTestReserveFailure::BoxedReentryIndices, 0));
+    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+    assert_eq!(persistent_memo_state!(memo), before);
+    assert_generalizer_physical_lanes_idle(&memo);
+    for kind in [
+        F5cWalkerLaneKind::BoxedReentriesByOwner,
+        F5cWalkerLaneKind::BoxedReentryIndices,
+    ] {
+        let lane = memo.walker_resources.lanes[kind as usize];
+        assert!(lane.requested_slots > 0 && lane.peak_bytes > 0);
+    }
+    let (retry, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    assert!(retry.is_ok());
+    let (physical, reported) = memo.boxed_raw_lanes_live_sample.unwrap();
+    assert_eq!(physical, reported);
 }
 
 #[test]

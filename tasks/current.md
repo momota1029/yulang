@@ -4,6 +4,36 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): raw owner-loop physical lanes
+
+The remaining `build_inner_work` raw owner collections now use six typed
+`F5cWalkerResources` lanes: raw bounds map, completed-owner set, owner-to-trace
+map, aggregate nested trace-index vectors, and polarity-only sets. Lane
+capacities stay live through R selection, then release after the local
+collections drop on success or error. `raw_owner_order` remains in its
+existing scratch slot 3 and is not double counted. The four-vector
+`VariableBounds` clone was replaced with the same two lower/upper emptiness
+decisions while borrowing the frozen session row.
+
+M2 spec-auditor and performance-auditor reviews found a major stale work-meter
+charge in both boxed and flat raw-owner paths: the old code charged all bound
+endpoints as copied even after it stopped copying them. Two focused repair
+rounds removed both precharges; fresh spec delta review confirms that the shared
+walkers still charge actual endpoint visits. Focused checks passed:
+`RUSTC_WRAPPER= cargo check -p yu-solver --tests --message-format short`,
+transaction tests (15), flat-walk tests (36), work-meter tests (13), boxed/flat
+Q/R/normalization parity (1), `cargo fmt --all --check`, and `git diff
+--check`. No broad suite, probe, benchmark, or timing measurement ran.
+
+The focused live-lane witness reconstructs capacities from the six actual
+collections and covers map-then-nested-vector reserve failure, rollback, and
+retry. This closes only the raw owner-loop lanes. Next account the shared R
+fixed-point and post-R collections, then close boxed normalizer failed-reserve
+observation and the solver/draft/finalizer same-time ledger. The full independent
+physical ledger and fresh §15 plan review remain prerequisites to any probe.
+Production stays boxed; no admission boundary, numeric limit, cutover, §44,
+F5e, or overall F5c acceptance is claimed.
+
 ### Latest continuation (2026-09-27): persistent producer-state lanes
 
 The next seven persistent `F5cGeneralizer` states now use typed lanes in the
@@ -26,7 +56,7 @@ and the nested-path test (1); `cargo fmt --check`; `git diff --check`. No
 resource probe, benchmark, or broad suite ran.
 
 This closes only persistent producer state. Next account the remaining
-`build_inner`/R-selection local collections, then the boxed normalizer failed-
+R fixed-point and post-R local collections, then the boxed normalizer failed-
 reserve path and solver/draft/finalizer same-time peak in their existing owners.
 Only after that physical ledger is complete should a fresh §15 plan receive
 independent review before any probe. Production remains boxed; no producer
@@ -63,11 +93,11 @@ initially exposed pre-existing production-only unused fields
 follow-up marks their test-only use at the owning fields; `cargo check` now
 passes without warnings. No resource probe, benchmark, or broad suite ran.
 
-This closes only the closure/raw-incidence lane slice. The next implementation
-gate is the remaining `build_inner`/R-selection locals, followed by boxed
-normalizer failed-reserve observation and the solver/draft/finalizer same-time
-peak. Only after those owner gates close should a fresh §15 plan receive
-independent review.
+This closes only the closure/raw-incidence lane slice. The next gates are the
+remaining `build_inner`/R-selection locals, followed by boxed normalizer
+failed-reserve observation and the solver/draft/finalizer same-time peak. Only
+after those owner gates close should a fresh §15 plan receive independent
+review.
 Producer incidence admission, numeric support boundary, production cutover,
 §44 closure, F5e acceptance, and overall F5c completion remain open. No user
 decision arose in this slice.

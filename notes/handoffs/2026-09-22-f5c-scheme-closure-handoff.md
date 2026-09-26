@@ -3329,3 +3329,30 @@ finalizer same-time peak in existing owners. Only after the complete physical
 ledger closes should the fresh §15 probe plan be independently reviewed.
 Production remains boxed; no admission boundary, numeric limit, cutover, §44,
 F5e, or overall F5c acceptance is claimed.
+
+## Latest continuation (2026-09-27): raw owner-loop physical lanes
+
+Six typed lanes now account `build_inner_work`'s raw bounds map,
+completed-owner set, owner-to-trace map, aggregate nested trace-index vectors,
+and positive/negative-only sets. The lane capacities remain live through R
+selection and release after the local collections drop on success/error.
+`raw_owner_order` stays solely in its existing scratch slot 3. The four-vector
+`VariableBounds` clone was removed while preserving its lower/upper emptiness
+decisions and the remaining row-walker charges.
+
+M2 spec-auditor and performance-auditor review found that both boxed and flat
+raw-owner paths still charged every bounds endpoint as copied after removing
+the clone. Two focused repair rounds removed the stale precharges. Fresh spec
+delta review confirms both paths borrow the external row and the shared
+walkers charge actual endpoint visits. Focused checks passed: solver
+test-target check; transaction tests (15), flat-walk tests (36), work-meter
+tests (13), boxed/flat Q/R/normalization parity (1); formatting and diff checks.
+No broad suite, resource probe, benchmark, or timing measurement ran.
+
+The independent live-lane witness reads the actual six capacities and covers a
+map-then-nested-index reserve failure, rollback, and retry. Next close shared R
+fixed-point and post-R lanes; then the boxed normalizer failed-reserve path and
+solver/draft/finalizer same-time peak. The complete independently reconstructed
+physical ledger and fresh §15 plan review remain prerequisites to probes.
+Production stays boxed; no admission boundary, numeric limit, cutover, §44,
+F5e, or overall F5c acceptance is claimed.
