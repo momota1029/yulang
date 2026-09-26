@@ -19452,6 +19452,11 @@ mod tests {
                 Err(SolveAvailabilityError::IdentityExhausted),
                 "polarity={polarity:?}"
             );
+            drop(non_generic);
+            generalizer
+                .memo
+                .walker_resources
+                .release(crate::f5c_generalization::F5cWalkerLaneKind::ClosureResult);
         }
     }
 
@@ -19490,6 +19495,82 @@ mod tests {
         let mut generalizer = F5cGeneralizer::new(&session);
         let closure = generalizer.non_generic_closure().unwrap();
         assert!(closure.is_superset(&HashSet::from([seed, connected, root_row])));
+        use crate::f5c_generalization::F5cWalkerLaneKind as Lane;
+        let resources = &generalizer.memo.walker_resources;
+        let result = resources.lanes[Lane::ClosureResult as usize];
+        assert_eq!(result.actual_capacity, closure.capacity());
+        assert!(result.requested_slots >= closure.len());
+        for kind in [
+            Lane::ClosureAdjacency,
+            Lane::ClosureNeighbors,
+            Lane::ClosureConnected,
+            Lane::ClosureFrontier,
+        ] {
+            let lane = resources.lanes[kind as usize];
+            assert_eq!(lane.actual_capacity, 0);
+            let independent = resources.independent_lanes[kind as usize];
+            assert_eq!(
+                (
+                    lane.requested_slots,
+                    lane.actual_capacity,
+                    lane.capacity_growths,
+                    lane.peak_bytes
+                ),
+                (
+                    independent.requested_slots,
+                    independent.actual_capacity,
+                    independent.capacity_growths,
+                    independent.peak_bytes
+                )
+            );
+        }
+        drop(closure);
+        generalizer
+            .memo
+            .walker_resources
+            .release(Lane::ClosureResult);
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[Lane::ClosureResult as usize].actual_capacity,
+            0
+        );
+    }
+
+    #[test]
+    fn f5c_non_generic_closure_failure_releases_scratch_and_retries() {
+        use crate::f5c_generalization::F5cWalkerLaneKind as Lane;
+        let batch = collect(module("my f = 1", "f5c-closure-retry"));
+        let mut session = InferenceSession::new(batch);
+        let seed = session.fresh_value_at_level(1).unwrap();
+        session.value_metadata[seed as usize].non_generic = true;
+        let mut generalizer = F5cGeneralizer::new(&session);
+        generalizer.memo.work_meter.set(usize::MAX);
+        assert_eq!(
+            generalizer.non_generic_closure(),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        for kind in [
+            Lane::ClosureAdjacency,
+            Lane::ClosureNeighbors,
+            Lane::ClosureConnected,
+            Lane::ClosureResult,
+            Lane::ClosureFrontier,
+        ] {
+            assert_eq!(
+                generalizer.memo.walker_resources.lanes[kind as usize].actual_capacity,
+                0
+            );
+        }
+        assert!(
+            generalizer.memo.walker_resources.lanes[Lane::ClosureAdjacency as usize].peak_bytes > 0
+        );
+        generalizer.memo.work_meter.set(0);
+        let closure = generalizer.non_generic_closure().unwrap();
+        assert!(closure.contains(&seed));
+        drop(closure);
+        generalizer
+            .memo
+            .walker_resources
+            .release(Lane::ClosureResult);
     }
 
     #[test]

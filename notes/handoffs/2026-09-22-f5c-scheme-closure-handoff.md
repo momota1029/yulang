@@ -3249,3 +3249,41 @@ independent review of a fresh §15 plan before any probe. Producer incidence
 admission and measured resource bounds remain open. Production is still boxed;
 there is no numeric support boundary, production cutover, §44 closure, F5e
 acceptance, or overall F5c completion.
+
+## Latest continuation (2026-09-27): closure and raw-incidence physical lanes
+
+The first solver-side lane slice now accounts `non_generic_closure` adjacency
+storage, aggregate nested-neighbor capacities, its connected/result/frontier
+sets, and the raw positive/negative incidence sets. These seven private lanes
+extend the existing `F5cWalkerResources` owner. Fallible reserve paths observe
+actual capacity and memo co-peak before returning either reserve result. Caller
+wrappers release transient lanes after storage drops on success and errors;
+returned closure/incidence sets stay accounted while the caller uses them.
+Boxed and flat incidence paths use the same owner.
+
+The M2 compiler-referee review was clean. Performance review initially raised
+an incorrect control-byte exclusion claim; primary rejected it because F5 §34
+explicitly excludes allocator metadata/control bytes from `capacity *
+size_of::<slot>()`. The duplicate-at-capacity reserve issue was accepted and
+repaired. Follow-up review exposed a repeated full-table novelty probe; the
+repair co-located that decision and the fresh delta review found no remaining
+issue. Requested attempts remain counted once; duplicates do not grow a full
+set.
+
+Focused checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+f5c_flat_walk_sink -- --test-threads=1` (36),
+`RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_non_generic_closure --
+--test-threads=1` (2), `RUSTC_WRAPPER= cargo check -p yu-solver --lib
+--message-format short`, `cargo fmt --all --check`, and `git diff --check`.
+The package check still reports the existing `F5cPostRSelection` fields
+`retained_bounds` and `retained_predicate` as dead code in the production
+configuration; fix this in a separate M0 change. No resource probe, benchmark,
+or broad suite ran.
+
+This is a first physical-lane slice, not completion of the pre-probe ledger.
+Next account persistent producer state and nested trace paths, remaining
+`build_inner`/R-selection allocations, boxed normalizer failed-reserve
+observation, and the all-drafts plus finalizer same-time peak. Then prepare and
+independently review the fresh §15 plan before any probe. Production remains
+boxed; producer incidence admission, numeric boundary, cutover, §44, F5e, and
+overall F5c closure remain open.

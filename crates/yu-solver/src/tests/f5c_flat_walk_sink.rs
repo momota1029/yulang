@@ -2,6 +2,53 @@ use super::*;
 use crate::f5c_generalization::{F5cTestObservationFailure, F5cTestReserveFailure, F5cWalkTask};
 
 #[test]
+fn physical_set_duplicate_at_capacity_keeps_growth_and_counts_attempt() {
+    use crate::f5c_generalization::F5cWalkerLaneKind as Lane;
+    for kind in [
+        Lane::ClosureConnected,
+        Lane::ClosureNeighbors,
+        Lane::ClosureResult,
+        Lane::RawPositiveIncidences,
+        Lane::RawNegativeIncidences,
+    ] {
+        let mut memo = F5cComponentExpansionMemo::default();
+        let mut set = HashSet::new();
+        memo.insert_physical_set(&mut set, 0, kind).unwrap();
+        let capacity = set.capacity();
+        for value in 1..capacity as u32 {
+            memo.insert_physical_set(&mut set, value, kind).unwrap();
+        }
+        assert_eq!(set.len(), capacity);
+        let before = memo.walker_resources.lanes[kind as usize];
+        memo.insert_physical_set(&mut set, 0, kind).unwrap();
+        let after = memo.walker_resources.lanes[kind as usize];
+        assert_eq!(set.capacity(), capacity);
+        assert_eq!(after.actual_capacity, before.actual_capacity);
+        assert_eq!(after.capacity_growths, before.capacity_growths);
+        assert_eq!(after.requested_slots, before.requested_slots + 1);
+        assert_eq!(after.peak_bytes, before.peak_bytes);
+        drop(set);
+        memo.walker_resources.release(kind);
+        assert_eq!(
+            memo.walker_resources.lanes[kind as usize].actual_capacity,
+            0
+        );
+        let mut retry = HashSet::new();
+        memo.insert_physical_set(&mut retry, 0, kind).unwrap();
+        assert_eq!(
+            memo.walker_resources.lanes[kind as usize].actual_capacity,
+            retry.capacity()
+        );
+        drop(retry);
+        memo.walker_resources.release(kind);
+        assert_eq!(
+            memo.walker_resources.lanes[kind as usize].actual_capacity,
+            0
+        );
+    }
+}
+
+#[test]
 fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
     use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
     use std::collections::{HashMap, HashSet};
@@ -60,15 +107,17 @@ fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
             ),
         ),
     ]);
+    let mut boxed_memo = F5cComponentExpansionMemo::default();
+    let mut indexed_memo = F5cComponentExpansionMemo::default();
     let boxed = F5cGeneralizer::boxed_raw_forest_incidences_for_test(
-        &mut F5cComponentExpansionMemo::default(),
+        &mut boxed_memo,
         &boxed_predicate,
         &order,
         &boxed_bounds,
     )
     .unwrap();
     let indexed = F5cGeneralizer::flat_raw_forest_incidences_for_test(
-        &mut F5cComponentExpansionMemo::default(),
+        &mut indexed_memo,
         &flat,
         &order,
         &flat_bounds,
@@ -82,6 +131,70 @@ fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
         )
     );
     assert_eq!(indexed, boxed);
+    for (memo, sets) in [(&boxed_memo, &boxed), (&indexed_memo, &indexed)] {
+        for (kind, set) in [
+            (F5cWalkerLaneKind::RawPositiveIncidences, &sets.0),
+            (F5cWalkerLaneKind::RawNegativeIncidences, &sets.1),
+        ] {
+            let lane = memo.walker_resources.lanes[kind as usize];
+            let independent = memo.walker_resources.independent_lanes[kind as usize];
+            assert_eq!(lane.actual_capacity, set.capacity());
+            assert_eq!(lane.requested_slots, independent.requested_slots);
+            assert_eq!(lane.capacity_growths, independent.capacity_growths);
+            assert_eq!(lane.peak_bytes, independent.peak_bytes);
+        }
+    }
+    drop(boxed);
+    drop(indexed);
+    for memo in [&mut boxed_memo, &mut indexed_memo] {
+        memo.walker_resources
+            .release(F5cWalkerLaneKind::RawPositiveIncidences);
+        memo.walker_resources
+            .release(F5cWalkerLaneKind::RawNegativeIncidences);
+        assert_eq!(memo.walker_resources.retained_bytes().unwrap(), 0);
+    }
+}
+
+#[test]
+fn raw_incidence_failure_releases_sets_and_retry_recounts_capacity() {
+    use crate::f5c_generalization::F5cWalkerLaneKind as Lane;
+    let predicate = F5cPositive::Union(vec![F5cPositive::Variable(1), F5cPositive::Variable(2)]);
+    let mut memo = F5cComponentExpansionMemo::default();
+    memo.work_meter.set(usize::MAX - 7);
+    assert_eq!(
+        F5cGeneralizer::boxed_raw_forest_incidences_for_test(
+            &mut memo,
+            &predicate,
+            &[],
+            &HashMap::new()
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    for kind in [Lane::RawPositiveIncidences, Lane::RawNegativeIncidences] {
+        assert_eq!(
+            memo.walker_resources.lanes[kind as usize].actual_capacity,
+            0
+        );
+    }
+    assert!(memo.walker_resources.lanes[Lane::RawPositiveIncidences as usize].peak_bytes > 0);
+    memo.work_meter.set(0);
+    let (positive, negative) = F5cGeneralizer::boxed_raw_forest_incidences_for_test(
+        &mut memo,
+        &predicate,
+        &[],
+        &HashMap::new(),
+    )
+    .unwrap();
+    assert_eq!(positive, HashSet::from([1, 2]));
+    assert!(negative.is_empty());
+    assert_eq!(
+        memo.walker_resources.lanes[Lane::RawPositiveIncidences as usize].actual_capacity,
+        positive.capacity()
+    );
+    drop(positive);
+    drop(negative);
+    memo.walker_resources.release(Lane::RawPositiveIncidences);
+    memo.walker_resources.release(Lane::RawNegativeIncidences);
 }
 
 #[test]

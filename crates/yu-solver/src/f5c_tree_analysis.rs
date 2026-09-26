@@ -357,15 +357,23 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event, _memo| {
+            |event, memo| {
                 Ok({
                     if let Event::Value(owner, polarity, _) = event {
                         match polarity {
                             Polarity::Positive => {
-                                positive.insert(owner);
+                                memo.insert_physical_set(
+                                    positive,
+                                    owner,
+                                    F5cWalkerLaneKind::RawPositiveIncidences,
+                                )?;
                             }
                             Polarity::Negative => {
-                                negative.insert(owner);
+                                memo.insert_physical_set(
+                                    negative,
+                                    owner,
+                                    F5cWalkerLaneKind::RawNegativeIncidences,
+                                )?;
                             }
                         }
                     }
@@ -386,15 +394,23 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event, _memo| {
+            |event, memo| {
                 Ok({
                     if let Event::Value(owner, polarity, _) = event {
                         match polarity {
                             Polarity::Positive => {
-                                positive.insert(owner);
+                                memo.insert_physical_set(
+                                    positive,
+                                    owner,
+                                    F5cWalkerLaneKind::RawPositiveIncidences,
+                                )?;
                             }
                             Polarity::Negative => {
-                                negative.insert(owner);
+                                memo.insert_physical_set(
+                                    negative,
+                                    owner,
+                                    F5cWalkerLaneKind::RawNegativeIncidences,
+                                )?;
                             }
                         }
                     }
@@ -452,21 +468,36 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         )
     }
 
+    #[cfg(test)]
     pub(super) fn term_rows(
         &mut self,
         store: &ConstraintStore,
         term: Term,
         rows: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
+        self.term_rows_with_lane(store, term, rows, None)
+    }
+
+    pub(super) fn term_rows_with_lane(
+        &mut self,
+        store: &ConstraintStore,
+        term: Term,
+        rows: &mut HashSet<u32>,
+        lane: Option<F5cWalkerLaneKind>,
+    ) -> Result<(), SolveAvailabilityError> {
         self.walk(
             Task::Term(term),
             Some(store),
             #[cfg(test)]
             None,
-            |event, _memo| {
+            |event, memo| {
                 Ok({
                     if let Event::TermRow(row) = event {
-                        rows.insert(row);
+                        if let Some(kind) = lane {
+                            memo.insert_physical_set(rows, row, kind)?;
+                        } else {
+                            rows.insert(row);
+                        }
                     }
                     true
                 })
@@ -594,16 +625,24 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         positive: &mut HashSet<u32>,
         negative: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
-        self.flat_events(draft, root, |owner, polarity, _| {
+        self.flat_events_checked(draft, root, |owner, polarity, _, memo| {
             match polarity {
                 Polarity::Positive => {
-                    positive.insert(owner);
+                    memo.insert_physical_set(
+                        positive,
+                        owner,
+                        F5cWalkerLaneKind::RawPositiveIncidences,
+                    )?;
                 }
                 Polarity::Negative => {
-                    negative.insert(owner);
+                    memo.insert_physical_set(
+                        negative,
+                        owner,
+                        F5cWalkerLaneKind::RawNegativeIncidences,
+                    )?;
                 }
             }
-            true
+            Ok(true)
         })
     }
 

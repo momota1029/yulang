@@ -356,10 +356,17 @@ pub(super) enum F5cWalkerLaneKind {
     NormalizedNegativeChildren = 68,
     NormalizedRecursiveBounds = 69,
     NormalizedInsertionOrder = 70,
+    ClosureAdjacency = 71,
+    ClosureNeighbors = 72,
+    ClosureConnected = 73,
+    ClosureResult = 74,
+    ClosureFrontier = 75,
+    RawPositiveIncidences = 76,
+    RawNegativeIncidences = 77,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 71] = [
+    pub(super) const ALL: [Self; 78] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -431,6 +438,13 @@ impl F5cWalkerLaneKind {
         Self::NormalizedNegativeChildren,
         Self::NormalizedRecursiveBounds,
         Self::NormalizedInsertionOrder,
+        Self::ClosureAdjacency,
+        Self::ClosureNeighbors,
+        Self::ClosureConnected,
+        Self::ClosureResult,
+        Self::ClosureFrontier,
+        Self::RawPositiveIncidences,
+        Self::RawNegativeIncidences,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -511,6 +525,13 @@ impl F5cWalkerLaneKind {
             Self::NormalizedNegativeChildren => std::mem::size_of::<f5c_draft::NegativeId>(),
             Self::NormalizedRecursiveBounds => std::mem::size_of::<f5c_draft::RecursiveBound>(),
             Self::NormalizedInsertionOrder => std::mem::size_of::<f5c_draft::NodeRef>(),
+            Self::ClosureAdjacency => std::mem::size_of::<HashSet<u32>>(),
+            Self::ClosureNeighbors
+            | Self::ClosureConnected
+            | Self::ClosureResult
+            | Self::RawPositiveIncidences
+            | Self::RawNegativeIncidences => std::mem::size_of::<u32>(),
+            Self::ClosureFrontier => std::mem::size_of::<u32>(),
         }
     }
 }
@@ -541,13 +562,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 71],
+    pub(super) lanes: [F5cWalkerLane; 78],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 71],
+    pub(super) independent_lanes: [F5cWalkerLane; 78],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -560,13 +581,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 71],
+            lanes: [F5cWalkerLane::default(); 78],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 71],
+            independent_lanes: [F5cWalkerLane::default(); 78],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
@@ -803,6 +824,87 @@ impl F5cWalkerResources {
             self.observed_memo_bytes = memo_bytes;
         }
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        Ok(())
+    }
+
+    pub(super) fn insert_physical_set(
+        &mut self,
+        buffer: &mut HashSet<u32>,
+        value: u32,
+        kind: F5cWalkerLaneKind,
+        memo_bytes: usize,
+        needs_growth: bool,
+    ) -> Result<(), SolveAvailabilityError> {
+        if !needs_growth {
+            buffer.insert(value);
+            return Ok(());
+        }
+        let index = kind as usize;
+        let growth = self.lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth = self.independent_lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = buffer.capacity();
+        let reservation = buffer.try_reserve(1);
+        let capacity = buffer.capacity();
+        let aggregate = matches!(kind, F5cWalkerLaneKind::ClosureNeighbors);
+        let current = self.lanes[index].actual_capacity;
+        let new_capacity = if aggregate {
+            current
+                .checked_add(capacity.saturating_sub(old))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
+        } else {
+            capacity
+        };
+        self.lanes[index].actual_capacity = new_capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].actual_capacity = new_capacity;
+        }
+        if capacity != old {
+            self.lanes[index].capacity_growths = growth;
+            self.lanes[index].peak_bytes = self.lanes[index].peak_bytes.max(
+                new_capacity
+                    .checked_mul(kind.slot_size())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].capacity_growths = independent_growth;
+                self.independent_lanes[index].peak_bytes = self.lanes[index].peak_bytes;
+            }
+            self.observe_memo(memo_bytes)?;
+            self.observed_memo_bytes = memo_bytes;
+        }
+        reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        buffer.insert(value);
+        Ok(())
+    }
+
+    fn record_physical_set_attempt(
+        &mut self,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        let index = kind as usize;
+        let requested = self.lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_requested = self.independent_lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.lanes[index].requested_slots = requested;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].requested_slots = independent_requested;
+        }
         Ok(())
     }
 
@@ -1052,6 +1154,29 @@ impl F5cComponentExpansionMemo {
     ) -> Result<(), SolveAvailabilityError> {
         let memo_bytes = self.retained_bytes()?;
         self.walker_resources.reserve_set(targets, memo_bytes)
+    }
+
+    pub(super) fn insert_physical_set(
+        &mut self,
+        set: &mut HashSet<u32>,
+        value: u32,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        // Memo capacity may have changed since the last walker observation.
+        // Reconcile it only when this insertion can grow the physical table.
+        self.walker_resources.record_physical_set_attempt(kind)?;
+        let full = set.len() == set.capacity();
+        let duplicate = full && set.contains(&value);
+        let memo_bytes = if full && !duplicate {
+            self.retained_bytes()?
+        } else {
+            self.walker_resources.observed_memo_bytes
+        };
+        if duplicate {
+            return Ok(());
+        }
+        self.walker_resources
+            .insert_physical_set(set, value, kind, memo_bytes, full)
     }
 
     pub(super) fn observe_walker(&mut self) -> Result<(), SolveAvailabilityError> {
@@ -4935,8 +5060,35 @@ impl<'a> F5cGeneralizer<'a> {
     }
 
     pub(super) fn non_generic_closure(&mut self) -> Result<HashSet<u32>, SolveAvailabilityError> {
-        let mut adjacency = vec![HashSet::new(); self.session.bounds.len()];
+        let result = self.non_generic_closure_work();
+        for kind in [
+            F5cWalkerLaneKind::ClosureAdjacency,
+            F5cWalkerLaneKind::ClosureNeighbors,
+            F5cWalkerLaneKind::ClosureConnected,
+            F5cWalkerLaneKind::ClosureFrontier,
+        ] {
+            self.memo.walker_resources.release(kind);
+        }
+        if result.is_err() {
+            self.memo
+                .walker_resources
+                .release(F5cWalkerLaneKind::ClosureResult);
+        }
+        result
+    }
+
+    fn non_generic_closure_work(&mut self) -> Result<HashSet<u32>, SolveAvailabilityError> {
+        let mut adjacency = Vec::new();
         let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
+        let memo_bytes = walker.memo.retained_bytes()?;
+        walker.memo.walker_resources.reserve(
+            &mut adjacency,
+            F5cWalkerLaneKind::ClosureAdjacency,
+            self.session.bounds.len(),
+            memo_bytes,
+        )?;
+        adjacency.resize_with(self.session.bounds.len(), HashSet::new);
+        let mut connected = HashSet::new();
         for (owner, bounds) in self.session.bounds.iter().enumerate() {
             walker.memo.work_meter.charge(1)?; // scanned bounds owner
             let owner = owner as u32;
@@ -4946,12 +5098,18 @@ impl<'a> F5cGeneralizer<'a> {
                 .checked_add(bounds.direct_upper_rows.len())
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             walker.memo.work_meter.charge(direct_count)?; // copied direct adjacency endpoints
-            let mut connected = bounds
+            connected.clear();
+            for row in bounds
                 .direct_lower_rows
                 .iter()
                 .chain(&bounds.direct_upper_rows)
-                .copied()
-                .collect::<HashSet<_>>();
+            {
+                walker.memo.insert_physical_set(
+                    &mut connected,
+                    *row,
+                    F5cWalkerLaneKind::ClosureConnected,
+                )?;
+            }
             for endpoint in bounds
                 .exact_non_variable_lowers
                 .iter()
@@ -4960,22 +5118,39 @@ impl<'a> F5cGeneralizer<'a> {
                 walker.memo.work_meter.charge(1)?; // examined exact endpoint
                 match endpoint {
                     ValueEndpointKey::ValueRow(row) => {
-                        connected.insert(*row);
+                        walker.memo.insert_physical_set(
+                            &mut connected,
+                            *row,
+                            F5cWalkerLaneKind::ClosureConnected,
+                        )?;
                     }
                     ValueEndpointKey::PositiveFunction(term)
                     | ValueEndpointKey::NegativeFunction(term) => {
-                        walker.term_rows(&self.session.store, *term, &mut connected)?;
+                        walker.term_rows_with_lane(
+                            &self.session.store,
+                            *term,
+                            &mut connected,
+                            Some(F5cWalkerLaneKind::ClosureConnected),
+                        )?;
                     }
                     _ => {}
                 }
             }
-            for target in connected {
+            for &target in &connected {
                 walker.memo.work_meter.charge(1)?; // adjacency incidence
                 if let Some(neighbors) = adjacency.get_mut(owner as usize) {
-                    neighbors.insert(target);
+                    walker.memo.insert_physical_set(
+                        neighbors,
+                        target,
+                        F5cWalkerLaneKind::ClosureNeighbors,
+                    )?;
                 }
                 if let Some(neighbors) = adjacency.get_mut(target as usize) {
-                    neighbors.insert(owner);
+                    walker.memo.insert_physical_set(
+                        neighbors,
+                        owner,
+                        F5cWalkerLaneKind::ClosureNeighbors,
+                    )?;
                 }
             }
         }
@@ -4984,11 +5159,21 @@ impl<'a> F5cGeneralizer<'a> {
             walker.memo.work_meter.charge(1)?; // metadata owner
             if metadata.non_generic {
                 walker.memo.work_meter.charge(1)?; // closure entry
-                closure.insert(ordinal as u32);
+                walker.memo.insert_physical_set(
+                    &mut closure,
+                    ordinal as u32,
+                    F5cWalkerLaneKind::ClosureResult,
+                )?;
             }
         }
         walker.memo.work_meter.charge(closure.len())?; // copied frontier owners
-        let mut frontier = closure.iter().copied().collect::<Vec<_>>();
+        let mut frontier = Vec::new();
+        for owner in &closure {
+            walker
+                .memo
+                .reserve_walker(&mut frontier, F5cWalkerLaneKind::ClosureFrontier)?;
+            frontier.push(*owner);
+        }
         while !frontier.is_empty() {
             walker.memo.work_meter.charge(1)?; // closure frontier pop
             let owner = frontier.pop().expect("nonempty closure frontier");
@@ -4998,7 +5183,15 @@ impl<'a> F5cGeneralizer<'a> {
             for neighbor in neighbors {
                 walker.memo.work_meter.charge(1)?; // examined adjacency neighbor
                 walker.memo.work_meter.charge(1)?; // possible closure and frontier entries
-                if closure.insert(*neighbor) {
+                if !closure.contains(neighbor) {
+                    walker.memo.insert_physical_set(
+                        &mut closure,
+                        *neighbor,
+                        F5cWalkerLaneKind::ClosureResult,
+                    )?;
+                    walker
+                        .memo
+                        .reserve_walker(&mut frontier, F5cWalkerLaneKind::ClosureFrontier)?;
                     frontier.push(*neighbor);
                 }
             }
@@ -5031,6 +5224,26 @@ impl<'a> F5cGeneralizer<'a> {
         memo: &mut F5cComponentExpansionMemo,
         raw_owner_order: &[u32],
         mut visit: impl FnMut(
+            &mut f5c_tree_analysis::Walker<'_, 'tree>,
+            Option<u32>,
+            &mut HashSet<u32>,
+            &mut HashSet<u32>,
+        ) -> Result<(), SolveAvailabilityError>,
+    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
+        let result = Self::raw_forest_incidences_work(memo, raw_owner_order, &mut visit);
+        if result.is_err() {
+            memo.walker_resources
+                .release(F5cWalkerLaneKind::RawPositiveIncidences);
+            memo.walker_resources
+                .release(F5cWalkerLaneKind::RawNegativeIncidences);
+        }
+        result
+    }
+
+    fn raw_forest_incidences_work<'tree>(
+        memo: &mut F5cComponentExpansionMemo,
+        raw_owner_order: &[u32],
+        visit: &mut impl FnMut(
             &mut f5c_tree_analysis::Walker<'_, 'tree>,
             Option<u32>,
             &mut HashSet<u32>,
@@ -5861,6 +6074,21 @@ impl<'a> F5cGeneralizer<'a> {
     }
 
     fn build_inner(&mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+        let result = self.build_inner_work(root);
+        for kind in [
+            F5cWalkerLaneKind::ClosureResult,
+            F5cWalkerLaneKind::RawPositiveIncidences,
+            F5cWalkerLaneKind::RawNegativeIncidences,
+        ] {
+            self.memo.walker_resources.release(kind);
+        }
+        result
+    }
+
+    fn build_inner_work(
+        &mut self,
+        root: u32,
+    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
         let predicate = self.positive_row(root, true)?;
         let mut raw_recursive_bounds = HashMap::new();
         let mut raw_owner_order = Vec::new();

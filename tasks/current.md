@@ -1,8 +1,48 @@
 # Current task: F5 general Function scheme foundation
 
-Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
+Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
+
+### Latest continuation (2026-09-27): closure and raw-incidence resource lanes
+
+The first solver-side physical-lane slice now accounts `non_generic_closure`
+adjacency storage, its aggregate nested HashSet buckets, reusable connected
+set, returned closure set, and frontier, plus both raw-incidence polarity sets.
+All seven lanes live in the existing `F5cWalkerResources` family. Growth is
+fallible, capacity and memo co-peak are observed after reserve results, and
+lane release follows collection drop on success/error paths. Boxed and flat
+incidence walks share the same accounting owner. Duplicate insertion attempts
+remain counted but do not trigger needless growth; the full-table novelty
+check runs once.
+
+M2 compiler-referee and performance reviews converged after two focused
+performance repairs. The claim that HashSet control bytes were missing was
+rejected under F5 §34, which explicitly excludes allocator metadata/control
+bytes from its `capacity * size_of::<slot>()` model. The accepted duplicate
+reserve and repeated-probe findings were repaired and passed fresh delta
+review. Focused witnesses cover closure parity, boxed/flat incidence parity,
+per-lane capacity reconstruction, duplicate-at-capacity, failure cleanup, and
+retry.
+
+Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+f5c_flat_walk_sink -- --test-threads=1` (36), the `f5c_non_generic_closure`
+filter (2), `RUSTC_WRAPPER= cargo check -p yu-solver --lib --message-format
+short`, `cargo fmt --all --check`, and `git diff --check`. The package check
+still reports the pre-existing production-only unused fields
+`F5cPostRSelection::{retained_bounds, retained_predicate}`; fix that
+ownership-local warning in a separate M0 commit before the next implementation
+gate. No resource probe, benchmark, or broad suite ran.
+
+This closes only the closure/raw-incidence lane slice. The next implementation
+gate is the remaining persistent producer state (`uncacheable_seen`,
+`provisional_recursive_rows`, path/order/reentry lanes and nested trace paths),
+then the remaining `build_inner`/R-selection locals, boxed normalizer failed
+reserve observation, and the solver/draft/finalizer same-time peak. Only after
+those owner gates close should a fresh §15 plan receive independent review.
+Producer incidence admission, numeric support boundary, production cutover,
+§44 closure, F5e acceptance, and overall F5c completion remain open. No user
+decision arose in this slice.
 
 ### Latest continuation (2026-09-26): `yu-types` indexed finalizer
 
