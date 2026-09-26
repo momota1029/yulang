@@ -404,7 +404,7 @@ impl F5cWalkerLaneKind {
                 std::mem::size_of::<(u32, (f5c_draft::PositiveId, f5c_draft::NegativeId))>()
             }
             Self::RawOwnerSeen => std::mem::size_of::<u32>(),
-            Self::RawRoots => std::mem::size_of::<FlatWalkValue>(),
+            Self::RawRoots => std::mem::size_of::<flat_walk_sink::FlatWalkValue>(),
             Self::RawCallbackTrace => std::mem::size_of::<(u32, Polarity)>(),
             Self::AnalysisTasks => std::mem::size_of::<f5c_tree_analysis::Task<'static>>(),
             Self::ReplayTasks => std::mem::size_of::<f5c_replay::Task<'static>>(),
