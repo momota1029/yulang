@@ -17,8 +17,8 @@ pub(super) enum Task {
 }
 
 /// Substitutes producer-graph nodes reachable from the scheme roots; scratch nodes remain untouched.
-/// `normalize_flat` owns insertion-order and topology validation. Isolate root-unreachable
-/// Variable scratch before normalization, which scans all inserted nodes and rejects Variables.
+/// `normalize_flat` validates every inserted edge and rejects Variables in the selected roots.
+/// Root-unreachable Variable scratch does not enter normalization.
 #[allow(dead_code)]
 pub(super) fn substitute_flat(
     draft: &mut FlatDraft,
@@ -27,16 +27,76 @@ pub(super) fn substitute_flat(
     positive_eliminated: &HashSet<u32>,
     negative_eliminated: &HashSet<u32>,
 ) -> Result<(), SolveAvailabilityError> {
+    substitute_flat_inner(None, draft, q, r, positive_eliminated, negative_eliminated)
+}
+
+#[cfg(test)]
+pub(super) fn substitute_flat_metered(
+    memo: &mut F5cComponentExpansionMemo,
+    draft: &mut FlatDraft,
+    q: &HashMap<u32, u32>,
+    r: &HashMap<u32, u32>,
+    positive_eliminated: &HashSet<u32>,
+    negative_eliminated: &HashSet<u32>,
+) -> Result<(), SolveAvailabilityError> {
+    let result = substitute_flat_inner(
+        Some(&mut *memo),
+        draft,
+        q,
+        r,
+        positive_eliminated,
+        negative_eliminated,
+    );
+    for lane in [
+        F5cWalkerLaneKind::SubstitutePositiveSeen,
+        F5cWalkerLaneKind::SubstituteNegativeSeen,
+        F5cWalkerLaneKind::SubstituteStack,
+    ] {
+        memo.walker_resources.release(lane);
+    }
+    result
+}
+
+fn substitute_flat_inner(
+    mut memo: Option<&mut F5cComponentExpansionMemo>,
+    draft: &mut FlatDraft,
+    q: &HashMap<u32, u32>,
+    r: &HashMap<u32, u32>,
+    positive_eliminated: &HashSet<u32>,
+    negative_eliminated: &HashSet<u32>,
+) -> Result<(), SolveAvailabilityError> {
     let exhausted = SolveAvailabilityError::IdentityExhausted;
     let mut positive_seen = Vec::new();
-    positive_seen
-        .try_reserve(draft.positive_nodes.len())
-        .map_err(|_| exhausted)?;
+    if let Some(memo) = memo.as_deref_mut() {
+        memo.work_meter.charge(draft.positive_nodes.len())?;
+        let bytes = memo.retained_bytes()?;
+        memo.walker_resources.reserve(
+            &mut positive_seen,
+            F5cWalkerLaneKind::SubstitutePositiveSeen,
+            draft.positive_nodes.len(),
+            bytes,
+        )?;
+    } else {
+        positive_seen
+            .try_reserve(draft.positive_nodes.len())
+            .map_err(|_| exhausted)?;
+    }
     positive_seen.resize(draft.positive_nodes.len(), false);
     let mut negative_seen = Vec::new();
-    negative_seen
-        .try_reserve(draft.negative_nodes.len())
-        .map_err(|_| exhausted)?;
+    if let Some(memo) = memo.as_deref_mut() {
+        memo.work_meter.charge(draft.negative_nodes.len())?;
+        let bytes = memo.retained_bytes()?;
+        memo.walker_resources.reserve(
+            &mut negative_seen,
+            F5cWalkerLaneKind::SubstituteNegativeSeen,
+            draft.negative_nodes.len(),
+            bytes,
+        )?;
+    } else {
+        negative_seen
+            .try_reserve(draft.negative_nodes.len())
+            .map_err(|_| exhausted)?;
+    }
     negative_seen.resize(draft.negative_nodes.len(), false);
     let mut stack = Vec::new();
     macro_rules! enqueue {
@@ -52,7 +112,12 @@ pub(super) fn substitute_flat(
             }
             .ok_or(exhausted)?;
             if !*seen {
-                stack.try_reserve(1).map_err(|_| exhausted)?;
+                if let Some(memo) = memo.as_deref_mut() {
+                    memo.work_meter.charge(1)?;
+                    memo.reserve_walker(&mut stack, F5cWalkerLaneKind::SubstituteStack)?;
+                } else {
+                    stack.try_reserve(1).map_err(|_| exhausted)?;
+                }
                 stack.push(node);
                 *seen = true;
             }
@@ -66,6 +131,9 @@ pub(super) fn substitute_flat(
     }
     enqueue!(NodeRef::Positive(predicate));
     while let Some(node) = stack.pop() {
+        if let Some(memo) = memo.as_deref_mut() {
+            memo.work_meter.charge(1)?;
+        }
         match node {
             NodeRef::Positive(id) => {
                 let index = usize::try_from(id.0).map_err(|_| exhausted)?;

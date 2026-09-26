@@ -642,6 +642,602 @@ fn post_r_success_retains_predicate_output_until_forest_release() {
 }
 
 #[test]
+fn selected_flat_candidate_completes_under_open_raw_forest() {
+    use std::collections::{HashMap, HashSet};
+    let batch = collect(module("my f = 1", "f5c-flat-selected-candidate"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let forest = generalizer.build_raw_forest(root).unwrap();
+    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    let (selection, output, forest) = generalizer
+        .flat_r_q_with_raw_forest_for_test(
+            forest,
+            &[],
+            &HashMap::new(),
+            &[],
+            |_| true,
+            &positive,
+            &negative,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        )
+        .unwrap();
+    let selected_positive_slots = output.positive_nodes.len();
+    let candidate = generalizer
+        .flat_finish_selected_for_test(
+            selection,
+            output,
+            forest,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        )
+        .unwrap();
+    let draft = &candidate.draft;
+    assert_eq!(draft.quantifier_count, 0);
+    assert!(draft.recursive_bounds.is_empty());
+    assert_eq!(
+        draft.positive_nodes[draft.predicate.unwrap().0 as usize],
+        crate::f5c_draft::PositiveNode::Int
+    );
+    assert_eq!(candidate.stats.key_writes, 1);
+    assert_eq!(
+        generalizer.memo.walker_resources.flat_candidate_lanes
+            [crate::f5c_normalization::LANE_COUNT]
+            .requested_slots,
+        selected_positive_slots,
+    );
+    assert_eq!(
+        generalizer.memo.walker_resources.flat_candidate_lanes
+            [crate::f5c_normalization::LANE_COUNT + 8]
+            .requested_slots,
+        draft.positive_nodes.len(),
+    );
+    assert_eq!(
+        generalizer.memo.walker_resources.lanes
+            [F5cWalkerLaneKind::NormalizedPositiveNodes as usize]
+            .requested_slots,
+        0,
+    );
+    assert_eq!(
+        generalizer.memo.walker_resources.lanes
+            [F5cWalkerLaneKind::NormalizedRecursiveBounds as usize]
+            .requested_slots,
+        0,
+    );
+    let main_requests = generalizer
+        .memo
+        .walker_resources
+        .lanes
+        .iter()
+        .map(|lane| lane.requested_slots)
+        .sum::<usize>();
+    let flat_requests = generalizer
+        .memo
+        .walker_resources
+        .flat_candidate_lanes
+        .iter()
+        .map(|lane| lane.requested_slots)
+        .sum::<usize>();
+    assert_eq!(
+        generalizer.memo.walker_resources.requested_slots().unwrap(),
+        main_requests + flat_requests,
+    );
+    assert!(
+        generalizer.memo.walker_resources.lanes
+            [F5cWalkerLaneKind::NormalizedPositiveNodes as usize]
+            .actual_capacity
+            > 0
+    );
+    generalizer.release_normalized_candidate_for_test(candidate);
+    assert_eq!(
+        generalizer.memo.walker_resources.lanes
+            [F5cWalkerLaneKind::NormalizedPositiveNodes as usize]
+            .actual_capacity,
+        0
+    );
+}
+
+#[test]
+fn selected_flat_normalization_work_failure_aborts_forest_and_retries_warm_root() {
+    use std::collections::{HashMap, HashSet};
+    let batch = collect(module("my f = 1", "f5c-flat-normalization-rollback"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let (built, memo, _, _) = F5cGeneralizer::new(&session).build_component(root);
+    assert!(built.is_ok());
+    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    generalizer.memo.reset_active_scratch();
+    let before = (
+        generalizer.memo.roots.clone(),
+        generalizer.memo.nodes.clone(),
+        generalizer.memo.children.clone(),
+        generalizer.memo.parent_heads.clone(),
+        generalizer.memo.reverse_parents.clone(),
+        generalizer.memo.incidence_heads.clone(),
+        generalizer.memo.incidences.clone(),
+        generalizer.memo.root_heads.clone(),
+        generalizer.memo.root_edges.clone(),
+        (
+            generalizer.memo.root_edge_marks.clone(),
+            generalizer.memo.root_edge_mark_epoch,
+            generalizer.memo.root_undo.clone(),
+            generalizer.memo.visit_epochs.clone(),
+            generalizer.memo.visit_epoch,
+        ),
+    );
+    let forest = generalizer.build_raw_forest(root).unwrap();
+    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    let (selection, output, forest) = generalizer
+        .flat_r_q_with_raw_forest_for_test(
+            forest,
+            &[],
+            &HashMap::new(),
+            &[],
+            |_| true,
+            &positive,
+            &negative,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        )
+        .unwrap();
+    assert!(matches!(
+        generalizer.flat_finish_selected_for_test(
+            selection,
+            output,
+            forest,
+            &HashSet::new(),
+            &HashSet::new(),
+            true,
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(
+        (
+            generalizer.memo.roots.clone(),
+            generalizer.memo.nodes.clone(),
+            generalizer.memo.children.clone(),
+            generalizer.memo.parent_heads.clone(),
+            generalizer.memo.reverse_parents.clone(),
+            generalizer.memo.incidence_heads.clone(),
+            generalizer.memo.incidences.clone(),
+            generalizer.memo.root_heads.clone(),
+            generalizer.memo.root_edges.clone(),
+            (
+                generalizer.memo.root_edge_marks.clone(),
+                generalizer.memo.root_edge_mark_epoch,
+                generalizer.memo.root_undo.clone(),
+                generalizer.memo.visit_epochs.clone(),
+                generalizer.memo.visit_epoch,
+            ),
+        ),
+        before,
+    );
+    assert!(generalizer.memo.active_rows.is_empty());
+    assert!(generalizer.memo.active_conflicts.is_empty());
+    let normalizer_map = generalizer.memo.walker_resources.flat_candidate_lanes
+        [crate::f5c_normalization::LANE_COUNT];
+    assert!(normalizer_map.observations > 0);
+    assert!(normalizer_map.growths > 0);
+    assert!(normalizer_map.peak_capacity > 0);
+    assert!(normalizer_map.requested_slots > 0);
+    assert!(
+        generalizer.memo.walker_resources.requested_slots().unwrap()
+            >= normalizer_map.requested_slots
+    );
+    for lane in [
+        F5cWalkerLaneKind::RawOwnerOrder,
+        F5cWalkerLaneKind::RawOwnerBounds,
+        F5cWalkerLaneKind::RawCallbackTrace,
+        F5cWalkerLaneKind::DraftPositiveNodes,
+        F5cWalkerLaneKind::DraftNegativeNodes,
+        F5cWalkerLaneKind::DraftPositiveChildren,
+        F5cWalkerLaneKind::DraftNegativeChildren,
+        F5cWalkerLaneKind::DraftRecursiveBounds,
+        F5cWalkerLaneKind::DraftInsertionOrder,
+        F5cWalkerLaneKind::ReplayOutputPositiveNodes,
+        F5cWalkerLaneKind::ReplayOutputNegativeNodes,
+        F5cWalkerLaneKind::ReplayOutputPositiveChildren,
+        F5cWalkerLaneKind::ReplayOutputNegativeChildren,
+        F5cWalkerLaneKind::ReplayOutputInsertionOrder,
+        F5cWalkerLaneKind::RetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+        F5cWalkerLaneKind::SelectedRecursiveBounds,
+        F5cWalkerLaneKind::SelectedPositiveEliminated,
+        F5cWalkerLaneKind::SelectedNegativeEliminated,
+        F5cWalkerLaneKind::SubstitutePositiveSeen,
+        F5cWalkerLaneKind::SubstituteNegativeSeen,
+        F5cWalkerLaneKind::SubstituteStack,
+        F5cWalkerLaneKind::NormalizedPositiveNodes,
+        F5cWalkerLaneKind::NormalizedNegativeNodes,
+        F5cWalkerLaneKind::NormalizedPositiveChildren,
+        F5cWalkerLaneKind::NormalizedNegativeChildren,
+        F5cWalkerLaneKind::NormalizedRecursiveBounds,
+        F5cWalkerLaneKind::NormalizedInsertionOrder,
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
+    generalizer.memo.work_meter.set(0);
+    assert!(matches!(
+        generalizer.positive_row(root, false).unwrap(),
+        F5cPositive::Shared(_)
+    ));
+}
+
+#[test]
+fn selected_flat_normalizer_request_overflow_preserves_shared_lane_counters() {
+    use std::collections::{HashMap, HashSet};
+    let batch = collect(module("my f = 1", "f5c-flat-normalizer-request-overflow"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let forest = generalizer.build_raw_forest(root).unwrap();
+    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    let (selection, output, forest) = generalizer
+        .flat_r_q_with_raw_forest_for_test(
+            forest,
+            &[],
+            &HashMap::new(),
+            &[],
+            |_| true,
+            &positive,
+            &negative,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        )
+        .unwrap();
+    let lane = crate::f5c_normalization::LANE_COUNT;
+    generalizer.memo.walker_resources.flat_candidate_lanes[lane].requested_slots = usize::MAX;
+    let before = generalizer.memo.walker_resources.flat_candidate_lanes;
+    assert!(matches!(
+        generalizer.flat_finish_selected_for_test(
+            selection,
+            output,
+            forest,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    for (actual, expected) in generalizer
+        .memo
+        .walker_resources
+        .flat_candidate_lanes
+        .iter()
+        .zip(before.iter())
+    {
+        assert_eq!(actual.requested_slots, expected.requested_slots);
+        assert_eq!(actual.observations, expected.observations);
+        assert_eq!(actual.growths, expected.growths);
+        assert_eq!(actual.peak_capacity, expected.peak_capacity);
+    }
+    assert!(generalizer.memo.active_rows.is_empty());
+    let retry = generalizer.build_raw_forest(root).unwrap();
+    generalizer.release_raw_forest(retry);
+}
+
+#[test]
+fn selected_flat_published_output_growth_overflow_aborts_forest() {
+    use std::collections::{HashMap, HashSet};
+    let batch = collect(module("my f = 1", "f5c-flat-output-request-overflow"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let forest = generalizer.build_raw_forest(root).unwrap();
+    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    let (selection, output, forest) = generalizer
+        .flat_r_q_with_raw_forest_for_test(
+            forest,
+            &[],
+            &HashMap::new(),
+            &[],
+            |_| true,
+            &positive,
+            &negative,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        )
+        .unwrap();
+    let lane = F5cWalkerLaneKind::NormalizedPositiveNodes as usize;
+    generalizer.memo.walker_resources.lanes[lane].capacity_growths = usize::MAX;
+    assert!(matches!(
+        generalizer.flat_finish_selected_for_test(
+            selection,
+            output,
+            forest,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        ),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert_eq!(
+        generalizer.memo.walker_resources.lanes[lane].capacity_growths,
+        usize::MAX
+    );
+    assert_eq!(
+        generalizer.memo.walker_resources.lanes[lane].actual_capacity,
+        0
+    );
+    assert!(generalizer.memo.active_rows.is_empty());
+    let retry = generalizer.build_raw_forest(root).unwrap();
+    generalizer.release_raw_forest(retry);
+}
+
+#[test]
+fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
+    use crate::f5c_draft::{FlatDraft, NegativeId, NegativeNode, PositiveId, PositiveNode};
+    use std::collections::{HashMap, HashSet};
+
+    fn expand_positive(draft: &FlatDraft, id: PositiveId) -> F5cPositive {
+        match draft.positive_nodes[id.0 as usize] {
+            PositiveNode::Bottom => F5cPositive::Bottom,
+            PositiveNode::Int => F5cPositive::Int,
+            PositiveNode::Quantified(n) => F5cPositive::Quantified(n),
+            PositiveNode::Recursive(n) => F5cPositive::Recursive(n),
+            PositiveNode::Union(span) => F5cPositive::Union(
+                draft.positive_children[span.start as usize..(span.start + span.len) as usize]
+                    .iter()
+                    .map(|&child| expand_positive(draft, child))
+                    .collect(),
+            ),
+            PositiveNode::Function { argument, result } => F5cPositive::Function {
+                argument: Box::new(expand_negative(draft, argument)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(expand_positive(draft, result)),
+            },
+            PositiveNode::Variable(_) => panic!("selected normalized positive is classified"),
+        }
+    }
+    fn expand_negative(draft: &FlatDraft, id: NegativeId) -> F5cNegative {
+        match draft.negative_nodes[id.0 as usize] {
+            NegativeNode::Top => F5cNegative::Top,
+            NegativeNode::Bottom => F5cNegative::Bottom,
+            NegativeNode::Int => F5cNegative::Int,
+            NegativeNode::Quantified(n) => F5cNegative::Quantified(n),
+            NegativeNode::Recursive(n) => F5cNegative::Recursive(n),
+            NegativeNode::Intersection(span) => F5cNegative::Intersection(
+                draft.negative_children[span.start as usize..(span.start + span.len) as usize]
+                    .iter()
+                    .map(|&child| expand_negative(draft, child))
+                    .collect(),
+            ),
+            NegativeNode::Function { argument, result } => F5cNegative::Function {
+                argument: Box::new(expand_positive(draft, argument)),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(expand_negative(draft, result)),
+            },
+            NegativeNode::Variable(_) => panic!("selected normalized negative is classified"),
+        }
+    }
+    let batch = collect(module("my f = 1", "f5c-flat-selected-parity"));
+    let mut session = InferenceSession::new(batch);
+    let owner = session.fresh_value_at_level(1).unwrap();
+    let relay = session.fresh_value_at_level(1).unwrap();
+    let quantified = session.fresh_value_at_level(1).unwrap();
+    let argument = session.negative_top_term().unwrap();
+    let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+    let function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            result,
+        )
+        .unwrap();
+    session.bounds[owner as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(function));
+    session.bounds[owner as usize]
+        .direct_lower_rows
+        .push(quantified);
+    session.bounds[owner as usize]
+        .direct_upper_rows
+        .push(quantified);
+    session.bounds[relay as usize].direct_lower_rows.push(owner);
+
+    let (boxed_result, _, _, _) = F5cGeneralizer::new(&session).build_component(owner);
+    let mut boxed = boxed_result.unwrap();
+    let boxed_stats =
+        crate::f5c_normalization::normalize_component(std::slice::from_mut(&mut boxed)).unwrap();
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let forest = generalizer.build_raw_forest(owner).unwrap();
+    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    let traces = generalizer.reentries.clone();
+    let order = generalizer.order.clone();
+    let mut by_owner = HashMap::<u32, Vec<usize>>::new();
+    for (index, trace) in traces.iter().enumerate() {
+        by_owner.entry(trace.owner).or_default().push(index);
+    }
+    let positive_only = positive
+        .difference(&negative)
+        .copied()
+        .collect::<HashSet<_>>();
+    let negative_only = negative
+        .difference(&positive)
+        .copied()
+        .collect::<HashSet<_>>();
+    let (selection, output, forest) = generalizer
+        .flat_r_q_with_raw_forest_for_test(
+            forest,
+            &traces,
+            &by_owner,
+            &order,
+            |_| true,
+            &positive,
+            &negative,
+            &positive_only,
+            &negative_only,
+            false,
+        )
+        .unwrap();
+    assert_eq!(selection.recursive_owners, vec![owner]);
+    assert_eq!(selection.q, HashMap::from([(quantified, 0)]));
+    assert_eq!(selection.r, HashMap::from([(owner, 1)]));
+    assert!(
+        output
+            .positive_nodes
+            .iter()
+            .any(|node| matches!(node, PositiveNode::Variable(_)))
+    );
+    let candidate = generalizer
+        .flat_finish_selected_for_test(
+            selection,
+            output,
+            forest,
+            &positive_only,
+            &negative_only,
+            false,
+        )
+        .unwrap();
+    assert_eq!(candidate.draft.quantifier_count, boxed.quantifier_count);
+    assert_eq!(
+        candidate.draft.recursive_bounds.len(),
+        boxed.recursive_bounds.len()
+    );
+    assert_eq!(
+        candidate.draft.recursive_bounds[0].ordinal,
+        boxed.recursive_bounds[0].ordinal
+    );
+    assert_eq!(
+        expand_positive(&candidate.draft, candidate.draft.predicate.unwrap()),
+        boxed.predicate
+    );
+    for (flat, boxed) in candidate
+        .draft
+        .recursive_bounds
+        .iter()
+        .zip(&boxed.recursive_bounds)
+    {
+        assert_eq!(expand_positive(&candidate.draft, flat.lower), boxed.lower);
+        assert_eq!(expand_negative(&candidate.draft, flat.upper), boxed.upper);
+    }
+    assert_eq!(candidate.stats.key_writes, boxed_stats.key_writes);
+    assert_eq!(
+        candidate.stats.child_comparisons,
+        boxed_stats.child_comparisons
+    );
+    assert_eq!(
+        candidate.stats.descriptor_words,
+        boxed_stats.descriptor_words
+    );
+    assert_eq!(
+        candidate.stats.word_comparisons,
+        boxed_stats.word_comparisons
+    );
+    assert_eq!(candidate.stats.duplicates, boxed_stats.duplicates);
+    for (index, lane, length) in [
+        (
+            0,
+            F5cWalkerLaneKind::NormalizedPositiveNodes,
+            candidate.draft.positive_nodes.len(),
+        ),
+        (
+            1,
+            F5cWalkerLaneKind::NormalizedNegativeNodes,
+            candidate.draft.negative_nodes.len(),
+        ),
+        (
+            2,
+            F5cWalkerLaneKind::NormalizedPositiveChildren,
+            candidate.draft.positive_children.len(),
+        ),
+        (
+            3,
+            F5cWalkerLaneKind::NormalizedNegativeChildren,
+            candidate.draft.negative_children.len(),
+        ),
+        (
+            4,
+            F5cWalkerLaneKind::NormalizedRecursiveBounds,
+            candidate.draft.recursive_bounds.len(),
+        ),
+        (
+            5,
+            F5cWalkerLaneKind::NormalizedInsertionOrder,
+            candidate.draft.insertion_order.len(),
+        ),
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[lane as usize].requested_slots,
+            0
+        );
+        assert_eq!(
+            generalizer.memo.walker_resources.flat_candidate_lanes
+                [crate::f5c_normalization::LANE_COUNT + 8 + index]
+                .requested_slots,
+            length
+        );
+    }
+    for lane in [
+        0,
+        8,
+        crate::f5c_normalization::LANE_COUNT,
+        crate::f5c_normalization::LANE_COUNT + 5,
+    ] {
+        assert!(generalizer.memo.walker_resources.flat_candidate_lanes[lane].requested_slots > 0);
+    }
+    assert_eq!(
+        generalizer.memo.walker_resources.flat_candidate_lanes
+            [crate::f5c_normalization::LANE_COUNT + 8]
+            .requested_slots,
+        candidate.draft.positive_nodes.len(),
+    );
+    assert_eq!(
+        candidate
+            .draft
+            .positive_nodes
+            .iter()
+            .filter(|node| matches!(node, PositiveNode::Recursive(1)))
+            .count(),
+        1
+    );
+    assert!(
+        !candidate
+            .draft
+            .positive_nodes
+            .iter()
+            .any(|node| matches!(node, PositiveNode::Variable(_)))
+    );
+    assert!(
+        !candidate
+            .draft
+            .negative_nodes
+            .iter()
+            .any(|node| matches!(node, NegativeNode::Variable(_)))
+    );
+    generalizer.release_normalized_candidate_for_test(candidate);
+}
+
+#[test]
 fn flat_r_replay_failure_aborts_raw_forest_and_retries_warm_lookup() {
     use crate::f5c_generalization::F5cGuardedTrace;
     use std::collections::{HashMap, HashSet};

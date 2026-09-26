@@ -535,3 +535,32 @@ later fallible stages, physical resource certification, and the reviewed §15
 measurement gate remain open. Production remains boxed; no numeric boundary,
 production cutover, §44 closure, F5e acceptance, or overall F5c completion is
 authorized by this slice.
+
+### Selected-root substitution and normalization (2026-09-26)
+
+The test-only FlatDraft path now assembles recursive bounds in R-owner order,
+substitutes R, Q, and polarity-specific elimination, then normalizes only the
+selected predicate and bounds. Its paired witness matches the boxed structure,
+Q/R ordinals, and all five normalization counters; orphan Variable scratch is
+absent from the normalized result.
+
+The raw-forest memo transaction stays open through every fallible stage and
+final output-capacity observation. Late normalization failure restores memo
+state, releases transient lanes, and permits a warm retry. Success retains the
+normalized draft and its capacities until explicit release.
+
+Requested-slot counters now cover 27 observer lanes: 13 normalizer lanes,
+eight additional scratch lanes, and six emitted-output lanes. These counters
+merge atomically on success or failure and contribute to the aggregate. The six
+emitted output lengths are counted once; publication records retained capacity
+without adding duplicate requests. The M2 compiler-referee and performance
+delta findings are closed after implementation repair and primary diff review.
+No resource probe or numeric boundary was part of this gate.
+
+Checks passed: RUSTC_WRAPPER= cargo test -p yu-solver --lib selected_flat_ --
+--test-threads=1 (5); RUSTC_WRAPPER= cargo test -p yu-solver --lib flat_tests
+-- --test-threads=1 (15); RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--message-format short; cargo fmt --all --check; git diff --check. Full
+callback/Q/R parity, remaining physical resource reconciliation, the reviewed
+§15 measurement plan, indexed finalization, and production cutover remain
+open. Production remains boxed.

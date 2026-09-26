@@ -3144,3 +3144,33 @@ boxed; production cutover, numeric resource limits, indexed finalization API
 choices, §44 closure, F5e, and overall F5c completion remain open.
 
 <!-- handoff-append-anchor: 2026-09-26 -->
+
+## Latest continuation (2026-09-26): selected FlatDraft substitution and normalization
+
+The shared post-convergence selector now composes with test-only flat
+substitution and selected-root normalization. Recursive bounds follow R-owner
+order; substitution applies R, Q, then polarity-specific elimination. A paired
+fixture matches boxed structure, Q/R ordinals, and all five normalization
+counters, and checks orphan Variable scratch is omitted.
+
+The memo transaction stays open through normalization and output-capacity
+observation. Late failure restores persistent memo state, releases transient
+lanes, and permits a warm retry. Successful output stays accounted until
+explicit release.
+
+Requested-slot counters cover 27 observer lanes (13 normalizer, eight
+additional scratch, six emitted output) and contribute to the aggregate. The
+six output requests are counted once; publication records retained capacity.
+M2 compiler-referee review found no semantic or rollback issue. The performance
+requested-slot gap and duplicate count are closed after repair and primary
+diff review.
+
+Checks passed: RUSTC_WRAPPER= cargo test -p yu-solver --lib selected_flat_ --
+--test-threads=1 (5); RUSTC_WRAPPER= cargo test -p yu-solver --lib flat_tests
+-- --test-threads=1 (15); RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--message-format short; cargo fmt --all --check; git diff --check. No broad
+suite, resource probe, benchmark, or §15 measurement ran. Next: close full
+callback/Q/R parity and remaining physical resource reconciliation, then
+prepare and review the §15 measurement plan before any resource probe.
+Production remains boxed; indexed finalization, production cutover, numeric
+boundary, §44, F5e, and overall F5c acceptance remain open.

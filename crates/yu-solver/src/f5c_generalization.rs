@@ -344,10 +344,22 @@ pub(super) enum F5cWalkerLaneKind {
     PostROccurrenceSeen = 56,
     PostRQuantifiers = 57,
     PostRRecursives = 58,
+    SelectedRecursiveBounds = 59,
+    SelectedPositiveEliminated = 60,
+    SelectedNegativeEliminated = 61,
+    SubstitutePositiveSeen = 62,
+    SubstituteNegativeSeen = 63,
+    SubstituteStack = 64,
+    NormalizedPositiveNodes = 65,
+    NormalizedNegativeNodes = 66,
+    NormalizedPositiveChildren = 67,
+    NormalizedNegativeChildren = 68,
+    NormalizedRecursiveBounds = 69,
+    NormalizedInsertionOrder = 70,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 59] = [
+    pub(super) const ALL: [Self; 71] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -407,6 +419,18 @@ impl F5cWalkerLaneKind {
         Self::PostROccurrenceSeen,
         Self::PostRQuantifiers,
         Self::PostRRecursives,
+        Self::SelectedRecursiveBounds,
+        Self::SelectedPositiveEliminated,
+        Self::SelectedNegativeEliminated,
+        Self::SubstitutePositiveSeen,
+        Self::SubstituteNegativeSeen,
+        Self::SubstituteStack,
+        Self::NormalizedPositiveNodes,
+        Self::NormalizedNegativeNodes,
+        Self::NormalizedPositiveChildren,
+        Self::NormalizedNegativeChildren,
+        Self::NormalizedRecursiveBounds,
+        Self::NormalizedInsertionOrder,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -457,6 +481,7 @@ impl F5cWalkerLaneKind {
             Self::DraftPositiveChildren => std::mem::size_of::<f5c_draft::PositiveId>(),
             Self::DraftNegativeChildren => std::mem::size_of::<f5c_draft::NegativeId>(),
             Self::DraftRecursiveBounds => std::mem::size_of::<f5c_draft::RecursiveBound>(),
+            Self::SelectedRecursiveBounds => std::mem::size_of::<f5c_draft::RecursiveBound>(),
             Self::DraftInsertionOrder => std::mem::size_of::<f5c_draft::NodeRef>(),
             Self::ReplayActivePositive | Self::ReplayActiveNegative => std::mem::size_of::<bool>(),
             Self::ReplayOutputPositiveNodes => std::mem::size_of::<f5c_draft::PositiveNode>(),
@@ -473,6 +498,19 @@ impl F5cWalkerLaneKind {
             Self::PostRSurvivingTraces => std::mem::size_of::<usize>(),
             Self::PostRRecursiveOwners | Self::PostROccurrenceOrder => std::mem::size_of::<u32>(),
             Self::PostRQuantifiers | Self::PostRRecursives => std::mem::size_of::<(u32, u32)>(),
+            Self::SelectedPositiveEliminated | Self::SelectedNegativeEliminated => {
+                std::mem::size_of::<u32>()
+            }
+            Self::SubstitutePositiveSeen | Self::SubstituteNegativeSeen => {
+                std::mem::size_of::<bool>()
+            }
+            Self::SubstituteStack => std::mem::size_of::<f5c_draft::NodeRef>(),
+            Self::NormalizedPositiveNodes => std::mem::size_of::<f5c_draft::PositiveNode>(),
+            Self::NormalizedNegativeNodes => std::mem::size_of::<f5c_draft::NegativeNode>(),
+            Self::NormalizedPositiveChildren => std::mem::size_of::<f5c_draft::PositiveId>(),
+            Self::NormalizedNegativeChildren => std::mem::size_of::<f5c_draft::NegativeId>(),
+            Self::NormalizedRecursiveBounds => std::mem::size_of::<f5c_draft::RecursiveBound>(),
+            Self::NormalizedInsertionOrder => std::mem::size_of::<f5c_draft::NodeRef>(),
         }
     }
 }
@@ -503,38 +541,89 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 59],
+    pub(super) lanes: [F5cWalkerLane; 71],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 59],
+    pub(super) independent_lanes: [F5cWalkerLane; 71],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
     pub(super) independent_simultaneous_memo_peak_bytes: usize,
+    #[cfg(test)]
+    pub(super) flat_candidate_lanes:
+        [f5c_normalization::FlatCandidateLane; f5c_normalization::FLAT_CANDIDATE_LANE_COUNT],
 }
 
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 59],
+            lanes: [F5cWalkerLane::default(); 71],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 59],
+            independent_lanes: [F5cWalkerLane::default(); 71],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
             independent_simultaneous_memo_peak_bytes: 0,
+            #[cfg(test)]
+            flat_candidate_lanes: [f5c_normalization::FlatCandidateLane::default();
+                f5c_normalization::FLAT_CANDIDATE_LANE_COUNT],
         }
     }
 }
 
 impl F5cWalkerResources {
+    #[cfg(test)]
+    fn observe_existing_capacity(
+        &mut self,
+        kind: F5cWalkerLaneKind,
+        capacity: usize,
+        requested_slots: usize,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let lane = &self.lanes[kind as usize];
+        let independent = &self.independent_lanes[kind as usize];
+        let counters = (
+            lane.requested_slots
+                .checked_add(requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            lane.capacity_growths
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            independent
+                .requested_slots
+                .checked_add(requested_slots)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            independent
+                .capacity_growths
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        let slot_size = kind.slot_size();
+        let old_bytes = lane
+            .actual_capacity
+            .checked_mul(slot_size)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let new_bytes = capacity
+            .checked_mul(slot_size)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let projected = self
+            .retained_bytes()?
+            .checked_sub(old_bytes)
+            .and_then(|bytes| bytes.checked_add(new_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        memo_bytes
+            .checked_add(projected)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.observe_table_capacity(kind, 0, capacity, memo_bytes, counters)
+    }
+
     #[cfg(test)]
     fn preflight_table_counters(
         &self,
@@ -795,10 +884,22 @@ impl F5cWalkerResources {
     }
 
     pub(super) fn requested_slots(&self) -> Result<usize, SolveAvailabilityError> {
-        self.lanes.iter().try_fold(0usize, |sum, lane| {
+        let walker = self.lanes.iter().try_fold(0usize, |sum, lane| {
             sum.checked_add(lane.requested_slots)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)
-        })
+        })?;
+        #[cfg(test)]
+        {
+            return self
+                .flat_candidate_lanes
+                .iter()
+                .try_fold(walker, |sum, lane| {
+                    sum.checked_add(lane.requested_slots)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)
+                });
+        }
+        #[cfg(not(test))]
+        Ok(walker)
     }
 
     pub(super) fn actual_capacity(&self) -> Result<usize, SolveAvailabilityError> {
@@ -2632,6 +2733,12 @@ pub(super) struct F5cRawForest {
     pub(super) raw_owner_order: Vec<u32>,
     pub(super) raw_bounds: HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
     pub(super) callback_trace: Vec<(u32, Polarity)>,
+}
+
+#[cfg(test)]
+pub(super) struct F5cNormalizedCandidate {
+    pub(super) draft: f5c_draft::FlatDraft,
+    pub(super) stats: f5c_normalization::FlatNormalizationStats,
 }
 
 trait F5cRCandidateSource {
@@ -5130,6 +5237,184 @@ impl<'a> F5cGeneralizer<'a> {
         f5c_replay::release_flat_output(&mut self.memo, output);
         release_flat_post_r_lanes(&mut self.memo);
         self.release_raw_forest(forest);
+    }
+
+    #[cfg(test)]
+    pub(super) fn flat_finish_selected_for_test(
+        &mut self,
+        selection: F5cPostRSelection<
+            (f5c_draft::PositiveId, f5c_draft::NegativeId),
+            f5c_draft::PositiveId,
+        >,
+        mut output: f5c_draft::FlatDraft,
+        forest: F5cRawForest,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+        fail_during_normalization: bool,
+    ) -> Result<F5cNormalizedCandidate, SolveAvailabilityError> {
+        let result = (|| {
+            let q_count = u32::try_from(selection.q.len())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let mut positive_eliminated = HashSet::new();
+            let mut negative_eliminated = HashSet::new();
+            for &ordinal in &self.order {
+                self.memo.work_meter.charge(1)?;
+                if !selection.recursive_set.contains(&ordinal)
+                    && !selection.q.contains_key(&ordinal)
+                    && positive_only.contains(&ordinal)
+                {
+                    self.memo.work_meter.charge(1)?;
+                    let bytes = self.memo.retained_bytes()?;
+                    self.memo.walker_resources.reserve_post_r_set(
+                        &mut positive_eliminated,
+                        F5cWalkerLaneKind::SelectedPositiveEliminated,
+                        bytes,
+                    )?;
+                    positive_eliminated.insert(ordinal);
+                }
+            }
+            for &ordinal in &self.order {
+                self.memo.work_meter.charge(1)?;
+                if !selection.recursive_set.contains(&ordinal)
+                    && !selection.q.contains_key(&ordinal)
+                    && negative_only.contains(&ordinal)
+                {
+                    self.memo.work_meter.charge(1)?;
+                    let bytes = self.memo.retained_bytes()?;
+                    self.memo.walker_resources.reserve_post_r_set(
+                        &mut negative_eliminated,
+                        F5cWalkerLaneKind::SelectedNegativeEliminated,
+                        bytes,
+                    )?;
+                    negative_eliminated.insert(ordinal);
+                }
+            }
+            output.predicate = Some(selection.retained_predicate);
+            output.quantifier_count = q_count;
+            for owner in &selection.recursive_owners {
+                self.memo.work_meter.charge(1)?;
+                let binder = *selection
+                    .r
+                    .get(owner)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.memo.work_meter.charge(1)?;
+                let &(lower, upper) = selection
+                    .retained_bounds
+                    .get(owner)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.memo.work_meter.charge(1)?;
+                let bytes = self.memo.retained_bytes()?;
+                self.memo.walker_resources.reserve(
+                    &mut output.recursive_bounds,
+                    F5cWalkerLaneKind::SelectedRecursiveBounds,
+                    1,
+                    bytes,
+                )?;
+                output.recursive_bounds.push(f5c_draft::RecursiveBound {
+                    ordinal: binder,
+                    lower,
+                    upper,
+                });
+            }
+            f5c_binder_substitution::substitute_flat_metered(
+                &mut self.memo,
+                &mut output,
+                &selection.q,
+                &selection.r,
+                &positive_eliminated,
+                &negative_eliminated,
+            )?;
+            f5c_normalization::normalize_flat_metered(
+                &mut self.memo,
+                &output,
+                fail_during_normalization,
+            )
+        })();
+        drop(selection);
+        f5c_replay::release_flat_output(&mut self.memo, output);
+        release_flat_post_r_lanes(&mut self.memo);
+        for lane in [
+            F5cWalkerLaneKind::SelectedRecursiveBounds,
+            F5cWalkerLaneKind::SelectedPositiveEliminated,
+            F5cWalkerLaneKind::SelectedNegativeEliminated,
+        ] {
+            self.memo.walker_resources.release(lane);
+        }
+        match result {
+            Ok((draft, stats)) => {
+                let published = (|| {
+                    let bytes = self.memo.retained_bytes()?;
+                    // Normalizer output lanes already count the emitted requests.
+                    // Publication retains those same allocations in walker lanes.
+                    for (kind, capacity) in [
+                        (
+                            F5cWalkerLaneKind::NormalizedPositiveNodes,
+                            draft.positive_nodes.capacity(),
+                        ),
+                        (
+                            F5cWalkerLaneKind::NormalizedNegativeNodes,
+                            draft.negative_nodes.capacity(),
+                        ),
+                        (
+                            F5cWalkerLaneKind::NormalizedPositiveChildren,
+                            draft.positive_children.capacity(),
+                        ),
+                        (
+                            F5cWalkerLaneKind::NormalizedNegativeChildren,
+                            draft.negative_children.capacity(),
+                        ),
+                        (
+                            F5cWalkerLaneKind::NormalizedRecursiveBounds,
+                            draft.recursive_bounds.capacity(),
+                        ),
+                        (
+                            F5cWalkerLaneKind::NormalizedInsertionOrder,
+                            draft.insertion_order.capacity(),
+                        ),
+                    ] {
+                        self.memo
+                            .walker_resources
+                            .observe_existing_capacity(kind, capacity, 0, bytes)?;
+                    }
+                    Ok::<_, SolveAvailabilityError>(())
+                })();
+                if let Err(error) = published {
+                    drop(draft);
+                    self.release_normalized_candidate_lanes();
+                    self.abort_raw_forest(forest)?;
+                    return Err(error);
+                }
+                self.release_raw_forest(forest);
+                Ok(F5cNormalizedCandidate { draft, stats })
+            }
+            Err(error) => {
+                self.abort_raw_forest(forest)?;
+                Err(error)
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn release_normalized_candidate_lanes(&mut self) {
+        for kind in [
+            F5cWalkerLaneKind::NormalizedPositiveNodes,
+            F5cWalkerLaneKind::NormalizedNegativeNodes,
+            F5cWalkerLaneKind::NormalizedPositiveChildren,
+            F5cWalkerLaneKind::NormalizedNegativeChildren,
+            F5cWalkerLaneKind::NormalizedRecursiveBounds,
+            F5cWalkerLaneKind::NormalizedInsertionOrder,
+        ] {
+            self.memo.walker_resources.release(kind);
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn release_normalized_candidate_for_test(
+        &mut self,
+        candidate: F5cNormalizedCandidate,
+    ) {
+        drop(candidate);
+        self.release_normalized_candidate_lanes();
     }
 
     #[cfg(test)]

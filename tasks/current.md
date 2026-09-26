@@ -4,6 +4,41 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): selected FlatDraft substitution and normalization
+
+The shared post-convergence selector now feeds the test-only FlatDraft
+substitution and selected-root normalization stages. Recursive bounds are
+assembled in R-owner order; substitution applies R, then Q, then
+polarity-specific elimination. The normalizer processes the selected predicate
+and bounds, and a paired fixture matches boxed structure, Q/R assignment, and
+all five normalization counters. Orphan Variable scratch is absent from the
+normalized result.
+
+The component memo transaction remains open through substitution,
+normalization, and normalized-output capacity observation. The late failure
+witness checks persistent memo restoration, idle lanes, and warm retry.
+Successful output stays retained and capacity-accounted until explicit release.
+
+The candidate tracks requested slots in 27 observer lanes: 13 normalizer
+lanes, eight additional scratch lanes, and six emitted-output lanes. Their
+counters merge atomically and contribute to the aggregate. Publishing the same
+six output vectors records retained capacity without counting their requests
+again. M2 compiler-referee review found no semantic or rollback issue. The
+performance requested-slot gap and duplicate-publication count are closed by
+the implementation repair and primary diff review.
+
+Checks passed: RUSTC_WRAPPER= cargo test -p yu-solver --lib selected_flat_ --
+--test-threads=1 (5); RUSTC_WRAPPER= cargo test -p yu-solver --lib flat_tests
+-- --test-threads=1 (15); RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--message-format short; cargo fmt --all --check; git diff --check. No broad
+suite, benchmark, resource probe, or §15 measurement ran.
+
+This closes substitution and normalization composition only. Full callback/Q/R
+parity, remaining physical resource reconciliation, the reviewed §15
+measurement plan, indexed finalization, and production cutover remain open.
+Production remains boxed; no numeric support boundary, §44 closure, F5e
+acceptance, or overall F5c completion is authorized by this slice.
+
 ### Latest continuation (2026-09-26): shared post-convergence R/Q assembly
 
 Boxed production and the test-only FlatDraft path now share post-convergence
