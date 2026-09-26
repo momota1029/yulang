@@ -3301,3 +3301,31 @@ the owning fields without changing runtime behavior.
 `cargo fmt --all --check`, and `git diff --check` pass, and the package check
 is warning-free. The next F5c implementation gate remains persistent producer
 state and nested reentry-path accounting.
+
+## Latest continuation (2026-09-27): persistent producer-state lanes
+
+Seven remaining persistent `F5cGeneralizer` states now use typed lanes in the
+existing `F5cWalkerResources`: uncacheable and provisional-row sets, path,
+ordered rows and its seen set, outer guarded reentries, and aggregate nested
+trace-path capacities. Fallible reserves observe actual capacity on success or
+failure. A trace-copy peak includes the source path plus all retained traces.
+Component cleanup drops each collection before zeroing its lane and preserves
+request/growth/peak history. Focused tests cover a failed second order lane,
+failed trace copy and retry, co-resident nested paths, idle return, and memo
+restoration.
+
+The M2 compiler-referee and performance-auditor reviews found no blocking or
+major issue. The performance review noted that current aggregate test evidence
+partly sums the mirrored lane ledger rather than enumerating every physical
+collection. Close that evidence gap as part of the complete independent §15
+physical-lane reconciliation; it does not close that full gate. Focused checks
+passed: solver test-target check; transaction tests (14), work-meter tests
+(13), flat-walk tests (36), nested-path test (1); formatting and diff checks.
+No broad suite, benchmark, or resource probe ran.
+
+Next: account remaining `build_inner`/R-selection local collections, then fix
+boxed normalizer failed-reserve observation and reconcile the solver/draft/
+finalizer same-time peak in existing owners. Only after the complete physical
+ledger closes should the fresh §15 probe plan be independently reviewed.
+Production remains boxed; no admission boundary, numeric limit, cutover, §44,
+F5e, or overall F5c acceptance is claimed.

@@ -1,6 +1,25 @@
 use super::*;
 use crate::f5c_generalization::{F5cTestObservationFailure, F5cTestReserveFailure};
 
+fn assert_generalizer_physical_lanes_idle(memo: &F5cComponentExpansionMemo) {
+    for kind in [
+        F5cWalkerLaneKind::UncacheableSeen,
+        F5cWalkerLaneKind::ProvisionalRecursiveRows,
+        F5cWalkerLaneKind::Path,
+        F5cWalkerLaneKind::Order,
+        F5cWalkerLaneKind::OrderSeen,
+        F5cWalkerLaneKind::Reentries,
+        F5cWalkerLaneKind::ReentryPaths,
+    ] {
+        let lane = memo.walker_resources.lanes[kind as usize];
+        assert_eq!(lane.actual_capacity, 0, "lane {}", kind as usize);
+        assert_eq!(
+            memo.walker_resources.independent_lanes[kind as usize].actual_capacity,
+            0
+        );
+    }
+}
+
 macro_rules! persistent_memo_state {
     ($memo:expr) => {{
         let memo = &$memo;
@@ -106,6 +125,7 @@ fn warm_child_conflict_failure_and_retry_preserve_persistent_memo() {
     assert!(memo.visit_epochs.iter().all(|epoch| *epoch == 0));
     assert_eq!(memo.visit_epoch, 0);
     assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
+    assert_generalizer_physical_lanes_idle(&memo);
     let mut raw = F5cGeneralizer::with_memo(&session, memo, 0);
     assert_eq!(
         raw.positive_row(child, false),
@@ -457,6 +477,7 @@ fn f5c_component_admission_observation_failure_restores_memo_and_retries() {
     assert!(returned.active_rows.is_empty() && returned.active_conflicts.is_empty());
     assert!(returned.work.is_empty() && returned.conflict_journal.is_empty());
     assert_eq!(returned.generalizer_scratch_capacities, [0; 4]);
+    assert_generalizer_physical_lanes_idle(&returned);
     assert!(returned.root_lane.requested_slots > 0);
     assert!(returned.index_lane.peak_bytes >= returned.index_retained_bytes().unwrap());
     let (retry, memo, _, _) =
@@ -503,6 +524,7 @@ fn f5c_component_reserve_preparation_failures_roll_back_prior_admission() {
         assert!(memo.active_rows.is_empty() && memo.active_conflicts.is_empty());
         assert!(memo.work.is_empty() && memo.conflict_journal.is_empty());
         assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
+        assert_generalizer_physical_lanes_idle(&memo);
         assert!(memo.root_lane.requested_slots > 0);
         let (retry, memo, _, _) =
             F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
@@ -542,9 +564,127 @@ fn f5c_raw_owner_order_reserve_failure_rolls_back_and_retries() {
     assert_eq!(persistent_memo_state!(memo), before);
     assert_eq!(memo.fail_reserve_at, None);
     assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
+    assert_generalizer_physical_lanes_idle(&memo);
     assert!(memo.scratch_lane.requested_slots > 0);
     let (retry, _, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
     assert!(retry.is_ok());
+}
+
+#[test]
+fn f5c_order_second_lane_failure_retains_growth_history_and_retries() {
+    let batch = collect(module("my f = 1", "f5c-order-second-lane"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut memo = F5cComponentExpansionMemo::default();
+    memo.fail_reserve_at = Some((F5cTestReserveFailure::OrderAfterSeen, 0));
+    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+    assert_generalizer_physical_lanes_idle(&memo);
+    let seen = memo.walker_resources.lanes[F5cWalkerLaneKind::OrderSeen as usize];
+    assert!(seen.requested_slots > 0 && seen.capacity_growths > 0 && seen.peak_bytes > 0);
+    let (retry, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    assert!(retry.is_ok());
+    assert_generalizer_physical_lanes_idle(&memo);
+}
+
+#[test]
+fn f5c_reentry_path_copy_failure_rolls_back_and_retries() {
+    let batch = collect(module("my f = 1", "f5c-reentry-path-copy"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    let relay = session.fresh_value_at_level(1).unwrap();
+    let argument = session.negative_top_term().unwrap();
+    let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+    let function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            result,
+        )
+        .unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(function));
+    session.bounds[relay as usize].direct_lower_rows.push(root);
+    let mut memo = F5cComponentExpansionMemo::default();
+    memo.fail_reserve_at = Some((F5cTestReserveFailure::ReentryPathAfterReserve, 0));
+    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+    assert_generalizer_physical_lanes_idle(&memo);
+    let paths = memo.walker_resources.lanes[F5cWalkerLaneKind::ReentryPaths as usize];
+    assert!(paths.requested_slots > 0 && paths.capacity_growths > 0 && paths.peak_bytes > 0);
+    let (retry, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    assert!(retry.is_ok());
+    assert_generalizer_physical_lanes_idle(&memo);
+    assert!(memo.walker_resources.lanes[F5cWalkerLaneKind::Reentries as usize].peak_bytes > 0);
+}
+
+#[test]
+fn f5c_trace_path_lane_sums_retained_paths_and_copy_peaks() {
+    let batch = collect(module("my f = 1", "f5c-trace-path-aggregate"));
+    let mut session = InferenceSession::new(batch);
+    let row = session.fresh_value_at_level(1).unwrap();
+    let mut generalizer = F5cGeneralizer::new(&session);
+    generalizer.active.push((row, Polarity::Positive, 0));
+    generalizer
+        .memo
+        .reserve_walker(&mut generalizer.path, F5cWalkerLaneKind::Path)
+        .unwrap();
+    generalizer
+        .path
+        .push(F5cTraceHop::Function(FunctionField::Result));
+    let live_path = generalizer.path.capacity();
+    generalizer
+        .record_reentry_for_test(row, Polarity::Positive)
+        .unwrap();
+    let first_trace = generalizer.reentries[0].path.capacity();
+    assert_eq!(
+        generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::ReentryPaths as usize]
+            .actual_capacity,
+        first_trace
+    );
+    generalizer.memo.fail_reserve_at = Some((F5cTestReserveFailure::ReentryPathAfterReserve, 1));
+    assert_eq!(
+        generalizer.record_reentry_for_test(row, Polarity::Positive),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    let during_copy =
+        generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::ReentryPaths as usize];
+    assert_eq!(during_copy.actual_capacity, first_trace);
+    assert!(during_copy.peak_bytes >= 2 * first_trace * std::mem::size_of::<F5cTraceHop>());
+    generalizer
+        .record_reentry_for_test(row, Polarity::Positive)
+        .unwrap();
+    let second_trace = generalizer.reentries[1].path.capacity();
+    let paths = generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::ReentryPaths as usize];
+    assert_eq!(paths.actual_capacity, first_trace + second_trace);
+    let independent_paths = generalizer.memo.walker_resources.independent_lanes
+        [F5cWalkerLaneKind::ReentryPaths as usize];
+    assert_eq!(
+        independent_paths.actual_capacity,
+        first_trace + second_trace
+    );
+    assert_eq!(independent_paths.peak_bytes, paths.peak_bytes);
+    assert!(paths.peak_bytes >= (first_trace + second_trace) * std::mem::size_of::<F5cTraceHop>());
+    let path_bytes = live_path * std::mem::size_of::<F5cTraceHop>();
+    assert!(generalizer.memo.walker_resources.peak_bytes >= paths.peak_bytes + path_bytes);
+    let reconstructed_live_bytes = F5cWalkerLaneKind::ALL
+        .iter()
+        .map(|kind| {
+            generalizer.memo.walker_resources.independent_lanes[*kind as usize].actual_capacity
+                * kind.slot_size()
+        })
+        .sum::<usize>();
+    let reported_live_bytes = generalizer.memo.walker_resources.retained_bytes().unwrap();
+    assert_eq!(reconstructed_live_bytes, reported_live_bytes);
+    assert!(generalizer.memo.walker_resources.independent_peak_bytes >= reconstructed_live_bytes);
+    assert_eq!(generalizer.reentries.len(), 2);
 }
 
 #[test]

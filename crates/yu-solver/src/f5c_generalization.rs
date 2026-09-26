@@ -271,6 +271,8 @@ pub(super) enum F5cTestObservationFailure {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum F5cTestReserveFailure {
     ActiveMirrors,
+    OrderAfterSeen,
+    ReentryPathAfterReserve,
     RawOwnerOrder,
     ChildrenAfterReserve,
     RootUndo,
@@ -363,10 +365,17 @@ pub(super) enum F5cWalkerLaneKind {
     ClosureFrontier = 75,
     RawPositiveIncidences = 76,
     RawNegativeIncidences = 77,
+    UncacheableSeen = 78,
+    ProvisionalRecursiveRows = 79,
+    Path = 80,
+    Order = 81,
+    OrderSeen = 82,
+    Reentries = 83,
+    ReentryPaths = 84,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 78] = [
+    pub(super) const ALL: [Self; 85] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -445,6 +454,13 @@ impl F5cWalkerLaneKind {
         Self::ClosureFrontier,
         Self::RawPositiveIncidences,
         Self::RawNegativeIncidences,
+        Self::UncacheableSeen,
+        Self::ProvisionalRecursiveRows,
+        Self::Path,
+        Self::Order,
+        Self::OrderSeen,
+        Self::Reentries,
+        Self::ReentryPaths,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -532,6 +548,12 @@ impl F5cWalkerLaneKind {
             | Self::RawPositiveIncidences
             | Self::RawNegativeIncidences => std::mem::size_of::<u32>(),
             Self::ClosureFrontier => std::mem::size_of::<u32>(),
+            Self::UncacheableSeen => std::mem::size_of::<F5cExpansionKey>(),
+            Self::ProvisionalRecursiveRows | Self::Order | Self::OrderSeen => {
+                std::mem::size_of::<u32>()
+            }
+            Self::Path | Self::ReentryPaths => std::mem::size_of::<F5cTraceHop>(),
+            Self::Reentries => std::mem::size_of::<F5cGuardedTrace>(),
         }
     }
 }
@@ -562,13 +584,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 78],
+    pub(super) lanes: [F5cWalkerLane; 85],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 78],
+    pub(super) independent_lanes: [F5cWalkerLane; 85],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -581,13 +603,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 78],
+            lanes: [F5cWalkerLane::default(); 85],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 78],
+            independent_lanes: [F5cWalkerLane::default(); 85],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
@@ -600,6 +622,129 @@ impl Default for F5cWalkerResources {
 }
 
 impl F5cWalkerResources {
+    fn reserve_generalizer_set<T: Eq + std::hash::Hash>(
+        &mut self,
+        set: &mut HashSet<T>,
+        kind: F5cWalkerLaneKind,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let index = kind as usize;
+        let requested = self.lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_requested = self.independent_lanes[index]
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let growth = self.lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth = self.independent_lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = set.capacity();
+        let result = set.try_reserve(1);
+        let capacity = set.capacity();
+        self.lanes[index].requested_slots = requested;
+        self.lanes[index].actual_capacity = capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].requested_slots = independent_requested;
+            self.independent_lanes[index].actual_capacity = capacity;
+        }
+        if capacity != old {
+            self.lanes[index].capacity_growths = growth;
+            self.lanes[index].peak_bytes = self.lanes[index].peak_bytes.max(
+                capacity
+                    .checked_mul(kind.slot_size())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].capacity_growths = independent_growth;
+                self.independent_lanes[index].peak_bytes = self.lanes[index].peak_bytes;
+            }
+            self.observe_memo(memo_bytes)?;
+            self.observed_memo_bytes = memo_bytes;
+        }
+        result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn reserve_reentry_path(
+        &mut self,
+        path: &mut Vec<F5cTraceHop>,
+        additional: usize,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let kind = F5cWalkerLaneKind::ReentryPaths;
+        let index = kind as usize;
+        let requested = self.lanes[index]
+            .requested_slots
+            .checked_add(additional)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let growth = self.lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_requested = self.independent_lanes[index]
+            .requested_slots
+            .checked_add(additional)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        let independent_growth = self.independent_lanes[index]
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old = path.capacity();
+        let result = path.try_reserve(additional);
+        let delta = path
+            .capacity()
+            .checked_sub(old)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let capacity = self.lanes[index]
+            .actual_capacity
+            .checked_add(delta)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.lanes[index].requested_slots = requested;
+        self.lanes[index].actual_capacity = capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].requested_slots = independent_requested;
+            self.independent_lanes[index].actual_capacity = capacity;
+        }
+        if delta != 0 {
+            self.lanes[index].capacity_growths = growth;
+            self.lanes[index].peak_bytes = self.lanes[index].peak_bytes.max(
+                capacity
+                    .checked_mul(kind.slot_size())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].capacity_growths = independent_growth;
+                self.independent_lanes[index].peak_bytes = self.lanes[index].peak_bytes;
+            }
+            self.observe_memo(memo_bytes)?;
+            self.observed_memo_bytes = memo_bytes;
+        }
+        result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
+    fn release_reentry_path(&mut self, capacity: usize) {
+        let kind = F5cWalkerLaneKind::ReentryPaths;
+        let index = kind as usize;
+        self.lanes[index].actual_capacity -= capacity;
+        #[cfg(test)]
+        {
+            self.independent_lanes[index].actual_capacity -= capacity;
+        }
+    }
     #[cfg(test)]
     fn observe_existing_capacity(
         &mut self,
@@ -3658,6 +3803,26 @@ impl F5cWalkSink for F5cBoxedWalkSink {
 }
 
 impl<'a> F5cGeneralizer<'a> {
+    fn release_persistent_lanes(&mut self) {
+        self.uncacheable_seen = HashSet::new();
+        self.provisional_recursive_rows = HashSet::new();
+        self.path = Vec::new();
+        self.order = Vec::new();
+        self.order_seen = HashSet::new();
+        self.reentries = Vec::new();
+        for kind in [
+            F5cWalkerLaneKind::UncacheableSeen,
+            F5cWalkerLaneKind::ProvisionalRecursiveRows,
+            F5cWalkerLaneKind::Path,
+            F5cWalkerLaneKind::Order,
+            F5cWalkerLaneKind::OrderSeen,
+            F5cWalkerLaneKind::Reentries,
+            F5cWalkerLaneKind::ReentryPaths,
+        ] {
+            self.memo.walker_resources.release(kind);
+        }
+    }
+
     fn reserve_active_mirrors(&mut self, frame: bool) -> Result<(), SolveAvailabilityError> {
         #[cfg(test)]
         if self.memo.fail_reserve_at
@@ -3751,12 +3916,29 @@ impl<'a> F5cGeneralizer<'a> {
     }
 
     fn mark(&mut self, ordinal: u32, _polarity: Polarity) -> Result<(), SolveAvailabilityError> {
-        Self::register_order(
-            &self.memo.work_meter,
-            &mut self.order_seen,
-            &mut self.order,
-            ordinal,
-        )?;
+        #[cfg(test)]
+        F5C_ORDER_REGISTRATION.with(|marker| marker.set(Some(self.memo.work_meter.get())));
+        self.memo.work_meter.charge(1)?;
+        if !self.order_seen.contains(&ordinal) {
+            self.memo.work_meter.charge(2)?;
+            let memo_bytes = self.memo.retained_bytes()?;
+            self.memo.walker_resources.reserve_generalizer_set(
+                &mut self.order_seen,
+                F5cWalkerLaneKind::OrderSeen,
+                memo_bytes,
+            )?;
+            #[cfg(test)]
+            if self.memo.fail_reserve_at
+                == Some((F5cTestReserveFailure::OrderAfterSeen, self.order.len()))
+            {
+                self.memo.fail_reserve_at = None;
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            self.memo
+                .reserve_walker(&mut self.order, F5cWalkerLaneKind::Order)?;
+            self.order_seen.insert(ordinal);
+            self.order.push(ordinal);
+        }
         if self.provisional_recursive_rows.contains(&ordinal)
             || self
                 .session
@@ -3819,14 +4001,31 @@ impl<'a> F5cGeneralizer<'a> {
         Ok(())
     }
 
-    fn record_uncacheable(&mut self, row: u32, polarity: Polarity) {
-        if self.uncacheable_seen.insert(F5cExpansionKey {
+    fn record_uncacheable(
+        &mut self,
+        row: u32,
+        polarity: Polarity,
+    ) -> Result<(), SolveAvailabilityError> {
+        let key = F5cExpansionKey {
             row,
             polarity,
             frozen_bound_epoch: self.frozen_bound_epoch,
-        }) {
-            self.uncacheable_states += 1;
+        };
+        if !self.uncacheable_seen.contains(&key) {
+            let count = self
+                .uncacheable_states
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let memo_bytes = self.memo.retained_bytes()?;
+            self.memo.walker_resources.reserve_generalizer_set(
+                &mut self.uncacheable_seen,
+                F5cWalkerLaneKind::UncacheableSeen,
+                memo_bytes,
+            )?;
+            self.uncacheable_seen.insert(key);
+            self.uncacheable_states = count;
         }
+        Ok(())
     }
 
     fn active(&self, ordinal: u32, polarity: Polarity) -> bool {
@@ -3883,7 +4082,14 @@ impl<'a> F5cGeneralizer<'a> {
         ordinal: u32,
         reentry_polarity: Polarity,
     ) -> Result<(), SolveAvailabilityError> {
-        if self.provisional_recursive_rows.insert(ordinal) {
+        if !self.provisional_recursive_rows.contains(&ordinal) {
+            let memo_bytes = self.memo.retained_bytes()?;
+            self.memo.walker_resources.reserve_generalizer_set(
+                &mut self.provisional_recursive_rows,
+                F5cWalkerLaneKind::ProvisionalRecursiveRows,
+                memo_bytes,
+            )?;
+            self.provisional_recursive_rows.insert(ordinal);
             self.memo.invalidate_row(ordinal)?;
         }
         let mut entry = None;
@@ -3898,24 +4104,85 @@ impl<'a> F5cGeneralizer<'a> {
             return Ok(());
         };
         self.memo.work_meter.charge(self.path.len() - path_start)?;
-        let path = self.path[path_start..].to_vec();
+        let mut path = Vec::new();
+        let copied = self.path.len() - path_start;
+        let memo_bytes = self.memo.retained_bytes()?;
+        let before_capacity = self.memo.walker_resources.lanes
+            [F5cWalkerLaneKind::ReentryPaths as usize]
+            .actual_capacity;
+        let reservation = self
+            .memo
+            .walker_resources
+            .reserve_reentry_path(&mut path, copied, memo_bytes);
+        if let Err(error) = reservation {
+            let capacity = path.capacity();
+            drop(path);
+            if self.memo.walker_resources.lanes[F5cWalkerLaneKind::ReentryPaths as usize]
+                .actual_capacity
+                != before_capacity
+            {
+                self.memo.walker_resources.release_reentry_path(capacity);
+            }
+            return Err(error);
+        }
+        #[cfg(test)]
+        if self.memo.fail_reserve_at
+            == Some((
+                F5cTestReserveFailure::ReentryPathAfterReserve,
+                self.reentries.len(),
+            ))
+        {
+            self.memo.fail_reserve_at = None;
+            let capacity = path.capacity();
+            drop(path);
+            self.memo.walker_resources.release_reentry_path(capacity);
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        path.extend_from_slice(&self.path[path_start..]);
         let mut guarded = false;
         for hop in &path {
-            self.memo.work_meter.charge(1)?;
+            if let Err(error) = self.memo.work_meter.charge(1) {
+                let capacity = path.capacity();
+                drop(path);
+                self.memo.walker_resources.release_reentry_path(capacity);
+                return Err(error);
+            }
             if matches!(hop, F5cTraceHop::Function(_)) {
                 guarded = true;
                 break;
             }
         }
         if guarded {
+            if let Err(error) = self
+                .memo
+                .reserve_walker(&mut self.reentries, F5cWalkerLaneKind::Reentries)
+            {
+                let capacity = path.capacity();
+                drop(path);
+                self.memo.walker_resources.release_reentry_path(capacity);
+                return Err(error);
+            }
             self.reentries.push(F5cGuardedTrace {
                 owner: ordinal,
                 entry_polarity,
                 reentry_polarity,
                 path,
             });
+        } else {
+            let capacity = path.capacity();
+            drop(path);
+            self.memo.walker_resources.release_reentry_path(capacity);
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(super) fn record_reentry_for_test(
+        &mut self,
+        ordinal: u32,
+        polarity: Polarity,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.record_reentry(ordinal, polarity)
     }
 
     pub(super) fn structural_equal<'b>(
@@ -4077,7 +4344,11 @@ impl<'a> F5cGeneralizer<'a> {
                 self.memo.work_meter.charge(1)?;
                 let task = tasks.pop().expect("nonempty generalization tasks");
                 match task {
-                    F5cWalkTask::EnterPath(hop) => self.path.push(hop),
+                    F5cWalkTask::EnterPath(hop) => {
+                        self.memo
+                            .reserve_walker(&mut self.path, F5cWalkerLaneKind::Path)?;
+                        self.path.push(hop);
+                    }
                     F5cWalkTask::LeavePath => {
                         self.path.pop();
                     }
@@ -4248,7 +4519,7 @@ impl<'a> F5cGeneralizer<'a> {
                             .expect("non-root expansion owns one frame");
                         frame.tainted |= !sink.cacheable(&value);
                         if frame.tainted {
-                            self.record_uncacheable(row, polarity);
+                            self.record_uncacheable(row, polarity)?;
                             self.taint_active_states()?;
                             push_value!(value);
                         } else {
@@ -4807,12 +5078,7 @@ impl<'a> F5cGeneralizer<'a> {
         self.frames = Vec::new();
         self.active = Vec::new();
         self.active_set = HashSet::new();
-        self.path = Vec::new();
-        self.order = Vec::new();
-        self.order_seen = HashSet::new();
-        self.reentries = Vec::new();
-        self.provisional_recursive_rows = HashSet::new();
-        self.uncacheable_seen = HashSet::new();
+        self.release_persistent_lanes();
         self.memo.generalizer_scratch_capacities = [0; 4];
         self.shared_summary_hits = 0;
         self.uncacheable_states = 0;
@@ -4861,12 +5127,7 @@ impl<'a> F5cGeneralizer<'a> {
         self.active.clear();
         self.active_set.clear();
         self.frames.clear();
-        self.path.clear();
-        self.order.clear();
-        self.order_seen.clear();
-        self.reentries.clear();
-        self.provisional_recursive_rows.clear();
-        self.uncacheable_seen.clear();
+        self.release_persistent_lanes();
         self.fatal_taint = false;
         self.invalid_effects = false;
         let nodes = self.memo.rollback_nodes(
@@ -5808,6 +6069,7 @@ impl<'a> F5cGeneralizer<'a> {
         self.active = Vec::new();
         self.active_set = HashSet::new();
         self.memo.generalizer_scratch_capacities = [0; 4];
+        self.release_persistent_lanes();
         (
             result,
             self.memo,

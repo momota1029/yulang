@@ -4,6 +4,35 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): persistent producer-state lanes
+
+The next seven persistent `F5cGeneralizer` states now use typed lanes in the
+existing `F5cWalkerResources`: uncacheable and provisional-row sets, path,
+ordered rows and its seen set, outer guarded reentries, and the aggregate
+capacities of nested reentry trace paths. Growth uses fallible reserves and
+observes actual capacities; a copied path's peak includes the source path and
+all retained traces. Component success and failure drop these collections
+before returning their lanes to idle while retaining request/growth/peak
+history. Focused witnesses cover a failure after the order-seen lane grows,
+trace-copy failure and retry, co-resident path capacity, and memo restoration.
+
+The M2 compiler-referee and performance-auditor reviews found no blocking or
+major issue. The performance review noted that the current aggregate test partly
+reconstructs live bytes from the mirrored lane ledger rather than enumerating
+every physical collection; complete independent physical-lane reconciliation
+remains a required later §15 gate. Focused checks passed: solver test-target
+check; transaction tests (14), work-meter tests (13), flat-walk tests (36),
+and the nested-path test (1); `cargo fmt --check`; `git diff --check`. No
+resource probe, benchmark, or broad suite ran.
+
+This closes only persistent producer state. Next account the remaining
+`build_inner`/R-selection local collections, then the boxed normalizer failed-
+reserve path and solver/draft/finalizer same-time peak in their existing owners.
+Only after that physical ledger is complete should a fresh §15 plan receive
+independent review before any probe. Production remains boxed; no producer
+admission, numeric boundary, cutover, §44 closure, F5e acceptance, or overall
+F5c completion is claimed.
+
 ### Latest continuation (2026-09-27): closure and raw-incidence resource lanes
 
 The first solver-side physical-lane slice now accounts `non_generic_closure`
@@ -35,11 +64,10 @@ follow-up marks their test-only use at the owning fields; `cargo check` now
 passes without warnings. No resource probe, benchmark, or broad suite ran.
 
 This closes only the closure/raw-incidence lane slice. The next implementation
-gate is the remaining persistent producer state (`uncacheable_seen`,
-`provisional_recursive_rows`, path/order/reentry lanes and nested trace paths),
-then the remaining `build_inner`/R-selection locals, boxed normalizer failed
-reserve observation, and the solver/draft/finalizer same-time peak. Only after
-those owner gates close should a fresh §15 plan receive independent review.
+gate is the remaining `build_inner`/R-selection locals, followed by boxed
+normalizer failed-reserve observation and the solver/draft/finalizer same-time
+peak. Only after those owner gates close should a fresh §15 plan receive
+independent review.
 Producer incidence admission, numeric support boundary, production cutover,
 §44 closure, F5e acceptance, and overall F5c completion remain open. No user
 decision arose in this slice.
