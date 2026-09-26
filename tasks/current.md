@@ -4,6 +4,37 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): end-to-end callback and Q/R parity
+
+The selected FlatDraft candidate now has a paired root-forest witness with two
+raw recursive owners. The fixture contains a prewarmed Shared occurrence
+repeated in the predicate roots and a negative-polarity Shared row first
+encountered in a later bound. It compares the complete callback sequence and
+polarity with the boxed materializer, compares Shared-hit counts separately,
+and checks Q/R maps and ordinals, normalized structure, and all five
+normalization counters.
+
+The same raw bound entries are inserted in both owner orders while the explicit
+root-owner order stays fixed. Both variants produce identical callback traces,
+hit counts, and Q/R assignments. Test-only capture is at the existing
+materialization callback site; the producer algorithm and production path do
+not change.
+
+M1 spec-auditor review found the first witness used only one owner and could not
+cover the approved map-order invariant. The repaired two-owner fixture closes
+that finding. Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+selected_flat_candidate_matches_boxed_q_r_and_normalization_counters
+-- --test-threads=1` (1), `RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--message-format short`, `cargo fmt --all --check`, and `git diff --check`. No
+broader suite or measurement ran.
+
+End-to-end callback/Q/R parity now closes. Remaining candidate gates are full
+physical resource reconciliation, the reviewed §15 measurement plan and
+campaign, indexed finalization under its approved API scope, and final
+implementation review. Production remains boxed; no numeric support boundary,
+production cutover, §44 closure, F5e acceptance, or overall F5c completion is
+authorized by this slice.
+
 ### Latest continuation (2026-09-26): selected FlatDraft substitution and normalization
 
 The shared post-convergence selector now feeds the test-only FlatDraft

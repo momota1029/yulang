@@ -1011,6 +1011,8 @@ pub(super) struct F5cComponentExpansionMemo {
     #[cfg(test)]
     pub(super) checked_materialization_scratch_sample: Option<[usize; 13]>,
     #[cfg(test)]
+    pub(super) boxed_materialization_callback_trace: Vec<(u32, Polarity)>,
+    #[cfg(test)]
     pub(super) independent_generalizer_scratch_peak_bytes: usize,
     #[cfg(test)]
     pub(super) fail_observation_at: Option<F5cTestObservationFailure>,
@@ -1488,6 +1490,9 @@ impl F5cComponentExpansionMemo {
                     F5cMaterializeTask::Positive(id) | F5cMaterializeTask::Negative(id) => {
                         let node = self.node(id)?;
                         if let Some((row, polarity)) = node.incidence {
+                            #[cfg(test)]
+                            self.boxed_materialization_callback_trace
+                                .push((row, polarity));
                             mark(row, polarity)?;
                         }
                         match (task, node.kind) {
@@ -4381,6 +4386,15 @@ impl<'a> F5cGeneralizer<'a> {
         &mut self,
         root: u32,
     ) -> Result<F5cRawForest, SolveAvailabilityError> {
+        self.build_raw_forest_with_bound_reinsertion_for_test(root, false)
+    }
+
+    #[cfg(test)]
+    pub(super) fn build_raw_forest_with_bound_reinsertion_for_test(
+        &mut self,
+        root: u32,
+        reverse_bounds: bool,
+    ) -> Result<F5cRawForest, SolveAvailabilityError> {
         if self.raw_forest_live || self.raw_forest_rollback_failed {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
@@ -4501,6 +4515,14 @@ impl<'a> F5cGeneralizer<'a> {
             }
             if self.invalid_effects {
                 return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            if reverse_bounds {
+                for owner in raw_owner_order.iter().rev() {
+                    let bounds = raw_bounds
+                        .remove(owner)
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                    raw_bounds.insert(*owner, bounds);
+                }
             }
             let memo = &mut self.memo;
             let sink = &self.flat_sink;

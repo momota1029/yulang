@@ -1041,6 +1041,9 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
     let owner = session.fresh_value_at_level(1).unwrap();
     let relay = session.fresh_value_at_level(1).unwrap();
     let quantified = session.fresh_value_at_level(1).unwrap();
+    let warm = session.fresh_value_at_level(1).unwrap();
+    let bound_only = session.fresh_value_at_level(1).unwrap();
+    let second_owner = session.fresh_value_at_level(1).unwrap();
     let argument = session.negative_top_term().unwrap();
     let result = session.live_value_term(Polarity::Positive, relay).unwrap();
     let function = session
@@ -1057,184 +1060,268 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
         .exact_non_variable_lowers
         .push(ValueEndpointKey::PositiveFunction(function));
     session.bounds[owner as usize]
+        .exact_non_variable_lowers
+        .extend([
+            ValueEndpointKey::ValueRow(warm),
+            ValueEndpointKey::ValueRow(warm),
+        ]);
+    session.bounds[owner as usize]
+        .exact_non_variable_uppers
+        .push(ValueEndpointKey::ValueRow(bound_only));
+    session.bounds[warm as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    session.bounds[bound_only as usize]
+        .exact_non_variable_uppers
+        .push(ValueEndpointKey::IntNegative);
+    session.bounds[owner as usize]
         .direct_lower_rows
         .push(quantified);
+    session.bounds[owner as usize]
+        .direct_lower_rows
+        .push(second_owner);
     session.bounds[owner as usize]
         .direct_upper_rows
         .push(quantified);
     session.bounds[relay as usize].direct_lower_rows.push(owner);
+    let second_result = session
+        .live_value_term(Polarity::Positive, second_owner)
+        .unwrap();
+    let second_function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            second_result,
+        )
+        .unwrap();
+    session.bounds[second_owner as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(second_function));
 
-    let (boxed_result, _, _, _) = F5cGeneralizer::new(&session).build_component(owner);
-    let mut boxed = boxed_result.unwrap();
-    let boxed_stats =
-        crate::f5c_normalization::normalize_component(std::slice::from_mut(&mut boxed)).unwrap();
-    let mut generalizer = F5cGeneralizer::new(&session);
-    let forest = generalizer.build_raw_forest(owner).unwrap();
-    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
-    let traces = generalizer.reentries.clone();
-    let order = generalizer.order.clone();
-    let mut by_owner = HashMap::<u32, Vec<usize>>::new();
-    for (index, trace) in traces.iter().enumerate() {
-        by_owner.entry(trace.owner).or_default().push(index);
-    }
-    let positive_only = positive
-        .difference(&negative)
-        .copied()
-        .collect::<HashSet<_>>();
-    let negative_only = negative
-        .difference(&positive)
-        .copied()
-        .collect::<HashSet<_>>();
-    let (selection, output, forest) = generalizer
-        .flat_r_q_with_raw_forest_for_test(
-            forest,
-            &traces,
-            &by_owner,
-            &order,
-            |_| true,
-            &positive,
-            &negative,
-            &positive_only,
-            &negative_only,
-            false,
-        )
-        .unwrap();
-    assert_eq!(selection.recursive_owners, vec![owner]);
-    assert_eq!(selection.q, HashMap::from([(quantified, 0)]));
-    assert_eq!(selection.r, HashMap::from([(owner, 1)]));
-    assert!(
-        output
-            .positive_nodes
+    let mut baseline = None;
+    for reverse_bounds in [false, true] {
+        let (warm_result, mut boxed_memo, _, _) =
+            F5cGeneralizer::new(&session).build_component(warm);
+        assert!(warm_result.is_ok());
+        boxed_memo.boxed_materialization_callback_trace.clear();
+        let (boxed_result, boxed_memo, boxed_hits, _) =
+            F5cGeneralizer::with_memo(&session, boxed_memo, 0).build_component(owner);
+        let boxed_callbacks = boxed_memo.boxed_materialization_callback_trace;
+        let mut boxed = boxed_result.unwrap();
+        let boxed_stats =
+            crate::f5c_normalization::normalize_component(std::slice::from_mut(&mut boxed))
+                .unwrap();
+        let (warm_result, memo, _, _) = F5cGeneralizer::new(&session).build_component(warm);
+        assert!(warm_result.is_ok());
+        let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+        let forest = generalizer
+            .build_raw_forest_with_bound_reinsertion_for_test(owner, reverse_bounds)
+            .unwrap();
+        assert_eq!(forest.raw_owner_order, vec![owner, second_owner]);
+        assert_eq!(forest.callback_trace, boxed_callbacks);
+        assert_eq!(generalizer.shared_summary_hits, boxed_hits);
+        assert!(boxed_hits > 0);
+        assert!(boxed_callbacks.contains(&(warm, Polarity::Positive)));
+        assert!(boxed_callbacks.contains(&(bound_only, Polarity::Negative)));
+        // Both insertion orders retain the same explicit owner traversal order.
+        let first_bound = boxed_callbacks
             .iter()
-            .any(|node| matches!(node, PositiveNode::Variable(_)))
-    );
-    let candidate = generalizer
-        .flat_finish_selected_for_test(
-            selection,
-            output,
-            forest,
-            &positive_only,
-            &negative_only,
-            false,
-        )
-        .unwrap();
-    assert_eq!(candidate.draft.quantifier_count, boxed.quantifier_count);
-    assert_eq!(
-        candidate.draft.recursive_bounds.len(),
-        boxed.recursive_bounds.len()
-    );
-    assert_eq!(
-        candidate.draft.recursive_bounds[0].ordinal,
-        boxed.recursive_bounds[0].ordinal
-    );
-    assert_eq!(
-        expand_positive(&candidate.draft, candidate.draft.predicate.unwrap()),
-        boxed.predicate
-    );
-    for (flat, boxed) in candidate
-        .draft
-        .recursive_bounds
-        .iter()
-        .zip(&boxed.recursive_bounds)
-    {
-        assert_eq!(expand_positive(&candidate.draft, flat.lower), boxed.lower);
-        assert_eq!(expand_negative(&candidate.draft, flat.upper), boxed.upper);
-    }
-    assert_eq!(candidate.stats.key_writes, boxed_stats.key_writes);
-    assert_eq!(
-        candidate.stats.child_comparisons,
-        boxed_stats.child_comparisons
-    );
-    assert_eq!(
-        candidate.stats.descriptor_words,
-        boxed_stats.descriptor_words
-    );
-    assert_eq!(
-        candidate.stats.word_comparisons,
-        boxed_stats.word_comparisons
-    );
-    assert_eq!(candidate.stats.duplicates, boxed_stats.duplicates);
-    for (index, lane, length) in [
-        (
-            0,
-            F5cWalkerLaneKind::NormalizedPositiveNodes,
-            candidate.draft.positive_nodes.len(),
-        ),
-        (
-            1,
-            F5cWalkerLaneKind::NormalizedNegativeNodes,
-            candidate.draft.negative_nodes.len(),
-        ),
-        (
-            2,
-            F5cWalkerLaneKind::NormalizedPositiveChildren,
-            candidate.draft.positive_children.len(),
-        ),
-        (
-            3,
-            F5cWalkerLaneKind::NormalizedNegativeChildren,
-            candidate.draft.negative_children.len(),
-        ),
-        (
-            4,
-            F5cWalkerLaneKind::NormalizedRecursiveBounds,
-            candidate.draft.recursive_bounds.len(),
-        ),
-        (
-            5,
-            F5cWalkerLaneKind::NormalizedInsertionOrder,
-            candidate.draft.insertion_order.len(),
-        ),
-    ] {
-        assert_eq!(
-            generalizer.memo.walker_resources.lanes[lane as usize].requested_slots,
-            0
+            .position(|&(row, _)| row == bound_only)
+            .unwrap();
+        assert!(
+            boxed_callbacks[..first_bound]
+                .iter()
+                .any(|&(row, _)| row == warm)
         );
+        assert!(
+            boxed_callbacks
+                .iter()
+                .filter(|&&(row, _)| row == warm)
+                .count()
+                > 1
+        );
+        let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+        let traces = generalizer.reentries.clone();
+        let order = generalizer.order.clone();
+        let mut by_owner = HashMap::<u32, Vec<usize>>::new();
+        for (index, trace) in traces.iter().enumerate() {
+            by_owner.entry(trace.owner).or_default().push(index);
+        }
+        let positive_only = positive
+            .difference(&negative)
+            .copied()
+            .collect::<HashSet<_>>();
+        let negative_only = negative
+            .difference(&positive)
+            .copied()
+            .collect::<HashSet<_>>();
+        let (selection, output, forest) = generalizer
+            .flat_r_q_with_raw_forest_for_test(
+                forest,
+                &traces,
+                &by_owner,
+                &order,
+                |_| true,
+                &positive,
+                &negative,
+                &positive_only,
+                &negative_only,
+                false,
+            )
+            .unwrap();
+        assert_eq!(selection.recursive_owners, vec![owner, second_owner]);
+        assert_eq!(selection.q, HashMap::from([(quantified, 0)]));
+        assert_eq!(selection.r, HashMap::from([(owner, 1), (second_owner, 2)]));
+        let parity = (
+            boxed_callbacks,
+            boxed_hits,
+            selection.q.clone(),
+            selection.r.clone(),
+        );
+        if let Some(expected) = &baseline {
+            assert_eq!(&parity, expected);
+        } else {
+            baseline = Some(parity);
+        }
+        assert!(
+            output
+                .positive_nodes
+                .iter()
+                .any(|node| matches!(node, PositiveNode::Variable(_)))
+        );
+        let candidate = generalizer
+            .flat_finish_selected_for_test(
+                selection,
+                output,
+                forest,
+                &positive_only,
+                &negative_only,
+                false,
+            )
+            .unwrap();
+        assert_eq!(candidate.draft.quantifier_count, boxed.quantifier_count);
+        assert_eq!(
+            candidate.draft.recursive_bounds.len(),
+            boxed.recursive_bounds.len()
+        );
+        assert_eq!(
+            candidate.draft.recursive_bounds[0].ordinal,
+            boxed.recursive_bounds[0].ordinal
+        );
+        assert_eq!(
+            expand_positive(&candidate.draft, candidate.draft.predicate.unwrap()),
+            boxed.predicate
+        );
+        for (flat, boxed) in candidate
+            .draft
+            .recursive_bounds
+            .iter()
+            .zip(&boxed.recursive_bounds)
+        {
+            assert_eq!(expand_positive(&candidate.draft, flat.lower), boxed.lower);
+            assert_eq!(expand_negative(&candidate.draft, flat.upper), boxed.upper);
+        }
+        assert_eq!(candidate.stats.key_writes, boxed_stats.key_writes);
+        assert_eq!(
+            candidate.stats.child_comparisons,
+            boxed_stats.child_comparisons
+        );
+        assert_eq!(
+            candidate.stats.descriptor_words,
+            boxed_stats.descriptor_words
+        );
+        assert_eq!(
+            candidate.stats.word_comparisons,
+            boxed_stats.word_comparisons
+        );
+        assert_eq!(candidate.stats.duplicates, boxed_stats.duplicates);
+        for (index, lane, length) in [
+            (
+                0,
+                F5cWalkerLaneKind::NormalizedPositiveNodes,
+                candidate.draft.positive_nodes.len(),
+            ),
+            (
+                1,
+                F5cWalkerLaneKind::NormalizedNegativeNodes,
+                candidate.draft.negative_nodes.len(),
+            ),
+            (
+                2,
+                F5cWalkerLaneKind::NormalizedPositiveChildren,
+                candidate.draft.positive_children.len(),
+            ),
+            (
+                3,
+                F5cWalkerLaneKind::NormalizedNegativeChildren,
+                candidate.draft.negative_children.len(),
+            ),
+            (
+                4,
+                F5cWalkerLaneKind::NormalizedRecursiveBounds,
+                candidate.draft.recursive_bounds.len(),
+            ),
+            (
+                5,
+                F5cWalkerLaneKind::NormalizedInsertionOrder,
+                candidate.draft.insertion_order.len(),
+            ),
+        ] {
+            assert_eq!(
+                generalizer.memo.walker_resources.lanes[lane as usize].requested_slots,
+                0
+            );
+            assert_eq!(
+                generalizer.memo.walker_resources.flat_candidate_lanes
+                    [crate::f5c_normalization::LANE_COUNT + 8 + index]
+                    .requested_slots,
+                length
+            );
+        }
+        for lane in [
+            0,
+            8,
+            crate::f5c_normalization::LANE_COUNT,
+            crate::f5c_normalization::LANE_COUNT + 5,
+        ] {
+            assert!(
+                generalizer.memo.walker_resources.flat_candidate_lanes[lane].requested_slots > 0
+            );
+        }
         assert_eq!(
             generalizer.memo.walker_resources.flat_candidate_lanes
-                [crate::f5c_normalization::LANE_COUNT + 8 + index]
+                [crate::f5c_normalization::LANE_COUNT + 8]
                 .requested_slots,
-            length
+            candidate.draft.positive_nodes.len(),
         );
+        assert_eq!(
+            candidate
+                .draft
+                .positive_nodes
+                .iter()
+                .filter(|node| matches!(node, PositiveNode::Recursive(1)))
+                .count(),
+            1
+        );
+        assert!(
+            !candidate
+                .draft
+                .positive_nodes
+                .iter()
+                .any(|node| matches!(node, PositiveNode::Variable(_)))
+        );
+        assert!(
+            !candidate
+                .draft
+                .negative_nodes
+                .iter()
+                .any(|node| matches!(node, NegativeNode::Variable(_)))
+        );
+        generalizer.release_normalized_candidate_for_test(candidate);
     }
-    for lane in [
-        0,
-        8,
-        crate::f5c_normalization::LANE_COUNT,
-        crate::f5c_normalization::LANE_COUNT + 5,
-    ] {
-        assert!(generalizer.memo.walker_resources.flat_candidate_lanes[lane].requested_slots > 0);
-    }
-    assert_eq!(
-        generalizer.memo.walker_resources.flat_candidate_lanes
-            [crate::f5c_normalization::LANE_COUNT + 8]
-            .requested_slots,
-        candidate.draft.positive_nodes.len(),
-    );
-    assert_eq!(
-        candidate
-            .draft
-            .positive_nodes
-            .iter()
-            .filter(|node| matches!(node, PositiveNode::Recursive(1)))
-            .count(),
-        1
-    );
-    assert!(
-        !candidate
-            .draft
-            .positive_nodes
-            .iter()
-            .any(|node| matches!(node, PositiveNode::Variable(_)))
-    );
-    assert!(
-        !candidate
-            .draft
-            .negative_nodes
-            .iter()
-            .any(|node| matches!(node, NegativeNode::Variable(_)))
-    );
-    generalizer.release_normalized_candidate_for_test(candidate);
 }
 
 #[test]

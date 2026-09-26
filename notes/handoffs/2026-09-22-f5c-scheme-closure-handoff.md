@@ -3174,3 +3174,29 @@ callback/Q/R parity and remaining physical resource reconciliation, then
 prepare and review the §15 measurement plan before any resource probe.
 Production remains boxed; indexed finalization, production cutover, numeric
 boundary, §44, F5e, and overall F5c acceptance remain open.
+
+## Latest continuation (2026-09-26): end-to-end callback and Q/R parity
+
+The selected FlatDraft candidate now has a paired root-forest witness with two
+raw recursive owners. It includes a prewarmed Shared occurrence repeated in
+predicate roots and a negative-polarity Shared row first encountered in a
+later bound. The test compares the complete boxed and flat callback sequence
+including polarity, Shared-hit counts separately, Q/R maps and ordinals,
+normalized structure, and all five normalization counters.
+
+The same raw bound entries are inserted in both owner orders while the
+explicit owner traversal remains fixed. Both variants yield identical
+callback traces, hit counts, and Q/R assignments. Callback capture is
+test-only at the existing materialization event. The M1 spec-auditor's major
+single-owner finding is closed by the two-owner fixture.
+
+Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+selected_flat_candidate_matches_boxed_q_r_and_normalization_counters
+-- --test-threads=1` (1), `RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--message-format short`, `cargo fmt --all --check`, and `git diff --check`. No
+broad suite or measurement ran. Remaining candidate gates are full physical
+resource reconciliation, the reviewed §15 measurement plan and campaign,
+indexed finalization under its approved API scope, and final implementation
+review. Production remains boxed; no numeric support boundary, production
+cutover, §44 closure, F5e acceptance, or overall F5c completion is authorized
+by this slice.

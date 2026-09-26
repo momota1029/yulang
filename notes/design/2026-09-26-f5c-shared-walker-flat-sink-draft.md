@@ -564,3 +564,29 @@ Checks passed: RUSTC_WRAPPER= cargo test -p yu-solver --lib selected_flat_ --
 callback/Q/R parity, remaining physical resource reconciliation, the reviewed
 §15 measurement plan, indexed finalization, and production cutover remain
 open. Production remains boxed.
+
+### End-to-end callback and Q/R parity witness (2026-09-26)
+
+The full test-only FlatDraft path now has a paired root-forest witness with two
+raw recursive owners. It exercises a prewarmed Shared occurrence repeated in
+the predicate roots and a negative Shared row first encountered in a later
+bound. The fixture compares complete boxed and flat callback sequences,
+including polarity; compares Shared-summary-hit counts separately; and checks
+Q/R maps and ordinals, normalized structure, and all five normalization
+counters.
+
+It reinserts the same owner-keyed raw bounds in reverse explicit-owner order
+while retaining the raw root-owner vector. Both map insertion variants produce
+the same callback trace, Shared-hit count, and Q/R assignments. The M1
+spec-auditor's major single-owner finding is closed by this two-owner witness.
+The callback capture is test-only at the existing materialization event; no
+producer algorithm or production call path changed.
+
+Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
+selected_flat_candidate_matches_boxed_q_r_and_normalization_counters
+-- --test-threads=1` (1), `RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--message-format short`, `cargo fmt --all --check`, and `git diff --check`. No
+broad suite or measurement ran. Full physical resource
+reconciliation, the reviewed §15 measurement plan and campaign, indexed
+finalization under its approved API scope, and final implementation review
+remain open. Production remains boxed.
