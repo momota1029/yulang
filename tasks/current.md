@@ -28,10 +28,16 @@ selected_flat_candidate_matches_boxed_q_r_and_normalization_counters
 --message-format short`, `cargo fmt --all --check`, and `git diff --check`. No
 broader suite or measurement ran.
 
-End-to-end callback/Q/R parity now closes. Remaining candidate gates are full
-physical resource reconciliation, the reviewed §15 measurement plan and
-campaign, indexed finalization under its approved API scope, and final
-implementation review. Production remains boxed; no numeric support boundary,
+The bounded non-shipping FlatDraft producer/normalizer fixture gate now closes,
+including end-to-end callback/Q/R parity. The next implementation gate is the
+already-approved `yu-types` indexed finalizer (§3); the existing producer
+fixture supplies its bounded flat-input evidence. Before any resource probe,
+the candidate still needs complete physical-lane reconciliation, including
+`non_generic_closure` temporary sets/frontier, raw-incidence sets, failed
+reserve observations, and the solver/finalizer simultaneous peak, followed by
+the independently reviewed §15 plan and campaign. A static source audit found
+these accounting gaps; no probe ran. Keep accounting in the existing owners
+and families. Production remains boxed; no numeric support boundary,
 production cutover, §44 closure, F5e acceptance, or overall F5c completion is
 authorized by this slice.
 

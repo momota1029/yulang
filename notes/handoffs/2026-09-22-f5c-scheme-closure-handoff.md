@@ -3200,3 +3200,21 @@ indexed finalization under its approved API scope, and final implementation
 review. Production remains boxed; no numeric support boundary, production
 cutover, §44 closure, F5e acceptance, or overall F5c completion is authorized
 by this slice.
+
+## Latest continuation (2026-09-26): static F5c resource-lane audit
+
+A read-only source audit compared the existing F5c owner against F5 §§26/34
+and F5c §§5/15. It found that the `non_generic_closure` adjacency, connected,
+closure, and frontier collections and the raw-incidence sets lack independent
+physical-lane accounting. Full source+memo+draft+normalizer+finalizer
+co-resident peak reconciliation remains open. The boxed normalizer reserve
+returns before its candidate observer can reconcile actual capacity on a
+failed reserve; the flat candidate helper observes capacity after success or
+failure.
+
+No code, tests, measurements, or probes ran during this audit. The bounded
+FlatDraft producer/normalizer fixture gate is complete, so the next approved
+implementation gate is the exact `yu-types` indexed API from §3 of the
+2026-09-25 proposal. Finish physical-lane accounting and independently review
+the fresh §15 plan before the first resource probe. Preserve existing resource
+owners/families; do not infer numeric limits or production acceptance.
