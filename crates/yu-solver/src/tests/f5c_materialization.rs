@@ -1,20 +1,17 @@
 use super::*;
 
-enum FlatBoxedStep<'a> {
-    Positive(crate::f5c_draft::PositiveId, &'a F5cPositive),
-    Negative(crate::f5c_draft::NegativeId, &'a F5cNegative),
+enum FlatBoxedStep<'tree, 'meter> {
+    Positive(crate::f5c_draft::PositiveId, &'tree F5cPositive<'meter>),
+    Negative(crate::f5c_draft::NegativeId, &'tree F5cNegative<'meter>),
 }
 
-enum BoxedSummaryStep<'a> {
-    Positive(&'a F5cPositive),
-    Negative(&'a F5cNegative),
+enum BoxedSummaryStep<'tree, 'meter> {
+    Positive(&'tree F5cPositive<'meter>),
+    Negative(&'tree F5cNegative<'meter>),
 }
 
-fn count_summary_references(root: &F5cWalkValue, target: F5cSummaryNodeId) -> usize {
-    let mut pending = match root {
-        F5cWalkValue::Positive(value, _) => vec![BoxedSummaryStep::Positive(value)],
-        F5cWalkValue::Negative(value, _) => vec![BoxedSummaryStep::Negative(value)],
-    };
+fn count_summary_references(root: BoxedSummaryStep<'_, '_>, target: F5cSummaryNodeId) -> usize {
+    let mut pending = vec![root];
     let mut count = 0;
     while let Some(step) = pending.pop() {
         match step {
@@ -92,7 +89,7 @@ fn assert_flat_summary_matches_boxed(
                             flat_children
                                 .iter()
                                 .copied()
-                                .zip(children)
+                                .zip(children.iter())
                                 .map(|(flat, boxed)| FlatBoxedStep::Positive(flat, boxed)),
                         );
                     }
@@ -134,7 +131,7 @@ fn assert_flat_summary_matches_boxed(
                             flat_children
                                 .iter()
                                 .copied()
-                                .zip(children)
+                                .zip(children.iter())
                                 .map(|(flat, boxed)| FlatBoxedStep::Negative(flat, boxed)),
                         );
                     }
@@ -159,7 +156,7 @@ fn assert_flat_summary_matches_boxed(
     }
 }
 
-fn alternating_function_chain(depth: usize) -> F5cWalkValue {
+fn alternating_function_chain(depth: usize) -> F5cWalkValue<'static> {
     let mut value = F5cWalkValue::Positive(F5cPositive::Int, true);
     for _ in 0..depth {
         value = match value {
@@ -222,6 +219,7 @@ fn f5c_draft_materialization_handles_deep_alternating_functions_on_small_stack()
     let worker = std::thread::Builder::new()
         .stack_size(64 * 1024)
         .spawn(|| {
+            let test_source_meter = DraftHeapMeter::default();
             let mut memo = F5cComponentExpansionMemo::default();
 
             let F5cWalkValue::Positive(positive, _) = alternating_function_chain(DEPTH) else {
@@ -229,6 +227,7 @@ fn f5c_draft_materialization_handles_deep_alternating_functions_on_small_stack()
             };
             let F5cWalkValue::Positive(positive, _) =
                 crate::f5c_materialization::materialize_iterative(
+                    &test_source_meter,
                     &mut memo,
                     crate::f5c_materialization::Task::Positive(positive),
                     |_, _, _| Err(SolveAvailabilityError::IdentityExhausted),
@@ -247,6 +246,7 @@ fn f5c_draft_materialization_handles_deep_alternating_functions_on_small_stack()
             };
             let F5cWalkValue::Negative(negative, _) =
                 crate::f5c_materialization::materialize_iterative(
+                    &test_source_meter,
                     &mut memo,
                     crate::f5c_materialization::Task::Negative(negative),
                     |_, _, _| Err(SolveAvailabilityError::IdentityExhausted),
@@ -334,27 +334,28 @@ fn f5c_raw_bounds_visit_first_seen_owners_lower_then_upper() {
 #[test]
 fn f5c_recursive_bound_materialization_moves_deep_trees_on_small_stack() {
     const DEPTH: usize = 4096;
-    let mut lower = F5cPositive::Int;
-    for _ in 0..DEPTH {
-        lower = F5cPositive::Function {
-            argument: Box::new(F5cNegative::Int),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(lower),
-        };
-    }
-    let mut upper = F5cNegative::Int;
-    for _ in 0..DEPTH {
-        upper = F5cNegative::Function {
-            argument: Box::new(F5cPositive::Int),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(upper),
-        };
-    }
     let worker = std::thread::Builder::new()
         .stack_size(64 * 1024)
         .spawn(move || {
+            let test_source_meter = DraftHeapMeter::default();
+            let mut lower = F5cPositive::Int;
+            for _ in 0..DEPTH {
+                lower = F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Int),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(lower),
+                };
+            }
+            let mut upper = F5cNegative::Int;
+            for _ in 0..DEPTH {
+                upper = F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Int),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(upper),
+                };
+            }
             let mut memo = F5cComponentExpansionMemo::default();
             let mut bounds = HashMap::from([(0, (lower, upper))]);
             crate::f5c_materialization::materialize_bound_trees(&[0], &mut bounds, |value| {
@@ -366,9 +367,12 @@ fn f5c_recursive_bound_materialization_moves_deep_trees_on_small_stack() {
                         crate::f5c_materialization::Task::Negative(value)
                     }
                 };
-                crate::f5c_materialization::materialize_iterative(&mut memo, task, |_, _, _| {
-                    Err(SolveAvailabilityError::IdentityExhausted)
-                })
+                crate::f5c_materialization::materialize_iterative(
+                    &test_source_meter,
+                    &mut memo,
+                    task,
+                    |_, _, _| Err(SolveAvailabilityError::IdentityExhausted),
+                )
             })
             .unwrap();
 
@@ -440,6 +444,7 @@ fn f5c_recursive_bound_materialization_moves_deep_trees_on_small_stack() {
 
 #[test]
 fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-summary-to-flat-producer"));
     let mut session = InferenceSession::new(batch);
     let inner = session.fresh_value_at_level(1).unwrap();
@@ -473,7 +478,7 @@ fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
         .exact_non_variable_uppers
         .push(ValueEndpointKey::NegativeFunction(negative_function));
 
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let F5cPositive::Shared(positive_root) = generalizer.positive_row(outer, false).unwrap() else {
         panic!("non-root positive expansion is represented by a summary ID");
     };
@@ -500,7 +505,7 @@ fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
     let mut boxed_positive_marks = Vec::new();
     let boxed_positive = generalizer
         .memo
-        .positive_value_with(positive_root, &mut |row, polarity| {
+        .positive_value_with(&test_source_meter, positive_root, &mut |row, polarity| {
             boxed_positive_marks.push((row, polarity));
             Ok(())
         })
@@ -522,7 +527,7 @@ fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
     let mut boxed_negative_marks = Vec::new();
     let boxed_negative = generalizer
         .memo
-        .negative_value_with(negative_root, &mut |row, polarity| {
+        .negative_value_with(&test_source_meter, negative_root, &mut |row, polarity| {
             boxed_negative_marks.push((row, polarity));
             Ok(())
         })
@@ -544,6 +549,7 @@ fn f5c_generalizer_summary_roots_materialize_flat_with_boxed_parity() {
 
 #[test]
 fn f5c_generalizer_guarded_self_source_roots_materialize_flat_with_boxed_parity() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-guarded-source-roots"));
     let mut session = InferenceSession::new(batch);
     let root = session.batch.definitions[0].root.clone();
@@ -584,7 +590,7 @@ fn f5c_generalizer_guarded_self_source_roots_materialize_flat_with_boxed_parity(
         )
         .unwrap();
 
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let predicate = generalizer.positive_row(root_row, true).unwrap();
     let mut bounds = HashMap::new();
     let mut owners = Vec::new();
@@ -631,15 +637,32 @@ fn f5c_generalizer_guarded_self_source_roots_materialize_flat_with_boxed_parity(
         })
         .expect("nested positive row is admitted as a shared summary");
 
-    let mut roots = vec![F5cWalkValue::Positive(predicate.clone(), true)];
+    assert_eq!(
+        count_summary_references(BoxedSummaryStep::Positive(&predicate), nested_summary),
+        1
+    );
+    let mut roots = vec![(
+        generalizer.memo.positive_node(&predicate, None).unwrap(),
+        Polarity::Positive,
+    )];
     for owner in &owners {
         let (lower, upper) = &bounds[owner];
         assert!(matches!(upper, F5cNegative::Top));
-        roots.push(F5cWalkValue::Positive(lower.clone(), true));
-        roots.push(F5cWalkValue::Negative(upper.clone(), true));
+        if roots.len() == 1 {
+            assert_eq!(
+                count_summary_references(BoxedSummaryStep::Positive(lower), nested_summary),
+                1
+            );
+        }
+        roots.push((
+            generalizer.memo.positive_node(lower, None).unwrap(),
+            Polarity::Positive,
+        ));
+        roots.push((
+            generalizer.memo.negative_node(upper, None).unwrap(),
+            Polarity::Negative,
+        ));
     }
-    assert_eq!(count_summary_references(&roots[0], nested_summary), 1);
-    assert_eq!(count_summary_references(&roots[1], nested_summary), 1);
     let boxed_predicate = generalizer.materialize_positive(predicate).unwrap();
     generalizer
         .materialize_recursive_bounds(&owners, &mut bounds)
@@ -653,23 +676,14 @@ fn f5c_generalizer_guarded_self_source_roots_materialize_flat_with_boxed_parity(
 
     let mut flat = crate::f5c_draft::FlatDraft::default();
     let mut flat_roots = Vec::with_capacity(roots.len());
-    for (root_index, (raw, boxed)) in roots.iter().zip(&boxed_roots).enumerate() {
-        let (id, polarity) = match raw {
-            F5cWalkValue::Positive(value, _) => (
-                generalizer.memo.positive_node(value, None).unwrap(),
-                Polarity::Positive,
-            ),
-            F5cWalkValue::Negative(value, _) => (
-                generalizer.memo.negative_node(value, None).unwrap(),
-                Polarity::Negative,
-            ),
-        };
+    for (root_index, (&raw, boxed)) in roots.iter().zip(&boxed_roots).enumerate() {
+        let (id, polarity) = raw;
         let mut boxed_marks = Vec::new();
         let summary_boxed = match polarity {
             Polarity::Positive => F5cWalkValue::Positive(
                 generalizer
                     .memo
-                    .positive_value_with(id, &mut |row, side| {
+                    .positive_value_with(&test_source_meter, id, &mut |row, side| {
                         boxed_marks.push((row, side));
                         Ok(())
                     })
@@ -679,7 +693,7 @@ fn f5c_generalizer_guarded_self_source_roots_materialize_flat_with_boxed_parity(
             Polarity::Negative => F5cWalkValue::Negative(
                 generalizer
                     .memo
-                    .negative_value_with(id, &mut |row, side| {
+                    .negative_value_with(&test_source_meter, id, &mut |row, side| {
                         boxed_marks.push((row, side));
                         Ok(())
                     })

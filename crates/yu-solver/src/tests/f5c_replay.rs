@@ -2,41 +2,49 @@ use super::*;
 
 #[test]
 fn f5c_replay_preserves_polarity_elimination_and_product_order() {
+    let test_source_meter = DraftHeapMeter::default();
     let positive = F5cPositive::Function {
-        argument: Box::new(F5cNegative::Intersection(vec![
-            F5cNegative::Variable(2),
-            F5cNegative::Variable(3),
-        ])),
+        argument: Box::new(F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![F5cNegative::Variable(2), F5cNegative::Variable(3)],
+        ))),
         argument_effect: F5cNegativeEffect::Empty,
         result_effect: F5cPositiveEffect::Bottom,
-        result: Box::new(F5cPositive::Union(vec![
-            F5cPositive::Variable(1),
-            F5cPositive::Function {
-                argument: Box::new(F5cNegative::Top),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(3)),
-            },
-        ])),
+        result: Box::new(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cPositive::Variable(1),
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Variable(3)),
+                },
+            ],
+        ))),
     };
-    let negative = F5cNegative::Intersection(vec![
-        F5cNegative::Variable(3),
-        F5cNegative::Function {
-            argument: Box::new(F5cPositive::Union(vec![
-                F5cPositive::Variable(2),
-                F5cPositive::Variable(3),
-            ])),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(F5cNegative::Variable(1)),
-        },
-    ]);
+    let negative = F5cNegative::Intersection(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cNegative::Variable(3),
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Union(test_tracked(
+                    &test_source_meter,
+                    vec![F5cPositive::Variable(2), F5cPositive::Variable(3)],
+                ))),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(1)),
+            },
+        ],
+    ));
     let protected = HashSet::from([3]);
     let positive_only = HashSet::from([1, 2, 3]);
     let negative_only = HashSet::from([1, 2, 3]);
     let mut memo = F5cComponentExpansionMemo::default();
 
     let positive_replayed = crate::f5c_replay::replay_positive(
+        &test_source_meter,
         &mut memo,
         &positive,
         &protected,
@@ -45,6 +53,7 @@ fn f5c_replay_preserves_polarity_elimination_and_product_order() {
     )
     .unwrap();
     let negative_replayed = crate::f5c_replay::replay_negative(
+        &test_source_meter,
         &mut memo,
         &negative,
         &protected,
@@ -56,42 +65,49 @@ fn f5c_replay_preserves_polarity_elimination_and_product_order() {
     assert_eq!(
         positive_replayed,
         F5cPositive::Function {
-            argument: Box::new(F5cNegative::Intersection(vec![
-                F5cNegative::Top,
-                F5cNegative::Variable(3),
-            ])),
+            argument: Box::new(F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![F5cNegative::Top, F5cNegative::Variable(3),]
+            ))),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Union(vec![
-                F5cPositive::Bottom,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Variable(3)),
-                },
-            ])),
+            result: Box::new(F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Bottom,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Variable(3)),
+                    },
+                ]
+            ))),
         }
     );
     assert_eq!(
         negative_replayed,
-        F5cNegative::Intersection(vec![
-            F5cNegative::Variable(3),
-            F5cNegative::Function {
-                argument: Box::new(F5cPositive::Union(vec![
-                    F5cPositive::Bottom,
-                    F5cPositive::Variable(3),
-                ])),
-                argument_effect: F5cPositiveEffect::Bottom,
-                result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Top),
-            },
-        ])
+        F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cNegative::Variable(3),
+                F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Union(test_tracked(
+                        &test_source_meter,
+                        vec![F5cPositive::Bottom, F5cPositive::Variable(3),]
+                    ))),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(F5cNegative::Top),
+                },
+            ]
+        ))
     );
 }
 
 #[test]
 fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{
         ChildSpan, FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode,
     };
@@ -141,36 +157,43 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
     let positive_only = HashSet::from([1, 2, 3]);
     let negative_only = HashSet::from([2, 3]);
     let boxed_positive = F5cPositive::Function {
-        argument: Box::new(F5cNegative::Intersection(vec![
-            F5cNegative::Variable(2),
-            F5cNegative::Variable(3),
-        ])),
+        argument: Box::new(F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![F5cNegative::Variable(2), F5cNegative::Variable(3)],
+        ))),
         argument_effect: F5cNegativeEffect::Empty,
         result_effect: F5cPositiveEffect::Bottom,
-        result: Box::new(F5cPositive::Union(vec![
-            F5cPositive::Variable(1),
-            F5cPositive::Function {
-                argument: Box::new(F5cNegative::Top),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(3)),
-            },
-        ])),
-    };
-    let boxed_negative = F5cNegative::Intersection(vec![
-        F5cNegative::Variable(3),
-        F5cNegative::Function {
-            argument: Box::new(F5cPositive::Union(vec![
+        result: Box::new(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![
                 F5cPositive::Variable(1),
-                F5cPositive::Variable(3),
-            ])),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(F5cNegative::Variable(2)),
-        },
-    ]);
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Variable(3)),
+                },
+            ],
+        ))),
+    };
+    let boxed_negative = F5cNegative::Intersection(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cNegative::Variable(3),
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Union(test_tracked(
+                    &test_source_meter,
+                    vec![F5cPositive::Variable(1), F5cPositive::Variable(3)],
+                ))),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(2)),
+            },
+        ],
+    ));
     let mut boxed_memo = F5cComponentExpansionMemo::default();
     let expected_positive = crate::f5c_replay::replay_positive(
+        &test_source_meter,
         &mut boxed_memo,
         &boxed_positive,
         &protected,
@@ -179,6 +202,7 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
     )
     .unwrap();
     let expected_negative = crate::f5c_replay::replay_negative(
+        &test_source_meter,
         &mut boxed_memo,
         &boxed_negative,
         &protected,
@@ -187,10 +211,11 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
     )
     .unwrap();
 
-    fn expand_positive(
+    fn expand_positive<'meter>(
+        meter: &'meter DraftHeapMeter,
         flat: &crate::f5c_draft::FlatDraft,
         id: crate::f5c_draft::PositiveId,
-    ) -> F5cPositive {
+    ) -> F5cPositive<'meter> {
         use crate::f5c_draft::PositiveNode;
         match flat.positive_nodes[id.0 as usize] {
             PositiveNode::Bottom => F5cPositive::Bottom,
@@ -199,27 +224,29 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
             PositiveNode::Union(span) => {
                 let start = span.start as usize;
                 let end = start + span.len as usize;
-                F5cPositive::Union(
+                F5cPositive::Union(test_tracked(
+                    meter,
                     flat.positive_children[start..end]
                         .iter()
                         .copied()
-                        .map(|child| expand_positive(flat, child))
-                        .collect(),
-                )
+                        .map(|child| expand_positive(meter, flat, child))
+                        .collect::<Vec<_>>(),
+                ))
             }
             PositiveNode::Function { argument, result } => F5cPositive::Function {
-                argument: Box::new(expand_negative(flat, argument)),
+                argument: Box::new(expand_negative(meter, flat, argument)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(expand_positive(flat, result)),
+                result: Box::new(expand_positive(meter, flat, result)),
             },
             _ => panic!("fixture uses only replay-supported positive nodes"),
         }
     }
-    fn expand_negative(
+    fn expand_negative<'meter>(
+        meter: &'meter DraftHeapMeter,
         flat: &crate::f5c_draft::FlatDraft,
         id: crate::f5c_draft::NegativeId,
-    ) -> F5cNegative {
+    ) -> F5cNegative<'meter> {
         use crate::f5c_draft::NegativeNode;
         match flat.negative_nodes[id.0 as usize] {
             NegativeNode::Top => F5cNegative::Top,
@@ -229,19 +256,20 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
             NegativeNode::Intersection(span) => {
                 let start = span.start as usize;
                 let end = start + span.len as usize;
-                F5cNegative::Intersection(
+                F5cNegative::Intersection(test_tracked(
+                    meter,
                     flat.negative_children[start..end]
                         .iter()
                         .copied()
-                        .map(|child| expand_negative(flat, child))
-                        .collect(),
-                )
+                        .map(|child| expand_negative(meter, flat, child))
+                        .collect::<Vec<_>>(),
+                ))
             }
             NegativeNode::Function { argument, result } => F5cNegative::Function {
-                argument: Box::new(expand_positive(flat, argument)),
+                argument: Box::new(expand_positive(meter, flat, argument)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(expand_negative(flat, result)),
+                result: Box::new(expand_negative(meter, flat, result)),
             },
             _ => panic!("fixture uses only replay-supported negative nodes"),
         }
@@ -262,7 +290,10 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
         .unwrap(),
         NodeRef::Positive(PositiveId(4))
     );
-    assert_eq!(expand_positive(&output, PositiveId(4)), expected_positive);
+    assert_eq!(
+        expand_positive(&test_source_meter, &output, PositiveId(4)),
+        expected_positive
+    );
     assert_eq!(
         output.positive_nodes,
         vec![
@@ -304,7 +335,10 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
         .unwrap(),
         NodeRef::Negative(NegativeId(7))
     );
-    assert_eq!(expand_negative(&output, NegativeId(7)), expected_negative);
+    assert_eq!(
+        expand_negative(&test_source_meter, &output, NegativeId(7)),
+        expected_negative
+    );
     assert_eq!(
         &output.positive_nodes[5..],
         &[
@@ -338,6 +372,7 @@ fn f5c_flat_replay_matches_boxed_polarity_and_occurrence_order() {
 
 #[test]
 fn f5c_flat_replay_preserves_repeated_edge_occurrences() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{ChildSpan, FlatDraft, NodeRef, PositiveId, PositiveNode};
 
     let mut source = FlatDraft::default();
@@ -346,9 +381,13 @@ fn f5c_flat_replay_preserves_repeated_edge_occurrences() {
         .positive_span(&[shared, shared])
         .and_then(|span| source.positive(PositiveNode::Union(span)))
         .unwrap();
-    let boxed = F5cPositive::Union(vec![F5cPositive::Int, F5cPositive::Int]);
+    let boxed = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![F5cPositive::Int, F5cPositive::Int],
+    ));
     let mut boxed_memo = F5cComponentExpansionMemo::default();
     let expected = crate::f5c_replay::replay_positive(
+        &test_source_meter,
         &mut boxed_memo,
         &boxed,
         &HashSet::new(),
@@ -379,7 +418,10 @@ fn f5c_flat_replay_preserves_repeated_edge_occurrences() {
         ]
     );
     assert_eq!(output.positive_children, vec![PositiveId(0), PositiveId(1)]);
-    let expanded = F5cPositive::Union(vec![F5cPositive::Int, F5cPositive::Int]);
+    let expanded = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![F5cPositive::Int, F5cPositive::Int],
+    ));
     assert_eq!(expanded, expected);
     crate::f5c_replay::release_flat_output(&mut memo, output);
 }
@@ -536,32 +578,34 @@ fn f5c_flat_replay_handles_deep_drafts_on_a_small_stack() {
 #[test]
 fn f5c_replay_handles_deep_positive_and_negative_trees_on_small_stack() {
     const DEPTH: usize = 4096;
-    let mut positive = F5cPositive::Variable(7);
-    for _ in 0..DEPTH {
-        positive = F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(9)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(positive),
-        };
-    }
-    let mut negative = F5cNegative::Variable(8);
-    for _ in 0..DEPTH {
-        negative = F5cNegative::Function {
-            argument: Box::new(F5cPositive::Variable(9)),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(negative),
-        };
-    }
     let worker = std::thread::Builder::new()
         .stack_size(64 * 1024)
         .spawn(move || {
+            let test_source_meter = DraftHeapMeter::default();
+            let mut positive = F5cPositive::Variable(7);
+            for _ in 0..DEPTH {
+                positive = F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Variable(9)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(positive),
+                };
+            }
+            let mut negative = F5cNegative::Variable(8);
+            for _ in 0..DEPTH {
+                negative = F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Variable(9)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(negative),
+                };
+            }
             let mut memo = F5cComponentExpansionMemo::default();
             let empty = HashSet::new();
             let positive_only = HashSet::from([7, 9]);
             let negative_only = HashSet::from([8, 9]);
             let replayed_positive = crate::f5c_replay::replay_positive(
+                &test_source_meter,
                 &mut memo,
                 &positive,
                 &empty,
@@ -570,6 +614,7 @@ fn f5c_replay_handles_deep_positive_and_negative_trees_on_small_stack() {
             )
             .unwrap();
             let replayed_negative = crate::f5c_replay::replay_negative(
+                &test_source_meter,
                 &mut memo,
                 &negative,
                 &empty,

@@ -650,7 +650,7 @@ impl F5cFlatWalkSink {
 impl F5cFlatWalkSink {
     fn positive(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, '_>,
         node: PositiveNode,
         cacheable: bool,
     ) -> Result<FlatWalkValue, SolveAvailabilityError> {
@@ -669,7 +669,7 @@ impl F5cFlatWalkSink {
 
     fn negative(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, '_>,
         node: NegativeNode,
         cacheable: bool,
     ) -> Result<FlatWalkValue, SolveAvailabilityError> {
@@ -688,7 +688,7 @@ impl F5cFlatWalkSink {
 
     fn equal(
         &self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, '_>,
         first: CompareTask,
         tasks: &mut Vec<CompareTask>,
     ) -> Result<bool, SolveAvailabilityError> {
@@ -830,7 +830,7 @@ impl F5cFlatWalkSink {
 
     fn promote_value(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, '_>,
         value: FlatWalkRef,
         row: u32,
         polarity: Polarity,
@@ -1060,7 +1060,7 @@ impl F5cFlatWalkSink {
 impl F5cFlatWalkSink {
     fn record_promotion_observation(
         &mut self,
-        generalizer: &F5cGeneralizer<'_>,
+        generalizer: &F5cGeneralizer<'_, '_>,
         tasks: &Vec<PromotionTask>,
         ids: &Vec<F5cSummaryNodeId>,
     ) {
@@ -1086,12 +1086,12 @@ impl F5cFlatWalkSink {
     }
 }
 
-impl F5cWalkSink for F5cFlatWalkSink {
+impl<'meter> F5cWalkSink<'meter> for F5cFlatWalkSink {
     type Value = FlatWalkValue;
 
     fn variable(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         row: u32,
         cacheable: bool,
@@ -1108,7 +1108,7 @@ impl F5cWalkSink for F5cFlatWalkSink {
 
     fn shared(
         &mut self,
-        _generalizer: &mut F5cGeneralizer<'_>,
+        _generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         id: F5cSummaryNodeId,
     ) -> Result<Self::Value, SolveAvailabilityError> {
@@ -1123,7 +1123,7 @@ impl F5cWalkSink for F5cFlatWalkSink {
 
     fn int(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
     ) -> Result<Self::Value, SolveAvailabilityError> {
         match polarity {
@@ -1134,7 +1134,7 @@ impl F5cWalkSink for F5cFlatWalkSink {
 
     fn bottom(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
     ) -> Result<Self::Value, SolveAvailabilityError> {
         match polarity {
@@ -1145,7 +1145,7 @@ impl F5cWalkSink for F5cFlatWalkSink {
 
     fn top(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
     ) -> Result<Self::Value, SolveAvailabilityError> {
         self.negative(generalizer, NegativeNode::Top, true)
     }
@@ -1156,7 +1156,7 @@ impl F5cWalkSink for F5cFlatWalkSink {
 
     fn finish_row(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         values: &mut Vec<Self::Value>,
         start: usize,
         row: u32,
@@ -1299,7 +1299,7 @@ impl F5cWalkSink for F5cFlatWalkSink {
 
     fn function(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         argument: Self::Value,
         result: Self::Value,
@@ -1340,7 +1340,7 @@ impl F5cWalkSink for F5cFlatWalkSink {
 
     fn promote(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         value: &Self::Value,
         row: u32,
         polarity: Polarity,

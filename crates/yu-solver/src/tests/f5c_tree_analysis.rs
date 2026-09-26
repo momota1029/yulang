@@ -2,6 +2,7 @@ use super::*;
 
 #[test]
 fn f5c_flat_analysis_traces_repeated_edges_and_recovers_from_bad_indices() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{
         ChildSpan, FlatDraft, NegativeId, NegativeNode, PositiveId, PositiveNode,
     };
@@ -32,38 +33,44 @@ fn f5c_flat_analysis_traces_repeated_edges_and_recovers_from_bad_indices() {
     let negative_root = flat
         .negative(NegativeNode::Intersection(ChildSpan { start: 0, len: 4 }))
         .unwrap();
-    let boxed_positive = F5cPositive::Union(vec![
-        F5cPositive::Variable(7),
-        F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(8)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Variable(7)),
-        },
-        F5cPositive::Variable(7),
-        F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(8)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Variable(7)),
-        },
-    ]);
-    let boxed_negative = F5cNegative::Intersection(vec![
-        F5cNegative::Variable(8),
-        F5cNegative::Function {
-            argument: Box::new(F5cPositive::Variable(7)),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(F5cNegative::Variable(8)),
-        },
-        F5cNegative::Variable(8),
-        F5cNegative::Function {
-            argument: Box::new(F5cPositive::Variable(7)),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(F5cNegative::Variable(8)),
-        },
-    ]);
+    let boxed_positive = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cPositive::Variable(7),
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Variable(8)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(7)),
+            },
+            F5cPositive::Variable(7),
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Variable(8)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(7)),
+            },
+        ],
+    ));
+    let boxed_negative = F5cNegative::Intersection(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cNegative::Variable(8),
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Variable(7)),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(8)),
+            },
+            F5cNegative::Variable(8),
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Variable(7)),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(8)),
+            },
+        ],
+    ));
     let mut memo = F5cComponentExpansionMemo::default();
     let mut walker = crate::f5c_tree_analysis::Walker::new(&mut memo);
     for (lower, upper) in [
@@ -185,6 +192,7 @@ fn f5c_flat_analysis_traces_repeated_edges_and_recovers_from_bad_indices() {
 
 #[test]
 fn f5c_flat_tree_analysis_matches_boxed_dfs_and_guarding() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{ChildSpan, FlatDraft, NegativeNode, NodeRef, PositiveNode};
     let mut flat = FlatDraft::default();
     let first = flat.positive(PositiveNode::Variable(3)).unwrap();
@@ -198,16 +206,19 @@ fn f5c_flat_tree_analysis_matches_boxed_dfs_and_guarding() {
     let span = ChildSpan { start: 0, len: 3 };
     let root = flat.positive(PositiveNode::Union(span)).unwrap();
     let top = flat.negative(NegativeNode::Top).unwrap();
-    let boxed = F5cPositive::Union(vec![
-        F5cPositive::Variable(3),
-        F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(4)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Variable(3)),
-        },
-        F5cPositive::Variable(5),
-    ]);
+    let boxed = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cPositive::Variable(3),
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Variable(4)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(3)),
+            },
+            F5cPositive::Variable(5),
+        ],
+    ));
     let mut memo = F5cComponentExpansionMemo::default();
     let mut flat_order = Vec::new();
     let mut boxed_order = Vec::new();
@@ -284,15 +295,18 @@ fn f5c_flat_tree_analysis_matches_boxed_dfs_and_guarding() {
     let negative_root = flat
         .negative(NegativeNode::Intersection(ChildSpan { start: 0, len: 2 }))
         .unwrap();
-    let boxed_negative_root = F5cNegative::Intersection(vec![
-        F5cNegative::Variable(8),
-        F5cNegative::Function {
-            argument: Box::new(F5cPositive::Variable(6)),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(F5cNegative::Variable(8)),
-        },
-    ]);
+    let boxed_negative_root = F5cNegative::Intersection(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cNegative::Variable(8),
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Variable(6)),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(8)),
+            },
+        ],
+    ));
     let mut walker = crate::f5c_tree_analysis::Walker::new(&mut memo);
     let mut flat_order = Vec::new();
     let mut boxed_order = Vec::new();
@@ -323,16 +337,20 @@ fn f5c_flat_tree_analysis_matches_boxed_dfs_and_guarding() {
 
 #[test]
 fn f5c_tree_analysis_preserves_depth_first_polarity_and_first_occurrence() {
-    let value = F5cPositive::Union(vec![
-        F5cPositive::Variable(3),
-        F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(4)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Variable(3)),
-        },
-        F5cPositive::Variable(5),
-    ]);
+    let test_source_meter = DraftHeapMeter::default();
+    let value = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cPositive::Variable(3),
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Variable(4)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(3)),
+            },
+            F5cPositive::Variable(5),
+        ],
+    ));
     let mut memo = F5cComponentExpansionMemo::default();
     let mut ordered = Vec::new();
     let mut seen = HashSet::new();
@@ -367,16 +385,19 @@ fn f5c_tree_analysis_preserves_depth_first_polarity_and_first_occurrence() {
         assert!(!walker.has_guarded_owner_positive(&value, 5).unwrap());
     }
 
-    let negative_value = F5cNegative::Intersection(vec![
-        F5cNegative::Variable(8),
-        F5cNegative::Function {
-            argument: Box::new(F5cPositive::Variable(6)),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(F5cNegative::Variable(8)),
-        },
-        F5cNegative::Variable(9),
-    ]);
+    let negative_value = F5cNegative::Intersection(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cNegative::Variable(8),
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Variable(6)),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(8)),
+            },
+            F5cNegative::Variable(9),
+        ],
+    ));
     let mut negative_ordered = Vec::new();
     let mut negative_seen = HashSet::new();
     let mut negative_positive = HashSet::new();
@@ -419,27 +440,27 @@ fn f5c_tree_analysis_preserves_depth_first_polarity_and_first_occurrence() {
 #[test]
 fn f5c_tree_and_term_analysis_are_stack_safe_on_small_stacks() {
     const DEPTH: usize = 4096;
-    let mut value = F5cPositive::Variable(7);
-    for _ in 0..DEPTH {
-        value = F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(99)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(value),
-        };
-    }
-    let mut negative_value = F5cNegative::Variable(8);
-    for _ in 0..DEPTH {
-        negative_value = F5cNegative::Function {
-            argument: Box::new(F5cPositive::Variable(100)),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(negative_value),
-        };
-    }
     let worker = std::thread::Builder::new()
         .stack_size(64 * 1024)
         .spawn(move || {
+            let mut value = F5cPositive::Variable(7);
+            for _ in 0..DEPTH {
+                value = F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Variable(99)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(value),
+                };
+            }
+            let mut negative_value = F5cNegative::Variable(8);
+            for _ in 0..DEPTH {
+                negative_value = F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Variable(100)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(negative_value),
+                };
+            }
             let mut memo = F5cComponentExpansionMemo::default();
             let mut ordered = Vec::new();
             let mut seen = HashSet::new();

@@ -1,14 +1,14 @@
 #[cfg(test)]
 use super::f5c_draft::{FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode};
 use super::{
-    ConstraintStore, F5cComponentExpansionMemo, F5cNegative, F5cPositive, F5cWalkerLaneKind,
-    Polarity, SolveAvailabilityError, Term, TermView,
+    ConstraintStore, DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cPositive,
+    F5cWalkerLaneKind, Polarity, SolveAvailabilityError, Term, TermView,
 };
 use std::collections::HashSet;
 
-pub(super) enum Task<'tree> {
-    Positive(&'tree F5cPositive, bool),
-    Negative(&'tree F5cNegative, bool),
+pub(super) enum Task<'tree, 'meter> {
+    Positive(&'tree F5cPositive<'meter>, bool),
+    Negative(&'tree F5cNegative<'meter>, bool),
     Term(Term),
     #[cfg(test)]
     FlatPositive(PositiveId, bool),
@@ -24,30 +24,51 @@ enum Event {
 /// Reusable explicit-stack visitor for producer-side F5c trees and Term DAGs.
 /// The task lane remains live for this object's lifetime and is released when
 /// the bounded analysis scope ends.
-pub(super) struct Walker<'memo, 'tree> {
+pub(super) struct Walker<'memo, 'tree, 'meter> {
     pub(super) memo: &'memo mut F5cComponentExpansionMemo,
-    tasks: Vec<Task<'tree>>,
+    source_meter: Option<&'memo DraftHeapMeter>,
+    tasks: Vec<Task<'tree, 'meter>>,
 }
 
-impl<'memo, 'tree> Walker<'memo, 'tree> {
+impl<'memo, 'tree, 'meter> Walker<'memo, 'tree, 'meter> {
     pub(super) fn new(memo: &'memo mut F5cComponentExpansionMemo) -> Self {
         Self {
             memo,
+            source_meter: None,
             tasks: Vec::new(),
         }
     }
 
-    fn push(&mut self, task: Task<'tree>) -> Result<(), SolveAvailabilityError> {
+    pub(super) fn new_with_source(
+        memo: &'memo mut F5cComponentExpansionMemo,
+        source_meter: &'memo DraftHeapMeter,
+    ) -> Self {
+        Self {
+            memo,
+            source_meter: Some(source_meter),
+            tasks: Vec::new(),
+        }
+    }
+
+    fn push(&mut self, task: Task<'tree, 'meter>) -> Result<(), SolveAvailabilityError> {
         self.memo.work_meter.charge(1)?; // scheduled analysis task
-        self.memo
-            .reserve_walker(&mut self.tasks, F5cWalkerLaneKind::AnalysisTasks)?;
+        if let Some(source_meter) = self.source_meter {
+            self.memo.reserve_walker_with_source(
+                &mut self.tasks,
+                F5cWalkerLaneKind::AnalysisTasks,
+                source_meter,
+            )?;
+        } else {
+            self.memo
+                .reserve_walker(&mut self.tasks, F5cWalkerLaneKind::AnalysisTasks)?;
+        }
         self.tasks.push(task);
         Ok(())
     }
 
     fn walk(
         &mut self,
-        first: Task<'tree>,
+        first: Task<'tree, 'meter>,
         store: Option<&ConstraintStore>,
         #[cfg(test)] flat: Option<&FlatDraft>,
         mut visit: impl FnMut(
@@ -237,7 +258,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     pub(super) fn has_guarded_owner_positive(
         &mut self,
-        value: &'tree F5cPositive,
+        value: &'tree F5cPositive<'meter>,
         owner: u32,
     ) -> Result<bool, SolveAvailabilityError> {
         let mut found = false;
@@ -262,7 +283,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     pub(super) fn has_guarded_owner_negative(
         &mut self,
-        value: &'tree F5cNegative,
+        value: &'tree F5cNegative<'meter>,
         owner: u32,
     ) -> Result<bool, SolveAvailabilityError> {
         let mut found = false;
@@ -288,8 +309,8 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
     pub(super) fn guarded_bound_survives(
         &mut self,
         owner: u32,
-        lower: &'tree F5cPositive,
-        upper: &'tree F5cNegative,
+        lower: &'tree F5cPositive<'meter>,
+        upper: &'tree F5cNegative<'meter>,
     ) -> Result<bool, SolveAvailabilityError> {
         if matches!(lower, F5cPositive::Bottom) && matches!(upper, F5cNegative::Top) {
             return Ok(false);
@@ -301,7 +322,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn references_positive(
         &mut self,
-        value: &'tree F5cPositive,
+        value: &'tree F5cPositive<'meter>,
         owners: &HashSet<u32>,
         out: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
@@ -310,11 +331,12 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     pub(super) fn references_positive_with_lane(
         &mut self,
-        value: &'tree F5cPositive,
+        value: &'tree F5cPositive<'meter>,
         owners: &HashSet<u32>,
         out: &mut HashSet<u32>,
         lane: Option<F5cWalkerLaneKind>,
     ) -> Result<(), SolveAvailabilityError> {
+        let source_meter = self.source_meter;
         self.walk(
             Task::Positive(value, false),
             None,
@@ -326,7 +348,11 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                         && owners.contains(&owner)
                     {
                         if let Some(kind) = lane {
-                            memo.insert_physical_set(out, owner, kind)?;
+                            if let Some(meter) = source_meter {
+                                memo.insert_physical_set_with_source(out, owner, kind, meter)?;
+                            } else {
+                                memo.insert_physical_set(out, owner, kind)?;
+                            }
                         } else {
                             out.insert(owner);
                         }
@@ -339,11 +365,12 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     pub(super) fn references_negative_with_lane(
         &mut self,
-        value: &'tree F5cNegative,
+        value: &'tree F5cNegative<'meter>,
         owners: &HashSet<u32>,
         out: &mut HashSet<u32>,
         lane: Option<F5cWalkerLaneKind>,
     ) -> Result<(), SolveAvailabilityError> {
+        let source_meter = self.source_meter;
         self.walk(
             Task::Negative(value, false),
             None,
@@ -355,7 +382,11 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                         && owners.contains(&owner)
                     {
                         if let Some(kind) = lane {
-                            memo.insert_physical_set(out, owner, kind)?;
+                            if let Some(meter) = source_meter {
+                                memo.insert_physical_set_with_source(out, owner, kind, meter)?;
+                            } else {
+                                memo.insert_physical_set(out, owner, kind)?;
+                            }
                         } else {
                             out.insert(owner);
                         }
@@ -368,10 +399,11 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     pub(super) fn incidences_positive(
         &mut self,
-        value: &'tree F5cPositive,
+        value: &'tree F5cPositive<'meter>,
         positive: &mut HashSet<u32>,
         negative: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
+        let source_meter = self.source_meter;
         self.walk(
             Task::Positive(value, false),
             None,
@@ -382,17 +414,19 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                     if let Event::Value(owner, polarity, _) = event {
                         match polarity {
                             Polarity::Positive => {
-                                memo.insert_physical_set(
+                                memo.insert_physical_set_observed(
                                     positive,
                                     owner,
                                     F5cWalkerLaneKind::RawPositiveIncidences,
+                                    source_meter,
                                 )?;
                             }
                             Polarity::Negative => {
-                                memo.insert_physical_set(
+                                memo.insert_physical_set_observed(
                                     negative,
                                     owner,
                                     F5cWalkerLaneKind::RawNegativeIncidences,
+                                    source_meter,
                                 )?;
                             }
                         }
@@ -405,10 +439,11 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     pub(super) fn incidences_negative(
         &mut self,
-        value: &'tree F5cNegative,
+        value: &'tree F5cNegative<'meter>,
         positive: &mut HashSet<u32>,
         negative: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
+        let source_meter = self.source_meter;
         self.walk(
             Task::Negative(value, false),
             None,
@@ -419,17 +454,19 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                     if let Event::Value(owner, polarity, _) = event {
                         match polarity {
                             Polarity::Positive => {
-                                memo.insert_physical_set(
+                                memo.insert_physical_set_observed(
                                     positive,
                                     owner,
                                     F5cWalkerLaneKind::RawPositiveIncidences,
+                                    source_meter,
                                 )?;
                             }
                             Polarity::Negative => {
-                                memo.insert_physical_set(
+                                memo.insert_physical_set_observed(
                                     negative,
                                     owner,
                                     F5cWalkerLaneKind::RawNegativeIncidences,
+                                    source_meter,
                                 )?;
                             }
                         }
@@ -443,7 +480,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn occurrences_positive(
         &mut self,
-        value: &'tree F5cPositive,
+        value: &'tree F5cPositive<'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
@@ -467,7 +504,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     pub(super) fn occurrences_positive_checked(
         &mut self,
-        value: &'tree F5cPositive,
+        value: &'tree F5cPositive<'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
@@ -476,7 +513,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     pub(super) fn occurrences_negative_checked(
         &mut self,
-        value: &'tree F5cNegative,
+        value: &'tree F5cNegative<'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
@@ -485,10 +522,11 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
 
     fn occurrences_checked(
         &mut self,
-        first: Task<'tree>,
+        first: Task<'tree, 'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
+        let source_meter = self.source_meter;
         self.walk(
             first,
             None,
@@ -499,12 +537,32 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                     && !seen.contains(&owner)
                 {
                     let bytes = memo.retained_bytes()?;
-                    memo.walker_resources.reserve_generalizer_set(
-                        seen,
-                        F5cWalkerLaneKind::PostROccurrenceSeen,
-                        bytes,
-                    )?;
-                    memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder)?;
+                    if let Some(meter) = source_meter {
+                        memo.walker_resources.with_source(
+                            meter,
+                            bytes,
+                            F5cWalkerLaneKind::PostROccurrenceSeen,
+                            |walker| {
+                                walker.reserve_generalizer_set(
+                                    seen,
+                                    F5cWalkerLaneKind::PostROccurrenceSeen,
+                                    bytes,
+                                )
+                            },
+                        )?;
+                        memo.reserve_walker_with_source(
+                            ordered,
+                            F5cWalkerLaneKind::PostROccurrenceOrder,
+                            meter,
+                        )?;
+                    } else {
+                        memo.walker_resources.reserve_generalizer_set(
+                            seen,
+                            F5cWalkerLaneKind::PostROccurrenceSeen,
+                            bytes,
+                        )?;
+                        memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder)?;
+                    }
                     seen.insert(owner);
                     ordered.push(owner);
                 }
@@ -516,7 +574,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
     #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn occurrences_negative(
         &mut self,
-        value: &'tree F5cNegative,
+        value: &'tree F5cNegative<'meter>,
         ordered: &mut Vec<u32>,
         seen: &mut HashSet<u32>,
     ) -> Result<(), SolveAvailabilityError> {
@@ -555,6 +613,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         rows: &mut HashSet<u32>,
         lane: Option<F5cWalkerLaneKind>,
     ) -> Result<(), SolveAvailabilityError> {
+        let source_meter = self.source_meter;
         self.walk(
             Task::Term(term),
             Some(store),
@@ -564,7 +623,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                 Ok({
                     if let Event::TermRow(row) = event {
                         if let Some(kind) = lane {
-                            memo.insert_physical_set(rows, row, kind)?;
+                            memo.insert_physical_set_observed(rows, row, kind, source_meter)?;
                         } else {
                             rows.insert(row);
                         }
@@ -612,7 +671,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
     pub(super) fn trace_values(
         &mut self,
         draft: Option<&FlatDraft>,
-        root: Task<'tree>,
+        root: Task<'tree, 'meter>,
         limit: usize,
     ) -> Result<Vec<(u32, Polarity, bool)>, SolveAvailabilityError> {
         let mut trace = Vec::new();
@@ -772,10 +831,16 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
     }
 }
 
-impl Drop for Walker<'_, '_> {
+impl Drop for Walker<'_, '_, '_> {
     fn drop(&mut self) {
-        self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::AnalysisTasks);
+        if let Some(source_meter) = self.source_meter {
+            let _ = self
+                .memo
+                .release_walker_with_source(F5cWalkerLaneKind::AnalysisTasks, source_meter);
+        } else {
+            self.memo
+                .walker_resources
+                .release(F5cWalkerLaneKind::AnalysisTasks);
+        }
     }
 }

@@ -12,12 +12,32 @@ use std::{cell::Cell, fmt, ops::Deref};
 
 struct MeterState {
     current: Cell<Option<usize>>,
+    normalization_scratch: Cell<Option<usize>>,
+    normalization_joint_peak: Cell<Option<usize>>,
+    component_external: Cell<Option<usize>>,
+    component_joint_peak: Cell<Option<usize>>,
+    #[cfg(test)]
+    physical_current: Cell<Option<usize>>,
+    #[cfg(test)]
+    physical_component_external: Cell<Option<usize>>,
+    #[cfg(test)]
+    physical_joint_peak: Cell<Option<usize>>,
 }
 
 impl Default for MeterState {
     fn default() -> Self {
         Self {
             current: Cell::new(Some(0)),
+            normalization_scratch: Cell::new(None),
+            normalization_joint_peak: Cell::new(None),
+            component_external: Cell::new(None),
+            component_joint_peak: Cell::new(None),
+            #[cfg(test)]
+            physical_current: Cell::new(Some(0)),
+            #[cfg(test)]
+            physical_component_external: Cell::new(None),
+            #[cfg(test)]
+            physical_joint_peak: Cell::new(None),
         }
     }
 }
@@ -28,6 +48,117 @@ impl Default for MeterState {
 pub(super) struct DraftHeapMeter(MeterState);
 
 impl DraftHeapMeter {
+    pub(super) fn begin_component(&self) -> Result<(), ()> {
+        let current = self.current_bytes().ok_or(())?;
+        self.0.component_external.set(Some(0));
+        self.0.component_joint_peak.set(Some(current));
+        #[cfg(test)]
+        self.0.physical_component_external.set(Some(0));
+        #[cfg(test)]
+        self.0
+            .physical_joint_peak
+            .set(self.0.physical_current.get());
+        Ok(())
+    }
+
+    pub(super) fn observe_component_external(&self, bytes: usize) -> Result<(), ()> {
+        if self.0.component_external.get().is_none() {
+            return Ok(());
+        }
+        self.0.component_external.set(Some(bytes));
+        self.observe_component_joint()
+    }
+
+    #[cfg(test)]
+    pub(super) fn observe_physical_component_external(&self, bytes: usize) -> Result<(), ()> {
+        if self.0.physical_component_external.get().is_none() {
+            return Ok(());
+        }
+        self.0.physical_component_external.set(Some(bytes));
+        self.observe_component_joint()
+    }
+
+    pub(super) fn end_component(&self) -> Option<usize> {
+        self.0.component_external.set(None);
+        #[cfg(test)]
+        self.0.physical_component_external.set(None);
+        self.0.component_joint_peak.replace(None)
+    }
+
+    pub(super) fn component_joint_peak(&self) -> Option<usize> {
+        self.0.component_joint_peak.get()
+    }
+
+    #[cfg(test)]
+    pub(super) fn physical_component_joint_peak(&self) -> Option<usize> {
+        self.0.physical_joint_peak.get()
+    }
+
+    fn observe_component_joint(&self) -> Result<(), ()> {
+        if let Some(external) = self.0.component_external.get() {
+            let Some(joint) = self
+                .current_bytes()
+                .and_then(|bytes| bytes.checked_add(external))
+            else {
+                self.0.current.set(None);
+                return Err(());
+            };
+            self.0.component_joint_peak.set(Some(
+                self.0.component_joint_peak.get().unwrap_or(0).max(joint),
+            ));
+            #[cfg(test)]
+            {
+                let physical =
+                    self.0.physical_current.get().and_then(|bytes| {
+                        bytes.checked_add(self.0.physical_component_external.get()?)
+                    });
+                self.0.physical_joint_peak.set(
+                    match (self.0.physical_joint_peak.get(), physical) {
+                        (Some(old), Some(next)) => Some(old.max(next)),
+                        _ => None,
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+    pub(super) fn begin_normalization(&self) -> Result<(), ()> {
+        let current = self.current_bytes().ok_or(())?;
+        self.0.normalization_scratch.set(Some(0));
+        self.0.normalization_joint_peak.set(Some(current));
+        Ok(())
+    }
+
+    pub(super) fn observe_normalization_scratch(&self, bytes: usize) -> Result<(), ()> {
+        self.0.normalization_scratch.set(Some(bytes));
+        self.observe_normalization_joint()
+    }
+
+    pub(super) fn end_normalization(&self) -> Option<usize> {
+        self.0.normalization_scratch.set(None);
+        self.0.normalization_joint_peak.replace(None)
+    }
+
+    fn observe_normalization_joint(&self) -> Result<(), ()> {
+        if let Some(scratch) = self.0.normalization_scratch.get() {
+            let Some(joint) = self
+                .current_bytes()
+                .and_then(|bytes| bytes.checked_add(scratch))
+            else {
+                self.0.current.set(None);
+                return Err(());
+            };
+            self.0.normalization_joint_peak.set(Some(
+                self.0
+                    .normalization_joint_peak
+                    .get()
+                    .unwrap_or(0)
+                    .max(joint),
+            ));
+        }
+        Ok(())
+    }
+
     pub(super) fn current_bytes(&self) -> Option<usize> {
         self.0.current.get()
     }
@@ -45,6 +176,19 @@ impl DraftHeapMeter {
             return Err(());
         };
         self.0.current.set(Some(next));
+        #[cfg(test)]
+        {
+            let physical = self.0.physical_current.get().and_then(|current| {
+                current
+                    .checked_sub(old)
+                    .and_then(|bytes| bytes.checked_add(new))
+            });
+            self.0.physical_current.set(physical);
+        }
+        if new > old {
+            self.observe_normalization_joint()?;
+        }
+        self.observe_component_joint()?;
         Ok(())
     }
 
@@ -52,6 +196,11 @@ impl DraftHeapMeter {
         if let Some(current) = self.current_bytes() {
             self.0.current.set(current.checked_sub(bytes));
         }
+        #[cfg(test)]
+        if let Some(current) = self.0.physical_current.get() {
+            self.0.physical_current.set(current.checked_sub(bytes));
+        }
+        let _ = self.observe_component_joint();
     }
 }
 
@@ -440,6 +589,28 @@ mod tests {
         assert_eq!(result, Err(()));
         assert_eq!(lane.len(), 0);
         assert_eq!(meter.current_bytes(), Some(lane.capacity() * 8));
+    }
+
+    #[test]
+    fn failed_source_growth_observes_joint_peak_and_allows_retry() {
+        let meter = DraftHeapMeter::default();
+        let mut lane = TrackedVec::<u64>::new(&meter);
+        meter.begin_normalization().unwrap();
+        meter.observe_normalization_scratch(128).unwrap();
+        assert_eq!(
+            lane.reserve_with(4, |values, n| {
+                values.try_reserve(n).unwrap();
+                Err(())
+            }),
+            Err(())
+        );
+        let first_bytes = lane.capacity() * size_of::<u64>();
+        assert_eq!(meter.current_bytes(), Some(first_bytes));
+        lane.try_push(1).unwrap();
+        assert_eq!(lane.len(), 1);
+        assert_eq!(meter.end_normalization(), Some(first_bytes + 128));
+        drop(lane);
+        assert_eq!(meter.current_bytes(), Some(0));
     }
 
     #[test]

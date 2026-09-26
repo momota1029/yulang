@@ -4,6 +4,37 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): tracked Union/Intersection owners and component joint peak
+
+Positive Union and negative Intersection source vectors now use borrowed-meter
+`TrackedVec` ownership through generalization, replay, substitution,
+materialization, tree analysis, and normalization. One SCC-scoped observer pairs
+source capacity with memo and walker capacity on growth, post-reserve failure,
+and release events; it closes after peak capture and memo clear, before
+normalization. The independent test ledger folds actual source, memo, and
+walker capacities. Its witnesses cover both polarities while memo/walker lanes
+remain live, growth and release, failed-after-reserve capacity, exact peak
+agreement, and skipping full-lane scans on no-growth worklist operations.
+
+The M2 spec review was clean. Performance findings for transient source peaks,
+stale source baselines, and repeated lane scans were repaired; the final delta
+review found the accepted findings closed. Focused tests passed for the draft
+heap (10), tree analysis (4), materialization (17), replay (6), substitution
+(7), generalization transactions (15), R fixed point (1), closure (2), and
+the joint-peak and capacity-event witnesses (1 each). The solver test targets
+compile with `RUSTC_WRAPPER= cargo check -p yu-solver --tests`; `cargo fmt
+--all -- --check` and `git diff --check` pass. No broad suite, probe, benchmark,
+or resource-boundary measurement ran; measurement budget remains zero.
+
+This closes only the tracked Union/Intersection source-owner and component
+joint-meter slice. Function boxes, other nested source payloads, callback-local
+vectors, the all-drafts solver/`yu-types` same-time ledger, and the F5b boxed
+callback accounting defect remain open. Next migrate the remaining nested
+source owners and callback-local vectors, then close the full independent
+physical ledger. Keep production boxed. The reviewed §15 measurement plan,
+resource campaign, numeric support-boundary approval, production cutover, §44
+per-use gate, F5e, and overall F5c acceptance remain open.
+
 ### Latest continuation (2026-09-27): tracked nested-buffer handoff primitive
 
 `TrackedVec::try_adopt_raw` can now take over an existing Vec allocation

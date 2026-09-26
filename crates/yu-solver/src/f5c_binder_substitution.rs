@@ -2,14 +2,14 @@ use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
 #[cfg(test)]
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
-    F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect,
-    F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError,
+    DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive,
+    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError, TrackedVec,
 };
 use std::collections::{HashMap, HashSet};
 
-pub(super) enum Task {
-    Positive(F5cPositive),
-    Negative(F5cNegative),
+pub(super) enum Task<'meter> {
+    Positive(F5cPositive<'meter>),
+    Negative(F5cNegative<'meter>),
     FinishPositiveUnion(usize),
     FinishNegativeIntersection(usize),
     FinishPositiveFunction,
@@ -217,15 +217,17 @@ fn substitute_flat_inner(
     Ok(())
 }
 
-pub(super) fn substitute_positive(
+pub(super) fn substitute_positive<'meter>(
+    source_meter: &'meter DraftHeapMeter,
     memo: &mut F5cComponentExpansionMemo,
-    value: F5cPositive,
+    value: F5cPositive<'meter>,
     q: &HashMap<u32, u32>,
     r: &HashMap<u32, u32>,
     positive_eliminated: &HashSet<u32>,
     negative_eliminated: &HashSet<u32>,
-) -> Result<F5cPositive, SolveAvailabilityError> {
+) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
     match substitute(
+        source_meter,
         memo,
         Task::Positive(value),
         q,
@@ -238,15 +240,17 @@ pub(super) fn substitute_positive(
     }
 }
 
-pub(super) fn substitute_negative(
+pub(super) fn substitute_negative<'meter>(
+    source_meter: &'meter DraftHeapMeter,
     memo: &mut F5cComponentExpansionMemo,
-    value: F5cNegative,
+    value: F5cNegative<'meter>,
     q: &HashMap<u32, u32>,
     r: &HashMap<u32, u32>,
     positive_eliminated: &HashSet<u32>,
     negative_eliminated: &HashSet<u32>,
-) -> Result<F5cNegative, SolveAvailabilityError> {
+) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
     match substitute(
+        source_meter,
         memo,
         Task::Negative(value),
         q,
@@ -259,27 +263,36 @@ pub(super) fn substitute_negative(
     }
 }
 
-fn substitute(
+fn substitute<'meter>(
+    source_meter: &'meter DraftHeapMeter,
     memo: &mut F5cComponentExpansionMemo,
-    first: Task,
+    first: Task<'meter>,
     q: &HashMap<u32, u32>,
     r: &HashMap<u32, u32>,
     positive_eliminated: &HashSet<u32>,
     negative_eliminated: &HashSet<u32>,
-) -> Result<F5cWalkValue, SolveAvailabilityError> {
+) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
     let mut tasks = Vec::new();
     let mut values = Vec::new();
     macro_rules! push_task {
         ($task:expr) => {{
             memo.work_meter.charge(1)?;
-            memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::BinderTasks)?;
+            memo.reserve_walker_with_source(
+                &mut tasks,
+                F5cWalkerLaneKind::BinderTasks,
+                source_meter,
+            )?;
             tasks.push($task);
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
             memo.work_meter.charge(1)?;
-            memo.reserve_walker(&mut values, F5cWalkerLaneKind::BinderValues)?;
+            memo.reserve_walker_with_source(
+                &mut values,
+                F5cWalkerLaneKind::BinderValues,
+                source_meter,
+            )?;
             values.push($value);
         }};
     }
@@ -373,13 +386,17 @@ fn substitute(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = Vec::new();
+                    let mut children = TrackedVec::new(source_meter);
                     memo.work_meter.charge(count)?;
+                    memo.observe_component_external(source_meter)?;
+                    children
+                        .try_reserve_exact(count)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        children.push(value);
+                        children.push_reserved(value);
                     }
                     push_value!(F5cWalkValue::Positive(F5cPositive::Union(children), true));
                 }
@@ -396,13 +413,17 @@ fn substitute(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = Vec::new();
+                    let mut children = TrackedVec::new(source_meter);
                     memo.work_meter.charge(count)?;
+                    memo.observe_component_external(source_meter)?;
+                    children
+                        .try_reserve_exact(count)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        children.push(value);
+                        children.push_reserved(value);
                     }
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Intersection(children),
@@ -466,9 +487,7 @@ fn substitute(
             .pop()
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     })();
-    memo.walker_resources
-        .release(F5cWalkerLaneKind::BinderTasks);
-    memo.walker_resources
-        .release(F5cWalkerLaneKind::BinderValues);
+    memo.release_walker_with_source(F5cWalkerLaneKind::BinderTasks, source_meter)?;
+    memo.release_walker_with_source(F5cWalkerLaneKind::BinderValues, source_meter)?;
     result
 }

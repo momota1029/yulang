@@ -46,6 +46,7 @@ macro_rules! persistent_memo_state {
 
 #[test]
 fn warm_child_conflict_failure_and_retry_preserve_persistent_memo() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-transaction-warm-child"));
     let mut session = InferenceSession::new(batch);
     let ancestor = session.fresh_value_at_level(1).unwrap();
@@ -84,7 +85,7 @@ fn warm_child_conflict_failure_and_retry_preserve_persistent_memo() {
     memo.admit(key, summary).unwrap();
     memo.root_undo.clear();
     let (success, memo, hits, _) =
-        F5cGeneralizer::with_memo(&session, memo, 0).build_component(ancestor);
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(ancestor);
     assert!(success.is_ok());
     assert_eq!(hits, 0);
     assert!(memo.conflict_journal.is_empty());
@@ -106,8 +107,8 @@ fn warm_child_conflict_failure_and_retry_preserve_persistent_memo() {
     );
     let mut memo = memo;
     memo.fail_reserve_at = Some((F5cTestReserveFailure::RootUndo, 0));
-    let (failed, memo, hits, _) =
-        F5cGeneralizer::with_memo(&session, memo, 0).build_component(failing_root);
+    let (failed, memo, hits, _) = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0)
+        .build_component(failing_root);
     assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
     assert_eq!(hits, 1);
     assert_eq!(
@@ -132,15 +133,15 @@ fn warm_child_conflict_failure_and_retry_preserve_persistent_memo() {
     assert_eq!(memo.visit_epoch, 0);
     assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
     assert_generalizer_physical_lanes_idle(&memo);
-    let mut raw = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut raw = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     assert_eq!(
         raw.positive_row(child, false),
         Ok(F5cPositive::Shared(summary))
     );
     assert_eq!(raw.shared_summary_hits, 1);
     let memo = raw.memo;
-    let (retry, memo, hits, _) =
-        F5cGeneralizer::with_memo(&session, memo, 0).build_component(retry_root);
+    let (retry, memo, hits, _) = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0)
+        .build_component(retry_root);
     assert!(retry.is_ok());
     assert_eq!(hits, 1);
     assert_eq!(memo.roots.get(&key), Some(&summary));
@@ -197,6 +198,7 @@ fn child_reserve_failure_keeps_append_atomic_and_accounts_retained_capacity() {
 
 #[test]
 fn growth_samples_reconcile_live_mirrors_and_rollback_retention() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-transaction-growth-ledger"));
     let mut session = InferenceSession::new(batch);
     let child = session.fresh_value_at_level(1).unwrap();
@@ -216,7 +218,8 @@ fn growth_samples_reconcile_live_mirrors_and_rollback_retention() {
         ]);
     let mut memo = F5cComponentExpansionMemo::default();
     memo.fail_reserve_at = Some((F5cTestReserveFailure::RootUndo, 1));
-    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (failed, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
     assert!(memo.roots.is_empty());
     assert!(
@@ -237,7 +240,7 @@ fn growth_samples_reconcile_live_mirrors_and_rollback_retention() {
     assert_eq!(ledger.component_expansion_memo_peak_bytes, failed_peak);
 
     let (retry, memo_after_retry, _, _) =
-        F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert!(retry.is_ok());
     assert!(memo_after_retry.retained_bytes().unwrap() >= retained_after_failure);
     let mut retry_ledger = IndependentResourceLedger::default();
@@ -428,6 +431,7 @@ fn f5c_component_conflict_invalidation_failure_does_not_restore_transient_confli
 
 #[test]
 fn f5c_walker_active_observation_failures_leave_idle_mirrors_and_retry() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-active-observation"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
@@ -438,7 +442,7 @@ fn f5c_walker_active_observation_failures_leave_idle_mirrors_and_retry() {
         F5cTestObservationFailure::Enter,
         F5cTestObservationFailure::Leave,
     ] {
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         generalizer.memo.fail_observation_at = Some(point);
         assert_eq!(
             generalizer.positive_row(row, false).err(),
@@ -459,6 +463,7 @@ fn f5c_walker_active_observation_failures_leave_idle_mirrors_and_retry() {
 
 #[test]
 fn f5c_component_admission_observation_failure_restores_memo_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-admission-observation"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -473,7 +478,7 @@ fn f5c_component_admission_observation_failure_restores_memo_and_retries() {
     let before = persistent_memo_state!(memo);
     memo.fail_observation_at = Some(F5cTestObservationFailure::Admit);
     let (result, returned, _, _) =
-        F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(
         result.err(),
         Some(SolveAvailabilityError::IdentityExhausted)
@@ -487,13 +492,14 @@ fn f5c_component_admission_observation_failure_restores_memo_and_retries() {
     assert!(returned.root_lane.requested_slots > 0);
     assert!(returned.index_lane.peak_bytes >= returned.index_retained_bytes().unwrap());
     let (retry, memo, _, _) =
-        F5cGeneralizer::with_memo(&session, returned, 0).build_component(root);
+        F5cGeneralizer::with_memo(&session, &test_source_meter, returned, 0).build_component(root);
     assert!(retry.is_ok());
     assert!(!memo.roots.is_empty());
 }
 
 #[test]
 fn f5c_component_reserve_preparation_failures_roll_back_prior_admission() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-reserve-preparation-rollback"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -519,7 +525,7 @@ fn f5c_component_reserve_preparation_failures_roll_back_prior_admission() {
         let before = persistent_memo_state!(memo);
         memo.fail_reserve_at = Some((point, 1));
         let (failed, memo, _, _) =
-            F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+            F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
         assert_eq!(
             failed.err(),
             Some(SolveAvailabilityError::IdentityExhausted),
@@ -533,7 +539,7 @@ fn f5c_component_reserve_preparation_failures_roll_back_prior_admission() {
         assert_generalizer_physical_lanes_idle(&memo);
         assert!(memo.root_lane.requested_slots > 0);
         let (retry, memo, _, _) =
-            F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+            F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
         assert!(retry.is_ok());
         assert!(!memo.roots.is_empty());
     }
@@ -541,6 +547,7 @@ fn f5c_component_reserve_preparation_failures_roll_back_prior_admission() {
 
 #[test]
 fn f5c_raw_owner_order_reserve_failure_rolls_back_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-raw-owner-order-reserve"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -565,14 +572,16 @@ fn f5c_raw_owner_order_reserve_failure_rolls_back_and_retries() {
     let mut memo = F5cComponentExpansionMemo::default();
     let before = persistent_memo_state!(memo);
     memo.fail_reserve_at = Some((F5cTestReserveFailure::RawOwnerOrder, 0));
-    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (failed, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
     assert_eq!(persistent_memo_state!(memo), before);
     assert_eq!(memo.fail_reserve_at, None);
     assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
     assert_generalizer_physical_lanes_idle(&memo);
     assert!(memo.scratch_lane.requested_slots > 0);
-    let (retry, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (retry, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert!(retry.is_ok());
     let (physical, reported) = memo.boxed_raw_lanes_live_sample.unwrap();
     assert_eq!(physical, reported);
@@ -581,6 +590,7 @@ fn f5c_raw_owner_order_reserve_failure_rolls_back_and_retries() {
 
 #[test]
 fn f5c_boxed_reentry_second_lane_failure_rolls_back_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-boxed-reentry-index-reserve"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -604,7 +614,8 @@ fn f5c_boxed_reentry_second_lane_failure_rolls_back_and_retries() {
     let mut memo = F5cComponentExpansionMemo::default();
     let before = persistent_memo_state!(memo);
     memo.fail_reserve_at = Some((F5cTestReserveFailure::BoxedReentryIndices, 0));
-    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (failed, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
     assert_eq!(persistent_memo_state!(memo), before);
     assert_generalizer_physical_lanes_idle(&memo);
@@ -615,7 +626,8 @@ fn f5c_boxed_reentry_second_lane_failure_rolls_back_and_retries() {
         let lane = memo.walker_resources.lanes[kind as usize];
         assert!(lane.requested_slots > 0 && lane.peak_bytes > 0);
     }
-    let (retry, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (retry, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert!(retry.is_ok());
     let (physical, reported) = memo.boxed_raw_lanes_live_sample.unwrap();
     assert_eq!(physical, reported);
@@ -623,6 +635,7 @@ fn f5c_boxed_reentry_second_lane_failure_rolls_back_and_retries() {
 
 #[test]
 fn f5c_order_second_lane_failure_retains_growth_history_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-order-second-lane"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -631,18 +644,21 @@ fn f5c_order_second_lane_failure_retains_growth_history_and_retries() {
         .push(ValueEndpointKey::IntPositive);
     let mut memo = F5cComponentExpansionMemo::default();
     memo.fail_reserve_at = Some((F5cTestReserveFailure::OrderAfterSeen, 0));
-    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (failed, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
     assert_generalizer_physical_lanes_idle(&memo);
     let seen = memo.walker_resources.lanes[F5cWalkerLaneKind::OrderSeen as usize];
     assert!(seen.requested_slots > 0 && seen.capacity_growths > 0 && seen.peak_bytes > 0);
-    let (retry, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (retry, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert!(retry.is_ok());
     assert_generalizer_physical_lanes_idle(&memo);
 }
 
 #[test]
 fn f5c_reentry_path_copy_failure_rolls_back_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-reentry-path-copy"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -665,12 +681,14 @@ fn f5c_reentry_path_copy_failure_rolls_back_and_retries() {
     session.bounds[relay as usize].direct_lower_rows.push(root);
     let mut memo = F5cComponentExpansionMemo::default();
     memo.fail_reserve_at = Some((F5cTestReserveFailure::ReentryPathAfterReserve, 0));
-    let (failed, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (failed, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
     assert_generalizer_physical_lanes_idle(&memo);
     let paths = memo.walker_resources.lanes[F5cWalkerLaneKind::ReentryPaths as usize];
     assert!(paths.requested_slots > 0 && paths.capacity_growths > 0 && paths.peak_bytes > 0);
-    let (retry, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (retry, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert!(retry.is_ok());
     assert_generalizer_physical_lanes_idle(&memo);
     assert!(memo.walker_resources.lanes[F5cWalkerLaneKind::Reentries as usize].peak_bytes > 0);
@@ -678,10 +696,11 @@ fn f5c_reentry_path_copy_failure_rolls_back_and_retries() {
 
 #[test]
 fn f5c_trace_path_lane_sums_retained_paths_and_copy_peaks() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-trace-path-aggregate"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     generalizer.active.push((row, Polarity::Positive, 0));
     generalizer
         .memo
@@ -740,13 +759,15 @@ fn f5c_trace_path_lane_sums_retained_paths_and_copy_peaks() {
 
 #[test]
 fn f5c_component_peak_samples_live_mirrors_and_later_retained_growth() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-live-mirror-peak"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let (result, mut memo, _, _) = F5cGeneralizer::new(&session).build_component(root);
+    let (result, mut memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(root);
     assert!(result.is_ok());
     let live_peak = memo.peak_bytes().unwrap();
     assert!(live_peak > memo.retained_bytes().unwrap());

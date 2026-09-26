@@ -3,6 +3,7 @@ use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode, RecursiveBound};
 
 #[test]
 fn f5c_flat_substitution_matches_boxed_roots_and_preserves_layout() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut flat = FlatDraft::default();
     let p_r = flat.positive(PositiveNode::Variable(4)).unwrap();
     let p_q = flat.positive(PositiveNode::Variable(1)).unwrap();
@@ -56,25 +57,36 @@ fn f5c_flat_substitution_matches_boxed_roots_and_preserves_layout() {
     )
     .unwrap();
 
-    let positive_input = F5cPositive::Union(vec![
-        F5cPositive::Variable(4),
-        F5cPositive::Variable(1),
-        F5cPositive::Variable(5),
-        F5cPositive::Int,
-    ]);
-    let negative_input = F5cNegative::Intersection(vec![
-        F5cNegative::Variable(2),
-        F5cNegative::Variable(4),
-        F5cNegative::Variable(6),
-    ]);
+    let positive_input = || {
+        F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cPositive::Variable(4),
+                F5cPositive::Variable(1),
+                F5cPositive::Variable(5),
+                F5cPositive::Int,
+            ],
+        ))
+    };
+    let negative_input = || {
+        F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cNegative::Variable(2),
+                F5cNegative::Variable(4),
+                F5cNegative::Variable(6),
+            ],
+        ))
+    };
     let mut memo = F5cComponentExpansionMemo::default();
     let oracle_positive = crate::f5c_binder_substitution::substitute_positive(
+        &test_source_meter,
         &mut memo,
         F5cPositive::Function {
-            argument: Box::new(negative_input.clone()),
+            argument: Box::new(negative_input()),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(positive_input.clone()),
+            result: Box::new(positive_input()),
         },
         &q,
         &r,
@@ -83,12 +95,13 @@ fn f5c_flat_substitution_matches_boxed_roots_and_preserves_layout() {
     )
     .unwrap();
     let oracle_negative = crate::f5c_binder_substitution::substitute_negative(
+        &test_source_meter,
         &mut memo,
         F5cNegative::Function {
-            argument: Box::new(positive_input),
+            argument: Box::new(positive_input()),
             argument_effect: F5cPositiveEffect::Bottom,
             result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(negative_input),
+            result: Box::new(negative_input()),
         },
         &q,
         &r,
@@ -97,33 +110,43 @@ fn f5c_flat_substitution_matches_boxed_roots_and_preserves_layout() {
     )
     .unwrap();
 
-    let substituted_positive = F5cPositive::Union(vec![
-        F5cPositive::Recursive(3),
-        F5cPositive::Quantified(0),
-        F5cPositive::Bottom,
-        F5cPositive::Int,
-    ]);
-    let substituted_negative = F5cNegative::Intersection(vec![
-        F5cNegative::Quantified(1),
-        F5cNegative::Recursive(3),
-        F5cNegative::Top,
-    ]);
+    let substituted_positive = || {
+        F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cPositive::Recursive(3),
+                F5cPositive::Quantified(0),
+                F5cPositive::Bottom,
+                F5cPositive::Int,
+            ],
+        ))
+    };
+    let substituted_negative = || {
+        F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cNegative::Quantified(1),
+                F5cNegative::Recursive(3),
+                F5cNegative::Top,
+            ],
+        ))
+    };
     assert_eq!(
         oracle_positive,
         F5cPositive::Function {
-            argument: Box::new(substituted_negative.clone()),
+            argument: Box::new(substituted_negative()),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(substituted_positive.clone()),
+            result: Box::new(substituted_positive()),
         }
     );
     assert_eq!(
         oracle_negative,
         F5cNegative::Function {
-            argument: Box::new(substituted_positive),
+            argument: Box::new(substituted_positive()),
             argument_effect: F5cPositiveEffect::Bottom,
             result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(substituted_negative),
+            result: Box::new(substituted_negative()),
         }
     );
     assert_eq!(
@@ -213,6 +236,7 @@ fn f5c_flat_substitution_unmapped_variable_is_failure_atomic() {
 
 #[test]
 fn f5c_flat_substitution_visits_bound_only_roots_and_leaves_orphans() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut flat = FlatDraft::default();
     let orphan = flat.positive(PositiveNode::Variable(90)).unwrap();
     let predicate = flat.positive(PositiveNode::Int).unwrap();
@@ -232,6 +256,7 @@ fn f5c_flat_substitution_visits_bound_only_roots_and_leaves_orphans() {
     let negative_eliminated = HashSet::from([6]);
     let mut memo = F5cComponentExpansionMemo::default();
     let expected_lower = crate::f5c_binder_substitution::substitute_positive(
+        &test_source_meter,
         &mut memo,
         F5cPositive::Variable(5),
         &q,
@@ -241,6 +266,7 @@ fn f5c_flat_substitution_visits_bound_only_roots_and_leaves_orphans() {
     )
     .unwrap();
     let expected_upper = crate::f5c_binder_substitution::substitute_negative(
+        &test_source_meter,
         &mut memo,
         F5cNegative::Variable(6),
         &q,
@@ -277,6 +303,7 @@ fn f5c_flat_substitution_visits_bound_only_roots_and_leaves_orphans() {
 
 #[test]
 fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut flat = FlatDraft::default();
     let orphan_positive = flat.positive(PositiveNode::Variable(90)).unwrap();
     let orphan_negative = flat.negative(NegativeNode::Variable(91)).unwrap();
@@ -344,10 +371,10 @@ fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
             argument: Box::new(F5cNegative::Top),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Bottom,
-            ])),
+            result: Box::new(F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![F5cPositive::Int, F5cPositive::Bottom],
+            ))),
         },
         recursive_bounds: vec![F5cRecursiveBound {
             ordinal: 0,
@@ -365,7 +392,8 @@ fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
             },
         }],
     }];
-    let boxed_stats = crate::f5c_normalization::normalize_component(&mut boxed).unwrap();
+    let boxed_stats =
+        crate::f5c_normalization::normalize_component(&test_source_meter, &mut boxed).unwrap();
 
     assert_eq!(
         flat_stats,
@@ -377,10 +405,10 @@ fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
             argument: Box::new(F5cNegative::Top),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Union(vec![
-                F5cPositive::Bottom,
-                F5cPositive::Int,
-            ])),
+            result: Box::new(F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![F5cPositive::Bottom, F5cPositive::Int,]
+            ))),
         }
     );
     assert_eq!(
@@ -448,39 +476,52 @@ fn f5c_flat_substitution_orphans_do_not_enter_selected_root_normalization() {
 
 #[test]
 fn f5c_binder_substitution_preserves_polarity_qr_and_member_order() {
+    let test_source_meter = DraftHeapMeter::default();
     let positive = F5cPositive::Function {
-        argument: Box::new(F5cNegative::Intersection(vec![
-            F5cNegative::Variable(3),
-            F5cNegative::Variable(4),
-            F5cNegative::Variable(6),
-        ])),
+        argument: Box::new(F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cNegative::Variable(3),
+                F5cNegative::Variable(4),
+                F5cNegative::Variable(6),
+            ],
+        ))),
         argument_effect: F5cNegativeEffect::Empty,
         result_effect: F5cPositiveEffect::Bottom,
-        result: Box::new(F5cPositive::Union(vec![
-            F5cPositive::Variable(5),
-            F5cPositive::Function {
-                argument: Box::new(F5cNegative::Bottom),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Variable(1)),
-            },
-        ])),
-    };
-    let negative = F5cNegative::Intersection(vec![
-        F5cNegative::Variable(6),
-        F5cNegative::Function {
-            argument: Box::new(F5cPositive::Union(vec![
-                F5cPositive::Variable(2),
-                F5cPositive::Variable(4),
+        result: Box::new(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![
                 F5cPositive::Variable(5),
-                F5cPositive::Int,
-            ])),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(F5cNegative::Variable(7)),
-        },
-        F5cNegative::Bottom,
-    ]);
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Bottom),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Variable(1)),
+                },
+            ],
+        ))),
+    };
+    let negative = F5cNegative::Intersection(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cNegative::Variable(6),
+            F5cNegative::Function {
+                argument: Box::new(F5cPositive::Union(test_tracked(
+                    &test_source_meter,
+                    vec![
+                        F5cPositive::Variable(2),
+                        F5cPositive::Variable(4),
+                        F5cPositive::Variable(5),
+                        F5cPositive::Int,
+                    ],
+                ))),
+                argument_effect: F5cPositiveEffect::Bottom,
+                result_effect: F5cNegativeEffect::Empty,
+                result: Box::new(F5cNegative::Variable(7)),
+            },
+            F5cNegative::Bottom,
+        ],
+    ));
     let q = HashMap::from([(1, 0), (2, 1), (3, 2)]);
     let r = HashMap::from([(4, 3)]);
     let positive_eliminated = HashSet::from([5]);
@@ -488,6 +529,7 @@ fn f5c_binder_substitution_preserves_polarity_qr_and_member_order() {
     let mut memo = F5cComponentExpansionMemo::default();
 
     let substituted_positive = crate::f5c_binder_substitution::substitute_positive(
+        &test_source_meter,
         &mut memo,
         positive,
         &q,
@@ -497,6 +539,7 @@ fn f5c_binder_substitution_preserves_polarity_qr_and_member_order() {
     )
     .unwrap();
     let substituted_negative = crate::f5c_binder_substitution::substitute_negative(
+        &test_source_meter,
         &mut memo,
         negative,
         &q,
@@ -509,52 +552,66 @@ fn f5c_binder_substitution_preserves_polarity_qr_and_member_order() {
     assert_eq!(
         substituted_positive,
         F5cPositive::Function {
-            argument: Box::new(F5cNegative::Intersection(vec![
-                F5cNegative::Quantified(2),
-                F5cNegative::Recursive(3),
-                F5cNegative::Top,
-            ])),
+            argument: Box::new(F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cNegative::Quantified(2),
+                    F5cNegative::Recursive(3),
+                    F5cNegative::Top,
+                ]
+            ))),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Union(vec![
-                F5cPositive::Bottom,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Bottom),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Quantified(0)),
-                },
-            ])),
+            result: Box::new(F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Bottom,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Bottom),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Quantified(0)),
+                    },
+                ]
+            ))),
         }
     );
     assert_eq!(
         substituted_negative,
-        F5cNegative::Intersection(vec![
-            F5cNegative::Top,
-            F5cNegative::Function {
-                argument: Box::new(F5cPositive::Union(vec![
-                    F5cPositive::Quantified(1),
-                    F5cPositive::Recursive(3),
-                    F5cPositive::Bottom,
-                    F5cPositive::Int,
-                ])),
-                argument_effect: F5cPositiveEffect::Bottom,
-                result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(F5cNegative::Top),
-            },
-            F5cNegative::Bottom,
-        ])
+        F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cNegative::Top,
+                F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Union(test_tracked(
+                        &test_source_meter,
+                        vec![
+                            F5cPositive::Quantified(1),
+                            F5cPositive::Recursive(3),
+                            F5cPositive::Bottom,
+                            F5cPositive::Int,
+                        ]
+                    ))),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(F5cNegative::Top),
+                },
+                F5cNegative::Bottom,
+            ]
+        ))
     );
 }
 
 #[test]
 fn f5c_binder_substitution_rejects_unmapped_variables_and_releases_lanes() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut memo = F5cComponentExpansionMemo::default();
     let empty_map = HashMap::new();
     let empty_set = HashSet::new();
 
     assert_eq!(
         crate::f5c_binder_substitution::substitute_positive(
+            &test_source_meter,
             &mut memo,
             F5cPositive::Variable(90),
             &empty_map,
@@ -578,38 +635,50 @@ fn f5c_binder_substitution_rejects_unmapped_variables_and_releases_lanes() {
 #[test]
 fn f5c_binder_substitution_handles_deep_trees_on_small_stack() {
     const DEPTH: usize = 4096;
-    let mut positive = F5cPositive::Variable(1);
-    for _ in 0..DEPTH {
-        positive = F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(3)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(positive),
-        };
-    }
-    let mut negative = F5cNegative::Variable(2);
-    for _ in 0..DEPTH {
-        negative = F5cNegative::Function {
-            argument: Box::new(F5cPositive::Variable(4)),
-            argument_effect: F5cPositiveEffect::Bottom,
-            result_effect: F5cNegativeEffect::Empty,
-            result: Box::new(negative),
-        };
-    }
-
     let worker = std::thread::Builder::new()
         .stack_size(64 * 1024)
         .spawn(move || {
+            let test_source_meter = DraftHeapMeter::default();
+            let mut positive = F5cPositive::Variable(1);
+            for _ in 0..DEPTH {
+                positive = F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Variable(3)),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(positive),
+                };
+            }
+            let mut negative = F5cNegative::Variable(2);
+            for _ in 0..DEPTH {
+                negative = F5cNegative::Function {
+                    argument: Box::new(F5cPositive::Variable(4)),
+                    argument_effect: F5cPositiveEffect::Bottom,
+                    result_effect: F5cNegativeEffect::Empty,
+                    result: Box::new(negative),
+                };
+            }
             let mut memo = F5cComponentExpansionMemo::default();
             let q = HashMap::from([(1, 0), (2, 1), (4, 2)]);
             let r = HashMap::from([(3, 3)]);
             let empty = HashSet::new();
             let substituted_positive = crate::f5c_binder_substitution::substitute_positive(
-                &mut memo, positive, &q, &r, &empty, &empty,
+                &test_source_meter,
+                &mut memo,
+                positive,
+                &q,
+                &r,
+                &empty,
+                &empty,
             )
             .unwrap();
             let substituted_negative = crate::f5c_binder_substitution::substitute_negative(
-                &mut memo, negative, &q, &r, &empty, &empty,
+                &test_source_meter,
+                &mut memo,
+                negative,
+                &q,
+                &r,
+                &empty,
+                &empty,
             )
             .unwrap();
 

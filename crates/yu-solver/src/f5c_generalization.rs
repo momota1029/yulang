@@ -151,20 +151,20 @@ impl F5cDraftWorkMeter {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum F5cPositive {
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum F5cPositive<'meter> {
     Bottom,
     Int,
     Variable(u32),
     Quantified(u32),
     Recursive(u32),
     Shared(F5cSummaryNodeId),
-    Union(Vec<F5cPositive>),
+    Union(TrackedVec<'meter, F5cPositive<'meter>>),
     Function {
-        argument: Box<F5cNegative>,
+        argument: Box<F5cNegative<'meter>>,
         argument_effect: F5cNegativeEffect,
         result_effect: F5cPositiveEffect,
-        result: Box<F5cPositive>,
+        result: Box<F5cPositive<'meter>>,
     },
 }
 
@@ -178,8 +178,8 @@ pub(super) enum F5cNegativeEffect {
     Empty,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) enum F5cNegative {
+#[derive(Debug, Eq, PartialEq)]
+pub(super) enum F5cNegative<'meter> {
     Top,
     Bottom,
     Int,
@@ -187,27 +187,27 @@ pub(super) enum F5cNegative {
     Quantified(u32),
     Recursive(u32),
     Shared(F5cSummaryNodeId),
-    Intersection(Vec<F5cNegative>),
+    Intersection(TrackedVec<'meter, F5cNegative<'meter>>),
     Function {
-        argument: Box<F5cPositive>,
+        argument: Box<F5cPositive<'meter>>,
         argument_effect: F5cPositiveEffect,
         result_effect: F5cNegativeEffect,
-        result: Box<F5cNegative>,
+        result: Box<F5cNegative<'meter>>,
     },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct F5cRecursiveBound {
+#[derive(Debug, Eq, PartialEq)]
+pub(super) struct F5cRecursiveBound<'meter> {
     pub(super) ordinal: u32,
-    pub(super) lower: F5cPositive,
-    pub(super) upper: F5cNegative,
+    pub(super) lower: F5cPositive<'meter>,
+    pub(super) upper: F5cNegative<'meter>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct GeneralizationDraft {
+#[derive(Debug, Eq, PartialEq)]
+pub(super) struct GeneralizationDraft<'meter> {
     pub(super) quantifier_count: u32,
-    pub(super) recursive_bounds: Vec<F5cRecursiveBound>,
-    pub(super) predicate: F5cPositive,
+    pub(super) recursive_bounds: Vec<F5cRecursiveBound<'meter>>,
+    pub(super) predicate: F5cPositive<'meter>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -530,7 +530,6 @@ impl F5cWalkerLaneKind {
         Self::ClosureNeighbors,
         Self::ClosureConnected,
         Self::ClosureResult,
-        Self::BoxedRetainedOwnerBounds,
         Self::ClosureFrontier,
         Self::RawPositiveIncidences,
         Self::RawNegativeIncidences,
@@ -553,6 +552,7 @@ impl F5cWalkerLaneKind {
         Self::RReachable,
         Self::RFrontier,
         Self::RReferenced,
+        Self::BoxedRetainedOwnerBounds,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -560,10 +560,10 @@ impl F5cWalkerLaneKind {
             Self::Tasks => std::mem::size_of::<F5cWalkTask>(),
             Self::Values => std::mem::size_of::<F5cWalkValue>(),
             Self::DirectEdges => std::mem::size_of::<(usize, u32)>(),
-            Self::SummaryTasks => std::mem::size_of::<F5cSummaryTask<'static>>(),
+            Self::SummaryTasks => std::mem::size_of::<F5cSummaryTask<'static, 'static>>(),
             Self::SummaryIds => std::mem::size_of::<F5cSummaryNodeId>(),
             Self::DirectTargets => std::mem::size_of::<u32>(),
-            Self::Comparison => std::mem::size_of::<F5cCompareTask<'static>>(),
+            Self::Comparison => std::mem::size_of::<F5cCompareTask<'static, 'static>>(),
             Self::PositiveParts => std::mem::size_of::<F5cPositive>(),
             Self::NegativeParts => std::mem::size_of::<F5cNegative>(),
             Self::MaterializeTasks => std::mem::size_of::<F5cMaterializeTask>(),
@@ -584,8 +584,8 @@ impl F5cWalkerLaneKind {
             Self::RawOwnerSeen => std::mem::size_of::<u32>(),
             Self::RawRoots => std::mem::size_of::<flat_walk_sink::FlatWalkValue>(),
             Self::RawCallbackTrace => std::mem::size_of::<(u32, Polarity)>(),
-            Self::AnalysisTasks => std::mem::size_of::<f5c_tree_analysis::Task<'static>>(),
-            Self::ReplayTasks => std::mem::size_of::<f5c_replay::Task<'static>>(),
+            Self::AnalysisTasks => std::mem::size_of::<f5c_tree_analysis::Task<'static, 'static>>(),
+            Self::ReplayTasks => std::mem::size_of::<f5c_replay::Task<'static, 'static>>(),
             Self::ReplayValues => std::mem::size_of::<F5cWalkValue>(),
             Self::BinderTasks => std::mem::size_of::<f5c_binder_substitution::Task>(),
             Self::BinderValues => std::mem::size_of::<F5cWalkValue>(),
@@ -701,6 +701,8 @@ pub(super) struct F5cWalkerResources {
     #[cfg(test)]
     pub(super) physical_joint: PhysicalJoint,
     #[cfg(test)]
+    pub(super) physical_walker_samples: usize,
+    #[cfg(test)]
     pub(super) independent_lanes: [F5cWalkerLane; 98],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
@@ -724,6 +726,8 @@ impl Default for F5cWalkerResources {
             #[cfg(test)]
             physical_joint: PhysicalJoint::default(),
             #[cfg(test)]
+            physical_walker_samples: 0,
+            #[cfg(test)]
             independent_lanes: [F5cWalkerLane::default(); 98],
             #[cfg(test)]
             independent_peak_bytes: 0,
@@ -737,8 +741,24 @@ impl Default for F5cWalkerResources {
 }
 
 impl F5cWalkerResources {
+    pub(super) fn with_source<T>(
+        &mut self,
+        source_meter: &DraftHeapMeter,
+        memo_bytes: usize,
+        kind: F5cWalkerLaneKind,
+        operation: impl FnOnce(&mut Self) -> Result<T, SolveAvailabilityError>,
+    ) -> Result<T, SolveAvailabilityError> {
+        let prior_capacity = self.lanes[kind as usize].actual_capacity;
+        self.observed_source_bytes = source_meter.current_bytes();
+        let result = operation(self);
+        if self.lanes[kind as usize].actual_capacity != prior_capacity {
+            self.observe_memo_with_source(memo_bytes, source_meter)?;
+        }
+        result
+    }
     #[cfg(test)]
     fn observe_physical_walker(&mut self) {
+        self.physical_walker_samples += 1;
         let sizes = F5cWalkerLaneKind::ALL.map(|kind| {
             if matches!(kind, F5cWalkerLaneKind::Values) && self.value_slot_size != 0 {
                 self.value_slot_size
@@ -765,6 +785,7 @@ impl F5cWalkerResources {
 
     #[cfg(test)]
     fn observe_physical_walker_target(&mut self, kind: F5cWalkerLaneKind, capacity: u128) {
+        self.physical_walker_samples += 1;
         let index = kind as usize;
         self.physical_joint.walker_capacities[index] = capacity;
         self.physical_joint.walker_current = PhysicalJoint::sum_products(
@@ -836,7 +857,9 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = capacity;
-            self.observe_physical_walker();
+            if capacity != old {
+                self.observe_physical_walker();
+            }
         }
         if capacity != old {
             self.lanes[index].capacity_growths = growth;
@@ -884,11 +907,13 @@ impl F5cWalkerResources {
         let old = indices.capacity();
         let reservation = indices.try_reserve(1);
         #[cfg(test)]
-        self.observe_physical_walker_target(
-            kind,
-            self.independent_lanes[index].actual_capacity as u128
-                + (indices.capacity() - old) as u128,
-        );
+        if indices.capacity() != old {
+            self.observe_physical_walker_target(
+                kind,
+                self.independent_lanes[index].actual_capacity as u128
+                    + (indices.capacity() - old) as u128,
+            );
+        }
         let delta = indices
             .capacity()
             .checked_sub(old)
@@ -903,7 +928,9 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = capacity;
-            self.observe_physical_walker();
+            if delta != 0 {
+                self.observe_physical_walker();
+            }
         }
         if delta != 0 {
             self.lanes[index].capacity_growths = growth;
@@ -969,7 +996,9 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = capacity;
-            self.observe_physical_walker();
+            if capacity != old {
+                self.observe_physical_walker();
+            }
         }
         if capacity != old {
             self.lanes[index].capacity_growths = growth;
@@ -1018,10 +1047,13 @@ impl F5cWalkerResources {
         let old = path.capacity();
         let result = path.try_reserve(additional);
         #[cfg(test)]
-        self.observe_physical_walker_target(
-            kind,
-            self.independent_lanes[index].actual_capacity as u128 + (path.capacity() - old) as u128,
-        );
+        if path.capacity() != old {
+            self.observe_physical_walker_target(
+                kind,
+                self.independent_lanes[index].actual_capacity as u128
+                    + (path.capacity() - old) as u128,
+            );
+        }
         let delta = path
             .capacity()
             .checked_sub(old)
@@ -1036,7 +1068,9 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = capacity;
-            self.observe_physical_walker();
+            if delta != 0 {
+                self.observe_physical_walker();
+            }
         }
         if delta != 0 {
             self.lanes[index].capacity_growths = growth;
@@ -1063,7 +1097,9 @@ impl F5cWalkerResources {
         #[cfg(test)]
         {
             self.independent_lanes[index].actual_capacity -= capacity;
-            self.observe_physical_walker();
+            if capacity != 0 {
+                self.observe_physical_walker();
+            }
         }
     }
     #[cfg(test)]
@@ -1074,7 +1110,9 @@ impl F5cWalkerResources {
         requested_slots: usize,
         memo_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
-        self.observe_physical_walker_target(kind, capacity as u128);
+        if capacity != self.independent_lanes[kind as usize].actual_capacity {
+            self.observe_physical_walker_target(kind, capacity as u128);
+        }
         let lane = &self.lanes[kind as usize];
         let independent = &self.independent_lanes[kind as usize];
         let counters = (
@@ -1151,7 +1189,9 @@ impl F5cWalkerResources {
         self.lanes[kind as usize].actual_capacity = capacity;
         self.independent_lanes[kind as usize].requested_slots = counters.2;
         self.independent_lanes[kind as usize].actual_capacity = capacity;
-        self.observe_physical_walker();
+        if old != capacity {
+            self.observe_physical_walker();
+        }
         let lane = &mut self.lanes[kind as usize];
         if old != capacity {
             lane.capacity_growths = counters.1;
@@ -1270,7 +1310,9 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = new_capacity;
-            self.observe_physical_walker();
+            if new_capacity != old_capacity {
+                self.observe_physical_walker();
+            }
         }
         if new_capacity != old_capacity {
             self.lanes[index].capacity_growths = growth;
@@ -1321,14 +1363,16 @@ impl F5cWalkerResources {
         let capacity = buffer.capacity();
         let aggregate = matches!(kind, F5cWalkerLaneKind::ClosureNeighbors);
         #[cfg(test)]
-        self.observe_physical_walker_target(
-            kind,
-            if aggregate {
-                self.independent_lanes[index].actual_capacity as u128 + (capacity - old) as u128
-            } else {
-                capacity as u128
-            },
-        );
+        if capacity != old {
+            self.observe_physical_walker_target(
+                kind,
+                if aggregate {
+                    self.independent_lanes[index].actual_capacity as u128 + (capacity - old) as u128
+                } else {
+                    capacity as u128
+                },
+            );
+        }
         let current = self.lanes[index].actual_capacity;
         let new_capacity = if aggregate {
             current
@@ -1341,7 +1385,9 @@ impl F5cWalkerResources {
         #[cfg(test)]
         {
             self.independent_lanes[index].actual_capacity = new_capacity;
-            self.observe_physical_walker();
+            if capacity != old {
+                self.observe_physical_walker();
+            }
         }
         if capacity != old {
             self.lanes[index].capacity_growths = growth;
@@ -1427,7 +1473,9 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = new_capacity;
-            self.observe_physical_walker();
+            if new_capacity != old_capacity {
+                self.observe_physical_walker();
+            }
         }
         if new_capacity != old_capacity {
             self.lanes[index].capacity_growths = growth;
@@ -1455,11 +1503,15 @@ impl F5cWalkerResources {
     }
 
     pub(super) fn release(&mut self, kind: F5cWalkerLaneKind) {
+        #[cfg(test)]
+        let prior_capacity = self.independent_lanes[kind as usize].actual_capacity;
         self.lanes[kind as usize].actual_capacity = 0;
         #[cfg(test)]
         {
             self.independent_lanes[kind as usize].actual_capacity = 0;
-            self.observe_physical_walker();
+            if prior_capacity != 0 {
+                self.observe_physical_walker();
+            }
         }
     }
 
@@ -1517,9 +1569,36 @@ impl F5cWalkerResources {
             })
     }
 
-    pub(super) fn observe_memo(&mut self, memo_bytes: usize) -> Result<(), SolveAvailabilityError> {
+    pub(super) fn observe_memo_with_source(
+        &mut self,
+        memo_bytes: usize,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.observed_source_bytes = source_meter.current_bytes();
+        self.observe_memo(memo_bytes)?;
+        let external = memo_bytes
+            .checked_add(self.retained_bytes()?)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        source_meter
+            .observe_component_external(external)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         #[cfg(test)]
-        self.observe_physical_walker();
+        {
+            let physical = usize::try_from(
+                self.physical_joint
+                    .memo_current
+                    .checked_add(self.physical_joint.walker_current)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            )
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            source_meter
+                .observe_physical_component_external(physical)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn observe_memo(&mut self, memo_bytes: usize) -> Result<(), SolveAvailabilityError> {
         let scratch_bytes = self.retained_bytes()?;
         self.peak_bytes = self.peak_bytes.max(scratch_bytes);
         self.simultaneous_memo_peak_bytes = self.simultaneous_memo_peak_bytes.max(
@@ -1622,7 +1701,7 @@ pub(super) struct F5cComponentExpansionMemo {
     #[cfg(test)]
     pub(super) fail_reserve_at: Option<(F5cTestReserveFailure, usize)>,
     #[cfg(test)]
-    pending_observation_failure: bool,
+    pub(super) pending_observation_failure: bool,
     #[cfg(test)]
     pub(super) independent_root_growths: usize,
     #[cfg(test)]
@@ -1766,6 +1845,66 @@ impl F5cComponentExpansionMemo {
         self.observe_simultaneous_peak()?;
         self.walker_resources.observe_memo(memo_bytes)
     }
+
+    pub(super) fn observe_source_meter(
+        &mut self,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.observe_source_bytes(source_meter.current_bytes())?;
+        self.observe_component_external(source_meter)
+    }
+
+    pub(super) fn observe_component_external(
+        &self,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        let external = self
+            .retained_bytes()?
+            .checked_add(self.walker_resources.retained_bytes()?)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        source_meter
+            .observe_component_external(external)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        #[cfg(test)]
+        {
+            let joint = &self.walker_resources.physical_joint;
+            let physical_external = usize::try_from(
+                joint
+                    .memo_current
+                    .checked_add(joint.walker_current)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            )
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            source_meter
+                .observe_physical_component_external(physical_external)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn capture_component_joint_peak(
+        &mut self,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.observe_component_external(source_meter)?;
+        self.simultaneous_source_memo_peak_bytes = self.simultaneous_source_memo_peak_bytes.max(
+            source_meter
+                .component_joint_peak()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+        );
+        #[cfg(test)]
+        {
+            let physical_peak = source_meter
+                .physical_component_joint_peak()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.walker_resources.physical_joint.peak = self
+                .walker_resources
+                .physical_joint
+                .peak
+                .max(physical_peak as u128);
+        }
+        Ok(())
+    }
     pub(super) fn reserve_walker<T>(
         &mut self,
         buffer: &mut Vec<T>,
@@ -1773,6 +1912,47 @@ impl F5cComponentExpansionMemo {
     ) -> Result<(), SolveAvailabilityError> {
         let memo_bytes = self.retained_bytes()?;
         self.walker_resources.reserve(buffer, kind, 1, memo_bytes)
+    }
+
+    pub(super) fn reserve_walker_with_source<T>(
+        &mut self,
+        buffer: &mut Vec<T>,
+        kind: F5cWalkerLaneKind,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        let prior_capacity = self.walker_resources.lanes[kind as usize].actual_capacity;
+        self.observed_source_bytes = source_meter.current_bytes();
+        self.walker_resources.observed_source_bytes = source_meter.current_bytes();
+        self.source_meter_overflow = source_meter.current_bytes().is_none();
+        let reservation = self.reserve_walker(buffer, kind);
+        if self.walker_resources.lanes[kind as usize].actual_capacity != prior_capacity {
+            self.observe_walker_with_source(source_meter)?;
+        }
+        reservation
+    }
+
+    pub(super) fn release_walker_with_source(
+        &mut self,
+        kind: F5cWalkerLaneKind,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        let prior_capacity = self.walker_resources.lanes[kind as usize].actual_capacity;
+        self.walker_resources.release(kind);
+        if prior_capacity == 0 {
+            return Ok(());
+        }
+        let memo_bytes = self.retained_bytes()?;
+        self.walker_resources
+            .observe_memo_with_source(memo_bytes, source_meter)
+    }
+
+    fn release_reentry_path_with_source(
+        &mut self,
+        capacity: usize,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.walker_resources.release_reentry_path(capacity);
+        self.observe_walker_with_source(source_meter)
     }
 
     pub(super) fn reserve_walker_target(
@@ -1792,6 +1972,35 @@ impl F5cComponentExpansionMemo {
         self.reserve_physical_set_insert(set, value, kind)?;
         set.insert(value);
         Ok(())
+    }
+
+    pub(super) fn insert_physical_set_with_source(
+        &mut self,
+        set: &mut HashSet<u32>,
+        value: u32,
+        kind: F5cWalkerLaneKind,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        let prior_capacity = self.walker_resources.lanes[kind as usize].actual_capacity;
+        let insertion = self.insert_physical_set(set, value, kind);
+        if self.walker_resources.lanes[kind as usize].actual_capacity != prior_capacity {
+            self.observe_walker_with_source(source_meter)?;
+        }
+        insertion
+    }
+
+    pub(super) fn insert_physical_set_observed(
+        &mut self,
+        set: &mut HashSet<u32>,
+        value: u32,
+        kind: F5cWalkerLaneKind,
+        source_meter: Option<&DraftHeapMeter>,
+    ) -> Result<(), SolveAvailabilityError> {
+        if let Some(meter) = source_meter {
+            self.insert_physical_set_with_source(set, value, kind, meter)
+        } else {
+            self.insert_physical_set(set, value, kind)
+        }
     }
 
     fn reserve_physical_set_insert(
@@ -1817,6 +2026,21 @@ impl F5cComponentExpansionMemo {
             .reserve_physical_set_insert(set, kind, memo_bytes, full)
     }
 
+    pub(super) fn reserve_physical_set_insert_with_source(
+        &mut self,
+        set: &mut HashSet<u32>,
+        value: u32,
+        kind: F5cWalkerLaneKind,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        let prior_capacity = self.walker_resources.lanes[kind as usize].actual_capacity;
+        let reservation = self.reserve_physical_set_insert(set, value, kind);
+        if self.walker_resources.lanes[kind as usize].actual_capacity != prior_capacity {
+            self.observe_walker_with_source(source_meter)?;
+        }
+        reservation
+    }
+
     pub(super) fn observe_walker(&mut self) -> Result<(), SolveAvailabilityError> {
         #[cfg(test)]
         if std::mem::take(&mut self.pending_observation_failure) {
@@ -1828,6 +2052,20 @@ impl F5cComponentExpansionMemo {
             self.walker_resources.observed_memo_bytes = memo_bytes;
         }
         Ok(())
+    }
+
+    pub(super) fn observe_walker_with_source(
+        &mut self,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.observed_source_bytes = source_meter.current_bytes();
+        self.walker_resources.observed_source_bytes = source_meter.current_bytes();
+        self.source_meter_overflow = source_meter.current_bytes().is_none();
+        let result = self.observe_walker();
+        let memo_bytes = self.retained_bytes()?;
+        self.walker_resources
+            .observe_memo_with_source(memo_bytes, source_meter)?;
+        result
     }
 
     fn prepare_index_reserve(
@@ -2005,7 +2243,19 @@ impl F5cComponentExpansionMemo {
         value: &F5cPositive,
         incidence: Option<(u32, Polarity)>,
     ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
-        self.node_iterative(F5cSummaryTask::Positive(value, incidence))
+        self.node_iterative(F5cSummaryTask::Positive(value, incidence), None)
+    }
+
+    fn positive_node_with_source(
+        &mut self,
+        value: &F5cPositive,
+        incidence: Option<(u32, Polarity)>,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        self.node_iterative(
+            F5cSummaryTask::Positive(value, incidence),
+            Some(source_meter),
+        )
     }
 
     pub(super) fn negative_node(
@@ -2013,12 +2263,25 @@ impl F5cComponentExpansionMemo {
         value: &F5cNegative,
         incidence: Option<(u32, Polarity)>,
     ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
-        self.node_iterative(F5cSummaryTask::Negative(value, incidence))
+        self.node_iterative(F5cSummaryTask::Negative(value, incidence), None)
+    }
+
+    fn negative_node_with_source(
+        &mut self,
+        value: &F5cNegative,
+        incidence: Option<(u32, Polarity)>,
+        source_meter: &DraftHeapMeter,
+    ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
+        self.node_iterative(
+            F5cSummaryTask::Negative(value, incidence),
+            Some(source_meter),
+        )
     }
 
     fn node_iterative(
         &mut self,
-        first: F5cSummaryTask<'_>,
+        first: F5cSummaryTask<'_, '_>,
+        source_meter: Option<&DraftHeapMeter>,
     ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
         let mut tasks = Vec::new();
         let mut ids = Vec::<F5cSummaryNodeId>::new();
@@ -2026,17 +2289,45 @@ impl F5cComponentExpansionMemo {
             ($value:expr) => {{
                 let value = $value;
                 self.work_meter.charge(1)?;
-                self.reserve_walker(&mut tasks, F5cWalkerLaneKind::SummaryTasks)?;
+                let prior_capacity = tasks.capacity();
+                let reservation = self.reserve_walker(&mut tasks, F5cWalkerLaneKind::SummaryTasks);
+                if tasks.capacity() != prior_capacity {
+                    if let Some(meter) = source_meter {
+                        self.observe_component_external(meter)?;
+                    }
+                }
+                reservation?;
                 tasks.push(value);
             }};
         }
         macro_rules! push_id {
             ($value:expr) => {{
                 self.work_meter.charge(1)?;
-                let value = $value;
+                let value =
+                    (|| -> Result<F5cSummaryNodeId, SolveAvailabilityError> { Ok($value) })();
+                if let Some(meter) = source_meter {
+                    self.observe_component_external(meter)?;
+                }
+                let value: F5cSummaryNodeId = value?;
                 self.observe_walker()?;
-                self.reserve_walker(&mut ids, F5cWalkerLaneKind::SummaryIds)?;
+                let prior_capacity = ids.capacity();
+                let reservation = self.reserve_walker(&mut ids, F5cWalkerLaneKind::SummaryIds);
+                if ids.capacity() != prior_capacity {
+                    if let Some(meter) = source_meter {
+                        self.observe_component_external(meter)?;
+                    }
+                }
+                reservation?;
                 ids.push(value);
+            }};
+        }
+        macro_rules! push_children {
+            ($ids:expr) => {{
+                let reservation = self.push_children($ids);
+                if let Some(meter) = source_meter {
+                    self.observe_component_external(meter)?;
+                }
+                reservation?
             }};
         }
         let result = (|| {
@@ -2057,7 +2348,7 @@ impl F5cComponentExpansionMemo {
                         ),
                         F5cPositive::Shared(id) => {
                             if incidence.is_some() {
-                                let (start, _) = self.push_children(&[*id])?;
+                                let (start, _) = push_children!(&[*id]);
                                 push_id!(self.push_node(
                                     F5cSummaryNodeKind::PositiveAlias { start },
                                     incidence
@@ -2101,7 +2392,7 @@ impl F5cComponentExpansionMemo {
                         ),
                         F5cNegative::Shared(id) => {
                             if incidence.is_some() {
-                                let (start, _) = self.push_children(&[*id])?;
+                                let (start, _) = push_children!(&[*id]);
                                 push_id!(self.push_node(
                                     F5cSummaryNodeKind::NegativeAlias { start },
                                     incidence
@@ -2131,7 +2422,7 @@ impl F5cComponentExpansionMemo {
                         }
                     },
                     F5cSummaryTask::PositiveUnion(start, incidence) => {
-                        let (child_start, len) = self.push_children(&ids[start..])?;
+                        let (child_start, len) = push_children!(&ids[start..]);
                         ids.truncate(start);
                         push_id!(self.push_node(
                             F5cSummaryNodeKind::PositiveUnion {
@@ -2142,7 +2433,7 @@ impl F5cComponentExpansionMemo {
                         )?);
                     }
                     F5cSummaryTask::NegativeIntersection(start, incidence) => {
-                        let (child_start, len) = self.push_children(&ids[start..])?;
+                        let (child_start, len) = push_children!(&ids[start..]);
                         ids.truncate(start);
                         push_id!(self.push_node(
                             F5cSummaryNodeKind::NegativeIntersection {
@@ -2180,6 +2471,9 @@ impl F5cComponentExpansionMemo {
         self.walker_resources
             .release(F5cWalkerLaneKind::SummaryTasks);
         self.walker_resources.release(F5cWalkerLaneKind::SummaryIds);
+        if let Some(meter) = source_meter {
+            self.observe_component_external(meter)?;
+        }
         result
     }
 
@@ -2200,55 +2494,66 @@ impl F5cComponentExpansionMemo {
     }
 
     #[cfg(test)]
-    pub(super) fn positive_value(
+    pub(super) fn positive_value<'meter>(
         &mut self,
+        source_meter: &'meter DraftHeapMeter,
         id: F5cSummaryNodeId,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
-        self.positive_value_with(id, &mut |_, _| Ok(()))
+    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
+        self.positive_value_with(source_meter, id, &mut |_, _| Ok(()))
     }
 
-    pub(super) fn positive_value_with(
+    pub(super) fn positive_value_with<'meter>(
         &mut self,
+        source_meter: &'meter DraftHeapMeter,
         id: F5cSummaryNodeId,
         mark: &mut impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
-        match self.materialize_summary(F5cMaterializeTask::Positive(id), mark)? {
+    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
+        self.observe_component_external(source_meter)?;
+        match self.materialize_summary(source_meter, F5cMaterializeTask::Positive(id), mark)? {
             F5cWalkValue::Positive(value, _) => Ok(value),
             _ => Err(SolveAvailabilityError::IdentityExhausted),
         }
     }
 
     #[cfg(test)]
-    pub(super) fn negative_value(
+    pub(super) fn negative_value<'meter>(
         &mut self,
+        source_meter: &'meter DraftHeapMeter,
         id: F5cSummaryNodeId,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
-        self.negative_value_with(id, &mut |_, _| Ok(()))
+    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
+        self.negative_value_with(source_meter, id, &mut |_, _| Ok(()))
     }
 
-    pub(super) fn negative_value_with(
+    pub(super) fn negative_value_with<'meter>(
         &mut self,
+        source_meter: &'meter DraftHeapMeter,
         id: F5cSummaryNodeId,
         mark: &mut impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
-        match self.materialize_summary(F5cMaterializeTask::Negative(id), mark)? {
+    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
+        self.observe_component_external(source_meter)?;
+        match self.materialize_summary(source_meter, F5cMaterializeTask::Negative(id), mark)? {
             F5cWalkValue::Negative(value, _) => Ok(value),
             _ => Err(SolveAvailabilityError::IdentityExhausted),
         }
     }
 
-    fn materialize_summary(
+    fn materialize_summary<'meter>(
         &mut self,
+        source_meter: &'meter DraftHeapMeter,
         first: F5cMaterializeTask,
         mark: &mut impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
-    ) -> Result<F5cWalkValue, SolveAvailabilityError> {
+    ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
         let mut tasks = Vec::new();
         let mut values = Vec::new();
         macro_rules! push_task {
             ($task:expr) => {{
                 let task = $task;
                 self.work_meter.charge(1)?; // scheduled task
-                self.reserve_walker(&mut tasks, F5cWalkerLaneKind::MaterializeTasks)?;
+                self.reserve_walker_with_source(
+                    &mut tasks,
+                    F5cWalkerLaneKind::MaterializeTasks,
+                    source_meter,
+                )?;
                 tasks.push(task);
             }};
         }
@@ -2256,7 +2561,11 @@ impl F5cComponentExpansionMemo {
             ($value:expr) => {{
                 self.work_meter.charge(1)?; // emitted value
                 let value = $value;
-                self.reserve_walker(&mut values, F5cWalkerLaneKind::MaterializeValues)?;
+                self.reserve_walker_with_source(
+                    &mut values,
+                    F5cWalkerLaneKind::MaterializeValues,
+                    source_meter,
+                )?;
                 values.push(value);
             }};
         }
@@ -2386,12 +2695,30 @@ impl F5cComponentExpansionMemo {
                             let F5cWalkValue::Positive(value, _) = child else {
                                 return Err(SolveAvailabilityError::IdentityExhausted);
                             };
-                            self.reserve_walker(&mut parts, F5cWalkerLaneKind::PositiveParts)?;
+                            self.reserve_walker_with_source(
+                                &mut parts,
+                                F5cWalkerLaneKind::PositiveParts,
+                                source_meter,
+                            )?;
                             parts.push(value);
                         }
+                        self.observe_component_external(source_meter)?;
+                        let parts = match TrackedVec::try_adopt_raw(source_meter, parts) {
+                            Ok(parts) => parts,
+                            Err((parts, ())) => {
+                                drop(parts);
+                                self.release_walker_with_source(
+                                    F5cWalkerLaneKind::PositiveParts,
+                                    source_meter,
+                                )?;
+                                return Err(SolveAvailabilityError::IdentityExhausted);
+                            }
+                        };
+                        self.release_walker_with_source(
+                            F5cWalkerLaneKind::PositiveParts,
+                            source_meter,
+                        )?;
                         push_value!(F5cWalkValue::Positive(F5cPositive::Union(parts), true));
-                        self.walker_resources
-                            .release(F5cWalkerLaneKind::PositiveParts);
                     }
                     F5cMaterializeTask::NegativeIntersection(start) => {
                         // The finish task follows only negative child tasks; each child
@@ -2412,15 +2739,33 @@ impl F5cComponentExpansionMemo {
                             let F5cWalkValue::Negative(value, _) = child else {
                                 return Err(SolveAvailabilityError::IdentityExhausted);
                             };
-                            self.reserve_walker(&mut parts, F5cWalkerLaneKind::NegativeParts)?;
+                            self.reserve_walker_with_source(
+                                &mut parts,
+                                F5cWalkerLaneKind::NegativeParts,
+                                source_meter,
+                            )?;
                             parts.push(value);
                         }
+                        self.observe_component_external(source_meter)?;
+                        let parts = match TrackedVec::try_adopt_raw(source_meter, parts) {
+                            Ok(parts) => parts,
+                            Err((parts, ())) => {
+                                drop(parts);
+                                self.release_walker_with_source(
+                                    F5cWalkerLaneKind::NegativeParts,
+                                    source_meter,
+                                )?;
+                                return Err(SolveAvailabilityError::IdentityExhausted);
+                            }
+                        };
+                        self.release_walker_with_source(
+                            F5cWalkerLaneKind::NegativeParts,
+                            source_meter,
+                        )?;
                         push_value!(F5cWalkValue::Negative(
                             F5cNegative::Intersection(parts),
                             true
                         ));
-                        self.walker_resources
-                            .release(F5cWalkerLaneKind::NegativeParts);
                     }
                     F5cMaterializeTask::PositiveFunction => {
                         let F5cWalkValue::Positive(result, _) = values
@@ -2477,14 +2822,10 @@ impl F5cComponentExpansionMemo {
                 .pop()
                 .ok_or(SolveAvailabilityError::IdentityExhausted)
         })();
-        self.walker_resources
-            .release(F5cWalkerLaneKind::MaterializeTasks);
-        self.walker_resources
-            .release(F5cWalkerLaneKind::MaterializeValues);
-        self.walker_resources
-            .release(F5cWalkerLaneKind::PositiveParts);
-        self.walker_resources
-            .release(F5cWalkerLaneKind::NegativeParts);
+        self.release_walker_with_source(F5cWalkerLaneKind::MaterializeTasks, source_meter)?;
+        self.release_walker_with_source(F5cWalkerLaneKind::MaterializeValues, source_meter)?;
+        self.release_walker_with_source(F5cWalkerLaneKind::PositiveParts, source_meter)?;
+        self.release_walker_with_source(F5cWalkerLaneKind::NegativeParts, source_meter)?;
         result
     }
 
@@ -3495,19 +3836,19 @@ pub(super) enum F5cWalkTask {
     LeavePath,
 }
 
-pub(super) enum F5cWalkValue {
-    Positive(F5cPositive, bool),
-    Negative(F5cNegative, bool),
+pub(super) enum F5cWalkValue<'meter> {
+    Positive(F5cPositive<'meter>, bool),
+    Negative(F5cNegative<'meter>, bool),
 }
 
-pub(super) enum F5cCompareTask<'a> {
-    Positive(&'a F5cPositive, &'a F5cPositive),
-    Negative(&'a F5cNegative, &'a F5cNegative),
+pub(super) enum F5cCompareTask<'tree, 'meter> {
+    Positive(&'tree F5cPositive<'meter>, &'tree F5cPositive<'meter>),
+    Negative(&'tree F5cNegative<'meter>, &'tree F5cNegative<'meter>),
 }
 
-pub(super) enum F5cSummaryTask<'a> {
-    Positive(&'a F5cPositive, Option<(u32, Polarity)>),
-    Negative(&'a F5cNegative, Option<(u32, Polarity)>),
+pub(super) enum F5cSummaryTask<'tree, 'meter> {
+    Positive(&'tree F5cPositive<'meter>, Option<(u32, Polarity)>),
+    Negative(&'tree F5cNegative<'meter>, Option<(u32, Polarity)>),
     PositiveUnion(usize, Option<(u32, Polarity)>),
     NegativeIntersection(usize, Option<(u32, Polarity)>),
     PositiveFunction(Option<(u32, Polarity)>),
@@ -3527,8 +3868,9 @@ pub(super) enum F5cMaterializeTask {
 /// Root-local F5c expansion state.  Collected rows remain immutable recipes;
 /// this walker is the sole owner of polarity incidence, active-path re-entry,
 /// and the Q/R decision for one draft.
-pub(super) struct F5cGeneralizer<'a> {
+pub(super) struct F5cGeneralizer<'a, 'meter> {
     pub(super) session: &'a InferenceSession,
+    pub(super) source_meter: &'meter DraftHeapMeter,
     pub(super) memo: F5cComponentExpansionMemo,
     #[cfg(test)]
     pub(super) flat_sink: F5cFlatWalkSink,
@@ -3574,7 +3916,7 @@ pub(super) struct F5cNormalizedCandidate {
     pub(super) stats: f5c_normalization::FlatNormalizationStats,
 }
 
-trait F5cRCandidateSource {
+trait F5cRCandidateSource<'meter> {
     type ReplayedBound;
     type ReplayedPredicate;
 
@@ -3606,19 +3948,23 @@ trait F5cRCandidateSource {
 
     fn references_predicate<'tree>(
         &'tree self,
-        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
         predicate: &'tree Self::ReplayedPredicate,
         candidates: &HashSet<u32>,
         reachable: &mut HashSet<u32>,
-    ) -> Result<(), SolveAvailabilityError>;
+    ) -> Result<(), SolveAvailabilityError>
+    where
+        'meter: 'tree;
 
     fn references_bound<'tree>(
         &'tree self,
-        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
         owner: u32,
         candidates: &HashSet<u32>,
         referenced: &mut HashSet<u32>,
-    ) -> Result<(), SolveAvailabilityError>;
+    ) -> Result<(), SolveAvailabilityError>
+    where
+        'meter: 'tree;
 
     fn release_replay_scratch(&mut self);
 
@@ -3677,14 +4023,15 @@ pub(super) struct F5cPostRSelection<B, P> {
     pub(super) r: HashMap<u32, u32>,
 }
 
-struct F5cBoxedRCandidateSource<'a> {
-    predicate: &'a F5cPositive,
-    bounds: &'a HashMap<u32, (F5cPositive, F5cNegative)>,
+struct F5cBoxedRCandidateSource<'a, 'meter> {
+    source_meter: &'meter DraftHeapMeter,
+    predicate: &'a F5cPositive<'meter>,
+    bounds: &'a HashMap<u32, (F5cPositive<'meter>, F5cNegative<'meter>)>,
 }
 
-impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
-    type ReplayedBound = (F5cPositive, F5cNegative);
-    type ReplayedPredicate = F5cPositive;
+impl<'meter> F5cRCandidateSource<'meter> for F5cBoxedRCandidateSource<'_, 'meter> {
+    type ReplayedBound = (F5cPositive<'meter>, F5cNegative<'meter>);
+    type ReplayedPredicate = F5cPositive<'meter>;
 
     fn new_retained_bounds(&self, _candidate_count: usize) -> HashMap<u32, Self::ReplayedBound> {
         HashMap::new()
@@ -3702,8 +4049,22 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
             return Ok(None);
         };
         Ok(Some((
-            f5c_replay::replay_positive(memo, lower, protected, positive_only, negative_only)?,
-            f5c_replay::replay_negative(memo, upper, protected, positive_only, negative_only)?,
+            f5c_replay::replay_positive(
+                self.source_meter,
+                memo,
+                lower,
+                protected,
+                positive_only,
+                negative_only,
+            )?,
+            f5c_replay::replay_negative(
+                self.source_meter,
+                memo,
+                upper,
+                protected,
+                positive_only,
+                negative_only,
+            )?,
         )))
     }
 
@@ -3713,7 +4074,8 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         owner: u32,
         bound: &Self::ReplayedBound,
     ) -> Result<bool, SolveAvailabilityError> {
-        f5c_tree_analysis::Walker::new(memo).guarded_bound_survives(owner, &bound.0, &bound.1)
+        f5c_tree_analysis::Walker::new_with_source(memo, self.source_meter)
+            .guarded_bound_survives(owner, &bound.0, &bound.1)
     }
 
     fn replay_predicate(
@@ -3724,6 +4086,7 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         negative_only: &HashSet<u32>,
     ) -> Result<Self::ReplayedPredicate, SolveAvailabilityError> {
         f5c_replay::replay_positive(
+            self.source_meter,
             memo,
             self.predicate,
             protected,
@@ -3734,11 +4097,14 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
 
     fn references_predicate<'tree>(
         &'tree self,
-        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
         predicate: &'tree Self::ReplayedPredicate,
         candidates: &HashSet<u32>,
         reachable: &mut HashSet<u32>,
-    ) -> Result<(), SolveAvailabilityError> {
+    ) -> Result<(), SolveAvailabilityError>
+    where
+        'meter: 'tree,
+    {
         walker.references_positive_with_lane(
             predicate,
             candidates,
@@ -3749,11 +4115,14 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
 
     fn references_bound<'tree>(
         &'tree self,
-        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
         owner: u32,
         candidates: &HashSet<u32>,
         referenced: &mut HashSet<u32>,
-    ) -> Result<(), SolveAvailabilityError> {
+    ) -> Result<(), SolveAvailabilityError>
+    where
+        'meter: 'tree,
+    {
         let Some((lower, upper)) = self.bounds.get(&owner) else {
             return Ok(());
         };
@@ -3783,10 +4152,14 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         } else {
             0
         };
-        memo.walker_resources.reserve_boxed_map(
-            bounds,
+        let memo_bytes = memo.retained_bytes()?;
+        memo.walker_resources.with_source(
+            self.source_meter,
+            memo_bytes,
             F5cWalkerLaneKind::BoxedRetainedOwnerBounds,
-            bytes,
+            |walker| {
+                walker.reserve_boxed_map(bounds, F5cWalkerLaneKind::BoxedRetainedOwnerBounds, bytes)
+            },
         )
     }
 
@@ -3801,8 +4174,11 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         } else {
             0
         };
+        let memo_bytes = memo.retained_bytes()?;
         memo.walker_resources
-            .reserve_generalizer_set(set, kind, bytes)
+            .with_source(self.source_meter, memo_bytes, kind, |walker| {
+                walker.reserve_generalizer_set(set, kind, bytes)
+            })
     }
 
     fn reserve_post_r_trace_set(
@@ -3815,10 +4191,14 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         } else {
             0
         };
-        memo.walker_resources.reserve_generalizer_set(
-            set,
+        let memo_bytes = memo.retained_bytes()?;
+        memo.walker_resources.with_source(
+            self.source_meter,
+            memo_bytes,
             F5cWalkerLaneKind::PostRSurvivingTraces,
-            bytes,
+            |walker| {
+                walker.reserve_generalizer_set(set, F5cWalkerLaneKind::PostRSurvivingTraces, bytes)
+            },
         )
     }
 
@@ -3833,7 +4213,11 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         } else {
             0
         };
-        memo.walker_resources.reserve_boxed_map(map, kind, bytes)
+        let memo_bytes = memo.retained_bytes()?;
+        memo.walker_resources
+            .with_source(self.source_meter, memo_bytes, kind, |walker| {
+                walker.reserve_boxed_map(map, kind, bytes)
+            })
     }
 
     fn reserve_post_r_vec(
@@ -3842,11 +4226,12 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         values: &mut Vec<u32>,
         kind: F5cWalkerLaneKind,
     ) -> Result<(), SolveAvailabilityError> {
-        memo.reserve_walker(values, kind)
+        memo.reserve_walker_with_source(values, kind, self.source_meter)
     }
 
     fn release_post_r_lane(&self, memo: &mut F5cComponentExpansionMemo, kind: F5cWalkerLaneKind) {
         memo.walker_resources.release(kind);
+        let _ = memo.observe_component_external(self.source_meter);
     }
 
     fn retained_occurrences(
@@ -3858,7 +4243,7 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
     ) -> Result<Vec<u32>, SolveAvailabilityError> {
         let mut ordered = Vec::new();
         let mut seen = HashSet::new();
-        let mut walker = f5c_tree_analysis::Walker::new(memo);
+        let mut walker = f5c_tree_analysis::Walker::new_with_source(memo, self.source_meter);
         let result = (|| {
             walker.occurrences_positive_checked(predicate, &mut ordered, &mut seen)?;
             for owner in owners {
@@ -3905,7 +4290,7 @@ struct F5cFlatRCandidateSource<'a> {
 }
 
 #[cfg(test)]
-impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
+impl<'meter> F5cRCandidateSource<'meter> for F5cFlatRCandidateSource<'_> {
     type ReplayedBound = (f5c_draft::PositiveId, f5c_draft::NegativeId);
     type ReplayedPredicate = f5c_draft::PositiveId;
 
@@ -3995,11 +4380,14 @@ impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
 
     fn references_predicate<'tree>(
         &'tree self,
-        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
         predicate: &'tree Self::ReplayedPredicate,
         candidates: &HashSet<u32>,
         reachable: &mut HashSet<u32>,
-    ) -> Result<(), SolveAvailabilityError> {
+    ) -> Result<(), SolveAvailabilityError>
+    where
+        'meter: 'tree,
+    {
         walker.flat_references_with_lane(
             &self.output,
             f5c_draft::NodeRef::Positive(*predicate),
@@ -4011,11 +4399,14 @@ impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
 
     fn references_bound<'tree>(
         &'tree self,
-        walker: &mut f5c_tree_analysis::Walker<'_, 'tree>,
+        walker: &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
         owner: u32,
         candidates: &HashSet<u32>,
         referenced: &mut HashSet<u32>,
-    ) -> Result<(), SolveAvailabilityError> {
+    ) -> Result<(), SolveAvailabilityError>
+    where
+        'meter: 'tree,
+    {
         use f5c_draft::NodeRef;
         let Some((lower, upper)) = self.bounds.get(&owner) else {
             return Ok(());
@@ -4110,7 +4501,7 @@ impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
         let mut ordered = Vec::new();
         let mut seen = HashSet::new();
         let mut walker = f5c_tree_analysis::Walker::new(memo);
-        let mut visit = |walker: &mut f5c_tree_analysis::Walker<'_, '_>, root| {
+        let mut visit = |walker: &mut f5c_tree_analysis::Walker<'_, '_, '_>, root| {
             walker.flat_occurrences_checked(
                 &self.output,
                 root,
@@ -4165,39 +4556,39 @@ impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
     }
 }
 
-trait F5cWalkSink {
+trait F5cWalkSink<'meter> {
     type Value;
     fn variable(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         row: u32,
         cacheable: bool,
     ) -> Result<Self::Value, SolveAvailabilityError>;
     fn shared(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         id: F5cSummaryNodeId,
     ) -> Result<Self::Value, SolveAvailabilityError>;
     fn int(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
     ) -> Result<Self::Value, SolveAvailabilityError>;
     fn bottom(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
     ) -> Result<Self::Value, SolveAvailabilityError>;
     fn top(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
     ) -> Result<Self::Value, SolveAvailabilityError>;
     fn cacheable(&self, value: &Self::Value) -> bool;
     fn finish_row(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         values: &mut Vec<Self::Value>,
         start: usize,
         row: u32,
@@ -4206,14 +4597,14 @@ trait F5cWalkSink {
     ) -> Result<Self::Value, SolveAvailabilityError>;
     fn function(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         argument: Self::Value,
         result: Self::Value,
     ) -> Result<Self::Value, SolveAvailabilityError>;
     fn promote(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         value: &Self::Value,
         row: u32,
         polarity: Polarity,
@@ -4222,11 +4613,11 @@ trait F5cWalkSink {
 
 struct F5cBoxedWalkSink;
 
-impl F5cWalkSink for F5cBoxedWalkSink {
-    type Value = F5cWalkValue;
+impl<'meter> F5cWalkSink<'meter> for F5cBoxedWalkSink {
+    type Value = F5cWalkValue<'meter>;
     fn variable(
         &mut self,
-        _generalizer: &mut F5cGeneralizer<'_>,
+        _generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         row: u32,
         cacheable: bool,
@@ -4238,7 +4629,7 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     }
     fn shared(
         &mut self,
-        _generalizer: &mut F5cGeneralizer<'_>,
+        _generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         id: F5cSummaryNodeId,
     ) -> Result<Self::Value, SolveAvailabilityError> {
@@ -4249,7 +4640,7 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     }
     fn int(
         &mut self,
-        _generalizer: &mut F5cGeneralizer<'_>,
+        _generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
     ) -> Result<Self::Value, SolveAvailabilityError> {
         Ok(match polarity {
@@ -4259,7 +4650,7 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     }
     fn bottom(
         &mut self,
-        _generalizer: &mut F5cGeneralizer<'_>,
+        _generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
     ) -> Result<Self::Value, SolveAvailabilityError> {
         Ok(match polarity {
@@ -4269,7 +4660,7 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     }
     fn top(
         &mut self,
-        _generalizer: &mut F5cGeneralizer<'_>,
+        _generalizer: &mut F5cGeneralizer<'_, 'meter>,
     ) -> Result<Self::Value, SolveAvailabilityError> {
         Ok(F5cWalkValue::Negative(F5cNegative::Top, true))
     }
@@ -4282,7 +4673,7 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     }
     fn finish_row(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         values: &mut Vec<Self::Value>,
         values_start: usize,
         row: u32,
@@ -4310,34 +4701,71 @@ impl F5cWalkSink for F5cBoxedWalkSink {
                                 break;
                             }
                         }
-                        generalizer
-                            .memo
-                            .walker_resources
-                            .release(F5cWalkerLaneKind::Comparison);
+                        generalizer.memo.release_walker_with_source(
+                            F5cWalkerLaneKind::Comparison,
+                            generalizer.source_meter,
+                        )?;
                         duplicate
                     };
                     if !duplicate {
                         cacheable &= child_cacheable;
-                        generalizer
-                            .memo
-                            .reserve_walker(&mut parts, F5cWalkerLaneKind::PositiveParts)?;
+                        generalizer.memo.reserve_walker_with_source(
+                            &mut parts,
+                            F5cWalkerLaneKind::PositiveParts,
+                            generalizer.source_meter,
+                        )?;
                         parts.push(value);
                     }
                 }
                 let nonempty = !parts.is_empty();
                 let value = F5cWalkValue::Positive(
                     match parts.len() {
-                        0 if root => F5cPositive::Bottom,
-                        0 => F5cPositive::Variable(row),
-                        1 => parts.pop().expect("one lower member"),
-                        _ => F5cPositive::Union(parts),
+                        0 => {
+                            drop(parts);
+                            generalizer.memo.release_walker_with_source(
+                                F5cWalkerLaneKind::PositiveParts,
+                                generalizer.source_meter,
+                            )?;
+                            if root {
+                                F5cPositive::Bottom
+                            } else {
+                                F5cPositive::Variable(row)
+                            }
+                        }
+                        1 => {
+                            let value = parts.pop().expect("one lower member");
+                            drop(parts);
+                            generalizer.memo.release_walker_with_source(
+                                F5cWalkerLaneKind::PositiveParts,
+                                generalizer.source_meter,
+                            )?;
+                            value
+                        }
+                        _ => {
+                            generalizer
+                                .memo
+                                .observe_component_external(generalizer.source_meter)?;
+                            let parts =
+                                match TrackedVec::try_adopt_raw(generalizer.source_meter, parts) {
+                                    Ok(parts) => parts,
+                                    Err((parts, ())) => {
+                                        drop(parts);
+                                        generalizer.memo.release_walker_with_source(
+                                            F5cWalkerLaneKind::PositiveParts,
+                                            generalizer.source_meter,
+                                        )?;
+                                        return Err(SolveAvailabilityError::IdentityExhausted);
+                                    }
+                                };
+                            generalizer.memo.release_walker_with_source(
+                                F5cWalkerLaneKind::PositiveParts,
+                                generalizer.source_meter,
+                            )?;
+                            F5cPositive::Union(parts)
+                        }
                     },
                     cacheable && (nonempty || root),
                 );
-                generalizer
-                    .memo
-                    .walker_resources
-                    .release(F5cWalkerLaneKind::PositiveParts);
                 value
             }
             Polarity::Negative => {
@@ -4360,33 +4788,67 @@ impl F5cWalkSink for F5cBoxedWalkSink {
                                 break;
                             }
                         }
-                        generalizer
-                            .memo
-                            .walker_resources
-                            .release(F5cWalkerLaneKind::Comparison);
+                        generalizer.memo.release_walker_with_source(
+                            F5cWalkerLaneKind::Comparison,
+                            generalizer.source_meter,
+                        )?;
                         duplicate
                     };
                     if !duplicate {
                         cacheable &= child_cacheable;
-                        generalizer
-                            .memo
-                            .reserve_walker(&mut parts, F5cWalkerLaneKind::NegativeParts)?;
+                        generalizer.memo.reserve_walker_with_source(
+                            &mut parts,
+                            F5cWalkerLaneKind::NegativeParts,
+                            generalizer.source_meter,
+                        )?;
                         parts.push(value);
                     }
                 }
                 let nonempty = !parts.is_empty();
                 let value = F5cWalkValue::Negative(
                     match parts.len() {
-                        0 => F5cNegative::Variable(row),
-                        1 => parts.pop().expect("one upper member"),
-                        _ => F5cNegative::Intersection(parts),
+                        0 => {
+                            drop(parts);
+                            generalizer.memo.release_walker_with_source(
+                                F5cWalkerLaneKind::NegativeParts,
+                                generalizer.source_meter,
+                            )?;
+                            F5cNegative::Variable(row)
+                        }
+                        1 => {
+                            let value = parts.pop().expect("one upper member");
+                            drop(parts);
+                            generalizer.memo.release_walker_with_source(
+                                F5cWalkerLaneKind::NegativeParts,
+                                generalizer.source_meter,
+                            )?;
+                            value
+                        }
+                        _ => {
+                            generalizer
+                                .memo
+                                .observe_component_external(generalizer.source_meter)?;
+                            let parts =
+                                match TrackedVec::try_adopt_raw(generalizer.source_meter, parts) {
+                                    Ok(parts) => parts,
+                                    Err((parts, ())) => {
+                                        drop(parts);
+                                        generalizer.memo.release_walker_with_source(
+                                            F5cWalkerLaneKind::NegativeParts,
+                                            generalizer.source_meter,
+                                        )?;
+                                        return Err(SolveAvailabilityError::IdentityExhausted);
+                                    }
+                                };
+                            generalizer.memo.release_walker_with_source(
+                                F5cWalkerLaneKind::NegativeParts,
+                                generalizer.source_meter,
+                            )?;
+                            F5cNegative::Intersection(parts)
+                        }
                     },
                     cacheable && nonempty,
                 );
-                generalizer
-                    .memo
-                    .walker_resources
-                    .release(F5cWalkerLaneKind::NegativeParts);
                 value
             }
         };
@@ -4394,7 +4856,7 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     }
     fn function(
         &mut self,
-        _generalizer: &mut F5cGeneralizer<'_>,
+        _generalizer: &mut F5cGeneralizer<'_, 'meter>,
         polarity: Polarity,
         argument: Self::Value,
         result: Self::Value,
@@ -4436,23 +4898,27 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     }
     fn promote(
         &mut self,
-        generalizer: &mut F5cGeneralizer<'_>,
+        generalizer: &mut F5cGeneralizer<'_, 'meter>,
         value: &Self::Value,
         row: u32,
         polarity: Polarity,
     ) -> Result<F5cSummaryNodeId, SolveAvailabilityError> {
         match value {
-            F5cWalkValue::Positive(value, _) => {
-                generalizer.memo.positive_node(value, Some((row, polarity)))
-            }
-            F5cWalkValue::Negative(value, _) => {
-                generalizer.memo.negative_node(value, Some((row, polarity)))
-            }
+            F5cWalkValue::Positive(value, _) => generalizer.memo.positive_node_with_source(
+                value,
+                Some((row, polarity)),
+                generalizer.source_meter,
+            ),
+            F5cWalkValue::Negative(value, _) => generalizer.memo.negative_node_with_source(
+                value,
+                Some((row, polarity)),
+                generalizer.source_meter,
+            ),
         }
     }
 }
 
-impl<'a> F5cGeneralizer<'a> {
+impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
     fn release_persistent_lanes(&mut self) {
         self.uncacheable_seen = HashSet::new();
         self.provisional_recursive_rows = HashSet::new();
@@ -4470,7 +4936,12 @@ impl<'a> F5cGeneralizer<'a> {
             F5cWalkerLaneKind::ReentryPaths,
         ] {
             self.memo.walker_resources.release(kind);
+            let _ = self.memo.observe_component_external(self.source_meter);
         }
+    }
+
+    fn observe_walker_component(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.memo.observe_walker_with_source(self.source_meter)
     }
 
     fn reserve_active_mirrors(&mut self, frame: bool) -> Result<(), SolveAvailabilityError> {
@@ -4491,8 +4962,11 @@ impl<'a> F5cGeneralizer<'a> {
             self.memo.generalizer_scratch_capacities[0] = self.frames.capacity();
             #[cfg(test)]
             self.memo.observe_physical_memo();
-            self.memo
-                .commit_scratch_reserve(requested, growth, old, self.frames.capacity())?;
+            let committed =
+                self.memo
+                    .commit_scratch_reserve(requested, growth, old, self.frames.capacity());
+            self.memo.observe_component_external(self.source_meter)?;
+            committed?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }
         let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
@@ -4501,8 +4975,11 @@ impl<'a> F5cGeneralizer<'a> {
         self.memo.generalizer_scratch_capacities[1] = self.active.capacity();
         #[cfg(test)]
         self.memo.observe_physical_memo();
-        self.memo
-            .commit_scratch_reserve(requested, growth, old, self.active.capacity())?;
+        let committed =
+            self.memo
+                .commit_scratch_reserve(requested, growth, old, self.active.capacity());
+        self.memo.observe_component_external(self.source_meter)?;
+        committed?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
 
         let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
@@ -4511,19 +4988,31 @@ impl<'a> F5cGeneralizer<'a> {
         self.memo.generalizer_scratch_capacities[2] = self.active_set.capacity();
         #[cfg(test)]
         self.memo.observe_physical_memo();
-        self.memo
-            .commit_scratch_reserve(requested, growth, old, self.active_set.capacity())?;
+        let committed =
+            self.memo
+                .commit_scratch_reserve(requested, growth, old, self.active_set.capacity());
+        self.memo.observe_component_external(self.source_meter)?;
+        committed?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         Ok(())
     }
 
     #[cfg(test)]
-    pub(super) fn new(session: &'a InferenceSession) -> Self {
-        Self::with_memo(session, F5cComponentExpansionMemo::default(), 0)
+    pub(super) fn with_source_meter(
+        session: &'a InferenceSession,
+        source_meter: &'meter DraftHeapMeter,
+    ) -> Self {
+        Self::with_memo(
+            session,
+            source_meter,
+            F5cComponentExpansionMemo::default(),
+            0,
+        )
     }
 
     pub(super) fn with_memo(
         session: &'a InferenceSession,
+        source_meter: &'meter DraftHeapMeter,
         mut memo: F5cComponentExpansionMemo,
         frozen_bound_epoch: usize,
     ) -> Self {
@@ -4539,6 +5028,7 @@ impl<'a> F5cGeneralizer<'a> {
         let root_undo_checkpoint = memo.root_undo.len();
         Self {
             session,
+            source_meter,
             memo,
             #[cfg(test)]
             flat_sink: F5cFlatWalkSink::default(),
@@ -4578,10 +5068,17 @@ impl<'a> F5cGeneralizer<'a> {
         if !self.order_seen.contains(&ordinal) {
             self.memo.work_meter.charge(2)?;
             let memo_bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.reserve_generalizer_set(
-                &mut self.order_seen,
-                F5cWalkerLaneKind::OrderSeen,
+            self.memo.walker_resources.with_source(
+                self.source_meter,
                 memo_bytes,
+                F5cWalkerLaneKind::OrderSeen,
+                |walker| {
+                    walker.reserve_generalizer_set(
+                        &mut self.order_seen,
+                        F5cWalkerLaneKind::OrderSeen,
+                        memo_bytes,
+                    )
+                },
             )?;
             #[cfg(test)]
             if self.memo.fail_reserve_at
@@ -4590,8 +5087,11 @@ impl<'a> F5cGeneralizer<'a> {
                 self.memo.fail_reserve_at = None;
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
-            self.memo
-                .reserve_walker(&mut self.order, F5cWalkerLaneKind::Order)?;
+            self.memo.reserve_walker_with_source(
+                &mut self.order,
+                F5cWalkerLaneKind::Order,
+                self.source_meter,
+            )?;
             self.order_seen.insert(ordinal);
             self.order.push(ordinal);
         }
@@ -4673,10 +5173,17 @@ impl<'a> F5cGeneralizer<'a> {
                 .checked_add(1)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             let memo_bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.reserve_generalizer_set(
-                &mut self.uncacheable_seen,
-                F5cWalkerLaneKind::UncacheableSeen,
+            self.memo.walker_resources.with_source(
+                self.source_meter,
                 memo_bytes,
+                F5cWalkerLaneKind::UncacheableSeen,
+                |walker| {
+                    walker.reserve_generalizer_set(
+                        &mut self.uncacheable_seen,
+                        F5cWalkerLaneKind::UncacheableSeen,
+                        memo_bytes,
+                    )
+                },
             )?;
             self.uncacheable_seen.insert(key);
             self.uncacheable_states = count;
@@ -4740,13 +5247,22 @@ impl<'a> F5cGeneralizer<'a> {
     ) -> Result<(), SolveAvailabilityError> {
         if !self.provisional_recursive_rows.contains(&ordinal) {
             let memo_bytes = self.memo.retained_bytes()?;
-            self.memo.walker_resources.reserve_generalizer_set(
-                &mut self.provisional_recursive_rows,
-                F5cWalkerLaneKind::ProvisionalRecursiveRows,
+            self.memo.walker_resources.with_source(
+                self.source_meter,
                 memo_bytes,
+                F5cWalkerLaneKind::ProvisionalRecursiveRows,
+                |walker| {
+                    walker.reserve_generalizer_set(
+                        &mut self.provisional_recursive_rows,
+                        F5cWalkerLaneKind::ProvisionalRecursiveRows,
+                        memo_bytes,
+                    )
+                },
             )?;
             self.provisional_recursive_rows.insert(ordinal);
-            self.memo.invalidate_row(ordinal)?;
+            let invalidated = self.memo.invalidate_row(ordinal);
+            self.memo.observe_component_external(self.source_meter)?;
+            invalidated?;
         }
         let mut entry = None;
         for &(active, polarity, path_start) in &self.active {
@@ -4766,10 +5282,12 @@ impl<'a> F5cGeneralizer<'a> {
         let before_capacity = self.memo.walker_resources.lanes
             [F5cWalkerLaneKind::ReentryPaths as usize]
             .actual_capacity;
-        let reservation = self
-            .memo
-            .walker_resources
-            .reserve_reentry_path(&mut path, copied, memo_bytes);
+        let reservation = self.memo.walker_resources.with_source(
+            self.source_meter,
+            memo_bytes,
+            F5cWalkerLaneKind::ReentryPaths,
+            |walker| walker.reserve_reentry_path(&mut path, copied, memo_bytes),
+        );
         if let Err(error) = reservation {
             let capacity = path.capacity();
             drop(path);
@@ -4777,7 +5295,8 @@ impl<'a> F5cGeneralizer<'a> {
                 .actual_capacity
                 != before_capacity
             {
-                self.memo.walker_resources.release_reentry_path(capacity);
+                self.memo
+                    .release_reentry_path_with_source(capacity, self.source_meter)?;
             }
             return Err(error);
         }
@@ -4791,7 +5310,8 @@ impl<'a> F5cGeneralizer<'a> {
             self.memo.fail_reserve_at = None;
             let capacity = path.capacity();
             drop(path);
-            self.memo.walker_resources.release_reentry_path(capacity);
+            self.memo
+                .release_reentry_path_with_source(capacity, self.source_meter)?;
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
         path.extend_from_slice(&self.path[path_start..]);
@@ -4800,7 +5320,8 @@ impl<'a> F5cGeneralizer<'a> {
             if let Err(error) = self.memo.work_meter.charge(1) {
                 let capacity = path.capacity();
                 drop(path);
-                self.memo.walker_resources.release_reentry_path(capacity);
+                self.memo
+                    .release_reentry_path_with_source(capacity, self.source_meter)?;
                 return Err(error);
             }
             if matches!(hop, F5cTraceHop::Function(_)) {
@@ -4809,13 +5330,15 @@ impl<'a> F5cGeneralizer<'a> {
             }
         }
         if guarded {
-            if let Err(error) = self
-                .memo
-                .reserve_walker(&mut self.reentries, F5cWalkerLaneKind::Reentries)
-            {
+            if let Err(error) = self.memo.reserve_walker_with_source(
+                &mut self.reentries,
+                F5cWalkerLaneKind::Reentries,
+                self.source_meter,
+            ) {
                 let capacity = path.capacity();
                 drop(path);
-                self.memo.walker_resources.release_reentry_path(capacity);
+                self.memo
+                    .release_reentry_path_with_source(capacity, self.source_meter)?;
                 return Err(error);
             }
             self.reentries.push(F5cGuardedTrace {
@@ -4827,7 +5350,8 @@ impl<'a> F5cGeneralizer<'a> {
         } else {
             let capacity = path.capacity();
             drop(path);
-            self.memo.walker_resources.release_reentry_path(capacity);
+            self.memo
+                .release_reentry_path_with_source(capacity, self.source_meter)?;
         }
         Ok(())
     }
@@ -4843,13 +5367,16 @@ impl<'a> F5cGeneralizer<'a> {
 
     pub(super) fn structural_equal<'b>(
         &mut self,
-        first: F5cCompareTask<'b>,
-        stack: &mut Vec<F5cCompareTask<'b>>,
+        first: F5cCompareTask<'b, 'meter>,
+        stack: &mut Vec<F5cCompareTask<'b, 'meter>>,
     ) -> Result<bool, SolveAvailabilityError> {
         stack.clear();
         self.memo.work_meter.charge(1)?;
-        self.memo
-            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+        self.memo.reserve_walker_with_source(
+            stack,
+            F5cWalkerLaneKind::Comparison,
+            self.source_meter,
+        )?;
         stack.push(first);
         while !stack.is_empty() {
             self.memo.work_meter.charge(1)?;
@@ -4864,11 +5391,14 @@ impl<'a> F5cGeneralizer<'a> {
                         if a == b => {}
                     (F5cPositive::Shared(a), F5cPositive::Shared(b)) if a == b => {}
                     (F5cPositive::Union(a), F5cPositive::Union(b)) if a.len() == b.len() => {
-                        for (left, right) in a.iter().zip(b).rev() {
+                        for (left, right) in a.iter().zip(b.iter()).rev() {
                             self.memo.work_meter.charge(1)?;
                             self.memo.work_meter.charge(1)?;
-                            self.memo
-                                .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                            self.memo.reserve_walker_with_source(
+                                stack,
+                                F5cWalkerLaneKind::Comparison,
+                                self.source_meter,
+                            )?;
                             stack.push(F5cCompareTask::Positive(left, right));
                         }
                     }
@@ -4888,12 +5418,18 @@ impl<'a> F5cGeneralizer<'a> {
                     ) if ae == be && re == br => {
                         self.memo.work_meter.charge(2)?;
                         self.memo.work_meter.charge(1)?;
-                        self.memo
-                            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                        self.memo.reserve_walker_with_source(
+                            stack,
+                            F5cWalkerLaneKind::Comparison,
+                            self.source_meter,
+                        )?;
                         stack.push(F5cCompareTask::Positive(ar, b));
                         self.memo.work_meter.charge(1)?;
-                        self.memo
-                            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                        self.memo.reserve_walker_with_source(
+                            stack,
+                            F5cWalkerLaneKind::Comparison,
+                            self.source_meter,
+                        )?;
                         stack.push(F5cCompareTask::Negative(aa, ba));
                     }
                     _ => {
@@ -4913,11 +5449,14 @@ impl<'a> F5cGeneralizer<'a> {
                     (F5cNegative::Intersection(a), F5cNegative::Intersection(b))
                         if a.len() == b.len() =>
                     {
-                        for (left, right) in a.iter().zip(b).rev() {
+                        for (left, right) in a.iter().zip(b.iter()).rev() {
                             self.memo.work_meter.charge(1)?;
                             self.memo.work_meter.charge(1)?;
-                            self.memo
-                                .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                            self.memo.reserve_walker_with_source(
+                                stack,
+                                F5cWalkerLaneKind::Comparison,
+                                self.source_meter,
+                            )?;
                             stack.push(F5cCompareTask::Negative(left, right));
                         }
                     }
@@ -4937,12 +5476,18 @@ impl<'a> F5cGeneralizer<'a> {
                     ) if ae == be && re == br => {
                         self.memo.work_meter.charge(2)?;
                         self.memo.work_meter.charge(1)?;
-                        self.memo
-                            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                        self.memo.reserve_walker_with_source(
+                            stack,
+                            F5cWalkerLaneKind::Comparison,
+                            self.source_meter,
+                        )?;
                         stack.push(F5cCompareTask::Negative(ar, b));
                         self.memo.work_meter.charge(1)?;
-                        self.memo
-                            .reserve_walker(stack, F5cWalkerLaneKind::Comparison)?;
+                        self.memo.reserve_walker_with_source(
+                            stack,
+                            F5cWalkerLaneKind::Comparison,
+                            self.source_meter,
+                        )?;
                         stack.push(F5cCompareTask::Positive(aa, ba));
                     }
                     _ => {
@@ -4955,7 +5500,7 @@ impl<'a> F5cGeneralizer<'a> {
         Ok(true)
     }
 
-    fn walk_with<S: F5cWalkSink>(
+    fn walk_with<S: F5cWalkSink<'meter>>(
         &mut self,
         first: F5cWalkTask,
         sink: &mut S,
@@ -4971,8 +5516,11 @@ impl<'a> F5cGeneralizer<'a> {
             ($value:expr) => {{
                 let value = $value;
                 self.memo.work_meter.charge(1)?;
-                self.memo
-                    .reserve_walker(&mut tasks, F5cWalkerLaneKind::Tasks)?;
+                self.memo.reserve_walker_with_source(
+                    &mut tasks,
+                    F5cWalkerLaneKind::Tasks,
+                    self.source_meter,
+                )?;
                 tasks.push(value);
             }};
         }
@@ -4980,8 +5528,11 @@ impl<'a> F5cGeneralizer<'a> {
             ($value:expr) => {{
                 self.memo.work_meter.charge(1)?; // emitted walk value
                 let value = $value;
-                self.memo
-                    .reserve_walker(&mut values, F5cWalkerLaneKind::Values)?;
+                self.memo.reserve_walker_with_source(
+                    &mut values,
+                    F5cWalkerLaneKind::Values,
+                    self.source_meter,
+                )?;
                 values.push(value);
             }};
         }
@@ -4989,8 +5540,11 @@ impl<'a> F5cGeneralizer<'a> {
             ($value:expr) => {{
                 let value = $value;
                 self.memo.work_meter.charge(1)?; // stored direct edge
-                self.memo
-                    .reserve_walker(&mut direct_edges, F5cWalkerLaneKind::DirectEdges)?;
+                self.memo.reserve_walker_with_source(
+                    &mut direct_edges,
+                    F5cWalkerLaneKind::DirectEdges,
+                    self.source_meter,
+                )?;
                 direct_edges.push(value);
             }};
         }
@@ -5001,8 +5555,11 @@ impl<'a> F5cGeneralizer<'a> {
                 let task = tasks.pop().expect("nonempty generalization tasks");
                 match task {
                     F5cWalkTask::EnterPath(hop) => {
-                        self.memo
-                            .reserve_walker(&mut self.path, F5cWalkerLaneKind::Path)?;
+                        self.memo.reserve_walker_with_source(
+                            &mut self.path,
+                            F5cWalkerLaneKind::Path,
+                            self.source_meter,
+                        )?;
                         self.path.push(hop);
                     }
                     F5cWalkTask::LeavePath => {
@@ -5016,7 +5573,7 @@ impl<'a> F5cGeneralizer<'a> {
                         if self.active(row, polarity) {
                             self.taint_active_states()?;
                             self.record_reentry(row, polarity)?;
-                            self.memo.observe_walker()?;
+                            self.observe_walker_component()?;
                             self.mark(row, polarity)?;
                             push_value!(match polarity {
                                 Polarity::Positive =>
@@ -5029,7 +5586,7 @@ impl<'a> F5cGeneralizer<'a> {
                         if self.active_any(row) {
                             self.taint_active_states()?;
                             self.record_reentry(row, polarity)?;
-                            self.memo.observe_walker()?;
+                            self.observe_walker_component()?;
                         }
                         let key = F5cExpansionKey {
                             row,
@@ -5064,10 +5621,12 @@ impl<'a> F5cGeneralizer<'a> {
                             });
                         }
                         self.mark(row, polarity)?;
-                        self.memo.enter_active(row)?;
+                        let entered = self.memo.enter_active(row);
+                        self.memo.observe_component_external(self.source_meter)?;
+                        entered?;
                         self.active.push((row, polarity, self.path.len()));
                         self.active_set.insert((row, polarity));
-                        self.memo.observe_walker()?;
+                        self.observe_walker_component()?;
                         let bounds = self
                             .session
                             .bounds
@@ -5090,7 +5649,19 @@ impl<'a> F5cGeneralizer<'a> {
                             for (slot, target) in direct.iter().copied().enumerate() {
                                 self.memo.work_meter.charge(1)?;
                                 if !direct_targets.contains(&target) {
-                                    self.memo.reserve_walker_target(&mut direct_targets)?;
+                                    let prior_capacity = self.memo.walker_resources.lanes
+                                        [F5cWalkerLaneKind::DirectTargets as usize]
+                                        .actual_capacity;
+                                    let reservation =
+                                        self.memo.reserve_walker_target(&mut direct_targets);
+                                    if self.memo.walker_resources.lanes
+                                        [F5cWalkerLaneKind::DirectTargets as usize]
+                                        .actual_capacity
+                                        != prior_capacity
+                                    {
+                                        self.memo.observe_walker_with_source(self.source_meter)?;
+                                    }
+                                    reservation?;
                                     direct_targets.insert(target);
                                     push_direct!((slot, target));
                                 }
@@ -5159,10 +5730,12 @@ impl<'a> F5cGeneralizer<'a> {
                             count,
                         );
                         self.memo.work_meter.charge(count)?; // drained child values
-                        self.memo.leave_active(row)?;
+                        let left = self.memo.leave_active(row);
+                        self.memo.observe_component_external(self.source_meter)?;
+                        left?;
                         self.active.pop();
                         self.active_set.remove(&(row, polarity));
-                        self.memo.observe_walker()?;
+                        self.observe_walker_component()?;
                         let value =
                             sink.finish_row(self, &mut values, values_start, row, polarity, root)?;
                         if root {
@@ -5185,9 +5758,11 @@ impl<'a> F5cGeneralizer<'a> {
                                 polarity,
                                 frozen_bound_epoch: self.frozen_bound_epoch,
                             };
-                            self.memo.admit(key, id)?;
+                            let admission = self.memo.admit(key, id);
+                            self.memo.observe_component_external(self.source_meter)?;
+                            admission?;
                             // admit records its stable edge before any fallible observation.
-                            self.memo.observe_walker()?;
+                            self.observe_walker_component()?;
                             #[cfg(test)]
                             if self.assert_admission_invariant {
                                 self.assert_admitted_summary_has_no_active_incidence(id);
@@ -5370,9 +5945,9 @@ impl<'a> F5cGeneralizer<'a> {
                 .ok_or(SolveAvailabilityError::IdentityExhausted)
         })();
         let result = match result {
-            Ok(value) => self.memo.observe_walker().map(|()| value),
+            Ok(value) => self.observe_walker_component().map(|()| value),
             Err(error) => {
-                let _ = self.memo.observe_walker();
+                let _ = self.observe_walker_component();
                 Err(error)
             }
         };
@@ -5389,32 +5964,25 @@ impl<'a> F5cGeneralizer<'a> {
             self.path.truncate(path_checkpoint);
             let _ = self.taint_active_states();
         }
-        self.memo.walker_resources.release(F5cWalkerLaneKind::Tasks);
-        self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::Values);
-        self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::DirectEdges);
-        self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::DirectTargets);
-        self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::Comparison);
-        self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::PositiveParts);
-        self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::NegativeParts);
+        for kind in [
+            F5cWalkerLaneKind::Tasks,
+            F5cWalkerLaneKind::Values,
+            F5cWalkerLaneKind::DirectEdges,
+            F5cWalkerLaneKind::DirectTargets,
+            F5cWalkerLaneKind::Comparison,
+            F5cWalkerLaneKind::PositiveParts,
+            F5cWalkerLaneKind::NegativeParts,
+        ] {
+            self.memo
+                .release_walker_with_source(kind, self.source_meter)?;
+        }
         result
     }
 
     pub(super) fn walk(
         &mut self,
         first: F5cWalkTask,
-    ) -> Result<F5cWalkValue, SolveAvailabilityError> {
+    ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
         self.walk_with(first, &mut F5cBoxedWalkSink)
     }
 
@@ -5795,7 +6363,7 @@ impl<'a> F5cGeneralizer<'a> {
         &mut self,
         ordinal: u32,
         root: bool,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
+    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
         match self.walk(F5cWalkTask::EnterRow {
             row: ordinal,
             polarity: Polarity::Positive,
@@ -5809,7 +6377,7 @@ impl<'a> F5cGeneralizer<'a> {
     pub(super) fn negative_row(
         &mut self,
         ordinal: u32,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
+    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
         match self.walk(F5cWalkTask::EnterRow {
             row: ordinal,
             polarity: Polarity::Negative,
@@ -5824,7 +6392,7 @@ impl<'a> F5cGeneralizer<'a> {
     pub(super) fn positive_endpoint(
         &mut self,
         endpoint: ValueEndpointKey,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
+    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
         match self.walk(F5cWalkTask::PositiveEndpoint(endpoint))? {
             F5cWalkValue::Positive(value, _) => Ok(value),
             F5cWalkValue::Negative(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
@@ -5835,7 +6403,7 @@ impl<'a> F5cGeneralizer<'a> {
     pub(super) fn negative_endpoint(
         &mut self,
         endpoint: ValueEndpointKey,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
+    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
         match self.walk(F5cWalkTask::NegativeEndpoint(endpoint))? {
             F5cWalkValue::Negative(value, _) => Ok(value),
             F5cWalkValue::Positive(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
@@ -5846,7 +6414,7 @@ impl<'a> F5cGeneralizer<'a> {
     pub(super) fn positive_term(
         &mut self,
         term: Term,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
+    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
         match self.walk(F5cWalkTask::EnterTerm {
             term,
             polarity: Polarity::Positive,
@@ -5860,7 +6428,7 @@ impl<'a> F5cGeneralizer<'a> {
     pub(super) fn negative_term(
         &mut self,
         term: Term,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
+    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
         match self.walk(F5cWalkTask::EnterTerm {
             term,
             polarity: Polarity::Negative,
@@ -5940,15 +6508,26 @@ impl<'a> F5cGeneralizer<'a> {
         let Some((lower, upper)) = raw_recursive_bounds.get(&owner) else {
             return false;
         };
+        let source_meter = DraftHeapMeter::default();
         let mut memo = F5cComponentExpansionMemo::default();
-        let Ok(lower) =
-            f5c_replay::replay_positive(&mut memo, lower, protected, positive_only, negative_only)
-        else {
+        let Ok(lower) = f5c_replay::replay_positive(
+            &source_meter,
+            &mut memo,
+            lower,
+            protected,
+            positive_only,
+            negative_only,
+        ) else {
             return false;
         };
-        let Ok(upper) =
-            f5c_replay::replay_negative(&mut memo, upper, protected, positive_only, negative_only)
-        else {
+        let Ok(upper) = f5c_replay::replay_negative(
+            &source_meter,
+            &mut memo,
+            upper,
+            protected,
+            positive_only,
+            negative_only,
+        ) else {
             return false;
         };
         f5c_tree_analysis::Walker::new(&mut memo)
@@ -5958,16 +6537,18 @@ impl<'a> F5cGeneralizer<'a> {
 
     #[cfg(test)]
     pub(super) fn normalize_positive(
-        value: F5cPositive,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
-        f5c_normalization::normalize_positive(value)
+        source_meter: &'meter DraftHeapMeter,
+        value: F5cPositive<'meter>,
+    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
+        f5c_normalization::normalize_positive(source_meter, value)
     }
 
     #[cfg(test)]
     pub(super) fn normalize_negative(
-        value: F5cNegative,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
-        f5c_normalization::normalize_negative(value)
+        source_meter: &'meter DraftHeapMeter,
+        value: F5cNegative<'meter>,
+    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
+        f5c_normalization::normalize_negative(source_meter, value)
     }
 
     pub(super) fn non_generic_closure(&mut self) -> Result<HashSet<u32>, SolveAvailabilityError> {
@@ -5978,25 +6559,33 @@ impl<'a> F5cGeneralizer<'a> {
             F5cWalkerLaneKind::ClosureConnected,
             F5cWalkerLaneKind::ClosureFrontier,
         ] {
-            self.memo.walker_resources.release(kind);
+            self.memo
+                .release_walker_with_source(kind, self.source_meter)?;
         }
         if result.is_err() {
             self.memo
-                .walker_resources
-                .release(F5cWalkerLaneKind::ClosureResult);
+                .release_walker_with_source(F5cWalkerLaneKind::ClosureResult, self.source_meter)?;
         }
         result
     }
 
     fn non_generic_closure_work(&mut self) -> Result<HashSet<u32>, SolveAvailabilityError> {
         let mut adjacency = Vec::new();
-        let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
+        let mut walker =
+            f5c_tree_analysis::Walker::new_with_source(&mut self.memo, self.source_meter);
         let memo_bytes = walker.memo.retained_bytes()?;
-        walker.memo.walker_resources.reserve(
-            &mut adjacency,
-            F5cWalkerLaneKind::ClosureAdjacency,
-            self.session.bounds.len(),
+        walker.memo.walker_resources.with_source(
+            self.source_meter,
             memo_bytes,
+            F5cWalkerLaneKind::ClosureAdjacency,
+            |resources| {
+                resources.reserve(
+                    &mut adjacency,
+                    F5cWalkerLaneKind::ClosureAdjacency,
+                    self.session.bounds.len(),
+                    memo_bytes,
+                )
+            },
         )?;
         adjacency.resize_with(self.session.bounds.len(), HashSet::new);
         let mut connected = HashSet::new();
@@ -6015,10 +6604,11 @@ impl<'a> F5cGeneralizer<'a> {
                 .iter()
                 .chain(&bounds.direct_upper_rows)
             {
-                walker.memo.insert_physical_set(
+                walker.memo.insert_physical_set_with_source(
                     &mut connected,
                     *row,
                     F5cWalkerLaneKind::ClosureConnected,
+                    self.source_meter,
                 )?;
             }
             for endpoint in bounds
@@ -6029,10 +6619,11 @@ impl<'a> F5cGeneralizer<'a> {
                 walker.memo.work_meter.charge(1)?; // examined exact endpoint
                 match endpoint {
                     ValueEndpointKey::ValueRow(row) => {
-                        walker.memo.insert_physical_set(
+                        walker.memo.insert_physical_set_with_source(
                             &mut connected,
                             *row,
                             F5cWalkerLaneKind::ClosureConnected,
+                            self.source_meter,
                         )?;
                     }
                     ValueEndpointKey::PositiveFunction(term)
@@ -6050,17 +6641,19 @@ impl<'a> F5cGeneralizer<'a> {
             for &target in &connected {
                 walker.memo.work_meter.charge(1)?; // adjacency incidence
                 if let Some(neighbors) = adjacency.get_mut(owner as usize) {
-                    walker.memo.insert_physical_set(
+                    walker.memo.insert_physical_set_with_source(
                         neighbors,
                         target,
                         F5cWalkerLaneKind::ClosureNeighbors,
+                        self.source_meter,
                     )?;
                 }
                 if let Some(neighbors) = adjacency.get_mut(target as usize) {
-                    walker.memo.insert_physical_set(
+                    walker.memo.insert_physical_set_with_source(
                         neighbors,
                         owner,
                         F5cWalkerLaneKind::ClosureNeighbors,
+                        self.source_meter,
                     )?;
                 }
             }
@@ -6070,19 +6663,22 @@ impl<'a> F5cGeneralizer<'a> {
             walker.memo.work_meter.charge(1)?; // metadata owner
             if metadata.non_generic {
                 walker.memo.work_meter.charge(1)?; // closure entry
-                walker.memo.insert_physical_set(
+                walker.memo.insert_physical_set_with_source(
                     &mut closure,
                     ordinal as u32,
                     F5cWalkerLaneKind::ClosureResult,
+                    self.source_meter,
                 )?;
             }
         }
         walker.memo.work_meter.charge(closure.len())?; // copied frontier owners
         let mut frontier = Vec::new();
         for owner in &closure {
-            walker
-                .memo
-                .reserve_walker(&mut frontier, F5cWalkerLaneKind::ClosureFrontier)?;
+            walker.memo.reserve_walker_with_source(
+                &mut frontier,
+                F5cWalkerLaneKind::ClosureFrontier,
+                self.source_meter,
+            )?;
             frontier.push(*owner);
         }
         while !frontier.is_empty() {
@@ -6095,14 +6691,17 @@ impl<'a> F5cGeneralizer<'a> {
                 walker.memo.work_meter.charge(1)?; // examined adjacency neighbor
                 walker.memo.work_meter.charge(1)?; // possible closure and frontier entries
                 if !closure.contains(neighbor) {
-                    walker.memo.insert_physical_set(
+                    walker.memo.insert_physical_set_with_source(
                         &mut closure,
                         *neighbor,
                         F5cWalkerLaneKind::ClosureResult,
+                        self.source_meter,
                     )?;
-                    walker
-                        .memo
-                        .reserve_walker(&mut frontier, F5cWalkerLaneKind::ClosureFrontier)?;
+                    walker.memo.reserve_walker_with_source(
+                        &mut frontier,
+                        F5cWalkerLaneKind::ClosureFrontier,
+                        self.source_meter,
+                    )?;
                     frontier.push(*neighbor);
                 }
             }
@@ -6133,38 +6732,54 @@ impl<'a> F5cGeneralizer<'a> {
     }
 
     fn raw_forest_incidences<'tree>(
+        source_meter: Option<&DraftHeapMeter>,
         memo: &mut F5cComponentExpansionMemo,
         raw_owner_order: &[u32],
         mut visit: impl FnMut(
-            &mut f5c_tree_analysis::Walker<'_, 'tree>,
+            &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
             Option<u32>,
             &mut HashSet<u32>,
             &mut HashSet<u32>,
         ) -> Result<(), SolveAvailabilityError>,
-    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
-        let result = Self::raw_forest_incidences_work(memo, raw_owner_order, &mut visit);
+    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError>
+    where
+        'meter: 'tree,
+    {
+        let result =
+            Self::raw_forest_incidences_work(source_meter, memo, raw_owner_order, &mut visit);
         if result.is_err() {
             memo.walker_resources
                 .release(F5cWalkerLaneKind::RawPositiveIncidences);
             memo.walker_resources
                 .release(F5cWalkerLaneKind::RawNegativeIncidences);
+            if let Some(meter) = source_meter {
+                let _ = memo.observe_component_external(meter);
+            }
         }
         result
     }
 
     fn raw_forest_incidences_work<'tree>(
+        source_meter: Option<&DraftHeapMeter>,
         memo: &mut F5cComponentExpansionMemo,
         raw_owner_order: &[u32],
         visit: &mut impl FnMut(
-            &mut f5c_tree_analysis::Walker<'_, 'tree>,
+            &mut f5c_tree_analysis::Walker<'_, 'tree, 'meter>,
             Option<u32>,
             &mut HashSet<u32>,
             &mut HashSet<u32>,
         ) -> Result<(), SolveAvailabilityError>,
-    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
+    ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError>
+    where
+        'meter: 'tree,
+    {
         let mut positive = HashSet::new();
         let mut negative = HashSet::new();
-        let mut walker = f5c_tree_analysis::Walker::new(memo);
+        let mut walker = if let Some(meter) = source_meter {
+            f5c_tree_analysis::Walker::new_with_source(memo, meter)
+        } else {
+            f5c_tree_analysis::Walker::new(memo)
+        };
         visit(&mut walker, None, &mut positive, &mut negative)?;
         for &owner in raw_owner_order {
             walker.memo.work_meter.charge(1)?; // raw bound owner
@@ -6176,11 +6791,12 @@ impl<'a> F5cGeneralizer<'a> {
     #[cfg(test)]
     pub(super) fn boxed_raw_forest_incidences_for_test(
         memo: &mut F5cComponentExpansionMemo,
-        predicate: &F5cPositive,
+        predicate: &F5cPositive<'meter>,
         raw_owner_order: &[u32],
-        raw_bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
+        raw_bounds: &HashMap<u32, (F5cPositive<'meter>, F5cNegative<'meter>)>,
     ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
         Self::raw_forest_incidences(
+            None,
             memo,
             raw_owner_order,
             |walker, owner, positive, negative| {
@@ -6222,6 +6838,7 @@ impl<'a> F5cGeneralizer<'a> {
     ) -> Result<(HashSet<u32>, HashSet<u32>), SolveAvailabilityError> {
         use f5c_draft::NodeRef;
         Self::raw_forest_incidences(
+            None,
             memo,
             raw_owner_order,
             |walker, owner, positive, negative| {
@@ -6252,12 +6869,14 @@ impl<'a> F5cGeneralizer<'a> {
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
     ) -> Result<HashSet<u32>, SolveAvailabilityError> {
+        let source_meter = DraftHeapMeter::default();
         let mut source = F5cFlatRCandidateSource {
             source: draft,
             output: f5c_draft::FlatDraft::default(),
             bounds,
         };
         let result = Self::r_candidates(
+            &source_meter,
             memo,
             &mut source,
             reentries,
@@ -6333,6 +6952,7 @@ impl<'a> F5cGeneralizer<'a> {
         };
         let result = (|| {
             let candidates = Self::r_candidates(
+                self.source_meter,
                 &mut self.memo,
                 &mut source,
                 reentries,
@@ -6571,17 +7191,23 @@ impl<'a> F5cGeneralizer<'a> {
 
     #[cfg(test)]
     pub(super) fn boxed_r_candidates_for_test(
+        source_meter: &'meter DraftHeapMeter,
         memo: &mut F5cComponentExpansionMemo,
-        predicate: &F5cPositive,
-        bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
+        predicate: &F5cPositive<'meter>,
+        bounds: &HashMap<u32, (F5cPositive<'meter>, F5cNegative<'meter>)>,
         reentries: &[F5cGuardedTrace],
         reentries_by_owner: &HashMap<u32, Vec<usize>>,
         eligible: impl Fn(u32) -> bool,
         positive_only: &HashSet<u32>,
         negative_only: &HashSet<u32>,
     ) -> Result<HashSet<u32>, SolveAvailabilityError> {
-        let mut source = F5cBoxedRCandidateSource { predicate, bounds };
+        let mut source = F5cBoxedRCandidateSource {
+            source_meter,
+            predicate,
+            bounds,
+        };
         Self::r_candidates(
+            source_meter,
             memo,
             &mut source,
             reentries,
@@ -6594,18 +7220,25 @@ impl<'a> F5cGeneralizer<'a> {
 
     #[cfg(test)]
     pub(super) fn boxed_post_r_for_test(
+        source_meter: &'meter DraftHeapMeter,
         memo: &mut F5cComponentExpansionMemo,
-        predicate: &F5cPositive,
-        bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
+        predicate: &F5cPositive<'meter>,
+        bounds: &HashMap<u32, (F5cPositive<'meter>, F5cNegative<'meter>)>,
         raw_owner_order: &[u32],
         reentries: &[F5cGuardedTrace],
         candidates: &HashSet<u32>,
         order: &[u32],
         positive_incidences: &HashSet<u32>,
         negative_incidences: &HashSet<u32>,
-    ) -> Result<F5cPostRSelection<(F5cPositive, F5cNegative), F5cPositive>, SolveAvailabilityError>
-    {
-        let mut source = F5cBoxedRCandidateSource { predicate, bounds };
+    ) -> Result<
+        F5cPostRSelection<(F5cPositive<'meter>, F5cNegative<'meter>), F5cPositive<'meter>>,
+        SolveAvailabilityError,
+    > {
+        let mut source = F5cBoxedRCandidateSource {
+            source_meter,
+            predicate,
+            bounds,
+        };
         Self::post_r_selection(
             memo,
             &mut source,
@@ -6674,9 +7307,12 @@ impl<'a> F5cGeneralizer<'a> {
     pub(super) fn build(
         &mut self,
         root: u32,
-    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+    ) -> Result<GeneralizationDraft<'meter>, SolveAvailabilityError> {
         let mut draft = self.build_inner(root)?;
-        f5c_normalization::normalize_component(std::slice::from_mut(&mut draft))?;
+        f5c_normalization::normalize_component(
+            self.source_meter,
+            std::slice::from_mut(&mut draft),
+        )?;
         Ok(draft)
     }
 
@@ -6685,7 +7321,7 @@ impl<'a> F5cGeneralizer<'a> {
         self,
         root: u32,
     ) -> (
-        Result<GeneralizationDraft, SolveAvailabilityError>,
+        Result<GeneralizationDraft<'meter>, SolveAvailabilityError>,
         F5cComponentExpansionMemo,
         usize,
         usize,
@@ -6693,12 +7329,12 @@ impl<'a> F5cGeneralizer<'a> {
         self.build_component_with_bound_sidecar(root, None)
     }
 
-    pub(super) fn build_component_with_bound_sidecar<'meter>(
+    pub(super) fn build_component_with_bound_sidecar(
         mut self,
         root: u32,
         bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
     ) -> (
-        Result<GeneralizationDraft, SolveAvailabilityError>,
+        Result<GeneralizationDraft<'meter>, SolveAvailabilityError>,
         F5cComponentExpansionMemo,
         usize,
         usize,
@@ -6762,7 +7398,7 @@ impl<'a> F5cGeneralizer<'a> {
         Ok(())
     }
 
-    fn post_r_selection<S: F5cRCandidateSource>(
+    fn post_r_selection<S: F5cRCandidateSource<'meter>>(
         memo: &mut F5cComponentExpansionMemo,
         source: &mut S,
         candidates: &HashSet<u32>,
@@ -6808,7 +7444,7 @@ impl<'a> F5cGeneralizer<'a> {
         result
     }
 
-    fn post_r_selection_work<S: F5cRCandidateSource>(
+    fn post_r_selection_work<S: F5cRCandidateSource<'meter>>(
         memo: &mut F5cComponentExpansionMemo,
         source: &mut S,
         candidates: &HashSet<u32>,
@@ -6963,7 +7599,8 @@ impl<'a> F5cGeneralizer<'a> {
         })
     }
 
-    fn r_candidates<S: F5cRCandidateSource>(
+    fn r_candidates<S: F5cRCandidateSource<'meter>>(
+        source_meter: &DraftHeapMeter,
         memo: &mut F5cComponentExpansionMemo,
         source: &mut S,
         reentries: &[F5cGuardedTrace],
@@ -6978,10 +7615,11 @@ impl<'a> F5cGeneralizer<'a> {
                 memo.work_meter.charge(1)?; // candidate eligibility owner
                 if eligible(owner) {
                     memo.work_meter.charge(1)?; // candidate entry
-                    memo.insert_physical_set(
+                    memo.insert_physical_set_with_source(
                         &mut candidates,
                         owner,
                         F5cWalkerLaneKind::RCandidates,
+                        source_meter,
                     )?;
                 }
             }
@@ -6990,10 +7628,11 @@ impl<'a> F5cGeneralizer<'a> {
                 let mut previous = HashSet::new();
                 let round = (|| {
                     for &owner in &candidates {
-                        memo.reserve_physical_set_insert(
+                        memo.reserve_physical_set_insert_with_source(
                             &mut previous,
                             owner,
                             F5cWalkerLaneKind::RPrevious,
+                            source_meter,
                         )?;
                         memo.work_meter.charge(1)?; // copied candidate owner
                         previous.insert(owner);
@@ -7014,10 +7653,11 @@ impl<'a> F5cGeneralizer<'a> {
                         let survives = source.guarded_bound_survives(memo, *owner, &bound)?;
                         source.release_replay_scratch();
                         if survives {
-                            memo.insert_physical_set(
+                            memo.insert_physical_set_with_source(
                                 &mut surviving_bounds,
                                 *owner,
                                 F5cWalkerLaneKind::RSurvivingBounds,
+                                source_meter,
                             )?;
                         }
                     }
@@ -7063,7 +7703,8 @@ impl<'a> F5cGeneralizer<'a> {
                         source.replay_predicate(memo, &candidates, positive_only, negative_only)?;
                     let mut reachable = HashSet::new();
                     {
-                        let mut walker = f5c_tree_analysis::Walker::new(memo);
+                        let mut walker =
+                            f5c_tree_analysis::Walker::new_with_source(memo, source_meter);
                         source.references_predicate(
                             &mut walker,
                             &replayed_predicate,
@@ -7073,9 +7714,11 @@ impl<'a> F5cGeneralizer<'a> {
                         let mut frontier = Vec::new();
                         let frontier_result: Result<(), SolveAvailabilityError> = (|| {
                             for &owner in &reachable {
-                                walker
-                                    .memo
-                                    .reserve_walker(&mut frontier, F5cWalkerLaneKind::RFrontier)?;
+                                walker.memo.reserve_walker_with_source(
+                                    &mut frontier,
+                                    F5cWalkerLaneKind::RFrontier,
+                                    source_meter,
+                                )?;
                                 walker.memo.work_meter.charge(1)?; // copied frontier owner
                                 frontier.push(owner);
                             }
@@ -7120,14 +7763,16 @@ impl<'a> F5cGeneralizer<'a> {
                                         walker.memo.work_meter.charge(1)?; // possible frontier entry
                                         let new_owner = !reachable.contains(&referenced_owner);
                                         if new_owner {
-                                            walker.memo.insert_physical_set(
+                                            walker.memo.insert_physical_set_with_source(
                                                 &mut reachable,
                                                 referenced_owner,
                                                 F5cWalkerLaneKind::RReachable,
+                                                source_meter,
                                             )?;
-                                            walker.memo.reserve_walker(
+                                            walker.memo.reserve_walker_with_source(
                                                 &mut frontier,
                                                 F5cWalkerLaneKind::RFrontier,
+                                                source_meter,
                                             )?;
                                             frontier.push(referenced_owner);
                                         }
@@ -7136,10 +7781,10 @@ impl<'a> F5cGeneralizer<'a> {
                                 })(
                                 );
                                 drop(referenced);
-                                walker
-                                    .memo
-                                    .walker_resources
-                                    .release(F5cWalkerLaneKind::RReferenced);
+                                walker.memo.release_walker_with_source(
+                                    F5cWalkerLaneKind::RReferenced,
+                                    source_meter,
+                                )?;
                                 reference_result?;
                             }
                             Ok(())
@@ -7157,10 +7802,9 @@ impl<'a> F5cGeneralizer<'a> {
                     Ok(candidates == previous)
                 })();
                 drop(previous);
-                memo.walker_resources.release(F5cWalkerLaneKind::RPrevious);
-                memo.walker_resources
-                    .release(F5cWalkerLaneKind::RSurvivingBounds);
-                memo.walker_resources.release(F5cWalkerLaneKind::RReachable);
+                memo.release_walker_with_source(F5cWalkerLaneKind::RPrevious, source_meter)?;
+                memo.release_walker_with_source(F5cWalkerLaneKind::RSurvivingBounds, source_meter)?;
+                memo.release_walker_with_source(F5cWalkerLaneKind::RReachable, source_meter)?;
                 if round? {
                     break;
                 }
@@ -7169,32 +7813,33 @@ impl<'a> F5cGeneralizer<'a> {
         })();
         if let Err(error) = result {
             drop(candidates);
-            memo.walker_resources
-                .release(F5cWalkerLaneKind::RCandidates);
+            memo.release_walker_with_source(F5cWalkerLaneKind::RCandidates, source_meter)?;
             return Err(error);
         }
         Ok(candidates)
     }
 
     #[cfg(test)]
-    fn build_inner(&mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+    fn build_inner(
+        &mut self,
+        root: u32,
+    ) -> Result<GeneralizationDraft<'meter>, SolveAvailabilityError> {
         self.build_inner_with_bound_sidecar(root, None)
     }
 
-    fn build_inner_with_bound_sidecar<'meter>(
+    fn build_inner_with_bound_sidecar(
         &mut self,
         root: u32,
         mut bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
-    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+    ) -> Result<GeneralizationDraft<'meter>, SolveAvailabilityError> {
         let result = self.build_inner_work(root, bound_sidecar.as_deref_mut());
         // A failed build has already dropped its active bounds buffer. Refresh
         // the retained source charge before walker scratch is released.
         #[cfg(test)]
         self.memo.observe_physical_active_bound(0);
-        let source_refresh = bound_sidecar.as_ref().map(|sidecar| {
-            self.memo
-                .observe_source_bytes(sidecar.meter().current_bytes())
-        });
+        let source_refresh = bound_sidecar
+            .as_ref()
+            .map(|sidecar| self.memo.observe_source_meter(sidecar.meter()));
         for kind in [
             F5cWalkerLaneKind::ClosureResult,
             F5cWalkerLaneKind::RawPositiveIncidences,
@@ -7213,7 +7858,8 @@ impl<'a> F5cGeneralizer<'a> {
             F5cWalkerLaneKind::SelectedPositiveEliminated,
             F5cWalkerLaneKind::SelectedNegativeEliminated,
         ] {
-            self.memo.walker_resources.release(kind);
+            self.memo
+                .release_walker_with_source(kind, self.source_meter)?;
         }
         if let Some(refresh) = source_refresh {
             refresh?;
@@ -7221,11 +7867,11 @@ impl<'a> F5cGeneralizer<'a> {
         result
     }
 
-    fn build_inner_work<'meter>(
+    fn build_inner_work(
         &mut self,
         root: u32,
         bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
-    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+    ) -> Result<GeneralizationDraft<'meter>, SolveAvailabilityError> {
         #[cfg(test)]
         {
             self.memo.boxed_raw_lanes_live_sample = None;
@@ -7243,10 +7889,18 @@ impl<'a> F5cGeneralizer<'a> {
             if completed_owners.contains(&ordinal) {
                 continue;
             }
-            self.memo.walker_resources.reserve_generalizer_set(
-                &mut completed_owners,
+            let memo_bytes = self.memo.retained_bytes()?;
+            self.memo.walker_resources.with_source(
+                self.source_meter,
+                memo_bytes,
                 F5cWalkerLaneKind::BoxedCompletedOwners,
-                self.memo.retained_bytes()?,
+                |walker| {
+                    walker.reserve_generalizer_set(
+                        &mut completed_owners,
+                        F5cWalkerLaneKind::BoxedCompletedOwners,
+                        memo_bytes,
+                    )
+                },
             )?;
             completed_owners.insert(ordinal);
             let bounds = self
@@ -7272,10 +7926,18 @@ impl<'a> F5cGeneralizer<'a> {
             };
             self.memo.work_meter.charge(1)?; // raw bound entry
             self.memo.work_meter.charge(1)?; // raw owner order entry
-            self.memo.walker_resources.reserve_boxed_map(
-                &mut raw_recursive_bounds,
+            let memo_bytes = self.memo.retained_bytes()?;
+            self.memo.walker_resources.with_source(
+                self.source_meter,
+                memo_bytes,
                 F5cWalkerLaneKind::BoxedRawBounds,
-                self.memo.retained_bytes()?,
+                |walker| {
+                    walker.reserve_boxed_map(
+                        &mut raw_recursive_bounds,
+                        F5cWalkerLaneKind::BoxedRawBounds,
+                        memo_bytes,
+                    )
+                },
             )?;
             let (requested, growth) = self.memo.prepare_scratch_reserve(1)?;
             let old = raw_owner_order.capacity();
@@ -7283,8 +7945,14 @@ impl<'a> F5cGeneralizer<'a> {
             self.memo.generalizer_scratch_capacities[3] = raw_owner_order.capacity();
             #[cfg(test)]
             self.memo.observe_physical_memo();
-            self.memo
-                .commit_scratch_reserve(requested, growth, old, raw_owner_order.capacity())?;
+            let committed = self.memo.commit_scratch_reserve(
+                requested,
+                growth,
+                old,
+                raw_owner_order.capacity(),
+            );
+            self.memo.observe_component_external(self.source_meter)?;
+            committed?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             #[cfg(test)]
             if self.memo.fail_reserve_at
@@ -7306,20 +7974,35 @@ impl<'a> F5cGeneralizer<'a> {
             self.memo.work_meter.charge(1)?; // indexed trace record
             self.memo.work_meter.charge(1)?; // owner index entry
             if let Some(indices) = reentries_by_owner.get_mut(&trace.owner) {
-                self.memo
-                    .walker_resources
-                    .reserve_boxed_indices(indices, self.memo.retained_bytes()?)?;
+                let memo_bytes = self.memo.retained_bytes()?;
+                self.memo.walker_resources.with_source(
+                    self.source_meter,
+                    memo_bytes,
+                    F5cWalkerLaneKind::BoxedReentryIndices,
+                    |walker| walker.reserve_boxed_indices(indices, memo_bytes),
+                )?;
                 indices.push(index);
             } else {
-                self.memo.walker_resources.reserve_boxed_map(
-                    &mut reentries_by_owner,
+                let memo_bytes = self.memo.retained_bytes()?;
+                self.memo.walker_resources.with_source(
+                    self.source_meter,
+                    memo_bytes,
                     F5cWalkerLaneKind::BoxedReentriesByOwner,
-                    self.memo.retained_bytes()?,
+                    |walker| {
+                        walker.reserve_boxed_map(
+                            &mut reentries_by_owner,
+                            F5cWalkerLaneKind::BoxedReentriesByOwner,
+                            memo_bytes,
+                        )
+                    },
                 )?;
                 let mut indices = Vec::new();
-                self.memo
-                    .walker_resources
-                    .reserve_boxed_indices(&mut indices, self.memo.retained_bytes()?)?;
+                self.memo.walker_resources.with_source(
+                    self.source_meter,
+                    memo_bytes,
+                    F5cWalkerLaneKind::BoxedReentryIndices,
+                    |walker| walker.reserve_boxed_indices(&mut indices, memo_bytes),
+                )?;
                 #[cfg(test)]
                 if self.memo.fail_reserve_at
                     == Some((F5cTestReserveFailure::BoxedReentryIndices, index))
@@ -7340,6 +8023,7 @@ impl<'a> F5cGeneralizer<'a> {
                 && !non_generic.contains(&ordinal)
         };
         let (positive_incidences, negative_incidences) = Self::raw_forest_incidences(
+            Some(self.source_meter),
             &mut self.memo,
             &raw_owner_order,
             |walker, owner, positive, negative| {
@@ -7361,20 +8045,36 @@ impl<'a> F5cGeneralizer<'a> {
             if eligible(owner) {
                 if positive_incidences.contains(&owner) && !negative_incidences.contains(&owner) {
                     self.memo.work_meter.charge(1)?; // positive-only entry
-                    self.memo.walker_resources.reserve_generalizer_set(
-                        &mut positive_only,
+                    let memo_bytes = self.memo.retained_bytes()?;
+                    self.memo.walker_resources.with_source(
+                        self.source_meter,
+                        memo_bytes,
                         F5cWalkerLaneKind::BoxedPositiveOnly,
-                        self.memo.retained_bytes()?,
+                        |walker| {
+                            walker.reserve_generalizer_set(
+                                &mut positive_only,
+                                F5cWalkerLaneKind::BoxedPositiveOnly,
+                                memo_bytes,
+                            )
+                        },
                     )?;
                     positive_only.insert(owner);
                 }
                 self.memo.work_meter.charge(1)?; // second eligibility/order scan
                 if negative_incidences.contains(&owner) && !positive_incidences.contains(&owner) {
                     self.memo.work_meter.charge(1)?; // negative-only entry
-                    self.memo.walker_resources.reserve_generalizer_set(
-                        &mut negative_only,
+                    let memo_bytes = self.memo.retained_bytes()?;
+                    self.memo.walker_resources.with_source(
+                        self.source_meter,
+                        memo_bytes,
                         F5cWalkerLaneKind::BoxedNegativeOnly,
-                        self.memo.retained_bytes()?,
+                        |walker| {
+                            walker.reserve_generalizer_set(
+                                &mut negative_only,
+                                F5cWalkerLaneKind::BoxedNegativeOnly,
+                                memo_bytes,
+                            )
+                        },
                     )?;
                     negative_only.insert(owner);
                 }
@@ -7405,10 +8105,12 @@ impl<'a> F5cGeneralizer<'a> {
             self.memo.boxed_raw_lanes_live_sample = Some((physical, reported));
         }
         let mut r_source = F5cBoxedRCandidateSource {
+            source_meter: self.source_meter,
             predicate: &predicate,
             bounds: &raw_recursive_bounds,
         };
         let candidates = Self::r_candidates(
+            self.source_meter,
             &mut self.memo,
             &mut r_source,
             &self.reentries,
@@ -7432,8 +8134,7 @@ impl<'a> F5cGeneralizer<'a> {
         );
         drop(candidates);
         self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::RCandidates);
+            .release_walker_with_source(F5cWalkerLaneKind::RCandidates, self.source_meter)?;
         let F5cPostRSelection {
             retained_bounds,
             retained_predicate: _,
@@ -7443,9 +8144,10 @@ impl<'a> F5cGeneralizer<'a> {
             r,
         } = selection?;
         drop(retained_bounds);
-        self.memo
-            .walker_resources
-            .release(F5cWalkerLaneKind::BoxedRetainedOwnerBounds);
+        self.memo.release_walker_with_source(
+            F5cWalkerLaneKind::BoxedRetainedOwnerBounds,
+            self.source_meter,
+        )?;
         let q_count =
             u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let mut positive_eliminated = HashSet::new();
@@ -7458,10 +8160,17 @@ impl<'a> F5cGeneralizer<'a> {
             {
                 self.memo.work_meter.charge(1)?;
                 let bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.reserve_generalizer_set(
-                    &mut positive_eliminated,
-                    F5cWalkerLaneKind::SelectedPositiveEliminated,
+                self.memo.walker_resources.with_source(
+                    self.source_meter,
                     bytes,
+                    F5cWalkerLaneKind::SelectedPositiveEliminated,
+                    |walker| {
+                        walker.reserve_generalizer_set(
+                            &mut positive_eliminated,
+                            F5cWalkerLaneKind::SelectedPositiveEliminated,
+                            bytes,
+                        )
+                    },
                 )?;
                 positive_eliminated.insert(ordinal);
             }
@@ -7474,15 +8183,23 @@ impl<'a> F5cGeneralizer<'a> {
             {
                 self.memo.work_meter.charge(1)?;
                 let bytes = self.memo.retained_bytes()?;
-                self.memo.walker_resources.reserve_generalizer_set(
-                    &mut negative_eliminated,
-                    F5cWalkerLaneKind::SelectedNegativeEliminated,
+                self.memo.walker_resources.with_source(
+                    self.source_meter,
                     bytes,
+                    F5cWalkerLaneKind::SelectedNegativeEliminated,
+                    |walker| {
+                        walker.reserve_generalizer_set(
+                            &mut negative_eliminated,
+                            F5cWalkerLaneKind::SelectedNegativeEliminated,
+                            bytes,
+                        )
+                    },
                 )?;
                 negative_eliminated.insert(ordinal);
             }
         }
         let predicate = f5c_binder_substitution::substitute_positive(
+            self.source_meter,
             &mut self.memo,
             predicate,
             &q,
@@ -7496,6 +8213,7 @@ impl<'a> F5cGeneralizer<'a> {
         if let Some(bounds) = tracked_bounds.as_mut() {
             #[cfg(test)]
             let old_capacity = bounds.capacity();
+            self.memo.observe_component_external(bounds.meter())?;
             let reservation = bounds.try_reserve_exact(recursive_owners.len());
             #[cfg(test)]
             self.memo.recursive_bound_reserves.push((
@@ -7506,8 +8224,7 @@ impl<'a> F5cGeneralizer<'a> {
             // A failed reserve can still leave a real allocation behind.
             #[cfg(test)]
             self.memo.observe_physical_active_bound(bounds.capacity());
-            self.memo
-                .observe_source_bytes(bounds.meter().current_bytes())?;
+            self.memo.observe_source_meter(bounds.meter())?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             #[cfg(test)]
             if self.memo.fail_reserve_at
@@ -7532,6 +8249,7 @@ impl<'a> F5cGeneralizer<'a> {
                 .remove(ordinal)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             let lower = f5c_binder_substitution::substitute_positive(
+                self.source_meter,
                 &mut self.memo,
                 raw_lower,
                 &q,
@@ -7540,6 +8258,7 @@ impl<'a> F5cGeneralizer<'a> {
                 &negative_eliminated,
             )?;
             let upper = f5c_binder_substitution::substitute_negative(
+                self.source_meter,
                 &mut self.memo,
                 raw_upper,
                 &q,

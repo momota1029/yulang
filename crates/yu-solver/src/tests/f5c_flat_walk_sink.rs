@@ -50,6 +50,7 @@ fn physical_set_duplicate_at_capacity_keeps_growth_and_counts_attempt() {
 
 #[test]
 fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
     use std::collections::{HashMap, HashSet};
 
@@ -83,15 +84,18 @@ fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
         (1, (lower_first, upper_first)),
         (2, (lower_second, upper_second)),
     ]);
-    let boxed_predicate = F5cPositive::Union(vec![
-        F5cPositive::Variable(10),
-        F5cPositive::Function {
-            argument: Box::new(F5cNegative::Variable(11)),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Variable(12)),
-        },
-    ]);
+    let boxed_predicate = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cPositive::Variable(10),
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Variable(11)),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(12)),
+            },
+        ],
+    ));
     let boxed_bounds = HashMap::from([
         (1, (F5cPositive::Variable(20), F5cNegative::Variable(21))),
         (
@@ -157,8 +161,12 @@ fn raw_forest_census_matches_boxed_and_flat_exact_sets() {
 
 #[test]
 fn raw_incidence_failure_releases_sets_and_retry_recounts_capacity() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_generalization::F5cWalkerLaneKind as Lane;
-    let predicate = F5cPositive::Union(vec![F5cPositive::Variable(1), F5cPositive::Variable(2)]);
+    let predicate = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![F5cPositive::Variable(1), F5cPositive::Variable(2)],
+    ));
     let mut memo = F5cComponentExpansionMemo::default();
     memo.work_meter.set(usize::MAX - 7);
     assert_eq!(
@@ -199,6 +207,7 @@ fn raw_incidence_failure_releases_sets_and_retry_recounts_capacity() {
 
 #[test]
 fn r_candidate_fixed_point_matches_boxed_and_flat() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
     use crate::f5c_generalization::F5cGuardedTrace;
     use std::collections::{HashMap, HashSet};
@@ -244,6 +253,7 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
     let empty = HashSet::new();
     let mut boxed_memo = F5cComponentExpansionMemo::default();
     let boxed = F5cGeneralizer::boxed_r_candidates_for_test(
+        &test_source_meter,
         &mut boxed_memo,
         &F5cPositive::Variable(1),
         &boxed_bounds,
@@ -303,6 +313,7 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
     let failed_lane = F5cWalkerLaneKind::RReferenced as usize;
     boxed_memo.walker_resources.lanes[failed_lane].requested_slots = usize::MAX;
     let failed = F5cGeneralizer::boxed_r_candidates_for_test(
+        &test_source_meter,
         &mut boxed_memo,
         &F5cPositive::Variable(1),
         &boxed_bounds,
@@ -328,6 +339,7 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
     }
     boxed_memo.walker_resources.lanes[failed_lane].requested_slots = 0;
     let retry = F5cGeneralizer::boxed_r_candidates_for_test(
+        &test_source_meter,
         &mut boxed_memo,
         &F5cPositive::Variable(1),
         &boxed_bounds,
@@ -350,6 +362,7 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
         boxed_memo.walker_resources.lanes[previous_lane].requested_slots = requested_slots;
         boxed_memo.work_meter.set(0);
         let failed = F5cGeneralizer::boxed_r_candidates_for_test(
+            &test_source_meter,
             &mut boxed_memo,
             &F5cPositive::Variable(1),
             &boxed_bounds,
@@ -371,6 +384,7 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
 
 #[test]
 fn post_r_selected_owners_and_q_r_ordinals_match_boxed_and_flat() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
     use crate::f5c_generalization::F5cGuardedTrace;
     use std::collections::{HashMap, HashSet};
@@ -397,11 +411,14 @@ fn post_r_selected_owners_and_q_r_ordinals_match_boxed_and_flat() {
         .negative(NegativeNode::Intersection(upper_span))
         .unwrap();
     let flat_bounds = HashMap::from([(1, (lower, upper))]);
-    let boxed_predicate = F5cPositive::Union(vec![
-        F5cPositive::Variable(1),
-        F5cPositive::Variable(4),
-        F5cPositive::Variable(3),
-    ]);
+    let boxed_predicate = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cPositive::Variable(1),
+            F5cPositive::Variable(4),
+            F5cPositive::Variable(3),
+        ],
+    ));
     let boxed_bounds = HashMap::from([(
         1,
         (
@@ -411,7 +428,10 @@ fn post_r_selected_owners_and_q_r_ordinals_match_boxed_and_flat() {
                 result_effect: F5cPositiveEffect::Bottom,
                 result: Box::new(F5cPositive::Variable(1)),
             },
-            F5cNegative::Intersection(vec![F5cNegative::Variable(3), F5cNegative::Variable(4)]),
+            F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![F5cNegative::Variable(3), F5cNegative::Variable(4)],
+            )),
         ),
     )]);
     let traces = [F5cGuardedTrace {
@@ -425,6 +445,7 @@ fn post_r_selected_owners_and_q_r_ordinals_match_boxed_and_flat() {
     let negative = HashSet::from([3, 4]);
     let mut boxed_memo = F5cComponentExpansionMemo::default();
     let boxed = F5cGeneralizer::boxed_post_r_for_test(
+        &test_source_meter,
         &mut boxed_memo,
         &boxed_predicate,
         &boxed_bounds,
@@ -479,6 +500,7 @@ fn post_r_selected_owners_and_q_r_ordinals_match_boxed_and_flat() {
 
 #[test]
 fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
     use crate::f5c_generalization::F5cGuardedTrace;
     use std::collections::{HashMap, HashSet};
@@ -527,11 +549,14 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
         .negative(NegativeNode::Intersection(upper_two_span))
         .unwrap();
     let flat_bounds = HashMap::from([(1, (lower_one, upper_one)), (2, (lower_two, upper_two))]);
-    let boxed_predicate = F5cPositive::Union(vec![
-        F5cPositive::Variable(2),
-        F5cPositive::Variable(4),
-        F5cPositive::Variable(1),
-    ]);
+    let boxed_predicate = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![
+            F5cPositive::Variable(2),
+            F5cPositive::Variable(4),
+            F5cPositive::Variable(1),
+        ],
+    ));
     let boxed_function = |result| F5cPositive::Function {
         argument: Box::new(F5cNegative::Top),
         argument_effect: F5cNegativeEffect::Empty,
@@ -542,26 +567,35 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
         (
             1,
             (
-                boxed_function(F5cPositive::Union(vec![
-                    F5cPositive::Variable(1),
-                    F5cPositive::Variable(6),
-                    F5cPositive::Variable(7),
-                ])),
-                F5cNegative::Intersection(vec![
-                    F5cNegative::Variable(4),
-                    F5cNegative::Variable(7),
-                    F5cNegative::Variable(8),
-                ]),
+                boxed_function(F5cPositive::Union(test_tracked(
+                    &test_source_meter,
+                    vec![
+                        F5cPositive::Variable(1),
+                        F5cPositive::Variable(6),
+                        F5cPositive::Variable(7),
+                    ],
+                ))),
+                F5cNegative::Intersection(test_tracked(
+                    &test_source_meter,
+                    vec![
+                        F5cNegative::Variable(4),
+                        F5cNegative::Variable(7),
+                        F5cNegative::Variable(8),
+                    ],
+                )),
             ),
         ),
         (
             2,
             (
-                boxed_function(F5cPositive::Union(vec![
-                    F5cPositive::Variable(2),
-                    F5cPositive::Variable(5),
-                ])),
-                F5cNegative::Intersection(vec![F5cNegative::Variable(5), F5cNegative::Variable(6)]),
+                boxed_function(F5cPositive::Union(test_tracked(
+                    &test_source_meter,
+                    vec![F5cPositive::Variable(2), F5cPositive::Variable(5)],
+                ))),
+                F5cNegative::Intersection(test_tracked(
+                    &test_source_meter,
+                    vec![F5cNegative::Variable(5), F5cNegative::Variable(6)],
+                )),
             ),
         ),
     ]);
@@ -576,6 +610,7 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
     let negative = HashSet::from([4, 5, 6, 7, 8]);
     let mut boxed_memo = F5cComponentExpansionMemo::default();
     let boxed = F5cGeneralizer::boxed_post_r_for_test(
+        &test_source_meter,
         &mut boxed_memo,
         &boxed_predicate,
         &boxed_bounds,
@@ -689,6 +724,7 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
         .requested_slots = usize::MAX;
     assert_eq!(
         F5cGeneralizer::boxed_post_r_for_test(
+            &test_source_meter,
             &mut late_boxed_memo,
             &boxed_predicate,
             &boxed_bounds,
@@ -737,6 +773,7 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
     late_boxed_memo.walker_resources.lanes[F5cWalkerLaneKind::PostRQuantifiers as usize]
         .requested_slots = 0;
     let retried = F5cGeneralizer::boxed_post_r_for_test(
+        &test_source_meter,
         &mut late_boxed_memo,
         &boxed_predicate,
         &boxed_bounds,
@@ -769,6 +806,7 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
     let mut missing_boxed_memo = F5cComponentExpansionMemo::default();
     assert_eq!(
         F5cGeneralizer::boxed_post_r_for_test(
+            &test_source_meter,
             &mut missing_boxed_memo,
             &boxed_predicate,
             &boxed_bounds,
@@ -823,6 +861,7 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
 
 #[test]
 fn post_r_failure_aborts_memo_after_replay_output_and_retries_warm_lookup() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_generalization::F5cGuardedTrace;
     use std::collections::{HashMap, HashSet};
 
@@ -850,9 +889,10 @@ fn post_r_failure_aborts_memo_after_replay_output_and_retries_warm_lookup() {
         .exact_non_variable_lowers
         .push(ValueEndpointKey::PositiveFunction(function));
     session.bounds[relay as usize].direct_lower_rows.push(owner);
-    let (result, memo, _, _) = F5cGeneralizer::new(&session).build_component(warm);
+    let (result, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(warm);
     assert!(result.is_ok());
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     generalizer.memo.reset_active_scratch();
     let before = (
         generalizer.memo.roots.clone(),
@@ -956,6 +996,7 @@ fn post_r_failure_aborts_memo_after_replay_output_and_retries_warm_lookup() {
 
 #[test]
 fn post_r_success_retains_predicate_output_until_forest_release() {
+    let test_source_meter = DraftHeapMeter::default();
     use std::collections::{HashMap, HashSet};
     let batch = collect(module("my f = 1", "f5c-post-r-success"));
     let mut session = InferenceSession::new(batch);
@@ -963,7 +1004,7 @@ fn post_r_success_retains_predicate_output_until_forest_release() {
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
@@ -994,6 +1035,7 @@ fn post_r_success_retains_predicate_output_until_forest_release() {
 
 #[test]
 fn selected_flat_candidate_completes_under_open_raw_forest() {
+    let test_source_meter = DraftHeapMeter::default();
     use std::collections::{HashMap, HashSet};
     let batch = collect(module("my f = 1", "f5c-flat-selected-candidate"));
     let mut session = InferenceSession::new(batch);
@@ -1001,7 +1043,7 @@ fn selected_flat_candidate_completes_under_open_raw_forest() {
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
@@ -1096,6 +1138,7 @@ fn selected_flat_candidate_completes_under_open_raw_forest() {
 
 #[test]
 fn selected_flat_normalization_work_failure_aborts_forest_and_retries_warm_root() {
+    let test_source_meter = DraftHeapMeter::default();
     use std::collections::{HashMap, HashSet};
     let batch = collect(module("my f = 1", "f5c-flat-normalization-rollback"));
     let mut session = InferenceSession::new(batch);
@@ -1103,9 +1146,10 @@ fn selected_flat_normalization_work_failure_aborts_forest_and_retries_warm_root(
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let (built, memo, _, _) = F5cGeneralizer::new(&session).build_component(root);
+    let (built, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(root);
     assert!(built.is_ok());
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     generalizer.memo.reset_active_scratch();
     let before = (
         generalizer.memo.roots.clone(),
@@ -1232,6 +1276,7 @@ fn selected_flat_normalization_work_failure_aborts_forest_and_retries_warm_root(
 
 #[test]
 fn selected_flat_normalizer_request_overflow_preserves_shared_lane_counters() {
+    let test_source_meter = DraftHeapMeter::default();
     use std::collections::{HashMap, HashSet};
     let batch = collect(module("my f = 1", "f5c-flat-normalizer-request-overflow"));
     let mut session = InferenceSession::new(batch);
@@ -1239,7 +1284,7 @@ fn selected_flat_normalizer_request_overflow_preserves_shared_lane_counters() {
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
@@ -1289,6 +1334,7 @@ fn selected_flat_normalizer_request_overflow_preserves_shared_lane_counters() {
 
 #[test]
 fn selected_flat_published_output_growth_overflow_aborts_forest() {
+    let test_source_meter = DraftHeapMeter::default();
     use std::collections::{HashMap, HashSet};
     let batch = collect(module("my f = 1", "f5c-flat-output-request-overflow"));
     let mut session = InferenceSession::new(batch);
@@ -1296,7 +1342,7 @@ fn selected_flat_published_output_growth_overflow_aborts_forest() {
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let forest = generalizer.build_raw_forest(root).unwrap();
     let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
     let (selection, output, forest) = generalizer
@@ -1341,48 +1387,59 @@ fn selected_flat_published_output_growth_overflow_aborts_forest() {
 
 #[test]
 fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::{FlatDraft, NegativeId, NegativeNode, PositiveId, PositiveNode};
     use std::collections::{HashMap, HashSet};
 
-    fn expand_positive(draft: &FlatDraft, id: PositiveId) -> F5cPositive {
+    fn expand_positive<'meter>(
+        meter: &'meter DraftHeapMeter,
+        draft: &FlatDraft,
+        id: PositiveId,
+    ) -> F5cPositive<'meter> {
         match draft.positive_nodes[id.0 as usize] {
             PositiveNode::Bottom => F5cPositive::Bottom,
             PositiveNode::Int => F5cPositive::Int,
             PositiveNode::Quantified(n) => F5cPositive::Quantified(n),
             PositiveNode::Recursive(n) => F5cPositive::Recursive(n),
-            PositiveNode::Union(span) => F5cPositive::Union(
+            PositiveNode::Union(span) => F5cPositive::Union(test_tracked(
+                meter,
                 draft.positive_children[span.start as usize..(span.start + span.len) as usize]
                     .iter()
-                    .map(|&child| expand_positive(draft, child))
-                    .collect(),
-            ),
+                    .map(|&child| expand_positive(meter, draft, child))
+                    .collect::<Vec<_>>(),
+            )),
             PositiveNode::Function { argument, result } => F5cPositive::Function {
-                argument: Box::new(expand_negative(draft, argument)),
+                argument: Box::new(expand_negative(meter, draft, argument)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(expand_positive(draft, result)),
+                result: Box::new(expand_positive(meter, draft, result)),
             },
             PositiveNode::Variable(_) => panic!("selected normalized positive is classified"),
         }
     }
-    fn expand_negative(draft: &FlatDraft, id: NegativeId) -> F5cNegative {
+    fn expand_negative<'meter>(
+        meter: &'meter DraftHeapMeter,
+        draft: &FlatDraft,
+        id: NegativeId,
+    ) -> F5cNegative<'meter> {
         match draft.negative_nodes[id.0 as usize] {
             NegativeNode::Top => F5cNegative::Top,
             NegativeNode::Bottom => F5cNegative::Bottom,
             NegativeNode::Int => F5cNegative::Int,
             NegativeNode::Quantified(n) => F5cNegative::Quantified(n),
             NegativeNode::Recursive(n) => F5cNegative::Recursive(n),
-            NegativeNode::Intersection(span) => F5cNegative::Intersection(
+            NegativeNode::Intersection(span) => F5cNegative::Intersection(test_tracked(
+                meter,
                 draft.negative_children[span.start as usize..(span.start + span.len) as usize]
                     .iter()
-                    .map(|&child| expand_negative(draft, child))
-                    .collect(),
-            ),
+                    .map(|&child| expand_negative(meter, draft, child))
+                    .collect::<Vec<_>>(),
+            )),
             NegativeNode::Function { argument, result } => F5cNegative::Function {
-                argument: Box::new(expand_positive(draft, argument)),
+                argument: Box::new(expand_positive(meter, draft, argument)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(expand_negative(draft, result)),
+                result: Box::new(expand_negative(meter, draft, result)),
             },
             NegativeNode::Variable(_) => panic!("selected normalized negative is classified"),
         }
@@ -1455,19 +1512,23 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
     let mut baseline = None;
     for reverse_bounds in [false, true] {
         let (warm_result, mut boxed_memo, _, _) =
-            F5cGeneralizer::new(&session).build_component(warm);
+            F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(warm);
         assert!(warm_result.is_ok());
         boxed_memo.boxed_materialization_callback_trace.clear();
         let (boxed_result, boxed_memo, boxed_hits, _) =
-            F5cGeneralizer::with_memo(&session, boxed_memo, 0).build_component(owner);
+            F5cGeneralizer::with_memo(&session, &test_source_meter, boxed_memo, 0)
+                .build_component(owner);
         let boxed_callbacks = boxed_memo.boxed_materialization_callback_trace;
         let mut boxed = boxed_result.unwrap();
-        let boxed_stats =
-            crate::f5c_normalization::normalize_component(std::slice::from_mut(&mut boxed))
-                .unwrap();
-        let (warm_result, memo, _, _) = F5cGeneralizer::new(&session).build_component(warm);
+        let boxed_stats = crate::f5c_normalization::normalize_component(
+            &test_source_meter,
+            std::slice::from_mut(&mut boxed),
+        )
+        .unwrap();
+        let (warm_result, memo, _, _) =
+            F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(warm);
         assert!(warm_result.is_ok());
-        let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+        let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
         let forest = generalizer
             .build_raw_forest_with_bound_reinsertion_for_test(owner, reverse_bounds)
             .unwrap();
@@ -1563,7 +1624,11 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
             boxed.recursive_bounds[0].ordinal
         );
         assert_eq!(
-            expand_positive(&candidate.draft, candidate.draft.predicate.unwrap()),
+            expand_positive(
+                &test_source_meter,
+                &candidate.draft,
+                candidate.draft.predicate.unwrap()
+            ),
             boxed.predicate
         );
         for (flat, boxed) in candidate
@@ -1572,8 +1637,14 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
             .iter()
             .zip(&boxed.recursive_bounds)
         {
-            assert_eq!(expand_positive(&candidate.draft, flat.lower), boxed.lower);
-            assert_eq!(expand_negative(&candidate.draft, flat.upper), boxed.upper);
+            assert_eq!(
+                expand_positive(&test_source_meter, &candidate.draft, flat.lower),
+                boxed.lower
+            );
+            assert_eq!(
+                expand_negative(&test_source_meter, &candidate.draft, flat.upper),
+                boxed.upper
+            );
         }
         assert_eq!(candidate.stats.key_writes, boxed_stats.key_writes);
         assert_eq!(
@@ -1677,6 +1748,7 @@ fn selected_flat_candidate_matches_boxed_q_r_and_normalization_counters() {
 
 #[test]
 fn flat_r_replay_failure_aborts_raw_forest_and_retries_warm_lookup() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_generalization::F5cGuardedTrace;
     use std::collections::{HashMap, HashSet};
 
@@ -1704,9 +1776,10 @@ fn flat_r_replay_failure_aborts_raw_forest_and_retries_warm_lookup() {
         .exact_non_variable_lowers
         .push(ValueEndpointKey::PositiveFunction(function));
     session.bounds[relay as usize].direct_lower_rows.push(owner);
-    let (result, memo, _, _) = F5cGeneralizer::new(&session).build_component(warm);
+    let (result, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(warm);
     assert!(result.is_ok());
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     generalizer.memo.reset_active_scratch();
     let before = (
         generalizer.memo.roots.clone(),
@@ -1815,6 +1888,7 @@ fn flat_r_replay_failure_aborts_raw_forest_and_retries_warm_lookup() {
 
 #[test]
 fn raw_forest_orders_recursive_bounds_and_defaults() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-raw-forest"));
     let mut session = InferenceSession::new(batch);
     let owner = session.fresh_value_at_level(1).unwrap();
@@ -1835,7 +1909,7 @@ fn raw_forest_orders_recursive_bounds_and_defaults() {
         .exact_non_variable_lowers
         .push(ValueEndpointKey::PositiveFunction(function));
     session.bounds[relay as usize].direct_lower_rows.push(owner);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let forest = generalizer.build_raw_forest(owner).unwrap();
     let (positive_incidences, negative_incidences) =
         generalizer.flat_raw_forest_incidences(&forest).unwrap();
@@ -1856,6 +1930,7 @@ fn raw_forest_orders_recursive_bounds_and_defaults() {
 
 #[test]
 fn raw_forest_warm_shared_predicate_marks_and_failed_trace_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-raw-warm"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
@@ -1866,9 +1941,10 @@ fn raw_forest_warm_shared_predicate_marks_and_failed_trace_retries() {
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::ValueRow(row));
-    let (built, memo, _, _) = F5cGeneralizer::new(&session).build_component(row);
+    let (built, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(row);
     assert!(built.is_ok());
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     let before = generalizer.memo.roots.clone();
     generalizer.memo.walker_resources.lanes
         [crate::f5c_generalization::F5cWalkerLaneKind::RawCallbackTrace as usize]
@@ -1886,6 +1962,7 @@ fn raw_forest_warm_shared_predicate_marks_and_failed_trace_retries() {
 
 #[test]
 fn raw_forest_later_bound_shared_callback_follows_predicate() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-raw-later-bound"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -1913,7 +1990,7 @@ fn raw_forest_later_bound_shared_callback_follows_predicate() {
         .exact_non_variable_uppers
         .push(ValueEndpointKey::ValueRow(warm));
     session.bounds[relay as usize].direct_lower_rows.push(root);
-    let mut warming = F5cGeneralizer::new(&session);
+    let mut warming = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     warming
         .walk_flat(F5cWalkTask::EnterRow {
             row: warm,
@@ -1922,7 +1999,7 @@ fn raw_forest_later_bound_shared_callback_follows_predicate() {
         })
         .unwrap();
     let memo = std::mem::take(&mut warming.memo);
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     let forest = generalizer.build_raw_forest(root).unwrap();
     assert_eq!(forest.raw_owner_order, vec![root]);
     assert!(forest.callback_trace.contains(&(warm, Polarity::Negative)));
@@ -1935,6 +2012,7 @@ fn raw_forest_later_bound_shared_callback_follows_predicate() {
 
 #[test]
 fn raw_forest_release_advances_memo_checkpoint_before_later_failure() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-raw-success-failure"));
     let mut session = InferenceSession::new(batch);
     let child = session.fresh_value_at_level(1).unwrap();
@@ -1949,7 +2027,7 @@ fn raw_forest_release_advances_memo_checkpoint_before_later_failure() {
     session.bounds[later as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::ValueRow(child));
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let forest = generalizer.build_raw_forest(first).unwrap();
     let before = generalizer.memo.roots.clone();
     let child_key = crate::f5c_generalization::F5cExpansionKey {
@@ -1977,6 +2055,7 @@ fn raw_forest_release_advances_memo_checkpoint_before_later_failure() {
 
 #[test]
 fn raw_forest_late_failure_rolls_back_memo_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-raw-late-failure"));
     let mut session = InferenceSession::new(batch);
     let child = session.fresh_value_at_level(1).unwrap();
@@ -1987,7 +2066,7 @@ fn raw_forest_late_failure_rolls_back_memo_and_retries() {
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::ValueRow(child));
-    let mut warming = F5cGeneralizer::new(&session);
+    let mut warming = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     warming
         .walk_flat(F5cWalkTask::EnterRow {
             row: child,
@@ -1996,7 +2075,7 @@ fn raw_forest_late_failure_rolls_back_memo_and_retries() {
         })
         .unwrap();
     let memo = std::mem::take(&mut warming.memo);
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     let child_key = crate::f5c_generalization::F5cExpansionKey {
         row: child,
         polarity: Polarity::Positive,
@@ -2081,13 +2160,14 @@ fn raw_forest_late_failure_rolls_back_memo_and_retries() {
 
 #[test]
 fn raw_forest_failed_rollback_releases_lifecycle_without_reuse() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-raw-rollback-failure"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
     session.bounds[row as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let forest = generalizer.build_raw_forest(row).unwrap();
     generalizer.memo.root_edge_marks.push(0);
     assert!(generalizer.abort_raw_forest(forest).is_err());
@@ -2109,13 +2189,14 @@ fn raw_forest_failed_rollback_releases_lifecycle_without_reuse() {
 
 #[test]
 fn raw_forest_construction_error_with_failed_rollback_rejects_reuse() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-raw-construction-rollback-failure"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
     session.bounds[row as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     generalizer.memo.root_edge_marks.push(0);
     let roots_lane = crate::f5c_generalization::F5cWalkerLaneKind::RawRoots as usize;
     generalizer.memo.walker_resources.lanes[roots_lane].requested_slots = usize::MAX;
@@ -2135,6 +2216,7 @@ fn raw_forest_construction_error_with_failed_rollback_rejects_reuse() {
 
 #[test]
 fn raw_forest_table_overflow_preflights_before_allocation_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_generalization::F5cWalkerLaneKind;
     for kind in [
         F5cWalkerLaneKind::RawOwnerSeen,
@@ -2160,7 +2242,7 @@ fn raw_forest_table_overflow_preflights_before_allocation_and_retries() {
             .exact_non_variable_lowers
             .push(ValueEndpointKey::PositiveFunction(function));
         session.bounds[relay as usize].direct_lower_rows.push(root);
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         let before = generalizer.memo.roots.clone();
         generalizer.memo.walker_resources.lanes[kind as usize].requested_slots = usize::MAX;
         assert!(generalizer.build_raw_forest(root).is_err());
@@ -2183,6 +2265,7 @@ fn raw_forest_table_overflow_preflights_before_allocation_and_retries() {
 
 #[test]
 fn flat_one_root_deduplicates_local_values_before_promotion() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-local-dedup"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
@@ -2190,7 +2273,7 @@ fn flat_one_root_deduplicates_local_values_before_promotion() {
         .exact_non_variable_lowers
         .extend([ValueEndpointKey::IntPositive, ValueEndpointKey::IntPositive]);
 
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let value = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row,
@@ -2222,6 +2305,7 @@ fn flat_one_root_deduplicates_local_values_before_promotion() {
 
 #[test]
 fn flat_negative_intersection_keeps_first_seen_survivors() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-negative-dedup"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
@@ -2232,7 +2316,7 @@ fn flat_negative_intersection_keeps_first_seen_survivors() {
             ValueEndpointKey::TopNegative,
             ValueEndpointKey::IntNegative,
         ]);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let value = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row,
@@ -2265,6 +2349,7 @@ fn flat_negative_intersection_keeps_first_seen_survivors() {
 
 #[test]
 fn flat_promotion_links_warm_shared_child_and_keeps_first_seen_order() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-warm-order"));
     let mut session = InferenceSession::new(batch);
     let warm = session.fresh_value_at_level(1).unwrap();
@@ -2283,14 +2368,15 @@ fn flat_promotion_links_warm_shared_child_and_keeps_first_seen_order() {
             ValueEndpointKey::BottomPositive,
             ValueEndpointKey::ValueRow(warm),
         ]);
-    let (warm_result, memo, _, _) = F5cGeneralizer::new(&session).build_component(holder);
+    let (warm_result, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(holder);
     assert!(warm_result.is_ok());
     let warm_id = memo.roots[&crate::f5c_generalization::F5cExpansionKey {
         row: warm,
         polarity: Polarity::Positive,
         frozen_bound_epoch: 0,
     }];
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     let value = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row: root,
@@ -2338,6 +2424,7 @@ fn flat_promotion_links_warm_shared_child_and_keeps_first_seen_order() {
 
 #[test]
 fn flat_shared_root_promotion_adds_alias_incidence() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-alias-incidence"));
     let mut session = InferenceSession::new(batch);
     let warm = session.fresh_value_at_level(1).unwrap();
@@ -2352,14 +2439,15 @@ fn flat_shared_root_promotion_adds_alias_incidence() {
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::ValueRow(warm));
-    let (built, memo, _, _) = F5cGeneralizer::new(&session).build_component(holder);
+    let (built, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(holder);
     assert!(built.is_ok());
     let warm_id = memo.roots[&crate::f5c_generalization::F5cExpansionKey {
         row: warm,
         polarity: Polarity::Positive,
         frozen_bound_epoch: 0,
     }];
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     let value = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row: root,
@@ -2387,6 +2475,7 @@ fn flat_shared_root_promotion_adds_alias_incidence() {
 
 #[test]
 fn flat_positive_function_promotes_pure_fields_in_child_order() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-function"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
@@ -2405,7 +2494,7 @@ fn flat_positive_function_promotes_pure_fields_in_child_order() {
     session.bounds[row as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::PositiveFunction(function));
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let value = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row,
@@ -2440,6 +2529,7 @@ fn flat_positive_function_promotes_pure_fields_in_child_order() {
 
 #[test]
 fn flat_promotion_failure_rolls_back_arena_and_memo_then_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-promotion-retry"));
     let mut session = InferenceSession::new(batch);
     let warm = session.fresh_value_at_level(1).unwrap();
@@ -2457,9 +2547,10 @@ fn flat_promotion_failure_rolls_back_arena_and_memo_then_retries() {
             ValueEndpointKey::ValueRow(warm),
             ValueEndpointKey::BottomPositive,
         ]);
-    let (built, memo, _, _) = F5cGeneralizer::new(&session).build_component(holder);
+    let (built, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(holder);
     assert!(built.is_ok());
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     let before = (
         generalizer.memo.roots.clone(),
         generalizer.memo.nodes.clone(),
@@ -2517,13 +2608,14 @@ fn flat_promotion_failure_rolls_back_arena_and_memo_then_retries() {
 
 #[test]
 fn flat_post_admission_failure_removes_root_and_source_nodes() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-after-admit"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
     session.bounds[row as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     generalizer.memo.fail_observation_at = Some(F5cTestObservationFailure::Admit);
     assert!(
         generalizer
@@ -2543,7 +2635,7 @@ fn flat_post_admission_failure_removes_root_and_source_nodes() {
     assert!(generalizer.memo.active_rows.is_empty());
     assert!(generalizer.memo.active_conflicts.is_empty());
     let memo = generalizer.memo;
-    let mut retry = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut retry = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     assert!(
         retry
             .walk_flat(F5cWalkTask::EnterRow {
@@ -2559,6 +2651,7 @@ fn flat_post_admission_failure_removes_root_and_source_nodes() {
 
 #[test]
 fn flat_failed_component_restores_uncacheable_count_before_retry() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-uncacheable-retry"));
     let mut session = InferenceSession::new(batch);
     let recursive = session.fresh_value_at_level(1).unwrap();
@@ -2569,7 +2662,7 @@ fn flat_failed_component_restores_uncacheable_count_before_retry() {
     session.bounds[later as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     assert!(
         !generalizer
             .walk_flat(F5cWalkTask::EnterRow {
@@ -2607,6 +2700,7 @@ fn flat_failed_component_restores_uncacheable_count_before_retry() {
 
 #[test]
 fn flat_distinct_shared_ids_and_matching_local_value_remain_distinct() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-tagged-equality"));
     let mut session = InferenceSession::new(batch);
     let first = session.fresh_value_at_level(1).unwrap();
@@ -2631,7 +2725,8 @@ fn flat_distinct_shared_ids_and_matching_local_value_remain_distinct() {
             ValueEndpointKey::ValueRow(second),
             ValueEndpointKey::IntPositive,
         ]);
-    let (built, memo, _, _) = F5cGeneralizer::new(&session).build_component(holder);
+    let (built, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(holder);
     assert!(built.is_ok());
     let first_id = memo.roots[&crate::f5c_generalization::F5cExpansionKey {
         row: first,
@@ -2644,7 +2739,7 @@ fn flat_distinct_shared_ids_and_matching_local_value_remain_distinct() {
         frozen_bound_epoch: 0,
     }];
     assert_ne!(first_id, second_id);
-    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     let value = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row: root,
@@ -2673,6 +2768,7 @@ fn flat_distinct_shared_ids_and_matching_local_value_remain_distinct() {
 
 #[test]
 fn flat_negative_function_and_tainted_row_keep_cacheability() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-negative-taint"));
     let mut session = InferenceSession::new(batch);
     let function_row = session.fresh_value_at_level(1).unwrap();
@@ -2693,7 +2789,7 @@ fn flat_negative_function_and_tainted_row_keep_cacheability() {
     session.bounds[recursive_row as usize]
         .direct_lower_rows
         .push(recursive_row);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let function = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row: function_row,
@@ -2742,6 +2838,7 @@ fn flat_negative_function_and_tainted_row_keep_cacheability() {
 
 #[test]
 fn flat_nested_local_functions_deduplicate_in_both_polarities() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-nested-local-equality"));
     let mut session = InferenceSession::new(batch);
     let positive_row = session.fresh_value_at_level(1).unwrap();
@@ -2795,7 +2892,7 @@ fn flat_nested_local_functions_deduplicate_in_both_polarities() {
             .exact_non_variable_uppers
             .push(ValueEndpointKey::NegativeFunction(negative));
     }
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     for (row, polarity) in [
         (positive_row, Polarity::Positive),
         (negative_row, Polarity::Negative),
@@ -2830,6 +2927,7 @@ fn flat_producer_and_arena_drop_on_small_stack() {
     std::thread::Builder::new()
         .stack_size(256 * 1024)
         .spawn(|| {
+            let test_source_meter = DraftHeapMeter::default();
             let batch = collect(module("my f = 1", "f5c-flat-small-stack"));
             let mut session = InferenceSession::new(batch);
             let row = session.fresh_value_at_level(1).unwrap();
@@ -2850,7 +2948,7 @@ fn flat_producer_and_arena_drop_on_small_stack() {
             session.bounds[row as usize]
                 .exact_non_variable_lowers
                 .push(ValueEndpointKey::PositiveFunction(result));
-            let mut generalizer = F5cGeneralizer::new(&session);
+            let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
             let value = generalizer
                 .walk_flat(F5cWalkTask::EnterRow {
                     row,
@@ -2869,6 +2967,7 @@ fn flat_producer_and_arena_drop_on_small_stack() {
 
 #[test]
 fn flat_local_root_remains_readable_across_successive_walks() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-flat-forest-lifetime"));
     let mut session = InferenceSession::new(batch);
     let first = session.fresh_value_at_level(1).unwrap();
@@ -2879,7 +2978,7 @@ fn flat_local_root_remains_readable_across_successive_walks() {
     session.bounds[second as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::BottomPositive);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let first_root = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row: first,
@@ -2901,6 +3000,7 @@ fn flat_local_root_remains_readable_across_successive_walks() {
 
 #[test]
 fn checked_materialization_observes_co_resident_source_memo_draft_and_scratch() {
+    let test_source_meter = DraftHeapMeter::default();
     use crate::f5c_draft::FlatDraft;
     use crate::f5c_generalization::F5cWalkerLaneKind;
     use crate::f5c_materialization::materialize_summary_flat_checked;
@@ -2914,7 +3014,7 @@ fn checked_materialization_observes_co_resident_source_memo_draft_and_scratch() 
             ValueEndpointKey::IntPositive,
             ValueEndpointKey::BottomPositive,
         ]);
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let value = generalizer
         .walk_flat(F5cWalkTask::EnterRow {
             row,

@@ -3,10 +3,12 @@ use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
 use super::f5c_generalization::F5cWalkerResources;
 #[cfg(test)]
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
+#[cfg(test)]
+use super::test_tracked;
 use super::{
-    F5cComponentExpansionMemo, F5cGeneralizer, F5cNegative, F5cNegativeEffect, F5cPositive,
-    F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, Polarity,
-    SolveAvailabilityError,
+    DraftHeapMeter, F5cComponentExpansionMemo, F5cGeneralizer, F5cNegative, F5cNegativeEffect,
+    F5cPositive, F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, Polarity,
+    SolveAvailabilityError, TrackedVec,
 };
 use std::collections::HashMap;
 
@@ -661,9 +663,9 @@ pub(super) fn materialize_summary_flat_checked(
     result
 }
 
-pub(super) enum Task {
-    Positive(F5cPositive),
-    Negative(F5cNegative),
+pub(super) enum Task<'meter> {
+    Positive(F5cPositive<'meter>),
+    Negative(F5cNegative<'meter>),
     FinishPositiveUnion(usize),
     FinishNegativeIntersection(usize),
     FinishPositiveFunction {
@@ -676,28 +678,37 @@ pub(super) enum Task {
     },
 }
 
-pub(super) fn materialize_iterative(
+pub(super) fn materialize_iterative<'meter>(
+    source_meter: &'meter DraftHeapMeter,
     memo: &mut F5cComponentExpansionMemo,
-    first: Task,
+    first: Task<'meter>,
     mut shared: impl FnMut(
         &mut F5cComponentExpansionMemo,
         F5cSummaryNodeId,
         Polarity,
-    ) -> Result<F5cWalkValue, SolveAvailabilityError>,
-) -> Result<F5cWalkValue, SolveAvailabilityError> {
+    ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError>,
+) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
     let mut tasks = Vec::new();
     let mut values = Vec::new();
     macro_rules! push_task {
         ($task:expr) => {{
             memo.work_meter.charge(1)?; // scheduled draft-materialization task
-            memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::DraftMaterializeTasks)?;
+            memo.reserve_walker_with_source(
+                &mut tasks,
+                F5cWalkerLaneKind::DraftMaterializeTasks,
+                source_meter,
+            )?;
             tasks.push($task);
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
             memo.work_meter.charge(1)?; // emitted boxed value
-            memo.reserve_walker(&mut values, F5cWalkerLaneKind::DraftMaterializeValues)?;
+            memo.reserve_walker_with_source(
+                &mut values,
+                F5cWalkerLaneKind::DraftMaterializeValues,
+                source_meter,
+            )?;
             values.push($value);
         }};
     }
@@ -779,13 +790,17 @@ pub(super) fn materialize_iterative(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = Vec::new();
+                    let mut children = TrackedVec::new(source_meter);
                     memo.work_meter.charge(count)?;
+                    memo.observe_component_external(source_meter)?;
+                    children
+                        .try_reserve_exact(count)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        children.push(value);
+                        children.push_reserved(value);
                     }
                     push_value!(F5cWalkValue::Positive(F5cPositive::Union(children), true));
                 }
@@ -802,13 +817,17 @@ pub(super) fn materialize_iterative(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = Vec::new();
+                    let mut children = TrackedVec::new(source_meter);
                     memo.work_meter.charge(count)?;
+                    memo.observe_component_external(source_meter)?;
+                    children
+                        .try_reserve_exact(count)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        children.push(value);
+                        children.push_reserved(value);
                     }
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Intersection(children),
@@ -876,22 +895,25 @@ pub(super) fn materialize_iterative(
             .pop()
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     })();
-    memo.walker_resources
-        .release(F5cWalkerLaneKind::DraftMaterializeTasks);
-    memo.walker_resources
-        .release(F5cWalkerLaneKind::DraftMaterializeValues);
+    memo.release_walker_with_source(F5cWalkerLaneKind::DraftMaterializeTasks, source_meter)?;
+    memo.release_walker_with_source(F5cWalkerLaneKind::DraftMaterializeValues, source_meter)?;
     result
 }
 
 #[cfg(test)]
 #[test]
 fn f5c_work_bulk_drain_overflow_precedes_child_move_and_memo_can_retry() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut memo = F5cComponentExpansionMemo::default();
-    let source = F5cPositive::Union(vec![F5cPositive::Int, F5cPositive::Bottom]);
     let run = |memo: &mut F5cComponentExpansionMemo| {
+        let source = F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![F5cPositive::Int, F5cPositive::Bottom],
+        ));
         materialize_iterative(
+            &test_source_meter,
             memo,
-            Task::Positive(source.clone()),
+            Task::Positive(source),
             |_, _, _| unreachable!(),
         )
     };
@@ -939,12 +961,17 @@ fn f5c_work_bulk_drain_overflow_precedes_child_move_and_memo_can_retry() {
 #[cfg(test)]
 #[test]
 fn f5c_work_negative_materialization_drain_overflow_precedes_child_move() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut memo = F5cComponentExpansionMemo::default();
-    let source = F5cNegative::Intersection(vec![F5cNegative::Int, F5cNegative::Bottom]);
     let run = |memo: &mut F5cComponentExpansionMemo| {
+        let source = F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![F5cNegative::Int, F5cNegative::Bottom],
+        ));
         materialize_iterative(
+            &test_source_meter,
             memo,
-            Task::Negative(source.clone()),
+            Task::Negative(source),
             |_, _, _| unreachable!(),
         )
     };
@@ -987,10 +1014,12 @@ fn f5c_work_negative_materialization_drain_overflow_precedes_child_move() {
     assert_eq!(memo.work_meter.get(), work);
 }
 
-pub(super) fn materialize_bound_trees(
+pub(super) fn materialize_bound_trees<'meter>(
     owners: &[u32],
-    bounds: &mut HashMap<u32, (F5cPositive, F5cNegative)>,
-    mut transform: impl FnMut(F5cWalkValue) -> Result<F5cWalkValue, SolveAvailabilityError>,
+    bounds: &mut HashMap<u32, (F5cPositive<'meter>, F5cNegative<'meter>)>,
+    mut transform: impl FnMut(
+        F5cWalkValue<'meter>,
+    ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError>,
 ) -> Result<(), SolveAvailabilityError> {
     for owner in owners {
         let (lower, upper) = bounds
@@ -1015,48 +1044,53 @@ pub(super) fn materialize_bound_trees(
     Ok(())
 }
 
-impl F5cGeneralizer<'_> {
-    fn materialize(&mut self, first: Task) -> Result<F5cWalkValue, SolveAvailabilityError> {
+impl<'a, 'meter> F5cGeneralizer<'a, 'meter> {
+    fn materialize(
+        &mut self,
+        first: Task<'meter>,
+    ) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
         let session = self.session;
+        let source_meter = self.source_meter;
         let frames = &mut self.frames;
         let active_set = &self.active_set;
         let provisional = &self.provisional_recursive_rows;
         let order = &mut self.order;
         let order_seen = &mut self.order_seen;
         let mut active_conflict = false;
-        let result = materialize_iterative(&mut self.memo, first, |memo, id, polarity| {
-            let work_meter = memo.work_meter.clone();
-            let mut mark = |row, _polarity| -> Result<(), SolveAvailabilityError> {
-                active_conflict |= active_set.contains(&(row, Polarity::Positive))
-                    || active_set.contains(&(row, Polarity::Negative));
-                F5cGeneralizer::register_order(&work_meter, order_seen, order, row)?;
-                if provisional.contains(&row)
-                    || session
-                        .value_metadata
-                        .get(row as usize)
-                        .is_none_or(|metadata| metadata.non_generic)
-                    || session
-                        .value_levels
-                        .get(row as usize)
-                        .is_none_or(|level| *level == 0)
-                {
-                    if let Some(frame) = frames.last_mut() {
-                        frame.tainted = true;
+        let result =
+            materialize_iterative(source_meter, &mut self.memo, first, |memo, id, polarity| {
+                let work_meter = memo.work_meter.clone();
+                let mut mark = |row, _polarity| -> Result<(), SolveAvailabilityError> {
+                    active_conflict |= active_set.contains(&(row, Polarity::Positive))
+                        || active_set.contains(&(row, Polarity::Negative));
+                    F5cGeneralizer::register_order(&work_meter, order_seen, order, row)?;
+                    if provisional.contains(&row)
+                        || session
+                            .value_metadata
+                            .get(row as usize)
+                            .is_none_or(|metadata| metadata.non_generic)
+                        || session
+                            .value_levels
+                            .get(row as usize)
+                            .is_none_or(|level| *level == 0)
+                    {
+                        if let Some(frame) = frames.last_mut() {
+                            frame.tainted = true;
+                        }
                     }
+                    Ok(())
+                };
+                match polarity {
+                    Polarity::Positive => Ok(F5cWalkValue::Positive(
+                        memo.positive_value_with(source_meter, id, &mut mark)?,
+                        true,
+                    )),
+                    Polarity::Negative => Ok(F5cWalkValue::Negative(
+                        memo.negative_value_with(source_meter, id, &mut mark)?,
+                        true,
+                    )),
                 }
-                Ok(())
-            };
-            match polarity {
-                Polarity::Positive => Ok(F5cWalkValue::Positive(
-                    memo.positive_value_with(id, &mut mark)?,
-                    true,
-                )),
-                Polarity::Negative => Ok(F5cWalkValue::Negative(
-                    memo.negative_value_with(id, &mut mark)?,
-                    true,
-                )),
-            }
-        });
+            });
         if active_conflict {
             self.taint_active_states()?;
         }
@@ -1065,8 +1099,8 @@ impl F5cGeneralizer<'_> {
 
     pub(super) fn materialize_positive(
         &mut self,
-        value: F5cPositive,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
+        value: F5cPositive<'meter>,
+    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
         match self.materialize(Task::Positive(value))? {
             F5cWalkValue::Positive(value, _) => Ok(value),
             F5cWalkValue::Negative(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
@@ -1075,8 +1109,8 @@ impl F5cGeneralizer<'_> {
 
     pub(super) fn materialize_negative(
         &mut self,
-        value: F5cNegative,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
+        value: F5cNegative<'meter>,
+    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
         match self.materialize(Task::Negative(value))? {
             F5cWalkValue::Negative(value, _) => Ok(value),
             F5cWalkValue::Positive(_, _) => Err(SolveAvailabilityError::IdentityExhausted),
@@ -1086,7 +1120,7 @@ impl F5cGeneralizer<'_> {
     pub(super) fn materialize_recursive_bounds(
         &mut self,
         owners: &[u32],
-        bounds: &mut HashMap<u32, (F5cPositive, F5cNegative)>,
+        bounds: &mut HashMap<u32, (F5cPositive<'meter>, F5cNegative<'meter>)>,
     ) -> Result<(), SolveAvailabilityError> {
         materialize_bound_trees(owners, bounds, |value| match value {
             F5cWalkValue::Positive(value, _) => self
@@ -1104,7 +1138,11 @@ mod flat_tests {
     use super::super::F5cSummaryNode;
     use super::*;
 
-    fn expand_positive(flat: &FlatDraft, id: super::super::f5c_draft::PositiveId) -> F5cPositive {
+    fn expand_positive<'meter>(
+        meter: &'meter DraftHeapMeter,
+        flat: &FlatDraft,
+        id: super::super::f5c_draft::PositiveId,
+    ) -> F5cPositive<'meter> {
         use PositiveNode::*;
         match flat.positive_nodes[id.0 as usize] {
             Bottom => F5cPositive::Bottom,
@@ -1112,22 +1150,27 @@ mod flat_tests {
             Variable(row) => F5cPositive::Variable(row),
             Quantified(index) => F5cPositive::Quantified(index),
             Recursive(index) => F5cPositive::Recursive(index),
-            Union(span) => F5cPositive::Union(
+            Union(span) => F5cPositive::Union(test_tracked(
+                meter,
                 flat.positive_children[span.start as usize..(span.start + span.len) as usize]
                     .iter()
-                    .map(|&child| expand_positive(flat, child))
-                    .collect(),
-            ),
+                    .map(|&child| expand_positive(meter, flat, child))
+                    .collect::<Vec<_>>(),
+            )),
             Function { argument, result } => F5cPositive::Function {
-                argument: Box::new(expand_negative(flat, argument)),
+                argument: Box::new(expand_negative(meter, flat, argument)),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(expand_positive(flat, result)),
+                result: Box::new(expand_positive(meter, flat, result)),
             },
         }
     }
 
-    fn expand_negative(flat: &FlatDraft, id: super::super::f5c_draft::NegativeId) -> F5cNegative {
+    fn expand_negative<'meter>(
+        meter: &'meter DraftHeapMeter,
+        flat: &FlatDraft,
+        id: super::super::f5c_draft::NegativeId,
+    ) -> F5cNegative<'meter> {
         use NegativeNode::*;
         match flat.negative_nodes[id.0 as usize] {
             Top => F5cNegative::Top,
@@ -1136,17 +1179,18 @@ mod flat_tests {
             Variable(row) => F5cNegative::Variable(row),
             Quantified(index) => F5cNegative::Quantified(index),
             Recursive(index) => F5cNegative::Recursive(index),
-            Intersection(span) => F5cNegative::Intersection(
+            Intersection(span) => F5cNegative::Intersection(test_tracked(
+                meter,
                 flat.negative_children[span.start as usize..(span.start + span.len) as usize]
                     .iter()
-                    .map(|&child| expand_negative(flat, child))
-                    .collect(),
-            ),
+                    .map(|&child| expand_negative(meter, flat, child))
+                    .collect::<Vec<_>>(),
+            )),
             Function { argument, result } => F5cNegative::Function {
-                argument: Box::new(expand_positive(flat, argument)),
+                argument: Box::new(expand_positive(meter, flat, argument)),
                 argument_effect: F5cPositiveEffect::Bottom,
                 result_effect: F5cNegativeEffect::Empty,
-                result: Box::new(expand_negative(flat, result)),
+                result: Box::new(expand_negative(meter, flat, result)),
             },
         }
     }
@@ -1407,6 +1451,7 @@ mod flat_tests {
 
     #[test]
     fn checked_summary_flat_preserves_both_function_field_orders() {
+        let test_source_meter = DraftHeapMeter::default();
         let mut memo = F5cComponentExpansionMemo::default();
         let ids = (0..6).map(F5cSummaryNodeId).collect::<Vec<_>>();
         let kinds = [
@@ -1486,38 +1531,44 @@ mod flat_tests {
             panic!("wrong polarity");
         };
         assert_eq!(
-            expand_positive(&flat, positive),
-            F5cPositive::Union(vec![
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Variable(20)),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Variable(10))
-                },
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Variable(20)),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Variable(10))
-                },
-            ])
+            expand_positive(&test_source_meter, &flat, positive),
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Variable(20)),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Variable(10))
+                    },
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Variable(20)),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Variable(10))
+                    },
+                ]
+            ))
         );
         assert_eq!(
-            expand_negative(&flat, negative),
-            F5cNegative::Intersection(vec![
-                F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Variable(10)),
-                    argument_effect: F5cPositiveEffect::Bottom,
-                    result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(F5cNegative::Variable(20))
-                },
-                F5cNegative::Function {
-                    argument: Box::new(F5cPositive::Variable(10)),
-                    argument_effect: F5cPositiveEffect::Bottom,
-                    result_effect: F5cNegativeEffect::Empty,
-                    result: Box::new(F5cNegative::Variable(20))
-                },
-            ])
+            expand_negative(&test_source_meter, &flat, negative),
+            F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cNegative::Function {
+                        argument: Box::new(F5cPositive::Variable(10)),
+                        argument_effect: F5cPositiveEffect::Bottom,
+                        result_effect: F5cNegativeEffect::Empty,
+                        result: Box::new(F5cNegative::Variable(20))
+                    },
+                    F5cNegative::Function {
+                        argument: Box::new(F5cPositive::Variable(10)),
+                        argument_effect: F5cPositiveEffect::Bottom,
+                        result_effect: F5cNegativeEffect::Empty,
+                        result: Box::new(F5cNegative::Variable(20))
+                    },
+                ]
+            ))
         );
     }
 
@@ -1615,6 +1666,7 @@ mod flat_tests {
 
     #[test]
     fn summary_flat_matches_boxed_mixed_shared_fixture() {
+        let test_source_meter = DraftHeapMeter::default();
         let mut memo = F5cComponentExpansionMemo::default();
         let ids = (0..8).map(F5cSummaryNodeId).collect::<Vec<_>>();
         let kinds = [
@@ -1655,7 +1707,7 @@ mod flat_tests {
         memo.children = vec![ids[1], ids[1], ids[4], ids[5], ids[6], ids[4], ids[5]];
         let mut boxed_marks = Vec::new();
         let boxed = memo
-            .positive_value_with(ids[7], &mut |row, polarity| {
+            .positive_value_with(&test_source_meter, ids[7], &mut |row, polarity| {
                 boxed_marks.push((row, polarity));
                 Ok(())
             })
@@ -1674,7 +1726,7 @@ mod flat_tests {
         let NodeRef::Positive(root_id) = root else {
             panic!("wrong root polarity")
         };
-        assert_eq!(expand_positive(&flat, root_id), boxed);
+        assert_eq!(expand_positive(&test_source_meter, &flat, root_id), boxed);
         let PositiveNode::Union(span) = flat.positive_nodes[root_id.0 as usize] else {
             panic!("wrong root kind")
         };
@@ -1684,7 +1736,7 @@ mod flat_tests {
         assert_ne!(children[1], children[2]);
         let mut boxed_negative_marks = Vec::new();
         let boxed_negative = memo
-            .negative_value_with(ids[3], &mut |row, polarity| {
+            .negative_value_with(&test_source_meter, ids[3], &mut |row, polarity| {
                 boxed_negative_marks.push((row, polarity));
                 Ok(())
             })
@@ -1701,7 +1753,10 @@ mod flat_tests {
             panic!("wrong negative root polarity");
         };
         assert_eq!(flat_negative_marks, boxed_negative_marks);
-        assert_eq!(expand_negative(&flat, negative_root), boxed_negative);
+        assert_eq!(
+            expand_negative(&test_source_meter, &flat, negative_root),
+            boxed_negative
+        );
     }
 
     #[test]
@@ -1840,6 +1895,7 @@ mod flat_tests {
 
     #[test]
     fn summary_flat_preserves_both_functions_and_intersection() {
+        let test_source_meter = DraftHeapMeter::default();
         use super::super::f5c_draft::{ChildSpan, NegativeId, PositiveId};
         let mut memo = F5cComponentExpansionMemo::default();
         let kinds = [
@@ -1914,8 +1970,12 @@ mod flat_tests {
             flat.negative_children,
             vec![NegativeId(0), NegativeId(1), NegativeId(3), NegativeId(4)]
         );
-        let boxed_positive = memo.positive_value(F5cSummaryNodeId(4)).unwrap();
-        let boxed_negative = memo.negative_value(F5cSummaryNodeId(5)).unwrap();
+        let boxed_positive = memo
+            .positive_value(&test_source_meter, F5cSummaryNodeId(4))
+            .unwrap();
+        let boxed_negative = memo
+            .negative_value(&test_source_meter, F5cSummaryNodeId(5))
+            .unwrap();
         assert!(
             matches!(boxed_positive, F5cPositive::Function { argument, result, .. }
             if matches!(*argument, F5cNegative::Intersection(_)) && matches!(*result, F5cPositive::Int))
@@ -1928,6 +1988,7 @@ mod flat_tests {
 
     #[test]
     fn composed_flat_replay_substitute_normalize_matches_boxed() {
+        let test_source_meter = DraftHeapMeter::default();
         use super::super::f5c_draft::RecursiveBound;
         use crate::{
             F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect, F5cRecursiveBound,
@@ -1962,25 +2023,31 @@ mod flat_tests {
             .unwrap();
         let negative_intersection = summary
             .negative_node(
-                &F5cNegative::Intersection(vec![
-                    F5cNegative::Shared(negative_two),
-                    F5cNegative::Shared(negative_three),
-                    F5cNegative::Shared(negative_four),
-                    F5cNegative::Shared(negative_two),
-                    F5cNegative::Shared(negative_six),
-                ]),
+                &F5cNegative::Intersection(test_tracked(
+                    &test_source_meter,
+                    vec![
+                        F5cNegative::Shared(negative_two),
+                        F5cNegative::Shared(negative_three),
+                        F5cNegative::Shared(negative_four),
+                        F5cNegative::Shared(negative_two),
+                        F5cNegative::Shared(negative_six),
+                    ],
+                )),
                 None,
             )
             .unwrap();
         let positive_union = summary
             .positive_node(
-                &F5cPositive::Union(vec![
-                    F5cPositive::Shared(positive_one),
-                    F5cPositive::Shared(positive_two),
-                    F5cPositive::Shared(positive_two),
-                    F5cPositive::Shared(positive_three),
-                    F5cPositive::Shared(positive_five),
-                ]),
+                &F5cPositive::Union(test_tracked(
+                    &test_source_meter,
+                    vec![
+                        F5cPositive::Shared(positive_one),
+                        F5cPositive::Shared(positive_two),
+                        F5cPositive::Shared(positive_two),
+                        F5cPositive::Shared(positive_three),
+                        F5cPositive::Shared(positive_five),
+                    ],
+                )),
                 None,
             )
             .unwrap();
@@ -2085,12 +2152,27 @@ mod flat_tests {
             source.negative_children[start],
             source.negative_children[start + 3]
         );
-        let raw_predicate = summary.positive_value(predicate_summary).unwrap();
-        let raw_lower = summary.positive_value(lower_summary).unwrap();
-        let raw_upper = summary.negative_value(upper_summary).unwrap();
-        assert_eq!(expand_positive(&source, predicate), raw_predicate);
-        assert_eq!(expand_positive(&source, lower), raw_lower);
-        assert_eq!(expand_negative(&source, upper), raw_upper);
+        let raw_predicate = summary
+            .positive_value(&test_source_meter, predicate_summary)
+            .unwrap();
+        let raw_lower = summary
+            .positive_value(&test_source_meter, lower_summary)
+            .unwrap();
+        let raw_upper = summary
+            .negative_value(&test_source_meter, upper_summary)
+            .unwrap();
+        assert_eq!(
+            expand_positive(&test_source_meter, &source, predicate),
+            raw_predicate
+        );
+        assert_eq!(
+            expand_positive(&test_source_meter, &source, lower),
+            raw_lower
+        );
+        assert_eq!(
+            expand_negative(&test_source_meter, &source, upper),
+            raw_upper
+        );
 
         let protected = HashSet::from([3]);
         let positive_only = HashSet::from([1, 3]);
@@ -2186,6 +2268,7 @@ mod flat_tests {
 
         let mut boxed_memo = F5cComponentExpansionMemo::default();
         let replayed_predicate = crate::f5c_replay::replay_positive(
+            &test_source_meter,
             &mut boxed_memo,
             &raw_predicate,
             &protected,
@@ -2194,6 +2277,7 @@ mod flat_tests {
         )
         .unwrap();
         let replayed_lower = crate::f5c_replay::replay_positive(
+            &test_source_meter,
             &mut boxed_memo,
             &raw_lower,
             &protected,
@@ -2202,6 +2286,7 @@ mod flat_tests {
         )
         .unwrap();
         let replayed_upper = crate::f5c_replay::replay_negative(
+            &test_source_meter,
             &mut boxed_memo,
             &raw_upper,
             &protected,
@@ -2212,6 +2297,7 @@ mod flat_tests {
         let mut boxed = [GeneralizationDraft {
             quantifier_count: source.quantifier_count,
             predicate: crate::f5c_binder_substitution::substitute_positive(
+                &test_source_meter,
                 &mut boxed_memo,
                 replayed_predicate,
                 &q,
@@ -2223,6 +2309,7 @@ mod flat_tests {
             recursive_bounds: vec![F5cRecursiveBound {
                 ordinal: 1,
                 lower: crate::f5c_binder_substitution::substitute_positive(
+                    &test_source_meter,
                     &mut boxed_memo,
                     replayed_lower,
                     &q,
@@ -2232,6 +2319,7 @@ mod flat_tests {
                 )
                 .unwrap(),
                 upper: crate::f5c_binder_substitution::substitute_negative(
+                    &test_source_meter,
                     &mut boxed_memo,
                     replayed_upper,
                     &q,
@@ -2242,12 +2330,17 @@ mod flat_tests {
                 .unwrap(),
             }],
         }];
-        let boxed_stats = crate::f5c_normalization::normalize_component(&mut boxed).unwrap();
+        let boxed_stats =
+            crate::f5c_normalization::normalize_component(&test_source_meter, &mut boxed).unwrap();
 
         assert_selected_forest_is_compact(&normalized_flat);
         assert_eq!(normalized_flat.quantifier_count, boxed[0].quantifier_count);
         assert_eq!(
-            expand_positive(&normalized_flat, normalized_flat.predicate.unwrap()),
+            expand_positive(
+                &test_source_meter,
+                &normalized_flat,
+                normalized_flat.predicate.unwrap()
+            ),
             boxed[0].predicate
         );
         assert_eq!(normalized_flat.recursive_bounds.len(), 1);
@@ -2256,11 +2349,19 @@ mod flat_tests {
             boxed[0].recursive_bounds[0].ordinal
         );
         assert_eq!(
-            expand_positive(&normalized_flat, normalized_flat.recursive_bounds[0].lower),
+            expand_positive(
+                &test_source_meter,
+                &normalized_flat,
+                normalized_flat.recursive_bounds[0].lower
+            ),
             boxed[0].recursive_bounds[0].lower
         );
         assert_eq!(
-            expand_negative(&normalized_flat, normalized_flat.recursive_bounds[0].upper),
+            expand_negative(
+                &test_source_meter,
+                &normalized_flat,
+                normalized_flat.recursive_bounds[0].upper
+            ),
             boxed[0].recursive_bounds[0].upper
         );
         let PositiveNode::Function {

@@ -46,10 +46,11 @@ fn walk_values_equal(first: &F5cWalkValue, second: &F5cWalkValue) -> bool {
 
 #[test]
 fn f5c_work_materialized_incidence_overflow_preserves_order_for_retry() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-incidence-overflow"));
     let mut session = InferenceSession::new(batch);
     let row = session.fresh_value_at_level(1).unwrap();
-    let mut generalizer = F5cGeneralizer::new(&session);
+    let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
     let id = generalizer
         .memo
         .positive_node(&F5cPositive::Int, Some((row, Polarity::Positive)))
@@ -101,9 +102,16 @@ fn f5c_work_order_registration_charges_first_seen_and_revisit() {
 
 #[test]
 fn f5c_work_summary_materialization_bulk_drain_overflow_retries_both_polarities() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut memo = F5cComponentExpansionMemo::default();
-    let positive = F5cPositive::Union(vec![F5cPositive::Int, F5cPositive::Bottom]);
-    let negative = F5cNegative::Intersection(vec![F5cNegative::Int, F5cNegative::Bottom]);
+    let positive = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![F5cPositive::Int, F5cPositive::Bottom],
+    ));
+    let negative = F5cNegative::Intersection(test_tracked(
+        &test_source_meter,
+        vec![F5cNegative::Int, F5cNegative::Bottom],
+    ));
     let positive_root = memo.positive_node(&positive, None).unwrap();
     let negative_root = memo.negative_node(&negative, None).unwrap();
     let meter = memo.work_meter.clone();
@@ -111,19 +119,20 @@ fn f5c_work_summary_materialization_bulk_drain_overflow_retries_both_polarities(
     assert_bulk_drain_overflow_retries(
         F5cBulkDrainSite::SummaryPositive,
         &meter,
-        || memo.positive_value(positive_root),
+        || memo.positive_value(&test_source_meter, positive_root),
         |first, second| first == second,
     );
     assert_bulk_drain_overflow_retries(
         F5cBulkDrainSite::SummaryNegative,
         &meter,
-        || memo.negative_value(negative_root),
+        || memo.negative_value(&test_source_meter, negative_root),
         |first, second| first == second,
     );
 }
 
 #[test]
 fn f5c_work_generalizer_row_drain_overflow_retries_both_polarities() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-row-drain-overflow"));
     let mut session = InferenceSession::new(batch);
     let positive_row = session.fresh_value_at_level(1).unwrap();
@@ -140,11 +149,13 @@ fn f5c_work_generalizer_row_drain_overflow_retries_both_polarities() {
         F5cBulkDrainSite::RowPositive,
         &meter,
         || {
-            F5cGeneralizer::new(&session).walk(F5cWalkTask::EnterRow {
-                row: positive_row,
-                polarity: Polarity::Positive,
-                root: true,
-            })
+            F5cGeneralizer::with_source_meter(&session, &test_source_meter).walk(
+                F5cWalkTask::EnterRow {
+                    row: positive_row,
+                    polarity: Polarity::Positive,
+                    root: true,
+                },
+            )
         },
         walk_values_equal,
     );
@@ -152,11 +163,13 @@ fn f5c_work_generalizer_row_drain_overflow_retries_both_polarities() {
         F5cBulkDrainSite::RowNegative,
         &meter,
         || {
-            F5cGeneralizer::new(&session).walk(F5cWalkTask::EnterRow {
-                row: negative_row,
-                polarity: Polarity::Negative,
-                root: true,
-            })
+            F5cGeneralizer::with_source_meter(&session, &test_source_meter).walk(
+                F5cWalkTask::EnterRow {
+                    row: negative_row,
+                    polarity: Polarity::Negative,
+                    root: true,
+                },
+            )
         },
         walk_values_equal,
     );
@@ -164,9 +177,16 @@ fn f5c_work_generalizer_row_drain_overflow_retries_both_polarities() {
 
 #[test]
 fn f5c_work_replay_bulk_drain_overflow_retries_both_polarities() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut memo = F5cComponentExpansionMemo::default();
-    let positive = F5cPositive::Union(vec![F5cPositive::Int, F5cPositive::Bottom]);
-    let negative = F5cNegative::Intersection(vec![F5cNegative::Int, F5cNegative::Bottom]);
+    let positive = F5cPositive::Union(test_tracked(
+        &test_source_meter,
+        vec![F5cPositive::Int, F5cPositive::Bottom],
+    ));
+    let negative = F5cNegative::Intersection(test_tracked(
+        &test_source_meter,
+        vec![F5cNegative::Int, F5cNegative::Bottom],
+    ));
     let protected = HashSet::new();
     let positive_only = HashSet::new();
     let negative_only = HashSet::new();
@@ -177,6 +197,7 @@ fn f5c_work_replay_bulk_drain_overflow_retries_both_polarities() {
         &meter,
         || {
             crate::f5c_replay::replay_positive(
+                &test_source_meter,
                 &mut memo,
                 &positive,
                 &protected,
@@ -191,6 +212,7 @@ fn f5c_work_replay_bulk_drain_overflow_retries_both_polarities() {
         &meter,
         || {
             crate::f5c_replay::replay_negative(
+                &test_source_meter,
                 &mut memo,
                 &negative,
                 &protected,
@@ -204,9 +226,20 @@ fn f5c_work_replay_bulk_drain_overflow_retries_both_polarities() {
 
 #[test]
 fn f5c_work_substitution_bulk_drain_overflow_retries_both_polarities() {
+    let test_source_meter = DraftHeapMeter::default();
     let mut memo = F5cComponentExpansionMemo::default();
-    let positive = F5cPositive::Union(vec![F5cPositive::Int, F5cPositive::Bottom]);
-    let negative = F5cNegative::Intersection(vec![F5cNegative::Int, F5cNegative::Bottom]);
+    let positive = || {
+        F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![F5cPositive::Int, F5cPositive::Bottom],
+        ))
+    };
+    let negative = || {
+        F5cNegative::Intersection(test_tracked(
+            &test_source_meter,
+            vec![F5cNegative::Int, F5cNegative::Bottom],
+        ))
+    };
     let q = HashMap::new();
     let r = HashMap::new();
     let positive_eliminated = HashSet::new();
@@ -218,8 +251,9 @@ fn f5c_work_substitution_bulk_drain_overflow_retries_both_polarities() {
         &meter,
         || {
             crate::f5c_binder_substitution::substitute_positive(
+                &test_source_meter,
                 &mut memo,
-                positive.clone(),
+                positive(),
                 &q,
                 &r,
                 &positive_eliminated,
@@ -233,8 +267,9 @@ fn f5c_work_substitution_bulk_drain_overflow_retries_both_polarities() {
         &meter,
         || {
             crate::f5c_binder_substitution::substitute_negative(
+                &test_source_meter,
                 &mut memo,
-                negative.clone(),
+                negative(),
                 &q,
                 &r,
                 &positive_eliminated,
@@ -247,6 +282,7 @@ fn f5c_work_substitution_bulk_drain_overflow_retries_both_polarities() {
 
 #[test]
 fn f5c_work_function_output_overflow_precedes_construction_and_rolls_back() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-function-output-overflow"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -265,7 +301,8 @@ fn f5c_work_function_output_overflow_precedes_construction_and_rolls_back() {
     session.bounds[root as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::PositiveFunction(function));
-    let (baseline, _, _, _) = F5cGeneralizer::new(&session).build_component(root);
+    let (baseline, _, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(root);
     let baseline = baseline.unwrap();
     let baseline_work = session.f5c_draft_work.get();
     let (at_construction, count) =
@@ -276,7 +313,8 @@ fn f5c_work_function_output_overflow_precedes_construction_and_rolls_back() {
     session
         .f5c_draft_work
         .set(usize::MAX - (at_construction - 1));
-    let (failed, memo, _, _) = F5cGeneralizer::new(&session).build_component(root);
+    let (failed, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(root);
     assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
     assert_eq!(
         F5C_FUNCTION_OUTPUT_CONSTRUCTION.with(|marker| marker.take()),
@@ -285,13 +323,15 @@ fn f5c_work_function_output_overflow_precedes_construction_and_rolls_back() {
     assert!(memo.roots.is_empty() && memo.nodes.is_empty() && memo.children.is_empty());
     assert!(memo.active_rows.is_empty() && memo.root_undo.is_empty());
     session.f5c_draft_work.set(0);
-    let (retry, _, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (retry, _, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(retry, Ok(baseline));
     assert_eq!(session.f5c_draft_work.get(), baseline_work);
 }
 
 #[test]
 fn f5c_work_taint_frame_overflow_precedes_mutation_and_component_restores_state() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-taint-frame-overflow"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -319,7 +359,8 @@ fn f5c_work_taint_frame_overflow_precedes_mutation_and_component_restores_state(
     session.bounds[row as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::PositiveFunction(function));
-    let (baseline, _, _, _) = F5cGeneralizer::new(&session).build_component(root);
+    let (baseline, _, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(root);
     let baseline = baseline.unwrap();
     let baseline_work = session.f5c_draft_work.get();
     let (boundary_work, frames) = F5C_TAINT_BOUNDARY.with(|boundary| boundary.take().unwrap());
@@ -327,7 +368,8 @@ fn f5c_work_taint_frame_overflow_precedes_mutation_and_component_restores_state(
     assert!(baseline_work > boundary_work);
 
     session.f5c_draft_work.set(usize::MAX - boundary_work);
-    let (result, memo, _, _) = F5cGeneralizer::new(&session).build_component(root);
+    let (result, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(root);
     assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
     assert_eq!(session.f5c_draft_work.get(), usize::MAX);
     assert_eq!(
@@ -345,7 +387,8 @@ fn f5c_work_taint_frame_overflow_precedes_mutation_and_component_restores_state(
     assert_eq!((memo.visit_epoch, memo.root_edge_mark_epoch), (0, 0));
     assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
     session.f5c_draft_work.set(0);
-    let (retry, _, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (retry, _, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(retry, Ok(baseline));
     assert_eq!(session.f5c_draft_work.get(), baseline_work);
 }
@@ -372,6 +415,7 @@ fn f5c_work_charges_child_inspection_separately_from_scheduling() {
 
 #[test]
 fn f5c_work_charges_emitted_values_and_stored_direct_edges() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-walk-operation-counts"));
     let mut session = InferenceSession::new(batch);
     let leaf = session.fresh_value_at_level(1).unwrap();
@@ -380,11 +424,13 @@ fn f5c_work_charges_emitted_values_and_stored_direct_edges() {
         .exact_non_variable_lowers
         .push(ValueEndpointKey::IntPositive);
     session.bounds[parent as usize].direct_lower_rows.push(leaf);
-    let leaf_walk = F5cGeneralizer::new(&session).positive_row(leaf, false);
+    let leaf_walk =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).positive_row(leaf, false);
     assert!(matches!(leaf_walk, Ok(F5cPositive::Shared(_))));
     let leaf_work = session.f5c_draft_work.get();
     session.f5c_draft_work.set(0);
-    let parent_walk = F5cGeneralizer::new(&session).positive_row(parent, false);
+    let parent_walk =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).positive_row(parent, false);
     assert!(matches!(parent_walk, Ok(F5cPositive::Shared(_))));
     let parent_work = session.f5c_draft_work.get();
     assert_eq!(leaf_work, 23); // emitted values and first-seen order registration
@@ -393,6 +439,7 @@ fn f5c_work_charges_emitted_values_and_stored_direct_edges() {
 
 #[test]
 fn f5c_work_accumulates_across_component_roots() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-work-accumulation"));
     let mut session = InferenceSession::new(batch);
     let first = session.fresh_value_at_level(1).unwrap();
@@ -407,17 +454,20 @@ fn f5c_work_accumulates_across_component_roots() {
     session.bounds[second as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::ValueRow(child));
-    let (result, _, _, _) = F5cGeneralizer::new(&session).build_component(first);
+    let (result, _, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(first);
     assert!(result.is_ok());
     let after_first = session.f5c_draft_work.get();
     assert!(after_first > 0);
-    let (result, _, _, _) = F5cGeneralizer::new(&session).build_component(second);
+    let (result, _, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(second);
     assert!(result.is_ok());
     assert!(session.f5c_draft_work.get() > after_first);
 }
 
 #[test]
 fn f5c_work_survives_later_component_failure_and_memo_rollback() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-work-failure"));
     let mut session = InferenceSession::new(batch);
     let first = session.fresh_value_at_level(1).unwrap();
@@ -432,13 +482,15 @@ fn f5c_work_survives_later_component_failure_and_memo_rollback() {
     session.bounds[second as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::ValueRow(child));
-    let (result, mut memo, _, _) = F5cGeneralizer::new(&session).build_component(first);
+    let (result, mut memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(first);
     assert!(result.is_ok());
     let after_first = session.f5c_draft_work.get();
     let before_roots = memo.roots.clone();
     let before_nodes = memo.nodes.clone();
     memo.fail_reserve_at = Some((F5cTestReserveFailure::RootUndo, 0));
-    let (result, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 1).build_component(second);
+    let (result, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 1).build_component(second);
     assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
     assert!(session.f5c_draft_work.get() > after_first);
     assert_eq!(memo.roots, before_roots);
@@ -449,6 +501,7 @@ fn f5c_work_survives_later_component_failure_and_memo_rollback() {
 
 #[test]
 fn f5c_work_overflow_rolls_back_and_repeats_cleanly() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module("my f = 1", "f5c-work-overflow"));
     let mut session = InferenceSession::new(batch);
     let root = session.fresh_value_at_level(1).unwrap();
@@ -470,7 +523,8 @@ fn f5c_work_overflow_rolls_back_and_repeats_cleanly() {
     session.bounds[warm as usize]
         .exact_non_variable_lowers
         .push(ValueEndpointKey::ValueRow(child));
-    let (success, memo, _, _) = F5cGeneralizer::new(&session).build_component(warm);
+    let (success, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(warm);
     assert!(success.is_ok());
     let warm_work = session.f5c_draft_work.get();
     assert!(!memo.roots.is_empty() && !memo.nodes.is_empty() && !memo.incidences.is_empty());
@@ -479,12 +533,14 @@ fn f5c_work_overflow_rolls_back_and_repeats_cleanly() {
         polarity: Polarity::Positive,
         frozen_bound_epoch: 0,
     }];
-    let (success, _, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (success, _, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert!(success.is_ok());
     let later_work = session.f5c_draft_work.get() - warm_work;
     assert!(later_work > 3);
     session.f5c_draft_work.set(0);
-    let (success, memo, _, _) = F5cGeneralizer::new(&session).build_component(warm);
+    let (success, memo, _, _) =
+        F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(warm);
     assert!(success.is_ok());
     let before_state = (
         memo.roots.clone(),
@@ -500,7 +556,8 @@ fn f5c_work_overflow_rolls_back_and_repeats_cleanly() {
     );
     session.f5c_draft_work.arm_overflow_after_root_admission(1);
     let before = session.f5c_draft_work.get();
-    let (first, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (first, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(first, Err(SolveAvailabilityError::IdentityExhausted));
     assert_eq!(session.f5c_draft_work.get(), usize::MAX);
     let mutation = session
@@ -530,7 +587,8 @@ fn f5c_work_overflow_rolls_back_and_repeats_cleanly() {
     assert_eq!(memo.visit_epoch, 0);
     assert_eq!(memo.root_edge_mark_epoch, 0);
     assert_eq!(memo.generalizer_scratch_capacities, [0; 4]);
-    let (second, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (second, memo, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert_eq!(second, Err(SolveAvailabilityError::IdentityExhausted));
     assert_eq!(session.f5c_draft_work.get(), usize::MAX);
     assert_eq!(
@@ -550,14 +608,15 @@ fn f5c_work_overflow_rolls_back_and_repeats_cleanly() {
     );
     assert!(memo.active_rows.is_empty() && memo.root_undo.is_empty());
     session.f5c_draft_work.set(0);
-    let mut raw = F5cGeneralizer::with_memo(&session, memo, 0);
+    let mut raw = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0);
     assert_eq!(
         raw.positive_row(child, false),
         Ok(F5cPositive::Shared(warm_summary))
     );
     let memo = raw.memo;
     session.f5c_draft_work.set(0);
-    let (retry, _, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+    let (retry, _, _, _) =
+        F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
     assert!(retry.is_ok());
     assert_eq!(session.f5c_draft_work.get(), later_work);
 }

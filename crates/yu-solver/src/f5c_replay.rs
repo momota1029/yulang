@@ -4,8 +4,8 @@ use super::f5c_draft::{
 #[cfg(test)]
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
-    F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive, F5cPositiveEffect,
-    F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError,
+    DraftHeapMeter, F5cComponentExpansionMemo, F5cNegative, F5cNegativeEffect, F5cPositive,
+    F5cPositiveEffect, F5cWalkValue, F5cWalkerLaneKind, SolveAvailabilityError, TrackedVec,
 };
 use std::collections::HashSet;
 
@@ -26,9 +26,9 @@ pub(super) fn failed_after_flat_output_count() -> usize {
     FAILED_AFTER_OUTPUT_COUNT.with(std::cell::Cell::get)
 }
 
-pub(super) enum Task<'tree> {
-    Positive(&'tree F5cPositive),
-    Negative(&'tree F5cNegative),
+pub(super) enum Task<'tree, 'meter> {
+    Positive(&'tree F5cPositive<'meter>),
+    Negative(&'tree F5cNegative<'meter>),
     FinishPositiveUnion(usize),
     FinishNegativeIntersection(usize),
     FinishPositiveFunction,
@@ -454,14 +454,16 @@ pub(super) fn replay_flat(
     result
 }
 
-pub(super) fn replay_positive(
+pub(super) fn replay_positive<'meter>(
+    source_meter: &'meter DraftHeapMeter,
     memo: &mut F5cComponentExpansionMemo,
-    value: &F5cPositive,
+    value: &F5cPositive<'meter>,
     protected: &HashSet<u32>,
     positive_only: &HashSet<u32>,
     negative_only: &HashSet<u32>,
-) -> Result<F5cPositive, SolveAvailabilityError> {
+) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
     match replay(
+        source_meter,
         memo,
         Task::Positive(value),
         protected,
@@ -473,14 +475,16 @@ pub(super) fn replay_positive(
     }
 }
 
-pub(super) fn replay_negative(
+pub(super) fn replay_negative<'meter>(
+    source_meter: &'meter DraftHeapMeter,
     memo: &mut F5cComponentExpansionMemo,
-    value: &F5cNegative,
+    value: &F5cNegative<'meter>,
     protected: &HashSet<u32>,
     positive_only: &HashSet<u32>,
     negative_only: &HashSet<u32>,
-) -> Result<F5cNegative, SolveAvailabilityError> {
+) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
     match replay(
+        source_meter,
         memo,
         Task::Negative(value),
         protected,
@@ -492,26 +496,35 @@ pub(super) fn replay_negative(
     }
 }
 
-fn replay(
+fn replay<'meter>(
+    source_meter: &'meter DraftHeapMeter,
     memo: &mut F5cComponentExpansionMemo,
-    first: Task<'_>,
+    first: Task<'_, 'meter>,
     protected: &HashSet<u32>,
     positive_only: &HashSet<u32>,
     negative_only: &HashSet<u32>,
-) -> Result<F5cWalkValue, SolveAvailabilityError> {
+) -> Result<F5cWalkValue<'meter>, SolveAvailabilityError> {
     let mut tasks = Vec::new();
     let mut values = Vec::new();
     macro_rules! push_task {
         ($task:expr) => {{
             memo.work_meter.charge(1)?; // scheduled replay task
-            memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::ReplayTasks)?;
+            memo.reserve_walker_with_source(
+                &mut tasks,
+                F5cWalkerLaneKind::ReplayTasks,
+                source_meter,
+            )?;
             tasks.push($task);
         }};
     }
     macro_rules! push_value {
         ($value:expr) => {{
             memo.work_meter.charge(1)?; // emitted replay value
-            memo.reserve_walker(&mut values, F5cWalkerLaneKind::ReplayValues)?;
+            memo.reserve_walker_with_source(
+                &mut values,
+                F5cWalkerLaneKind::ReplayValues,
+                source_meter,
+            )?;
             values.push($value);
         }};
     }
@@ -545,8 +558,21 @@ fn replay(
                             push_task!(Task::Positive(child));
                         }
                     }
-                    other => {
-                        push_value!(F5cWalkValue::Positive(other.clone(), true));
+                    F5cPositive::Bottom => {
+                        push_value!(F5cWalkValue::Positive(F5cPositive::Bottom, true))
+                    }
+                    F5cPositive::Int => push_value!(F5cWalkValue::Positive(F5cPositive::Int, true)),
+                    F5cPositive::Variable(row) => {
+                        push_value!(F5cWalkValue::Positive(F5cPositive::Variable(*row), true))
+                    }
+                    F5cPositive::Quantified(row) => {
+                        push_value!(F5cWalkValue::Positive(F5cPositive::Quantified(*row), true))
+                    }
+                    F5cPositive::Recursive(row) => {
+                        push_value!(F5cWalkValue::Positive(F5cPositive::Recursive(*row), true))
+                    }
+                    F5cPositive::Shared(id) => {
+                        push_value!(F5cWalkValue::Positive(F5cPositive::Shared(*id), true))
                     }
                 },
                 Task::Negative(value) => match value {
@@ -572,8 +598,22 @@ fn replay(
                             push_task!(Task::Negative(child));
                         }
                     }
-                    other => {
-                        push_value!(F5cWalkValue::Negative(other.clone(), true));
+                    F5cNegative::Top => push_value!(F5cWalkValue::Negative(F5cNegative::Top, true)),
+                    F5cNegative::Bottom => {
+                        push_value!(F5cWalkValue::Negative(F5cNegative::Bottom, true))
+                    }
+                    F5cNegative::Int => push_value!(F5cWalkValue::Negative(F5cNegative::Int, true)),
+                    F5cNegative::Variable(row) => {
+                        push_value!(F5cWalkValue::Negative(F5cNegative::Variable(*row), true))
+                    }
+                    F5cNegative::Quantified(row) => {
+                        push_value!(F5cWalkValue::Negative(F5cNegative::Quantified(*row), true))
+                    }
+                    F5cNegative::Recursive(row) => {
+                        push_value!(F5cWalkValue::Negative(F5cNegative::Recursive(*row), true))
+                    }
+                    F5cNegative::Shared(id) => {
+                        push_value!(F5cWalkValue::Negative(F5cNegative::Shared(*id), true))
                     }
                 },
                 Task::FinishPositiveUnion(start) => {
@@ -589,13 +629,17 @@ fn replay(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = Vec::new();
+                    let mut children = TrackedVec::new(source_meter);
                     memo.work_meter.charge(count)?;
+                    memo.observe_component_external(source_meter)?;
+                    children
+                        .try_reserve_exact(count)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Positive(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        children.push(value);
+                        children.push_reserved(value);
                     }
                     push_value!(F5cWalkValue::Positive(F5cPositive::Union(children), true));
                 }
@@ -612,13 +656,17 @@ fn replay(
                         &memo.work_meter,
                         count,
                     );
-                    let mut children = Vec::new();
+                    let mut children = TrackedVec::new(source_meter);
                     memo.work_meter.charge(count)?;
+                    memo.observe_component_external(source_meter)?;
+                    children
+                        .try_reserve_exact(count)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for value in values.drain(start..) {
                         let F5cWalkValue::Negative(value, _) = value else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        children.push(value);
+                        children.push_reserved(value);
                     }
                     push_value!(F5cWalkValue::Negative(
                         F5cNegative::Intersection(children),
@@ -680,9 +728,7 @@ fn replay(
             .pop()
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     })();
-    memo.walker_resources
-        .release(F5cWalkerLaneKind::ReplayTasks);
-    memo.walker_resources
-        .release(F5cWalkerLaneKind::ReplayValues);
+    memo.release_walker_with_source(F5cWalkerLaneKind::ReplayTasks, source_meter)?;
+    memo.release_walker_with_source(F5cWalkerLaneKind::ReplayValues, source_meter)?;
     result
 }

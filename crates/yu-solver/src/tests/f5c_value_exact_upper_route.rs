@@ -812,6 +812,7 @@ fn f5c_store_changed_failed_reserves_keep_one_outer_sample() {
 
 #[test]
 fn f5c_incoming_value_undo_growth_precedes_later_provenance_failure() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module(
         "my source = 1; my sink = source",
         "f5c-value-undo-later-failure",
@@ -821,15 +822,18 @@ fn f5c_incoming_value_undo_growth_precedes_later_provenance_failure() {
     let draft = GeneralizationDraft {
         quantifier_count: 0,
         recursive_bounds: Vec::new(),
-        predicate: F5cPositive::Union(vec![
-            F5cPositive::Int,
-            F5cPositive::Function {
-                argument: Box::new(F5cNegative::Top),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Int),
-            },
-        ]),
+        predicate: F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Int),
+                },
+            ],
+        )),
     };
     let finalized = InferenceSession::finalize_generalization_draft(
         session.finalization.as_mut().unwrap(),
@@ -992,6 +996,7 @@ fn f5c_incoming_value_undo_growth_precedes_later_provenance_failure() {
 }
 
 fn check_journal_key_changed_reserve(reported: bool) {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module(
         "my source = 1; my sink = source",
         "f5c-journal-key-route",
@@ -1002,15 +1007,18 @@ fn check_journal_key_changed_reserve(reported: bool) {
         quantifier_count: 1,
         recursive_bounds: Vec::new(),
         predicate: if reported {
-            F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Quantified(0)),
-                },
-            ])
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Int,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Quantified(0)),
+                    },
+                ],
+            ))
         } else {
             F5cPositive::Quantified(0)
         },
@@ -1471,6 +1479,7 @@ fn f5c_incoming_journal_value_seen_changed_failure_samples_once_after_setup() {
 
 #[test]
 fn f5c_incoming_reported_errors_growth_samples_after_first_union_member_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module(
         "my source = 1; my sink = source",
         "f5c-reported-errors-route",
@@ -1480,15 +1489,18 @@ fn f5c_incoming_reported_errors_growth_samples_after_first_union_member_and_retr
     let draft = GeneralizationDraft {
         quantifier_count: 1,
         recursive_bounds: Vec::new(),
-        predicate: F5cPositive::Union(vec![
-            F5cPositive::Int,
-            F5cPositive::Function {
-                argument: Box::new(F5cNegative::Top),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Quantified(0)),
-            },
-        ]),
+        predicate: F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Quantified(0)),
+                },
+            ],
+        )),
     };
     let finalized = InferenceSession::finalize_generalization_draft(
         session.finalization.as_mut().unwrap(),
@@ -1722,6 +1734,7 @@ fn f5c_incoming_reported_errors_growth_samples_after_first_union_member_and_retr
 
 #[test]
 fn f5c_incoming_errors_growth_samples_after_first_union_member_and_retries() {
+    let test_source_meter = DraftHeapMeter::default();
     let batch = collect(module(
         "my source = 1; my sink = source",
         "f5c-errors-route",
@@ -1731,15 +1744,18 @@ fn f5c_incoming_errors_growth_samples_after_first_union_member_and_retries() {
     let draft = GeneralizationDraft {
         quantifier_count: 1,
         recursive_bounds: Vec::new(),
-        predicate: F5cPositive::Union(vec![
-            F5cPositive::Int,
-            F5cPositive::Function {
-                argument: Box::new(F5cNegative::Top),
-                argument_effect: F5cNegativeEffect::Empty,
-                result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Quantified(0)),
-            },
-        ]),
+        predicate: F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![
+                F5cPositive::Int,
+                F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Top),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Quantified(0)),
+                },
+            ],
+        )),
     };
     let finalized = InferenceSession::finalize_generalization_draft(
         session.finalization.as_mut().unwrap(),
@@ -2079,6 +2095,7 @@ enum IncomingRouteReserveLane {
 }
 
 fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
+    let test_source_meter = DraftHeapMeter::default();
     let (module_name, trace_name, lane_name, injected_lane, slot_size) = match lane {
         IncomingRouteReserveLane::TypedPairs => (
             "f5c-typed-pairs-route",
@@ -2228,15 +2245,18 @@ fn check_incoming_route_changed_reserve(lane: IncomingRouteReserveLane) {
                 | IncomingRouteReserveLane::BucketTails
                 | IncomingRouteReserveLane::BucketCandidates
         ) {
-            F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Quantified(0)),
-                },
-            ])
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Int,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Quantified(0)),
+                    },
+                ],
+            ))
         } else {
             F5cPositive::Quantified(0)
         },

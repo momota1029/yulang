@@ -183,6 +183,34 @@ mod f5c_draft;
 #[allow(dead_code)] // The physical source-draft owners await the next migration slice.
 mod f5c_draft_heap;
 use f5c_draft_heap::{DraftHeapMeter, TrackedAllocation, TrackedVec};
+
+#[cfg(test)]
+trait IntoTestTracked<'meter, T> {
+    fn into_test_tracked(self, meter: &'meter DraftHeapMeter) -> TrackedVec<'meter, T>;
+}
+
+#[cfg(test)]
+impl<'meter, T> IntoTestTracked<'meter, T> for Vec<T> {
+    fn into_test_tracked(self, meter: &'meter DraftHeapMeter) -> TrackedVec<'meter, T> {
+        TrackedVec::try_adopt_raw(meter, self)
+            .unwrap_or_else(|(_, ())| panic!("test source allocation accounting failed"))
+    }
+}
+
+#[cfg(test)]
+impl<'meter, T> IntoTestTracked<'meter, T> for TrackedVec<'meter, T> {
+    fn into_test_tracked(self, _: &'meter DraftHeapMeter) -> TrackedVec<'meter, T> {
+        self
+    }
+}
+
+#[cfg(test)]
+fn test_tracked<'meter, T>(
+    meter: &'meter DraftHeapMeter,
+    values: impl IntoTestTracked<'meter, T>,
+) -> TrackedVec<'meter, T> {
+    values.into_test_tracked(meter)
+}
 mod f5c_generalization;
 #[cfg(test)]
 use f5c_generalization::{
@@ -4062,10 +4090,27 @@ impl IndependentResourceLedger {
     fn record_component_expansion_memo_with_source(
         &mut self,
         memo: &F5cComponentExpansionMemo,
-        _source_draft_bytes: usize,
+        source_draft_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.record_component_expansion_memo_with_sampled_source(
+            memo,
+            source_draft_bytes,
+            source_draft_bytes,
+        )
+    }
+
+    fn record_component_expansion_memo_with_sampled_source(
+        &mut self,
+        memo: &F5cComponentExpansionMemo,
+        source_draft_bytes: usize,
+        sampled_source_draft_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let mut next = self.clone();
-        next.record_component_expansion_memo_inner(memo)?;
+        next.record_component_expansion_memo_inner(
+            memo,
+            source_draft_bytes,
+            sampled_source_draft_bytes,
+        )?;
         *self = next;
         Ok(())
     }
@@ -4073,6 +4118,8 @@ impl IndependentResourceLedger {
     fn record_component_expansion_memo_inner(
         &mut self,
         memo: &F5cComponentExpansionMemo,
+        source_draft_bytes: usize,
+        sampled_source_draft_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let root_capacity = memo.roots.capacity();
         let node_capacity = memo.nodes.capacity();
@@ -4356,14 +4403,27 @@ impl IndependentResourceLedger {
         self.generalization_walker_peak_bytes = self
             .generalization_walker_peak_bytes
             .max(walker.independent_peak_bytes);
-        let expansion_peak = retained_bytes.max(walker.independent_simultaneous_memo_peak_bytes);
+        let physical = &walker.physical_joint;
+        if physical.aggregate_overflow {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let physical_peak = usize::try_from(physical.peak)
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let expansion_peak = source_draft_bytes
+            .checked_add(retained_bytes.max(walker.independent_simultaneous_memo_peak_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+            .max(physical_peak);
         self.semantic_arena_peak_bytes = self.semantic_arena_peak_bytes.max(
             self.semantic_arena_retained_bytes
+                .checked_sub(sampled_source_draft_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .checked_add(expansion_peak)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
         self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(
             self.inference_session_retained_bytes
+                .checked_sub(sampled_source_draft_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .checked_add(expansion_peak)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
@@ -9940,13 +10000,14 @@ impl InferenceSession {
         &mut self,
         memo: &F5cComponentExpansionMemo,
     ) -> Result<(), SolveAvailabilityError> {
-        self.record_component_expansion_memo_resources_with_source(memo, 0)
+        self.record_component_expansion_memo_resources_with_source(memo, 0, 0)
     }
 
     fn record_component_expansion_memo_resources_with_source(
         &mut self,
         memo: &F5cComponentExpansionMemo,
         source_draft_bytes: usize,
+        sampled_source_draft_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let requested_slots = memo.requested_slots()?;
         let actual_capacity = memo.actual_capacity()?;
@@ -9981,7 +10042,7 @@ impl InferenceSession {
         let semantic_peak = self.execution_counters.semantic_arena_peak_bytes.max(
             self.execution_counters
                 .semantic_arena_retained_bytes
-                .checked_sub(source_draft_bytes)
+                .checked_sub(sampled_source_draft_bytes)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .checked_add(simultaneous_peak)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
@@ -9989,14 +10050,18 @@ impl InferenceSession {
         let session_peak = self.execution_counters.inference_session_peak_bytes.max(
             self.execution_counters
                 .inference_session_retained_bytes
-                .checked_sub(source_draft_bytes)
+                .checked_sub(sampled_source_draft_bytes)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .checked_add(simultaneous_peak)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
         #[cfg(test)]
         self.resource_ledger
-            .record_component_expansion_memo_with_source(memo, source_draft_bytes)?;
+            .record_component_expansion_memo_with_sampled_source(
+                memo,
+                source_draft_bytes,
+                sampled_source_draft_bytes,
+            )?;
         self.execution_counters
             .component_expansion_memo_requested_slots = total_requested_slots;
         self.execution_counters
@@ -10151,6 +10216,9 @@ impl InferenceSession {
             let mut bound_sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&source_meter);
             let mut generalization_drafts = TrackedVec::new(&source_meter);
             let mut component_expansion_memo = F5cComponentExpansionMemo::default();
+            source_meter
+                .begin_component()
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             let initial_reserve = generalization_drafts.try_reserve_exact(members.len());
             #[cfg(test)]
             component_expansion_memo.observe_physical_source(
@@ -10158,7 +10226,7 @@ impl InferenceSession {
                 bound_sidecar.capacity(),
                 0,
             );
-            component_expansion_memo.observe_source_bytes(source_meter.current_bytes())?;
+            component_expansion_memo.observe_source_meter(&source_meter)?;
             let sidecar_reserve = if initial_reserve.is_ok() {
                 bound_sidecar.try_reserve_exact(members.len())
             } else {
@@ -10170,7 +10238,7 @@ impl InferenceSession {
                 bound_sidecar.capacity(),
                 0,
             );
-            component_expansion_memo.observe_source_bytes(source_meter.current_bytes())?;
+            component_expansion_memo.observe_source_meter(&source_meter)?;
             source_draft_bytes = source_meter
                 .current_bytes()
                 .and_then(|bytes| bytes.checked_add(DraftHeapMeter::fixed_payload_bytes()))
@@ -10192,6 +10260,11 @@ impl InferenceSession {
                 &source_meter,
             )?;
             sample_boundary!(ResourceBoundary::SourceDrafts)?;
+            // The normalization meter excludes the source slot payload counted
+            // by the F4 sample, so leave that payload in the retained baseline.
+            let sampled_source_draft_bytes = source_draft_bytes
+                .checked_sub(DraftHeapMeter::fixed_payload_bytes())
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             if initial_reserve.is_err() || sidecar_reserve.is_err() {
                 drop(generalization_drafts);
                 drop(bound_sidecar);
@@ -10218,6 +10291,7 @@ impl InferenceSession {
                         member,
                         component_expansion_memo,
                         frozen_bound_epoch,
+                        &source_meter,
                         Some(&mut bound_sidecar),
                     );
                 component_expansion_memo = returned_memo;
@@ -10233,9 +10307,11 @@ impl InferenceSession {
                 let draft = match draft {
                     Ok(draft) => draft,
                     Err(error) => {
+                        component_expansion_memo.capture_component_joint_peak(&source_meter)?;
                         self.record_component_expansion_memo_resources_with_source(
                             &component_expansion_memo,
                             source_draft_bytes,
+                            sampled_source_draft_bytes,
                         )?;
                         return Err(error);
                     }
@@ -10282,11 +10358,21 @@ impl InferenceSession {
                     &source_meter,
                 )?;
             }
+            component_expansion_memo.capture_component_joint_peak(&source_meter)?;
             self.record_component_expansion_memo_resources_with_source(
                 &component_expansion_memo,
                 source_draft_bytes,
+                sampled_source_draft_bytes,
             )?;
             component_expansion_memo.clear();
+            source_meter
+                .observe_component_external(0)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            #[cfg(test)]
+            source_meter
+                .observe_physical_component_external(0)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            source_meter.end_component();
             self.execution_counters
                 .component_expansion_memo_actual_capacity = 0;
             self.execution_counters
@@ -10299,14 +10385,18 @@ impl InferenceSession {
                 )?;
             let mut normalization_stats = f5c_normalization::NormalizationStats::default();
             let normalization_result = f5c_normalization::normalize_component_with_stats(
+                &source_meter,
                 generalization_drafts.as_mut_slice(),
                 &mut normalization_stats,
             );
             #[cfg(test)]
-            self.resource_ledger
-                .record_closed_normalization_index(&normalization_stats)?;
+            self.resource_ledger.record_closed_normalization_index(
+                &normalization_stats,
+                sampled_source_draft_bytes,
+            )?;
             f5c_normalization::record_production_counters(
                 &normalization_stats,
+                sampled_source_draft_bytes,
                 &mut self.execution_counters,
             )?;
             source_draft_bytes = source_meter
@@ -10456,7 +10546,9 @@ impl InferenceSession {
                     if observer.has_capacity() {
                         let use_record = self.batch.definition_use(&id).expect("plan-owned use");
                         let position = use_record.target.ordinal() as usize;
+                        let test_source_meter = DraftHeapMeter::default();
                         let kind = match Self::decode_closed_scheme(
+                            &test_source_meter,
                             self.finalization
                                 .as_ref()
                                 .expect("F4 finalization session remains live before finish"),
@@ -10525,10 +10617,11 @@ impl InferenceSession {
     }
 
     #[cfg(test)]
-    fn decode_positive_scheme(
+    fn decode_positive_scheme<'meter>(
+        source_meter: &'meter DraftHeapMeter,
         view: yu_types::ClosedValueSchemeView<'_>,
         id: yu_types::PositiveValueId,
-    ) -> Result<F5cPositive, SolveAvailabilityError> {
+    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
         match view
             .positive_value(id)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
@@ -10543,7 +10636,7 @@ impl InferenceSession {
                 result_effect,
                 result,
             } => Ok(F5cPositive::Function {
-                argument: Box::new(Self::decode_negative_scheme(view, argument)?),
+                argument: Box::new(Self::decode_negative_scheme(source_meter, view, argument)?),
                 argument_effect: match view.negative_effect(argument_effect) {
                     Ok(yu_types::NegativeEffectView::Empty) => F5cNegativeEffect::Empty,
                     Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
@@ -10552,21 +10645,22 @@ impl InferenceSession {
                     Ok(yu_types::PositiveEffectView::Bottom) => F5cPositiveEffect::Bottom,
                     Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
                 },
-                result: Box::new(Self::decode_positive_scheme(view, result)?),
+                result: Box::new(Self::decode_positive_scheme(source_meter, view, result)?),
             }),
             PositiveValueView::Union(values) => values
                 .iter()
-                .map(|value| Self::decode_positive_scheme(view, *value))
+                .map(|value| Self::decode_positive_scheme(source_meter, view, *value))
                 .collect::<Result<Vec<_>, _>>()
-                .map(F5cPositive::Union),
+                .map(|values| F5cPositive::Union(test_tracked(source_meter, values))),
         }
     }
 
     #[cfg(test)]
-    fn decode_negative_scheme(
+    fn decode_negative_scheme<'meter>(
+        source_meter: &'meter DraftHeapMeter,
         view: yu_types::ClosedValueSchemeView<'_>,
         id: yu_types::NegativeValueId,
-    ) -> Result<F5cNegative, SolveAvailabilityError> {
+    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
         match view
             .negative_value(id)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
@@ -10582,7 +10676,7 @@ impl InferenceSession {
                 result_effect,
                 result,
             } => Ok(F5cNegative::Function {
-                argument: Box::new(Self::decode_positive_scheme(view, argument)?),
+                argument: Box::new(Self::decode_positive_scheme(source_meter, view, argument)?),
                 argument_effect: match view.positive_effect(argument_effect) {
                     Ok(yu_types::PositiveEffectView::Bottom) => F5cPositiveEffect::Bottom,
                     Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
@@ -10591,26 +10685,27 @@ impl InferenceSession {
                     Ok(yu_types::NegativeEffectView::Empty) => F5cNegativeEffect::Empty,
                     Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
                 },
-                result: Box::new(Self::decode_negative_scheme(view, result)?),
+                result: Box::new(Self::decode_negative_scheme(source_meter, view, result)?),
             }),
             NegativeValueView::Intersection(values) => values
                 .iter()
-                .map(|value| Self::decode_negative_scheme(view, *value))
+                .map(|value| Self::decode_negative_scheme(source_meter, view, *value))
                 .collect::<Result<Vec<_>, _>>()
-                .map(F5cNegative::Intersection),
+                .map(|values| F5cNegative::Intersection(test_tracked(source_meter, values))),
         }
     }
 
     #[cfg(test)]
-    fn decode_closed_scheme(
+    fn decode_closed_scheme<'meter>(
+        source_meter: &'meter DraftHeapMeter,
         finalization: &ClosedTypeFinalizationSession,
         scheme: &ClosedValueScheme,
-    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+    ) -> Result<GeneralizationDraft<'meter>, SolveAvailabilityError> {
         let view = finalization
             .scheme_view(scheme)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let quantifier_count = view.quantifier_count();
-        let predicate = Self::decode_positive_scheme(view, view.predicate())?;
+        let predicate = Self::decode_positive_scheme(source_meter, view, view.predicate())?;
         let mut recursive_bounds = Vec::with_capacity(view.recursive_bounds().len());
         for bound in view.recursive_bounds() {
             let NeutralValueView::Bounds { lower, upper } = view
@@ -10618,8 +10713,8 @@ impl InferenceSession {
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             recursive_bounds.push(F5cRecursiveBound {
                 ordinal: bound.binder().ordinal(),
-                lower: Self::decode_positive_scheme(view, lower)?,
-                upper: Self::decode_negative_scheme(view, upper)?,
+                lower: Self::decode_positive_scheme(source_meter, view, lower)?,
+                upper: Self::decode_negative_scheme(source_meter, view, upper)?,
             });
         }
         Ok(GeneralizationDraft {
@@ -11598,18 +11693,20 @@ impl InferenceSession {
     }
 
     #[cfg(test)]
-    fn generalization_draft(
+    fn generalization_draft<'meter>(
         &self,
+        source_meter: &'meter DraftHeapMeter,
         definition: &DefinitionOrderId,
-    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+    ) -> Result<GeneralizationDraft<'meter>, SolveAvailabilityError> {
         let (result, _, _, _) = self.component_generalization_draft(
             definition,
             F5cComponentExpansionMemo::default(),
             0,
+            source_meter,
             None,
         );
         let mut draft = result?;
-        f5c_normalization::normalize_component(std::slice::from_mut(&mut draft))?;
+        f5c_normalization::normalize_component(source_meter, std::slice::from_mut(&mut draft))?;
         Ok(draft)
     }
 
@@ -11618,9 +11715,10 @@ impl InferenceSession {
         definition: &DefinitionOrderId,
         memo: F5cComponentExpansionMemo,
         frozen_bound_epoch: usize,
+        source_meter: &'meter DraftHeapMeter,
         bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
     ) -> (
-        Result<GeneralizationDraft, SolveAvailabilityError>,
+        Result<GeneralizationDraft<'meter>, SolveAvailabilityError>,
         F5cComponentExpansionMemo,
         usize,
         usize,
@@ -11633,7 +11731,7 @@ impl InferenceSession {
             .expect("definition root retains its immutable component recipe")
             .component;
         let row = self.live_components[component].ordinal as usize;
-        F5cGeneralizer::with_memo(self, memo, frozen_bound_epoch)
+        F5cGeneralizer::with_memo(self, source_meter, memo, frozen_bound_epoch)
             .build_component_with_bound_sidecar(row as u32, bound_sidecar)
     }
 
@@ -18187,6 +18285,7 @@ mod tests {
 
     #[test]
     fn f5c_generalization_census_assigns_one_quantifier_to_a_bipolar_function_variable() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-identity"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -18222,7 +18321,9 @@ mod tests {
             )
             .unwrap();
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.quantifier_count, 1);
         assert!(draft.recursive_bounds.is_empty());
         let F5cPositive::Function {
@@ -18241,14 +18342,18 @@ mod tests {
         )
         .unwrap();
         let (scheme, _) = finalized.into_parts();
-        let decoded =
-            InferenceSession::decode_closed_scheme(session.finalization.as_ref().unwrap(), &scheme)
-                .unwrap();
+        let decoded = InferenceSession::decode_closed_scheme(
+            &test_source_meter,
+            session.finalization.as_ref().unwrap(),
+            &scheme,
+        )
+        .unwrap();
         assert_eq!(decoded, draft);
     }
 
     #[test]
     fn f5c_component_expansion_memo_aliases_preserve_cold_warm_structure() {
+        let test_source_meter = DraftHeapMeter::default();
         let mut memo = F5cComponentExpansionMemo::default();
         let positive_cold = F5cPositive::Function {
             argument: Box::new(F5cNegative::Int),
@@ -18263,7 +18368,11 @@ mod tests {
                 Some((0, Polarity::Positive)),
             )
             .unwrap();
-        assert_eq!(memo.positive_value(positive_root).unwrap(), positive_cold);
+        assert_eq!(
+            memo.positive_value(&test_source_meter, positive_root)
+                .unwrap(),
+            positive_cold
+        );
 
         let negative_cold = F5cNegative::Function {
             argument: Box::new(F5cPositive::Int),
@@ -18278,7 +18387,11 @@ mod tests {
                 Some((1, Polarity::Negative)),
             )
             .unwrap();
-        assert_eq!(memo.negative_value(negative_root).unwrap(), negative_cold);
+        assert_eq!(
+            memo.negative_value(&test_source_meter, negative_root)
+                .unwrap(),
+            negative_cold
+        );
     }
 
     #[test]
@@ -18572,6 +18685,7 @@ mod tests {
 
     #[test]
     fn f5c_component_expansion_memo_build_rollback_retains_reserve_effects() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-component-reserve-rollback"));
         let mut session = InferenceSession::new(batch);
         let child = session.fresh_value_at_level(1).unwrap();
@@ -18587,7 +18701,7 @@ mod tests {
         let index_growths = memo.index_lane.capacity_growths;
 
         let (result, memo, _, _) =
-            F5cGeneralizer::with_memo(&session, memo, 1).build_component(root);
+            F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 1).build_component(root);
 
         assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
         assert!(memo.roots.is_empty());
@@ -18746,15 +18860,86 @@ mod tests {
             .resource_ledger
             .inference_session_retained_bytes += source_bytes;
         source_session
-            .record_component_expansion_memo_resources_with_source(&root_memo, source_bytes)
+            .record_component_expansion_memo_resources_with_source(
+                &root_memo,
+                source_bytes,
+                source_bytes,
+            )
             .unwrap();
         source_session
-            .record_component_expansion_memo_resources_with_source(&child_memo, source_bytes)
+            .record_component_expansion_memo_resources_with_source(
+                &child_memo,
+                source_bytes,
+                source_bytes,
+            )
             .unwrap();
         assert_eq!(
             source_session.execution_counters.semantic_arena_peak_bytes,
             source_session_baseline + source_bytes + expected_peak
         );
+        // SourceDrafts sampled only the outer slot. A later nested owner grows
+        // while the memo is live, before the next F4 retained sample.
+        let nested = test_tracked(
+            &meter,
+            (0..128).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        );
+        let grown_source_bytes = meter.current_bytes().unwrap();
+        assert!(grown_source_bytes > source_bytes);
+        let mut stale_session = InferenceSession::new(collect(module(
+            "my f = 1",
+            "f5c-component-stale-source-baseline",
+        )));
+        let baseline = stale_session
+            .execution_counters
+            .semantic_arena_retained_bytes;
+        stale_session
+            .execution_counters
+            .semantic_arena_retained_bytes += source_bytes;
+        stale_session
+            .execution_counters
+            .inference_session_retained_bytes += source_bytes;
+        stale_session.resource_ledger.semantic_arena_retained_bytes += source_bytes;
+        stale_session
+            .resource_ledger
+            .inference_session_retained_bytes += source_bytes;
+        stale_session
+            .record_component_expansion_memo_resources_with_source(
+                &root_memo,
+                grown_source_bytes,
+                source_bytes,
+            )
+            .unwrap();
+        let simultaneous_peak = root_memo
+            .simultaneous_source_memo_peak_bytes
+            .max(
+                root_memo
+                    .walker_resources
+                    .simultaneous_source_memo_peak_bytes,
+            )
+            .max(
+                grown_source_bytes
+                    + root_memo.retained_bytes().unwrap()
+                    + root_memo.walker_resources.retained_bytes().unwrap(),
+            );
+        assert_eq!(
+            stale_session.execution_counters.semantic_arena_peak_bytes,
+            baseline + simultaneous_peak
+        );
+        let mut independent_stale = IndependentResourceLedger::default();
+        independent_stale.semantic_arena_retained_bytes = baseline + source_bytes;
+        independent_stale.inference_session_retained_bytes = baseline + source_bytes;
+        independent_stale
+            .record_component_expansion_memo_with_sampled_source(
+                &root_memo,
+                grown_source_bytes,
+                source_bytes,
+            )
+            .unwrap();
+        assert_eq!(
+            independent_stale.component_expansion_memo_peak_bytes,
+            root_memo.peak_bytes().unwrap()
+        );
+        drop(nested);
         drop(source);
         assert_eq!(meter.current_bytes(), Some(0));
         assert_eq!(
@@ -18764,8 +18949,205 @@ mod tests {
     }
 
     #[test]
+    fn f5c_physical_set_observation_samples_only_capacity_changes() {
+        let meter = DraftHeapMeter::default();
+        meter.begin_component().unwrap();
+        let mut memo = F5cComponentExpansionMemo::default();
+        let mut set = HashSet::new();
+        let kind = F5cWalkerLaneKind::RawOwnerSeen;
+
+        memo.insert_physical_set_with_source(&mut set, 1, kind, &meter)
+            .unwrap();
+        let after_growth = memo.walker_resources.physical_walker_samples;
+        assert!(after_growth > 0);
+        memo.insert_physical_set_with_source(&mut set, 1, kind, &meter)
+            .unwrap();
+        memo.reserve_physical_set_insert_with_source(&mut set, 2, kind, &meter)
+            .unwrap();
+        assert_eq!(memo.walker_resources.physical_walker_samples, after_growth);
+
+        let capacity = set.capacity();
+        for value in 2..=capacity as u32 {
+            memo.insert_physical_set_with_source(&mut set, value, kind, &meter)
+                .unwrap();
+        }
+        let before_error = memo.walker_resources.physical_walker_samples;
+        memo.pending_observation_failure = true;
+        assert!(matches!(
+            memo.insert_physical_set_with_source(&mut set, capacity as u32 + 1, kind, &meter),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(set.capacity() > capacity);
+        assert!(memo.walker_resources.physical_walker_samples > before_error);
+        meter.end_component();
+    }
+
+    #[test]
+    fn f5c_walker_reserves_sample_only_capacity_events() {
+        let mut walker = F5cWalkerResources::default();
+        let mut values = Vec::<u32>::new();
+        let value_kind = F5cWalkerLaneKind::Values;
+        walker.reserve(&mut values, value_kind, 1, 0).unwrap();
+        let value_capacity = values.capacity();
+        let after_value_growth = walker.physical_walker_samples;
+        for _ in 0..3 {
+            walker.reserve(&mut values, value_kind, 1, 0).unwrap();
+        }
+        assert_eq!(walker.physical_walker_samples, after_value_growth);
+        assert_eq!(
+            walker.lanes[value_kind as usize].actual_capacity,
+            value_capacity
+        );
+        assert_eq!(
+            walker.independent_lanes[value_kind as usize].actual_capacity,
+            value_capacity
+        );
+        values.resize(value_capacity, 0);
+        assert!(matches!(
+            walker.reserve(&mut values, value_kind, 1, usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(values.capacity() > value_capacity);
+        assert!(walker.physical_walker_samples > after_value_growth);
+        let after_failed_growth = walker.physical_walker_samples;
+        walker.release(value_kind);
+        assert!(walker.physical_walker_samples > after_failed_growth);
+        let after_release = walker.physical_walker_samples;
+        walker.release(value_kind);
+        assert_eq!(walker.physical_walker_samples, after_release);
+
+        let mut set = HashSet::<u32>::new();
+        let set_kind = F5cWalkerLaneKind::PostRSurvivingTraces;
+        walker
+            .reserve_generalizer_set(&mut set, set_kind, 0)
+            .unwrap();
+        let set_capacity = set.capacity();
+        let after_set_growth = walker.physical_walker_samples;
+        for _ in 0..3 {
+            walker
+                .reserve_generalizer_set(&mut set, set_kind, 0)
+                .unwrap();
+        }
+        assert_eq!(walker.physical_walker_samples, after_set_growth);
+        assert_eq!(
+            walker.lanes[set_kind as usize].actual_capacity,
+            set_capacity
+        );
+        assert_eq!(
+            walker.independent_lanes[set_kind as usize].actual_capacity,
+            set_capacity
+        );
+        set.extend(0..set_capacity as u32);
+        assert!(matches!(
+            walker.reserve_generalizer_set(&mut set, set_kind, usize::MAX),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        ));
+        assert!(set.capacity() > set_capacity);
+        assert!(walker.physical_walker_samples > after_set_growth);
+    }
+
+    #[test]
+    fn f5c_component_joint_peak_samples_live_nested_union_and_intersection() {
+        let meter = DraftHeapMeter::default();
+        meter.begin_component().unwrap();
+        let mut source = TrackedVec::<GeneralizationDraft>::new(&meter);
+        source.try_reserve_exact(1).unwrap();
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.observe_source_meter(&meter).unwrap();
+        let node = memo
+            .push_node(F5cSummaryNodeKind::PositiveBottom, None)
+            .unwrap();
+        memo.admit(
+            F5cExpansionKey {
+                row: 1,
+                polarity: Polarity::Positive,
+                frozen_bound_epoch: 0,
+            },
+            node,
+        )
+        .unwrap();
+        let mut tasks = Vec::<F5cWalkTask>::new();
+        memo.reserve_walker(&mut tasks, F5cWalkerLaneKind::Tasks)
+            .unwrap();
+        memo.observe_component_external(&meter).unwrap();
+        let external = usize::try_from(
+            memo.walker_resources.physical_joint.memo_current
+                + memo.walker_resources.physical_joint.walker_current,
+        )
+        .unwrap();
+        assert!(external > 0);
+
+        let mut positive = TrackedVec::<F5cPositive>::new(&meter);
+        positive.try_reserve_exact(128).unwrap();
+        let positive_expected = source.capacity() * std::mem::size_of::<GeneralizationDraft>()
+            + positive.capacity() * std::mem::size_of::<F5cPositive>()
+            + external;
+        assert_eq!(
+            meter.physical_component_joint_peak(),
+            Some(positive_expected)
+        );
+        let mut direct_edges = Vec::<u32>::new();
+        memo.reserve_walker_with_source(&mut direct_edges, F5cWalkerLaneKind::DirectEdges, &meter)
+            .unwrap();
+        let grown_external = usize::try_from(
+            memo.walker_resources.physical_joint.memo_current
+                + memo.walker_resources.physical_joint.walker_current,
+        )
+        .unwrap();
+        let positive_with_walker = source.capacity() * std::mem::size_of::<GeneralizationDraft>()
+            + positive.capacity() * std::mem::size_of::<F5cPositive>()
+            + grown_external;
+        assert!(grown_external > external);
+        assert_eq!(
+            meter.physical_component_joint_peak(),
+            Some(positive_with_walker)
+        );
+        drop(F5cPositive::Union(positive));
+        let positive_exit = meter.current_bytes().unwrap() + grown_external;
+        assert!(positive_with_walker > positive_exit);
+        drop(direct_edges);
+        memo.release_walker_with_source(F5cWalkerLaneKind::DirectEdges, &meter)
+            .unwrap();
+
+        let mut negative = TrackedVec::<F5cNegative>::new(&meter);
+        negative.try_reserve_exact(192).unwrap();
+        let negative_expected = source.capacity() * std::mem::size_of::<GeneralizationDraft>()
+            + negative.capacity() * std::mem::size_of::<F5cNegative>()
+            + external;
+        assert_eq!(
+            meter.physical_component_joint_peak(),
+            Some(positive_with_walker.max(negative_expected))
+        );
+        drop(F5cNegative::Intersection(negative));
+        let exit_only = meter.current_bytes().unwrap() + external;
+        let independently_folded_peak = positive_with_walker.max(negative_expected);
+        memo.capture_component_joint_peak(&meter).unwrap();
+        assert_eq!(
+            meter.physical_component_joint_peak(),
+            Some(independently_folded_peak)
+        );
+        assert!(memo.simultaneous_source_memo_peak_bytes >= independently_folded_peak);
+        assert!(independently_folded_peak > exit_only);
+
+        let mut ledger = IndependentResourceLedger::default();
+        ledger.semantic_arena_retained_bytes = meter.current_bytes().unwrap();
+        ledger.inference_session_retained_bytes = meter.current_bytes().unwrap();
+        ledger
+            .record_component_expansion_memo_with_source(&memo, meter.current_bytes().unwrap())
+            .unwrap();
+        assert_eq!(ledger.semantic_arena_peak_bytes, independently_folded_peak);
+        memo.clear();
+        meter.end_component();
+    }
+
+    #[test]
     fn f5c_component_expansion_memo_warm_guarded_cycles_preserve_reentry_order() {
-        fn draft(opposite: bool, warm: bool) -> GeneralizationDraft {
+        let test_source_meter = DraftHeapMeter::default();
+        fn draft<'meter>(
+            test_source_meter: &'meter DraftHeapMeter,
+            opposite: bool,
+            warm: bool,
+        ) -> GeneralizationDraft<'meter> {
             let batch = collect(module("my f = 1", "f5c-warm-guarded-cycle"));
             let mut session = InferenceSession::new(batch);
             let root = session.batch.definitions[0].root.clone();
@@ -18831,22 +19213,24 @@ mod tests {
                 .unwrap();
             }
             let (result, _, _, _) =
-                F5cGeneralizer::with_memo(&session, memo, 31).build_component(root_row);
+                F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 31)
+                    .build_component(root_row);
             result.unwrap()
         }
 
-        let same_cold = draft(false, false);
-        let same_warm = draft(false, true);
+        let same_cold = draft(&test_source_meter, false, false);
+        let same_warm = draft(&test_source_meter, false, true);
         assert_eq!(same_warm, same_cold);
         assert_eq!(same_warm.recursive_bounds.len(), 1);
-        let opposite_cold = draft(true, false);
-        let opposite_warm = draft(true, true);
+        let opposite_cold = draft(&test_source_meter, true, false);
+        let opposite_warm = draft(&test_source_meter, true, true);
         assert_eq!(opposite_warm, opposite_cold);
         assert_eq!(opposite_warm.recursive_bounds.len(), 1);
     }
 
     #[test]
     fn f5c_component_expansion_memo_rejects_active_conflicted_warm_summaries() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-warm-active-conflict"));
         let mut session = InferenceSession::new(batch);
         let ancestor = session.fresh_value_at_level(1).unwrap();
@@ -18874,7 +19258,7 @@ mod tests {
                 frozen_bound_epoch: 32,
             };
             memo.admit(key, summary).unwrap();
-            let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 32);
+            let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 32);
             generalizer.frames = vec![F5cExpansionFrame::default(), F5cExpansionFrame::default()];
             generalizer.memo.enter_active(ancestor).unwrap();
             generalizer
@@ -18903,6 +19287,7 @@ mod tests {
 
     #[test]
     fn f5c_component_expansion_memo_materialization_taints_active_ancestors() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-materialize-active-conflict"));
         let mut session = InferenceSession::new(batch);
         let ancestor = session.fresh_value_at_level(1).unwrap();
@@ -18913,7 +19298,7 @@ mod tests {
         let negative = memo
             .negative_node(&F5cNegative::Int, Some((ancestor, Polarity::Negative)))
             .unwrap();
-        let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 33);
+        let mut generalizer = F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 33);
         generalizer
             .active_set
             .insert((ancestor, Polarity::Positive));
@@ -18938,6 +19323,7 @@ mod tests {
 
     #[test]
     fn f5c_component_expansion_memo_admission_excludes_active_ancestors() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-active-free-admission"));
         let mut session = InferenceSession::new(batch);
         let ancestor = session.fresh_value_at_level(1).unwrap();
@@ -18949,7 +19335,7 @@ mod tests {
             .exact_non_variable_lowers
             .push(ValueEndpointKey::IntPositive);
 
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         generalizer.assert_admission_invariant = true;
         assert!(matches!(
             generalizer.positive_row(ancestor, true).unwrap(),
@@ -18960,6 +19346,7 @@ mod tests {
 
     #[test]
     fn f5c_walker_failure_retry_reconciles_every_private_lane() {
+        let test_source_meter = DraftHeapMeter::default();
         fn assert_reconciled(memo: &F5cComponentExpansionMemo) {
             let walker = &memo.walker_resources;
             let mut ledger = IndependentResourceLedger::default();
@@ -19039,7 +19426,7 @@ mod tests {
         memo.walker_resources.lanes[tasks].requested_slots = usize::MAX;
         memo.walker_resources.independent_lanes[tasks].requested_slots = usize::MAX;
         let (failed, mut memo, _, _) =
-            F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+            F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
         assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
         assert!(memo.active_rows.is_empty());
         memo.walker_resources.lanes[tasks].requested_slots = 0;
@@ -19050,7 +19437,7 @@ mod tests {
         memo.walker_resources.lanes[targets].requested_slots = usize::MAX;
         memo.walker_resources.independent_lanes[targets].requested_slots = usize::MAX;
         let (failed, mut memo, _, _) =
-            F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+            F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
         assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
         assert!(memo.active_rows.is_empty());
         assert!(memo.walker_resources.peak_bytes > 0);
@@ -19058,12 +19445,13 @@ mod tests {
         memo.walker_resources.independent_lanes[targets].requested_slots = 0;
         assert_reconciled(&memo);
 
-        let (cold, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+        let (cold, memo, _, _) =
+            F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
         assert!(cold.is_ok());
         assert_reconciled(&memo);
         let cold_requests = memo.walker_resources.requested_slots().unwrap();
         let (retry, memo, _, _) =
-            F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+            F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0).build_component(root);
         assert_eq!(retry.as_ref().unwrap().predicate, cold.unwrap().predicate);
         assert!(memo.walker_resources.requested_slots().unwrap() > cold_requests);
         assert_reconciled(&memo);
@@ -19082,7 +19470,8 @@ mod tests {
 
         let comparison_batch = collect(module("my f = 1", "f5c-walker-comparison"));
         let comparison_session = InferenceSession::new(comparison_batch);
-        let mut comparison_generalizer = F5cGeneralizer::new(&comparison_session);
+        let mut comparison_generalizer =
+            F5cGeneralizer::with_source_meter(&comparison_session, &test_source_meter);
         let value = F5cPositive::Int;
         let mut comparisons = Vec::new();
         assert!(
@@ -19183,6 +19572,7 @@ mod tests {
 
     #[test]
     fn f5c_walker_function_dedup_keeps_first_seen_order_in_both_polarities() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-function-dedup"));
         let mut session = InferenceSession::new(batch);
         let row = session.fresh_value_at_level(1).unwrap();
@@ -19212,7 +19602,7 @@ mod tests {
                 ValueEndpointKey::IntNegative,
                 ValueEndpointKey::NegativeFunction(negative),
             ]);
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         let F5cWalkValue::Positive(F5cPositive::Union(positive_parts), _) = generalizer
             .walk(F5cWalkTask::EnterRow {
                 row,
@@ -19247,6 +19637,7 @@ mod tests {
 
     #[test]
     fn f5c_deep_direct_rows_build_draft_through_summary_admission_and_materialization() {
+        let test_source_meter = DraftHeapMeter::default();
         const DEPTH: usize = 1024;
         let batch = collect(module("my f = 1", "f5c-deep-direct-draft"));
         let mut session = InferenceSession::new(batch);
@@ -19265,7 +19656,8 @@ mod tests {
         session.bounds[*rows.last().unwrap() as usize]
             .exact_non_variable_lowers
             .push(ValueEndpointKey::IntPositive);
-        let (draft, memo, _, _) = F5cGeneralizer::new(&session).build_component(root);
+        let (draft, memo, _, _) =
+            F5cGeneralizer::with_source_meter(&session, &test_source_meter).build_component(root);
         let draft = draft.unwrap();
         assert_eq!(draft.predicate, F5cPositive::Int);
         assert_eq!(memo.roots.len(), DEPTH);
@@ -19295,6 +19687,7 @@ mod tests {
 
     #[test]
     fn f5c_deep_alternating_function_walk_and_comparison_are_iterative() {
+        let test_source_meter = DraftHeapMeter::default();
         const DEPTH: usize = 2048;
         let batch = collect(module("my f = 1", "f5c-deep-function-walk"));
         let mut session = InferenceSession::new(batch);
@@ -19318,7 +19711,7 @@ mod tests {
             };
             positive = !positive;
         }
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         let value = generalizer
             .positive_endpoint(ValueEndpointKey::PositiveFunction(term))
             .unwrap();
@@ -19374,9 +19767,13 @@ mod tests {
 
     #[test]
     fn f5c_component_expansion_memo_shares_only_one_acyclic_component_epoch() {
+        let test_source_meter = DraftHeapMeter::default();
         const K: usize = 4;
         const D: usize = 4;
-        fn draft_in_order(order: [usize; D]) -> (Vec<GeneralizationDraft>, usize, usize) {
+        fn draft_in_order<'meter>(
+            test_source_meter: &'meter DraftHeapMeter,
+            order: [usize; D],
+        ) -> (Vec<GeneralizationDraft<'meter>>, usize, usize) {
             let batch = collect(module("my f = 1", "f5c-component-summary"));
             let mut session = InferenceSession::new(batch);
             let shared: [u32; K] =
@@ -19424,7 +19821,8 @@ mod tests {
             let mut uncacheable = 0;
             for index in order {
                 let (draft, returned, root_hits, root_uncacheable) =
-                    F5cGeneralizer::with_memo(&session, memo, 7).build_component(roots[index]);
+                    F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 7)
+                        .build_component(roots[index]);
                 memo = returned;
                 drafts.push(draft.unwrap());
                 hits += root_hits;
@@ -19508,8 +19906,9 @@ mod tests {
 
             let mut second_memo = F5cComponentExpansionMemo::default();
             for index in order {
-                let (draft, returned, _, _) = F5cGeneralizer::with_memo(&session, second_memo, 8)
-                    .build_component(roots[index]);
+                let (draft, returned, _, _) =
+                    F5cGeneralizer::with_memo(&session, &test_source_meter, second_memo, 8)
+                        .build_component(roots[index]);
                 draft.unwrap();
                 second_memo = returned;
             }
@@ -19587,9 +19986,9 @@ mod tests {
             (drafts, admissions, hits)
         }
 
-        let forward = draft_in_order([0, 1, 2, 3]);
-        let reverse = draft_in_order([3, 2, 1, 0]);
-        let rotated = draft_in_order([1, 2, 3, 0]);
+        let forward = draft_in_order(&test_source_meter, [0, 1, 2, 3]);
+        let reverse = draft_in_order(&test_source_meter, [3, 2, 1, 0]);
+        let rotated = draft_in_order(&test_source_meter, [1, 2, 3, 0]);
         assert_eq!(forward.1, 2 * K);
         assert_eq!(forward.2, 2 * K * (D - 1));
         assert_eq!(forward.0, reverse.0);
@@ -19640,9 +20039,13 @@ mod tests {
             .exact_non_variable_lowers
             .push(ValueEndpointKey::ValueRow(row));
         for epoch in [11, 12] {
-            let (_, mut memo, hits, _) =
-                F5cGeneralizer::with_memo(&session, F5cComponentExpansionMemo::default(), epoch)
-                    .build_component(isolated_root);
+            let (_, mut memo, hits, _) = F5cGeneralizer::with_memo(
+                &session,
+                &test_source_meter,
+                F5cComponentExpansionMemo::default(),
+                epoch,
+            )
+            .build_component(isolated_root);
             assert_eq!(memo.root_lane.requested_slots, 1);
             assert_eq!(hits, 0);
             assert!(memo.retained_bytes().unwrap() > 0);
@@ -19654,6 +20057,7 @@ mod tests {
 
     #[test]
     fn f5c_component_expansion_memo_taints_guarded_cycles_and_invalid_effects() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-component-cycle-taint"));
         let mut session = InferenceSession::new(batch);
         let cycle = session.fresh_value_at_level(1).unwrap();
@@ -19675,9 +20079,13 @@ mod tests {
         session.bounds[root as usize]
             .exact_non_variable_lowers
             .push(ValueEndpointKey::ValueRow(cycle));
-        let (_, memo, _, uncacheable) =
-            F5cGeneralizer::with_memo(&session, F5cComponentExpansionMemo::default(), 19)
-                .build_component(root);
+        let (_, memo, _, uncacheable) = F5cGeneralizer::with_memo(
+            &session,
+            &test_source_meter,
+            F5cComponentExpansionMemo::default(),
+            19,
+        )
+        .build_component(root);
         assert_eq!(memo.root_lane.requested_slots, 0);
         assert_eq!(memo.node_lane.requested_slots, 0);
         assert_eq!(memo.child_lane.requested_slots, 0);
@@ -19702,9 +20110,13 @@ mod tests {
         session.bounds[invalid_root as usize]
             .exact_non_variable_lowers
             .push(ValueEndpointKey::PositiveFunction(invalid));
-        let (result, memo, _, _) =
-            F5cGeneralizer::with_memo(&session, F5cComponentExpansionMemo::default(), 20)
-                .build_component(invalid_root);
+        let (result, memo, _, _) = F5cGeneralizer::with_memo(
+            &session,
+            &test_source_meter,
+            F5cComponentExpansionMemo::default(),
+            20,
+        )
+        .build_component(invalid_root);
         assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
         assert_eq!(memo.root_lane.requested_slots, 0);
         assert!(memo.scratch_lane.requested_slots > 0);
@@ -19723,9 +20135,13 @@ mod tests {
                 ValueEndpointKey::ValueRow(admitted_then_failed),
                 ValueEndpointKey::PositiveFunction(invalid),
             ]);
-        let (result, memo, _, _) =
-            F5cGeneralizer::with_memo(&session, F5cComponentExpansionMemo::default(), 21)
-                .build_component(rollback_root);
+        let (result, memo, _, _) = F5cGeneralizer::with_memo(
+            &session,
+            &test_source_meter,
+            F5cComponentExpansionMemo::default(),
+            21,
+        )
+        .build_component(rollback_root);
         assert_eq!(result, Err(SolveAvailabilityError::IdentityExhausted));
         assert!(memo.root_lane.requested_slots > 0);
         assert!(memo.node_lane.requested_slots > 0);
@@ -19774,7 +20190,11 @@ mod tests {
 
     #[test]
     fn f5c_quantifiers_follow_producer_occurrences_not_admission_order() {
-        fn draft(reverse: bool) -> GeneralizationDraft {
+        let test_source_meter = DraftHeapMeter::default();
+        fn draft<'meter>(
+            test_source_meter: &'meter DraftHeapMeter,
+            reverse: bool,
+        ) -> GeneralizationDraft<'meter> {
             let batch = collect(module("my f = 1", "f5c-q-order"));
             let mut session = InferenceSession::new(batch);
             let root = session.batch.definitions[0].root.clone();
@@ -19816,11 +20236,13 @@ mod tests {
             session.bounds[root_row as usize]
                 .exact_non_variable_lowers
                 .extend(lowers.map(ValueEndpointKey::PositiveFunction));
-            session.generalization_draft(&definition).unwrap()
+            session
+                .generalization_draft(&test_source_meter, &definition)
+                .unwrap()
         }
 
-        let forward = draft(false);
-        let reverse = draft(true);
+        let forward = draft(&test_source_meter, false);
+        let reverse = draft(&test_source_meter, true);
         let simple_identity_quantifier = |draft: &GeneralizationDraft| {
             let F5cPositive::Union(members) = &draft.predicate else {
                 panic!("the two producer bounds remain a normalized Union");
@@ -19850,6 +20272,7 @@ mod tests {
 
     #[test]
     fn f5c_generalization_rejects_reachable_non_generic_variable_without_panicking() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-ineligible-variable"));
         let mut session = InferenceSession::new(batch);
         let definition = session.batch.definitions[0].definition.clone();
@@ -19887,13 +20310,14 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            session.generalization_draft(&definition),
+            session.generalization_draft(&test_source_meter, &definition),
             Err(SolveAvailabilityError::IdentityExhausted)
         );
     }
 
     #[test]
     fn f5c_generalization_rejects_ineligible_live_variables_in_both_polarities() {
+        let test_source_meter = DraftHeapMeter::default();
         for polarity in [Polarity::Positive, Polarity::Negative] {
             let batch = collect(module("my f = 1", "f5c-ineligible-polarities"));
             let mut session = InferenceSession::new(batch);
@@ -19932,7 +20356,7 @@ mod tests {
                 .push(ValueEndpointKey::PositiveFunction(function));
 
             assert_eq!(
-                session.generalization_draft(&definition),
+                session.generalization_draft(&test_source_meter, &definition),
                 Err(SolveAvailabilityError::IdentityExhausted),
                 "level=0, non_generic=false, polarity={polarity:?}"
             );
@@ -19944,7 +20368,7 @@ mod tests {
             let target = session.fresh_value_at_level(1).unwrap();
             session.value_metadata[target as usize].non_generic = true;
             let term = session.live_value_term(polarity, target).unwrap();
-            let mut generalizer = F5cGeneralizer::new(&session);
+            let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
             match polarity {
                 Polarity::Positive => {
                     generalizer.positive_term(term).unwrap();
@@ -19978,6 +20402,7 @@ mod tests {
 
     #[test]
     fn f5c_non_generic_closure_crosses_direct_and_nested_function_value_paths() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-non-generic-closure"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -20008,7 +20433,7 @@ mod tests {
             .exact_non_variable_lowers
             .push(ValueEndpointKey::PositiveFunction(function));
 
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         let closure = generalizer.non_generic_closure().unwrap();
         assert!(closure.is_superset(&HashSet::from([seed, connected, root_row])));
         use crate::f5c_generalization::F5cWalkerLaneKind as Lane;
@@ -20053,12 +20478,13 @@ mod tests {
 
     #[test]
     fn f5c_non_generic_closure_failure_releases_scratch_and_retries() {
+        let test_source_meter = DraftHeapMeter::default();
         use crate::f5c_generalization::F5cWalkerLaneKind as Lane;
         let batch = collect(module("my f = 1", "f5c-closure-retry"));
         let mut session = InferenceSession::new(batch);
         let seed = session.fresh_value_at_level(1).unwrap();
         session.value_metadata[seed as usize].non_generic = true;
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         generalizer.memo.work_meter.set(usize::MAX);
         assert_eq!(
             generalizer.non_generic_closure(),
@@ -20091,6 +20517,7 @@ mod tests {
 
     #[test]
     fn f5c_generalization_rejects_wrong_polarity_endpoints_and_terms() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-wrong-polarity"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -20102,7 +20529,7 @@ mod tests {
             .push(ValueEndpointKey::IntNegative);
         let positive_term = session.batch.collected_leaf_term(Leaf::IntPositive);
         let negative_term = session.batch.collected_leaf_term(Leaf::IntNegative);
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
 
         assert_eq!(
             generalizer.positive_endpoint(ValueEndpointKey::IntNegative),
@@ -20181,6 +20608,7 @@ mod tests {
 
     #[test]
     fn f5c_generalization_expands_direct_rows_and_multiple_exact_lowers() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-bounds"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -20213,7 +20641,9 @@ mod tests {
             )
             .unwrap();
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.predicate, F5cPositive::Int);
 
         let function_argument = session.negative_top_term().unwrap();
@@ -20240,7 +20670,9 @@ mod tests {
                 &cause,
             )
             .unwrap();
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         let F5cPositive::Union(values) = draft.predicate else {
             panic!("direct row and Function lower are normalized together");
         };
@@ -20249,6 +20681,7 @@ mod tests {
 
     #[test]
     fn f5c_positive_row_combines_exact_and_direct_members_with_one_bipolar_variable() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-positive-mixed-row"));
         let mut session = InferenceSession::new(batch);
         let mixed = session.fresh_value_at_level(1).unwrap();
@@ -20280,7 +20713,7 @@ mod tests {
             .exact_non_variable_lowers
             .push(ValueEndpointKey::PositiveFunction(function));
 
-        let expanded = F5cGeneralizer::new(&session)
+        let expanded = F5cGeneralizer::with_source_meter(&session, &test_source_meter)
             .positive_row(mixed, false)
             .unwrap();
         let F5cPositive::Union(members) = expanded else {
@@ -20298,6 +20731,7 @@ mod tests {
 
     #[test]
     fn f5c_negative_row_combines_exact_and_direct_members_with_one_bipolar_variable() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-negative-mixed-row"));
         let mut session = InferenceSession::new(batch);
         let mixed = session.fresh_value_at_level(1).unwrap();
@@ -20329,7 +20763,9 @@ mod tests {
             .exact_non_variable_uppers
             .push(ValueEndpointKey::NegativeFunction(function));
 
-        let expanded = F5cGeneralizer::new(&session).negative_row(mixed).unwrap();
+        let expanded = F5cGeneralizer::with_source_meter(&session, &test_source_meter)
+            .negative_row(mixed)
+            .unwrap();
         let F5cNegative::Intersection(members) = expanded else {
             panic!("mixed negative row retains exact and direct members");
         };
@@ -20453,6 +20889,7 @@ mod tests {
 
     #[test]
     fn f5c_dense_quantified_and_recursive_ordinals_round_trip() {
+        let test_source_meter = DraftHeapMeter::default();
         let draft = GeneralizationDraft {
             quantifier_count: 1,
             recursive_bounds: vec![F5cRecursiveBound {
@@ -20473,13 +20910,16 @@ mod tests {
             InferenceSession::finalize_generalization_draft_raw(&mut finalization, &draft, false)
                 .unwrap();
         let (scheme, _) = finalized.into_parts();
-        let decoded = InferenceSession::decode_closed_scheme(&finalization, &scheme).unwrap();
+        let decoded =
+            InferenceSession::decode_closed_scheme(&test_source_meter, &finalization, &scheme)
+                .unwrap();
 
         assert_eq!(decoded, draft);
     }
 
     #[test]
     fn f5c_generalization_retains_guarded_self_as_one_recursive_bound() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-self"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -20517,7 +20957,9 @@ mod tests {
             )
             .unwrap();
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.quantifier_count, 0);
         assert_eq!(draft.recursive_bounds.len(), 1);
         let F5cPositive::Function {
@@ -20546,8 +20988,9 @@ mod tests {
         let mut memo = F5cComponentExpansionMemo::default();
         memo.observe_physical_source(source.capacity(), sidecar.capacity(), 0);
         memo.observe_source_bytes(meter.current_bytes()).unwrap();
-        let (built, mut memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0)
-            .build_component_with_bound_sidecar(root_row, Some(&mut sidecar));
+        let (built, mut memo, _, _) =
+            F5cGeneralizer::with_memo(&session, &test_source_meter, memo, 0)
+                .build_component_with_bound_sidecar(root_row, Some(&mut sidecar));
         let built = built.unwrap();
         assert_eq!(built.recursive_bounds.len(), 1);
         let bound_capacity = built.recursive_bounds.capacity();
@@ -20626,14 +21069,17 @@ mod tests {
         let failure_meter = DraftHeapMeter::default();
         let mut failure_sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&failure_meter);
         failure_sidecar.try_reserve_exact(1).unwrap();
+        failure_meter.begin_component().unwrap();
         let mut failure_memo = F5cComponentExpansionMemo::default();
         failure_memo.observe_physical_source(0, failure_sidecar.capacity(), 0);
+        failure_memo.observe_source_meter(&failure_meter).unwrap();
         failure_memo.fail_reserve_at = Some((
             f5c_generalization::F5cTestReserveFailure::RecursiveBoundAfterReserve,
             0,
         ));
-        let (failure, failure_memo, _, _) = F5cGeneralizer::with_memo(&session, failure_memo, 0)
-            .build_component_with_bound_sidecar(root_row, Some(&mut failure_sidecar));
+        let (failure, failure_memo, _, _) =
+            F5cGeneralizer::with_memo(&session, &failure_meter, failure_memo, 0)
+                .build_component_with_bound_sidecar(root_row, Some(&mut failure_sidecar));
         assert_eq!(failure, Err(SolveAvailabilityError::IdentityExhausted));
         let failed_capacity = failure_memo.recursive_bound_reserves[0].1;
         assert_eq!(
@@ -20658,6 +21104,19 @@ mod tests {
                 .iter()
                 .any(|(capacities, _, _, _)| capacities[3] > 0)
         );
+        let failed_after_reserve_physical_peak = failure_memo
+            .recursive_bound_physical_samples
+            .iter()
+            .filter(|(capacities, _, _, _)| capacities[3] > 0)
+            .map(|(_, memo_bytes, walker_bytes, source_bytes)| {
+                source_bytes + memo_bytes + walker_bytes
+            })
+            .max()
+            .unwrap();
+        assert!(
+            failure_meter.physical_component_joint_peak().unwrap() as u128
+                >= failed_after_reserve_physical_peak
+        );
         assert_eq!(
             failure_memo
                 .walker_resources
@@ -20671,6 +21130,7 @@ mod tests {
 
     #[test]
     fn f5c_outer_function_does_not_guard_a_later_direct_cycle() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-outer-function-direct-cycle"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -20698,7 +21158,9 @@ mod tests {
         session.bounds[a as usize].direct_lower_rows.push(b);
         session.bounds[b as usize].direct_lower_rows.push(a);
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert!(draft.recursive_bounds.is_empty());
         let F5cPositive::Function { result, .. } = draft.predicate else {
             panic!("outer Function remains in the predicate");
@@ -20708,6 +21170,7 @@ mod tests {
 
     #[test]
     fn f5c_guard_trace_retains_owner_polarities_and_exact_direct_hops() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-complete-guard-trace"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -20734,7 +21197,7 @@ mod tests {
             .direct_lower_rows
             .push(root_row);
 
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         generalizer.positive_row(root_row, true).unwrap();
         let trace = generalizer
             .reentries
@@ -20763,6 +21226,7 @@ mod tests {
 
     #[test]
     fn f5c_guard_trace_records_mutual_function_cycle() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-mutual-guard-trace"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -20799,7 +21263,7 @@ mod tests {
             .push(ValueEndpointKey::PositiveFunction(right_function));
         session.bounds[relay as usize].direct_lower_rows.push(left);
 
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         generalizer.positive_row(root_row, true).unwrap();
         let trace = generalizer
             .reentries
@@ -20831,7 +21295,9 @@ mod tests {
             ]
         );
 
-        let draft = F5cGeneralizer::new(&session).build(root_row).unwrap();
+        let draft = F5cGeneralizer::with_source_meter(&session, &test_source_meter)
+            .build(root_row)
+            .unwrap();
         assert_eq!(draft.quantifier_count, 0);
         assert_eq!(draft.recursive_bounds.len(), 1);
         assert_eq!(draft.recursive_bounds[0].ordinal, 0);
@@ -20915,6 +21381,7 @@ mod tests {
 
     #[test]
     fn f5c_duplicate_same_owner_guard_traces_coalesce_to_one_recursive_binder() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-duplicate-owner-traces"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -20941,14 +21408,20 @@ mod tests {
                 .push(ValueEndpointKey::PositiveFunction(function));
         }
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.recursive_bounds.len(), 1);
         assert_eq!(draft.recursive_bounds[0].ordinal, 0);
     }
 
     #[test]
     fn f5c_distinct_recursive_owners_follow_first_surviving_producer_order() {
-        fn draft(reverse: bool) -> GeneralizationDraft {
+        let test_source_meter = DraftHeapMeter::default();
+        fn draft<'meter>(
+            test_source_meter: &'meter DraftHeapMeter,
+            reverse: bool,
+        ) -> GeneralizationDraft<'meter> {
             let batch = collect(module("my f = 1", "f5c-symmetric-r-owners"));
             let mut session = InferenceSession::new(batch);
             let root = session.batch.definitions[0].root.clone();
@@ -20993,28 +21466,34 @@ mod tests {
                     .exact_non_variable_lowers
                     .push(ValueEndpointKey::PositiveFunction(entry));
             }
-            session.generalization_draft(&definition).unwrap()
+            session
+                .generalization_draft(&test_source_meter, &definition)
+                .unwrap()
         }
 
-        let forward = draft(false);
-        let reverse = draft(true);
+        let forward = draft(&test_source_meter, false);
+        let reverse = draft(&test_source_meter, true);
         assert_eq!(forward.recursive_bounds.len(), 2);
-        let lower_argument = |draft: &GeneralizationDraft, index: usize| {
+        fn lower_argument<'a, 'meter>(
+            draft: &'a GeneralizationDraft<'meter>,
+            index: usize,
+        ) -> &'a F5cNegative<'meter> {
             let F5cPositive::Function { argument, .. } = &draft.recursive_bounds[index].lower
             else {
                 panic!("each recursive owner keeps its Function guard");
             };
-            argument.as_ref().clone()
-        };
-        assert_eq!(lower_argument(&forward, 0), F5cNegative::Int);
-        assert_eq!(lower_argument(&forward, 1), F5cNegative::Top);
-        assert_eq!(lower_argument(&reverse, 0), F5cNegative::Top);
-        assert_eq!(lower_argument(&reverse, 1), F5cNegative::Int);
+            argument.as_ref()
+        }
+        assert_eq!(lower_argument(&forward, 0), &F5cNegative::Int);
+        assert_eq!(lower_argument(&forward, 1), &F5cNegative::Top);
+        assert_eq!(lower_argument(&reverse, 0), &F5cNegative::Top);
+        assert_eq!(lower_argument(&reverse, 1), &F5cNegative::Int);
         assert_ne!(forward, reverse);
     }
 
     #[test]
     fn f5c_shared_quantifier_identity_spans_predicate_and_recursive_bounds() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-shared-q-across-r-bounds"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -21086,7 +21565,9 @@ mod tests {
                 ValueEndpointKey::ValueRow(shared),
             ]);
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.quantifier_count, 1);
         assert_eq!(draft.recursive_bounds.len(), 2);
         fn has_identity(value: &F5cPositive, ordinal: u32) -> bool {
@@ -21155,10 +21636,11 @@ mod tests {
 
     #[test]
     fn f5c_reachable_missing_row_is_checked_failure() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-missing-row"));
         let session = InferenceSession::new(batch);
         let missing = u32::try_from(session.bounds.len()).unwrap();
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
 
         assert_eq!(
             generalizer.positive_row(missing, false),
@@ -21175,23 +21657,34 @@ mod tests {
     #[test]
     fn f5c_union_normalization_preserves_independent_quantified_members_and_deduplicates_exact_members()
      {
+        let test_source_meter = DraftHeapMeter::default();
         let identity = |ordinal| F5cPositive::Function {
             argument: Box::new(F5cNegative::Quantified(ordinal)),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
             result: Box::new(F5cPositive::Quantified(ordinal)),
         };
-        let normalized =
-            F5cGeneralizer::normalize_positive(F5cPositive::Union(vec![identity(7), identity(8)]))
-                .unwrap();
+        let normalized = F5cGeneralizer::normalize_positive(
+            &test_source_meter,
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![identity(7), identity(8)],
+            )),
+        )
+        .unwrap();
         let F5cPositive::Union(independent) = normalized else {
             panic!("union remains normalized as a union");
         };
         assert_eq!(independent.len(), 2);
 
-        let normalized =
-            F5cGeneralizer::normalize_positive(F5cPositive::Union(vec![identity(7), identity(7)]))
-                .unwrap();
+        let normalized = F5cGeneralizer::normalize_positive(
+            &test_source_meter,
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![identity(7), identity(7)],
+            )),
+        )
+        .unwrap();
         let F5cPositive::Union(duplicates) = normalized else {
             panic!("union remains normalized as a union");
         };
@@ -21221,12 +21714,13 @@ mod tests {
 
     #[test]
     fn f5c_post_qr_normalization_rejects_unclassified_live_nodes() {
+        let test_source_meter = DraftHeapMeter::default();
         for value in [
             F5cPositive::Variable(7),
             F5cPositive::Shared(F5cSummaryNodeId(0)),
         ] {
             assert_eq!(
-                F5cGeneralizer::normalize_positive(value),
+                F5cGeneralizer::normalize_positive(&test_source_meter, value),
                 Err(SolveAvailabilityError::IdentityExhausted)
             );
         }
@@ -21235,7 +21729,7 @@ mod tests {
             F5cNegative::Shared(F5cSummaryNodeId(0)),
         ] {
             assert_eq!(
-                F5cGeneralizer::normalize_negative(value),
+                F5cGeneralizer::normalize_negative(&test_source_meter, value),
                 Err(SolveAvailabilityError::IdentityExhausted)
             );
         }
@@ -21243,6 +21737,7 @@ mod tests {
 
     #[test]
     fn f5c_normalized_census_ignores_traversal_only_direct_intermediary() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-eliminated-r-intermediary"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -21272,7 +21767,9 @@ mod tests {
             .direct_lower_rows
             .push(root_row);
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.quantifier_count, 0);
         assert_eq!(draft.recursive_bounds.len(), 1);
         assert_eq!(draft.recursive_bounds[0].ordinal, 0);
@@ -21280,7 +21777,11 @@ mod tests {
 
     #[test]
     fn f5c_reversed_exact_and_direct_admission_follows_first_surviving_trace() {
-        fn draft(reverse: bool) -> GeneralizationDraft {
+        let test_source_meter = DraftHeapMeter::default();
+        fn draft<'meter>(
+            test_source_meter: &'meter DraftHeapMeter,
+            reverse: bool,
+        ) -> GeneralizationDraft<'meter> {
             let batch = collect(module("my f = 1", "f5c-reversed-r-admission"));
             let mut session = InferenceSession::new(batch);
             let root = session.batch.definitions[0].root.clone();
@@ -21341,35 +21842,40 @@ mod tests {
                 .exact_non_variable_lowers
                 .push(exact[if reverse { 0 } else { 1 }]);
 
-            session.generalization_draft(&definition).unwrap()
+            session
+                .generalization_draft(&test_source_meter, &definition)
+                .unwrap()
         }
 
-        let forward = draft(false);
-        let reverse = draft(true);
+        let forward = draft(&test_source_meter, false);
+        let reverse = draft(&test_source_meter, true);
         assert_eq!(forward.recursive_bounds.len(), 2);
         assert_eq!(reverse.recursive_bounds.len(), 2);
-        let first_lower = |draft: &GeneralizationDraft| {
+        fn first_lower<'a, 'meter>(
+            draft: &'a GeneralizationDraft<'meter>,
+        ) -> (&'a F5cNegative<'meter>, &'a F5cPositive<'meter>) {
             let F5cPositive::Function {
                 argument, result, ..
             } = &draft.recursive_bounds[0].lower
             else {
                 panic!("the first surviving trace retains its Function bound");
             };
-            (argument.as_ref().clone(), result.as_ref().clone())
-        };
+            (argument.as_ref(), result.as_ref())
+        }
         assert_eq!(
             first_lower(&forward),
-            (F5cNegative::Recursive(0), F5cPositive::Int)
+            (&F5cNegative::Recursive(0), &F5cPositive::Int)
         );
         assert_eq!(
             first_lower(&reverse),
-            (F5cNegative::Top, F5cPositive::Recursive(0))
+            (&F5cNegative::Top, &F5cPositive::Recursive(0))
         );
         assert_ne!(forward, reverse);
     }
 
     #[test]
     fn f5c_guarded_opposite_polarity_reentry_owns_one_recursive_binder() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-opposite-polarity"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -21405,7 +21911,9 @@ mod tests {
             )
             .unwrap();
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.quantifier_count, 0);
         assert_eq!(draft.recursive_bounds.len(), 1);
         let F5cPositive::Function {
@@ -21420,6 +21928,7 @@ mod tests {
 
     #[test]
     fn f5c_recursive_binders_follow_guarded_reentry_order_not_row_visit_order() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-recursive-order"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -21457,7 +21966,7 @@ mod tests {
                 ValueEndpointKey::PositiveFunction(reenter_second),
             ]);
 
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut generalizer = F5cGeneralizer::with_source_meter(&session, &test_source_meter);
         let draft = generalizer.build(root_row).unwrap();
         let mut stored_trace_owners = Vec::new();
         for trace in &generalizer.reentries {
@@ -21482,6 +21991,7 @@ mod tests {
 
     #[test]
     fn f5c_recursive_upper_census_eliminates_new_negative_only_row_to_top() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-recursive-upper-census"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -21528,13 +22038,16 @@ mod tests {
             )
             .unwrap();
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.recursive_bounds.len(), 1);
         assert_eq!(draft.recursive_bounds[0].upper, F5cNegative::Top);
     }
 
     #[test]
     fn f5c_recursive_lower_census_eliminates_new_positive_only_row_to_bottom() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-recursive-lower-census"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -21573,7 +22086,9 @@ mod tests {
             )
             .unwrap();
 
-        let draft = session.generalization_draft(&definition).unwrap();
+        let draft = session
+            .generalization_draft(&test_source_meter, &definition)
+            .unwrap();
         assert_eq!(draft.recursive_bounds.len(), 1);
         let F5cPositive::Function { result, .. } = &draft.recursive_bounds[0].lower else {
             panic!("recursive lower remains a Function");
@@ -21628,6 +22143,7 @@ mod tests {
 
     #[test]
     fn f5c_guarded_boundary_level_owner_is_rejected() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my f = 1", "f5c-boundary-recursive-owner"));
         let mut session = InferenceSession::new(batch);
         let root = session.batch.definitions[0].root.clone();
@@ -21655,41 +22171,54 @@ mod tests {
         session.value_levels[root_row as usize] = 0;
 
         assert_eq!(
-            session.generalization_draft(&definition),
+            session.generalization_draft(&test_source_meter, &definition),
             Err(SolveAvailabilityError::IdentityExhausted)
         );
     }
 
     #[test]
     fn f5c_incoming_union_routes_each_normalized_member() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module("my source = 1; my sink = source", "f5c-union-route"));
         let route_id = batch.definition_uses()[0].id.clone();
         let mut session = InferenceSession::new(batch);
-        let shallow = F5cPositive::Function {
+        let shallow = || F5cPositive::Function {
             argument: Box::new(F5cNegative::Top),
             argument_effect: F5cNegativeEffect::Empty,
             result_effect: F5cPositiveEffect::Bottom,
             result: Box::new(F5cPositive::Int),
         };
-        let deep = F5cPositive::Union(vec![F5cPositive::Function {
-            argument: Box::new(F5cNegative::Bottom),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Int),
-        }]);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![F5cPositive::Function {
+                    argument: Box::new(F5cNegative::Bottom),
+                    argument_effect: F5cNegativeEffect::Empty,
+                    result_effect: F5cPositiveEffect::Bottom,
+                    result: Box::new(F5cPositive::Int),
+                }],
+            ))
+        };
         let mut draft = GeneralizationDraft {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
             // Structural-first order would put the nested Union (tag 4)
             // before the Function (tag 5); §36 height-major order picks the
             // shallower Function as the final representative.
-            predicate: F5cPositive::Union(vec![deep.clone(), shallow.clone()]),
+            predicate: F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![deep(), shallow()],
+            )),
         };
-        f5c_normalization::normalize_component(std::slice::from_mut(&mut draft)).unwrap();
+        f5c_normalization::normalize_component(
+            &test_source_meter,
+            std::slice::from_mut(&mut draft),
+        )
+        .unwrap();
         let F5cPositive::Union(members) = &draft.predicate else {
             panic!("normalized predicate remains a Union");
         };
-        assert_eq!(members, &[shallow, deep]);
+        assert_eq!(&members[..], &[shallow(), deep()]);
         let finalized = InferenceSession::finalize_generalization_draft(
             session.finalization.as_mut().unwrap(),
             &draft,
@@ -22398,6 +22927,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_nested_products_expand_to_closed_function_terms() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-nested-route",
@@ -22408,16 +22938,16 @@ mod tests {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
             predicate: F5cPositive::Function {
-                argument: Box::new(F5cNegative::Intersection(vec![
-                    F5cNegative::Top,
-                    F5cNegative::Bottom,
-                ])),
+                argument: Box::new(F5cNegative::Intersection(test_tracked(
+                    &test_source_meter,
+                    vec![F5cNegative::Top, F5cNegative::Bottom],
+                ))),
                 argument_effect: F5cNegativeEffect::Empty,
                 result_effect: F5cPositiveEffect::Bottom,
-                result: Box::new(F5cPositive::Union(vec![
-                    F5cPositive::Int,
-                    F5cPositive::Bottom,
-                ])),
+                result: Box::new(F5cPositive::Union(test_tracked(
+                    &test_source_meter,
+                    vec![F5cPositive::Int, F5cPositive::Bottom],
+                ))),
             },
         };
         let finalized = InferenceSession::finalize_generalization_draft(
@@ -23573,6 +24103,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_union_representative_failure_has_no_public_route() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-union-route-failure",
@@ -23582,15 +24113,18 @@ mod tests {
         let draft = GeneralizationDraft {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
-            predicate: F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Int),
-                },
-            ]),
+            predicate: F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Int,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Int),
+                    },
+                ],
+            )),
         };
         let finalized = InferenceSession::finalize_generalization_draft(
             session.finalization.as_mut().unwrap(),
@@ -23616,6 +24150,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_typed_capacity_event_survives_failed_union_route() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-typed-event-failed-route",
@@ -23625,15 +24160,18 @@ mod tests {
         let draft = GeneralizationDraft {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
-            predicate: F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Int),
-                },
-            ]),
+            predicate: F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Int,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Int),
+                    },
+                ],
+            )),
         };
         let finalized = InferenceSession::finalize_generalization_draft(
             session.finalization.as_mut().unwrap(),
@@ -23798,6 +24336,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_union_private_member_availability_failure_restores_route() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-union-private-member-availability-failure",
@@ -23807,15 +24346,18 @@ mod tests {
         let draft = GeneralizationDraft {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
-            predicate: F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Int),
-                },
-            ]),
+            predicate: F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Int,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Int),
+                    },
+                ],
+            )),
         };
         let finalized = InferenceSession::finalize_generalization_draft(
             session.finalization.as_mut().unwrap(),
@@ -23898,6 +24440,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_fresh_outer_rows_survive_private_failure() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-fresh-outer-private-failure",
@@ -23907,15 +24450,18 @@ mod tests {
         let draft = GeneralizationDraft {
             quantifier_count: 1,
             recursive_bounds: Vec::new(),
-            predicate: F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Quantified(0)),
-                },
-            ]),
+            predicate: F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Int,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Quantified(0)),
+                    },
+                ],
+            )),
         };
         let finalized = InferenceSession::finalize_generalization_draft(
             session.finalization.as_mut().unwrap(),
@@ -23991,6 +24537,7 @@ mod tests {
 
     #[test]
     fn f5c_incoming_route_generation_exhaustion_is_atomic() {
+        let test_source_meter = DraftHeapMeter::default();
         let batch = collect(module(
             "my source = 1; my sink = source",
             "f5c-route-generation-exhaustion",
@@ -24000,15 +24547,18 @@ mod tests {
         let draft = GeneralizationDraft {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
-            predicate: F5cPositive::Union(vec![
-                F5cPositive::Int,
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Top),
-                    argument_effect: F5cNegativeEffect::Empty,
-                    result_effect: F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Int),
-                },
-            ]),
+            predicate: F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Int,
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Top),
+                        argument_effect: F5cNegativeEffect::Empty,
+                        result_effect: F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Int),
+                    },
+                ],
+            )),
         };
         let finalized = InferenceSession::finalize_generalization_draft(
             session.finalization.as_mut().unwrap(),

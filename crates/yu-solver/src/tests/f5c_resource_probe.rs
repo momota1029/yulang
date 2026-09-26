@@ -1,6 +1,9 @@
 use super::*;
 
-fn positive_function(argument: F5cNegative, result: F5cPositive) -> F5cPositive {
+fn positive_function<'meter>(
+    argument: F5cNegative<'meter>,
+    result: F5cPositive<'meter>,
+) -> F5cPositive<'meter> {
     F5cPositive::Function {
         argument: Box::new(argument),
         argument_effect: F5cNegativeEffect::Empty,
@@ -9,12 +12,13 @@ fn positive_function(argument: F5cNegative, result: F5cPositive) -> F5cPositive 
     }
 }
 
-fn report_normalization(
+fn report_normalization<'meter>(
+    test_source_meter: &'meter DraftHeapMeter,
     case: &str,
-    drafts: &mut [GeneralizationDraft],
+    drafts: &mut [GeneralizationDraft<'meter>],
 ) -> f5c_normalization::NormalizationStats {
-    let stats =
-        f5c_normalization::normalize_component(drafts).expect("measurement fixture normalizes");
+    let stats = f5c_normalization::normalize_component(&test_source_meter, drafts)
+        .expect("measurement fixture normalizes");
     let [
         nodes,
         children,
@@ -101,7 +105,7 @@ fn count_positive_union_tree(root: &F5cPositive) -> (usize, usize) {
         match value {
             F5cPositive::Union(children) => {
                 edges += children.len();
-                pending.extend(children);
+                pending.extend(children.iter());
             }
             F5cPositive::Int => {}
             _ => panic!("shared-summary probe expands only Union and Int nodes"),
@@ -113,13 +117,18 @@ fn count_positive_union_tree(root: &F5cPositive) -> (usize, usize) {
 #[test]
 #[ignore = "manual resource probe; printed counts are diagnostic, not a limit"]
 fn f5c_resource_probe_scale_families() {
+    let test_source_meter = DraftHeapMeter::default();
     for depth in [64usize, 256, 1024, 4096] {
         let mut value = F5cPositive::Int;
         for _ in 0..depth {
             value = positive_function(F5cNegative::Top, value);
         }
         let mut drafts = [draft(value, 0)];
-        report_normalization(&format!("function_chain_depth_{depth}"), &mut drafts);
+        report_normalization(
+            &test_source_meter,
+            &format!("function_chain_depth_{depth}"),
+            &mut drafts,
+        );
         let value = std::mem::replace(&mut drafts[0].predicate, F5cPositive::Bottom);
         assert_eq!(drain_positive_function_chain(value), depth);
     }
@@ -127,9 +136,16 @@ fn f5c_resource_probe_scale_families() {
     for width in [16usize, 64, 256, 1024] {
         let members = (0..width)
             .map(|ordinal| F5cPositive::Quantified(ordinal as u32))
-            .collect();
-        let mut drafts = [draft(F5cPositive::Union(members), width)];
-        report_normalization(&format!("unique_union_width_{width}"), &mut drafts);
+            .collect::<Vec<_>>();
+        let mut drafts = [draft(
+            F5cPositive::Union(test_tracked(&test_source_meter, members)),
+            width,
+        )];
+        report_normalization(
+            &test_source_meter,
+            &format!("unique_union_width_{width}"),
+            &mut drafts,
+        );
         let F5cPositive::Union(members) =
             std::mem::replace(&mut drafts[0].predicate, F5cPositive::Bottom)
         else {
@@ -141,9 +157,16 @@ fn f5c_resource_probe_scale_families() {
     for width in [16usize, 64, 256, 1024] {
         let members = (0..width)
             .map(|_| positive_function(F5cNegative::Top, F5cPositive::Int))
-            .collect();
-        let mut drafts = [draft(F5cPositive::Union(members), 0)];
-        let stats = report_normalization(&format!("duplicate_union_width_{width}"), &mut drafts);
+            .collect::<Vec<_>>();
+        let mut drafts = [draft(
+            F5cPositive::Union(test_tracked(&test_source_meter, members)),
+            0,
+        )];
+        let stats = report_normalization(
+            &test_source_meter,
+            &format!("duplicate_union_width_{width}"),
+            &mut drafts,
+        );
         assert_eq!(stats.duplicates, width - 1);
         let F5cPositive::Union(members) =
             std::mem::replace(&mut drafts[0].predicate, F5cPositive::Bottom)
@@ -157,7 +180,11 @@ fn f5c_resource_probe_scale_families() {
         let mut drafts = (0..root_count)
             .map(|ordinal| draft(F5cPositive::Quantified(ordinal as u32), root_count))
             .collect::<Vec<_>>();
-        report_normalization(&format!("independent_roots_{root_count}"), &mut drafts);
+        report_normalization(
+            &test_source_meter,
+            &format!("independent_roots_{root_count}"),
+            &mut drafts,
+        );
         for draft in &mut drafts {
             let value = std::mem::replace(&mut draft.predicate, F5cPositive::Bottom);
             assert!(matches!(value, F5cPositive::Quantified(_)));
@@ -175,7 +202,7 @@ fn f5c_resource_probe_scale_families() {
                 .push_node(F5cSummaryNodeKind::PositiveUnion { start, len }, None)
                 .unwrap();
         }
-        let expanded = memo.positive_value(root).unwrap();
+        let expanded = memo.positive_value(&test_source_meter, root).unwrap();
         let (output_nodes, output_edges) = count_positive_union_tree(&expanded);
         let tasks = memo.walker_resources.lanes[F5cWalkerLaneKind::MaterializeTasks as usize];
         eprintln!(
@@ -194,8 +221,15 @@ fn f5c_resource_probe_scale_families() {
         }
         let mut memo = F5cComponentExpansionMemo::default();
         let empty = HashSet::new();
-        let output =
-            crate::f5c_replay::replay_positive(&mut memo, &value, &empty, &empty, &empty).unwrap();
+        let output = crate::f5c_replay::replay_positive(
+            &test_source_meter,
+            &mut memo,
+            &value,
+            &empty,
+            &empty,
+            &empty,
+        )
+        .unwrap();
         let tasks = memo.walker_resources.lanes[F5cWalkerLaneKind::ReplayTasks as usize];
         let values = memo.walker_resources.lanes[F5cWalkerLaneKind::ReplayValues as usize];
         eprintln!(

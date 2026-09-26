@@ -6,7 +6,12 @@ use super::f5c_draft::{
     ChildSpan, FlatDraft, NegativeId, NegativeNode, NodeRef, PositiveId, PositiveNode,
     RecursiveBound,
 };
-use super::{F5cNegative, F5cPositive, GeneralizationDraft, SolveAvailabilityError};
+#[cfg(test)]
+use super::test_tracked;
+use super::{
+    DraftHeapMeter, F5cNegative, F5cPositive, GeneralizationDraft, SolveAvailabilityError,
+    TrackedVec,
+};
 
 type NodeId = usize;
 const SOURCE_UNSELECTED: NodeId = NodeId::MAX;
@@ -84,9 +89,9 @@ struct Node {
     descriptor: Option<(usize, usize)>,
 }
 
-enum Walk {
-    Positive(F5cPositive),
-    Negative(F5cNegative),
+enum Walk<'meter> {
+    Positive(F5cPositive<'meter>),
+    Negative(F5cNegative<'meter>),
     FinishPositiveUnion(usize),
     FinishPositiveFunction,
     FinishNegativeIntersection(usize),
@@ -99,9 +104,9 @@ enum BuiltRef {
     Negative(NodeId),
 }
 
-enum BuiltValue {
-    Positive(F5cPositive),
-    Negative(F5cNegative),
+enum BuiltValue<'meter> {
+    Positive(F5cPositive<'meter>),
+    Negative(F5cNegative<'meter>),
 }
 
 #[derive(Clone, Copy)]
@@ -128,6 +133,8 @@ pub(super) struct NormalizationStats {
     pub(super) index_actual_capacity: usize,
     pub(super) index_retained_bytes: usize,
     pub(super) index_peak_bytes: usize,
+    pub(super) source_bytes_at_start: usize,
+    pub(super) source_index_joint_peak_bytes: usize,
     pub(super) index_capacity_growths: usize,
     pub(super) index_lanes: [NormalizationLaneStats; LANE_COUNT],
     candidate_observer: Option<FlatCandidateObserver>,
@@ -389,10 +396,11 @@ impl From<&NormalizationStats> for FlatNormalizationStats {
     }
 }
 
-struct Normalizer {
+struct Normalizer<'meter> {
+    source_meter: Option<&'meter DraftHeapMeter>,
     nodes: Vec<Node>,
     children: Vec<NodeId>,
-    walk: Vec<Walk>,
+    walk: Vec<Walk<'meter>>,
     values: Vec<BuiltRef>,
     roots: Vec<Root>,
     height_counts: Vec<usize>,
@@ -400,15 +408,16 @@ struct Normalizer {
     height_nodes: Vec<NodeId>,
     sort_scratch: Vec<NodeId>,
     descriptor_words: Vec<u32>,
-    output: Vec<Option<BuiltValue>>,
+    output: Vec<Option<BuiltValue<'meter>>>,
     radix_frames: Vec<RadixFrame>,
     radix_workspace: Vec<usize>,
     stats: NormalizationStats,
 }
 
-impl Normalizer {
+impl<'meter> Normalizer<'meter> {
     fn new() -> Self {
         Self {
+            source_meter: None,
             nodes: Vec::new(),
             children: Vec::new(),
             walk: Vec::new(),
@@ -475,6 +484,7 @@ impl Normalizer {
         additional: usize,
         lane: Lane,
         stats: &mut NormalizationStats,
+        meter: Option<&DraftHeapMeter>,
     ) -> Result<(), SolveAvailabilityError> {
         let old_capacity = items.capacity();
         let requested_slots = stats.index_lanes[lane as usize]
@@ -539,6 +549,14 @@ impl Normalizer {
             } else {
                 accounting_exhausted = true;
             }
+            if let Some(meter) = meter {
+                if meter
+                    .observe_normalization_scratch(stats.index_retained_bytes)
+                    .is_err()
+                {
+                    accounting_exhausted = true;
+                }
+            }
         }
         #[cfg(test)]
         let observer_result = stats
@@ -558,8 +576,9 @@ impl Normalizer {
         item: T,
         lane: Lane,
         stats: &mut NormalizationStats,
+        meter: Option<&DraftHeapMeter>,
     ) -> Result<(), SolveAvailabilityError> {
-        Self::reserve(items, 1, lane, stats)?;
+        Self::reserve(items, 1, lane, stats, meter)?;
         items.push(item);
         Ok(())
     }
@@ -575,6 +594,7 @@ impl Normalizer {
             word,
             Lane::DescriptorWords,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.stats.descriptor_words = next;
         Ok(())
@@ -591,6 +611,7 @@ impl Normalizer {
             children.len(),
             Lane::Children,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.children.extend_from_slice(children);
         self.push_node_at(kind, start, children.len())
@@ -630,7 +651,13 @@ impl Normalizer {
             descriptor: None,
         };
         let id = self.nodes.len();
-        Self::push(&mut self.nodes, node, Lane::Nodes, &mut self.stats)?;
+        Self::push(
+            &mut self.nodes,
+            node,
+            Lane::Nodes,
+            &mut self.stats,
+            self.source_meter,
+        )?;
         Ok(match kind {
             NodeKind::PositiveUnion { .. } => {
                 self.nodes[id].kind = NodeKind::PositiveUnion {
@@ -658,22 +685,30 @@ impl Normalizer {
         })
     }
 
-    fn flatten_positive(&mut self, value: F5cPositive) -> Result<NodeId, SolveAvailabilityError> {
+    fn flatten_positive(
+        &mut self,
+        value: F5cPositive<'meter>,
+    ) -> Result<NodeId, SolveAvailabilityError> {
         Self::push(
             &mut self.walk,
             Walk::Positive(value),
             Lane::Walk,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.flatten()
     }
 
-    fn flatten_negative(&mut self, value: F5cNegative) -> Result<NodeId, SolveAvailabilityError> {
+    fn flatten_negative(
+        &mut self,
+        value: F5cNegative<'meter>,
+    ) -> Result<NodeId, SolveAvailabilityError> {
         Self::push(
             &mut self.walk,
             Walk::Negative(value),
             Lane::Walk,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.flatten()
     }
@@ -701,6 +736,7 @@ impl Normalizer {
                             Walk::FinishPositiveUnion(len),
                             Lane::Walk,
                             &mut self.stats,
+                            self.source_meter,
                         )?;
                         for child in children.into_iter().rev() {
                             Self::push(
@@ -708,6 +744,7 @@ impl Normalizer {
                                 Walk::Positive(child),
                                 Lane::Walk,
                                 &mut self.stats,
+                                self.source_meter,
                             )?;
                         }
                     }
@@ -719,18 +756,21 @@ impl Normalizer {
                             Walk::FinishPositiveFunction,
                             Lane::Walk,
                             &mut self.stats,
+                            self.source_meter,
                         )?;
                         Self::push(
                             &mut self.walk,
                             Walk::Positive(*result),
                             Lane::Walk,
                             &mut self.stats,
+                            self.source_meter,
                         )?;
                         Self::push(
                             &mut self.walk,
                             Walk::Negative(*argument),
                             Lane::Walk,
                             &mut self.stats,
+                            self.source_meter,
                         )?;
                     }
                 },
@@ -754,6 +794,7 @@ impl Normalizer {
                             Walk::FinishNegativeIntersection(len),
                             Lane::Walk,
                             &mut self.stats,
+                            self.source_meter,
                         )?;
                         for child in children.into_iter().rev() {
                             Self::push(
@@ -761,6 +802,7 @@ impl Normalizer {
                                 Walk::Negative(child),
                                 Lane::Walk,
                                 &mut self.stats,
+                                self.source_meter,
                             )?;
                         }
                     }
@@ -772,18 +814,21 @@ impl Normalizer {
                             Walk::FinishNegativeFunction,
                             Lane::Walk,
                             &mut self.stats,
+                            self.source_meter,
                         )?;
                         Self::push(
                             &mut self.walk,
                             Walk::Negative(*result),
                             Lane::Walk,
                             &mut self.stats,
+                            self.source_meter,
                         )?;
                         Self::push(
                             &mut self.walk,
                             Walk::Positive(*argument),
                             Lane::Walk,
                             &mut self.stats,
+                            self.source_meter,
                         )?;
                     }
                 },
@@ -799,6 +844,7 @@ impl Normalizer {
                         BuiltRef::Positive(id),
                         Lane::Values,
                         &mut self.stats,
+                        self.source_meter,
                     )?;
                 }
                 Walk::FinishPositiveFunction => {
@@ -816,6 +862,7 @@ impl Normalizer {
                         BuiltRef::Positive(id),
                         Lane::Values,
                         &mut self.stats,
+                        self.source_meter,
                     )?;
                 }
                 Walk::FinishNegativeIntersection(len) => {
@@ -830,6 +877,7 @@ impl Normalizer {
                         BuiltRef::Negative(id),
                         Lane::Values,
                         &mut self.stats,
+                        self.source_meter,
                     )?;
                 }
                 Walk::FinishNegativeFunction => {
@@ -847,6 +895,7 @@ impl Normalizer {
                         BuiltRef::Negative(id),
                         Lane::Values,
                         &mut self.stats,
+                        self.source_meter,
                     )?;
                 }
             }
@@ -869,7 +918,13 @@ impl Normalizer {
             | NodeKind::NegativeRecursive(_) => BuiltRef::Negative(id),
             _ => BuiltRef::Positive(id),
         };
-        Self::push(&mut self.values, reference, Lane::Values, &mut self.stats)
+        Self::push(
+            &mut self.values,
+            reference,
+            Lane::Values,
+            &mut self.stats,
+            self.source_meter,
+        )
     }
 
     fn take_values_into_children(
@@ -883,7 +938,13 @@ impl Normalizer {
             .checked_sub(len)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let children_start = self.children.len();
-        Self::reserve(&mut self.children, len, Lane::Children, &mut self.stats)?;
+        Self::reserve(
+            &mut self.children,
+            len,
+            Lane::Children,
+            &mut self.stats,
+            self.source_meter,
+        )?;
         for value in &self.values[start..] {
             let id = match (positive, value) {
                 (true, BuiltRef::Positive(id)) | (false, BuiltRef::Negative(id)) => *id,
@@ -914,12 +975,13 @@ impl Normalizer {
             Root { node, location },
             Lane::Roots,
             &mut self.stats,
+            self.source_meter,
         )
     }
 
     fn collect_drafts(
         &mut self,
-        drafts: &mut [GeneralizationDraft],
+        drafts: &mut [GeneralizationDraft<'meter>],
     ) -> Result<(), SolveAvailabilityError> {
         for (draft_index, draft) in drafts.iter_mut().enumerate() {
             let predicate = std::mem::replace(&mut draft.predicate, F5cPositive::Bottom);
@@ -957,6 +1019,7 @@ impl Normalizer {
             height_count,
             Lane::HeightCounts,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.height_counts.resize(height_count, 0);
         for node in &self.nodes {
@@ -974,6 +1037,7 @@ impl Normalizer {
             offsets_len,
             Lane::HeightOffsets,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.height_offsets.resize(offsets_len, 0);
         for index in 0..height_count {
@@ -986,6 +1050,7 @@ impl Normalizer {
             self.nodes.len(),
             Lane::HeightNodes,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.height_nodes.resize(self.nodes.len(), 0);
         self.height_counts
@@ -1004,6 +1069,7 @@ impl Normalizer {
             self.nodes.len(),
             Lane::SortScratch,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.sort_scratch.resize(self.nodes.len(), 0);
         Ok(())
@@ -1072,6 +1138,7 @@ impl Normalizer {
             workspace_additional,
             Lane::RadixWorkspace,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.radix_workspace.resize(RADIX_WORKSPACE_SLOTS, 0);
         Ok(())
@@ -1103,6 +1170,7 @@ impl Normalizer {
             workspace,
             &mut self.radix_frames,
             &mut self.stats,
+            self.source_meter,
             |node_id, byte| descriptor_radix_symbol(nodes, words, node_id, byte),
         )
     }
@@ -1132,6 +1200,7 @@ impl Normalizer {
             workspace,
             &mut self.radix_frames,
             &mut self.stats,
+            self.source_meter,
             |node_id, byte| key_id_radix_symbol(nodes, node_id, byte),
         )
     }
@@ -1264,13 +1333,17 @@ impl Normalizer {
 
     fn rebuild(
         &mut self,
-        drafts: &mut [GeneralizationDraft],
+        drafts: &mut [GeneralizationDraft<'meter>],
     ) -> Result<(), SolveAvailabilityError> {
+        let source_meter = self
+            .source_meter
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         Self::reserve(
             &mut self.output,
             self.nodes.len(),
             Lane::Output,
             &mut self.stats,
+            self.source_meter,
         )?;
         self.output.resize_with(self.nodes.len(), || None);
         for id in 0..self.nodes.len() {
@@ -1288,15 +1361,15 @@ impl Normalizer {
                     let end = start
                         .checked_add(len)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    let mut values = Vec::new();
+                    let mut values = TrackedVec::new(source_meter);
                     values
-                        .try_reserve(len)
+                        .try_reserve_exact(len)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for child in self.children[start..end].iter().copied() {
                         let Some(BuiltValue::Positive(value)) = self.output[child].take() else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        values.push(value);
+                        values.push_reserved(value);
                     }
                     BuiltValue::Positive(F5cPositive::Union(values))
                 }
@@ -1330,15 +1403,15 @@ impl Normalizer {
                     let end = start
                         .checked_add(len)
                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                    let mut values = Vec::new();
+                    let mut values = TrackedVec::new(source_meter);
                     values
-                        .try_reserve(len)
+                        .try_reserve_exact(len)
                         .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for child in self.children[start..end].iter().copied() {
                         let Some(BuiltValue::Negative(value)) = self.output[child].take() else {
                             return Err(SolveAvailabilityError::IdentityExhausted);
                         };
-                        values.push(value);
+                        values.push_reserved(value);
                     }
                     BuiltValue::Negative(F5cNegative::Intersection(values))
                 }
@@ -1585,6 +1658,7 @@ fn radix_sort_node_ids(
     workspace: Option<&mut [usize]>,
     frames: &mut Vec<RadixFrame>,
     stats: &mut NormalizationStats,
+    meter: Option<&DraftHeapMeter>,
     mut symbol_for: impl FnMut(NodeId, usize) -> Result<usize, SolveAvailabilityError>,
 ) -> Result<(), SolveAvailabilityError> {
     if values.len() < 2 {
@@ -1625,6 +1699,7 @@ fn radix_sort_node_ids(
         },
         Lane::RadixFrames,
         stats,
+        meter,
     )?;
 
     while let Some(frame) = frames.pop() {
@@ -1715,6 +1790,7 @@ fn radix_sort_node_ids(
                 },
                 Lane::RadixFrames,
                 stats,
+                meter,
             )?;
         }
     }
@@ -1925,27 +2001,37 @@ fn validate_prior_links(
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub(super) fn normalize_component(
-    drafts: &mut [GeneralizationDraft],
+pub(super) fn normalize_component<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    drafts: &mut [GeneralizationDraft<'meter>],
 ) -> Result<NormalizationStats, SolveAvailabilityError> {
     let mut stats = NormalizationStats::default();
-    normalize_component_with_stats(drafts, &mut stats)?;
+    normalize_component_with_stats(source_meter, drafts, &mut stats)?;
     Ok(stats)
 }
 
-pub(super) fn normalize_component_with_stats(
-    drafts: &mut [GeneralizationDraft],
+pub(super) fn normalize_component_with_stats<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    drafts: &mut [GeneralizationDraft<'meter>],
     observed_stats: &mut NormalizationStats,
 ) -> Result<(), SolveAvailabilityError> {
-    normalize_component_inner(drafts, observed_stats, false)
+    normalize_component_inner(source_meter, drafts, observed_stats, false)
 }
 
-fn normalize_component_inner(
-    drafts: &mut [GeneralizationDraft],
+fn normalize_component_inner<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    drafts: &mut [GeneralizationDraft<'meter>],
     observed_stats: &mut NormalizationStats,
     fail_after_collect: bool,
 ) -> Result<(), SolveAvailabilityError> {
     let mut normalizer = Normalizer::new();
+    normalizer.source_meter = Some(source_meter);
+    let source_bytes_at_start = source_meter
+        .current_bytes()
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+    source_meter
+        .begin_normalization()
+        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
     let result = normalizer
         .collect_drafts(drafts)
         .and_then(|()| {
@@ -1959,6 +2045,10 @@ fn normalize_component_inner(
     #[cfg(test)]
     let (physical_lane_capacities, physical_lane_slot_sizes) = normalizer.physical_lane_snapshot();
     let mut stats = std::mem::take(&mut normalizer.stats);
+    stats.source_bytes_at_start = source_bytes_at_start;
+    stats.source_index_joint_peak_bytes = source_meter
+        .end_normalization()
+        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
     #[cfg(test)]
     {
         stats.physical_lane_capacities = physical_lane_capacities;
@@ -2534,6 +2624,7 @@ mod flat_tests {
 
     #[test]
     fn repeated_summary_occurrences_match_boxed_normalization() {
+        let test_source_meter = DraftHeapMeter::default();
         use super::super::f5c_materialization::materialize_summary_flat;
         use super::super::{
             F5cComponentExpansionMemo, F5cNegativeEffect, F5cPositiveEffect, F5cSummaryNode,
@@ -2572,17 +2663,23 @@ mod flat_tests {
         flat.predicate = Some(root);
         let mut boxed = [GeneralizationDraft {
             quantifier_count: 0,
-            predicate: memo.positive_value(ids[4]).unwrap(),
+            predicate: memo.positive_value(&test_source_meter, ids[4]).unwrap(),
             recursive_bounds: vec![],
         }];
         let (normalized, flat_stats) = normalize_flat(&flat).unwrap();
-        let boxed_stats = normalize_component(&mut boxed).unwrap();
-        let expected = F5cPositive::Union(vec![F5cPositive::Function {
-            argument: Box::new(F5cNegative::Intersection(vec![F5cNegative::Int])),
-            argument_effect: F5cNegativeEffect::Empty,
-            result_effect: F5cPositiveEffect::Bottom,
-            result: Box::new(F5cPositive::Int),
-        }]);
+        let boxed_stats = normalize_component(&test_source_meter, &mut boxed).unwrap();
+        let expected = F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![F5cPositive::Function {
+                argument: Box::new(F5cNegative::Intersection(test_tracked(
+                    &test_source_meter,
+                    vec![F5cNegative::Int],
+                ))),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Int),
+            }],
+        ));
         assert_eq!(boxed[0].predicate, expected);
         assert_eq!(
             normalized.positive_nodes,
@@ -2614,6 +2711,7 @@ mod flat_tests {
 
     #[test]
     fn flat_compound_tree_matches_boxed_normalization_counters() {
+        let test_source_meter = DraftHeapMeter::default();
         let mut flat = FlatDraft::default();
         let negative_function_argument = flat.positive(PositiveNode::Int).unwrap();
         let negative_function_result = flat.negative(NegativeNode::Int).unwrap();
@@ -2646,29 +2744,35 @@ mod flat_tests {
         let (_, flat_stats) = normalize_flat(&flat).unwrap();
         let mut old = [GeneralizationDraft {
             quantifier_count: 0,
-            predicate: F5cPositive::Union(vec![
-                F5cPositive::Function {
-                    argument: Box::new(F5cNegative::Intersection(vec![
-                        F5cNegative::Function {
-                            argument: Box::new(F5cPositive::Int),
-                            argument_effect: super::super::F5cPositiveEffect::Bottom,
-                            result_effect: super::super::F5cNegativeEffect::Empty,
-                            result: Box::new(F5cNegative::Int),
-                        },
-                        F5cNegative::Top,
-                        F5cNegative::Int,
-                        F5cNegative::Int,
-                    ])),
-                    argument_effect: super::super::F5cNegativeEffect::Empty,
-                    result_effect: super::super::F5cPositiveEffect::Bottom,
-                    result: Box::new(F5cPositive::Bottom),
-                },
-                F5cPositive::Int,
-                F5cPositive::Bottom,
-            ]),
+            predicate: F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![
+                    F5cPositive::Function {
+                        argument: Box::new(F5cNegative::Intersection(test_tracked(
+                            &test_source_meter,
+                            vec![
+                                F5cNegative::Function {
+                                    argument: Box::new(F5cPositive::Int),
+                                    argument_effect: super::super::F5cPositiveEffect::Bottom,
+                                    result_effect: super::super::F5cNegativeEffect::Empty,
+                                    result: Box::new(F5cNegative::Int),
+                                },
+                                F5cNegative::Top,
+                                F5cNegative::Int,
+                                F5cNegative::Int,
+                            ],
+                        ))),
+                        argument_effect: super::super::F5cNegativeEffect::Empty,
+                        result_effect: super::super::F5cPositiveEffect::Bottom,
+                        result: Box::new(F5cPositive::Bottom),
+                    },
+                    F5cPositive::Int,
+                    F5cPositive::Bottom,
+                ],
+            )),
             recursive_bounds: vec![],
         }];
-        let boxed_stats = normalize_component(&mut old).unwrap();
+        let boxed_stats = normalize_component(&test_source_meter, &mut old).unwrap();
         assert_eq!(flat_stats.key_writes, boxed_stats.key_writes);
         assert_eq!(flat_stats.child_comparisons, boxed_stats.child_comparisons);
         assert_eq!(flat_stats.descriptor_words, boxed_stats.descriptor_words);
@@ -2915,6 +3019,7 @@ mod flat_tests {
 
 pub(super) fn record_production_counters(
     stats: &NormalizationStats,
+    sampled_source_bytes: usize,
     counters: &mut super::ProductionCounters,
 ) -> Result<(), SolveAvailabilityError> {
     let mut next = counters.clone();
@@ -2949,11 +3054,13 @@ pub(super) fn record_production_counters(
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
     let semantic_peak = next
         .semantic_arena_retained_bytes
-        .checked_add(stats.index_peak_bytes)
+        .checked_sub(sampled_source_bytes)
+        .and_then(|bytes| bytes.checked_add(stats.source_index_joint_peak_bytes))
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
     let session_peak = next
         .inference_session_retained_bytes
-        .checked_add(stats.index_peak_bytes)
+        .checked_sub(sampled_source_bytes)
+        .and_then(|bytes| bytes.checked_add(stats.source_index_joint_peak_bytes))
         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
     next.semantic_arena_peak_bytes = next.semantic_arena_peak_bytes.max(semantic_peak);
     next.inference_session_peak_bytes = next.inference_session_peak_bytes.max(session_peak);
@@ -2966,6 +3073,7 @@ impl super::IndependentResourceLedger {
     pub(super) fn record_closed_normalization_index(
         &mut self,
         stats: &NormalizationStats,
+        sampled_source_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let mut requested_slots = 0usize;
         let mut actual_capacity = 0usize;
@@ -3041,11 +3149,13 @@ impl super::IndependentResourceLedger {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let semantic_peak = next
             .semantic_arena_retained_bytes
-            .checked_add(stats.index_peak_bytes)
+            .checked_sub(sampled_source_bytes)
+            .and_then(|bytes| bytes.checked_add(stats.source_index_joint_peak_bytes))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let session_peak = next
             .inference_session_retained_bytes
-            .checked_add(stats.index_peak_bytes)
+            .checked_sub(sampled_source_bytes)
+            .and_then(|bytes| bytes.checked_add(stats.source_index_joint_peak_bytes))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         next.semantic_arena_peak_bytes = next.semantic_arena_peak_bytes.max(semantic_peak);
         next.inference_session_peak_bytes = next.inference_session_peak_bytes.max(session_peak);
@@ -3055,15 +3165,16 @@ impl super::IndependentResourceLedger {
 }
 
 #[cfg(test)]
-pub(super) fn normalize_positive(
-    value: F5cPositive,
-) -> Result<F5cPositive, SolveAvailabilityError> {
+pub(super) fn normalize_positive<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    value: F5cPositive<'meter>,
+) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
     let mut drafts = [GeneralizationDraft {
         quantifier_count: 0,
         recursive_bounds: Vec::<F5cRecursiveBound>::new(),
         predicate: value,
     }];
-    normalize_component(&mut drafts)?;
+    normalize_component(source_meter, &mut drafts)?;
     Ok(std::mem::replace(
         &mut drafts[0].predicate,
         F5cPositive::Bottom,
@@ -3071,9 +3182,10 @@ pub(super) fn normalize_positive(
 }
 
 #[cfg(test)]
-pub(super) fn normalize_negative(
-    value: F5cNegative,
-) -> Result<F5cNegative, SolveAvailabilityError> {
+pub(super) fn normalize_negative<'meter>(
+    source_meter: &'meter DraftHeapMeter,
+    value: F5cNegative<'meter>,
+) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
     let mut drafts = [GeneralizationDraft {
         quantifier_count: 0,
         recursive_bounds: vec![F5cRecursiveBound {
@@ -3084,6 +3196,7 @@ pub(super) fn normalize_negative(
         predicate: F5cPositive::Bottom,
     }];
     let mut normalizer = Normalizer::new();
+    normalizer.source_meter = Some(source_meter);
     let root = normalizer.flatten_negative(value)?;
     normalizer.add_root(BuiltRef::Negative(root), RootLocation::Upper(0, 0))?;
     normalizer.rank_all()?;
@@ -3125,7 +3238,13 @@ mod tests {
         }));
 
         assert_eq!(
-            Normalizer::reserve(&mut items, usize::MAX, Lane::DescriptorWords, &mut stats),
+            Normalizer::reserve(
+                &mut items,
+                usize::MAX,
+                Lane::DescriptorWords,
+                &mut stats,
+                None
+            ),
             Err(SolveAvailabilityError::IdentityExhausted)
         );
         let actual_capacity = items.capacity();
@@ -3181,7 +3300,7 @@ mod tests {
             }));
 
             assert_eq!(
-                Normalizer::reserve(&mut items, 2, Lane::DescriptorWords, &mut stats),
+                Normalizer::reserve(&mut items, 2, Lane::DescriptorWords, &mut stats, None),
                 Err(SolveAvailabilityError::IdentityExhausted)
             );
             let capacity = items.capacity();
@@ -3201,7 +3320,10 @@ mod tests {
         }
     }
 
-    fn positive_function(argument: F5cNegative, result: F5cPositive) -> F5cPositive {
+    fn positive_function<'meter>(
+        argument: F5cNegative<'meter>,
+        result: F5cPositive<'meter>,
+    ) -> F5cPositive<'meter> {
         F5cPositive::Function {
             argument: Box::new(argument),
             argument_effect: F5cNegativeEffect::Empty,
@@ -3210,7 +3332,10 @@ mod tests {
         }
     }
 
-    fn negative_function(argument: F5cPositive, result: F5cNegative) -> F5cNegative {
+    fn negative_function<'meter>(
+        argument: F5cPositive<'meter>,
+        result: F5cNegative<'meter>,
+    ) -> F5cNegative<'meter> {
         F5cNegative::Function {
             argument: Box::new(argument),
             argument_effect: F5cPositiveEffect::Bottom,
@@ -3219,7 +3344,7 @@ mod tests {
         }
     }
 
-    fn draft(predicate: F5cPositive) -> GeneralizationDraft {
+    fn draft<'meter>(predicate: F5cPositive<'meter>) -> GeneralizationDraft<'meter> {
         GeneralizationDraft {
             quantifier_count: 0,
             recursive_bounds: Vec::new(),
@@ -3276,37 +3401,44 @@ mod tests {
 
     #[test]
     fn positive_mixed_height_members_use_height_before_discriminator() {
-        let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
-        let deep = F5cPositive::Union(vec![positive_function(
-            F5cNegative::Bottom,
-            F5cPositive::Int,
-        )]);
-        let mut drafts = [draft(F5cPositive::Union(vec![
-            deep.clone(),
-            shallow.clone(),
-        ]))];
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || positive_function(F5cNegative::Top, F5cPositive::Int);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![positive_function(F5cNegative::Bottom, F5cPositive::Int)],
+            ))
+        };
+        let mut drafts = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![deep(), shallow()],
+        )))];
 
-        normalize_component(&mut drafts).unwrap();
+        normalize_component(&test_source_meter, &mut drafts).unwrap();
 
         let F5cPositive::Union(members) = &drafts[0].predicate else {
             panic!("the normalized root remains a Union");
         };
-        assert_eq!(members, &[shallow, deep]);
+        assert_eq!(&members[..], &[shallow(), deep()]);
     }
 
     #[test]
     fn negative_mixed_height_members_use_height_before_discriminator() {
-        let shallow = negative_function(F5cPositive::Bottom, F5cNegative::Top);
-        let deep = F5cNegative::Intersection(vec![negative_function(
-            F5cPositive::Int,
-            F5cNegative::Bottom,
-        )]);
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || negative_function(F5cPositive::Bottom, F5cNegative::Top);
+        let deep = || {
+            F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![negative_function(F5cPositive::Int, F5cNegative::Bottom)],
+            ))
+        };
         let mut normalizer = Normalizer::new();
+        normalizer.source_meter = Some(&test_source_meter);
         let root = normalizer
-            .flatten_negative(F5cNegative::Intersection(vec![
-                deep.clone(),
-                shallow.clone(),
-            ]))
+            .flatten_negative(F5cNegative::Intersection(test_tracked(
+                &test_source_meter,
+                vec![deep(), shallow()],
+            )))
             .unwrap();
         let mut draft = GeneralizationDraft {
             quantifier_count: 0,
@@ -3329,28 +3461,30 @@ mod tests {
         let F5cNegative::Intersection(members) = &draft.recursive_bounds[0].upper else {
             panic!("the normalized root remains an Intersection");
         };
-        assert_eq!(members, &[shallow, deep]);
+        assert_eq!(&members[..], &[shallow(), deep()]);
     }
 
     #[test]
     fn exact_duplicate_members_share_rank_and_are_removed() {
-        let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
-        let deep = F5cPositive::Union(vec![positive_function(
-            F5cNegative::Bottom,
-            F5cPositive::Int,
-        )]);
-        let mut drafts = [draft(F5cPositive::Union(vec![
-            deep.clone(),
-            shallow.clone(),
-            shallow.clone(),
-        ]))];
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || positive_function(F5cNegative::Top, F5cPositive::Int);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![positive_function(F5cNegative::Bottom, F5cPositive::Int)],
+            ))
+        };
+        let mut drafts = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![deep(), shallow(), shallow()],
+        )))];
 
-        let stats = normalize_component(&mut drafts).unwrap();
+        let stats = normalize_component(&test_source_meter, &mut drafts).unwrap();
 
         let F5cPositive::Union(members) = &drafts[0].predicate else {
             panic!("the normalized root remains a Union");
         };
-        assert_eq!(members, &[shallow, deep]);
+        assert_eq!(&members[..], &[shallow(), deep()]);
         assert_eq!(stats.duplicates, 1);
         assert_eq!(stats.key_writes, 11);
         assert_eq!(stats.descriptor_words, 31);
@@ -3360,14 +3494,20 @@ mod tests {
 
     #[test]
     fn height_major_ranks_follow_height_then_descriptor_and_share_equal_keys() {
-        let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
-        let deep = F5cPositive::Union(vec![positive_function(
-            F5cNegative::Bottom,
-            F5cPositive::Int,
-        )]);
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || positive_function(F5cNegative::Top, F5cPositive::Int);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![positive_function(F5cNegative::Bottom, F5cPositive::Int)],
+            ))
+        };
         let mut normalizer = Normalizer::new();
         let root = normalizer
-            .flatten_positive(F5cPositive::Union(vec![deep, shallow.clone(), shallow]))
+            .flatten_positive(F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![deep(), shallow(), shallow()],
+            )))
             .unwrap();
 
         normalizer.rank_all().unwrap();
@@ -3400,14 +3540,18 @@ mod tests {
 
     #[test]
     fn normalization_index_lanes_reconcile_after_transient_release() {
-        let mut drafts = [draft(F5cPositive::Union(
-            (0..12).map(F5cPositive::Quantified).collect(),
-        ))];
-        let stats = normalize_component(&mut drafts).unwrap();
+        let test_source_meter = DraftHeapMeter::default();
+        let mut drafts = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..12).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        )))];
+        let stats = normalize_component(&test_source_meter, &mut drafts).unwrap();
         let mut independent = crate::IndependentResourceLedger::default();
+        independent.semantic_arena_retained_bytes = stats.source_bytes_at_start;
+        independent.inference_session_retained_bytes = stats.source_bytes_at_start;
 
         independent
-            .record_closed_normalization_index(&stats)
+            .record_closed_normalization_index(&stats, stats.source_bytes_at_start)
             .unwrap();
 
         assert!(stats.index_requested_slots > 0);
@@ -3440,10 +3584,12 @@ mod tests {
 
     #[test]
     fn normalization_peak_includes_live_source_slots() {
-        let mut drafts = [draft(F5cPositive::Union(
-            (0..12).map(F5cPositive::Quantified).collect(),
-        ))];
-        let stats = normalize_component(&mut drafts).unwrap();
+        let test_source_meter = DraftHeapMeter::default();
+        let mut drafts = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..12).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        )))];
+        let stats = normalize_component(&test_source_meter, &mut drafts).unwrap();
         let source_meter = crate::DraftHeapMeter::default();
         let mut source =
             crate::f5c_draft_heap::TrackedVec::<crate::GeneralizationDraft>::new(&source_meter);
@@ -3455,43 +3601,81 @@ mod tests {
             source_bytes
         );
         let mut counters = crate::ProductionCounters::default();
-        counters.semantic_arena_retained_bytes = source_bytes;
-        counters.inference_session_retained_bytes = source_bytes;
-        record_production_counters(&stats, &mut counters).unwrap();
+        counters.semantic_arena_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        counters.inference_session_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        record_production_counters(&stats, stats.source_bytes_at_start, &mut counters).unwrap();
         let mut independent = crate::IndependentResourceLedger::default();
-        independent.semantic_arena_retained_bytes = source_bytes;
-        independent.inference_session_retained_bytes = source_bytes;
+        independent.semantic_arena_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        independent.inference_session_retained_bytes = source_bytes + stats.source_bytes_at_start;
         independent
-            .record_closed_normalization_index(&stats)
+            .record_closed_normalization_index(&stats, stats.source_bytes_at_start)
             .unwrap();
         assert_eq!(
             counters.semantic_arena_peak_bytes,
-            source_bytes + stats.index_peak_bytes
+            source_bytes + stats.source_index_joint_peak_bytes
         );
         assert_eq!(
             independent.semantic_arena_peak_bytes,
-            source_bytes + stats.index_peak_bytes
+            source_bytes + stats.source_index_joint_peak_bytes
         );
         assert_eq!(
             independent.inference_session_peak_bytes,
-            source_bytes + stats.index_peak_bytes
+            source_bytes + stats.source_index_joint_peak_bytes
         );
     }
 
     #[test]
+    fn normalization_peak_replaces_early_sampled_source_after_nested_growth() {
+        let meter = DraftHeapMeter::default();
+        let mut source = TrackedVec::<GeneralizationDraft>::new(&meter);
+        source.try_reserve_exact(1).unwrap();
+        let sampled_source_bytes = meter.current_bytes().unwrap();
+        source.push_reserved(draft(F5cPositive::Union(test_tracked(
+            &meter,
+            (0..12).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        ))));
+        let current_source_bytes = meter.current_bytes().unwrap();
+        assert!(current_source_bytes > sampled_source_bytes);
+        // The component memo has been released before normalization; its
+        // transient capacity was never included in the F4 retained sample.
+        let stats = normalize_component(&meter, source.as_mut_slice()).unwrap();
+        assert_eq!(stats.source_bytes_at_start, current_source_bytes);
+
+        let unrelated_retained_bytes = 37;
+        let sampled_retained_bytes = unrelated_retained_bytes + sampled_source_bytes;
+        let expected_peak = unrelated_retained_bytes + stats.source_index_joint_peak_bytes;
+        let mut counters = crate::ProductionCounters::default();
+        counters.semantic_arena_retained_bytes = sampled_retained_bytes;
+        counters.inference_session_retained_bytes = sampled_retained_bytes;
+        record_production_counters(&stats, sampled_source_bytes, &mut counters).unwrap();
+        let mut independent = crate::IndependentResourceLedger::default();
+        independent.semantic_arena_retained_bytes = sampled_retained_bytes;
+        independent.inference_session_retained_bytes = sampled_retained_bytes;
+        independent
+            .record_closed_normalization_index(&stats, sampled_source_bytes)
+            .unwrap();
+        assert_eq!(counters.semantic_arena_peak_bytes, expected_peak);
+        assert_eq!(counters.inference_session_peak_bytes, expected_peak);
+        assert_eq!(independent.semantic_arena_peak_bytes, expected_peak);
+        assert_eq!(independent.inference_session_peak_bytes, expected_peak);
+    }
+
+    #[test]
     fn failed_normalization_reports_live_source_and_scratch_peak() {
+        let test_source_meter = DraftHeapMeter::default();
         let meter = crate::DraftHeapMeter::default();
         let mut source =
             crate::f5c_draft_heap::TrackedVec::<crate::GeneralizationDraft>::new(&meter);
         source.try_reserve_exact(1).unwrap();
-        source.push_reserved(draft(F5cPositive::Union(
-            (0..12).map(F5cPositive::Quantified).collect(),
-        )));
+        source.push_reserved(draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..12).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        ))));
         let source_bytes = source.capacity() * std::mem::size_of::<crate::GeneralizationDraft>()
             + crate::DraftHeapMeter::fixed_payload_bytes();
         let mut stats = NormalizationStats::default();
         assert_eq!(
-            normalize_component_inner(source.as_mut_slice(), &mut stats, true),
+            normalize_component_inner(&test_source_meter, source.as_mut_slice(), &mut stats, true),
             Err(SolveAvailabilityError::IdentityExhausted)
         );
         assert!(stats.index_peak_bytes > 0);
@@ -3514,25 +3698,59 @@ mod tests {
                 .all(|lane| lane.retained_bytes == 0)
         );
         let mut counters = crate::ProductionCounters::default();
-        counters.semantic_arena_retained_bytes = source_bytes;
-        counters.inference_session_retained_bytes = source_bytes;
-        record_production_counters(&stats, &mut counters).unwrap();
+        counters.semantic_arena_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        counters.inference_session_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        record_production_counters(&stats, stats.source_bytes_at_start, &mut counters).unwrap();
         let mut independent = crate::IndependentResourceLedger::default();
-        independent.semantic_arena_retained_bytes = source_bytes;
-        independent.inference_session_retained_bytes = source_bytes;
+        independent.semantic_arena_retained_bytes = source_bytes + stats.source_bytes_at_start;
+        independent.inference_session_retained_bytes = source_bytes + stats.source_bytes_at_start;
         independent
-            .record_closed_normalization_index(&stats)
+            .record_closed_normalization_index(&stats, stats.source_bytes_at_start)
             .unwrap();
         assert_eq!(
             counters.semantic_arena_peak_bytes,
-            source_bytes + physical_bytes
+            source_bytes + stats.source_index_joint_peak_bytes
         );
         assert_eq!(
             independent.semantic_arena_peak_bytes,
-            source_bytes + physical_bytes
+            source_bytes + stats.source_index_joint_peak_bytes
         );
         drop(source);
         assert_eq!(meter.current_bytes(), Some(0));
+    }
+
+    #[test]
+    fn joint_peak_tracks_co_resident_positive_negative_and_index_growth() {
+        let meter = DraftHeapMeter::default();
+        let mut positive = TrackedVec::<F5cPositive>::new(&meter);
+        let mut negative = TrackedVec::<F5cNegative>::new(&meter);
+        positive.try_reserve_exact(120).unwrap();
+        negative.try_reserve_exact(7).unwrap();
+        let initial_source = positive.capacity() * std::mem::size_of::<F5cPositive>()
+            + negative.capacity() * std::mem::size_of::<F5cNegative>();
+        assert_eq!(meter.current_bytes(), Some(initial_source));
+        meter.begin_normalization().unwrap();
+        let mut scratch = Vec::<Node>::new();
+        let mut stats = NormalizationStats::default();
+        Normalizer::reserve(&mut scratch, 10, Lane::Nodes, &mut stats, Some(&meter)).unwrap();
+        let scratch_bytes = scratch.capacity() * std::mem::size_of::<Node>();
+        let during_collect = initial_source + scratch_bytes;
+        assert_eq!(stats.index_retained_bytes, scratch_bytes);
+        drop(positive);
+        let remaining_source = negative.capacity() * std::mem::size_of::<F5cNegative>();
+        assert_eq!(meter.current_bytes(), Some(remaining_source));
+        Normalizer::reserve(&mut scratch, 100, Lane::Nodes, &mut stats, Some(&meter)).unwrap();
+        let larger_scratch_bytes = scratch.capacity() * std::mem::size_of::<Node>();
+        let after_scratch_growth = remaining_source + larger_scratch_bytes;
+        negative.try_reserve_exact(25).unwrap();
+        let rebuilt_source = negative.capacity() * std::mem::size_of::<F5cNegative>();
+        let during_rebuild = rebuilt_source + larger_scratch_bytes;
+        assert_eq!(meter.current_bytes(), Some(rebuilt_source));
+        assert_eq!(
+            meter.end_normalization(),
+            Some(during_collect.max(after_scratch_growth).max(during_rebuild))
+        );
+        assert!(during_collect.max(during_rebuild) < initial_source + larger_scratch_bytes);
     }
 
     #[test]
@@ -3546,7 +3764,7 @@ mod tests {
         let before = counters.clone();
 
         assert_eq!(
-            record_production_counters(&stats, &mut counters),
+            record_production_counters(&stats, stats.source_bytes_at_start, &mut counters),
             Err(SolveAvailabilityError::IdentityExhausted)
         );
         assert_eq!(counters, before);
@@ -3616,6 +3834,7 @@ mod tests {
                 Some(&mut workspace),
                 &mut frames,
                 &mut stats,
+                None,
                 |_, _| Ok(1),
             ),
             Err(SolveAvailabilityError::IdentityExhausted)
@@ -3627,19 +3846,25 @@ mod tests {
 
     #[test]
     fn descriptor_order_is_independent_of_union_input_order() {
-        let shallow = positive_function(F5cNegative::Top, F5cPositive::Int);
-        let deep = F5cPositive::Union(vec![positive_function(
-            F5cNegative::Bottom,
-            F5cPositive::Int,
-        )]);
-        let mut forward = [draft(F5cPositive::Union(vec![
-            shallow.clone(),
-            deep.clone(),
-        ]))];
-        let mut reverse = [draft(F5cPositive::Union(vec![deep, shallow]))];
+        let test_source_meter = DraftHeapMeter::default();
+        let shallow = || positive_function(F5cNegative::Top, F5cPositive::Int);
+        let deep = || {
+            F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                vec![positive_function(F5cNegative::Bottom, F5cPositive::Int)],
+            ))
+        };
+        let mut forward = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![shallow(), deep()],
+        )))];
+        let mut reverse = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            vec![deep(), shallow()],
+        )))];
 
-        let forward_stats = normalize_component(&mut forward).unwrap();
-        let reverse_stats = normalize_component(&mut reverse).unwrap();
+        let forward_stats = normalize_component(&test_source_meter, &mut forward).unwrap();
+        let reverse_stats = normalize_component(&test_source_meter, &mut reverse).unwrap();
 
         assert_eq!(forward[0].predicate, reverse[0].predicate);
         assert_eq!(
@@ -3650,13 +3875,14 @@ mod tests {
 
     #[test]
     fn exact_word_comparison_counts_match_an_independent_mergesort_oracle() {
+        let test_source_meter = DraftHeapMeter::default();
         let run = |ordinals: &[u32]| {
             let mut drafts = ordinals
                 .iter()
                 .copied()
                 .map(|ordinal| draft(F5cPositive::Quantified(ordinal)))
                 .collect::<Vec<_>>();
-            let stats = normalize_component(&mut drafts).unwrap();
+            let stats = normalize_component(&test_source_meter, &mut drafts).unwrap();
             let mut schemes = drafts
                 .into_iter()
                 .map(|draft| match draft.predicate {
@@ -3686,14 +3912,21 @@ mod tests {
 
     #[test]
     fn union_member_permutations_preserve_all_normalization_counters() {
-        let members = (0..5).map(F5cPositive::Quantified).collect::<Vec<_>>();
-        let mut forward = [draft(F5cPositive::Union(members.clone()))];
-        let mut reverse = [draft(F5cPositive::Union(
-            members.iter().rev().cloned().collect(),
-        ))];
+        let test_source_meter = DraftHeapMeter::default();
+        let mut forward = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..5).map(F5cPositive::Quantified).collect::<Vec<_>>(),
+        )))];
+        let mut reverse = [draft(F5cPositive::Union(test_tracked(
+            &test_source_meter,
+            (0..5)
+                .rev()
+                .map(F5cPositive::Quantified)
+                .collect::<Vec<_>>(),
+        )))];
 
-        let forward_stats = normalize_component(&mut forward).unwrap();
-        let reverse_stats = normalize_component(&mut reverse).unwrap();
+        let forward_stats = normalize_component(&test_source_meter, &mut forward).unwrap();
+        let reverse_stats = normalize_component(&test_source_meter, &mut reverse).unwrap();
 
         assert_eq!(forward[0].predicate, reverse[0].predicate);
         assert_eq!(forward_stats, reverse_stats);
@@ -3702,6 +3935,7 @@ mod tests {
 
     #[test]
     fn descriptor_radix_order_matches_unsigned_word_lexicographic_order() {
+        let test_source_meter = DraftHeapMeter::default();
         let ordinals = [
             u32::MAX,
             0x0001_0000,
@@ -3717,20 +3951,25 @@ mod tests {
             u32::MAX,
         ];
         let build = |items: &[u32]| {
-            [draft(F5cPositive::Union(
-                items.iter().copied().map(F5cPositive::Quantified).collect(),
-            ))]
+            [draft(F5cPositive::Union(test_tracked(
+                &test_source_meter,
+                items
+                    .iter()
+                    .copied()
+                    .map(F5cPositive::Quantified)
+                    .collect::<Vec<_>>(),
+            )))]
         };
         let mut forward = build(&ordinals);
         let mut reverse = build(&ordinals.iter().rev().copied().collect::<Vec<_>>());
-        let forward_stats = normalize_component(&mut forward).unwrap();
-        let reverse_stats = normalize_component(&mut reverse).unwrap();
+        let forward_stats = normalize_component(&test_source_meter, &mut forward).unwrap();
+        let reverse_stats = normalize_component(&test_source_meter, &mut reverse).unwrap();
 
         let F5cPositive::Union(members) = &forward[0].predicate else {
             panic!("the normalized root remains a Union");
         };
         assert_eq!(
-            members,
+            &members[..],
             &[
                 F5cPositive::Quantified(0),
                 F5cPositive::Quantified(0xFF),
@@ -3746,7 +3985,13 @@ mod tests {
             ]
         );
         assert_eq!(forward[0].predicate, reverse[0].predicate);
-        assert_eq!(forward_stats, reverse_stats);
+        let mut forward_index_stats = forward_stats.clone();
+        let mut reverse_index_stats = reverse_stats.clone();
+        forward_index_stats.source_bytes_at_start = 0;
+        reverse_index_stats.source_bytes_at_start = 0;
+        forward_index_stats.source_index_joint_peak_bytes = 0;
+        reverse_index_stats.source_index_joint_peak_bytes = 0;
+        assert_eq!(forward_index_stats, reverse_index_stats);
         assert!(forward_stats.index_lanes[Lane::RadixWorkspace as usize].peak_capacity > 0);
         assert!(forward_stats.index_lanes[Lane::RadixFrames as usize].peak_capacity > 0);
     }
@@ -3790,6 +4035,7 @@ mod tests {
             Some(&mut workspace),
             &mut frames,
             &mut stats,
+            None,
             |node_id, byte| descriptor_radix_symbol(&nodes, &words, node_id, byte),
         )
         .unwrap();
@@ -3807,11 +4053,12 @@ mod tests {
         std::thread::Builder::new()
             .stack_size(64 * 1024)
             .spawn(|| {
+                let test_source_meter = DraftHeapMeter::default();
                 let mut value = F5cPositive::Int;
                 for _ in 0..4096 {
                     value = positive_function(F5cNegative::Top, value);
                 }
-                let mut value = normalize_positive(value).unwrap();
+                let mut value = normalize_positive(&test_source_meter, value).unwrap();
                 for _ in 0..4096 {
                     let F5cPositive::Function { result, .. } = value else {
                         panic!("the chain retains each Function node");
@@ -3827,12 +4074,13 @@ mod tests {
 
     #[test]
     fn normalization_rejects_unclassified_live_nodes() {
+        let test_source_meter = DraftHeapMeter::default();
         for value in [
             F5cPositive::Variable(0),
             F5cPositive::Shared(super::super::F5cSummaryNodeId(0)),
         ] {
             assert_eq!(
-                normalize_positive(value),
+                normalize_positive(&test_source_meter, value),
                 Err(SolveAvailabilityError::IdentityExhausted)
             );
         }
@@ -3841,7 +4089,7 @@ mod tests {
             F5cNegative::Shared(super::super::F5cSummaryNodeId(0)),
         ] {
             assert_eq!(
-                normalize_negative(value),
+                normalize_negative(&test_source_meter, value),
                 Err(SolveAvailabilityError::IdentityExhausted)
             );
         }
