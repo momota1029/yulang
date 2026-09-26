@@ -481,60 +481,76 @@ impl Normalizer {
             .requested_slots
             .checked_add(additional)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let index_requested_slots = stats
+            .index_requested_slots
+            .checked_add(additional)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         #[cfg(test)]
         if let Some(observer) = &stats.candidate_observer {
             observer.preflight_requested(lane as usize, additional)?;
         }
-        items
-            .try_reserve(additional)
-            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let reserve_result = items.try_reserve(additional);
         let capacity = items.capacity();
         let slot_size = std::mem::size_of::<T>();
-        #[cfg(test)]
-        if let Some(observer) = &mut stats.candidate_observer {
-            observer.observe(lane as usize, capacity, slot_size, additional)?;
-        }
-        let old_bytes = old_capacity
-            .checked_mul(slot_size)
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        let retained_bytes = capacity
-            .checked_mul(slot_size)
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let old_bytes = old_capacity.checked_mul(slot_size);
+        let retained_bytes = capacity.checked_mul(slot_size);
+        let mut accounting_exhausted = old_bytes.is_none() || retained_bytes.is_none();
         let lane_stats = &mut stats.index_lanes[lane as usize];
         lane_stats.requested_slots = requested_slots;
         lane_stats.actual_capacity = capacity;
         lane_stats.peak_capacity = lane_stats.peak_capacity.max(capacity);
         lane_stats.slot_size = slot_size;
-        lane_stats.retained_bytes = retained_bytes;
-        if capacity != old_capacity {
-            lane_stats.capacity_growths = lane_stats
-                .capacity_growths
-                .checked_add(1)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if let Some(retained_bytes) = retained_bytes {
+            lane_stats.retained_bytes = retained_bytes;
+            lane_stats.peak_bytes = lane_stats.peak_bytes.max(retained_bytes);
         }
-        lane_stats.peak_bytes = lane_stats.peak_bytes.max(lane_stats.retained_bytes);
-        stats.index_requested_slots = stats
-            .index_requested_slots
-            .checked_add(additional)
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        stats.index_actual_capacity = stats
+        if capacity != old_capacity {
+            if let Some(growths) = lane_stats.capacity_growths.checked_add(1) {
+                lane_stats.capacity_growths = growths;
+            } else {
+                accounting_exhausted = true;
+            }
+        }
+        stats.index_requested_slots = index_requested_slots;
+        if let Some(total) = stats
             .index_actual_capacity
             .checked_sub(old_capacity)
             .and_then(|total| total.checked_add(capacity))
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        stats.index_retained_bytes = stats
-            .index_retained_bytes
-            .checked_sub(old_bytes)
-            .and_then(|total| total.checked_add(retained_bytes))
-            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        if capacity != old_capacity {
-            stats.index_capacity_growths = stats
-                .index_capacity_growths
-                .checked_add(1)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        {
+            stats.index_actual_capacity = total;
+        } else {
+            accounting_exhausted = true;
         }
-        stats.index_peak_bytes = stats.index_peak_bytes.max(stats.index_retained_bytes);
-        Ok(())
+        if let (Some(old_bytes), Some(retained_bytes)) = (old_bytes, retained_bytes) {
+            if let Some(total) = stats
+                .index_retained_bytes
+                .checked_sub(old_bytes)
+                .and_then(|total| total.checked_add(retained_bytes))
+            {
+                stats.index_retained_bytes = total;
+                stats.index_peak_bytes = stats.index_peak_bytes.max(total);
+            } else {
+                accounting_exhausted = true;
+            }
+        }
+        if capacity != old_capacity {
+            if let Some(growths) = stats.index_capacity_growths.checked_add(1) {
+                stats.index_capacity_growths = growths;
+            } else {
+                accounting_exhausted = true;
+            }
+        }
+        #[cfg(test)]
+        let observer_result = stats
+            .candidate_observer
+            .as_mut()
+            .map(|observer| observer.observe(lane as usize, capacity, slot_size, additional));
+        #[cfg(test)]
+        observer_result.transpose()?;
+        if accounting_exhausted {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        reserve_result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
     }
 
     fn push<T>(
@@ -3053,6 +3069,108 @@ pub(super) fn normalize_negative(
 mod tests {
     use super::*;
     use crate::{F5cNegativeEffect, F5cPositiveEffect};
+
+    #[test]
+    fn failed_reserve_reconciles_physical_and_candidate_lanes() {
+        let lane = Lane::DescriptorWords as usize;
+        let mut items = vec![1u8];
+        let mut stats = NormalizationStats::default();
+        stats.index_lanes[lane].actual_capacity = items.capacity();
+        stats.index_lanes[lane].retained_bytes = items.capacity();
+        stats.index_actual_capacity = items.capacity();
+        stats.index_retained_bytes = items.capacity();
+        stats.candidate_observer = Some(FlatCandidateObserver(FlatCandidateCapacity {
+            work: Default::default(),
+            base_memo_bytes: 0,
+            base_walker_bytes: 0,
+            capacities: std::array::from_fn(
+                |index| if index == lane { items.capacity() } else { 0 },
+            ),
+            sizes: [0; LANE_COUNT + 14],
+            lane_observations: [0; LANE_COUNT + 14],
+            lane_requested_slots: [0; LANE_COUNT + 14],
+            lane_growths: [0; LANE_COUNT + 14],
+            lane_peaks: [0; LANE_COUNT + 14],
+            peak_walker_bytes: 0,
+            peak_total_bytes: 0,
+        }));
+
+        assert_eq!(
+            Normalizer::reserve(&mut items, usize::MAX, Lane::DescriptorWords, &mut stats),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        let actual_capacity = items.capacity();
+        assert!(actual_capacity > 0);
+        assert_eq!(stats.index_lanes[lane].requested_slots, usize::MAX);
+        assert_eq!(stats.index_lanes[lane].actual_capacity, actual_capacity);
+        assert_eq!(stats.index_lanes[lane].retained_bytes, actual_capacity);
+        assert_eq!(stats.index_requested_slots, usize::MAX);
+        assert_eq!(stats.index_actual_capacity, actual_capacity);
+        assert_eq!(stats.index_retained_bytes, actual_capacity);
+        let observed = &stats.candidate_observer.as_ref().unwrap().0;
+        assert_eq!(observed.lane_observations[lane], 1);
+        assert_eq!(observed.lane_requested_slots[lane], usize::MAX);
+        assert_eq!(observed.capacities[lane], actual_capacity);
+        assert_eq!(observed.sizes[lane], 1);
+        assert_eq!(observed.lane_peaks[lane], actual_capacity);
+        assert_eq!(observed.peak_walker_bytes, actual_capacity);
+        assert_eq!(observed.peak_total_bytes, actual_capacity);
+    }
+
+    #[test]
+    fn successful_growth_reconciles_before_growth_counter_overflow() {
+        for overflow_lane in [true, false] {
+            let lane = Lane::DescriptorWords as usize;
+            let mut items = vec![1u8];
+            let old_capacity = items.capacity();
+            let mut stats = NormalizationStats::default();
+            stats.index_lanes[lane].actual_capacity = old_capacity;
+            stats.index_lanes[lane].retained_bytes = old_capacity;
+            stats.index_actual_capacity = old_capacity;
+            stats.index_retained_bytes = old_capacity;
+            if overflow_lane {
+                stats.index_lanes[lane].capacity_growths = usize::MAX;
+            } else {
+                stats.index_capacity_growths = usize::MAX;
+            }
+            stats.candidate_observer = Some(FlatCandidateObserver(FlatCandidateCapacity {
+                work: Default::default(),
+                base_memo_bytes: 0,
+                base_walker_bytes: 0,
+                capacities: std::array::from_fn(
+                    |index| {
+                        if index == lane { old_capacity } else { 0 }
+                    },
+                ),
+                sizes: [0; LANE_COUNT + 14],
+                lane_observations: [0; LANE_COUNT + 14],
+                lane_requested_slots: [0; LANE_COUNT + 14],
+                lane_growths: [0; LANE_COUNT + 14],
+                lane_peaks: [0; LANE_COUNT + 14],
+                peak_walker_bytes: 0,
+                peak_total_bytes: 0,
+            }));
+
+            assert_eq!(
+                Normalizer::reserve(&mut items, 2, Lane::DescriptorWords, &mut stats),
+                Err(SolveAvailabilityError::IdentityExhausted)
+            );
+            let capacity = items.capacity();
+            assert!(capacity > old_capacity);
+            assert_eq!(stats.index_lanes[lane].actual_capacity, capacity);
+            assert_eq!(stats.index_lanes[lane].retained_bytes, capacity);
+            assert_eq!(stats.index_actual_capacity, capacity);
+            assert_eq!(stats.index_retained_bytes, capacity);
+            let observed = &stats.candidate_observer.as_ref().unwrap().0;
+            assert_eq!(observed.capacities[lane], capacity);
+            assert_eq!(observed.sizes[lane], 1);
+            assert_eq!(observed.lane_observations[lane], 1);
+            assert_eq!(observed.lane_growths[lane], 1);
+            assert_eq!(observed.lane_peaks[lane], capacity);
+            assert_eq!(observed.peak_walker_bytes, capacity);
+            assert_eq!(observed.peak_total_bytes, capacity);
+        }
+    }
 
     fn positive_function(argument: F5cNegative, result: F5cPositive) -> F5cPositive {
         F5cPositive::Function {

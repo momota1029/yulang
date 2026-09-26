@@ -3362,6 +3362,37 @@ candidate campaign; its measurement budget remains zero. Production remains
 boxed, with no numeric limit, cutover, §44 closure, F5e acceptance, or overall
 F5c acceptance claimed.
 
+## Latest continuation (2026-09-27): boxed normalizer reserve reconciliation
+
+`Normalizer::reserve` now samples actual capacity and reconciles representable
+lane/aggregate capacity and retained-byte fields after both successful and
+failed `try_reserve` results. Candidate observation is attempted before
+propagating reserve or growth-counter errors; `push` does not append on error.
+Focused witnesses cover allocator capacity overflow and both lane and
+aggregate growth-counter overflow after actual growth. The M1 spec review's
+major finding closed on fresh delta review; its minor peak-assertion finding
+was handled by primary test assertions and focused rerun.
+
+Focused tests passed: `failed_reserve_reconciles_physical_and_candidate_lanes`
+and `successful_growth_reconciles_before_growth_counter_overflow`. The first
+`reconciles` filter run exposed a stale failure/retry test boundary: it expected
+component cleanup after low-level `positive_row`, while the approved owner is
+`build_component`. Pre-write spec review approved routing those attempts
+through `build_component`; a separate successful structural comparison keeps
+the `Comparison` lane witness. Fresh delta review found no remaining issue.
+Rerunning the filter passed all four tests. `cargo fmt --check` and
+`git diff --check` passed. No broad suite, probe, benchmark, or timing
+measurement ran.
+
+This closes boxed normalizer reserve-result observation and the
+component-boundary failure/retry witness. The two direct boxed rebuild nested
+payload-vector reserves remain outside the 13 scratch lanes and are assigned
+to the later source-draft/co-resident ledger, together with the all-drafts
+sample and solver/`yu-types` same-time peak. Next close the independent
+physical-capacity reconstruction and review a fresh §15 plan before any probe.
+Production stays boxed; no numeric boundary, cutover, §44 closure, F5e
+acceptance, or overall F5c acceptance is claimed.
+
 ## Latest continuation (2026-09-27): boxed and FlatDraft post-R physical lanes
 
 Post-R physical-capacity accounting now covers boxed production and FlatDraft

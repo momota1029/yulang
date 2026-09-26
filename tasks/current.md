@@ -4,6 +4,40 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): boxed normalizer reserve reconciliation
+
+`Normalizer::reserve` now samples actual vector capacity, updates representable
+lane and aggregate capacity/retained-byte fields, and attempts candidate
+observation after either `try_reserve` result. Growth-counter overflow is
+reported only after that physical reconciliation; `push` does not append when
+accounting or reserve fails. Focused failure witnesses cover allocator capacity
+overflow plus lane and aggregate growth-counter overflow after real capacity
+growth. A spec review's major finding is closed by fresh delta review; the
+reviewer's minor missing peak assertions were added and the focused witnesses
+rerun.
+
+The exact normalizer tests passed:
+`RUSTC_WRAPPER= cargo test -p yu-solver failed_reserve_reconciles_physical_and_candidate_lanes --lib -- --test-threads=1`
+and
+`RUSTC_WRAPPER= cargo test -p yu-solver successful_growth_reconciles_before_growth_counter_overflow --lib -- --test-threads=1`.
+The first `reconciles` filter run also exposed a stale transaction-test
+boundary: the test expected component cleanup after a low-level `positive_row`
+call, although `build_component` owns that cleanup. Pre-write spec review
+approved routing its failure/retry witness through `build_component`; the
+separate structural-comparison witness preserves `Comparison` lane coverage.
+Fresh delta review found no remaining issue. Rerunning
+`RUSTC_WRAPPER= cargo test -p yu-solver reconciles --lib -- --test-threads=1`
+passed all four tests. `cargo fmt --check` and `git diff --check` passed. No
+broad suite, probe, benchmark, or timing measurement ran.
+
+This closes boxed normalizer reserve-result observation and the
+component-boundary failure/retry witness. Its two boxed rebuild child-payload
+vectors remain assigned to the source-draft and co-resident physical ledger,
+along with all-drafts sampling and the solver/`yu-types` same-time peak. Next
+close that ledger and independently review the fresh §15 plan before any
+probe. Production stays boxed; no numeric limit, cutover, §44 closure, F5e
+acceptance, or overall F5c acceptance is claimed.
+
 ### Latest continuation (2026-09-27): boxed and FlatDraft post-R physical lanes
 
 Post-R lane accounting now covers the boxed production collections and the

@@ -18488,11 +18488,11 @@ mod tests {
             );
             assert_eq!(
                 ledger.component_expansion_memo_peak_bytes,
-                memo.retained_bytes().unwrap()
+                memo.peak_bytes().unwrap()
             );
             assert_eq!(
                 ledger.semantic_arena_peak_bytes,
-                memo.retained_bytes()
+                memo.peak_bytes()
                     .unwrap()
                     .max(walker.independent_simultaneous_memo_peak_bytes)
             );
@@ -18506,87 +18506,85 @@ mod tests {
         let mut session = InferenceSession::new(batch);
         let root = session.fresh_value_at_level(1).unwrap();
         let child = session.fresh_value_at_level(1).unwrap();
-        session.bounds[root as usize]
-            .direct_lower_rows
-            .extend([child, child]);
-        session.bounds[root as usize]
-            .exact_non_variable_lowers
-            .push(ValueEndpointKey::IntPositive);
+        let target = session.fresh_value_at_level(1).unwrap();
         session.bounds[child as usize]
+            .direct_lower_rows
+            .extend([target, target]);
+        session.bounds[root as usize]
+            .exact_non_variable_lowers
+            .push(ValueEndpointKey::ValueRow(child));
+        session.bounds[target as usize]
             .exact_non_variable_lowers
             .push(ValueEndpointKey::IntPositive);
-        let mut generalizer = F5cGeneralizer::new(&session);
+        let mut memo = F5cComponentExpansionMemo::default();
         let tasks = F5cWalkerLaneKind::Tasks as usize;
-        generalizer.memo.walker_resources.lanes[tasks].requested_slots = usize::MAX;
-        generalizer.memo.walker_resources.independent_lanes[tasks].requested_slots = usize::MAX;
-        assert!(matches!(
-            generalizer.positive_row(root, false),
-            Err(SolveAvailabilityError::IdentityExhausted)
-        ));
-        assert!(generalizer.active.is_empty());
-        assert!(generalizer.active_set.is_empty());
-        assert!(generalizer.frames.is_empty());
-        assert!(generalizer.path.is_empty());
-        assert!(generalizer.memo.active_rows.is_empty());
-        generalizer.memo.walker_resources.lanes[tasks].requested_slots = 0;
-        generalizer.memo.walker_resources.independent_lanes[tasks].requested_slots = 0;
-        assert_reconciled(&generalizer.memo);
+        memo.walker_resources.lanes[tasks].requested_slots = usize::MAX;
+        memo.walker_resources.independent_lanes[tasks].requested_slots = usize::MAX;
+        let (failed, mut memo, _, _) =
+            F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+        assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+        assert!(memo.active_rows.is_empty());
+        memo.walker_resources.lanes[tasks].requested_slots = 0;
+        memo.walker_resources.independent_lanes[tasks].requested_slots = 0;
+        assert_reconciled(&memo);
 
         let targets = F5cWalkerLaneKind::DirectTargets as usize;
-        generalizer.memo.walker_resources.lanes[targets].requested_slots = usize::MAX;
-        generalizer.memo.walker_resources.independent_lanes[targets].requested_slots = usize::MAX;
-        assert!(matches!(
-            generalizer.positive_row(root, false),
-            Err(SolveAvailabilityError::IdentityExhausted)
-        ));
-        assert!(generalizer.active.is_empty());
-        assert!(generalizer.active_set.is_empty());
-        assert!(generalizer.frames.is_empty());
-        assert!(generalizer.path.is_empty());
-        assert!(generalizer.memo.active_rows.is_empty());
-        assert!(generalizer.memo.walker_resources.peak_bytes > 0);
-        generalizer.memo.walker_resources.lanes[targets].requested_slots = 0;
-        generalizer.memo.walker_resources.independent_lanes[targets].requested_slots = 0;
-        assert_reconciled(&generalizer.memo);
+        memo.walker_resources.lanes[targets].requested_slots = usize::MAX;
+        memo.walker_resources.independent_lanes[targets].requested_slots = usize::MAX;
+        let (failed, mut memo, _, _) =
+            F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+        assert_eq!(failed, Err(SolveAvailabilityError::IdentityExhausted));
+        assert!(memo.active_rows.is_empty());
+        assert!(memo.walker_resources.peak_bytes > 0);
+        memo.walker_resources.lanes[targets].requested_slots = 0;
+        memo.walker_resources.independent_lanes[targets].requested_slots = 0;
+        assert_reconciled(&memo);
 
-        assert!(matches!(
-            generalizer.positive_row(root, false).unwrap(),
-            F5cPositive::Shared(_)
-        ));
-        assert_reconciled(&generalizer.memo);
-        let cold_requests = generalizer.memo.walker_resources.requested_slots().unwrap();
-        assert!(matches!(
-            generalizer.positive_row(root, false).unwrap(),
-            F5cPositive::Shared(_)
-        ));
-        assert!(generalizer.memo.walker_resources.requested_slots().unwrap() > cold_requests);
-        assert_reconciled(&generalizer.memo);
+        let (cold, memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+        assert!(cold.is_ok());
+        assert_reconciled(&memo);
+        let cold_requests = memo.walker_resources.requested_slots().unwrap();
+        let (retry, memo, _, _) =
+            F5cGeneralizer::with_memo(&session, memo, 0).build_component(root);
+        assert_eq!(retry.as_ref().unwrap().predicate, cold.unwrap().predicate);
+        assert!(memo.walker_resources.requested_slots().unwrap() > cold_requests);
+        assert_reconciled(&memo);
         assert!(
-            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::DirectEdges as usize]
-                .requested_slots
+            memo.walker_resources.lanes[F5cWalkerLaneKind::DirectEdges as usize].requested_slots
                 > 0
         );
-        assert_eq!(
-            generalizer.memo.walker_resources.lanes[targets].requested_slots,
-            1
-        );
+        assert_eq!(memo.walker_resources.lanes[targets].requested_slots, 1);
         assert!(
-            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::Comparison as usize]
-                .requested_slots
+            memo.walker_resources.lanes[F5cWalkerLaneKind::SummaryTasks as usize].requested_slots
                 > 0
         );
         assert!(
-            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::SummaryTasks as usize]
-                .requested_slots
-                > 0
+            memo.walker_resources.lanes[F5cWalkerLaneKind::SummaryIds as usize].requested_slots > 0
         );
+
+        let comparison_batch = collect(module("my f = 1", "f5c-walker-comparison"));
+        let comparison_session = InferenceSession::new(comparison_batch);
+        let mut comparison_generalizer = F5cGeneralizer::new(&comparison_session);
+        let value = F5cPositive::Int;
+        let mut comparisons = Vec::new();
         assert!(
-            generalizer.memo.walker_resources.lanes[F5cWalkerLaneKind::SummaryIds as usize]
+            comparison_generalizer
+                .structural_equal(F5cCompareTask::Positive(&value, &value), &mut comparisons)
+                .unwrap()
+        );
+        drop(comparisons);
+        comparison_generalizer
+            .memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::Comparison);
+        assert!(
+            comparison_generalizer.memo.walker_resources.lanes
+                [F5cWalkerLaneKind::Comparison as usize]
                 .requested_slots
                 > 0
         );
-        let memo = std::mem::take(&mut generalizer.memo);
-        drop(generalizer);
+        assert_reconciled(&comparison_generalizer.memo);
+
         let prior_semantic_peak = session.execution_counters.semantic_arena_peak_bytes;
         let prior_session_peak = session.execution_counters.inference_session_peak_bytes;
         let semantic_base = session.execution_counters.semantic_arena_retained_bytes;
