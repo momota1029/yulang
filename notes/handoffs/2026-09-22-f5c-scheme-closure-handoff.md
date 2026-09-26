@@ -2969,3 +2969,35 @@ output-lane lifetime contract. The focused materialization tests passed (3),
 solver test targets compile, and fmt/diff checks pass. No benchmark or §15
 probe ran. The ordered predicate/bounds forest, callback and Q/R parity,
 component-wide memo rollback, and production cutover remain open.
+
+## Latest continuation (2026-09-26): test-only ordered raw forest
+
+Added an uncalled candidate path on `F5cGeneralizer` that collects the
+predicate first, then unique reentry owners in first encounter order with
+lower before upper bounds and the existing Bottom/Top defaults. It keeps all
+tagged roots live through the producer walks, rejects invalid effects before
+materialization, and performs one ordered batch. The returned raw owner map
+keeps source row IDs separate from final recursive binder ordinals.
+
+Five tracked lanes account owner order, owner bounds, unique-owner state, raw
+roots, and Shared callback trace. The checked summary callback receives the
+resource ledger and current memo byte count after copying its node, so trace
+growth participates in same-time source/memo/draft/scratch accounting. Table
+lane counters are checked before allocation; allocator results reconcile
+capacity even on reservation errors. The candidate allows one returned forest
+at a time. Releasing it drops its owned lanes, advances memo checkpoints, and
+resets producer state for a later component.
+
+M2 spec-auditor and compiler-referee delta reviews converged after two focused
+repairs: memo checkpoints now advance only after forest release, and owner
+table counters preflight before allocation. Checks passed: flat sink tests
+(19), materialization tests (17), solver test-target compilation, fmt, and diff
+checks. No benchmark or §15 probe ran.
+
+This closes only the raw predicate/bounds forest slice. Full boxed/candidate
+callback and Q/R ordinal parity, direct invalid-effect timing evidence,
+downstream component rollback through Q/R, indexed FlatDraft analysis, and the
+remaining §5 witnesses are still open. Production remains boxed. Next: build
+the indexed analysis/Q/R bridge under the existing boxed order authority while
+keeping the candidate component transaction open through every later fallible
+stage; do not copy the boxed analysis algorithm or cut over production.

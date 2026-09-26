@@ -77,7 +77,12 @@ impl F5cFlatWalkSink {
         draft: &mut FlatDraft,
         roots: &[FlatWalkValue],
         outputs: &mut Vec<NodeRef>,
-        mut mark: impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
+        mut mark: impl FnMut(
+            &mut F5cWalkerResources,
+            usize,
+            u32,
+            Polarity,
+        ) -> Result<(), SolveAvailabilityError>,
     ) -> Result<(), SolveAvailabilityError> {
         let checkpoint = (
             draft.positive_nodes.len(),
@@ -432,7 +437,7 @@ mod materialization_tests {
                 &mut draft,
                 &[root, root],
                 &mut outputs,
-                |row, p| {
+                |_, _, row, p| {
                     marks.push((row, p));
                     if marks.len() == 4 {
                         Err(SolveAvailabilityError::IdentityExhausted)
@@ -451,7 +456,7 @@ mod materialization_tests {
             &mut draft,
             &[root, root],
             &mut outputs,
-            |row, p| {
+            |_, _, row, p| {
                 marks.push((row, p));
                 Ok(())
             },
@@ -539,8 +544,10 @@ mod materialization_tests {
         ];
         let mut draft = FlatDraft::default();
         let mut outputs = Vec::new();
-        sink.materialize_roots(&mut memo, &mut draft, &roots, &mut outputs, |_, _| Ok(()))
-            .unwrap();
+        sink.materialize_roots(&mut memo, &mut draft, &roots, &mut outputs, |_, _, _, _| {
+            Ok(())
+        })
+        .unwrap();
         assert!(sink.arena.checkpoint() == source_checkpoint);
         let NodeRef::Positive(pid) = outputs[0] else {
             panic!("positive root")
@@ -586,8 +593,14 @@ mod materialization_tests {
         let mut outputs = Vec::new();
         outputs.try_reserve(8).unwrap();
         let capacity = outputs.capacity();
-        sink.materialize_roots(&mut memo, &mut draft, &[], &mut outputs, |_, _| Ok(()))
-            .unwrap();
+        sink.materialize_roots(
+            &mut memo,
+            &mut draft,
+            &[],
+            &mut outputs,
+            |_, _, _, _| Ok(()),
+        )
+        .unwrap();
         assert_eq!(
             memo.walker_resources.lanes[F5cWalkerLaneKind::FlatSourceMaterializeRoots as usize]
                 .actual_capacity,

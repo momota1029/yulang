@@ -323,10 +323,15 @@ pub(super) enum F5cWalkerLaneKind {
     FlatSourceMaterializeTasks = 35,
     FlatSourceMaterializeValues = 36,
     FlatSourceMaterializeRoots = 37,
+    RawOwnerOrder = 38,
+    RawOwnerBounds = 39,
+    RawOwnerSeen = 40,
+    RawRoots = 41,
+    RawCallbackTrace = 42,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 38] = [
+    pub(super) const ALL: [Self; 43] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -365,6 +370,11 @@ impl F5cWalkerLaneKind {
         Self::FlatSourceMaterializeTasks,
         Self::FlatSourceMaterializeValues,
         Self::FlatSourceMaterializeRoots,
+        Self::RawOwnerOrder,
+        Self::RawOwnerBounds,
+        Self::RawOwnerSeen,
+        Self::RawRoots,
+        Self::RawCallbackTrace,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -389,6 +399,13 @@ impl F5cWalkerLaneKind {
             }
             Self::FlatSourceMaterializeValues => std::mem::size_of::<f5c_draft::NodeRef>(),
             Self::FlatSourceMaterializeRoots => std::mem::size_of::<f5c_draft::NodeRef>(),
+            Self::RawOwnerOrder => std::mem::size_of::<u32>(),
+            Self::RawOwnerBounds => {
+                std::mem::size_of::<(u32, (f5c_draft::PositiveId, f5c_draft::NegativeId))>()
+            }
+            Self::RawOwnerSeen => std::mem::size_of::<u32>(),
+            Self::RawRoots => std::mem::size_of::<FlatWalkValue>(),
+            Self::RawCallbackTrace => std::mem::size_of::<(u32, Polarity)>(),
             Self::AnalysisTasks => std::mem::size_of::<f5c_tree_analysis::Task<'static>>(),
             Self::ReplayTasks => std::mem::size_of::<f5c_replay::Task<'static>>(),
             Self::ReplayValues => std::mem::size_of::<F5cWalkValue>(),
@@ -422,13 +439,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 38],
+    pub(super) lanes: [F5cWalkerLane; 43],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 38],
+    pub(super) independent_lanes: [F5cWalkerLane; 43],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -438,13 +455,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 38],
+            lanes: [F5cWalkerLane::default(); 43],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 38],
+            independent_lanes: [F5cWalkerLane::default(); 43],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
@@ -454,6 +471,87 @@ impl Default for F5cWalkerResources {
 }
 
 impl F5cWalkerResources {
+    #[cfg(test)]
+    fn preflight_table_counters(
+        &self,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(usize, usize, usize, usize), SolveAvailabilityError> {
+        let lane = &self.lanes[kind as usize];
+        let requested = lane
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let growth = lane
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let independent = &self.independent_lanes[kind as usize];
+        let independent_requested = independent
+            .requested_slots
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let independent_growth = independent
+            .capacity_growths
+            .checked_add(1)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        Ok((requested, growth, independent_requested, independent_growth))
+    }
+
+    #[cfg(test)]
+    fn observe_table_capacity(
+        &mut self,
+        kind: F5cWalkerLaneKind,
+        old: usize,
+        capacity: usize,
+        memo_bytes: usize,
+        counters: (usize, usize, usize, usize),
+    ) -> Result<(), SolveAvailabilityError> {
+        let lane = &mut self.lanes[kind as usize];
+        lane.requested_slots = counters.0;
+        lane.actual_capacity = capacity;
+        self.independent_lanes[kind as usize].requested_slots = counters.2;
+        self.independent_lanes[kind as usize].actual_capacity = capacity;
+        if old != capacity {
+            lane.capacity_growths = counters.1;
+            lane.peak_bytes = lane.peak_bytes.max(
+                capacity
+                    .checked_mul(kind.slot_size())
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?,
+            );
+            self.independent_lanes[kind as usize].capacity_growths = counters.3;
+            self.independent_lanes[kind as usize].peak_bytes = lane.peak_bytes;
+        }
+        self.observe_memo(memo_bytes)
+    }
+
+    #[cfg(test)]
+    fn reserve_raw_map(
+        &mut self,
+        map: &mut HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let kind = F5cWalkerLaneKind::RawOwnerBounds;
+        let counters = self.preflight_table_counters(kind)?;
+        let old = map.capacity();
+        let result = map.try_reserve(1);
+        self.observe_table_capacity(kind, old, map.capacity(), memo_bytes, counters)?;
+        result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
+    #[cfg(test)]
+    fn reserve_raw_set(
+        &mut self,
+        set: &mut HashSet<u32>,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let kind = F5cWalkerLaneKind::RawOwnerSeen;
+        let counters = self.preflight_table_counters(kind)?;
+        let old = set.capacity();
+        let result = set.try_reserve(1);
+        self.observe_table_capacity(kind, old, set.capacity(), memo_bytes, counters)?;
+        result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
     pub(super) fn reserve_set(
         &mut self,
         buffer: &mut HashSet<u32>,
@@ -2394,6 +2492,8 @@ pub(super) struct F5cGeneralizer<'a> {
     pub(super) memo: F5cComponentExpansionMemo,
     #[cfg(test)]
     pub(super) flat_sink: F5cFlatWalkSink,
+    #[cfg(test)]
+    raw_forest_live: bool,
     frozen_bound_epoch: usize,
     pub(super) frames: Vec<F5cExpansionFrame>,
     pub(super) shared_summary_hits: usize,
@@ -2416,6 +2516,14 @@ pub(super) struct F5cGeneralizer<'a> {
     pub(super) order_seen: HashSet<u32>,
     pub(super) reentries: Vec<F5cGuardedTrace>,
     pub(super) invalid_effects: bool,
+}
+
+#[cfg(test)]
+pub(super) struct F5cRawForest {
+    pub(super) draft: f5c_draft::FlatDraft,
+    pub(super) raw_owner_order: Vec<u32>,
+    pub(super) raw_bounds: HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+    pub(super) callback_trace: Vec<(u32, Polarity)>,
 }
 
 trait F5cWalkSink {
@@ -2769,6 +2877,8 @@ impl<'a> F5cGeneralizer<'a> {
             memo,
             #[cfg(test)]
             flat_sink: F5cFlatWalkSink::default(),
+            #[cfg(test)]
+            raw_forest_live: false,
             frozen_bound_epoch,
             frames: Vec::new(),
             shared_summary_hits: 0,
@@ -3540,12 +3650,290 @@ impl<'a> F5cGeneralizer<'a> {
         &mut self,
         first: F5cWalkTask,
     ) -> Result<FlatWalkValue, SolveAvailabilityError> {
+        if self.raw_forest_live {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
         // The source and memo have the same owner. Keep the sink attached even
         // when a walk fails so retained capacities remain accounted for.
         let mut sink = std::mem::take(&mut self.flat_sink);
         let result = self.walk_flat_with_sink(first, &mut sink);
         self.flat_sink = sink;
         result
+    }
+
+    /// Test-only raw producer forest. Binder selection and Q/R rewriting are later gates.
+    #[cfg(test)]
+    pub(super) fn build_raw_forest(
+        &mut self,
+        root: u32,
+    ) -> Result<F5cRawForest, SolveAvailabilityError> {
+        if self.raw_forest_live {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        use f5c_draft::{NegativeId, NodeRef, PositiveId};
+        let mut raw_owner_order = Vec::new();
+        let mut raw_bounds = HashMap::<u32, (PositiveId, NegativeId)>::new();
+        let mut seen = HashSet::<u32>::new();
+        let mut roots = Vec::<FlatWalkValue>::new();
+        let mut outputs = Vec::<NodeRef>::new();
+        let mut callback_trace = Vec::<(u32, Polarity)>::new();
+        let mut draft = f5c_draft::FlatDraft::default();
+        let result = (|| {
+            let predicate = self.walk_flat(F5cWalkTask::EnterRow {
+                row: root,
+                polarity: Polarity::Positive,
+                root: true,
+            })?;
+            let bytes = self.memo.retained_bytes()?;
+            self.memo.walker_resources.reserve(
+                &mut roots,
+                F5cWalkerLaneKind::RawRoots,
+                1,
+                bytes,
+            )?;
+            roots.push(predicate);
+            let mut next_owner = 0;
+            while next_owner < self.reentries.len() {
+                self.memo.work_meter.charge(1)?;
+                let owner = self.reentries[next_owner].owner;
+                next_owner += 1;
+                self.memo.work_meter.charge(1)?;
+                if seen.contains(&owner) {
+                    continue;
+                }
+                let bytes = self.memo.retained_bytes()?;
+                self.memo
+                    .walker_resources
+                    .reserve_raw_set(&mut seen, bytes)?;
+                seen.insert(owner);
+                let bounds = self
+                    .session
+                    .bounds
+                    .get(owner as usize)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let copied = bounds
+                    .direct_lower_rows
+                    .len()
+                    .checked_add(bounds.direct_upper_rows.len())
+                    .and_then(|n| n.checked_add(bounds.exact_non_variable_lowers.len()))
+                    .and_then(|n| n.checked_add(bounds.exact_non_variable_uppers.len()))
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                self.memo.work_meter.charge(copied)?;
+                let has_lower = !bounds.exact_non_variable_lowers.is_empty()
+                    || !bounds.direct_lower_rows.is_empty();
+                let has_upper = !bounds.exact_non_variable_uppers.is_empty()
+                    || !bounds.direct_upper_rows.is_empty();
+                let lower = self.walk_flat(F5cWalkTask::EnterRow {
+                    row: owner,
+                    polarity: Polarity::Positive,
+                    root: false,
+                })?;
+                let upper = self.walk_flat(F5cWalkTask::EnterRow {
+                    row: owner,
+                    polarity: Polarity::Negative,
+                    root: false,
+                })?;
+                let lower = if has_lower {
+                    lower
+                } else {
+                    let mut sink = std::mem::take(&mut self.flat_sink);
+                    let value = sink.bottom(self, Polarity::Positive);
+                    self.flat_sink = sink;
+                    value?
+                };
+                let upper = if has_upper {
+                    upper
+                } else {
+                    let mut sink = std::mem::take(&mut self.flat_sink);
+                    let value = sink.top(self);
+                    self.flat_sink = sink;
+                    value?
+                };
+                self.memo.work_meter.charge(2)?;
+                let bytes = self.memo.retained_bytes()?;
+                self.memo.walker_resources.reserve(
+                    &mut raw_owner_order,
+                    F5cWalkerLaneKind::RawOwnerOrder,
+                    1,
+                    bytes,
+                )?;
+                self.memo.walker_resources.reserve(
+                    &mut roots,
+                    F5cWalkerLaneKind::RawRoots,
+                    2,
+                    bytes,
+                )?;
+                self.memo
+                    .walker_resources
+                    .reserve_raw_map(&mut raw_bounds, bytes)?;
+                let lower_index = roots.len();
+                roots.push(lower);
+                roots.push(upper);
+                raw_owner_order.push(owner);
+                // The indices are replaced with draft IDs after one ordered batch.
+                raw_bounds.insert(
+                    owner,
+                    (
+                        PositiveId(
+                            u32::try_from(lower_index)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                        ),
+                        NegativeId(
+                            u32::try_from(lower_index + 1)
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                        ),
+                    ),
+                );
+            }
+            if self.invalid_effects {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+            let memo = &mut self.memo;
+            let sink = &self.flat_sink;
+            let bytes = memo.retained_bytes()?;
+            memo.walker_resources.reserve(
+                &mut callback_trace,
+                F5cWalkerLaneKind::RawCallbackTrace,
+                0,
+                bytes,
+            )?;
+            memo.walker_resources.observe_memo(bytes)?;
+            sink.materialize_roots(
+                memo,
+                &mut draft,
+                &roots,
+                &mut outputs,
+                |resources, memo_bytes, row, polarity| {
+                    resources.reserve(
+                        &mut callback_trace,
+                        F5cWalkerLaneKind::RawCallbackTrace,
+                        1,
+                        memo_bytes,
+                    )?;
+                    callback_trace.push((row, polarity));
+                    Ok(())
+                },
+            )?;
+            let NodeRef::Positive(predicate) = outputs[0] else {
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            };
+            draft.predicate = Some(predicate);
+            for owner in &raw_owner_order {
+                let (lower_index, upper_index) = raw_bounds
+                    .get(owner)
+                    .copied()
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let NodeRef::Positive(lower) = outputs[lower_index.0 as usize] else {
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                };
+                let NodeRef::Negative(upper) = outputs[upper_index.0 as usize] else {
+                    return Err(SolveAvailabilityError::IdentityExhausted);
+                };
+                raw_bounds.insert(*owner, (lower, upper));
+            }
+            Ok(())
+        })();
+        drop(outputs);
+        self.flat_sink.release_materialized_roots(&mut self.memo);
+        drop(roots);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::RawRoots);
+        drop(seen);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::RawOwnerSeen);
+        if let Err(error) = result {
+            drop(draft);
+            for kind in [
+                F5cWalkerLaneKind::DraftPositiveNodes,
+                F5cWalkerLaneKind::DraftNegativeNodes,
+                F5cWalkerLaneKind::DraftPositiveChildren,
+                F5cWalkerLaneKind::DraftNegativeChildren,
+                F5cWalkerLaneKind::DraftRecursiveBounds,
+                F5cWalkerLaneKind::DraftInsertionOrder,
+            ] {
+                self.memo.walker_resources.release(kind);
+            }
+            drop(raw_owner_order);
+            drop(raw_bounds);
+            drop(callback_trace);
+            self.memo
+                .walker_resources
+                .release(F5cWalkerLaneKind::RawOwnerOrder);
+            self.memo
+                .walker_resources
+                .release(F5cWalkerLaneKind::RawOwnerBounds);
+            self.memo
+                .walker_resources
+                .release(F5cWalkerLaneKind::RawCallbackTrace);
+            self.abort_flat_component()?;
+            return Err(error);
+        }
+        self.memo
+            .finish_root_transaction(self.root_undo_checkpoint, true)?;
+        drop(std::mem::take(&mut self.flat_sink.arena));
+        self.flat_sink.component_checkpoint = None;
+        self.flat_sink.counter_checkpoint = None;
+        for kind in [
+            F5cWalkerLaneKind::SourcePositiveNodes,
+            F5cWalkerLaneKind::SourceNegativeNodes,
+            F5cWalkerLaneKind::SourcePositiveChildren,
+            F5cWalkerLaneKind::SourceNegativeChildren,
+        ] {
+            self.memo.walker_resources.release(kind);
+        }
+        self.raw_forest_live = true;
+        Ok(F5cRawForest {
+            draft,
+            raw_owner_order,
+            raw_bounds,
+            callback_trace,
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn release_raw_forest(&mut self, forest: F5cRawForest) {
+        assert!(
+            self.raw_forest_live,
+            "one live raw forest owns the candidate output lanes"
+        );
+        drop(forest);
+        for kind in [
+            F5cWalkerLaneKind::RawOwnerOrder,
+            F5cWalkerLaneKind::RawOwnerBounds,
+            F5cWalkerLaneKind::RawCallbackTrace,
+            F5cWalkerLaneKind::DraftPositiveNodes,
+            F5cWalkerLaneKind::DraftNegativeNodes,
+            F5cWalkerLaneKind::DraftPositiveChildren,
+            F5cWalkerLaneKind::DraftNegativeChildren,
+            F5cWalkerLaneKind::DraftRecursiveBounds,
+            F5cWalkerLaneKind::DraftInsertionOrder,
+        ] {
+            self.memo.walker_resources.release(kind);
+        }
+        self.node_checkpoint = self.memo.nodes.len();
+        self.child_checkpoint = self.memo.children.len();
+        self.reverse_checkpoint = self.memo.reverse_parents.len();
+        self.incidence_checkpoint = self.memo.incidences.len();
+        self.root_undo_checkpoint = self.memo.root_undo.len();
+        self.memo.reset_active_scratch();
+        self.frames = Vec::new();
+        self.active = Vec::new();
+        self.active_set = HashSet::new();
+        self.path = Vec::new();
+        self.order = Vec::new();
+        self.order_seen = HashSet::new();
+        self.reentries = Vec::new();
+        self.provisional_recursive_rows = HashSet::new();
+        self.uncacheable_seen = HashSet::new();
+        self.memo.generalizer_scratch_capacities = [0; 4];
+        self.shared_summary_hits = 0;
+        self.uncacheable_states = 0;
+        self.fatal_taint = false;
+        self.invalid_effects = false;
+        self.in_component = false;
+        self.raw_forest_live = false;
     }
 
     #[cfg(test)]
@@ -3567,32 +3955,42 @@ impl<'a> F5cGeneralizer<'a> {
             sink.component_checkpoint = None;
             sink.counter_checkpoint = None;
             (self.shared_summary_hits, self.uncacheable_states) = counter_checkpoint;
-            let roots_restored = self
-                .memo
-                .finish_root_transaction(self.root_undo_checkpoint, false);
-            self.memo.reset_active_scratch();
-            self.active.clear();
-            self.active_set.clear();
-            self.frames.clear();
-            self.path.clear();
-            self.order.clear();
-            self.order_seen.clear();
-            self.reentries.clear();
-            self.provisional_recursive_rows.clear();
-            self.uncacheable_seen.clear();
-            self.fatal_taint = false;
-            self.invalid_effects = false;
-            let nodes_restored = self.memo.rollback_nodes(
-                self.node_checkpoint,
-                self.child_checkpoint,
-                self.reverse_checkpoint,
-                self.incidence_checkpoint,
-            );
-            if roots_restored.is_err() || nodes_restored.is_err() {
-                return Err(SolveAvailabilityError::IdentityExhausted);
-            }
+            self.abort_flat_component()?;
         }
         result
+    }
+
+    #[cfg(test)]
+    fn abort_flat_component(&mut self) -> Result<(), SolveAvailabilityError> {
+        if let Some(checkpoint) = self.flat_sink.component_checkpoint.take() {
+            self.flat_sink.arena.rollback(checkpoint);
+        }
+        if let Some(counters) = self.flat_sink.counter_checkpoint.take() {
+            (self.shared_summary_hits, self.uncacheable_states) = counters;
+        }
+        let roots = self
+            .memo
+            .finish_root_transaction(self.root_undo_checkpoint, false);
+        self.memo.reset_active_scratch();
+        self.active.clear();
+        self.active_set.clear();
+        self.frames.clear();
+        self.path.clear();
+        self.order.clear();
+        self.order_seen.clear();
+        self.reentries.clear();
+        self.provisional_recursive_rows.clear();
+        self.uncacheable_seen.clear();
+        self.fatal_taint = false;
+        self.invalid_effects = false;
+        let nodes = self.memo.rollback_nodes(
+            self.node_checkpoint,
+            self.child_checkpoint,
+            self.reverse_checkpoint,
+            self.incidence_checkpoint,
+        );
+        roots?;
+        nodes
     }
 
     pub(super) fn positive_row(

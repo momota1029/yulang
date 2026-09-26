@@ -68,6 +68,36 @@ test targets compile, and fmt/diff checks pass. No benchmark or §15 probe ran.
 The ordered whole-component root forest, callback/Q/R parity, component-wide
 memo rollback, and production cutover remain open; production stays boxed.
 
+### Latest continuation (2026-09-26): test-only ordered raw forest
+
+Added a non-production `F5cGeneralizer` path that gathers the predicate first,
+then unique reentry owners in encounter order with lower before upper bounds
+and the existing Bottom/Top defaults. It retains tagged roots through every
+walk, rejects invalid effects before the single ordered materialization batch,
+and returns raw source-owner IDs separately from final binder ordinals. Five
+tracked lanes cover owner order, bounds, seen owners, raw roots, and Shared
+callback trace. Checked callback accounting receives the current memo and
+capacity context so trace growth joins the simultaneous source/memo/draft/
+scratch observation.
+
+The candidate limits one returned forest at a time; releasing it advances memo
+checkpoints and resets producer state. Failure/retry witnesses cover callback
+and table-counter overflow, plus a successful forest followed by a later
+failure while retaining an earlier warm memo root. M2 spec-auditor and
+compiler-referee delta reviews found no remaining defect after two focused
+repairs. Verification passed: flat sink tests (19), materialization tests
+(17), `cargo check -p yu-solver --tests`, `cargo fmt --check`, and
+`git diff --check`. No benchmark or §15 probe ran.
+
+This closes only the raw predicate/bounds materialization subgate. Complete
+boxed-versus-flat callback and Q/R ordinal parity, direct invalid-effect timing
+witness, downstream memo rollback through Q/R, indexed FlatDraft analysis,
+production cutover, and remaining §5 witnesses stay open; production remains
+boxed. Immediate next: map the existing boxed incidence/Q/R traversal onto
+FlatDraft IDs without a duplicate algorithm, then test full callback/Q/R order
+parity while retaining the component memo transaction through all later
+fallible stages.
+
 ### Latest continuation (2026-09-26): explicit raw reentry-owner order
 
 The boxed producer now retains first-encounter order for unique raw reentry

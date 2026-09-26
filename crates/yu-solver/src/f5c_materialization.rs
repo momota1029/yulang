@@ -4,8 +4,8 @@ use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
 use super::{
     F5cComponentExpansionMemo, F5cGeneralizer, F5cNegative, F5cNegativeEffect, F5cPositive,
-    F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, Polarity,
-    SolveAvailabilityError,
+    F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, F5cWalkerResources,
+    Polarity, SolveAvailabilityError,
 };
 use std::collections::HashMap;
 
@@ -271,7 +271,12 @@ pub(super) fn materialize_summary_flat_checked(
     draft: &mut FlatDraft,
     root: F5cSummaryNodeId,
     polarity: Polarity,
-    mut mark: impl FnMut(u32, Polarity) -> Result<(), SolveAvailabilityError>,
+    mut mark: impl FnMut(
+        &mut F5cWalkerResources,
+        usize,
+        u32,
+        Polarity,
+    ) -> Result<(), SolveAvailabilityError>,
 ) -> Result<NodeRef, SolveAvailabilityError> {
     use super::f5c_draft::ChildSpan;
     let checkpoint = (
@@ -314,7 +319,8 @@ pub(super) fn materialize_summary_flat_checked(
                     let index = usize::try_from(id.0).map_err(|_| bad)?;
                     let node = *memo.nodes.get(index).ok_or(bad)?;
                     if let Some((row, p)) = node.incidence {
-                        mark(row, p)?;
+                        let memo_bytes = memo.retained_bytes()?;
+                        mark(&mut memo.walker_resources, memo_bytes, row, p)?;
                     }
                     match (expected, node.kind) {
                         (Polarity::Positive, F5cSummaryNodeKind::PositiveBottom) => {
@@ -1311,7 +1317,7 @@ mod flat_tests {
             let mut draft = FlatDraft::default();
             let root = F5cSummaryNodeId(1);
             let run = |memo: &mut F5cComponentExpansionMemo, draft: &mut FlatDraft| {
-                materialize_summary_flat_checked(memo, draft, root, polarity, |_, _| Ok(()))
+                materialize_summary_flat_checked(memo, draft, root, polarity, |_, _, _, _| Ok(()))
             };
             run(&mut memo, &mut draft).unwrap();
             let (site, before_drain, count) =
@@ -1375,7 +1381,7 @@ mod flat_tests {
                 &mut flat,
                 F5cSummaryNodeId(1),
                 Polarity::Positive,
-                |_, _| Ok(())
+                |_, _, _, _| Ok(())
             )
             .is_err()
         );
@@ -1440,7 +1446,7 @@ mod flat_tests {
             &mut flat,
             ids[4],
             Polarity::Positive,
-            |row, polarity| {
+            |_, _, row, polarity| {
                 positive_marks.push((row, polarity));
                 Ok(())
             },
@@ -1452,7 +1458,7 @@ mod flat_tests {
             &mut flat,
             ids[5],
             Polarity::Negative,
-            |row, polarity| {
+            |_, _, row, polarity| {
                 negative_marks.push((row, polarity));
                 Ok(())
             },
@@ -1539,7 +1545,7 @@ mod flat_tests {
             &mut flat,
             union,
             Polarity::Positive,
-            |row, polarity| {
+            |_, _, row, polarity| {
                 marks.push((row, polarity));
                 Ok(())
             },
@@ -1574,7 +1580,7 @@ mod flat_tests {
             &mut flat,
             union,
             Polarity::Positive,
-            |row, _| {
+            |_, _, row, _| {
                 if row == 7 {
                     Err(SolveAvailabilityError::IdentityExhausted)
                 } else {
