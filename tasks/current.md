@@ -4,6 +4,40 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-26): shared post-convergence R/Q assembly
+
+Boxed production and the test-only FlatDraft path now share post-convergence
+retained-bound replay, guarded-bound and trace survival, recursive-owner
+ordering, retained occurrence traversal, and Q/R ordinal assignment. Replay and
+guard checks follow `raw_owner_order`; R follows the first surviving trace for
+each owner; Q follows the retained predicate, then recursive owners in R order
+with lower before upper. No set/map iteration chooses output ordinals.
+
+The FlatDraft candidate uses fallible growth and distinct physical lanes for
+the retained owner bounds, survivor sets, recursive owner order/set, occurrence
+order/seen set, and Q/R maps. Temporary lanes release after their collections
+drop; selected lanes remain live with replay output and raw forest until the
+candidate wrapper releases or aborts them. A paired witness distinguishes raw
+owner order `[1,2]` from trace order `[2,1,2]`, checks duplicate-trace removal,
+predicate/lower/upper Q order and R offsets, and rejects a missing raw owner.
+The rollback witness injects failure after R convergence and after post-R bound
+output, then checks memo restoration, all output/post-R lane releases, idle
+scratch, and warm retry.
+
+M3 compiler-referee, spec-auditor, and performance-auditor delta reviews found
+no remaining actionable issue. `cargo test -p yu-solver --lib post_r_ --
+--test-threads=1` passes (4); `cargo test -p yu-solver --lib
+f5c_tree_analysis -- --test-threads=1` passes (4); solver test-target check,
+formatting, and diff checks pass. No broad suite, resource probe, or §15
+measurement ran; measurement budget remains zero.
+
+Only post-convergence retained-R and Q/R assembly is shared. Flat substitution
+and normalization integration, full callback/Q/R parity, rollback through all
+later fallible stages, §5 resource certification, and the reviewed §15
+measurement gate remain open. Production remains boxed; no numeric resource
+boundary, production cutover, §44 closure, F5e acceptance, or overall F5c
+completion is authorized by this implementation slice.
+
 ### Latest continuation (2026-09-26): shared R fixed-point slice
 
 Boxed production and the test-only FlatDraft adapter now use one R-candidate

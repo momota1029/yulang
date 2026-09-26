@@ -50,7 +50,10 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         first: Task<'tree>,
         store: Option<&ConstraintStore>,
         #[cfg(test)] flat: Option<&FlatDraft>,
-        mut visit: impl FnMut(Event) -> bool,
+        mut visit: impl FnMut(
+            Event,
+            &mut F5cComponentExpansionMemo,
+        ) -> Result<bool, SolveAvailabilityError>,
     ) -> Result<(), SolveAvailabilityError> {
         self.tasks.clear();
         let result = (|| {
@@ -61,7 +64,8 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                 match task {
                     Task::Positive(value, guarded) => match value {
                         F5cPositive::Variable(owner) => {
-                            if !visit(Event::Value(*owner, Polarity::Positive, guarded)) {
+                            if !visit(Event::Value(*owner, Polarity::Positive, guarded), self.memo)?
+                            {
                                 break;
                             }
                         }
@@ -83,7 +87,8 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                     },
                     Task::Negative(value, guarded) => match value {
                         F5cNegative::Variable(owner) => {
-                            if !visit(Event::Value(*owner, Polarity::Negative, guarded)) {
+                            if !visit(Event::Value(*owner, Polarity::Negative, guarded), self.memo)?
+                            {
                                 break;
                             }
                         }
@@ -112,7 +117,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                         };
                         match view {
                             TermView::LiveVariable(view) => {
-                                if !visit(Event::TermRow(view.ordinal())) {
+                                if !visit(Event::TermRow(view.ordinal()), self.memo)? {
                                     break;
                                 }
                             }
@@ -142,7 +147,10 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                         match *node {
                             PositiveNode::Variable(owner) => {
-                                if !visit(Event::Value(owner, Polarity::Positive, guarded)) {
+                                if !visit(
+                                    Event::Value(owner, Polarity::Positive, guarded),
+                                    self.memo,
+                                )? {
                                     break;
                                 }
                             }
@@ -185,7 +193,10 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                         match *node {
                             NegativeNode::Variable(owner) => {
-                                if !visit(Event::Value(owner, Polarity::Negative, guarded)) {
+                                if !visit(
+                                    Event::Value(owner, Polarity::Negative, guarded),
+                                    self.memo,
+                                )? {
                                     break;
                                 }
                             }
@@ -235,13 +246,15 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event| {
-                if matches!(event, Event::Value(row, _, true) if row == owner) {
-                    found = true;
-                    false
-                } else {
-                    true
-                }
+            |event, _memo| {
+                Ok({
+                    if matches!(event, Event::Value(row, _, true) if row == owner) {
+                        found = true;
+                        false
+                    } else {
+                        true
+                    }
+                })
             },
         )?;
         Ok(found)
@@ -258,13 +271,15 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event| {
-                if matches!(event, Event::Value(row, _, true) if row == owner) {
-                    found = true;
-                    false
-                } else {
-                    true
-                }
+            |event, _memo| {
+                Ok({
+                    if matches!(event, Event::Value(row, _, true) if row == owner) {
+                        found = true;
+                        false
+                    } else {
+                        true
+                    }
+                })
             },
         )?;
         Ok(found)
@@ -294,13 +309,15 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event| {
-                if let Event::Value(owner, _, _) = event
-                    && owners.contains(&owner)
-                {
-                    out.insert(owner);
-                }
-                true
+            |event, _memo| {
+                Ok({
+                    if let Event::Value(owner, _, _) = event
+                        && owners.contains(&owner)
+                    {
+                        out.insert(owner);
+                    }
+                    true
+                })
             },
         )
     }
@@ -316,13 +333,15 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event| {
-                if let Event::Value(owner, _, _) = event
-                    && owners.contains(&owner)
-                {
-                    out.insert(owner);
-                }
-                true
+            |event, _memo| {
+                Ok({
+                    if let Event::Value(owner, _, _) = event
+                        && owners.contains(&owner)
+                    {
+                        out.insert(owner);
+                    }
+                    true
+                })
             },
         )
     }
@@ -338,18 +357,20 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event| {
-                if let Event::Value(owner, polarity, _) = event {
-                    match polarity {
-                        Polarity::Positive => {
-                            positive.insert(owner);
-                        }
-                        Polarity::Negative => {
-                            negative.insert(owner);
+            |event, _memo| {
+                Ok({
+                    if let Event::Value(owner, polarity, _) = event {
+                        match polarity {
+                            Polarity::Positive => {
+                                positive.insert(owner);
+                            }
+                            Polarity::Negative => {
+                                negative.insert(owner);
+                            }
                         }
                     }
-                }
-                true
+                    true
+                })
             },
         )
     }
@@ -365,18 +386,20 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event| {
-                if let Event::Value(owner, polarity, _) = event {
-                    match polarity {
-                        Polarity::Positive => {
-                            positive.insert(owner);
-                        }
-                        Polarity::Negative => {
-                            negative.insert(owner);
+            |event, _memo| {
+                Ok({
+                    if let Event::Value(owner, polarity, _) = event {
+                        match polarity {
+                            Polarity::Positive => {
+                                positive.insert(owner);
+                            }
+                            Polarity::Negative => {
+                                negative.insert(owner);
+                            }
                         }
                     }
-                }
-                true
+                    true
+                })
             },
         )
     }
@@ -392,13 +415,15 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event| {
-                if let Event::Value(owner, _, _) = event
-                    && seen.insert(owner)
-                {
-                    ordered.push(owner);
-                }
-                true
+            |event, _memo| {
+                Ok({
+                    if let Event::Value(owner, _, _) = event
+                        && seen.insert(owner)
+                    {
+                        ordered.push(owner);
+                    }
+                    true
+                })
             },
         )
     }
@@ -414,13 +439,15 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             None,
             #[cfg(test)]
             None,
-            |event| {
-                if let Event::Value(owner, _, _) = event
-                    && seen.insert(owner)
-                {
-                    ordered.push(owner);
-                }
-                true
+            |event, _memo| {
+                Ok({
+                    if let Event::Value(owner, _, _) = event
+                        && seen.insert(owner)
+                    {
+                        ordered.push(owner);
+                    }
+                    true
+                })
             },
         )
     }
@@ -436,11 +463,13 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             Some(store),
             #[cfg(test)]
             None,
-            |event| {
-                if let Event::TermRow(row) = event {
-                    rows.insert(row);
-                }
-                true
+            |event, _memo| {
+                Ok({
+                    if let Event::TermRow(row) = event {
+                        rows.insert(row);
+                    }
+                    true
+                })
             },
         )
     }
@@ -451,13 +480,30 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         root: NodeRef,
         mut visit: impl FnMut(u32, Polarity, bool) -> bool,
     ) -> Result<(), SolveAvailabilityError> {
+        self.flat_events_checked(draft, root, |owner, polarity, guarded, _memo| {
+            Ok(visit(owner, polarity, guarded))
+        })
+    }
+
+    #[cfg(test)]
+    fn flat_events_checked(
+        &mut self,
+        draft: &FlatDraft,
+        root: NodeRef,
+        mut visit: impl FnMut(
+            u32,
+            Polarity,
+            bool,
+            &mut F5cComponentExpansionMemo,
+        ) -> Result<bool, SolveAvailabilityError>,
+    ) -> Result<(), SolveAvailabilityError> {
         let first = match root {
             NodeRef::Positive(id) => Task::FlatPositive(id, false),
             NodeRef::Negative(id) => Task::FlatNegative(id, false),
         };
-        self.walk(first, None, Some(draft), |event| match event {
-            Event::Value(owner, polarity, guarded) => visit(owner, polarity, guarded),
-            Event::TermRow(_) => true,
+        self.walk(first, None, Some(draft), |event, memo| match event {
+            Event::Value(owner, polarity, guarded) => visit(owner, polarity, guarded, memo),
+            Event::TermRow(_) => Ok(true),
         })
     }
 
@@ -469,13 +515,15 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         limit: usize,
     ) -> Result<Vec<(u32, Polarity, bool)>, SolveAvailabilityError> {
         let mut trace = Vec::new();
-        self.walk(root, None, draft, |event| {
-            if let Event::Value(owner, polarity, guarded) = event {
-                trace.push((owner, polarity, guarded));
-                trace.len() < limit
-            } else {
-                true
-            }
+        self.walk(root, None, draft, |event, _memo| {
+            Ok({
+                if let Event::Value(owner, polarity, guarded) = event {
+                    trace.push((owner, polarity, guarded));
+                    trace.len() < limit
+                } else {
+                    true
+                }
+            })
         })?;
         Ok(trace)
     }
@@ -572,6 +620,29 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
                 ordered.push(owner);
             }
             true
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn flat_occurrences_checked(
+        &mut self,
+        draft: &FlatDraft,
+        root: NodeRef,
+        ordered: &mut Vec<u32>,
+        seen: &mut HashSet<u32>,
+        mut reserve: impl FnMut(
+            &mut F5cComponentExpansionMemo,
+            &mut Vec<u32>,
+            &mut HashSet<u32>,
+        ) -> Result<(), SolveAvailabilityError>,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.flat_events_checked(draft, root, |owner, _, _, memo| {
+            if !seen.contains(&owner) {
+                reserve(memo, ordered, seen)?;
+                seen.insert(owner);
+                ordered.push(owner);
+            }
+            Ok(true)
         })
     }
 }

@@ -491,3 +491,47 @@ normalization integration, complete callback/Q/R parity, and rollback through
 those later fallible stages remain open. Production remains boxed. No resource
 certification, numeric boundary, §44 closure, F5e acceptance, or overall F5c
 completion is authorized.
+
+## 14. Shared post-convergence retained-R and Q/R slice (2026-09-26)
+
+The boxed producer and test-only FlatDraft adapter now use one post-R selector
+for retained-bound replay, guarded-bound survival, guarded-trace survival,
+recursive-owner order, retained occurrence traversal, Q/R ordinals, and
+unclassified-row rejection. Retained replay and guard checks follow the
+recorded `raw_owner_order`. R owners follow the first surviving trace for each
+owner, preserving trace encounter order while removing duplicate owners. Q
+first occurrences follow the retained predicate, then each R owner's lower
+bound before upper bound. HashMap/HashSet iteration does not choose emitted
+ordinals.
+
+The FlatDraft adapter grows every post-R collection fallibly and records its
+capacity in a distinct lane: retained bounds, surviving bound owners,
+surviving trace indices, recursive owner vector and set, occurrence order and
+seen set, and Q/R maps. The occurrence adapter uses the existing explicit-stack
+Walker scheduler with a fallible event callback. Temporary collections drop
+before their lanes release; retained selection collections stay accounted with
+replay output and the open raw forest until explicit release or abort. On
+error, the wrapper releases output and post-R lanes before aborting the memo
+transaction.
+
+Paired boxed/flat tests cover raw owner order `[1,2]` versus surviving trace
+order `[2,1,2]`, first-trace deduplication, Q order across predicate and lower/
+upper bounds for both owners, R offsets, and rejection when a candidate lacks
+a raw owner. The late-failure witness injects an error after R convergence,
+lets the first post-R bound replay emit output, fails on the next replay, and
+checks persistent memo restoration, output and all post-R lane capacities,
+idle transient state, and warm retry.
+
+M3 compiler-referee, spec-auditor, and performance-auditor delta reviews found
+no remaining actionable finding. Focused `post_r_` tests (4) and
+`f5c_tree_analysis` tests (4) pass, as do `cargo check -p yu-solver --tests
+--message-format short`, `cargo fmt --all --check`, and `git diff --check`.
+No broad suite, benchmark, resource probe, or §15 measurement ran; measurement
+budget remains zero.
+
+This closes only the shared post-convergence R/Q selector. Flat substitution
+and normalization integration, full callback/Q/R parity, rollback through all
+later fallible stages, physical resource certification, and the reviewed §15
+measurement gate remain open. Production remains boxed; no numeric boundary,
+production cutover, §44 closure, F5e acceptance, or overall F5c completion is
+authorized by this slice.

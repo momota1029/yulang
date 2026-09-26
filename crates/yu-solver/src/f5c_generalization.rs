@@ -335,10 +335,19 @@ pub(super) enum F5cWalkerLaneKind {
     ReplayOutputPositiveChildren = 47,
     ReplayOutputNegativeChildren = 48,
     ReplayOutputInsertionOrder = 49,
+    RetainedOwnerBounds = 50,
+    PostRSurvivingBounds = 51,
+    PostRSurvivingTraces = 52,
+    PostRRecursiveOwners = 53,
+    PostRRecursiveSet = 54,
+    PostROccurrenceOrder = 55,
+    PostROccurrenceSeen = 56,
+    PostRQuantifiers = 57,
+    PostRRecursives = 58,
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 50] = [
+    pub(super) const ALL: [Self; 59] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -389,6 +398,15 @@ impl F5cWalkerLaneKind {
         Self::ReplayOutputPositiveChildren,
         Self::ReplayOutputNegativeChildren,
         Self::ReplayOutputInsertionOrder,
+        Self::RetainedOwnerBounds,
+        Self::PostRSurvivingBounds,
+        Self::PostRSurvivingTraces,
+        Self::PostRRecursiveOwners,
+        Self::PostRRecursiveSet,
+        Self::PostROccurrenceOrder,
+        Self::PostROccurrenceSeen,
+        Self::PostRQuantifiers,
+        Self::PostRRecursives,
     ];
 
     pub(super) fn slot_size(self) -> usize {
@@ -446,7 +464,33 @@ impl F5cWalkerLaneKind {
             Self::ReplayOutputPositiveChildren => std::mem::size_of::<f5c_draft::PositiveId>(),
             Self::ReplayOutputNegativeChildren => std::mem::size_of::<f5c_draft::NegativeId>(),
             Self::ReplayOutputInsertionOrder => std::mem::size_of::<f5c_draft::NodeRef>(),
+            Self::RetainedOwnerBounds => {
+                std::mem::size_of::<(u32, (f5c_draft::PositiveId, f5c_draft::NegativeId))>()
+            }
+            Self::PostRSurvivingBounds | Self::PostRRecursiveSet | Self::PostROccurrenceSeen => {
+                std::mem::size_of::<u32>()
+            }
+            Self::PostRSurvivingTraces => std::mem::size_of::<usize>(),
+            Self::PostRRecursiveOwners | Self::PostROccurrenceOrder => std::mem::size_of::<u32>(),
+            Self::PostRQuantifiers | Self::PostRRecursives => std::mem::size_of::<(u32, u32)>(),
         }
+    }
+}
+
+#[cfg(test)]
+pub(super) fn release_flat_post_r_lanes(memo: &mut F5cComponentExpansionMemo) {
+    for kind in [
+        F5cWalkerLaneKind::RetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+    ] {
+        memo.walker_resources.release(kind);
     }
 }
 
@@ -459,13 +503,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 50],
+    pub(super) lanes: [F5cWalkerLane; 59],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 50],
+    pub(super) independent_lanes: [F5cWalkerLane; 59],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -475,13 +519,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 50],
+            lanes: [F5cWalkerLane::default(); 59],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 50],
+            independent_lanes: [F5cWalkerLane::default(); 59],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
@@ -551,6 +595,48 @@ impl F5cWalkerResources {
         memo_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let kind = F5cWalkerLaneKind::RawOwnerBounds;
+        let counters = self.preflight_table_counters(kind)?;
+        let old = map.capacity();
+        let result = map.try_reserve(1);
+        self.observe_table_capacity(kind, old, map.capacity(), memo_bytes, counters)?;
+        result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
+    #[cfg(test)]
+    fn reserve_retained_map(
+        &mut self,
+        map: &mut HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let kind = F5cWalkerLaneKind::RetainedOwnerBounds;
+        let counters = self.preflight_table_counters(kind)?;
+        let old = map.capacity();
+        let result = map.try_reserve(1);
+        self.observe_table_capacity(kind, old, map.capacity(), memo_bytes, counters)?;
+        result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
+    #[cfg(test)]
+    fn reserve_post_r_set<T: Eq + std::hash::Hash>(
+        &mut self,
+        set: &mut HashSet<T>,
+        kind: F5cWalkerLaneKind,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let counters = self.preflight_table_counters(kind)?;
+        let old = set.capacity();
+        let result = set.try_reserve(1);
+        self.observe_table_capacity(kind, old, set.capacity(), memo_bytes, counters)?;
+        result.map_err(|_| SolveAvailabilityError::IdentityExhausted)
+    }
+
+    #[cfg(test)]
+    fn reserve_post_r_map(
+        &mut self,
+        map: &mut HashMap<u32, u32>,
+        kind: F5cWalkerLaneKind,
+        memo_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
         let counters = self.preflight_table_counters(kind)?;
         let old = map.capacity();
         let result = map.try_reserve(1);
@@ -2552,6 +2638,8 @@ trait F5cRCandidateSource {
     type ReplayedBound;
     type ReplayedPredicate;
 
+    fn new_retained_bounds(&self, candidate_count: usize) -> HashMap<u32, Self::ReplayedBound>;
+
     fn replay_bound(
         &mut self,
         memo: &mut F5cComponentExpansionMemo,
@@ -2593,6 +2681,58 @@ trait F5cRCandidateSource {
     ) -> Result<(), SolveAvailabilityError>;
 
     fn release_replay_scratch(&mut self);
+
+    fn reserve_retained_bound(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        bounds: &mut HashMap<u32, Self::ReplayedBound>,
+    ) -> Result<(), SolveAvailabilityError>;
+
+    fn reserve_post_r_set(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        set: &mut HashSet<u32>,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError>;
+
+    fn reserve_post_r_trace_set(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        set: &mut HashSet<usize>,
+    ) -> Result<(), SolveAvailabilityError>;
+
+    fn reserve_post_r_map(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        map: &mut HashMap<u32, u32>,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError>;
+
+    fn reserve_post_r_vec(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        values: &mut Vec<u32>,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError>;
+
+    fn release_post_r_lane(&self, memo: &mut F5cComponentExpansionMemo, kind: F5cWalkerLaneKind);
+
+    fn retained_occurrences(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        predicate: &Self::ReplayedPredicate,
+        owners: &[u32],
+        bounds: &HashMap<u32, Self::ReplayedBound>,
+    ) -> Result<Vec<u32>, SolveAvailabilityError>;
+}
+
+pub(super) struct F5cPostRSelection<B, P> {
+    pub(super) retained_bounds: HashMap<u32, B>,
+    pub(super) retained_predicate: P,
+    pub(super) recursive_owners: Vec<u32>,
+    pub(super) recursive_set: HashSet<u32>,
+    pub(super) q: HashMap<u32, u32>,
+    pub(super) r: HashMap<u32, u32>,
 }
 
 struct F5cBoxedRCandidateSource<'a> {
@@ -2603,6 +2743,10 @@ struct F5cBoxedRCandidateSource<'a> {
 impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
     type ReplayedBound = (F5cPositive, F5cNegative);
     type ReplayedPredicate = F5cPositive;
+
+    fn new_retained_bounds(&self, candidate_count: usize) -> HashMap<u32, Self::ReplayedBound> {
+        HashMap::with_capacity(candidate_count)
+    }
 
     fn replay_bound(
         &mut self,
@@ -2671,6 +2815,62 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
     }
 
     fn release_replay_scratch(&mut self) {}
+
+    fn reserve_retained_bound(
+        &self,
+        _memo: &mut F5cComponentExpansionMemo,
+        _bounds: &mut HashMap<u32, Self::ReplayedBound>,
+    ) -> Result<(), SolveAvailabilityError> {
+        Ok(())
+    }
+
+    fn reserve_post_r_set(
+        &self,
+        _memo: &mut F5cComponentExpansionMemo,
+        _set: &mut HashSet<u32>,
+        _kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        Ok(())
+    }
+
+    fn reserve_post_r_trace_set(
+        &self,
+        _memo: &mut F5cComponentExpansionMemo,
+        _set: &mut HashSet<usize>,
+    ) -> Result<(), SolveAvailabilityError> {
+        Ok(())
+    }
+
+    fn reserve_post_r_map(
+        &self,
+        _memo: &mut F5cComponentExpansionMemo,
+        _map: &mut HashMap<u32, u32>,
+        _kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        Ok(())
+    }
+
+    fn reserve_post_r_vec(
+        &self,
+        _memo: &mut F5cComponentExpansionMemo,
+        _values: &mut Vec<u32>,
+        _kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        Ok(())
+    }
+
+    fn release_post_r_lane(&self, _memo: &mut F5cComponentExpansionMemo, _kind: F5cWalkerLaneKind) {
+    }
+
+    fn retained_occurrences(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        predicate: &Self::ReplayedPredicate,
+        owners: &[u32],
+        bounds: &HashMap<u32, Self::ReplayedBound>,
+    ) -> Result<Vec<u32>, SolveAvailabilityError> {
+        F5cGeneralizer::retained_occurrences(predicate, owners, bounds, memo)
+    }
 }
 
 #[cfg(test)]
@@ -2684,6 +2884,10 @@ struct F5cFlatRCandidateSource<'a> {
 impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
     type ReplayedBound = (f5c_draft::PositiveId, f5c_draft::NegativeId);
     type ReplayedPredicate = f5c_draft::PositiveId;
+
+    fn new_retained_bounds(&self, _candidate_count: usize) -> HashMap<u32, Self::ReplayedBound> {
+        HashMap::new()
+    }
 
     fn replay_bound(
         &mut self,
@@ -2811,6 +3015,119 @@ impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
         self.output.positive_children.clear();
         self.output.negative_children.clear();
         self.output.insertion_order.clear();
+    }
+
+    fn reserve_retained_bound(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        bounds: &mut HashMap<u32, Self::ReplayedBound>,
+    ) -> Result<(), SolveAvailabilityError> {
+        let bytes = memo.retained_bytes()?;
+        memo.walker_resources.reserve_retained_map(bounds, bytes)
+    }
+
+    fn reserve_post_r_set(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        set: &mut HashSet<u32>,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        let bytes = memo.retained_bytes()?;
+        memo.walker_resources.reserve_post_r_set(set, kind, bytes)
+    }
+
+    fn reserve_post_r_trace_set(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        set: &mut HashSet<usize>,
+    ) -> Result<(), SolveAvailabilityError> {
+        let bytes = memo.retained_bytes()?;
+        memo.walker_resources.reserve_post_r_set(
+            set,
+            F5cWalkerLaneKind::PostRSurvivingTraces,
+            bytes,
+        )
+    }
+
+    fn reserve_post_r_map(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        map: &mut HashMap<u32, u32>,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        let bytes = memo.retained_bytes()?;
+        memo.walker_resources.reserve_post_r_map(map, kind, bytes)
+    }
+
+    fn reserve_post_r_vec(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        values: &mut Vec<u32>,
+        kind: F5cWalkerLaneKind,
+    ) -> Result<(), SolveAvailabilityError> {
+        memo.reserve_walker(values, kind)
+    }
+
+    fn release_post_r_lane(&self, memo: &mut F5cComponentExpansionMemo, kind: F5cWalkerLaneKind) {
+        memo.walker_resources.release(kind);
+    }
+
+    fn retained_occurrences(
+        &self,
+        memo: &mut F5cComponentExpansionMemo,
+        predicate: &Self::ReplayedPredicate,
+        owners: &[u32],
+        bounds: &HashMap<u32, Self::ReplayedBound>,
+    ) -> Result<Vec<u32>, SolveAvailabilityError> {
+        use f5c_draft::NodeRef;
+        let mut ordered = Vec::new();
+        let mut seen = HashSet::new();
+        let mut walker = f5c_tree_analysis::Walker::new(memo);
+        let mut visit = |walker: &mut f5c_tree_analysis::Walker<'_, '_>, root| {
+            walker.flat_occurrences_checked(
+                &self.output,
+                root,
+                &mut ordered,
+                &mut seen,
+                |memo, ordered, seen| {
+                    let bytes = memo.retained_bytes()?;
+                    memo.walker_resources.reserve_post_r_set(
+                        seen,
+                        F5cWalkerLaneKind::PostROccurrenceSeen,
+                        bytes,
+                    )?;
+                    memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder)
+                },
+            )
+        };
+        let result = (|| {
+            visit(&mut walker, NodeRef::Positive(*predicate))?;
+            for owner in owners {
+                walker.memo.work_meter.charge(1)?; // retained bound owner
+                let (lower, upper) = bounds
+                    .get(owner)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                visit(&mut walker, NodeRef::Positive(*lower))?;
+                visit(&mut walker, NodeRef::Negative(*upper))?;
+            }
+            Ok(())
+        })();
+        drop(seen);
+        walker
+            .memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::PostROccurrenceSeen);
+        match result {
+            Ok(()) => Ok(ordered),
+            Err(error) => {
+                drop(ordered);
+                walker
+                    .memo
+                    .walker_resources
+                    .release(F5cWalkerLaneKind::PostROccurrenceOrder);
+                Err(error)
+            }
+        }
     }
 }
 
@@ -4413,22 +4730,6 @@ impl<'a> F5cGeneralizer<'a> {
         })
     }
 
-    fn guarded_trace_path_survives_metered(
-        &self,
-        trace: &F5cGuardedTrace,
-        protected: &HashSet<u32>,
-        positive_only: &HashSet<u32>,
-        negative_only: &HashSet<u32>,
-    ) -> Result<bool, SolveAvailabilityError> {
-        Self::guarded_trace_path_survives_with_meter(
-            &self.memo,
-            trace,
-            protected,
-            positive_only,
-            negative_only,
-        )
-    }
-
     fn guarded_trace_path_survives_with_meter(
         memo: &F5cComponentExpansionMemo,
         trace: &F5cGuardedTrace,
@@ -4745,6 +5046,93 @@ impl<'a> F5cGeneralizer<'a> {
     }
 
     #[cfg(test)]
+    pub(super) fn flat_r_q_with_raw_forest_for_test(
+        &mut self,
+        forest: F5cRawForest,
+        reentries: &[F5cGuardedTrace],
+        reentries_by_owner: &HashMap<u32, Vec<usize>>,
+        order: &[u32],
+        eligible: impl Fn(u32) -> bool + Copy,
+        positive_incidences: &HashSet<u32>,
+        negative_incidences: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+        fail_after_first_post_output: bool,
+    ) -> Result<
+        (
+            F5cPostRSelection<
+                (f5c_draft::PositiveId, f5c_draft::NegativeId),
+                f5c_draft::PositiveId,
+            >,
+            f5c_draft::FlatDraft,
+            F5cRawForest,
+        ),
+        SolveAvailabilityError,
+    > {
+        if !self.raw_forest_live {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let mut source = F5cFlatRCandidateSource {
+            source: &forest.draft,
+            output: f5c_draft::FlatDraft::default(),
+            bounds: &forest.raw_bounds,
+        };
+        let result = (|| {
+            let candidates = Self::r_candidates(
+                &mut self.memo,
+                &mut source,
+                reentries,
+                reentries_by_owner,
+                eligible,
+                positive_only,
+                negative_only,
+            )?;
+            if fail_after_first_post_output {
+                f5c_replay::inject_failure_after_flat_output();
+            }
+            Self::post_r_selection(
+                &mut self.memo,
+                &mut source,
+                &candidates,
+                &forest.raw_owner_order,
+                reentries,
+                order,
+                positive_incidences,
+                negative_incidences,
+                positive_only,
+                negative_only,
+                eligible,
+            )
+        })();
+        let output = source.output;
+        match result {
+            Ok(selection) => Ok((selection, output, forest)),
+            Err(error) => {
+                f5c_replay::release_flat_output(&mut self.memo, output);
+                release_flat_post_r_lanes(&mut self.memo);
+                self.abort_raw_forest(forest)?;
+                Err(error)
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn release_flat_r_q_for_test(
+        &mut self,
+        selection: F5cPostRSelection<
+            (f5c_draft::PositiveId, f5c_draft::NegativeId),
+            f5c_draft::PositiveId,
+        >,
+        output: f5c_draft::FlatDraft,
+        forest: F5cRawForest,
+    ) {
+        drop(selection);
+        f5c_replay::release_flat_output(&mut self.memo, output);
+        release_flat_post_r_lanes(&mut self.memo);
+        self.release_raw_forest(forest);
+    }
+
+    #[cfg(test)]
     pub(super) fn boxed_r_candidates_for_test(
         memo: &mut F5cComponentExpansionMemo,
         predicate: &F5cPositive,
@@ -4765,6 +5153,84 @@ impl<'a> F5cGeneralizer<'a> {
             positive_only,
             negative_only,
         )
+    }
+
+    #[cfg(test)]
+    pub(super) fn boxed_post_r_for_test(
+        memo: &mut F5cComponentExpansionMemo,
+        predicate: &F5cPositive,
+        bounds: &HashMap<u32, (F5cPositive, F5cNegative)>,
+        raw_owner_order: &[u32],
+        reentries: &[F5cGuardedTrace],
+        candidates: &HashSet<u32>,
+        order: &[u32],
+        positive_incidences: &HashSet<u32>,
+        negative_incidences: &HashSet<u32>,
+    ) -> Result<F5cPostRSelection<(F5cPositive, F5cNegative), F5cPositive>, SolveAvailabilityError>
+    {
+        let mut source = F5cBoxedRCandidateSource { predicate, bounds };
+        Self::post_r_selection(
+            memo,
+            &mut source,
+            candidates,
+            raw_owner_order,
+            reentries,
+            order,
+            positive_incidences,
+            negative_incidences,
+            &HashSet::new(),
+            &HashSet::new(),
+            |_| true,
+        )
+    }
+
+    #[cfg(test)]
+    pub(super) fn flat_post_r_for_test(
+        memo: &mut F5cComponentExpansionMemo,
+        draft: &f5c_draft::FlatDraft,
+        bounds: &HashMap<u32, (f5c_draft::PositiveId, f5c_draft::NegativeId)>,
+        raw_owner_order: &[u32],
+        reentries: &[F5cGuardedTrace],
+        candidates: &HashSet<u32>,
+        order: &[u32],
+        positive_incidences: &HashSet<u32>,
+        negative_incidences: &HashSet<u32>,
+    ) -> Result<
+        (
+            F5cPostRSelection<
+                (f5c_draft::PositiveId, f5c_draft::NegativeId),
+                f5c_draft::PositiveId,
+            >,
+            f5c_draft::FlatDraft,
+        ),
+        SolveAvailabilityError,
+    > {
+        let mut source = F5cFlatRCandidateSource {
+            source: draft,
+            output: f5c_draft::FlatDraft::default(),
+            bounds,
+        };
+        let result = Self::post_r_selection(
+            memo,
+            &mut source,
+            candidates,
+            raw_owner_order,
+            reentries,
+            order,
+            positive_incidences,
+            negative_incidences,
+            &HashSet::new(),
+            &HashSet::new(),
+            |_| true,
+        );
+        match result {
+            Ok(selection) => Ok((selection, source.output)),
+            Err(error) => {
+                f5c_replay::release_flat_output(memo, source.output);
+                release_flat_post_r_lanes(memo);
+                Err(error)
+            }
+        }
     }
 
     #[cfg(test)]
@@ -4842,6 +5308,140 @@ impl<'a> F5cGeneralizer<'a> {
             }
         }
         Ok(())
+    }
+
+    fn post_r_selection<S: F5cRCandidateSource>(
+        memo: &mut F5cComponentExpansionMemo,
+        source: &mut S,
+        candidates: &HashSet<u32>,
+        raw_owner_order: &[u32],
+        reentries: &[F5cGuardedTrace],
+        order: &[u32],
+        positive_incidences: &HashSet<u32>,
+        negative_incidences: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+        eligible: impl Fn(u32) -> bool,
+    ) -> Result<F5cPostRSelection<S::ReplayedBound, S::ReplayedPredicate>, SolveAvailabilityError>
+    {
+        source.release_replay_scratch();
+        let mut retained_bounds = source.new_retained_bounds(candidates.len());
+        for owner in raw_owner_order {
+            if !candidates.contains(owner) {
+                continue;
+            }
+            memo.work_meter.charge(1)?; // post-convergence bound owner
+            let bound = source
+                .replay_bound(memo, *owner, candidates, positive_only, negative_only)?
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            source.reserve_retained_bound(memo, &mut retained_bounds)?;
+            retained_bounds.insert(*owner, bound);
+        }
+        if retained_bounds.len() != candidates.len() {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let mut surviving_bound_owners = HashSet::new();
+        for owner in raw_owner_order {
+            let Some(bound) = retained_bounds.get(owner) else {
+                continue;
+            };
+            memo.work_meter.charge(1)?; // revisited retained bound
+            if source.guarded_bound_survives(memo, *owner, bound)? {
+                source.reserve_post_r_set(
+                    memo,
+                    &mut surviving_bound_owners,
+                    F5cWalkerLaneKind::PostRSurvivingBounds,
+                )?;
+                surviving_bound_owners.insert(*owner);
+            }
+        }
+        let mut surviving_traces = HashSet::new();
+        for (index, trace) in reentries.iter().enumerate() {
+            memo.work_meter.charge(1)?; // post-convergence trace record
+            if candidates.contains(&trace.owner)
+                && surviving_bound_owners.contains(&trace.owner)
+                && Self::guarded_trace_path_survives_with_meter(
+                    memo,
+                    trace,
+                    candidates,
+                    positive_only,
+                    negative_only,
+                )?
+            {
+                source.reserve_post_r_trace_set(memo, &mut surviving_traces)?;
+                surviving_traces.insert(index);
+            }
+        }
+        drop(surviving_bound_owners);
+        source.release_post_r_lane(memo, F5cWalkerLaneKind::PostRSurvivingBounds);
+        let mut recursive_owners = Vec::new();
+        let mut recursive_set = HashSet::new();
+        for (index, trace) in reentries.iter().enumerate() {
+            memo.work_meter.charge(1)?; // recursive-owner ordering trace
+            if surviving_traces.contains(&index) && !recursive_set.contains(&trace.owner) {
+                source.reserve_post_r_set(
+                    memo,
+                    &mut recursive_set,
+                    F5cWalkerLaneKind::PostRRecursiveSet,
+                )?;
+                source.reserve_post_r_vec(
+                    memo,
+                    &mut recursive_owners,
+                    F5cWalkerLaneKind::PostRRecursiveOwners,
+                )?;
+                recursive_set.insert(trace.owner);
+                recursive_owners.push(trace.owner);
+            }
+        }
+        drop(surviving_traces);
+        source.release_post_r_lane(memo, F5cWalkerLaneKind::PostRSurvivingTraces);
+        let retained_predicate =
+            source.replay_predicate(memo, &recursive_set, positive_only, negative_only)?;
+        let first_occurrences = source.retained_occurrences(
+            memo,
+            &retained_predicate,
+            &recursive_owners,
+            &retained_bounds,
+        )?;
+        let mut q = HashMap::new();
+        for ordinal in first_occurrences {
+            memo.work_meter.charge(1)?; // Q first occurrence
+            if !recursive_set.contains(&ordinal)
+                && positive_incidences.contains(&ordinal)
+                && negative_incidences.contains(&ordinal)
+                && eligible(ordinal)
+            {
+                let next = u32::try_from(q.len())
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                memo.work_meter.charge(1)?; // Q entry
+                source.reserve_post_r_map(memo, &mut q, F5cWalkerLaneKind::PostRQuantifiers)?;
+                q.insert(ordinal, next);
+            }
+        }
+        source.release_post_r_lane(memo, F5cWalkerLaneKind::PostROccurrenceOrder);
+        let q_count =
+            u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let mut r = HashMap::new();
+        for (index, ordinal) in recursive_owners.iter().enumerate() {
+            memo.work_meter.charge(1)?; // R owner
+            let offset =
+                u32::try_from(index).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let binder = q_count
+                .checked_add(offset)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            memo.work_meter.charge(1)?; // R entry
+            source.reserve_post_r_map(memo, &mut r, F5cWalkerLaneKind::PostRRecursives)?;
+            r.insert(*ordinal, binder);
+        }
+        Self::reject_unclassified_rows(&memo.work_meter, order, &recursive_set, &q, eligible)?;
+        Ok(F5cPostRSelection {
+            retained_bounds,
+            retained_predicate,
+            recursive_owners,
+            recursive_set,
+            q,
+            r,
+        })
     }
 
     fn r_candidates<S: F5cRCandidateSource>(
@@ -5084,108 +5684,28 @@ impl<'a> F5cGeneralizer<'a> {
             &positive_only,
             &negative_only,
         )?;
-        let mut retained_bounds = HashMap::with_capacity(candidates.len());
-        for owner in &candidates {
-            self.memo.work_meter.charge(1)?; // post-convergence bound owner
-            let (lower, upper) = raw_recursive_bounds
-                .get(owner)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            let lower = f5c_replay::replay_positive(
-                &mut self.memo,
-                lower,
-                &candidates,
-                &positive_only,
-                &negative_only,
-            )?;
-            let upper = f5c_replay::replay_negative(
-                &mut self.memo,
-                upper,
-                &candidates,
-                &positive_only,
-                &negative_only,
-            )?;
-            retained_bounds.insert(*owner, (lower, upper));
-        }
-        let mut surviving_bound_owners = HashSet::new();
-        {
-            let mut walker = f5c_tree_analysis::Walker::new(&mut self.memo);
-            for (owner, (lower, upper)) in &retained_bounds {
-                walker.memo.work_meter.charge(1)?; // revisited retained bound
-                if walker.guarded_bound_survives(*owner, lower, upper)? {
-                    surviving_bound_owners.insert(*owner);
-                }
-            }
-        }
-        let mut surviving_traces = HashSet::new();
-        for (index, trace) in self.reentries.iter().enumerate() {
-            self.memo.work_meter.charge(1)?; // post-convergence trace record
-            if candidates.contains(&trace.owner)
-                && surviving_bound_owners.contains(&trace.owner)
-                && self.guarded_trace_path_survives_metered(
-                    trace,
-                    &candidates,
-                    &positive_only,
-                    &negative_only,
-                )?
-            {
-                surviving_traces.insert(index);
-            }
-        }
-        let mut recursive_owners = Vec::new();
-        let mut recursive_set = HashSet::new();
-        for (index, trace) in self.reentries.iter().enumerate() {
-            self.memo.work_meter.charge(1)?; // recursive-owner ordering trace
-            if surviving_traces.contains(&index) && recursive_set.insert(trace.owner) {
-                recursive_owners.push(trace.owner);
-            }
-        }
-        let retained_predicate = f5c_replay::replay_positive(
+        let F5cPostRSelection {
+            retained_bounds: _,
+            retained_predicate: _,
+            recursive_owners,
+            recursive_set,
+            q,
+            r,
+        } = Self::post_r_selection(
             &mut self.memo,
-            &predicate,
-            &recursive_set,
+            &mut r_source,
+            &candidates,
+            &raw_owner_order,
+            &self.reentries,
+            &self.order,
+            &positive_incidences,
+            &negative_incidences,
             &positive_only,
             &negative_only,
-        )?;
-        let first_occurrences = Self::retained_occurrences(
-            &retained_predicate,
-            &recursive_owners,
-            &retained_bounds,
-            &mut self.memo,
-        )?;
-        let mut q = HashMap::new();
-        for ordinal in first_occurrences {
-            self.memo.work_meter.charge(1)?; // Q first occurrence
-            if !recursive_set.contains(&ordinal)
-                && positive_incidences.contains(&ordinal)
-                && negative_incidences.contains(&ordinal)
-                && eligible(ordinal)
-            {
-                let next = u32::try_from(q.len())
-                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                self.memo.work_meter.charge(1)?; // Q entry
-                q.insert(ordinal, next);
-            }
-        }
-        let q_count =
-            u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-        let mut r = HashMap::new();
-        for (index, ordinal) in recursive_owners.iter().enumerate() {
-            self.memo.work_meter.charge(1)?; // R owner
-            let offset =
-                u32::try_from(index).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-            let binder = q_count
-                .checked_add(offset)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-            self.memo.work_meter.charge(1)?; // R entry
-            r.insert(*ordinal, binder);
-        }
-        Self::reject_unclassified_rows(
-            &self.memo.work_meter,
-            &self.order,
-            &recursive_set,
-            &q,
             eligible,
         )?;
+        let q_count =
+            u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let mut positive_eliminated = HashSet::new();
         let mut negative_eliminated = HashSet::new();
         for ordinal in self.order.iter().copied() {

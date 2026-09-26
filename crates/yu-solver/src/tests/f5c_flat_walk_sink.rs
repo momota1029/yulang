@@ -156,6 +156,492 @@ fn r_candidate_fixed_point_matches_boxed_and_flat() {
 }
 
 #[test]
+fn post_r_selected_owners_and_q_r_ordinals_match_boxed_and_flat() {
+    use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
+    use crate::f5c_generalization::F5cGuardedTrace;
+    use std::collections::{HashMap, HashSet};
+
+    let mut flat = FlatDraft::default();
+    let predicate_owner = flat.positive(PositiveNode::Variable(1)).unwrap();
+    let predicate_q_first = flat.positive(PositiveNode::Variable(4)).unwrap();
+    let predicate_q_second = flat.positive(PositiveNode::Variable(3)).unwrap();
+    let predicate_span = flat
+        .positive_span(&[predicate_owner, predicate_q_first, predicate_q_second])
+        .unwrap();
+    flat.predicate = Some(flat.positive(PositiveNode::Union(predicate_span)).unwrap());
+    let argument = flat.negative(NegativeNode::Top).unwrap();
+    let lower = flat
+        .positive(PositiveNode::Function {
+            argument,
+            result: predicate_owner,
+        })
+        .unwrap();
+    let upper_three = flat.negative(NegativeNode::Variable(3)).unwrap();
+    let upper_four = flat.negative(NegativeNode::Variable(4)).unwrap();
+    let upper_span = flat.negative_span(&[upper_three, upper_four]).unwrap();
+    let upper = flat
+        .negative(NegativeNode::Intersection(upper_span))
+        .unwrap();
+    let flat_bounds = HashMap::from([(1, (lower, upper))]);
+    let boxed_predicate = F5cPositive::Union(vec![
+        F5cPositive::Variable(1),
+        F5cPositive::Variable(4),
+        F5cPositive::Variable(3),
+    ]);
+    let boxed_bounds = HashMap::from([(
+        1,
+        (
+            F5cPositive::Function {
+                argument: Box::new(F5cNegative::Top),
+                argument_effect: F5cNegativeEffect::Empty,
+                result_effect: F5cPositiveEffect::Bottom,
+                result: Box::new(F5cPositive::Variable(1)),
+            },
+            F5cNegative::Intersection(vec![F5cNegative::Variable(3), F5cNegative::Variable(4)]),
+        ),
+    )]);
+    let traces = [F5cGuardedTrace {
+        owner: 1,
+        entry_polarity: Polarity::Positive,
+        reentry_polarity: Polarity::Positive,
+        path: Vec::new(),
+    }];
+    let candidates = HashSet::from([1]);
+    let positive = HashSet::from([1, 3, 4]);
+    let negative = HashSet::from([3, 4]);
+    let mut boxed_memo = F5cComponentExpansionMemo::default();
+    let boxed = F5cGeneralizer::boxed_post_r_for_test(
+        &mut boxed_memo,
+        &boxed_predicate,
+        &boxed_bounds,
+        &[1],
+        &traces,
+        &candidates,
+        &[1, 3, 4],
+        &positive,
+        &negative,
+    )
+    .unwrap();
+    let mut flat_memo = F5cComponentExpansionMemo::default();
+    let (indexed, output) = F5cGeneralizer::flat_post_r_for_test(
+        &mut flat_memo,
+        &flat,
+        &flat_bounds,
+        &[1],
+        &traces,
+        &candidates,
+        &[1, 3, 4],
+        &positive,
+        &negative,
+    )
+    .unwrap();
+    assert_eq!(boxed.recursive_owners, vec![1]);
+    assert_eq!(indexed.recursive_owners, boxed.recursive_owners);
+    assert_eq!(boxed.q, HashMap::from([(4, 0), (3, 1)]));
+    assert_eq!(indexed.q, boxed.q);
+    assert_eq!(boxed.r, HashMap::from([(1, 2)]));
+    assert_eq!(indexed.r, boxed.r);
+    assert_eq!(indexed.retained_bounds.len(), 1);
+    assert!(
+        flat_memo.walker_resources.lanes[F5cWalkerLaneKind::RetainedOwnerBounds as usize]
+            .actual_capacity
+            >= 1
+    );
+    assert!(
+        output
+            .positive_nodes
+            .get(indexed.retained_predicate.0 as usize)
+            .is_some()
+    );
+    drop(indexed);
+    crate::f5c_replay::release_flat_output(&mut flat_memo, output);
+    crate::f5c_generalization::release_flat_post_r_lanes(&mut flat_memo);
+    assert_eq!(
+        flat_memo.walker_resources.lanes[F5cWalkerLaneKind::RetainedOwnerBounds as usize]
+            .actual_capacity,
+        0
+    );
+}
+
+#[test]
+fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
+    use crate::f5c_draft::{FlatDraft, NegativeNode, PositiveNode};
+    use crate::f5c_generalization::F5cGuardedTrace;
+    use std::collections::{HashMap, HashSet};
+
+    let mut flat = FlatDraft::default();
+    let row_one = flat.positive(PositiveNode::Variable(1)).unwrap();
+    let row_two = flat.positive(PositiveNode::Variable(2)).unwrap();
+    let q_four = flat.positive(PositiveNode::Variable(4)).unwrap();
+    let q_five = flat.positive(PositiveNode::Variable(5)).unwrap();
+    let q_six = flat.positive(PositiveNode::Variable(6)).unwrap();
+    let q_seven = flat.positive(PositiveNode::Variable(7)).unwrap();
+    let predicate_span = flat.positive_span(&[row_two, q_four, row_one]).unwrap();
+    flat.predicate = Some(flat.positive(PositiveNode::Union(predicate_span)).unwrap());
+    let argument = flat.negative(NegativeNode::Top).unwrap();
+    let one_result_span = flat.positive_span(&[row_one, q_six, q_seven]).unwrap();
+    let one_result = flat.positive(PositiveNode::Union(one_result_span)).unwrap();
+    let lower_one = flat
+        .positive(PositiveNode::Function {
+            argument,
+            result: one_result,
+        })
+        .unwrap();
+    let two_result_span = flat.positive_span(&[row_two, q_five]).unwrap();
+    let two_result = flat.positive(PositiveNode::Union(two_result_span)).unwrap();
+    let lower_two = flat
+        .positive(PositiveNode::Function {
+            argument,
+            result: two_result,
+        })
+        .unwrap();
+    let upper_one_four = flat.negative(NegativeNode::Variable(4)).unwrap();
+    let upper_one_seven = flat.negative(NegativeNode::Variable(7)).unwrap();
+    let upper_one_eight = flat.negative(NegativeNode::Variable(8)).unwrap();
+    let upper_one_span = flat
+        .negative_span(&[upper_one_four, upper_one_seven, upper_one_eight])
+        .unwrap();
+    let upper_one = flat
+        .negative(NegativeNode::Intersection(upper_one_span))
+        .unwrap();
+    let upper_two_five = flat.negative(NegativeNode::Variable(5)).unwrap();
+    let upper_two_six = flat.negative(NegativeNode::Variable(6)).unwrap();
+    let upper_two_span = flat
+        .negative_span(&[upper_two_five, upper_two_six])
+        .unwrap();
+    let upper_two = flat
+        .negative(NegativeNode::Intersection(upper_two_span))
+        .unwrap();
+    let flat_bounds = HashMap::from([(1, (lower_one, upper_one)), (2, (lower_two, upper_two))]);
+    let boxed_predicate = F5cPositive::Union(vec![
+        F5cPositive::Variable(2),
+        F5cPositive::Variable(4),
+        F5cPositive::Variable(1),
+    ]);
+    let boxed_function = |result| F5cPositive::Function {
+        argument: Box::new(F5cNegative::Top),
+        argument_effect: F5cNegativeEffect::Empty,
+        result_effect: F5cPositiveEffect::Bottom,
+        result: Box::new(result),
+    };
+    let boxed_bounds = HashMap::from([
+        (
+            1,
+            (
+                boxed_function(F5cPositive::Union(vec![
+                    F5cPositive::Variable(1),
+                    F5cPositive::Variable(6),
+                    F5cPositive::Variable(7),
+                ])),
+                F5cNegative::Intersection(vec![
+                    F5cNegative::Variable(4),
+                    F5cNegative::Variable(7),
+                    F5cNegative::Variable(8),
+                ]),
+            ),
+        ),
+        (
+            2,
+            (
+                boxed_function(F5cPositive::Union(vec![
+                    F5cPositive::Variable(2),
+                    F5cPositive::Variable(5),
+                ])),
+                F5cNegative::Intersection(vec![F5cNegative::Variable(5), F5cNegative::Variable(6)]),
+            ),
+        ),
+    ]);
+    let traces = [2, 1, 2].map(|owner| F5cGuardedTrace {
+        owner,
+        entry_polarity: Polarity::Positive,
+        reentry_polarity: Polarity::Positive,
+        path: Vec::new(),
+    });
+    let candidates = HashSet::from([1, 2]);
+    let positive = HashSet::from([1, 2, 4, 5, 6, 7, 8]);
+    let negative = HashSet::from([4, 5, 6, 7, 8]);
+    let mut boxed_memo = F5cComponentExpansionMemo::default();
+    let boxed = F5cGeneralizer::boxed_post_r_for_test(
+        &mut boxed_memo,
+        &boxed_predicate,
+        &boxed_bounds,
+        &[1, 2],
+        &traces,
+        &candidates,
+        &[1, 2, 4, 5, 6, 7, 8],
+        &positive,
+        &negative,
+    )
+    .unwrap();
+    let mut flat_memo = F5cComponentExpansionMemo::default();
+    let (indexed, output) = F5cGeneralizer::flat_post_r_for_test(
+        &mut flat_memo,
+        &flat,
+        &flat_bounds,
+        &[1, 2],
+        &traces,
+        &candidates,
+        &[1, 2, 4, 5, 6, 7, 8],
+        &positive,
+        &negative,
+    )
+    .unwrap();
+    assert_eq!(boxed.recursive_owners, vec![2, 1]);
+    assert_eq!(indexed.recursive_owners, boxed.recursive_owners);
+    assert_eq!(
+        boxed.q,
+        HashMap::from([(4, 0), (5, 1), (6, 2), (7, 3), (8, 4)])
+    );
+    assert_eq!(indexed.q, boxed.q);
+    assert_eq!(boxed.r, HashMap::from([(2, 5), (1, 6)]));
+    assert_eq!(indexed.r, boxed.r);
+    assert_eq!(indexed.retained_bounds.len(), 2);
+    for lane in [
+        F5cWalkerLaneKind::RetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+    ] {
+        assert!(flat_memo.walker_resources.lanes[lane as usize].actual_capacity > 0);
+    }
+    for lane in [
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+    ] {
+        assert!(flat_memo.walker_resources.lanes[lane as usize].peak_bytes > 0);
+        assert_eq!(
+            flat_memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
+    drop(indexed);
+    crate::f5c_replay::release_flat_output(&mut flat_memo, output);
+    crate::f5c_generalization::release_flat_post_r_lanes(&mut flat_memo);
+    for lane in [
+        F5cWalkerLaneKind::RetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+    ] {
+        assert_eq!(
+            flat_memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
+    assert_eq!(
+        F5cGeneralizer::boxed_post_r_for_test(
+            &mut F5cComponentExpansionMemo::default(),
+            &boxed_predicate,
+            &boxed_bounds,
+            &[1],
+            &traces,
+            &candidates,
+            &[1, 2, 4, 5, 6, 7, 8],
+            &positive,
+            &negative,
+        )
+        .err(),
+        Some(SolveAvailabilityError::IdentityExhausted)
+    );
+    let mut missing_flat_memo = F5cComponentExpansionMemo::default();
+    assert_eq!(
+        F5cGeneralizer::flat_post_r_for_test(
+            &mut missing_flat_memo,
+            &flat,
+            &flat_bounds,
+            &[1],
+            &traces,
+            &candidates,
+            &[1, 2, 4, 5, 6, 7, 8],
+            &positive,
+            &negative,
+        )
+        .err(),
+        Some(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(
+        missing_flat_memo.walker_resources.lanes[F5cWalkerLaneKind::RetainedOwnerBounds as usize]
+            .actual_capacity,
+        0
+    );
+}
+
+#[test]
+fn post_r_failure_aborts_memo_after_replay_output_and_retries_warm_lookup() {
+    use crate::f5c_generalization::F5cGuardedTrace;
+    use std::collections::{HashMap, HashSet};
+
+    let batch = collect(module("my f = 1", "f5c-post-r-rollback"));
+    let mut session = InferenceSession::new(batch);
+    let warm = session.fresh_value_at_level(1).unwrap();
+    let owner = session.fresh_value_at_level(1).unwrap();
+    let relay = session.fresh_value_at_level(1).unwrap();
+    session.bounds[warm as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let argument = session.negative_top_term().unwrap();
+    let result = session.live_value_term(Polarity::Positive, relay).unwrap();
+    let function = session
+        .positive_function_term(
+            argument,
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session
+                .batch
+                .collected_leaf_term(Leaf::EffectBottomPositive),
+            result,
+        )
+        .unwrap();
+    session.bounds[owner as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::PositiveFunction(function));
+    session.bounds[relay as usize].direct_lower_rows.push(owner);
+    let (result, memo, _, _) = F5cGeneralizer::new(&session).build_component(warm);
+    assert!(result.is_ok());
+    let mut generalizer = F5cGeneralizer::with_memo(&session, memo, 0);
+    generalizer.memo.reset_active_scratch();
+    let before = (
+        generalizer.memo.roots.clone(),
+        generalizer.memo.nodes.clone(),
+        generalizer.memo.children.clone(),
+        generalizer.memo.parent_heads.clone(),
+        generalizer.memo.reverse_parents.clone(),
+        generalizer.memo.incidence_heads.clone(),
+        generalizer.memo.incidences.clone(),
+        generalizer.memo.root_heads.clone(),
+        generalizer.memo.root_edges.clone(),
+        (
+            generalizer.memo.root_edge_marks.clone(),
+            generalizer.memo.root_edge_mark_epoch,
+            generalizer.memo.root_undo.clone(),
+            generalizer.memo.visit_epochs.clone(),
+            generalizer.memo.visit_epoch,
+        ),
+    );
+    let forest = generalizer.build_raw_forest(owner).unwrap();
+    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    let work_before = generalizer.memo.work_meter.get();
+    let trace = F5cGuardedTrace {
+        owner,
+        entry_polarity: Polarity::Positive,
+        reentry_polarity: Polarity::Positive,
+        path: Vec::new(),
+    };
+    let error = generalizer.flat_r_q_with_raw_forest_for_test(
+        forest,
+        &[trace],
+        &HashMap::from([(owner, vec![0])]),
+        &[],
+        |_| true,
+        &positive,
+        &negative,
+        &HashSet::new(),
+        &HashSet::new(),
+        true,
+    );
+    assert!(matches!(
+        error,
+        Err(SolveAvailabilityError::IdentityExhausted)
+    ));
+    assert!(crate::f5c_replay::failed_after_flat_output_count() > 0);
+    assert!(generalizer.memo.work_meter.get() > work_before);
+    assert_eq!(
+        (
+            generalizer.memo.roots.clone(),
+            generalizer.memo.nodes.clone(),
+            generalizer.memo.children.clone(),
+            generalizer.memo.parent_heads.clone(),
+            generalizer.memo.reverse_parents.clone(),
+            generalizer.memo.incidence_heads.clone(),
+            generalizer.memo.incidences.clone(),
+            generalizer.memo.root_heads.clone(),
+            generalizer.memo.root_edges.clone(),
+            (
+                generalizer.memo.root_edge_marks.clone(),
+                generalizer.memo.root_edge_mark_epoch,
+                generalizer.memo.root_undo.clone(),
+                generalizer.memo.visit_epochs.clone(),
+                generalizer.memo.visit_epoch,
+            ),
+        ),
+        before,
+    );
+    for lane in [
+        F5cWalkerLaneKind::ReplayOutputPositiveNodes,
+        F5cWalkerLaneKind::ReplayOutputNegativeNodes,
+        F5cWalkerLaneKind::ReplayOutputPositiveChildren,
+        F5cWalkerLaneKind::ReplayOutputNegativeChildren,
+        F5cWalkerLaneKind::ReplayOutputInsertionOrder,
+        F5cWalkerLaneKind::RetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+    ] {
+        assert_eq!(
+            generalizer.memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+        assert_eq!(
+            generalizer.memo.walker_resources.independent_lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
+    assert!(generalizer.memo.active_rows.is_empty());
+    assert!(generalizer.memo.active_conflicts.is_empty());
+    generalizer.memo.work_meter.set(0);
+    assert!(matches!(
+        generalizer.positive_row(warm, false).unwrap(),
+        F5cPositive::Shared(_)
+    ));
+}
+
+#[test]
+fn post_r_success_retains_predicate_output_until_forest_release() {
+    use std::collections::{HashMap, HashSet};
+    let batch = collect(module("my f = 1", "f5c-post-r-success"));
+    let mut session = InferenceSession::new(batch);
+    let root = session.fresh_value_at_level(1).unwrap();
+    session.bounds[root as usize]
+        .exact_non_variable_lowers
+        .push(ValueEndpointKey::IntPositive);
+    let mut generalizer = F5cGeneralizer::new(&session);
+    let forest = generalizer.build_raw_forest(root).unwrap();
+    let (positive, negative) = generalizer.flat_raw_forest_incidences(&forest).unwrap();
+    let (selection, output, forest) = generalizer
+        .flat_r_q_with_raw_forest_for_test(
+            forest,
+            &[],
+            &HashMap::new(),
+            &[],
+            |_| true,
+            &positive,
+            &negative,
+            &HashSet::new(),
+            &HashSet::new(),
+            false,
+        )
+        .unwrap();
+    assert!(selection.retained_bounds.is_empty());
+    assert!(selection.recursive_owners.is_empty());
+    assert!(selection.q.is_empty() && selection.r.is_empty());
+    assert!(
+        output
+            .positive_nodes
+            .get(selection.retained_predicate.0 as usize)
+            .is_some()
+    );
+    generalizer.release_flat_r_q_for_test(selection, output, forest);
+}
+
+#[test]
 fn flat_r_replay_failure_aborts_raw_forest_and_retries_warm_lookup() {
     use crate::f5c_generalization::F5cGuardedTrace;
     use std::collections::{HashMap, HashSet};

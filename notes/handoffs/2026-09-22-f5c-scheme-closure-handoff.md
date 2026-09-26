@@ -3113,4 +3113,34 @@ keeping the memo transaction open through each later fallible stage. Production
 remains boxed; no §15 probe, resource boundary, §44 closure, F5e acceptance, or
 overall F5c completion is authorized.
 
+## Latest continuation (2026-09-26): shared post-convergence R/Q selector
+
+Boxed production and the test-only FlatDraft adapter now share the
+post-convergence retained-bound replay, guard filtering, trace survival,
+recursive-owner order, occurrence traversal, and Q/R ordinal selector. Bounds
+replay in recorded raw-owner order, R follows first surviving traces with
+duplicate owners removed, and Q follows the predicate then each recursive
+owner's lower and upper bound. Ordinals do not depend on hash iteration.
+
+The flat candidate accounts all retained and temporary post-R collections in
+distinct capacity lanes and reserves fallibly before each growth. Temporary
+lanes release after their owners drop; selected lanes remain live with replay
+output and the memo transaction until release or abort. Paired tests cover
+raw `[1,2]` versus trace `[2,1,2]` order, Q traversal through predicate/lower/
+upper roots, R offsets, missing raw owners, and a rollback after post-R replay
+has emitted output. The failure witness checks memo restoration, all output
+and post-R lane releases, idle state, and warm retry.
+
+M3 compiler-referee/spec/performance delta reviews closed without actionable
+findings. Four `post_r_` tests and four tree-analysis tests pass, along with
+test-target compilation, formatting, and diff checks. No broad suite or
+resource measurement ran; the §15 measurement budget remains zero.
+
+Immediate next: integrate FlatDraft substitution and normalization through
+this shared selector, extend callback/Q/R parity, and prove rollback through
+the remaining fallible stages. Then close the physical resource gate and its
+reviewed §15 measurement plan before any resource probe. Production remains
+boxed; production cutover, numeric resource limits, indexed finalization API
+choices, §44 closure, F5e, and overall F5c completion remain open.
+
 <!-- handoff-append-anchor: 2026-09-26 -->
