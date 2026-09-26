@@ -110,6 +110,25 @@ impl<'meter, T> TrackedVec<'meter, T> {
         self.token.meter
     }
 
+    /// Take over an existing vector buffer without allocating another one.
+    /// The caller keeps the scratch-lane charge until adoption succeeds, then
+    /// releases that charge before any fallible work or resource observation.
+    /// On failure, the caller drops the returned buffer before releasing its
+    /// scratch-lane charge.
+    pub(super) fn try_adopt_raw(
+        meter: &'meter DraftHeapMeter,
+        values: Vec<T>,
+    ) -> Result<Self, (Vec<T>, ())> {
+        let mut owned = Self {
+            values: Some(values),
+            token: AllocationToken { meter, bytes: 0 },
+        };
+        match owned.token.reconcile::<T>(owned.capacity()) {
+            Ok(()) => Ok(owned),
+            Err(()) => Err((owned.values.take().unwrap(), ())),
+        }
+    }
+
     /// Transfer the charge with an unchanged raw buffer. The returned token
     /// must outlive the raw buffer and all of its elements.
     pub(super) fn into_raw_with_token(mut self) -> (Vec<T>, TrackedAllocation<'meter>) {
@@ -197,7 +216,7 @@ impl<'meter, T> TrackedVec<'meter, T> {
         let mut cloned = Self::new(self.token.meter);
         cloned.try_reserve(self.len())?;
         for item in self.iter() {
-            cloned.try_push(copy(item)?)?;
+            cloned.push_reserved(copy(item)?);
         }
         Ok(cloned)
     }
@@ -317,6 +336,62 @@ mod tests {
         );
         drop(copy);
         assert_eq!(meter.current_bytes(), Some(lane.accounted_bytes()));
+    }
+
+    #[test]
+    fn raw_adoption_preserves_buffer_and_releases_after_elements() {
+        struct Witness<'a>(&'a DraftHeapMeter);
+        impl Drop for Witness<'_> {
+            fn drop(&mut self) {
+                assert!(self.0.current_bytes().unwrap() > 0);
+            }
+        }
+
+        let meter = DraftHeapMeter::default();
+        for count in [0, 1, 3] {
+            let mut raw = Vec::new();
+            raw.try_reserve_exact(count.max(1)).unwrap();
+            for _ in 0..count {
+                raw.push(Witness(&meter));
+            }
+            let pointer = raw.as_ptr();
+            let capacity = raw.capacity();
+            let adopted = TrackedVec::try_adopt_raw(&meter, raw).unwrap_or_else(|_| panic!());
+            assert_eq!(adopted.as_ptr(), pointer);
+            assert_eq!(adopted.capacity(), capacity);
+            assert_eq!(meter.current_bytes(), Some(capacity * size_of::<Witness>()));
+            drop(adopted);
+            assert_eq!(meter.current_bytes(), Some(0));
+        }
+    }
+
+    #[test]
+    fn failed_raw_adoption_returns_same_buffer() {
+        struct ScratchWitness<'a>(&'a Cell<bool>);
+        impl Drop for ScratchWitness<'_> {
+            fn drop(&mut self) {
+                assert!(self.0.get(), "scratch charge must outlive the raw buffer");
+            }
+        }
+
+        let meter = DraftHeapMeter::default();
+        meter.0.current.set(Some(usize::MAX));
+        let scratch_live = Cell::new(true);
+        let mut raw = Vec::new();
+        raw.try_reserve_exact(2).unwrap();
+        raw.extend([ScratchWitness(&scratch_live), ScratchWitness(&scratch_live)]);
+        let pointer = raw.as_ptr();
+        let capacity = raw.capacity();
+        let (returned, ()) = match TrackedVec::try_adopt_raw(&meter, raw) {
+            Ok(_) => panic!(),
+            Err(failure) => failure,
+        };
+        assert_eq!(returned.as_ptr(), pointer);
+        assert_eq!(returned.capacity(), capacity);
+        assert_eq!(returned.len(), 2);
+        assert_eq!(meter.current_bytes(), None);
+        drop(returned);
+        scratch_live.set(false);
     }
 
     #[test]

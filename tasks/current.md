@@ -4,6 +4,31 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): tracked nested-buffer handoff primitive
+
+`TrackedVec::try_adopt_raw` can now take over an existing Vec allocation
+without allocating a replacement buffer, reconciling its actual capacity into
+the borrowed source meter. Its caller contract keeps the existing scratch-lane
+charge until adoption succeeds; on failure, the caller drops the returned raw
+buffer before releasing scratch ownership. `try_clone_with` now reserves once
+and appends within that reservation.
+
+An M1 spec-auditor review found no blocking or major issue. Its minor failure
+drop-order evidence gap was closed with a witness that observes the caller-held
+scratch charge through returned-buffer destruction. Focused checks passed:
+`RUSTC_WRAPPER= cargo test -p yu-solver f5c_draft_heap::tests --lib --
+--test-threads=1` (8), `RUSTC_WRAPPER= cargo check -p yu-solver --lib
+--message-format short`, `cargo fmt --all --check`, and `git diff --check`.
+No broader suite, resource probe, benchmark, or timing measurement ran.
+
+This closes only the reusable handoff primitive. No Union/Intersection source
+value, replay/substitution/normalization owner, or finalizer call site uses it
+yet; the borrowed meter lifetime and independent nested-source ledger remain
+open. Next thread the meter lifetime through those owners and consumers, then
+prove transfer, failure, co-residency, and drop for both polarities. Keep the
+production path boxed. No numeric boundary, cutover, §44, F5e, or overall F5c
+acceptance is claimed.
+
 ### Latest continuation (2026-09-27): recursive-bound source lane
 
 The candidate source owner now tracks each `GeneralizationDraft.recursive_bounds`
