@@ -298,6 +298,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
             || self.has_guarded_owner_negative(upper, owner)?)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn references_positive(
         &mut self,
         value: &'tree F5cPositive,
@@ -439,6 +440,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         )
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn occurrences_positive(
         &mut self,
         value: &'tree F5cPositive,
@@ -511,6 +513,7 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         )
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn occurrences_negative(
         &mut self,
         value: &'tree F5cNegative,

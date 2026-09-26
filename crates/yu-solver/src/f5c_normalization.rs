@@ -1924,6 +1924,7 @@ fn validate_prior_links(
     })
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) fn normalize_component(
     drafts: &mut [GeneralizationDraft],
 ) -> Result<NormalizationStats, SolveAvailabilityError> {

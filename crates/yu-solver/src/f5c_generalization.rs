@@ -5745,6 +5745,7 @@ impl<'a> F5cGeneralizer<'a> {
         Ok(closure)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn retained_occurrences<'tree>(
         retained_predicate: &'tree F5cPositive,
         recursive_owners: &[u32],
