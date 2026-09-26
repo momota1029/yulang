@@ -463,6 +463,54 @@ impl<'memo, 'tree> Walker<'memo, 'tree> {
         )
     }
 
+    pub(super) fn occurrences_positive_checked(
+        &mut self,
+        value: &'tree F5cPositive,
+        ordered: &mut Vec<u32>,
+        seen: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.occurrences_checked(Task::Positive(value, false), ordered, seen)
+    }
+
+    pub(super) fn occurrences_negative_checked(
+        &mut self,
+        value: &'tree F5cNegative,
+        ordered: &mut Vec<u32>,
+        seen: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.occurrences_checked(Task::Negative(value, false), ordered, seen)
+    }
+
+    fn occurrences_checked(
+        &mut self,
+        first: Task<'tree>,
+        ordered: &mut Vec<u32>,
+        seen: &mut HashSet<u32>,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.walk(
+            first,
+            None,
+            #[cfg(test)]
+            None,
+            |event, memo| {
+                if let Event::Value(owner, _, _) = event
+                    && !seen.contains(&owner)
+                {
+                    let bytes = memo.retained_bytes()?;
+                    memo.walker_resources.reserve_generalizer_set(
+                        seen,
+                        F5cWalkerLaneKind::PostROccurrenceSeen,
+                        bytes,
+                    )?;
+                    memo.reserve_walker(ordered, F5cWalkerLaneKind::PostROccurrenceOrder)?;
+                    seen.insert(owner);
+                    ordered.push(owner);
+                }
+                Ok(true)
+            },
+        )
+    }
+
     pub(super) fn occurrences_negative(
         &mut self,
         value: &'tree F5cNegative,

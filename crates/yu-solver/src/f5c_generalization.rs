@@ -363,6 +363,7 @@ pub(super) enum F5cWalkerLaneKind {
     ClosureNeighbors = 72,
     ClosureConnected = 73,
     ClosureResult = 74,
+    BoxedRetainedOwnerBounds = 97,
     ClosureFrontier = 75,
     RawPositiveIncidences = 76,
     RawNegativeIncidences = 77,
@@ -388,7 +389,7 @@ pub(super) enum F5cWalkerLaneKind {
 }
 
 impl F5cWalkerLaneKind {
-    pub(super) const ALL: [Self; 97] = [
+    pub(super) const ALL: [Self; 98] = [
         Self::Tasks,
         Self::Values,
         Self::DirectEdges,
@@ -464,6 +465,7 @@ impl F5cWalkerLaneKind {
         Self::ClosureNeighbors,
         Self::ClosureConnected,
         Self::ClosureResult,
+        Self::BoxedRetainedOwnerBounds,
         Self::ClosureFrontier,
         Self::RawPositiveIncidences,
         Self::RawNegativeIncidences,
@@ -547,6 +549,9 @@ impl F5cWalkerLaneKind {
             Self::RetainedOwnerBounds => {
                 std::mem::size_of::<(u32, (f5c_draft::PositiveId, f5c_draft::NegativeId))>()
             }
+            Self::BoxedRetainedOwnerBounds => {
+                std::mem::size_of::<(u32, (F5cPositive, F5cNegative))>()
+            }
             Self::PostRSurvivingBounds | Self::PostRRecursiveSet | Self::PostROccurrenceSeen => {
                 std::mem::size_of::<u32>()
             }
@@ -621,13 +626,13 @@ pub(super) struct F5cWalkerLane {
 }
 
 pub(super) struct F5cWalkerResources {
-    pub(super) lanes: [F5cWalkerLane; 97],
+    pub(super) lanes: [F5cWalkerLane; 98],
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
     value_slot_size: usize,
     #[cfg(test)]
-    pub(super) independent_lanes: [F5cWalkerLane; 97],
+    pub(super) independent_lanes: [F5cWalkerLane; 98],
     #[cfg(test)]
     pub(super) independent_peak_bytes: usize,
     #[cfg(test)]
@@ -640,13 +645,13 @@ pub(super) struct F5cWalkerResources {
 impl Default for F5cWalkerResources {
     fn default() -> Self {
         Self {
-            lanes: [F5cWalkerLane::default(); 97],
+            lanes: [F5cWalkerLane::default(); 98],
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
             value_slot_size: 0,
             #[cfg(test)]
-            independent_lanes: [F5cWalkerLane::default(); 97],
+            independent_lanes: [F5cWalkerLane::default(); 98],
             #[cfg(test)]
             independent_peak_bytes: 0,
             #[cfg(test)]
@@ -670,6 +675,19 @@ impl F5cWalkerResources {
             .requested_slots
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if map.len() < map.capacity() {
+            #[cfg(test)]
+            let independent_requested = self.independent_lanes[index]
+                .requested_slots
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.lanes[index].requested_slots = requested;
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].requested_slots = independent_requested;
+            }
+            return Ok(());
+        }
         let growth = self.lanes[index]
             .capacity_growths
             .checked_add(1)
@@ -771,7 +789,7 @@ impl F5cWalkerResources {
         }
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)
     }
-    fn reserve_generalizer_set<T: Eq + std::hash::Hash>(
+    pub(super) fn reserve_generalizer_set<T: Eq + std::hash::Hash>(
         &mut self,
         set: &mut HashSet<T>,
         kind: F5cWalkerLaneKind,
@@ -782,6 +800,19 @@ impl F5cWalkerResources {
             .requested_slots
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if set.len() < set.capacity() {
+            #[cfg(test)]
+            let independent_requested = self.independent_lanes[index]
+                .requested_slots
+                .checked_add(1)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            self.lanes[index].requested_slots = requested;
+            #[cfg(test)]
+            {
+                self.independent_lanes[index].requested_slots = independent_requested;
+            }
+            return Ok(());
+        }
         #[cfg(test)]
         let independent_requested = self.independent_lanes[index]
             .requested_slots
@@ -1407,6 +1438,8 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) boxed_materialization_callback_trace: Vec<(u32, Polarity)>,
     #[cfg(test)]
     pub(super) boxed_raw_lanes_live_sample: Option<([usize; 6], [usize; 6])>,
+    #[cfg(test)]
+    pub(super) post_r_temporary_live_samples: Vec<(F5cWalkerLaneKind, usize, usize)>,
     #[cfg(test)]
     pub(super) r_fixed_point_live_sample: Option<([usize; 6], [usize; 6])>,
     #[cfg(test)]
@@ -3294,8 +3327,8 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
     type ReplayedBound = (F5cPositive, F5cNegative);
     type ReplayedPredicate = F5cPositive;
 
-    fn new_retained_bounds(&self, candidate_count: usize) -> HashMap<u32, Self::ReplayedBound> {
-        HashMap::with_capacity(candidate_count)
+    fn new_retained_bounds(&self, _candidate_count: usize) -> HashMap<u32, Self::ReplayedBound> {
+        HashMap::new()
     }
 
     fn replay_bound(
@@ -3383,48 +3416,78 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
 
     fn reserve_retained_bound(
         &self,
-        _memo: &mut F5cComponentExpansionMemo,
-        _bounds: &mut HashMap<u32, Self::ReplayedBound>,
+        memo: &mut F5cComponentExpansionMemo,
+        bounds: &mut HashMap<u32, Self::ReplayedBound>,
     ) -> Result<(), SolveAvailabilityError> {
-        Ok(())
+        let bytes = if bounds.len() == bounds.capacity() {
+            memo.retained_bytes()?
+        } else {
+            0
+        };
+        memo.walker_resources.reserve_boxed_map(
+            bounds,
+            F5cWalkerLaneKind::BoxedRetainedOwnerBounds,
+            bytes,
+        )
     }
 
     fn reserve_post_r_set(
         &self,
-        _memo: &mut F5cComponentExpansionMemo,
-        _set: &mut HashSet<u32>,
-        _kind: F5cWalkerLaneKind,
+        memo: &mut F5cComponentExpansionMemo,
+        set: &mut HashSet<u32>,
+        kind: F5cWalkerLaneKind,
     ) -> Result<(), SolveAvailabilityError> {
-        Ok(())
+        let bytes = if set.len() == set.capacity() {
+            memo.retained_bytes()?
+        } else {
+            0
+        };
+        memo.walker_resources
+            .reserve_generalizer_set(set, kind, bytes)
     }
 
     fn reserve_post_r_trace_set(
         &self,
-        _memo: &mut F5cComponentExpansionMemo,
-        _set: &mut HashSet<usize>,
+        memo: &mut F5cComponentExpansionMemo,
+        set: &mut HashSet<usize>,
     ) -> Result<(), SolveAvailabilityError> {
-        Ok(())
+        let bytes = if set.len() == set.capacity() {
+            memo.retained_bytes()?
+        } else {
+            0
+        };
+        memo.walker_resources.reserve_generalizer_set(
+            set,
+            F5cWalkerLaneKind::PostRSurvivingTraces,
+            bytes,
+        )
     }
 
     fn reserve_post_r_map(
         &self,
-        _memo: &mut F5cComponentExpansionMemo,
-        _map: &mut HashMap<u32, u32>,
-        _kind: F5cWalkerLaneKind,
+        memo: &mut F5cComponentExpansionMemo,
+        map: &mut HashMap<u32, u32>,
+        kind: F5cWalkerLaneKind,
     ) -> Result<(), SolveAvailabilityError> {
-        Ok(())
+        let bytes = if map.len() == map.capacity() {
+            memo.retained_bytes()?
+        } else {
+            0
+        };
+        memo.walker_resources.reserve_boxed_map(map, kind, bytes)
     }
 
     fn reserve_post_r_vec(
         &self,
-        _memo: &mut F5cComponentExpansionMemo,
-        _values: &mut Vec<u32>,
-        _kind: F5cWalkerLaneKind,
+        memo: &mut F5cComponentExpansionMemo,
+        values: &mut Vec<u32>,
+        kind: F5cWalkerLaneKind,
     ) -> Result<(), SolveAvailabilityError> {
-        Ok(())
+        memo.reserve_walker(values, kind)
     }
 
-    fn release_post_r_lane(&self, _memo: &mut F5cComponentExpansionMemo, _kind: F5cWalkerLaneKind) {
+    fn release_post_r_lane(&self, memo: &mut F5cComponentExpansionMemo, kind: F5cWalkerLaneKind) {
+        memo.walker_resources.release(kind);
     }
 
     fn retained_occurrences(
@@ -3434,7 +3497,44 @@ impl F5cRCandidateSource for F5cBoxedRCandidateSource<'_> {
         owners: &[u32],
         bounds: &HashMap<u32, Self::ReplayedBound>,
     ) -> Result<Vec<u32>, SolveAvailabilityError> {
-        F5cGeneralizer::retained_occurrences(predicate, owners, bounds, memo)
+        let mut ordered = Vec::new();
+        let mut seen = HashSet::new();
+        let mut walker = f5c_tree_analysis::Walker::new(memo);
+        let result = (|| {
+            walker.occurrences_positive_checked(predicate, &mut ordered, &mut seen)?;
+            for owner in owners {
+                walker.memo.work_meter.charge(1)?;
+                let (lower, upper) = bounds
+                    .get(owner)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                walker.occurrences_positive_checked(lower, &mut ordered, &mut seen)?;
+                walker.occurrences_negative_checked(upper, &mut ordered, &mut seen)?;
+            }
+            Ok(())
+        })();
+        #[cfg(test)]
+        walker.memo.post_r_temporary_live_samples.push((
+            F5cWalkerLaneKind::PostROccurrenceSeen,
+            seen.capacity(),
+            walker.memo.walker_resources.lanes[F5cWalkerLaneKind::PostROccurrenceSeen as usize]
+                .actual_capacity,
+        ));
+        drop(seen);
+        walker
+            .memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::PostROccurrenceSeen);
+        match result {
+            Ok(()) => Ok(ordered),
+            Err(error) => {
+                drop(ordered);
+                walker
+                    .memo
+                    .walker_resources
+                    .release(F5cWalkerLaneKind::PostROccurrenceOrder);
+                Err(error)
+            }
+        }
     }
 }
 
@@ -3680,6 +3780,13 @@ impl F5cRCandidateSource for F5cFlatRCandidateSource<'_> {
             }
             Ok(())
         })();
+        #[cfg(test)]
+        walker.memo.post_r_temporary_live_samples.push((
+            F5cWalkerLaneKind::PostROccurrenceSeen,
+            seen.capacity(),
+            walker.memo.walker_resources.lanes[F5cWalkerLaneKind::PostROccurrenceSeen as usize]
+                .actual_capacity,
+        ));
         drop(seen);
         walker
             .memo
@@ -6289,6 +6396,52 @@ impl<'a> F5cGeneralizer<'a> {
         eligible: impl Fn(u32) -> bool,
     ) -> Result<F5cPostRSelection<S::ReplayedBound, S::ReplayedPredicate>, SolveAvailabilityError>
     {
+        let result = Self::post_r_selection_work(
+            memo,
+            source,
+            candidates,
+            raw_owner_order,
+            reentries,
+            order,
+            positive_incidences,
+            negative_incidences,
+            positive_only,
+            negative_only,
+            eligible,
+        );
+        if result.is_err() {
+            for kind in [
+                F5cWalkerLaneKind::RetainedOwnerBounds,
+                F5cWalkerLaneKind::BoxedRetainedOwnerBounds,
+                F5cWalkerLaneKind::PostRSurvivingBounds,
+                F5cWalkerLaneKind::PostRSurvivingTraces,
+                F5cWalkerLaneKind::PostRRecursiveOwners,
+                F5cWalkerLaneKind::PostRRecursiveSet,
+                F5cWalkerLaneKind::PostROccurrenceOrder,
+                F5cWalkerLaneKind::PostROccurrenceSeen,
+                F5cWalkerLaneKind::PostRQuantifiers,
+                F5cWalkerLaneKind::PostRRecursives,
+            ] {
+                source.release_post_r_lane(memo, kind);
+            }
+        }
+        result
+    }
+
+    fn post_r_selection_work<S: F5cRCandidateSource>(
+        memo: &mut F5cComponentExpansionMemo,
+        source: &mut S,
+        candidates: &HashSet<u32>,
+        raw_owner_order: &[u32],
+        reentries: &[F5cGuardedTrace],
+        order: &[u32],
+        positive_incidences: &HashSet<u32>,
+        negative_incidences: &HashSet<u32>,
+        positive_only: &HashSet<u32>,
+        negative_only: &HashSet<u32>,
+        eligible: impl Fn(u32) -> bool,
+    ) -> Result<F5cPostRSelection<S::ReplayedBound, S::ReplayedPredicate>, SolveAvailabilityError>
+    {
         source.release_replay_scratch();
         let mut retained_bounds = source.new_retained_bounds(candidates.len());
         for owner in raw_owner_order {
@@ -6337,6 +6490,13 @@ impl<'a> F5cGeneralizer<'a> {
                 surviving_traces.insert(index);
             }
         }
+        #[cfg(test)]
+        memo.post_r_temporary_live_samples.push((
+            F5cWalkerLaneKind::PostRSurvivingBounds,
+            surviving_bound_owners.capacity(),
+            memo.walker_resources.lanes[F5cWalkerLaneKind::PostRSurvivingBounds as usize]
+                .actual_capacity,
+        ));
         drop(surviving_bound_owners);
         source.release_post_r_lane(memo, F5cWalkerLaneKind::PostRSurvivingBounds);
         let mut recursive_owners = Vec::new();
@@ -6358,6 +6518,13 @@ impl<'a> F5cGeneralizer<'a> {
                 recursive_owners.push(trace.owner);
             }
         }
+        #[cfg(test)]
+        memo.post_r_temporary_live_samples.push((
+            F5cWalkerLaneKind::PostRSurvivingTraces,
+            surviving_traces.capacity(),
+            memo.walker_resources.lanes[F5cWalkerLaneKind::PostRSurvivingTraces as usize]
+                .actual_capacity,
+        ));
         drop(surviving_traces);
         source.release_post_r_lane(memo, F5cWalkerLaneKind::PostRSurvivingTraces);
         let retained_predicate =
@@ -6368,6 +6535,13 @@ impl<'a> F5cGeneralizer<'a> {
             &recursive_owners,
             &retained_bounds,
         )?;
+        #[cfg(test)]
+        memo.post_r_temporary_live_samples.push((
+            F5cWalkerLaneKind::PostROccurrenceOrder,
+            first_occurrences.capacity(),
+            memo.walker_resources.lanes[F5cWalkerLaneKind::PostROccurrenceOrder as usize]
+                .actual_capacity,
+        ));
         let mut q = HashMap::new();
         for ordinal in first_occurrences {
             memo.work_meter.charge(1)?; // Q first occurrence
@@ -6634,6 +6808,13 @@ impl<'a> F5cGeneralizer<'a> {
             F5cWalkerLaneKind::BoxedReentryIndices,
             F5cWalkerLaneKind::BoxedPositiveOnly,
             F5cWalkerLaneKind::BoxedNegativeOnly,
+            F5cWalkerLaneKind::BoxedRetainedOwnerBounds,
+            F5cWalkerLaneKind::PostRRecursiveOwners,
+            F5cWalkerLaneKind::PostRRecursiveSet,
+            F5cWalkerLaneKind::PostRQuantifiers,
+            F5cWalkerLaneKind::PostRRecursives,
+            F5cWalkerLaneKind::SelectedPositiveEliminated,
+            F5cWalkerLaneKind::SelectedNegativeEliminated,
         ] {
             self.memo.walker_resources.release(kind);
         }
@@ -6851,13 +7032,17 @@ impl<'a> F5cGeneralizer<'a> {
             .walker_resources
             .release(F5cWalkerLaneKind::RCandidates);
         let F5cPostRSelection {
-            retained_bounds: _,
+            retained_bounds,
             retained_predicate: _,
             recursive_owners,
             recursive_set,
             q,
             r,
         } = selection?;
+        drop(retained_bounds);
+        self.memo
+            .walker_resources
+            .release(F5cWalkerLaneKind::BoxedRetainedOwnerBounds);
         let q_count =
             u32::try_from(q.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let mut positive_eliminated = HashSet::new();
@@ -6869,6 +7054,12 @@ impl<'a> F5cGeneralizer<'a> {
                 && positive_only.contains(&ordinal)
             {
                 self.memo.work_meter.charge(1)?;
+                let bytes = self.memo.retained_bytes()?;
+                self.memo.walker_resources.reserve_generalizer_set(
+                    &mut positive_eliminated,
+                    F5cWalkerLaneKind::SelectedPositiveEliminated,
+                    bytes,
+                )?;
                 positive_eliminated.insert(ordinal);
             }
         }
@@ -6879,6 +7070,12 @@ impl<'a> F5cGeneralizer<'a> {
                 && negative_only.contains(&ordinal)
             {
                 self.memo.work_meter.charge(1)?;
+                let bytes = self.memo.retained_bytes()?;
+                self.memo.walker_resources.reserve_generalizer_set(
+                    &mut negative_eliminated,
+                    F5cWalkerLaneKind::SelectedNegativeEliminated,
+                    bytes,
+                )?;
                 negative_eliminated.insert(ordinal);
             }
         }

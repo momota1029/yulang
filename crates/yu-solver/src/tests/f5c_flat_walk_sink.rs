@@ -610,6 +610,59 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
     assert_eq!(boxed.r, HashMap::from([(2, 5), (1, 6)]));
     assert_eq!(indexed.r, boxed.r);
     assert_eq!(indexed.retained_bounds.len(), 2);
+    for (kind, capacity) in [
+        (
+            F5cWalkerLaneKind::BoxedRetainedOwnerBounds,
+            boxed.retained_bounds.capacity(),
+        ),
+        (
+            F5cWalkerLaneKind::PostRRecursiveOwners,
+            boxed.recursive_owners.capacity(),
+        ),
+        (
+            F5cWalkerLaneKind::PostRRecursiveSet,
+            boxed.recursive_set.capacity(),
+        ),
+        (F5cWalkerLaneKind::PostRQuantifiers, boxed.q.capacity()),
+        (F5cWalkerLaneKind::PostRRecursives, boxed.r.capacity()),
+    ] {
+        assert!(capacity > 0);
+        assert_eq!(
+            boxed_memo.walker_resources.lanes[kind as usize].actual_capacity,
+            capacity
+        );
+        assert!(
+            boxed_memo.walker_resources.lanes[kind as usize].peak_bytes
+                >= capacity * kind.slot_size()
+        );
+    }
+    for kind in [
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+    ] {
+        for memo in [&boxed_memo, &flat_memo] {
+            let (physical, reported) = memo
+                .post_r_temporary_live_samples
+                .iter()
+                .find_map(|(sample_kind, physical, reported)| {
+                    ((*sample_kind as usize) == (kind as usize)).then_some((*physical, *reported))
+                })
+                .expect("temporary post-R collection must be sampled while live");
+            assert!(physical > 0);
+            assert_eq!(physical, reported);
+            assert!(
+                memo.walker_resources.lanes[kind as usize].peak_bytes
+                    >= physical * kind.slot_size()
+            );
+        }
+        assert!(boxed_memo.walker_resources.lanes[kind as usize].peak_bytes > 0);
+        assert_eq!(
+            boxed_memo.walker_resources.lanes[kind as usize].actual_capacity,
+            0
+        );
+    }
     for lane in [
         F5cWalkerLaneKind::RetainedOwnerBounds,
         F5cWalkerLaneKind::PostRRecursiveOwners,
@@ -631,6 +684,73 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
             0
         );
     }
+    let mut late_boxed_memo = F5cComponentExpansionMemo::default();
+    late_boxed_memo.walker_resources.lanes[F5cWalkerLaneKind::PostRQuantifiers as usize]
+        .requested_slots = usize::MAX;
+    assert_eq!(
+        F5cGeneralizer::boxed_post_r_for_test(
+            &mut late_boxed_memo,
+            &boxed_predicate,
+            &boxed_bounds,
+            &[1, 2],
+            &traces,
+            &candidates,
+            &[1, 2, 4, 5, 6, 7, 8],
+            &positive,
+            &negative,
+        )
+        .err(),
+        Some(SolveAvailabilityError::IdentityExhausted)
+    );
+    for kind in [
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+    ] {
+        let (physical, reported) = late_boxed_memo
+            .post_r_temporary_live_samples
+            .iter()
+            .find_map(|(sample_kind, physical, reported)| {
+                ((*sample_kind as usize) == (kind as usize)).then_some((*physical, *reported))
+            })
+            .expect("late failure must follow temporary post-R growth");
+        assert!(physical > 0);
+        assert_eq!(physical, reported);
+    }
+    for kind in [
+        F5cWalkerLaneKind::BoxedRetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+    ] {
+        assert_eq!(
+            late_boxed_memo.walker_resources.lanes[kind as usize].actual_capacity,
+            0
+        );
+    }
+    late_boxed_memo.walker_resources.lanes[F5cWalkerLaneKind::PostRQuantifiers as usize]
+        .requested_slots = 0;
+    let retried = F5cGeneralizer::boxed_post_r_for_test(
+        &mut late_boxed_memo,
+        &boxed_predicate,
+        &boxed_bounds,
+        &[1, 2],
+        &traces,
+        &candidates,
+        &[1, 2, 4, 5, 6, 7, 8],
+        &positive,
+        &negative,
+    )
+    .unwrap();
+    assert_eq!(retried.recursive_owners, boxed.recursive_owners);
+    assert_eq!(retried.q, boxed.q);
+    assert_eq!(retried.r, boxed.r);
     drop(indexed);
     crate::f5c_replay::release_flat_output(&mut flat_memo, output);
     crate::f5c_generalization::release_flat_post_r_lanes(&mut flat_memo);
@@ -646,9 +766,10 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
             0
         );
     }
+    let mut missing_boxed_memo = F5cComponentExpansionMemo::default();
     assert_eq!(
         F5cGeneralizer::boxed_post_r_for_test(
-            &mut F5cComponentExpansionMemo::default(),
+            &mut missing_boxed_memo,
             &boxed_predicate,
             &boxed_bounds,
             &[1],
@@ -682,6 +803,22 @@ fn post_r_trace_order_overrides_raw_order_for_two_retained_owners() {
             .actual_capacity,
         0
     );
+    for lane in [
+        F5cWalkerLaneKind::BoxedRetainedOwnerBounds,
+        F5cWalkerLaneKind::PostRSurvivingBounds,
+        F5cWalkerLaneKind::PostRSurvivingTraces,
+        F5cWalkerLaneKind::PostRRecursiveOwners,
+        F5cWalkerLaneKind::PostRRecursiveSet,
+        F5cWalkerLaneKind::PostROccurrenceOrder,
+        F5cWalkerLaneKind::PostROccurrenceSeen,
+        F5cWalkerLaneKind::PostRQuantifiers,
+        F5cWalkerLaneKind::PostRRecursives,
+    ] {
+        assert_eq!(
+            missing_boxed_memo.walker_resources.lanes[lane as usize].actual_capacity,
+            0
+        );
+    }
 }
 
 #[test]

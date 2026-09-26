@@ -4,6 +4,41 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): boxed and FlatDraft post-R physical lanes
+
+Post-R lane accounting now covers the boxed production collections and the
+FlatDraft candidate collections. The boxed retained-bounds map has a distinct
+slot-sized lane; owner/trace sets, recursive owners and set, occurrence order
+and seen set, Q/R maps, and positive/negative elimination sets use fallible
+capacity accounting. Spare-capacity map/set insertions preserve requested-slot
+counts and skip reserve calls. Some occurrence/elimination admissions still
+recompute the fixed memo-capacity summary per novel item; §15 must assess this
+fixed per-entry cost. The retained boxed map's
+lane releases immediately after the map drops, before selected elimination and
+substitution. Returned recursive-bound payload remains in the later
+source-draft/co-resident ledger.
+
+M2 spec-auditor and performance-auditor review found a boxed retained-map
+lifetime mismatch and a major evidence gap for temporary post-R lane capacities
+and rollback. Both repairs are closed by fresh delta review: tests sample each
+temporary physical capacity while live and compare it with its lane, inject a
+late Q-map admission failure after prior post-R lanes grow, verify all lanes
+return idle, then retry with unchanged boxed/FlatDraft Q/R order. No semantic
+expectation or work-meter total changed. The fixed per-entry metadata overhead
+that remains is a §15 scale/evidence question; no probe is authorized yet.
+
+Focused checks passed: `RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--message-format short`, `RUSTC_WRAPPER= cargo test -p yu-solver --lib post_r_
+-- --test-threads=1` (4), `cargo fmt --all --check`, and `git diff --check`.
+No broad suite, resource probe, benchmark, or timing measurement ran.
+
+This closes only the post-R temporary-lane slice. Next close boxed normalizer
+failed-reserve observation and complete the source-draft/finalizer same-time
+ledger with independent physical-capacity reconstruction. Then prepare and
+independently review the fresh §15 plan before any probe. Production stays
+boxed; no admission boundary, numeric limit, cutover, §44 closure, F5e
+acceptance, or overall F5c acceptance is claimed.
+
 ### Latest continuation (2026-09-27): shared R fixed-point physical lanes
 
 Six typed lanes now account the R candidate set, per-round previous set,
@@ -31,13 +66,12 @@ Focused checks passed after repair: `RUSTC_WRAPPER= cargo check -p yu-solver
 `git diff --check`. No broad suite, resource probe, benchmark, or timing
 measurement ran.
 
-This closes the shared R fixed-point lane slice. Next account the post-R
-selection collections in their existing owners; then close boxed normalizer
-failed-reserve observation and the solver/draft/finalizer same-time ledger.
-Independent physical-lane reconciliation and fresh §15 plan review remain
-prerequisites to any probe. Production stays boxed; no admission boundary,
-numeric limit, cutover, §44 closure, F5e acceptance, or overall F5c acceptance
-is claimed.
+This closes the shared R fixed-point lane slice. Post-R lane accounting now
+closes that next owner. Remaining are boxed normalizer failed-reserve
+observation and the solver/draft/finalizer same-time ledger. Independent
+physical-lane reconciliation and fresh §15 plan review remain prerequisites
+to any probe. Production stays boxed; no admission boundary, numeric limit,
+cutover, §44 closure, F5e acceptance, or overall F5c acceptance is claimed.
 
 ### Latest continuation (2026-09-27): raw owner-loop physical lanes
 

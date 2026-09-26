@@ -3362,6 +3362,35 @@ candidate campaign; its measurement budget remains zero. Production remains
 boxed, with no numeric limit, cutover, §44 closure, F5e acceptance, or overall
 F5c acceptance claimed.
 
+## Latest continuation (2026-09-27): boxed and FlatDraft post-R physical lanes
+
+Post-R physical-capacity accounting now covers boxed production and FlatDraft
+candidate collections. Boxed retained bounds use a distinct slot-size lane;
+post-R owner/trace sets, recursive owners/set, occurrence order/seen, Q/R
+maps, and positive/negative elimination sets use fallible lane accounting.
+Spare-capacity map/set insertions preserve requested-slot counts and skip
+reserve calls. Some occurrence/elimination admissions still recompute the
+fixed memo-capacity summary per novel item; §15 must assess this fixed
+per-entry cost. The retained boxed-bound lane releases immediately after its
+map drops and before later elimination/substitution. Returned recursive-
+bound payload remains in the later source-draft/co-resident ledger.
+
+M2 spec/performance reviews found a minor boxed-lane lifetime mismatch and a
+major gap in live temporary-capacity and failure/retry evidence. Fresh delta
+reviews closed both. Tests compare actual boxed/flat capacities for the four
+temporary post-R collections while live, inject a late Q-map admission failure
+after prior lanes grow, verify lane cleanup to idle, and retry with unchanged
+Q/R order. Focused checks passed: solver test-target check; `post_r_` tests (4);
+`cargo fmt --all --check`; and `git diff --check`. No broad suite, probe,
+benchmark, or timing measurement ran.
+
+Next close boxed normalizer failed-reserve observation, then reconcile the
+source draft and `yu-types` finalizer at the authorized all-drafts and
+same-time peak boundaries. Independently reconstruct every physical lane and
+review a fresh §15 plan before any resource probe. The §15 measurement budget
+remains zero. Production remains boxed, with no numeric limit, cutover, §44
+closure, F5e acceptance, or overall F5c acceptance claimed.
+
 ## Latest continuation (2026-09-27): raw owner-loop physical lanes
 
 Six typed lanes now account `build_inner_work`'s raw bounds map,
