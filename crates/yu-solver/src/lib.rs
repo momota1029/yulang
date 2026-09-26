@@ -180,6 +180,8 @@ mod scc;
 use scc::{SccComponentId, SccPlan};
 mod f5c_binder_substitution;
 mod f5c_draft;
+#[allow(dead_code)] // The physical source-draft owners await the next migration slice.
+mod f5c_draft_heap;
 mod f5c_generalization;
 #[cfg(test)]
 use f5c_generalization::{

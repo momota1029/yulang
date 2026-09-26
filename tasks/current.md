@@ -1,8 +1,36 @@
-# Current task: F5 general Function scheme foundation
+# Current task: complete authorized F5c implementation gates
 
 Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
+
+### Latest continuation (2026-09-27): source-draft heap-owner foundation
+
+Added the private `f5c_draft_heap` owner primitives for the pending physical
+source-draft ledger: a shared checked capacity meter, fallible tracked vectors,
+a single-item tracked owner, and consuming iteration that retains the capacity
+charge until the iterator buffer drops. Vector element drops precede capacity
+release; reserve failures reconcile actual capacity, and aggregate overflow
+poisons future growth. Fixed meter payload remains a separately counted lane,
+and inline wrapper/control storage must be classified at integration sites.
+
+The six focused primitive tests passed with
+`RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_draft_heap --
+--test-threads=1`; `cargo fmt --all -- --check` passed. Compiler-referee
+review and fresh delta review found no remaining finding in this helper slice.
+The source-draft owners are not migrated yet, so this does not close the
+all-drafts physical ledger or certify its same-time peak. No broad suite,
+resource probe, benchmark, or timing measurement ran; probe budget remains
+zero.
+
+Next migrate the boxed source-draft payload owners and builders in bounded
+slices, then reconstruct their physical capacities while co-resident with
+solver and `yu-types` finalizer storage. A separate F5b authority defect remains
+open: the shipping boxed finalizer callback creates solver-owned vectors after
+entering the callback, while the F5b checkpoint observes only `yu-types`
+storage. Keep production boxed and do not claim callback accounting
+certification or cutover while resolving that scope. No numeric support
+boundary, §44 closure, F5e acceptance, or overall F5c acceptance is claimed.
 
 ### Latest continuation (2026-09-27): boxed normalizer reserve reconciliation
 
