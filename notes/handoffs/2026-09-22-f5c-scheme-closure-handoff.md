@@ -3287,3 +3287,17 @@ observation, and the all-drafts plus finalizer same-time peak. Then prepare and
 independently review the fresh §15 plan before any probe. Production remains
 boxed; producer incidence admission, numeric boundary, cutover, §44, F5e, and
 overall F5c closure remain open.
+
+## Follow-up (2026-09-27): production-only warning cleanup
+
+The `yu-solver --lib` check from the lane slice reported the pre-existing
+`F5cPostRSelection::{retained_bounds, retained_predicate}` fields as unused in
+the production configuration; only the test-only FlatDraft candidate reads
+them. A separate M0 follow-up now applies field-local
+`cfg_attr(not(test), allow(dead_code))`, documenting the conditional use at
+the owning fields without changing runtime behavior.
+
+`RUSTC_WRAPPER= cargo check -p yu-solver --lib --message-format short`,
+`cargo fmt --all --check`, and `git diff --check` pass, and the package check
+is warning-free. The next F5c implementation gate remains persistent producer
+state and nested reentry-path accounting.

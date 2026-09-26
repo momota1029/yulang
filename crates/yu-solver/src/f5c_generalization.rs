@@ -2964,7 +2964,9 @@ trait F5cRCandidateSource {
 }
 
 pub(super) struct F5cPostRSelection<B, P> {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) retained_bounds: HashMap<u32, B>,
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) retained_predicate: P,
     pub(super) recursive_owners: Vec<u32>,
     pub(super) recursive_set: HashSet<u32>,

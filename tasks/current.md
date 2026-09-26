@@ -29,10 +29,10 @@ Checks passed: `RUSTC_WRAPPER= cargo test -p yu-solver --lib
 f5c_flat_walk_sink -- --test-threads=1` (36), the `f5c_non_generic_closure`
 filter (2), `RUSTC_WRAPPER= cargo check -p yu-solver --lib --message-format
 short`, `cargo fmt --all --check`, and `git diff --check`. The package check
-still reports the pre-existing production-only unused fields
-`F5cPostRSelection::{retained_bounds, retained_predicate}`; fix that
-ownership-local warning in a separate M0 commit before the next implementation
-gate. No resource probe, benchmark, or broad suite ran.
+initially exposed pre-existing production-only unused fields
+`F5cPostRSelection::{retained_bounds, retained_predicate}`. A separate M0
+follow-up marks their test-only use at the owning fields; `cargo check` now
+passes without warnings. No resource probe, benchmark, or broad suite ran.
 
 This closes only the closure/raw-incidence lane slice. The next implementation
 gate is the remaining persistent producer state (`uncacheable_seen`,
