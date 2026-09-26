@@ -3218,3 +3218,34 @@ implementation gate is the exact `yu-types` indexed API from §3 of the
 2026-09-25 proposal. Finish physical-lane accounting and independently review
 the fresh §15 plan before the first resource probe. Preserve existing resource
 owners/families; do not infer numeric limits or production acceptance.
+
+## Latest continuation (2026-09-26): indexed finalizer implementation gate
+
+The approved `yu-types` §3 indexed finalizer is implemented and its focused M3
+gate is independently closed. The method and seven input types match the
+approved declarations. Validation uses checked dense IDs/spans/Q/R ordinals,
+an iterative three-color traversal, and complete reachability; construction
+uses the prescribed root/Function/product order and handles returned by the
+active finalizer. The indexed path skips the old quadratic callback validator
+only after direct validation succeeds. Eleven temporary lanes use checked
+geometric growth and reconcile actual capacity with the existing Arena/Scratch
+checkpoint; checked pre-reservation covers indexed overlay lanes.
+
+Compiler-referee, spec-auditor, and performance-auditor delta reviews found no
+remaining indexed-finalizer issue after repairs. Focused tests compare exact
+callback/indexed event order with alpha-equivalent output across both
+polarities, Functions, Q/R, and shared/repeated Union/Intersection edges. They
+also cover malformed IDs/spans/Q/R, cycles/orphans, temp-lane and transaction
+failure stages, retained-capacity retry, terminal short-circuit, unwind,
+accounting peaks, and small-stack Function-chain cleanup. Checks passed:
+`RUSTC_WRAPPER= cargo test -p yu-types --lib indexed_ -- --test-threads=1`
+(13), the full `yu-types` lib suite (28), test-target check, `cargo fmt --all
+--check`, and `git diff --check`. No resource probe or benchmark ran.
+
+Next, close solver-side physical-lane accounting in the existing F5c owners,
+including `non_generic_closure` temporary sets/frontier, raw-incidence sets,
+failed-reserve observations, and the solver/finalizer same-time peak. Then get
+independent review of a fresh §15 plan before any probe. Producer incidence
+admission and measured resource bounds remain open. Production is still boxed;
+there is no numeric support boundary, production cutover, §44 closure, F5e
+acceptance, or overall F5c completion.

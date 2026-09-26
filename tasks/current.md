@@ -4,7 +4,42 @@ Updated: 2026-09-26. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-26): end-to-end callback and Q/R parity
+### Latest continuation (2026-09-26): `yu-types` indexed finalizer
+
+The approved §3 `yu-types` indexed transaction now has an implementation and
+focused M3 closure. It validates checked IDs/spans/Q/R ordinals and the full
+structural graph with iterative three-color DFS, constructs in prescribed
+bound/root/Function/product order, uses the handles returned by the active
+finalizer, and bypasses the quadratic callback validator only on the validated
+indexed path. Eleven callback-scoped temporary lanes use checked geometric
+growth and reconcile actual capacities into the existing arena/Scratch peak;
+indexed child/effect/Q/R and bound lanes are pre-reserved from checked input
+counts. No public item beyond the approved method and seven §3 types was added.
+
+The M3 compiler-referee, spec-auditor, and performance-auditor delta reviews
+converged after repairs. Witnesses compare callback/indexed alpha-equivalence
+and complete ordered event traces for positive/negative Functions, Q/R,
+shared/repeated Union and Intersection edges, and bound roots. Focused tests
+cover malformed IDs/spans/Q/R, cycles/orphans, every indexed temp lane,
+validation/before-handle/planning/reservation/commit failures, retained-capacity
+retry, terminal poison/short-circuit, panic-preserving unwind, exact lane/peak
+accounting, and 64 KiB positive/negative Function-chain success/error/drop.
+
+Checks passed: `RUSTC_WRAPPER= cargo test -p yu-types --lib indexed_ --
+--test-threads=1` (13), `RUSTC_WRAPPER= cargo test -p yu-types --lib --
+--test-threads=1` (28), `RUSTC_WRAPPER= cargo check -p yu-types --tests
+--message-format short`, `cargo fmt --all --check`, and `git diff --check`.
+No benchmark or §15 probe ran; the measurement budget remains zero.
+
+This closes only the non-shipping `yu-types` indexed-finalizer gate. Production
+still uses the boxed path. Before any resource probe, complete the solver-side
+physical-lane and same-time peak reconciliation in existing owners, including
+the `non_generic_closure` temporary sets/frontier and raw-incidence sets, then
+obtain independent review of the fresh §15 plan. Producer incidence admission,
+numeric support boundary, production cutover, §44 closure, F5e acceptance, and
+overall F5c completion remain open. No user decision arose in this slice.
+
+### Previous continuation (2026-09-26): end-to-end callback and Q/R parity
 
 The selected FlatDraft candidate now has a paired root-forest witness with two
 raw recursive owners. The fixture contains a prewarmed Shared occurrence

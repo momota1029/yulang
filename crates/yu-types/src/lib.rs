@@ -88,6 +88,483 @@ pub enum ClosedTypeLookupError {
     InvalidHandle,
 }
 
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IndexedPositiveNodeId(pub u32);
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IndexedNegativeNodeId(pub u32);
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IndexedChildSpan {
+    pub start: u32,
+    pub len: u32,
+}
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum IndexedPositiveNode {
+    Bottom,
+    Int,
+    Quantified(u32),
+    Recursive(u32),
+    Union(IndexedChildSpan),
+    Function {
+        argument: IndexedNegativeNodeId,
+        result: IndexedPositiveNodeId,
+    },
+}
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum IndexedNegativeNode {
+    Top,
+    Bottom,
+    Int,
+    Quantified(u32),
+    Recursive(u32),
+    Intersection(IndexedChildSpan),
+    Function {
+        argument: IndexedPositiveNodeId,
+        result: IndexedNegativeNodeId,
+    },
+}
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IndexedRecursiveBound {
+    pub ordinal: u32,
+    pub lower: IndexedPositiveNodeId,
+    pub upper: IndexedNegativeNodeId,
+}
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug)]
+pub struct IndexedSchemeRef<'a> {
+    pub quantifier_count: u32,
+    pub predicate: IndexedPositiveNodeId,
+    pub positive_nodes: &'a [IndexedPositiveNode],
+    pub negative_nodes: &'a [IndexedNegativeNode],
+    pub positive_children: &'a [IndexedPositiveNodeId],
+    pub negative_children: &'a [IndexedNegativeNodeId],
+    pub recursive_bounds: &'a [IndexedRecursiveBound],
+}
+
+#[derive(Clone, Copy)]
+enum IndexedVisit {
+    Positive(usize),
+    Negative(usize),
+}
+
+#[derive(Default)]
+struct IndexedTemp<'tx> {
+    #[cfg(test)]
+    reserve_attempts: [usize; 11],
+    color: Vec<u8>,
+    order: Vec<IndexedVisit>,
+    stack: Vec<(IndexedVisit, bool)>,
+    roots: Vec<IndexedVisit>,
+    positive: Vec<Option<DraftPositiveValueId<'tx>>>,
+    negative: Vec<Option<DraftNegativeValueId<'tx>>>,
+    quantifiers: Vec<DraftQuantifierId<'tx>>,
+    recursive_binders: Vec<DraftRecursiveBinderId<'tx>>,
+    positive_children: Vec<DraftPositiveValueId<'tx>>,
+    negative_children: Vec<DraftNegativeValueId<'tx>>,
+    bounds: Vec<DraftRecursiveBound<'tx>>,
+}
+
+impl IndexedTemp<'_> {
+    #[cfg(test)]
+    fn lane_bytes(&self) -> [usize; 11] {
+        fn bytes<T>(lane: &Vec<T>) -> usize {
+            lane.capacity()
+                .checked_mul(std::mem::size_of::<T>())
+                .unwrap()
+        }
+        [
+            bytes(&self.color),
+            bytes(&self.order),
+            bytes(&self.stack),
+            bytes(&self.roots),
+            bytes(&self.positive),
+            bytes(&self.negative),
+            bytes(&self.quantifiers),
+            bytes(&self.recursive_binders),
+            bytes(&self.positive_children),
+            bytes(&self.negative_children),
+            bytes(&self.bounds),
+        ]
+    }
+    fn checked_capacity_bytes(&self) -> Result<usize, ClosedTypeFinalizeError> {
+        fn bytes<T>(lane: &Vec<T>) -> Result<usize, ClosedTypeFinalizeError> {
+            lane.capacity()
+                .checked_mul(std::mem::size_of::<T>())
+                .ok_or(ClosedTypeFinalizeError::IdentityExhausted)
+        }
+        [
+            bytes(&self.color)?,
+            bytes(&self.order)?,
+            bytes(&self.stack)?,
+            bytes(&self.roots)?,
+            bytes(&self.positive)?,
+            bytes(&self.negative)?,
+            bytes(&self.quantifiers)?,
+            bytes(&self.recursive_binders)?,
+            bytes(&self.positive_children)?,
+            bytes(&self.negative_children)?,
+            bytes(&self.bounds)?,
+        ]
+        .into_iter()
+        .try_fold(0usize, |total, lane| {
+            total
+                .checked_add(lane)
+                .ok_or(ClosedTypeFinalizeError::IdentityExhausted)
+        })
+    }
+
+    fn reserve<T>(
+        &mut self,
+        finalizer: &mut ClosedTypeFinalizer<'_>,
+        lane: fn(&mut Self) -> &mut Vec<T>,
+        additional: usize,
+    ) -> Result<(), ClosedTypeFinalizeError> {
+        #[cfg(test)]
+        {
+            let target = lane(self) as *mut Vec<T> as *mut ();
+            let lanes = [
+                &mut self.color as *mut Vec<u8> as *mut (),
+                &mut self.order as *mut Vec<IndexedVisit> as *mut (),
+                &mut self.stack as *mut Vec<(IndexedVisit, bool)> as *mut (),
+                &mut self.roots as *mut Vec<IndexedVisit> as *mut (),
+                &mut self.positive as *mut Vec<Option<DraftPositiveValueId<'_>>> as *mut (),
+                &mut self.negative as *mut Vec<Option<DraftNegativeValueId<'_>>> as *mut (),
+                &mut self.quantifiers as *mut Vec<DraftQuantifierId<'_>> as *mut (),
+                &mut self.recursive_binders as *mut Vec<DraftRecursiveBinderId<'_>> as *mut (),
+                &mut self.positive_children as *mut Vec<DraftPositiveValueId<'_>> as *mut (),
+                &mut self.negative_children as *mut Vec<DraftNegativeValueId<'_>> as *mut (),
+                &mut self.bounds as *mut Vec<DraftRecursiveBound<'_>> as *mut (),
+            ];
+            let index = lanes.iter().position(|&ptr| ptr == target).unwrap();
+            finalizer.control.indexed_lane_seen[index] = true;
+            if finalizer.control.indexed_failure_lane == Some(index) {
+                finalizer.control.indexed_failure_lane = None;
+                return Err(ClosedTypeFinalizeError::IdentityExhausted);
+            }
+        }
+        let reservation = {
+            let lane = lane(self);
+            let required = lane
+                .len()
+                .checked_add(additional)
+                .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?;
+            if lane.capacity() < required {
+                let target = lane
+                    .capacity()
+                    .checked_mul(2)
+                    .unwrap_or(required)
+                    .max(required);
+                Some(lane.try_reserve_exact(target - lane.len()))
+            } else {
+                None
+            }
+        };
+        if let Some(reservation) = reservation {
+            #[cfg(test)]
+            {
+                let target = lane(self) as *mut Vec<T> as *mut ();
+                let lanes = [
+                    &mut self.color as *mut Vec<u8> as *mut (),
+                    &mut self.order as *mut Vec<IndexedVisit> as *mut (),
+                    &mut self.stack as *mut Vec<(IndexedVisit, bool)> as *mut (),
+                    &mut self.roots as *mut Vec<IndexedVisit> as *mut (),
+                    &mut self.positive as *mut Vec<Option<DraftPositiveValueId<'_>>> as *mut (),
+                    &mut self.negative as *mut Vec<Option<DraftNegativeValueId<'_>>> as *mut (),
+                    &mut self.quantifiers as *mut Vec<DraftQuantifierId<'_>> as *mut (),
+                    &mut self.recursive_binders as *mut Vec<DraftRecursiveBinderId<'_>> as *mut (),
+                    &mut self.positive_children as *mut Vec<DraftPositiveValueId<'_>> as *mut (),
+                    &mut self.negative_children as *mut Vec<DraftNegativeValueId<'_>> as *mut (),
+                    &mut self.bounds as *mut Vec<DraftRecursiveBound<'_>> as *mut (),
+                ];
+                let index = lanes.iter().position(|&ptr| ptr == target).unwrap();
+                self.reserve_attempts[index] += 1;
+            }
+            finalizer.reconcile_indexed_temp(self)?;
+            reservation.map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?;
+        }
+        Ok(())
+    }
+}
+
+fn indexed_reserve_overlay(
+    input: IndexedSchemeRef<'_>,
+    finalizer: &mut ClosedTypeFinalizer<'_>,
+) -> Result<(), ClosedTypeFinalizeError> {
+    let mut p_children = 0usize;
+    let mut n_children = 0usize;
+    let mut functions = 0usize;
+    for node in input.positive_nodes {
+        match node {
+            IndexedPositiveNode::Union(span) => {
+                p_children = p_children
+                    .checked_add(
+                        usize::try_from(span.len)
+                            .map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?,
+                    )
+                    .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?;
+            }
+            IndexedPositiveNode::Function { .. } => {
+                functions = functions
+                    .checked_add(1)
+                    .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?;
+            }
+            _ => {}
+        }
+    }
+    for node in input.negative_nodes {
+        match node {
+            IndexedNegativeNode::Intersection(span) => {
+                n_children = n_children
+                    .checked_add(
+                        usize::try_from(span.len)
+                            .map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?,
+                    )
+                    .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?;
+            }
+            IndexedNegativeNode::Function { .. } => {
+                functions = functions
+                    .checked_add(1)
+                    .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?;
+            }
+            _ => {}
+        }
+    }
+    let q = usize::try_from(input.quantifier_count)
+        .map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?;
+    let r = input.recursive_bounds.len();
+    finalizer.reserve_overlay_lane(|s| &mut s.q, q)?;
+    finalizer.reserve_overlay_lane(|s| &mut s.r, r)?;
+    finalizer.reserve_overlay_lane(|s| &mut s.p, input.positive_nodes.len())?;
+    finalizer.reserve_overlay_lane(|s| &mut s.n, input.negative_nodes.len())?;
+    finalizer.reserve_overlay_lane(|s| &mut s.p_children, p_children)?;
+    finalizer.reserve_overlay_lane(|s| &mut s.n_children, n_children)?;
+    finalizer.reserve_overlay_lane(|s| &mut s.pe, functions)?;
+    finalizer.reserve_overlay_lane(|s| &mut s.ne, functions)?;
+    finalizer.reserve_overlay_lane(|s| &mut s.neutral, r)?;
+    finalizer.reserve_overlay_lane(|s| &mut s.bounds, r)?;
+    finalizer.reserve_overlay_lane(|s| &mut s.scheme_bounds, r)?;
+    Ok(())
+}
+
+fn indexed_positive<'tx>(
+    id: IndexedPositiveNodeId,
+    map: &[Option<DraftPositiveValueId<'tx>>],
+) -> Result<DraftPositiveValueId<'tx>, ClosedTypeFinalizeError> {
+    map.get(usize::try_from(id.0).map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?)
+        .copied()
+        .flatten()
+        .ok_or(ClosedTypeFinalizeError::InvalidDraft)
+}
+fn indexed_negative<'tx>(
+    id: IndexedNegativeNodeId,
+    map: &[Option<DraftNegativeValueId<'tx>>],
+) -> Result<DraftNegativeValueId<'tx>, ClosedTypeFinalizeError> {
+    map.get(usize::try_from(id.0).map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?)
+        .copied()
+        .flatten()
+        .ok_or(ClosedTypeFinalizeError::InvalidDraft)
+}
+
+fn indexed_range(
+    span: IndexedChildSpan,
+    len: usize,
+) -> Result<std::ops::Range<usize>, ClosedTypeFinalizeError> {
+    let start = usize::try_from(span.start).map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+    let end = span
+        .start
+        .checked_add(span.len)
+        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+    let end = usize::try_from(end).map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+    if end > len {
+        return Err(ClosedTypeFinalizeError::InvalidDraft);
+    }
+    Ok(start..end)
+}
+
+fn indexed_validate(
+    input: IndexedSchemeRef<'_>,
+    temp: &mut IndexedTemp<'_>,
+    finalizer: &mut ClosedTypeFinalizer<'_>,
+) -> Result<(), ClosedTypeFinalizeError> {
+    let p_len = input.positive_nodes.len();
+    let n_len = input.negative_nodes.len();
+    let valid_p = |id: IndexedPositiveNodeId| {
+        usize::try_from(id.0)
+            .ok()
+            .filter(|&i| i < p_len)
+            .ok_or(ClosedTypeFinalizeError::InvalidDraft)
+    };
+    let valid_n = |id: IndexedNegativeNodeId| {
+        usize::try_from(id.0)
+            .ok()
+            .filter(|&i| i < n_len)
+            .ok_or(ClosedTypeFinalizeError::InvalidDraft)
+    };
+    valid_p(input.predicate)?;
+    let bounds_len = u32::try_from(input.recursive_bounds.len())
+        .map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?;
+    let r_end = input
+        .quantifier_count
+        .checked_add(bounds_len)
+        .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?;
+    for (i, bound) in input.recursive_bounds.iter().enumerate() {
+        let i = u32::try_from(i).map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?;
+        if bound.ordinal
+            != input
+                .quantifier_count
+                .checked_add(i)
+                .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?
+        {
+            return Err(ClosedTypeFinalizeError::InvalidDraft);
+        }
+        valid_p(bound.lower)?;
+        valid_n(bound.upper)?;
+    }
+    for &id in input.positive_children {
+        valid_p(id)?;
+    }
+    for &id in input.negative_children {
+        valid_n(id)?;
+    }
+    for node in input.positive_nodes {
+        match *node {
+            IndexedPositiveNode::Quantified(q) if q >= input.quantifier_count => {
+                return Err(ClosedTypeFinalizeError::InvalidDraft);
+            }
+            IndexedPositiveNode::Recursive(r) if r < input.quantifier_count || r >= r_end => {
+                return Err(ClosedTypeFinalizeError::InvalidDraft);
+            }
+            IndexedPositiveNode::Union(span) => {
+                indexed_range(span, input.positive_children.len())?;
+            }
+            IndexedPositiveNode::Function { argument, result } => {
+                valid_n(argument)?;
+                valid_p(result)?;
+            }
+            _ => {}
+        }
+    }
+    for node in input.negative_nodes {
+        match *node {
+            IndexedNegativeNode::Quantified(q) if q >= input.quantifier_count => {
+                return Err(ClosedTypeFinalizeError::InvalidDraft);
+            }
+            IndexedNegativeNode::Recursive(r) if r < input.quantifier_count || r >= r_end => {
+                return Err(ClosedTypeFinalizeError::InvalidDraft);
+            }
+            IndexedNegativeNode::Intersection(span) => {
+                indexed_range(span, input.negative_children.len())?;
+            }
+            IndexedNegativeNode::Function { argument, result } => {
+                valid_p(argument)?;
+                valid_n(result)?;
+            }
+            _ => {}
+        }
+    }
+    let total = p_len
+        .checked_add(n_len)
+        .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?;
+    temp.reserve(finalizer, |t| &mut t.color, total)?;
+    temp.color.resize(total, 0u8);
+    #[cfg(test)]
+    if finalizer.control.indexed_failure_stage == Some(1) {
+        finalizer.control.indexed_failure_stage = None;
+        return Err(ClosedTypeFinalizeError::InvalidDraft);
+    }
+    temp.reserve(finalizer, |t| &mut t.order, total)?;
+    let roots_len = input
+        .recursive_bounds
+        .len()
+        .checked_mul(2)
+        .and_then(|x| x.checked_add(1))
+        .ok_or(ClosedTypeFinalizeError::IdentityExhausted)?;
+    temp.reserve(finalizer, |t| &mut t.roots, roots_len)?;
+    for bound in input.recursive_bounds {
+        temp.roots
+            .push(IndexedVisit::Positive(valid_p(bound.lower)?));
+        temp.roots
+            .push(IndexedVisit::Negative(valid_n(bound.upper)?));
+    }
+    temp.roots
+        .push(IndexedVisit::Positive(valid_p(input.predicate)?));
+    for root_index in 0..temp.roots.len() {
+        let root = temp.roots[root_index];
+        temp.reserve(finalizer, |t| &mut t.stack, 1)?;
+        temp.stack.push((root, false));
+        while let Some((visit, exit)) = temp.stack.pop() {
+            let key = match visit {
+                IndexedVisit::Positive(i) => i,
+                IndexedVisit::Negative(i) => p_len + i,
+            };
+            if exit {
+                temp.color[key] = 2;
+                temp.order.push(visit);
+                continue;
+            }
+            match temp.color[key] {
+                2 => continue,
+                1 => return Err(ClosedTypeFinalizeError::InvalidDraft),
+                _ => {}
+            }
+            temp.color[key] = 1;
+            temp.reserve(finalizer, |t| &mut t.stack, 3)?;
+            temp.stack.push((visit, true));
+            match visit {
+                IndexedVisit::Positive(i) => match input.positive_nodes[i] {
+                    IndexedPositiveNode::Function { argument, result } => {
+                        temp.stack
+                            .push((IndexedVisit::Positive(valid_p(result)?), false));
+                        temp.stack
+                            .push((IndexedVisit::Negative(valid_n(argument)?), false));
+                    }
+                    IndexedPositiveNode::Union(span) => {
+                        for &id in input.positive_children
+                            [indexed_range(span, input.positive_children.len())?]
+                        .iter()
+                        .rev()
+                        {
+                            temp.reserve(finalizer, |t| &mut t.stack, 1)?;
+                            temp.stack
+                                .push((IndexedVisit::Positive(valid_p(id)?), false));
+                        }
+                    }
+                    _ => {}
+                },
+                IndexedVisit::Negative(i) => match input.negative_nodes[i] {
+                    IndexedNegativeNode::Function { argument, result } => {
+                        temp.stack
+                            .push((IndexedVisit::Negative(valid_n(result)?), false));
+                        temp.stack
+                            .push((IndexedVisit::Positive(valid_p(argument)?), false));
+                    }
+                    IndexedNegativeNode::Intersection(span) => {
+                        for &id in input.negative_children
+                            [indexed_range(span, input.negative_children.len())?]
+                        .iter()
+                        .rev()
+                        {
+                            temp.reserve(finalizer, |t| &mut t.stack, 1)?;
+                            temp.stack
+                                .push((IndexedVisit::Negative(valid_n(id)?), false));
+                        }
+                    }
+                    _ => {}
+                },
+            }
+        }
+    }
+    if temp.color.iter().any(|&c| c != 2) {
+        return Err(ClosedTypeFinalizeError::InvalidDraft);
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PositiveValueView<'a> {
     Bottom,
@@ -817,6 +1294,13 @@ struct FinalizationTestControl {
     force_capacity_excess_after_reserve: bool,
     force_scratch_capacity_excess_after_reserve: bool,
     force_capacity_excess_during_unwind: bool,
+    fail_after_indexed_overlay_growth: bool,
+    indexed_failure_lane: Option<usize>,
+    indexed_lane_seen: [bool; 11],
+    indexed_failure_stage: Option<u8>,
+    indexed_lane_bytes: [usize; 11],
+    indexed_reserve_attempts: [usize; 11],
+    indexed_peak_bytes: usize,
 }
 #[cfg(test)]
 impl FinalizationTestControl {
@@ -875,6 +1359,8 @@ pub struct ClosedTypeFinalizer<'tx> {
     scratch: &'tx mut Scratch,
     retained_bytes: &'tx mut usize,
     arena_retained_bytes: usize,
+    indexed_live_bytes: &'tx mut usize,
+    peak_bytes: &'tx mut usize,
     accounting: &'tx mut AccountingState,
     failure_epoch: &'tx mut u64,
     #[cfg(test)]
@@ -882,6 +1368,37 @@ pub struct ClosedTypeFinalizer<'tx> {
     marker: PhantomData<Rc<()>>,
 }
 impl<'tx> ClosedTypeFinalizer<'tx> {
+    fn reconcile_indexed_temp(
+        &mut self,
+        temp: &IndexedTemp<'_>,
+    ) -> Result<(), ClosedTypeFinalizeError> {
+        let bytes = temp.checked_capacity_bytes().and_then(|indexed| {
+            self.arena_retained_bytes
+                .checked_add(self.scratch.checked_capacity_bytes()?)
+                .and_then(|base| base.checked_add(indexed))
+                .ok_or(ClosedTypeFinalizeError::IdentityExhausted)
+                .map(|total| (indexed, total))
+        });
+        match bytes {
+            Ok((indexed, total)) => {
+                #[cfg(test)]
+                {
+                    let lanes = temp.lane_bytes();
+                    assert_eq!(lanes.into_iter().sum::<usize>(), indexed);
+                    self.control.indexed_lane_bytes = lanes;
+                    self.control.indexed_reserve_attempts = temp.reserve_attempts;
+                    self.control.indexed_peak_bytes = self.control.indexed_peak_bytes.max(indexed);
+                }
+                *self.indexed_live_bytes = indexed;
+                *self.peak_bytes = (*self.peak_bytes).max(total);
+                Ok(())
+            }
+            Err(error) => {
+                enter_accounting_exhaustion(self.accounting, self.failure_epoch);
+                Err(error)
+            }
+        }
+    }
     fn reconcile_after_scratch_reservation(
         &mut self,
         _reservation_succeeded: bool,
@@ -899,14 +1416,40 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
                 return Err(error);
             }
         };
-        let retained_bytes = match self.arena_retained_bytes.checked_add(scratch_bytes) {
+        let retained_bytes = match self
+            .arena_retained_bytes
+            .checked_add(scratch_bytes)
+            .and_then(|base| base.checked_add(*self.indexed_live_bytes))
+        {
             Some(bytes) => bytes,
             None => {
                 enter_accounting_exhaustion(self.accounting, self.failure_epoch);
                 return Err(ClosedTypeFinalizeError::IdentityExhausted);
             }
         };
-        *self.retained_bytes = retained_bytes;
+        *self.peak_bytes = (*self.peak_bytes).max(retained_bytes);
+        *self.retained_bytes = retained_bytes - *self.indexed_live_bytes;
+        Ok(())
+    }
+
+    fn reserve_overlay_lane<T>(
+        &mut self,
+        lane: fn(&mut Scratch) -> &mut Vec<T>,
+        len: usize,
+    ) -> Result<(), ClosedTypeFinalizeError> {
+        let reservation = {
+            let lane = lane(self.scratch);
+            (lane.capacity() < len).then(|| lane.try_reserve_exact(len - lane.len()))
+        };
+        if let Some(reservation) = reservation {
+            self.reconcile_after_scratch_reservation(reservation.is_ok())?;
+            reservation.map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?;
+            #[cfg(test)]
+            if self.control.fail_after_indexed_overlay_growth {
+                self.control.fail_after_indexed_overlay_growth = false;
+                return Err(ClosedTypeFinalizeError::IdentityExhausted);
+            }
+        }
         Ok(())
     }
 
@@ -1439,6 +1982,8 @@ pub struct ClosedTypeFinalizationSession {
     scratch: Scratch,
     retained_bytes: usize,
     arena_retained_bytes: usize,
+    indexed_live_bytes: usize,
+    peak_bytes: usize,
     accounting: AccountingState,
     failure_epoch: u64,
     #[cfg(test)]
@@ -1453,6 +1998,165 @@ enum AccountingState {
     Exhausted,
 }
 impl ClosedTypeFinalizationSession {
+    #[doc(hidden)]
+    pub fn finalize_indexed_scheme(
+        &mut self,
+        input: IndexedSchemeRef<'_>,
+    ) -> Result<ClosedSchemeFinalization, ClosedTypeFinalizeError> {
+        if matches!(self.accounting, AccountingState::Exhausted) {
+            return Err(ClosedTypeFinalizeError::IdentityExhausted);
+        }
+        self.finalize_scheme_inner(
+            |f| {
+                let mut temp = IndexedTemp::default();
+                indexed_validate(input, &mut temp, f)?;
+                indexed_reserve_overlay(input, f)?;
+                #[cfg(test)]
+                if f.control.indexed_failure_stage == Some(0) {
+                    f.control.indexed_failure_stage = None;
+                    return Err(ClosedTypeFinalizeError::InvalidDraft);
+                }
+                temp.reserve(f, |t| &mut t.positive, input.positive_nodes.len())?;
+                temp.positive.resize(input.positive_nodes.len(), None);
+                temp.reserve(f, |t| &mut t.negative, input.negative_nodes.len())?;
+                temp.negative.resize(input.negative_nodes.len(), None);
+                let q_count = usize::try_from(input.quantifier_count)
+                    .map_err(|_| ClosedTypeFinalizeError::IdentityExhausted)?;
+                temp.reserve(f, |t| &mut t.quantifiers, q_count)?;
+                for q in 0..input.quantifier_count {
+                    temp.quantifiers.push(f.quantifier(q));
+                }
+                temp.reserve(
+                    f,
+                    |t| &mut t.recursive_binders,
+                    input.recursive_bounds.len(),
+                )?;
+                for bound in input.recursive_bounds {
+                    temp.recursive_binders
+                        .push(f.recursive_binder(bound.ordinal));
+                }
+                for order_index in 0..temp.order.len() {
+                    match temp.order[order_index] {
+                        IndexedVisit::Positive(i) => {
+                            let value = match input.positive_nodes[i] {
+                                IndexedPositiveNode::Bottom => f.positive_bottom()?,
+                                IndexedPositiveNode::Int => f.positive_int()?,
+                                IndexedPositiveNode::Quantified(q) => {
+                                    let index = usize::try_from(q)
+                                        .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+                                    let handle = *temp
+                                        .quantifiers
+                                        .get(index)
+                                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                                    f.positive_quantified(handle)?
+                                }
+                                IndexedPositiveNode::Recursive(r) => {
+                                    let index = usize::try_from(
+                                        r.checked_sub(input.quantifier_count)
+                                            .ok_or(ClosedTypeFinalizeError::InvalidDraft)?,
+                                    )
+                                    .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+                                    let handle = *temp
+                                        .recursive_binders
+                                        .get(index)
+                                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                                    f.positive_recursive(handle)?
+                                }
+                                IndexedPositiveNode::Function { argument, result } => {
+                                    let a = indexed_negative(argument, &temp.negative)?;
+                                    let r = indexed_positive(result, &temp.positive)?;
+                                    let ae = f.negative_effect_empty()?;
+                                    let re = f.positive_effect_bottom()?;
+                                    f.positive_function(a, ae, re, r)?
+                                }
+                                IndexedPositiveNode::Union(span) => {
+                                    let range = indexed_range(span, input.positive_children.len())?;
+                                    temp.positive_children.clear();
+                                    temp.reserve(f, |t| &mut t.positive_children, range.len())?;
+                                    for &id in &input.positive_children[range] {
+                                        temp.positive_children
+                                            .push(indexed_positive(id, &temp.positive)?);
+                                    }
+                                    f.positive_union(&temp.positive_children)?
+                                }
+                            };
+                            temp.positive[i] = Some(value);
+                        }
+                        IndexedVisit::Negative(i) => {
+                            let value = match input.negative_nodes[i] {
+                                IndexedNegativeNode::Top => f.negative_top()?,
+                                IndexedNegativeNode::Bottom => f.negative_bottom()?,
+                                IndexedNegativeNode::Int => f.negative_int()?,
+                                IndexedNegativeNode::Quantified(q) => {
+                                    let index = usize::try_from(q)
+                                        .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+                                    let handle = *temp
+                                        .quantifiers
+                                        .get(index)
+                                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                                    f.negative_quantified(handle)?
+                                }
+                                IndexedNegativeNode::Recursive(r) => {
+                                    let index = usize::try_from(
+                                        r.checked_sub(input.quantifier_count)
+                                            .ok_or(ClosedTypeFinalizeError::InvalidDraft)?,
+                                    )
+                                    .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+                                    let handle = *temp
+                                        .recursive_binders
+                                        .get(index)
+                                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                                    f.negative_recursive(handle)?
+                                }
+                                IndexedNegativeNode::Function { argument, result } => {
+                                    let a = indexed_positive(argument, &temp.positive)?;
+                                    let r = indexed_negative(result, &temp.negative)?;
+                                    let ae = f.positive_effect_bottom()?;
+                                    let re = f.negative_effect_empty()?;
+                                    f.negative_function(a, ae, re, r)?
+                                }
+                                IndexedNegativeNode::Intersection(span) => {
+                                    let range = indexed_range(span, input.negative_children.len())?;
+                                    temp.negative_children.clear();
+                                    temp.reserve(f, |t| &mut t.negative_children, range.len())?;
+                                    for &id in &input.negative_children[range] {
+                                        temp.negative_children
+                                            .push(indexed_negative(id, &temp.negative)?);
+                                    }
+                                    f.negative_intersection(&temp.negative_children)?
+                                }
+                            };
+                            temp.negative[i] = Some(value);
+                        }
+                    }
+                }
+                temp.reserve(f, |t| &mut t.bounds, input.recursive_bounds.len())?;
+                for bound in input.recursive_bounds {
+                    let lower = indexed_positive(bound.lower, &temp.positive)?;
+                    let upper = indexed_negative(bound.upper, &temp.negative)?;
+                    let neutral = f.neutral_bounds(lower, upper)?;
+                    let index = usize::try_from(
+                        bound
+                            .ordinal
+                            .checked_sub(input.quantifier_count)
+                            .ok_or(ClosedTypeFinalizeError::InvalidDraft)?,
+                    )
+                    .map_err(|_| ClosedTypeFinalizeError::InvalidDraft)?;
+                    let handle = *temp
+                        .recursive_binders
+                        .get(index)
+                        .ok_or(ClosedTypeFinalizeError::InvalidDraft)?;
+                    temp.bounds.push(f.recursive_bound(handle, neutral)?);
+                }
+                f.set_scheme(
+                    input.quantifier_count,
+                    &temp.bounds,
+                    indexed_positive(input.predicate, &temp.positive)?,
+                )
+            },
+            true,
+        )
+    }
     #[doc(hidden)]
     pub fn try_new() -> Result<Self, ClosedTypeFinalizeError> {
         let brand = NEXT_ARENA_BRAND
@@ -1473,6 +2177,8 @@ impl ClosedTypeFinalizationSession {
             scratch: Scratch::default(),
             retained_bytes: 0,
             arena_retained_bytes: 0,
+            indexed_live_bytes: 0,
+            peak_bytes: 0,
             accounting: AccountingState::Valid,
             failure_epoch: 0,
             #[cfg(test)]
@@ -1488,10 +2194,21 @@ impl ClosedTypeFinalizationSession {
     where
         F: for<'tx> FnOnce(&mut ClosedTypeFinalizer<'tx>) -> Result<(), ClosedTypeFinalizeError>,
     {
+        self.finalize_scheme_inner(build, false)
+    }
+    fn finalize_scheme_inner<F>(
+        &mut self,
+        build: F,
+        indexed_validated: bool,
+    ) -> Result<ClosedSchemeFinalization, ClosedTypeFinalizeError>
+    where
+        F: for<'tx> FnOnce(&mut ClosedTypeFinalizer<'tx>) -> Result<(), ClosedTypeFinalizeError>,
+    {
         if matches!(self.accounting, AccountingState::Exhausted) {
             return Err(ClosedTypeFinalizeError::IdentityExhausted);
         }
         let retained_bytes_before = self.retained_bytes;
+        self.peak_bytes = retained_bytes_before;
         #[cfg(test)]
         let capacity_before = {
             self.control.seen.clear();
@@ -1507,6 +2224,8 @@ impl ClosedTypeFinalizationSession {
                 scratch: &mut self.scratch,
                 retained_bytes: &mut self.retained_bytes,
                 arena_retained_bytes: self.arena_retained_bytes,
+                indexed_live_bytes: &mut self.indexed_live_bytes,
+                peak_bytes: &mut self.peak_bytes,
                 accounting: &mut self.accounting,
                 failure_epoch: &mut self.failure_epoch,
                 #[cfg(test)]
@@ -1515,6 +2234,7 @@ impl ClosedTypeFinalizationSession {
             };
             catch_unwind(AssertUnwindSafe(|| build(&mut finalizer)))
         };
+        self.indexed_live_bytes = 0;
         let result = match outcome {
             Err(payload) => {
                 #[cfg(test)]
@@ -1531,7 +2251,14 @@ impl ClosedTypeFinalizationSession {
                     Err(error)
                 } else {
                     let committed = catch_unwind(AssertUnwindSafe(|| {
-                        validate(&self.scratch)?;
+                        if !indexed_validated {
+                            validate(&self.scratch)?;
+                        }
+                        #[cfg(test)]
+                        if indexed_validated && self.control.indexed_failure_stage == Some(2) {
+                            self.control.indexed_failure_stage = None;
+                            return Err(ClosedTypeFinalizeError::InvalidDraft);
+                        }
                         self.plan()?;
                         self.reserve()?;
                         self.commit()
@@ -1561,7 +2288,7 @@ impl ClosedTypeFinalizationSession {
                 checkpoint: ClosedTypeAccountingCheckpoint {
                     retained_bytes_before,
                     retained_bytes_after,
-                    peak_bytes_during_call: retained_bytes_before.max(retained_bytes_after),
+                    peak_bytes_during_call: self.peak_bytes.max(retained_bytes_after),
                     epoch: self.failure_epoch,
                 },
             })
@@ -1637,6 +2364,7 @@ impl ClosedTypeFinalizationSession {
         };
         self.retained_bytes = retained_bytes;
         self.arena_retained_bytes = arena_retained_bytes;
+        self.peak_bytes = self.peak_bytes.max(retained_bytes);
         Ok(())
     }
     fn reconcile_after_reservation(
@@ -2498,6 +3226,885 @@ fn alpha_neutral(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn indexed_shallow_parity_and_invalid_epoch() {
+        let positive_nodes = [
+            IndexedPositiveNode::Int,
+            IndexedPositiveNode::Union(IndexedChildSpan { start: 0, len: 2 }),
+        ];
+        let positive_children = [IndexedPositiveNodeId(0), IndexedPositiveNodeId(0)];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(1),
+            positive_nodes: &positive_nodes,
+            negative_nodes: &[],
+            positive_children: &positive_children,
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let indexed = session.finalize_indexed_scheme(input).unwrap();
+        let indexed_events = session.test_events().to_vec();
+        assert_eq!(
+            session
+                .control
+                .indexed_lane_bytes
+                .into_iter()
+                .sum::<usize>(),
+            session.control.indexed_peak_bytes
+        );
+        assert!(
+            indexed.checkpoint.peak_bytes_during_call
+                >= indexed.checkpoint.retained_bytes_before + session.control.indexed_peak_bytes
+        );
+        let mut callback_session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let callback = callback_session
+            .finalize_scheme(|f| {
+                let int = f.positive_int()?;
+                let union = f.positive_union(&[int, int])?;
+                f.set_scheme(0, &[], union)
+            })
+            .unwrap();
+        let indexed_view = session.scheme_view(indexed.test_scheme()).unwrap();
+        let callback_view = callback_session
+            .scheme_view(callback.test_scheme())
+            .unwrap();
+        assert!(indexed_view.alpha_eq(callback_view));
+        assert_eq!(indexed_events, callback_session.test_events());
+        let epoch = session.test_failure_epoch();
+        let bad_children = [IndexedPositiveNodeId(99)];
+        let bad = IndexedSchemeRef {
+            positive_children: &bad_children,
+            ..input
+        };
+        assert!(matches!(
+            session.finalize_indexed_scheme(bad),
+            Err(ClosedTypeFinalizeError::InvalidDraft)
+        ));
+        assert_eq!(session.test_failure_epoch(), epoch + 1);
+        assert!(session.finalize_indexed_scheme(input).is_ok());
+    }
+
+    #[test]
+    fn indexed_negative_shared_repeated_intersection_parity() {
+        let positive = [IndexedPositiveNode::Int];
+        let negative = [
+            IndexedNegativeNode::Int,
+            IndexedNegativeNode::Intersection(IndexedChildSpan { start: 0, len: 2 }),
+            IndexedNegativeNode::Intersection(IndexedChildSpan { start: 2, len: 3 }),
+        ];
+        let children = [
+            IndexedNegativeNodeId(0),
+            IndexedNegativeNodeId(0),
+            IndexedNegativeNodeId(1),
+            IndexedNegativeNodeId(1),
+            IndexedNegativeNodeId(0),
+        ];
+        let bounds = [IndexedRecursiveBound {
+            ordinal: 0,
+            lower: IndexedPositiveNodeId(0),
+            upper: IndexedNegativeNodeId(2),
+        }];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &positive,
+            negative_nodes: &negative,
+            positive_children: &[],
+            negative_children: &children,
+            recursive_bounds: &bounds,
+        };
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let indexed = session.finalize_indexed_scheme(input).unwrap();
+        let indexed_events = session.test_events().to_vec();
+        let mut callback_session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let callback = callback_session
+            .finalize_scheme(|f| {
+                let r = f.recursive_binder(0);
+                let lower = f.positive_int()?;
+                let leaf = f.negative_int()?;
+                let shared = f.negative_intersection(&[leaf, leaf])?;
+                let upper = f.negative_intersection(&[shared, shared, leaf])?;
+                let neutral = f.neutral_bounds(lower, upper)?;
+                let bound = f.recursive_bound(r, neutral)?;
+                f.set_scheme(0, &[bound], lower)
+            })
+            .unwrap();
+        assert!(
+            session
+                .scheme_view(indexed.test_scheme())
+                .unwrap()
+                .alpha_eq(
+                    callback_session
+                        .scheme_view(callback.test_scheme())
+                        .unwrap()
+                )
+        );
+        assert_eq!(indexed_events, callback_session.test_events());
+    }
+
+    #[test]
+    fn indexed_combined_function_q_r_shared_product_parity() {
+        let positive = [
+            IndexedPositiveNode::Quantified(0),
+            IndexedPositiveNode::Recursive(1),
+            IndexedPositiveNode::Union(IndexedChildSpan { start: 0, len: 3 }),
+            IndexedPositiveNode::Function {
+                argument: IndexedNegativeNodeId(2),
+                result: IndexedPositiveNodeId(2),
+            },
+            IndexedPositiveNode::Union(IndexedChildSpan { start: 3, len: 3 }),
+        ];
+        let negative = [
+            IndexedNegativeNode::Quantified(0),
+            IndexedNegativeNode::Recursive(1),
+            IndexedNegativeNode::Intersection(IndexedChildSpan { start: 0, len: 3 }),
+            IndexedNegativeNode::Function {
+                argument: IndexedPositiveNodeId(2),
+                result: IndexedNegativeNodeId(2),
+            },
+            IndexedNegativeNode::Intersection(IndexedChildSpan { start: 3, len: 3 }),
+        ];
+        let positive_children = [
+            IndexedPositiveNodeId(0),
+            IndexedPositiveNodeId(0),
+            IndexedPositiveNodeId(1),
+            IndexedPositiveNodeId(3),
+            IndexedPositiveNodeId(3),
+            IndexedPositiveNodeId(2),
+        ];
+        let negative_children = [
+            IndexedNegativeNodeId(0),
+            IndexedNegativeNodeId(0),
+            IndexedNegativeNodeId(1),
+            IndexedNegativeNodeId(3),
+            IndexedNegativeNodeId(3),
+            IndexedNegativeNodeId(2),
+        ];
+        let bounds = [IndexedRecursiveBound {
+            ordinal: 1,
+            lower: IndexedPositiveNodeId(3),
+            upper: IndexedNegativeNodeId(4),
+        }];
+        let input = IndexedSchemeRef {
+            quantifier_count: 1,
+            predicate: IndexedPositiveNodeId(4),
+            positive_nodes: &positive,
+            negative_nodes: &negative,
+            positive_children: &positive_children,
+            negative_children: &negative_children,
+            recursive_bounds: &bounds,
+        };
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let indexed = session.finalize_indexed_scheme(input).unwrap();
+        let indexed_events = session.test_events().to_vec();
+        let mut callback_session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let callback = callback_session
+            .finalize_scheme(|f| {
+                let q = f.quantifier(0);
+                let r = f.recursive_binder(1);
+                let nq = f.negative_quantified(q)?;
+                let nr = f.negative_recursive(r)?;
+                let ni = f.negative_intersection(&[nq, nq, nr])?;
+                let pq = f.positive_quantified(q)?;
+                let pr = f.positive_recursive(r)?;
+                let pu = f.positive_union(&[pq, pq, pr])?;
+                let pae = f.negative_effect_empty()?;
+                let pre = f.positive_effect_bottom()?;
+                let lower = f.positive_function(ni, pae, pre, pu)?;
+                let nae = f.positive_effect_bottom()?;
+                let nre = f.negative_effect_empty()?;
+                let nf = f.negative_function(pu, nae, nre, ni)?;
+                let upper = f.negative_intersection(&[nf, nf, ni])?;
+                let predicate = f.positive_union(&[lower, lower, pu])?;
+                let neutral = f.neutral_bounds(lower, upper)?;
+                let bound = f.recursive_bound(r, neutral)?;
+                f.set_scheme(1, &[bound], predicate)
+            })
+            .unwrap();
+        assert!(
+            session
+                .scheme_view(indexed.test_scheme())
+                .unwrap()
+                .alpha_eq(
+                    callback_session
+                        .scheme_view(callback.test_scheme())
+                        .unwrap()
+                )
+        );
+        assert_eq!(indexed_events, callback_session.test_events());
+    }
+
+    #[test]
+    fn indexed_functions_bounds_and_malformed_graphs() {
+        let positive_nodes = [
+            IndexedPositiveNode::Quantified(0),
+            IndexedPositiveNode::Recursive(1),
+            IndexedPositiveNode::Function {
+                argument: IndexedNegativeNodeId(0),
+                result: IndexedPositiveNodeId(1),
+            },
+        ];
+        let negative_nodes = [
+            IndexedNegativeNode::Int,
+            IndexedNegativeNode::Function {
+                argument: IndexedPositiveNodeId(0),
+                result: IndexedNegativeNodeId(0),
+            },
+        ];
+        let bounds = [IndexedRecursiveBound {
+            ordinal: 1,
+            lower: IndexedPositiveNodeId(0),
+            upper: IndexedNegativeNodeId(1),
+        }];
+        let input = IndexedSchemeRef {
+            quantifier_count: 1,
+            predicate: IndexedPositiveNodeId(2),
+            positive_nodes: &positive_nodes,
+            negative_nodes: &negative_nodes,
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &bounds,
+        };
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let indexed = session.finalize_indexed_scheme(input).unwrap();
+        let indexed_events = session.test_events().to_vec();
+        let mut callback_session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let callback = callback_session
+            .finalize_scheme(|f| {
+                let q = f.quantifier(0);
+                let r = f.recursive_binder(1);
+                let lower = f.positive_quantified(q)?;
+                let upper_arg = f.negative_int()?;
+                let upper_ae = f.positive_effect_bottom()?;
+                let upper_re = f.negative_effect_empty()?;
+                let upper = f.negative_function(lower, upper_ae, upper_re, upper_arg)?;
+                let predicate_result = f.positive_recursive(r)?;
+                let predicate_ae = f.negative_effect_empty()?;
+                let predicate_re = f.positive_effect_bottom()?;
+                let predicate =
+                    f.positive_function(upper_arg, predicate_ae, predicate_re, predicate_result)?;
+                let neutral = f.neutral_bounds(lower, upper)?;
+                let bound = f.recursive_bound(r, neutral)?;
+                f.set_scheme(1, &[bound], predicate)
+            })
+            .unwrap();
+        assert!(
+            session
+                .scheme_view(indexed.test_scheme())
+                .unwrap()
+                .alpha_eq(
+                    callback_session
+                        .scheme_view(callback.test_scheme())
+                        .unwrap()
+                )
+        );
+        assert_eq!(indexed_events, callback_session.test_events());
+
+        let cycle_nodes = [IndexedPositiveNode::Union(IndexedChildSpan {
+            start: 0,
+            len: 1,
+        })];
+        let cycle_children = [IndexedPositiveNodeId(0)];
+        let cycle = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &cycle_nodes,
+            negative_nodes: &[],
+            positive_children: &cycle_children,
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        assert!(matches!(
+            session.finalize_indexed_scheme(cycle),
+            Err(ClosedTypeFinalizeError::InvalidDraft)
+        ));
+        let orphan_nodes = [IndexedPositiveNode::Int, IndexedPositiveNode::Bottom];
+        let orphan = IndexedSchemeRef {
+            positive_nodes: &orphan_nodes,
+            positive_children: &[],
+            ..cycle
+        };
+        assert!(matches!(
+            session.finalize_indexed_scheme(orphan),
+            Err(ClosedTypeFinalizeError::InvalidDraft)
+        ));
+    }
+
+    #[test]
+    fn indexed_overlay_failure_and_unwind_retry() {
+        let nodes = [IndexedPositiveNode::Bottom];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &nodes,
+            negative_nodes: &[],
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let before = session.test_lengths();
+        let epoch = session.test_failure_epoch();
+        let event = FinalizationFailureEvent::OverlayWrite {
+            lane: FinalizationLane::PositiveValue,
+            ordinal: 0,
+        };
+        session.inject_failure(event);
+        assert!(session.finalize_indexed_scheme(input).is_err());
+        assert_eq!(session.test_lengths(), before);
+        assert_eq!(session.test_failure_epoch(), epoch + 1);
+        session.clear_injection();
+        session.inject_panic(event);
+        assert!(catch_unwind(AssertUnwindSafe(|| session.finalize_indexed_scheme(input))).is_err());
+        assert_eq!(session.test_lengths(), before);
+        assert_eq!(session.test_failure_epoch(), epoch + 2);
+        session.clear_injection();
+        assert!(session.finalize_indexed_scheme(input).is_ok());
+    }
+
+    #[test]
+    fn indexed_rejects_spans_references_and_unselected_child_ids() {
+        let node = [IndexedPositiveNode::Int];
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let base = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &node,
+            negative_nodes: &[],
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        fn invalid(session: &mut ClosedTypeFinalizationSession, input: IndexedSchemeRef<'_>) {
+            let epoch = session.test_failure_epoch();
+            assert!(matches!(
+                session.finalize_indexed_scheme(input),
+                Err(ClosedTypeFinalizeError::InvalidDraft)
+            ));
+            assert_eq!(session.test_failure_epoch(), epoch + 1);
+        }
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                predicate: IndexedPositiveNodeId(1),
+                ..base
+            },
+        );
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                positive_children: &[IndexedPositiveNodeId(1)],
+                ..base
+            },
+        );
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                negative_children: &[IndexedNegativeNodeId(0)],
+                ..base
+            },
+        );
+        let overflow = [IndexedPositiveNode::Union(IndexedChildSpan {
+            start: u32::MAX,
+            len: 2,
+        })];
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                positive_nodes: &overflow,
+                ..base
+            },
+        );
+        let out_of_array = [IndexedPositiveNode::Union(IndexedChildSpan {
+            start: 0,
+            len: 1,
+        })];
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                positive_nodes: &out_of_array,
+                ..base
+            },
+        );
+        let bad_q = [IndexedPositiveNode::Quantified(0)];
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                positive_nodes: &bad_q,
+                ..base
+            },
+        );
+        let bad_r = [IndexedPositiveNode::Recursive(0)];
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                positive_nodes: &bad_r,
+                ..base
+            },
+        );
+        let bounds = [IndexedRecursiveBound {
+            ordinal: 1,
+            lower: IndexedPositiveNodeId(0),
+            upper: IndexedNegativeNodeId(0),
+        }];
+        let upper = [IndexedNegativeNode::Top];
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                negative_nodes: &upper,
+                recursive_bounds: &bounds,
+                ..base
+            },
+        );
+        let bad_bound_root = [IndexedRecursiveBound {
+            ordinal: 0,
+            lower: IndexedPositiveNodeId(1),
+            upper: IndexedNegativeNodeId(0),
+        }];
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                negative_nodes: &upper,
+                recursive_bounds: &bad_bound_root,
+                ..base
+            },
+        );
+        let q_base = IndexedSchemeRef {
+            quantifier_count: 1,
+            negative_nodes: &upper,
+            ..base
+        };
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                positive_nodes: &[IndexedPositiveNode::Quantified(1)],
+                ..q_base
+            },
+        );
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                negative_nodes: &[IndexedNegativeNode::Quantified(1)],
+                ..q_base
+            },
+        );
+        let valid_bounds = [IndexedRecursiveBound {
+            ordinal: 1,
+            lower: IndexedPositiveNodeId(0),
+            upper: IndexedNegativeNodeId(0),
+        }];
+        let qr_base = IndexedSchemeRef {
+            recursive_bounds: &valid_bounds,
+            ..q_base
+        };
+        for ordinal in [0, 2] {
+            invalid(
+                &mut session,
+                IndexedSchemeRef {
+                    positive_nodes: &[IndexedPositiveNode::Recursive(ordinal)],
+                    ..qr_base
+                },
+            );
+            invalid(
+                &mut session,
+                IndexedSchemeRef {
+                    negative_nodes: &[IndexedNegativeNode::Recursive(ordinal)],
+                    ..qr_base
+                },
+            );
+        }
+        let two_bounds = [
+            valid_bounds[0],
+            IndexedRecursiveBound {
+                ordinal: 2,
+                ..valid_bounds[0]
+            },
+        ];
+        for index in 0..2 {
+            let mut wrong = two_bounds;
+            wrong[index].ordinal += 1;
+            invalid(
+                &mut session,
+                IndexedSchemeRef {
+                    recursive_bounds: &wrong,
+                    ..q_base
+                },
+            );
+        }
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                recursive_bounds: &[IndexedRecursiveBound {
+                    lower: IndexedPositiveNodeId(1),
+                    ..valid_bounds[0]
+                }],
+                ..q_base
+            },
+        );
+        invalid(
+            &mut session,
+            IndexedSchemeRef {
+                recursive_bounds: &[IndexedRecursiveBound {
+                    upper: IndexedNegativeNodeId(1),
+                    ..valid_bounds[0]
+                }],
+                ..q_base
+            },
+        );
+        assert!(session.finalize_indexed_scheme(base).is_ok());
+    }
+
+    #[test]
+    fn indexed_shared_products_and_deep_chains_on_small_stack() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024)
+            .spawn(|| {
+                let mut positive = vec![IndexedPositiveNode::Int];
+                let mut positive_children = Vec::new();
+                for index in 0..4096u32 {
+                    let start = u32::try_from(positive_children.len()).unwrap();
+                    positive_children
+                        .extend([IndexedPositiveNodeId(index), IndexedPositiveNodeId(index)]);
+                    positive.push(IndexedPositiveNode::Union(IndexedChildSpan {
+                        start,
+                        len: 2,
+                    }));
+                }
+                let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+                let input = IndexedSchemeRef {
+                    quantifier_count: 0,
+                    predicate: IndexedPositiveNodeId(4096),
+                    positive_nodes: &positive,
+                    negative_nodes: &[],
+                    positive_children: &positive_children,
+                    negative_children: &[],
+                    recursive_bounds: &[],
+                };
+                let result = session.finalize_indexed_scheme(input).unwrap();
+                assert!(session.control.indexed_reserve_attempts[2] <= 16);
+                drop(result);
+                let mut bad_children = positive_children.clone();
+                bad_children[0] = IndexedPositiveNodeId(4096);
+                let bad_input = IndexedSchemeRef {
+                    positive_children: &bad_children,
+                    ..input
+                };
+                assert!(matches!(
+                    session.finalize_indexed_scheme(bad_input),
+                    Err(ClosedTypeFinalizeError::InvalidDraft)
+                ));
+                let mut negative = vec![IndexedNegativeNode::Top];
+                let mut negative_children = Vec::new();
+                for index in 0..4096u32 {
+                    let start = u32::try_from(negative_children.len()).unwrap();
+                    negative_children.push(IndexedNegativeNodeId(index));
+                    negative.push(IndexedNegativeNode::Intersection(IndexedChildSpan {
+                        start,
+                        len: 1,
+                    }));
+                }
+                let bounds = [IndexedRecursiveBound {
+                    ordinal: 0,
+                    lower: IndexedPositiveNodeId(0),
+                    upper: IndexedNegativeNodeId(4096),
+                }];
+                let negative_input = IndexedSchemeRef {
+                    quantifier_count: 0,
+                    predicate: IndexedPositiveNodeId(0),
+                    positive_nodes: &positive[..1],
+                    negative_nodes: &negative,
+                    positive_children: &[],
+                    negative_children: &negative_children,
+                    recursive_bounds: &bounds,
+                };
+                let result = session.finalize_indexed_scheme(negative_input).unwrap();
+                assert!(session.control.indexed_reserve_attempts[2] <= 16);
+                drop(result);
+                let mut bad_negative_children = negative_children.clone();
+                bad_negative_children[0] = IndexedNegativeNodeId(4096);
+                let bad_negative = IndexedSchemeRef {
+                    negative_children: &bad_negative_children,
+                    ..negative_input
+                };
+                assert!(matches!(
+                    session.finalize_indexed_scheme(bad_negative),
+                    Err(ClosedTypeFinalizeError::InvalidDraft)
+                ));
+                drop(session);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn indexed_function_chains_and_cross_polarity_cycle_on_small_stack() {
+        std::thread::Builder::new()
+            .stack_size(64 * 1024)
+            .spawn(|| {
+                let mut positive = vec![IndexedPositiveNode::Int];
+                let mut negative = vec![IndexedNegativeNode::Top];
+                for index in 0..2048u32 {
+                    positive.push(IndexedPositiveNode::Function {
+                        argument: IndexedNegativeNodeId(index),
+                        result: IndexedPositiveNodeId(index),
+                    });
+                    negative.push(IndexedNegativeNode::Function {
+                        argument: IndexedPositiveNodeId(index),
+                        result: IndexedNegativeNodeId(index),
+                    });
+                }
+                let bounds = [IndexedRecursiveBound {
+                    ordinal: 0,
+                    lower: IndexedPositiveNodeId(2048),
+                    upper: IndexedNegativeNodeId(2048),
+                }];
+                let input = IndexedSchemeRef {
+                    quantifier_count: 0,
+                    predicate: IndexedPositiveNodeId(2048),
+                    positive_nodes: &positive,
+                    negative_nodes: &negative,
+                    positive_children: &[],
+                    negative_children: &[],
+                    recursive_bounds: &bounds,
+                };
+                let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+                drop(session.finalize_indexed_scheme(input).unwrap());
+                let before = session.test_lengths();
+                let mut cyclic_positive = positive.clone();
+                let mut cyclic_negative = negative.clone();
+                cyclic_positive[0] = IndexedPositiveNode::Function {
+                    argument: IndexedNegativeNodeId(0),
+                    result: IndexedPositiveNodeId(1),
+                };
+                cyclic_negative[0] = IndexedNegativeNode::Function {
+                    argument: IndexedPositiveNodeId(0),
+                    result: IndexedNegativeNodeId(1),
+                };
+                let bad = IndexedSchemeRef {
+                    positive_nodes: &cyclic_positive,
+                    negative_nodes: &cyclic_negative,
+                    ..input
+                };
+                assert!(matches!(
+                    session.finalize_indexed_scheme(bad),
+                    Err(ClosedTypeFinalizeError::InvalidDraft)
+                ));
+                assert_eq!(session.test_lengths(), before);
+                drop(session);
+                drop(positive);
+                drop(negative);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn indexed_reservation_commit_and_terminal_retry() {
+        let nodes = [IndexedPositiveNode::Bottom];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &nodes,
+            negative_nodes: &[],
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        for event in [
+            FinalizationFailureEvent::ArenaReserve {
+                lane: FinalizationLane::PositiveValue,
+                ordinal: 0,
+            },
+            FinalizationFailureEvent::CommitWrite {
+                lane: FinalizationLane::PositiveValue,
+                ordinal: 0,
+            },
+        ] {
+            let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+            let before = session.test_lengths();
+            session.inject_failure(event);
+            assert!(session.finalize_indexed_scheme(input).is_err());
+            assert_eq!(session.test_lengths(), before);
+            assert_eq!(session.test_failure_epoch(), 1);
+            let retained = session.test_retained_bytes();
+            session.clear_injection();
+            let retry = session.finalize_indexed_scheme(input).unwrap();
+            assert_eq!(retry.checkpoint.retained_bytes_before(), retained);
+            assert_eq!(session.test_failure_epoch(), 1);
+        }
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        session.inject_terminal_scratch_capacity_excess_after_reserve();
+        assert!(matches!(
+            session.finalize_indexed_scheme(input),
+            Err(ClosedTypeFinalizeError::IdentityExhausted)
+        ));
+        assert_eq!(session.test_failure_epoch(), 1);
+        assert!(matches!(
+            session.finalize_indexed_scheme(input),
+            Err(ClosedTypeFinalizeError::IdentityExhausted)
+        ));
+        assert_eq!(session.test_failure_epoch(), 1);
+    }
+
+    #[test]
+    fn indexed_failed_reserve_after_growth_is_retained_for_retry() {
+        let nodes = [IndexedPositiveNode::Bottom];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &nodes,
+            negative_nodes: &[],
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let before = session.test_retained_bytes();
+        let lengths = session.test_lengths();
+        session.control.fail_after_indexed_overlay_growth = true;
+        assert!(matches!(
+            session.finalize_indexed_scheme(input),
+            Err(ClosedTypeFinalizeError::IdentityExhausted)
+        ));
+        assert_eq!(session.test_failure_epoch(), 1);
+        assert_eq!(session.test_lengths(), lengths);
+        let retained = session.test_retained_bytes();
+        assert!(retained > before);
+        let retry = session.finalize_indexed_scheme(input).unwrap();
+        assert_eq!(retry.checkpoint.retained_bytes_before(), retained);
+    }
+
+    #[test]
+    fn indexed_unwind_preserves_payload_when_accounting_becomes_terminal() {
+        let nodes = [IndexedPositiveNode::Bottom];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &nodes,
+            negative_nodes: &[],
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        session.inject_panic(FinalizationFailureEvent::OverlayWrite {
+            lane: FinalizationLane::PositiveValue,
+            ordinal: 0,
+        });
+        session.inject_terminal_capacity_excess_during_unwind();
+        let payload =
+            catch_unwind(AssertUnwindSafe(|| session.finalize_indexed_scheme(input))).unwrap_err();
+        assert_eq!(
+            payload.downcast_ref::<&str>(),
+            Some(&"injected finalization commit unwind")
+        );
+        assert_eq!(session.test_failure_epoch(), 1);
+        assert!(matches!(
+            session.finalize_indexed_scheme(input),
+            Err(ClosedTypeFinalizeError::IdentityExhausted)
+        ));
+        assert_eq!(session.test_failure_epoch(), 1);
+    }
+
+    #[test]
+    fn indexed_each_temporary_lane_failure_rolls_back_and_retries() {
+        let positive = [
+            IndexedPositiveNode::Quantified(0),
+            IndexedPositiveNode::Int,
+            IndexedPositiveNode::Union(IndexedChildSpan { start: 0, len: 2 }),
+            IndexedPositiveNode::Function {
+                argument: IndexedNegativeNodeId(2),
+                result: IndexedPositiveNodeId(2),
+            },
+        ];
+        let negative = [
+            IndexedNegativeNode::Quantified(0),
+            IndexedNegativeNode::Int,
+            IndexedNegativeNode::Intersection(IndexedChildSpan { start: 0, len: 2 }),
+            IndexedNegativeNode::Function {
+                argument: IndexedPositiveNodeId(2),
+                result: IndexedNegativeNodeId(2),
+            },
+        ];
+        let p_children = [IndexedPositiveNodeId(0), IndexedPositiveNodeId(1)];
+        let n_children = [IndexedNegativeNodeId(0), IndexedNegativeNodeId(1)];
+        let bounds = [IndexedRecursiveBound {
+            ordinal: 1,
+            lower: IndexedPositiveNodeId(3),
+            upper: IndexedNegativeNodeId(3),
+        }];
+        let input = IndexedSchemeRef {
+            quantifier_count: 1,
+            predicate: IndexedPositiveNodeId(3),
+            positive_nodes: &positive,
+            negative_nodes: &negative,
+            positive_children: &p_children,
+            negative_children: &n_children,
+            recursive_bounds: &bounds,
+        };
+        for lane in 0..11 {
+            let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+            let before = session.test_lengths();
+            session.control.indexed_failure_lane = Some(lane);
+            assert!(
+                matches!(
+                    session.finalize_indexed_scheme(input),
+                    Err(ClosedTypeFinalizeError::IdentityExhausted)
+                ),
+                "lane {lane}"
+            );
+            assert!(session.control.indexed_lane_seen[lane], "lane {lane}");
+            assert_eq!(session.test_lengths(), before, "lane {lane}");
+            assert_eq!(session.test_failure_epoch(), 1, "lane {lane}");
+            let retained = session.test_retained_bytes();
+            let retry = session.finalize_indexed_scheme(input).unwrap();
+            assert_eq!(
+                retry.checkpoint.retained_bytes_before(),
+                retained,
+                "lane {lane}"
+            );
+        }
+    }
+
+    #[test]
+    fn indexed_validation_before_handles_and_planning_failures_retry() {
+        let nodes = [IndexedPositiveNode::Bottom];
+        let input = IndexedSchemeRef {
+            quantifier_count: 0,
+            predicate: IndexedPositiveNodeId(0),
+            positive_nodes: &nodes,
+            negative_nodes: &[],
+            positive_children: &[],
+            negative_children: &[],
+            recursive_bounds: &[],
+        };
+        for stage in [1, 0, 2] {
+            let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+            let before = session.test_lengths();
+            session.control.indexed_failure_stage = Some(stage);
+            assert!(
+                matches!(
+                    session.finalize_indexed_scheme(input),
+                    Err(ClosedTypeFinalizeError::InvalidDraft)
+                ),
+                "stage {stage}"
+            );
+            assert_eq!(session.control.indexed_failure_stage, None);
+            assert_eq!(session.test_lengths(), before, "stage {stage}");
+            assert_eq!(session.test_failure_epoch(), 1, "stage {stage}");
+            let retained = session.test_retained_bytes();
+            let retry = session.finalize_indexed_scheme(input).unwrap();
+            assert_eq!(
+                retry.checkpoint.retained_bytes_before(),
+                retained,
+                "stage {stage}"
+            );
+        }
+    }
 
     fn bottom<'tx>(
         finalizer: &mut ClosedTypeFinalizer<'tx>,
