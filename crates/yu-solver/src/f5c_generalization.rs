@@ -2327,18 +2327,31 @@ trait F5cWalkSink {
     type Value;
     fn variable(
         &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
         polarity: Polarity,
         row: u32,
         cacheable: bool,
     ) -> Result<Self::Value, SolveAvailabilityError>;
     fn shared(
         &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
         polarity: Polarity,
         id: F5cSummaryNodeId,
     ) -> Result<Self::Value, SolveAvailabilityError>;
-    fn int(&mut self, polarity: Polarity) -> Result<Self::Value, SolveAvailabilityError>;
-    fn bottom(&mut self, polarity: Polarity) -> Result<Self::Value, SolveAvailabilityError>;
-    fn top(&mut self) -> Result<Self::Value, SolveAvailabilityError>;
+    fn int(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
+        polarity: Polarity,
+    ) -> Result<Self::Value, SolveAvailabilityError>;
+    fn bottom(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
+        polarity: Polarity,
+    ) -> Result<Self::Value, SolveAvailabilityError>;
+    fn top(
+        &mut self,
+        generalizer: &mut F5cGeneralizer<'_>,
+    ) -> Result<Self::Value, SolveAvailabilityError>;
     fn cacheable(&self, value: &Self::Value) -> bool;
     fn finish_row(
         &mut self,
@@ -2371,6 +2384,7 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     type Value = F5cWalkValue;
     fn variable(
         &mut self,
+        _generalizer: &mut F5cGeneralizer<'_>,
         polarity: Polarity,
         row: u32,
         cacheable: bool,
@@ -2382,6 +2396,7 @@ impl F5cWalkSink for F5cBoxedWalkSink {
     }
     fn shared(
         &mut self,
+        _generalizer: &mut F5cGeneralizer<'_>,
         polarity: Polarity,
         id: F5cSummaryNodeId,
     ) -> Result<Self::Value, SolveAvailabilityError> {
@@ -2390,19 +2405,30 @@ impl F5cWalkSink for F5cBoxedWalkSink {
             Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Shared(id), true),
         })
     }
-    fn int(&mut self, polarity: Polarity) -> Result<Self::Value, SolveAvailabilityError> {
+    fn int(
+        &mut self,
+        _generalizer: &mut F5cGeneralizer<'_>,
+        polarity: Polarity,
+    ) -> Result<Self::Value, SolveAvailabilityError> {
         Ok(match polarity {
             Polarity::Positive => F5cWalkValue::Positive(F5cPositive::Int, true),
             Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Int, true),
         })
     }
-    fn bottom(&mut self, polarity: Polarity) -> Result<Self::Value, SolveAvailabilityError> {
+    fn bottom(
+        &mut self,
+        _generalizer: &mut F5cGeneralizer<'_>,
+        polarity: Polarity,
+    ) -> Result<Self::Value, SolveAvailabilityError> {
         Ok(match polarity {
             Polarity::Positive => F5cWalkValue::Positive(F5cPositive::Bottom, true),
             Polarity::Negative => F5cWalkValue::Negative(F5cNegative::Bottom, true),
         })
     }
-    fn top(&mut self) -> Result<Self::Value, SolveAvailabilityError> {
+    fn top(
+        &mut self,
+        _generalizer: &mut F5cGeneralizer<'_>,
+    ) -> Result<Self::Value, SolveAvailabilityError> {
         Ok(F5cWalkValue::Negative(F5cNegative::Top, true))
     }
     fn cacheable(&self, value: &Self::Value) -> bool {
@@ -3014,9 +3040,9 @@ impl<'a> F5cGeneralizer<'a> {
                             self.mark(row, polarity)?;
                             push_value!(match polarity {
                                 Polarity::Positive =>
-                                    sink.variable(Polarity::Positive, row, false)?,
+                                    sink.variable(self, Polarity::Positive, row, false)?,
                                 Polarity::Negative =>
-                                    sink.variable(Polarity::Negative, row, false)?,
+                                    sink.variable(self, Polarity::Negative, row, false)?,
                             });
                             continue;
                         }
@@ -3043,9 +3069,9 @@ impl<'a> F5cGeneralizer<'a> {
                                         .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                                     push_value!(match polarity {
                                         Polarity::Positive =>
-                                            sink.shared(Polarity::Positive, id)?,
+                                            sink.shared(self, Polarity::Positive, id)?,
                                         Polarity::Negative =>
-                                            sink.shared(Polarity::Negative, id)?,
+                                            sink.shared(self, Polarity::Negative, id)?,
                                     });
                                     continue;
                                 }
@@ -3187,18 +3213,18 @@ impl<'a> F5cGeneralizer<'a> {
                                 self.assert_admitted_summary_has_no_active_incidence(id);
                             }
                             push_value!(match polarity {
-                                Polarity::Positive => sink.shared(Polarity::Positive, id)?,
-                                Polarity::Negative => sink.shared(Polarity::Negative, id)?,
+                                Polarity::Positive => sink.shared(self, Polarity::Positive, id)?,
+                                Polarity::Negative => sink.shared(self, Polarity::Negative, id)?,
                             });
                         }
                     }
                     F5cWalkTask::PositiveEndpoint(endpoint) => push_task!(match endpoint {
                         ValueEndpointKey::IntPositive => {
-                            push_value!(sink.int(Polarity::Positive)?);
+                            push_value!(sink.int(self, Polarity::Positive)?);
                             continue;
                         }
                         ValueEndpointKey::BottomPositive => {
-                            push_value!(sink.bottom(Polarity::Positive)?);
+                            push_value!(sink.bottom(self, Polarity::Positive)?);
                             continue;
                         }
                         ValueEndpointKey::ValueRow(row) => F5cWalkTask::EnterRow {
@@ -3214,15 +3240,15 @@ impl<'a> F5cGeneralizer<'a> {
                     }),
                     F5cWalkTask::NegativeEndpoint(endpoint) => push_task!(match endpoint {
                         ValueEndpointKey::IntNegative => {
-                            push_value!(sink.int(Polarity::Negative)?);
+                            push_value!(sink.int(self, Polarity::Negative)?);
                             continue;
                         }
                         ValueEndpointKey::TopNegative => {
-                            push_value!(sink.top()?);
+                            push_value!(sink.top(self)?);
                             continue;
                         }
                         ValueEndpointKey::BottomNegative => {
-                            push_value!(sink.bottom(Polarity::Negative)?);
+                            push_value!(sink.bottom(self, Polarity::Negative)?);
                             continue;
                         }
                         ValueEndpointKey::ValueRow(row) => F5cWalkTask::EnterRow {
@@ -3245,19 +3271,19 @@ impl<'a> F5cGeneralizer<'a> {
                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                         ) {
                             (Polarity::Positive, TermView::Leaf(Leaf::IntPositive)) => {
-                                push_value!(sink.int(Polarity::Positive)?)
+                                push_value!(sink.int(self, Polarity::Positive)?)
                             }
                             (Polarity::Negative, TermView::Leaf(Leaf::IntNegative)) => {
-                                push_value!(sink.int(Polarity::Negative)?)
+                                push_value!(sink.int(self, Polarity::Negative)?)
                             }
                             (Polarity::Positive, TermView::PositiveBottom) => {
-                                push_value!(sink.bottom(Polarity::Positive)?)
+                                push_value!(sink.bottom(self, Polarity::Positive)?)
                             }
                             (Polarity::Negative, TermView::NegativeTop) => {
-                                push_value!(sink.top()?)
+                                push_value!(sink.top(self)?)
                             }
                             (Polarity::Negative, TermView::NegativeBottom) => {
-                                push_value!(sink.bottom(Polarity::Negative)?)
+                                push_value!(sink.bottom(self, Polarity::Negative)?)
                             }
                             (polarity, TermView::LiveVariable(view))
                                 if view.polarity() == polarity =>

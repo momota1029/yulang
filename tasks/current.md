@@ -43,6 +43,19 @@ Next: build the checked Local/Shared source arena and its promotion/materialize
 bridge, then connect it through `walk_with` and the ordered forest. This
 interface preparation does not close the flat-sink gate.
 
+### Latest continuation (2026-09-26): sink construction context
+
+The five `F5cWalkSink` value constructors now receive mutable generalizer
+context so a future flat sink can charge source creation and reserve/account
+its own lanes at construction. `cacheable` remains value-only. The boxed sink
+ignores the context and creates the same values; the M1 `spec_auditor` delta
+review found no issue. `cargo check -q -p yu-solver` and `git diff --check`
+passed. The candidate sink must still respect the design's sink ownership and
+component rollback boundaries; no flat arena or runtime behavior was added.
+
+Next: add the checked tagged source arena with explicit node/edge lanes and
+independent accounting, then connect those operations to the sink.
+
 ### Latest continuation (2026-09-26): boxed sink on shared interpreter
 
 The existing producer task machine now runs through one generic

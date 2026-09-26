@@ -2878,3 +2878,14 @@ rollback witnesses remain required.
 Next: build the checked Local/Shared source arena and promotion/materialization
 bridge, then wire it through the shared walker and the ordered raw-root forest.
 This interface preparation does not close the flat-sink gate.
+
+## Latest continuation (2026-09-26): sink construction context
+
+The five `F5cWalkSink` value constructors now receive mutable generalizer
+context so a future flat sink can charge source creation and reserve/account
+its lanes at construction. `cacheable` remains value-only. The boxed sink
+ignores the context and returns the same values. M1 spec-auditor delta review
+found no issue; solver library check and diff check passed. No flat arena was
+added. Candidate implementation must keep mutations within the sink-owned
+representation and component rollback boundaries. Next: add the checked
+tagged source arena and explicit node/edge accounting lanes.
