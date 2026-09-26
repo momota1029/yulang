@@ -1,6 +1,70 @@
 use super::*;
 
 #[cfg(test)]
+pub(super) struct PhysicalJoint {
+    pub(super) source_capacities: [u128; 4],
+    walker_capacities: [u128; 98],
+    pub(super) memo_current: u128,
+    pub(super) walker_current: u128,
+    pub(super) source_current: u128,
+    pub(super) peak: u128,
+    pub(super) aggregate_overflow: bool,
+}
+
+#[cfg(test)]
+impl Default for PhysicalJoint {
+    fn default() -> Self {
+        Self {
+            source_capacities: [0; 4],
+            walker_capacities: [0; 98],
+            memo_current: 0,
+            walker_current: 0,
+            source_current: 0,
+            peak: 0,
+            aggregate_overflow: false,
+        }
+    }
+}
+
+#[cfg(test)]
+impl PhysicalJoint {
+    fn sum_products(values: impl IntoIterator<Item = (u128, usize)>) -> Option<u128> {
+        values.into_iter().try_fold(0u128, |sum, (capacity, size)| {
+            sum.checked_add(capacity.checked_mul(size as u128)?)
+        })
+    }
+
+    pub(super) fn source_event(&mut self) {
+        let sizes = [
+            std::mem::size_of::<GeneralizationDraft>(),
+            std::mem::size_of::<TrackedAllocation<'static>>(),
+            std::mem::size_of::<F5cRecursiveBound>(),
+            std::mem::size_of::<F5cRecursiveBound>(),
+        ];
+        self.source_current = Self::sum_products(self.source_capacities.iter().copied().zip(sizes))
+            .unwrap_or_else(|| {
+                self.aggregate_overflow = true;
+                u128::MAX
+            });
+        self.pair();
+    }
+
+    fn pair(&mut self) {
+        let Some(total) = self
+            .source_current
+            .checked_add(self.memo_current)
+            .and_then(|sum| sum.checked_add(self.walker_current))
+        else {
+            self.aggregate_overflow = true;
+            self.peak = u128::MAX;
+            return;
+        };
+        self.peak = self.peak.max(total);
+        self.aggregate_overflow |= total > usize::MAX as u128;
+    }
+}
+
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum F5cBulkDrainSite {
     SummaryPositive,
@@ -277,6 +341,7 @@ pub(super) enum F5cTestReserveFailure {
     BoxedReentryIndices,
     ChildrenAfterReserve,
     RootUndo,
+    RecursiveBoundAfterReserve,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -630,7 +695,11 @@ pub(super) struct F5cWalkerResources {
     pub(super) peak_bytes: usize,
     pub(super) simultaneous_memo_peak_bytes: usize,
     pub(super) observed_memo_bytes: usize,
+    pub(super) observed_source_bytes: Option<usize>,
+    pub(super) simultaneous_source_memo_peak_bytes: usize,
     value_slot_size: usize,
+    #[cfg(test)]
+    pub(super) physical_joint: PhysicalJoint,
     #[cfg(test)]
     pub(super) independent_lanes: [F5cWalkerLane; 98],
     #[cfg(test)]
@@ -649,7 +718,11 @@ impl Default for F5cWalkerResources {
             peak_bytes: 0,
             simultaneous_memo_peak_bytes: 0,
             observed_memo_bytes: 0,
+            observed_source_bytes: Some(0),
+            simultaneous_source_memo_peak_bytes: 0,
             value_slot_size: 0,
+            #[cfg(test)]
+            physical_joint: PhysicalJoint::default(),
             #[cfg(test)]
             independent_lanes: [F5cWalkerLane::default(); 98],
             #[cfg(test)]
@@ -664,6 +737,58 @@ impl Default for F5cWalkerResources {
 }
 
 impl F5cWalkerResources {
+    #[cfg(test)]
+    fn observe_physical_walker(&mut self) {
+        let sizes = F5cWalkerLaneKind::ALL.map(|kind| {
+            if matches!(kind, F5cWalkerLaneKind::Values) && self.value_slot_size != 0 {
+                self.value_slot_size
+            } else {
+                kind.slot_size()
+            }
+        });
+        self.physical_joint.walker_capacities = self
+            .independent_lanes
+            .map(|lane| lane.actual_capacity as u128);
+        self.physical_joint.walker_current = PhysicalJoint::sum_products(
+            self.physical_joint
+                .walker_capacities
+                .iter()
+                .copied()
+                .zip(sizes),
+        )
+        .unwrap_or_else(|| {
+            self.physical_joint.aggregate_overflow = true;
+            u128::MAX
+        });
+        self.physical_joint.pair();
+    }
+
+    #[cfg(test)]
+    fn observe_physical_walker_target(&mut self, kind: F5cWalkerLaneKind, capacity: u128) {
+        let index = kind as usize;
+        self.physical_joint.walker_capacities[index] = capacity;
+        self.physical_joint.walker_current = PhysicalJoint::sum_products(
+            self.physical_joint
+                .walker_capacities
+                .iter()
+                .copied()
+                .zip(F5cWalkerLaneKind::ALL)
+                .map(|(capacity, kind)| {
+                    let size =
+                        if matches!(kind, F5cWalkerLaneKind::Values) && self.value_slot_size != 0 {
+                            self.value_slot_size
+                        } else {
+                            kind.slot_size()
+                        };
+                    (capacity, size)
+                }),
+        )
+        .unwrap_or_else(|| {
+            self.physical_joint.aggregate_overflow = true;
+            u128::MAX
+        });
+        self.physical_joint.pair();
+    }
     fn reserve_boxed_map<K: Eq + std::hash::Hash, V>(
         &mut self,
         map: &mut HashMap<K, V>,
@@ -711,6 +836,7 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = capacity;
+            self.observe_physical_walker();
         }
         if capacity != old {
             self.lanes[index].capacity_growths = growth;
@@ -757,6 +883,12 @@ impl F5cWalkerResources {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let old = indices.capacity();
         let reservation = indices.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_walker_target(
+            kind,
+            self.independent_lanes[index].actual_capacity as u128
+                + (indices.capacity() - old) as u128,
+        );
         let delta = indices
             .capacity()
             .checked_sub(old)
@@ -771,6 +903,7 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = capacity;
+            self.observe_physical_walker();
         }
         if delta != 0 {
             self.lanes[index].capacity_growths = growth;
@@ -836,6 +969,7 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = capacity;
+            self.observe_physical_walker();
         }
         if capacity != old {
             self.lanes[index].capacity_growths = growth;
@@ -883,6 +1017,11 @@ impl F5cWalkerResources {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let old = path.capacity();
         let result = path.try_reserve(additional);
+        #[cfg(test)]
+        self.observe_physical_walker_target(
+            kind,
+            self.independent_lanes[index].actual_capacity as u128 + (path.capacity() - old) as u128,
+        );
         let delta = path
             .capacity()
             .checked_sub(old)
@@ -897,6 +1036,7 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = capacity;
+            self.observe_physical_walker();
         }
         if delta != 0 {
             self.lanes[index].capacity_growths = growth;
@@ -923,6 +1063,7 @@ impl F5cWalkerResources {
         #[cfg(test)]
         {
             self.independent_lanes[index].actual_capacity -= capacity;
+            self.observe_physical_walker();
         }
     }
     #[cfg(test)]
@@ -933,6 +1074,7 @@ impl F5cWalkerResources {
         requested_slots: usize,
         memo_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
+        self.observe_physical_walker_target(kind, capacity as u128);
         let lane = &self.lanes[kind as usize];
         let independent = &self.independent_lanes[kind as usize];
         let counters = (
@@ -1005,11 +1147,12 @@ impl F5cWalkerResources {
         memo_bytes: usize,
         counters: (usize, usize, usize, usize),
     ) -> Result<(), SolveAvailabilityError> {
-        let lane = &mut self.lanes[kind as usize];
-        lane.requested_slots = counters.0;
-        lane.actual_capacity = capacity;
+        self.lanes[kind as usize].requested_slots = counters.0;
+        self.lanes[kind as usize].actual_capacity = capacity;
         self.independent_lanes[kind as usize].requested_slots = counters.2;
         self.independent_lanes[kind as usize].actual_capacity = capacity;
+        self.observe_physical_walker();
+        let lane = &mut self.lanes[kind as usize];
         if old != capacity {
             lane.capacity_growths = counters.1;
             lane.peak_bytes = lane.peak_bytes.max(
@@ -1127,6 +1270,7 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = new_capacity;
+            self.observe_physical_walker();
         }
         if new_capacity != old_capacity {
             self.lanes[index].capacity_growths = growth;
@@ -1176,6 +1320,15 @@ impl F5cWalkerResources {
         let reservation = buffer.try_reserve(1);
         let capacity = buffer.capacity();
         let aggregate = matches!(kind, F5cWalkerLaneKind::ClosureNeighbors);
+        #[cfg(test)]
+        self.observe_physical_walker_target(
+            kind,
+            if aggregate {
+                self.independent_lanes[index].actual_capacity as u128 + (capacity - old) as u128
+            } else {
+                capacity as u128
+            },
+        );
         let current = self.lanes[index].actual_capacity;
         let new_capacity = if aggregate {
             current
@@ -1188,6 +1341,7 @@ impl F5cWalkerResources {
         #[cfg(test)]
         {
             self.independent_lanes[index].actual_capacity = new_capacity;
+            self.observe_physical_walker();
         }
         if capacity != old {
             self.lanes[index].capacity_growths = growth;
@@ -1273,6 +1427,7 @@ impl F5cWalkerResources {
         {
             self.independent_lanes[index].requested_slots = independent_requested;
             self.independent_lanes[index].actual_capacity = new_capacity;
+            self.observe_physical_walker();
         }
         if new_capacity != old_capacity {
             self.lanes[index].capacity_growths = growth;
@@ -1304,6 +1459,7 @@ impl F5cWalkerResources {
         #[cfg(test)]
         {
             self.independent_lanes[kind as usize].actual_capacity = 0;
+            self.observe_physical_walker();
         }
     }
 
@@ -1362,6 +1518,8 @@ impl F5cWalkerResources {
     }
 
     pub(super) fn observe_memo(&mut self, memo_bytes: usize) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        self.observe_physical_walker();
         let scratch_bytes = self.retained_bytes()?;
         self.peak_bytes = self.peak_bytes.max(scratch_bytes);
         self.simultaneous_memo_peak_bytes = self.simultaneous_memo_peak_bytes.max(
@@ -1369,6 +1527,14 @@ impl F5cWalkerResources {
                 .checked_add(scratch_bytes)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
+        let joint = self
+            .observed_source_bytes
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?
+            .checked_add(memo_bytes)
+            .and_then(|bytes| bytes.checked_add(scratch_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.simultaneous_source_memo_peak_bytes =
+            self.simultaneous_source_memo_peak_bytes.max(joint);
         #[cfg(test)]
         {
             let sizes = F5cWalkerLaneKind::ALL.map(|kind| {
@@ -1430,6 +1596,9 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) walker_resources: F5cWalkerResources,
     pub(super) generalizer_scratch_capacities: [usize; 4],
     pub(super) simultaneous_peak_bytes: usize,
+    pub(super) observed_source_bytes: Option<usize>,
+    pub(super) simultaneous_source_memo_peak_bytes: usize,
+    source_meter_overflow: bool,
     #[cfg(test)]
     pub(super) capacity_samples: Vec<[usize; 20]>,
     #[cfg(test)]
@@ -1438,6 +1607,10 @@ pub(super) struct F5cComponentExpansionMemo {
     pub(super) boxed_materialization_callback_trace: Vec<(u32, Polarity)>,
     #[cfg(test)]
     pub(super) boxed_raw_lanes_live_sample: Option<([usize; 6], [usize; 6])>,
+    #[cfg(test)]
+    pub(super) recursive_bound_physical_samples: Vec<([u128; 4], u128, u128, u128)>,
+    #[cfg(test)]
+    pub(super) recursive_bound_reserves: Vec<(usize, usize, usize)>,
     #[cfg(test)]
     pub(super) post_r_temporary_live_samples: Vec<(F5cWalkerLaneKind, usize, usize)>,
     #[cfg(test)]
@@ -1467,6 +1640,132 @@ pub(super) struct F5cComponentExpansionMemo {
 }
 
 impl F5cComponentExpansionMemo {
+    #[cfg(test)]
+    fn observe_physical_memo(&mut self) {
+        let capacities = [
+            self.roots.capacity(),
+            self.nodes.capacity(),
+            self.children.capacity(),
+            self.parent_heads.capacity(),
+            self.reverse_parents.capacity(),
+            self.incidence_heads.capacity(),
+            self.incidences.capacity(),
+            self.root_heads.capacity(),
+            self.root_edges.capacity(),
+            self.root_edge_marks.capacity(),
+            self.root_undo.capacity(),
+            self.active_rows.capacity(),
+            self.active_conflicts.capacity(),
+            self.work.capacity(),
+            self.conflict_journal.capacity(),
+            self.visit_epochs.capacity(),
+            self.generalizer_scratch_capacities[0],
+            self.generalizer_scratch_capacities[1],
+            self.generalizer_scratch_capacities[2],
+            self.generalizer_scratch_capacities[3],
+        ];
+        let sizes = [
+            std::mem::size_of::<(F5cExpansionKey, F5cSummaryNodeId)>(),
+            std::mem::size_of::<F5cSummaryNode>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cReverseParentEdge>(),
+            std::mem::size_of::<(u32, Option<usize>)>(),
+            std::mem::size_of::<F5cIncidenceEdge>(),
+            std::mem::size_of::<Option<usize>>(),
+            std::mem::size_of::<F5cRootEdge>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cRootUndo>(),
+            std::mem::size_of::<(u32, usize)>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<F5cSummaryNodeId>(),
+            std::mem::size_of::<(F5cExpansionKey, usize)>(),
+            std::mem::size_of::<u32>(),
+            std::mem::size_of::<F5cExpansionFrame>(),
+            std::mem::size_of::<(u32, Polarity, usize)>(),
+            std::mem::size_of::<(u32, Polarity)>(),
+            std::mem::size_of::<u32>(),
+        ];
+        self.walker_resources.physical_joint.memo_current = PhysicalJoint::sum_products(
+            capacities
+                .into_iter()
+                .zip(sizes)
+                .map(|(capacity, size)| (capacity as u128, size)),
+        )
+        .unwrap_or_else(|| {
+            self.walker_resources.physical_joint.aggregate_overflow = true;
+            u128::MAX
+        });
+        self.walker_resources.physical_joint.pair();
+    }
+    #[cfg(test)]
+    pub(super) fn observe_physical_source(
+        &mut self,
+        outer_capacity: usize,
+        sidecar_capacity: usize,
+        active_bound_capacity: usize,
+    ) {
+        let joint = &mut self.walker_resources.physical_joint;
+        joint.source_capacities[0] = outer_capacity as u128;
+        joint.source_capacities[1] = sidecar_capacity as u128;
+        joint.source_capacities[3] = active_bound_capacity as u128;
+        joint.source_event();
+    }
+
+    #[cfg(test)]
+    pub(super) fn release_physical_source(&mut self) {
+        let joint = &mut self.walker_resources.physical_joint;
+        joint.source_capacities = [0; 4];
+        joint.source_event();
+    }
+
+    #[cfg(test)]
+    fn observe_physical_active_bound(&mut self, capacity: usize) {
+        let joint = &mut self.walker_resources.physical_joint;
+        joint.source_capacities[3] = capacity as u128;
+        joint.source_event();
+        self.capture_recursive_bound_physical_sample();
+    }
+
+    #[cfg(test)]
+    fn transfer_physical_bound(&mut self, capacity: usize) {
+        let joint = &mut self.walker_resources.physical_joint;
+        joint.source_capacities[2] = joint.source_capacities[2]
+            .checked_add(capacity as u128)
+            .unwrap_or_else(|| {
+                joint.aggregate_overflow = true;
+                u128::MAX
+            });
+        joint.source_capacities[3] = 0;
+        joint.source_event();
+        self.capture_recursive_bound_physical_sample();
+    }
+
+    #[cfg(test)]
+    fn capture_recursive_bound_physical_sample(&mut self) {
+        let joint = &self.walker_resources.physical_joint;
+        self.recursive_bound_physical_samples.push((
+            joint.source_capacities,
+            joint.memo_current,
+            joint.walker_current,
+            joint.source_current,
+        ));
+    }
+
+    pub(super) fn observe_source_bytes(
+        &mut self,
+        source: Option<usize>,
+    ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        self.observe_physical_memo();
+        self.observed_source_bytes = source;
+        self.walker_resources.observed_source_bytes = source;
+        self.source_meter_overflow = source.is_none();
+        source.ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let memo_bytes = self.retained_bytes()?;
+        self.observe_simultaneous_peak()?;
+        self.walker_resources.observe_memo(memo_bytes)
+    }
     pub(super) fn reserve_walker<T>(
         &mut self,
         buffer: &mut Vec<T>,
@@ -1556,6 +1855,8 @@ impl F5cComponentExpansionMemo {
         let (requested, growth) = self.prepare_index_reserve(1)?;
         let old = self.root_undo.capacity();
         let reservation = self.root_undo.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         let actual = self.root_undo.capacity();
         self.commit_index_reserve(requested, growth, old, actual)?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)
@@ -1658,7 +1959,21 @@ impl F5cComponentExpansionMemo {
     }
 
     fn observe_simultaneous_peak(&mut self) -> Result<(), SolveAvailabilityError> {
-        self.simultaneous_peak_bytes = self.simultaneous_peak_bytes.max(self.retained_bytes()?);
+        #[cfg(test)]
+        self.observe_physical_memo();
+        let retained = self.retained_bytes()?;
+        self.simultaneous_peak_bytes = self.simultaneous_peak_bytes.max(retained);
+        let source = if self.source_meter_overflow {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        } else {
+            self.observed_source_bytes.unwrap_or(0)
+        };
+        let joint = source
+            .checked_add(retained)
+            .and_then(|bytes| bytes.checked_add(self.walker_resources.retained_bytes().ok()?))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        self.simultaneous_source_memo_peak_bytes =
+            self.simultaneous_source_memo_peak_bytes.max(joint);
         #[cfg(test)]
         self.capacity_samples.push([
             self.roots.capacity(),
@@ -2209,6 +2524,8 @@ impl F5cComponentExpansionMemo {
             let (requested, growth_if_changed) = self.prepare_scratch_reserve(1)?;
             let old = self.work.capacity();
             let reservation = self.work.try_reserve(1);
+            #[cfg(test)]
+            self.observe_physical_memo();
             self.commit_scratch_reserve(requested, growth_if_changed, old, self.work.capacity())?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             self.visit_epochs[index] = self.visit_epoch;
@@ -2240,6 +2557,8 @@ impl F5cComponentExpansionMemo {
         let (journal_requested, journal_growth) = self.prepare_scratch_reserve(self.roots.len())?;
         let old_journal_capacity = self.conflict_journal.capacity();
         let reservation = self.conflict_journal.try_reserve(self.roots.len());
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_scratch_reserve(
             journal_requested,
             journal_growth,
@@ -2310,6 +2629,8 @@ impl F5cComponentExpansionMemo {
             let reservation = self
                 .active_conflicts
                 .try_reserve(self.conflict_journal.len());
+            #[cfg(test)]
+            self.observe_physical_memo();
             self.commit_scratch_reserve(requested, growth, old, self.active_conflicts.capacity())?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }
@@ -2331,6 +2652,8 @@ impl F5cComponentExpansionMemo {
         let (row_requested, row_growth) = self.prepare_scratch_reserve(1)?;
         let old_row_capacity = self.active_rows.capacity();
         let reservation = self.active_rows.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_scratch_reserve(
             row_requested,
             row_growth,
@@ -2342,6 +2665,8 @@ impl F5cComponentExpansionMemo {
             self.prepare_scratch_reserve(self.roots.len())?;
         let old_conflict_capacity = self.active_conflicts.capacity();
         let reservation = self.active_conflicts.try_reserve(self.roots.len());
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_scratch_reserve(
             conflict_requested,
             conflict_growth,
@@ -2509,6 +2834,8 @@ impl F5cComponentExpansionMemo {
             .checked_add(1)
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let reservation = self.nodes.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         let node_grew = usize::from(self.nodes.capacity() != old);
         if node_grew != 0 {
             self.node_lane.capacity_growths = node_growth;
@@ -2527,32 +2854,44 @@ impl F5cComponentExpansionMemo {
         let (next, growth) = self.prepare_index_reserve(1)?;
         let old = self.parent_heads.capacity();
         let reservation = self.parent_heads.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_index_reserve(next, growth, old, self.parent_heads.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_index_reserve(1)?;
         let old = self.root_heads.capacity();
         let reservation = self.root_heads.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_index_reserve(next, growth, old, self.root_heads.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_scratch_reserve(1)?;
         let old = self.visit_epochs.capacity();
         let reservation = self.visit_epochs.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_scratch_reserve(next, growth, old, self.visit_epochs.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_index_reserve(child_count)?;
         let old = self.reverse_parents.capacity();
         let reservation = self.reverse_parents.try_reserve(child_count);
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_index_reserve(next, growth, old, self.reverse_parents.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         if incidence.is_some() {
             let (next, growth) = self.prepare_index_reserve(1)?;
             let old = self.incidences.capacity();
             let reservation = self.incidences.try_reserve(1);
+            #[cfg(test)]
+            self.observe_physical_memo();
             self.commit_index_reserve(next, growth, old, self.incidences.capacity())?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             let (next, growth) = self.prepare_index_reserve(1)?;
             let old = self.incidence_heads.capacity();
             let reservation = self.incidence_heads.try_reserve(1);
+            #[cfg(test)]
+            self.observe_physical_memo();
             self.commit_index_reserve(next, growth, old, self.incidence_heads.capacity())?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         }
@@ -2643,6 +2982,8 @@ impl F5cComponentExpansionMemo {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let old = self.children.capacity();
         let reservation = self.children.try_reserve(ids.len());
+        #[cfg(test)]
+        self.observe_physical_memo();
         if self.children.capacity() != old {
             self.child_lane.capacity_growths = growth_if_changed;
             #[cfg(test)]
@@ -2695,6 +3036,8 @@ impl F5cComponentExpansionMemo {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let old = self.roots.capacity();
         let reservation = self.roots.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         let root_grew = usize::from(self.roots.capacity() != old);
         if root_grew != 0 {
             self.root_lane.capacity_growths = root_growth;
@@ -2713,16 +3056,22 @@ impl F5cComponentExpansionMemo {
         let (next, growth) = self.prepare_index_reserve(1)?;
         let old = self.root_edges.capacity();
         let reservation = self.root_edges.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_index_reserve(next, growth, old, self.root_edges.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_index_reserve(1)?;
         let old = self.root_edge_marks.capacity();
         let reservation = self.root_edge_marks.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_index_reserve(next, growth, old, self.root_edge_marks.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         let (next, growth) = self.prepare_scratch_reserve(1)?;
         let old = self.active_conflicts.capacity();
         let reservation = self.active_conflicts.try_reserve(1);
+        #[cfg(test)]
+        self.observe_physical_memo();
         self.commit_scratch_reserve(next, growth, old, self.active_conflicts.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         self.reserve_root_undo()?;
@@ -2920,6 +3269,8 @@ impl F5cComponentExpansionMemo {
     }
 
     pub(super) fn clear(&mut self) {
+        #[cfg(test)]
+        let prior_joint = std::mem::take(&mut self.walker_resources.physical_joint);
         self.roots = HashMap::new();
         self.nodes = Vec::new();
         self.children = Vec::new();
@@ -2938,6 +3289,14 @@ impl F5cComponentExpansionMemo {
         self.conflict_journal = Vec::new();
         self.visit_epochs = Vec::new();
         self.walker_resources = F5cWalkerResources::default();
+        #[cfg(test)]
+        {
+            let joint = &mut self.walker_resources.physical_joint;
+            joint.source_capacities = prior_joint.source_capacities;
+            joint.peak = prior_joint.peak;
+            joint.aggregate_overflow = prior_joint.aggregate_overflow;
+            joint.source_event();
+        }
         self.generalizer_scratch_capacities = [0; 4];
         self.simultaneous_peak_bytes = 0;
         #[cfg(test)]
@@ -4130,6 +4489,8 @@ impl<'a> F5cGeneralizer<'a> {
             let old = self.frames.capacity();
             let reservation = self.frames.try_reserve(1);
             self.memo.generalizer_scratch_capacities[0] = self.frames.capacity();
+            #[cfg(test)]
+            self.memo.observe_physical_memo();
             self.memo
                 .commit_scratch_reserve(requested, growth, old, self.frames.capacity())?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -4138,6 +4499,8 @@ impl<'a> F5cGeneralizer<'a> {
         let old = self.active.capacity();
         let reservation = self.active.try_reserve(1);
         self.memo.generalizer_scratch_capacities[1] = self.active.capacity();
+        #[cfg(test)]
+        self.memo.observe_physical_memo();
         self.memo
             .commit_scratch_reserve(requested, growth, old, self.active.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -4146,6 +4509,8 @@ impl<'a> F5cGeneralizer<'a> {
         let old = self.active_set.capacity();
         let reservation = self.active_set.try_reserve(1);
         self.memo.generalizer_scratch_capacities[2] = self.active_set.capacity();
+        #[cfg(test)]
+        self.memo.observe_physical_memo();
         self.memo
             .commit_scratch_reserve(requested, growth, old, self.active_set.capacity())?;
         reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -6315,8 +6680,9 @@ impl<'a> F5cGeneralizer<'a> {
         Ok(draft)
     }
 
+    #[cfg(test)]
     pub(super) fn build_component(
-        mut self,
+        self,
         root: u32,
     ) -> (
         Result<GeneralizationDraft, SolveAvailabilityError>,
@@ -6324,8 +6690,21 @@ impl<'a> F5cGeneralizer<'a> {
         usize,
         usize,
     ) {
+        self.build_component_with_bound_sidecar(root, None)
+    }
+
+    pub(super) fn build_component_with_bound_sidecar<'meter>(
+        mut self,
+        root: u32,
+        bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
+    ) -> (
+        Result<GeneralizationDraft, SolveAvailabilityError>,
+        F5cComponentExpansionMemo,
+        usize,
+        usize,
+    ) {
         self.in_component = true;
-        let mut result = self.build_inner(root);
+        let mut result = self.build_inner_with_bound_sidecar(root, bound_sidecar);
         if result.is_err() {
             let roots_restored = self
                 .memo
@@ -6797,8 +7176,25 @@ impl<'a> F5cGeneralizer<'a> {
         Ok(candidates)
     }
 
+    #[cfg(test)]
     fn build_inner(&mut self, root: u32) -> Result<GeneralizationDraft, SolveAvailabilityError> {
-        let result = self.build_inner_work(root);
+        self.build_inner_with_bound_sidecar(root, None)
+    }
+
+    fn build_inner_with_bound_sidecar<'meter>(
+        &mut self,
+        root: u32,
+        mut bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
+    ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
+        let result = self.build_inner_work(root, bound_sidecar.as_deref_mut());
+        // A failed build has already dropped its active bounds buffer. Refresh
+        // the retained source charge before walker scratch is released.
+        #[cfg(test)]
+        self.memo.observe_physical_active_bound(0);
+        let source_refresh = bound_sidecar.as_ref().map(|sidecar| {
+            self.memo
+                .observe_source_bytes(sidecar.meter().current_bytes())
+        });
         for kind in [
             F5cWalkerLaneKind::ClosureResult,
             F5cWalkerLaneKind::RawPositiveIncidences,
@@ -6819,12 +7215,16 @@ impl<'a> F5cGeneralizer<'a> {
         ] {
             self.memo.walker_resources.release(kind);
         }
+        if let Some(refresh) = source_refresh {
+            refresh?;
+        }
         result
     }
 
-    fn build_inner_work(
+    fn build_inner_work<'meter>(
         &mut self,
         root: u32,
+        bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
     ) -> Result<GeneralizationDraft, SolveAvailabilityError> {
         #[cfg(test)]
         {
@@ -6881,6 +7281,8 @@ impl<'a> F5cGeneralizer<'a> {
             let old = raw_owner_order.capacity();
             let reservation = raw_owner_order.try_reserve(1);
             self.memo.generalizer_scratch_capacities[3] = raw_owner_order.capacity();
+            #[cfg(test)]
+            self.memo.observe_physical_memo();
             self.memo
                 .commit_scratch_reserve(requested, growth, old, raw_owner_order.capacity())?;
             reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -7088,7 +7490,38 @@ impl<'a> F5cGeneralizer<'a> {
             &positive_eliminated,
             &negative_eliminated,
         )?;
-        let mut recursive_bounds = Vec::with_capacity(recursive_owners.len());
+        let mut tracked_bounds = bound_sidecar
+            .as_ref()
+            .map(|sidecar| TrackedVec::<F5cRecursiveBound>::new(sidecar.meter()));
+        if let Some(bounds) = tracked_bounds.as_mut() {
+            #[cfg(test)]
+            let old_capacity = bounds.capacity();
+            let reservation = bounds.try_reserve_exact(recursive_owners.len());
+            #[cfg(test)]
+            self.memo.recursive_bound_reserves.push((
+                recursive_owners.len(),
+                bounds.capacity(),
+                usize::from(bounds.capacity() > old_capacity),
+            ));
+            // A failed reserve can still leave a real allocation behind.
+            #[cfg(test)]
+            self.memo.observe_physical_active_bound(bounds.capacity());
+            self.memo
+                .observe_source_bytes(bounds.meter().current_bytes())?;
+            reservation.map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            #[cfg(test)]
+            if self.memo.fail_reserve_at
+                == Some((F5cTestReserveFailure::RecursiveBoundAfterReserve, 0))
+            {
+                self.memo.fail_reserve_at = None;
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
+        }
+        let mut recursive_bounds = if tracked_bounds.is_none() {
+            Vec::with_capacity(recursive_owners.len())
+        } else {
+            Vec::new()
+        };
         for ordinal in &recursive_owners {
             self.memo.work_meter.charge(1)?; // recursive bound owner
             let Some(binder) = r.get(ordinal).copied() else {
@@ -7115,11 +7548,25 @@ impl<'a> F5cGeneralizer<'a> {
                 &negative_eliminated,
             )?;
             self.memo.work_meter.charge(1)?; // result bound
-            recursive_bounds.push(F5cRecursiveBound {
+            let bound = F5cRecursiveBound {
                 ordinal: binder,
                 lower,
                 upper,
-            });
+            };
+            if let Some(bounds) = tracked_bounds.as_mut() {
+                bounds.push_reserved(bound);
+            } else {
+                recursive_bounds.push(bound);
+            }
+        }
+        if let (Some(bounds), Some(sidecar)) = (tracked_bounds, bound_sidecar) {
+            #[cfg(test)]
+            let bound_capacity = bounds.capacity();
+            let (raw, token) = bounds.into_raw_with_token();
+            sidecar.push_reserved(token);
+            #[cfg(test)]
+            self.memo.transfer_physical_bound(bound_capacity);
+            recursive_bounds = raw;
         }
         Ok(GeneralizationDraft {
             quantifier_count: q_count,

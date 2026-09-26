@@ -4,6 +4,49 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
+### Latest continuation (2026-09-27): recursive-bound source lane
+
+The candidate source owner now tracks each `GeneralizationDraft.recursive_bounds`
+capacity through a borrowed meter and a pre-reserved token sidecar. The active
+bound vector transfers its capacity token into the sidecar on success; failure
+captures actual post-reserve capacity before propagation, and source vectors
+drop before their charge owners release. A cfg(test) physical ledger samples
+actual outer, sidecar, held-bound, memo, and walker capacities at their growth,
+handoff, and release events. Its arrays are fixed-size and it performs no
+draft-sized scans. The independent test ledger reconciles reserve request,
+growth, transient peak, retained capacity, and release on both success and
+post-reserve failure.
+
+The M2 spec-auditor and performance-auditor reviews found and closed two major
+evidence gaps: production builder handoff coverage, then exact reserve request
+and failed-reserve reconciliation. The final delta has no blocking or major
+finding. The performance review's remaining caveat is that the sidecar
+reserves one token slot per SCC member even when no member has recursive
+bounds; quantify this cost on a representative SCC before any production
+cutover.
+
+Focused checks passed: `RUSTC_WRAPPER= cargo check -p yu-solver --tests
+--message-format short`, the guarded-self production R-bound witness, `cargo
+fmt --all --check`, `git diff --check`, and a warning-free
+`RUSTC_WRAPPER= cargo check -p yu-solver --lib --message-format short`. The
+`source_` filter passed 16 tests and ignored 1, with one known failing F4 sample
+count check. The exact F4 test also fails on an archive of pristine `HEAD`
+(`6021` actual versus `6017` expected), so this slice did not alter its
+expectation. No broad suite, probe, benchmark, or timing measurement ran;
+measurement budget remains zero.
+
+Three pre-existing production-only dead-code warnings in the test-only helper
+surface were addressed with local `cfg_attr` annotations; the non-test solver
+check is clean. This separate M0 cleanup was committed and pushed as
+`655e1f7c Quiet test-only F5c helper warnings`. The recursive-bound code and
+its progress records remain the active local checkpoint for the next commit.
+
+This closes only the recursive-bound source-capacity lane. Predicate Union and
+Intersection vectors, Function boxes, other nested source payloads, callback
+local vectors, complete finalizer overlap, numeric support boundary, fresh
+§15 probe-plan review, production cutover, §44 closure, F5e acceptance, and
+overall F5c acceptance remain open. Production stays boxed.
+
 ### Latest continuation (2026-09-27): outer source-draft slot ledger
 
 The per-component source-draft `Vec` now uses the private fallible tracked

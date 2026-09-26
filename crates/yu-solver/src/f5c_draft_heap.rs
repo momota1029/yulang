@@ -106,6 +106,24 @@ impl<'meter, T> TrackedVec<'meter, T> {
         self.token.bytes
     }
 
+    pub(super) fn meter(&self) -> &'meter DraftHeapMeter {
+        self.token.meter
+    }
+
+    /// Transfer the charge with an unchanged raw buffer. The returned token
+    /// must outlive the raw buffer and all of its elements.
+    pub(super) fn into_raw_with_token(mut self) -> (Vec<T>, TrackedAllocation<'meter>) {
+        let values = self.values.take().unwrap();
+        let bytes = std::mem::replace(&mut self.token.bytes, 0);
+        (
+            values,
+            TrackedAllocation(AllocationToken {
+                meter: self.token.meter,
+                bytes,
+            }),
+        )
+    }
+
     pub(super) fn as_mut_slice(&mut self) -> &mut [T] {
         self.values.as_mut().unwrap().as_mut_slice()
     }
@@ -184,6 +202,9 @@ impl<'meter, T> TrackedVec<'meter, T> {
         Ok(cloned)
     }
 }
+
+/// Capacity charge for a raw buffer whose owner controls the drop order.
+pub(super) struct TrackedAllocation<'meter>(AllocationToken<'meter>);
 
 impl<T> Deref for TrackedVec<'_, T> {
     type Target = [T];

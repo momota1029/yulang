@@ -182,7 +182,7 @@ mod f5c_binder_substitution;
 mod f5c_draft;
 #[allow(dead_code)] // The physical source-draft owners await the next migration slice.
 mod f5c_draft_heap;
-use f5c_draft_heap::{DraftHeapMeter, TrackedVec};
+use f5c_draft_heap::{DraftHeapMeter, TrackedAllocation, TrackedVec};
 mod f5c_generalization;
 #[cfg(test)]
 use f5c_generalization::{
@@ -3746,6 +3746,8 @@ struct IndependentResourceLedger {
     component_expansion_memo_peak_bytes: usize,
     component_expansion_memo_capacity_growths: usize,
     source_draft_slots: IndependentMemoLane,
+    source_bound_tokens: IndependentMemoLane,
+    source_recursive_bounds: IndependentMemoLane,
     component_expansion_memo_roots: IndependentMemoLane,
     component_expansion_memo_nodes: IndependentMemoLane,
     component_expansion_memo_children: IndependentMemoLane,
@@ -3853,11 +3855,42 @@ impl IndependentNestedCapacityLedger {
 
 #[cfg(test)]
 impl IndependentResourceLedger {
+    fn record_source_recursive_bound_reserves(
+        &mut self,
+        events: &[(usize, usize, usize)],
+        held_capacity: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        let lane = &mut self.source_recursive_bounds;
+        for &(requested, capacity, growth) in events {
+            lane.requested_slots = lane
+                .requested_slots
+                .checked_add(requested)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            lane.capacity_growths = lane
+                .capacity_growths
+                .checked_add(growth)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let simultaneous_capacity = held_capacity
+                .checked_add(capacity)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            let bytes = simultaneous_capacity
+                .checked_mul(std::mem::size_of::<F5cRecursiveBound>())
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            lane.peak_bytes = lane.peak_bytes.max(bytes);
+        }
+        Ok(())
+    }
+
     fn record_source_draft_slots(
         &mut self,
         drafts: &TrackedVec<GeneralizationDraft>,
+        sidecar: Option<&TrackedVec<TrackedAllocation<'_>>>,
+        held_bound_capacity: usize,
         requested: usize,
         growths: usize,
+        sidecar_requested: usize,
+        bound_requested: usize,
+        bound_growths: usize,
         meter: &DraftHeapMeter,
     ) -> Result<usize, SolveAvailabilityError> {
         let buffer_bytes = drafts
@@ -3865,12 +3898,43 @@ impl IndependentResourceLedger {
             .checked_mul(std::mem::size_of::<GeneralizationDraft>())
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let payload_bytes = DraftHeapMeter::fixed_payload_bytes();
-        let bytes = buffer_bytes
-            .checked_add(payload_bytes)
+        let sidecar_bytes = sidecar.map_or(0, TrackedVec::accounted_bytes);
+        let bound_bytes = held_bound_capacity
+            .checked_mul(std::mem::size_of::<F5cRecursiveBound>())
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        if meter.current_bytes() != Some(buffer_bytes) {
+        let physical_bytes = buffer_bytes
+            .checked_add(sidecar_bytes)
+            .and_then(|sum| sum.checked_add(bound_bytes))
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if meter.current_bytes() != Some(physical_bytes) {
             return Err(SolveAvailabilityError::IdentityExhausted);
         }
+        if let Some(sidecar) = sidecar {
+            let lane = &mut self.source_bound_tokens;
+            lane.requested_slots = lane
+                .requested_slots
+                .checked_add(sidecar_requested)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            lane.capacity_growths = lane
+                .capacity_growths
+                .checked_add(usize::from(sidecar_requested > 0 && sidecar.capacity() > 0))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            lane.actual_capacity = sidecar.capacity();
+            lane.retained_bytes = sidecar_bytes;
+            lane.peak_bytes = lane.peak_bytes.max(sidecar_bytes);
+        }
+        let bound_lane = &mut self.source_recursive_bounds;
+        bound_lane.requested_slots = bound_lane
+            .requested_slots
+            .checked_add(bound_requested)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        bound_lane.capacity_growths = bound_lane
+            .capacity_growths
+            .checked_add(bound_growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        bound_lane.actual_capacity = held_bound_capacity;
+        bound_lane.retained_bytes = bound_bytes;
+        bound_lane.peak_bytes = bound_lane.peak_bytes.max(bound_bytes);
         let lane = &mut self.source_draft_slots;
         lane.requested_slots = lane
             .requested_slots
@@ -3883,12 +3947,18 @@ impl IndependentResourceLedger {
         lane.actual_capacity = drafts.capacity();
         lane.retained_bytes = buffer_bytes;
         lane.peak_bytes = lane.peak_bytes.max(buffer_bytes);
-        Ok(bytes)
+        physical_bytes
+            .checked_add(payload_bytes)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)
     }
 
     fn release_source_draft_slots(&mut self) {
         self.source_draft_slots.actual_capacity = 0;
         self.source_draft_slots.retained_bytes = 0;
+        self.source_bound_tokens.actual_capacity = 0;
+        self.source_bound_tokens.retained_bytes = 0;
+        self.source_recursive_bounds.actual_capacity = 0;
+        self.source_recursive_bounds.retained_bytes = 0;
     }
 
     fn record_term_lanes(
@@ -4708,8 +4778,13 @@ fn source_draft_slot_ledger_reconciles_failed_initial_reserve_and_release() {
     let bytes = ledger
         .record_source_draft_slots(
             &drafts,
+            None,
+            0,
             usize::MAX,
             usize::from(drafts.capacity() > 0),
+            0,
+            0,
+            0,
             &meter,
         )
         .unwrap();
@@ -4722,6 +4797,103 @@ fn source_draft_slot_ledger_reconciles_failed_initial_reserve_and_release() {
     assert_eq!(ledger.source_draft_slots.actual_capacity, 0);
     assert_eq!(ledger.source_draft_slots.retained_bytes, 0);
     assert_eq!(ledger.source_draft_slots.peak_bytes, bytes);
+}
+
+#[test]
+fn source_recursive_bound_handoff_reconciles_physical_lanes_and_release() {
+    let meter = DraftHeapMeter::default();
+    let mut drafts = TrackedVec::<GeneralizationDraft>::new(&meter);
+    let mut sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&meter);
+    let mut memo = F5cComponentExpansionMemo::default();
+    let mut ledger = IndependentResourceLedger::default();
+    let draft_reserve = drafts.try_reserve_exact(1);
+    memo.observe_physical_source(drafts.capacity(), sidecar.capacity(), 0);
+    draft_reserve.unwrap();
+    let sidecar_reserve = sidecar.try_reserve_exact(1);
+    memo.observe_physical_source(drafts.capacity(), sidecar.capacity(), 0);
+    sidecar_reserve.unwrap();
+    let mut bounds = TrackedVec::<F5cRecursiveBound>::new(&meter);
+    let bound_reserve = bounds.try_reserve_exact(1);
+    memo.walker_resources.physical_joint.source_capacities[3] = bounds.capacity() as u128;
+    memo.walker_resources.physical_joint.source_event();
+    bound_reserve.unwrap();
+    bounds.push_reserved(F5cRecursiveBound {
+        ordinal: 0,
+        lower: F5cPositive::Bottom,
+        upper: F5cNegative::Top,
+    });
+    let bound_capacity = bounds.capacity();
+    let (recursive_bounds, token) = bounds.into_raw_with_token();
+    sidecar.push_reserved(token);
+    memo.walker_resources.physical_joint.source_capacities[2] = bound_capacity as u128;
+    memo.walker_resources.physical_joint.source_capacities[3] = 0;
+    memo.walker_resources.physical_joint.source_event();
+    drafts.push_reserved(GeneralizationDraft {
+        quantifier_count: 0,
+        recursive_bounds,
+        predicate: F5cPositive::Bottom,
+    });
+    let bytes = ledger
+        .record_source_draft_slots(
+            &drafts,
+            Some(&sidecar),
+            bound_capacity,
+            1,
+            1,
+            1,
+            1,
+            1,
+            &meter,
+        )
+        .unwrap();
+    assert_eq!(
+        memo.walker_resources.physical_joint.source_current,
+        bytes as u128
+    );
+    assert_eq!(ledger.source_bound_tokens.requested_slots, 1);
+    assert_eq!(ledger.source_bound_tokens.capacity_growths, 1);
+    assert_eq!(ledger.source_recursive_bounds.requested_slots, 1);
+    assert_eq!(ledger.source_recursive_bounds.capacity_growths, 1);
+    assert_eq!(
+        ledger.source_recursive_bounds.actual_capacity,
+        bound_capacity
+    );
+    drop(drafts);
+    drop(sidecar);
+    assert_eq!(meter.current_bytes(), Some(0));
+    ledger.release_source_draft_slots();
+    assert_eq!(ledger.source_recursive_bounds.retained_bytes, 0);
+}
+
+#[cfg(test)]
+#[test]
+fn source_joint_overflow_preserves_physical_lane_evidence() {
+    let mut memo = F5cComponentExpansionMemo::default();
+    let joint = &mut memo.walker_resources.physical_joint;
+    joint.source_capacities[0] = usize::MAX as u128;
+    joint.memo_current = 1;
+    joint.source_event();
+    assert!(joint.aggregate_overflow);
+    assert!(joint.peak > usize::MAX as u128);
+    assert_eq!(joint.source_capacities[0], usize::MAX as u128);
+}
+
+#[cfg(test)]
+#[test]
+fn source_meter_overflow_refreshes_joint_before_error() {
+    let mut memo = F5cComponentExpansionMemo::default();
+    memo.observe_physical_source(1, 0, 0);
+    let physical_bytes = std::mem::size_of::<GeneralizationDraft>() as u128;
+    assert_eq!(
+        memo.observe_source_bytes(None),
+        Err(SolveAvailabilityError::IdentityExhausted)
+    );
+    assert_eq!(memo.observed_source_bytes, None);
+    assert_eq!(memo.walker_resources.observed_source_bytes, None);
+    assert_eq!(
+        memo.walker_resources.physical_joint.source_current,
+        physical_bytes
+    );
 }
 
 #[cfg(test)]
@@ -9763,6 +9935,7 @@ impl InferenceSession {
         reservation.map_err(Into::into)
     }
 
+    #[cfg(test)]
     fn record_component_expansion_memo_resources(
         &mut self,
         memo: &F5cComponentExpansionMemo,
@@ -9786,11 +9959,13 @@ impl InferenceSession {
         let _walker_capacity = memo.walker_resources.actual_capacity()?;
         let walker_retained = memo.walker_resources.retained_bytes()?;
         let _walker_growths = memo.walker_resources.capacity_growths()?;
-        let simultaneous_peak = peak_bytes
-            .max(memo.walker_resources.simultaneous_memo_peak_bytes)
+        let simultaneous_peak = memo
+            .simultaneous_source_memo_peak_bytes
+            .max(memo.walker_resources.simultaneous_source_memo_peak_bytes)
             .max(
-                retained_bytes
-                    .checked_add(walker_retained)
+                source_draft_bytes
+                    .checked_add(retained_bytes)
+                    .and_then(|bytes| bytes.checked_add(walker_retained))
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?,
             );
         let total_requested_slots = self
@@ -9806,12 +9981,16 @@ impl InferenceSession {
         let semantic_peak = self.execution_counters.semantic_arena_peak_bytes.max(
             self.execution_counters
                 .semantic_arena_retained_bytes
+                .checked_sub(source_draft_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .checked_add(simultaneous_peak)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
         let session_peak = self.execution_counters.inference_session_peak_bytes.max(
             self.execution_counters
                 .inference_session_retained_bytes
+                .checked_sub(source_draft_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?
                 .checked_add(simultaneous_peak)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
@@ -9969,8 +10148,29 @@ impl InferenceSession {
             // without changing capacity, so sample it independently.
             sample_boundary!(ResourceBoundary::DraftScratchClear)?;
             let source_meter = DraftHeapMeter::default();
+            let mut bound_sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&source_meter);
             let mut generalization_drafts = TrackedVec::new(&source_meter);
+            let mut component_expansion_memo = F5cComponentExpansionMemo::default();
             let initial_reserve = generalization_drafts.try_reserve_exact(members.len());
+            #[cfg(test)]
+            component_expansion_memo.observe_physical_source(
+                generalization_drafts.capacity(),
+                bound_sidecar.capacity(),
+                0,
+            );
+            component_expansion_memo.observe_source_bytes(source_meter.current_bytes())?;
+            let sidecar_reserve = if initial_reserve.is_ok() {
+                bound_sidecar.try_reserve_exact(members.len())
+            } else {
+                Err(())
+            };
+            #[cfg(test)]
+            component_expansion_memo.observe_physical_source(
+                generalization_drafts.capacity(),
+                bound_sidecar.capacity(),
+                0,
+            );
+            component_expansion_memo.observe_source_bytes(source_meter.current_bytes())?;
             source_draft_bytes = source_meter
                 .current_bytes()
                 .and_then(|bytes| bytes.checked_add(DraftHeapMeter::fixed_payload_bytes()))
@@ -9978,20 +10178,31 @@ impl InferenceSession {
             #[cfg(test)]
             self.resource_ledger.record_source_draft_slots(
                 &generalization_drafts,
+                Some(&bound_sidecar),
+                0,
                 members.len(),
                 usize::from(generalization_drafts.capacity() > 0),
+                if initial_reserve.is_ok() {
+                    members.len()
+                } else {
+                    0
+                },
+                0,
+                0,
                 &source_meter,
             )?;
             sample_boundary!(ResourceBoundary::SourceDrafts)?;
-            if initial_reserve.is_err() {
+            if initial_reserve.is_err() || sidecar_reserve.is_err() {
                 drop(generalization_drafts);
+                drop(bound_sidecar);
                 drop(source_meter);
                 #[cfg(test)]
                 self.resource_ledger.release_source_draft_slots();
                 return Err(SolveAvailabilityError::IdentityExhausted);
             }
-            let mut component_expansion_memo = F5cComponentExpansionMemo::default();
             let frozen_bound_epoch = self.execution_counters.scc_execution_component_visits;
+            #[cfg(test)]
+            let mut held_bound_capacity = 0usize;
             for member_index in 0..members.len() {
                 let member = &members[member_index];
                 self.execution_counters.scc_execution_draft_members += 1;
@@ -10000,13 +10211,25 @@ impl InferenceSession {
                     observer.record(|| ExecutionEvent::Drafted(member.clone()));
                 }
                 let admissions_before = component_expansion_memo.root_lane.requested_slots;
+                #[cfg(test)]
+                let bound_reserves_before = component_expansion_memo.recursive_bound_reserves.len();
                 let (draft, returned_memo, hits, uncacheable) = self
                     .component_generalization_draft(
                         member,
                         component_expansion_memo,
                         frozen_bound_epoch,
+                        Some(&mut bound_sidecar),
                     );
                 component_expansion_memo = returned_memo;
+                #[cfg(test)]
+                self.resource_ledger
+                    .record_source_recursive_bound_reserves(
+                        &component_expansion_memo.recursive_bound_reserves[bound_reserves_before..],
+                        held_bound_capacity,
+                    )?;
+                source_draft_bytes = source_meter
+                    .current_bytes()
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 let draft = match draft {
                     Ok(draft) => draft,
                     Err(error) => {
@@ -10039,7 +10262,25 @@ impl InferenceSession {
                     .generalization_uncacheable_states
                     .checked_add(uncacheable)
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                #[cfg(test)]
+                {
+                    held_bound_capacity = held_bound_capacity
+                        .checked_add(draft.recursive_bounds.capacity())
+                        .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                }
                 generalization_drafts.push_reserved(draft);
+                #[cfg(test)]
+                self.resource_ledger.record_source_draft_slots(
+                    &generalization_drafts,
+                    Some(&bound_sidecar),
+                    held_bound_capacity,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    &source_meter,
+                )?;
             }
             self.record_component_expansion_memo_resources_with_source(
                 &component_expansion_memo,
@@ -10068,8 +10309,12 @@ impl InferenceSession {
                 &normalization_stats,
                 &mut self.execution_counters,
             )?;
+            source_draft_bytes = source_meter
+                .current_bytes()
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             if let Err(error) = normalization_result {
                 drop(generalization_drafts);
+                drop(bound_sidecar);
                 drop(source_meter);
                 #[cfg(test)]
                 self.resource_ledger.release_source_draft_slots();
@@ -10086,9 +10331,8 @@ impl InferenceSession {
             #[cfg(test)]
             assert_eq!(
                 source_draft_bytes,
-                generalization_drafts
-                    .capacity()
-                    .checked_mul(std::mem::size_of::<GeneralizationDraft>())
+                source_meter
+                    .current_bytes()
                     .and_then(|bytes| bytes.checked_add(DraftHeapMeter::fixed_payload_bytes()))
                     .expect("test source draft capacity fits"),
                 "all-drafts source slot ledger reconciles with live physical capacity"
@@ -10157,6 +10401,9 @@ impl InferenceSession {
                 if self.drafts.capacity() != old_capacity {
                     self.execution_counters.draft_scratch_growths += 1;
                 }
+                source_draft_bytes = source_meter
+                    .current_bytes()
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 sample_boundary!(ResourceBoundary::DraftMember)?;
             }
             self.execution_counters.draft_scratch_max_len = self
@@ -10164,7 +10411,11 @@ impl InferenceSession {
                 .draft_scratch_max_len
                 .max(self.drafts.len());
             drop(generalization_drafts);
+            drop(bound_sidecar);
             drop(source_meter);
+            #[cfg(test)]
+            component_expansion_memo.release_physical_source();
+            component_expansion_memo.observe_source_bytes(Some(0))?;
             source_draft_bytes = 0;
             #[cfg(test)]
             self.resource_ledger.release_source_draft_slots();
@@ -11355,17 +11606,19 @@ impl InferenceSession {
             definition,
             F5cComponentExpansionMemo::default(),
             0,
+            None,
         );
         let mut draft = result?;
         f5c_normalization::normalize_component(std::slice::from_mut(&mut draft))?;
         Ok(draft)
     }
 
-    fn component_generalization_draft(
+    fn component_generalization_draft<'meter>(
         &self,
         definition: &DefinitionOrderId,
         memo: F5cComponentExpansionMemo,
         frozen_bound_epoch: usize,
+        bound_sidecar: Option<&mut TrackedVec<'meter, TrackedAllocation<'meter>>>,
     ) -> (
         Result<GeneralizationDraft, SolveAvailabilityError>,
         F5cComponentExpansionMemo,
@@ -11380,7 +11633,8 @@ impl InferenceSession {
             .expect("definition root retains its immutable component recipe")
             .component;
         let row = self.live_components[component].ordinal as usize;
-        F5cGeneralizer::with_memo(self, memo, frozen_bound_epoch).build_component(row as u32)
+        F5cGeneralizer::with_memo(self, memo, frozen_bound_epoch)
+            .build_component_with_bound_sidecar(row as u32, bound_sidecar)
     }
 
     fn finalize_generalization_draft(
@@ -13513,6 +13767,30 @@ mod tests {
         );
         assert_eq!(session.resource_ledger.source_draft_slots.retained_bytes, 0);
         assert!(session.resource_ledger.source_draft_slots.peak_bytes > 0);
+        assert_eq!(
+            session.resource_ledger.source_bound_tokens.actual_capacity,
+            0
+        );
+        assert_eq!(
+            session.resource_ledger.source_bound_tokens.retained_bytes,
+            0
+        );
+        assert!(session.resource_ledger.source_bound_tokens.requested_slots >= 2);
+        assert!(session.resource_ledger.source_bound_tokens.capacity_growths > 0);
+        assert_eq!(
+            session
+                .resource_ledger
+                .source_recursive_bounds
+                .actual_capacity,
+            0
+        );
+        assert_eq!(
+            session
+                .resource_ledger
+                .source_recursive_bounds
+                .retained_bytes,
+            0
+        );
         assert!(session.schemes.iter().all(Option::is_none));
         assert_eq!(session.execution_counters.finish_projection_visits, 0);
         assert_eq!(
@@ -18285,6 +18563,11 @@ mod tests {
             memo.index_lane.peak_bytes,
             memo.index_retained_bytes().unwrap()
         );
+        assert_eq!(
+            memo.walker_resources.physical_joint.memo_current,
+            memo.retained_bytes().unwrap() as u128,
+            "post-reserve physical memo capacity survives later admission failure"
+        );
     }
 
     #[test]
@@ -20252,6 +20535,138 @@ mod tests {
             panic!("recursive lower side keeps the guarded Function");
         };
         assert_eq!(**result, F5cPositive::Recursive(0));
+
+        // Exercise the production builder's tracked R-bound transfer with
+        // source slots already live, then reconstruct each physical sample.
+        let meter = DraftHeapMeter::default();
+        let mut source = TrackedVec::<GeneralizationDraft>::new(&meter);
+        source.try_reserve_exact(1).unwrap();
+        let mut sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&meter);
+        sidecar.try_reserve_exact(1).unwrap();
+        let mut memo = F5cComponentExpansionMemo::default();
+        memo.observe_physical_source(source.capacity(), sidecar.capacity(), 0);
+        memo.observe_source_bytes(meter.current_bytes()).unwrap();
+        let (built, mut memo, _, _) = F5cGeneralizer::with_memo(&session, memo, 0)
+            .build_component_with_bound_sidecar(root_row, Some(&mut sidecar));
+        let built = built.unwrap();
+        assert_eq!(built.recursive_bounds.len(), 1);
+        let bound_capacity = built.recursive_bounds.capacity();
+        assert!(bound_capacity > 0);
+        let samples = &memo.recursive_bound_physical_samples;
+        assert!(
+            samples
+                .iter()
+                .any(|(capacities, memo_bytes, walker_bytes, source_bytes)| {
+                    capacities[0] == source.capacity() as u128
+                        && capacities[1] == sidecar.capacity() as u128
+                        && capacities[2] == 0
+                        && capacities[3] == bound_capacity as u128
+                        && *memo_bytes > 0
+                        && *walker_bytes > 0
+                        && *source_bytes == meter.current_bytes().unwrap() as u128
+                })
+        );
+        assert!(
+            samples
+                .iter()
+                .any(|(capacities, memo_bytes, walker_bytes, source_bytes)| {
+                    capacities[0] == source.capacity() as u128
+                        && capacities[1] == sidecar.capacity() as u128
+                        && capacities[2] == bound_capacity as u128
+                        && capacities[3] == 0
+                        && *memo_bytes > 0
+                        && *walker_bytes > 0
+                        && *source_bytes == meter.current_bytes().unwrap() as u128
+                })
+        );
+        source.push_reserved(built);
+        let mut ledger = IndependentResourceLedger::default();
+        assert_eq!(memo.recursive_bound_reserves, vec![(1, bound_capacity, 1)]);
+        ledger
+            .record_source_recursive_bound_reserves(&memo.recursive_bound_reserves, 0)
+            .unwrap();
+        let expected_source_bytes = ledger
+            .record_source_draft_slots(
+                &source,
+                Some(&sidecar),
+                bound_capacity,
+                1,
+                1,
+                1,
+                0,
+                0,
+                &meter,
+            )
+            .unwrap();
+        assert_eq!(
+            ledger.source_recursive_bounds.actual_capacity,
+            bound_capacity
+        );
+        assert_eq!(ledger.source_recursive_bounds.requested_slots, 1);
+        assert_eq!(ledger.source_recursive_bounds.capacity_growths, 1);
+        assert_eq!(
+            ledger.source_recursive_bounds.peak_bytes,
+            bound_capacity * std::mem::size_of::<F5cRecursiveBound>()
+        );
+        assert_eq!(
+            memo.walker_resources.physical_joint.source_current,
+            (expected_source_bytes - DraftHeapMeter::fixed_payload_bytes()) as u128
+        );
+        drop(source);
+        drop(sidecar);
+        assert_eq!(meter.current_bytes(), Some(0));
+        ledger.release_source_draft_slots();
+        memo.release_physical_source();
+        assert_eq!(ledger.source_recursive_bounds.retained_bytes, 0);
+        assert_eq!(
+            memo.walker_resources.physical_joint.source_capacities,
+            [0; 4]
+        );
+
+        let failure_meter = DraftHeapMeter::default();
+        let mut failure_sidecar = TrackedVec::<TrackedAllocation<'_>>::new(&failure_meter);
+        failure_sidecar.try_reserve_exact(1).unwrap();
+        let mut failure_memo = F5cComponentExpansionMemo::default();
+        failure_memo.observe_physical_source(0, failure_sidecar.capacity(), 0);
+        failure_memo.fail_reserve_at = Some((
+            f5c_generalization::F5cTestReserveFailure::RecursiveBoundAfterReserve,
+            0,
+        ));
+        let (failure, failure_memo, _, _) = F5cGeneralizer::with_memo(&session, failure_memo, 0)
+            .build_component_with_bound_sidecar(root_row, Some(&mut failure_sidecar));
+        assert_eq!(failure, Err(SolveAvailabilityError::IdentityExhausted));
+        let failed_capacity = failure_memo.recursive_bound_reserves[0].1;
+        assert_eq!(
+            failure_memo.recursive_bound_reserves,
+            vec![(1, failed_capacity, 1)]
+        );
+        let mut failure_ledger = IndependentResourceLedger::default();
+        failure_ledger
+            .record_source_recursive_bound_reserves(&failure_memo.recursive_bound_reserves, 0)
+            .unwrap();
+        assert_eq!(failure_ledger.source_recursive_bounds.requested_slots, 1);
+        assert_eq!(failure_ledger.source_recursive_bounds.capacity_growths, 1);
+        assert_eq!(failure_ledger.source_recursive_bounds.actual_capacity, 0);
+        assert_eq!(failure_ledger.source_recursive_bounds.retained_bytes, 0);
+        assert_eq!(
+            failure_ledger.source_recursive_bounds.peak_bytes,
+            failed_capacity * std::mem::size_of::<F5cRecursiveBound>()
+        );
+        assert!(
+            failure_memo
+                .recursive_bound_physical_samples
+                .iter()
+                .any(|(capacities, _, _, _)| capacities[3] > 0)
+        );
+        assert_eq!(
+            failure_memo
+                .walker_resources
+                .physical_joint
+                .source_capacities[3],
+            0
+        );
+        drop(failure_sidecar);
+        assert_eq!(failure_meter.current_bytes(), Some(0));
     }
 
     #[test]
