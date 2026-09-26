@@ -1,15 +1,14 @@
 //! Private physical source-draft allocation owners for the staged F5c ledger.
 //!
 //! The byte convention charges each vector's actual `capacity * size_of::<T>()`.
-//! `current_bytes` tracks those vector buffers only; integration adds the
-//! separate `fixed_payload_bytes` lane once for the shared meter state. Each owner wrapper
+//! `current_bytes` tracks those vector buffers only. The meter state is inline
+//! and contributes zero heap bytes. Each owner wrapper
 //! (`size_of::<TrackedVec<T>>()` or `size_of::<TrackedOne<T>>()`) is inline in
-//! its containing slot and must be classified there exactly once. The `Rc`
-//! strong/weak control words, allocator headers, padding outside these Rust
-//! values, and fragmentation are allocator metadata/control and excluded by
+//! its containing slot and must be classified there exactly once. Allocator
+//! headers, padding outside these Rust values, and fragmentation are excluded by
 //! the F5 byte convention. A zero-sized element contributes zero vector bytes.
 
-use std::{cell::Cell, ops::Deref, rc::Rc};
+use std::{cell::Cell, ops::Deref};
 
 struct MeterState {
     current: Cell<Option<usize>>,
@@ -25,8 +24,8 @@ impl Default for MeterState {
 
 /// Shared aggregate of live vector capacities. `None` means arithmetic
 /// exhaustion; no later release claims to reconstruct an exact total.
-#[derive(Clone, Default)]
-pub(super) struct DraftHeapMeter(Rc<MeterState>);
+#[derive(Default)]
+pub(super) struct DraftHeapMeter(MeterState);
 
 impl DraftHeapMeter {
     pub(super) fn current_bytes(&self) -> Option<usize> {
@@ -34,7 +33,7 @@ impl DraftHeapMeter {
     }
 
     pub(super) const fn fixed_payload_bytes() -> usize {
-        size_of::<MeterState>()
+        0
     }
 
     fn replace(&self, old: usize, new: usize) -> Result<(), ()> {
@@ -56,12 +55,12 @@ impl DraftHeapMeter {
     }
 }
 
-struct AllocationToken {
-    meter: DraftHeapMeter,
+struct AllocationToken<'meter> {
+    meter: &'meter DraftHeapMeter,
     bytes: usize,
 }
 
-impl AllocationToken {
+impl AllocationToken<'_> {
     fn reconcile<T>(&mut self, capacity: usize) -> Result<(), ()> {
         let Some(bytes) = capacity.checked_mul(size_of::<T>()) else {
             self.meter.0.current.set(None);
@@ -74,7 +73,7 @@ impl AllocationToken {
     }
 }
 
-impl Drop for AllocationToken {
+impl Drop for AllocationToken<'_> {
     fn drop(&mut self) {
         self.meter.release(self.bytes);
     }
@@ -82,19 +81,16 @@ impl Drop for AllocationToken {
 
 /// A vector whose allocation stays charged until its elements and buffer drop.
 /// No raw `Vec` or mutable vector dereference escapes this owner.
-pub(super) struct TrackedVec<T> {
+pub(super) struct TrackedVec<'meter, T> {
     values: Option<Vec<T>>,
-    token: AllocationToken,
+    token: AllocationToken<'meter>,
 }
 
-impl<T> TrackedVec<T> {
-    pub(super) fn new(meter: &DraftHeapMeter) -> Self {
+impl<'meter, T> TrackedVec<'meter, T> {
+    pub(super) fn new(meter: &'meter DraftHeapMeter) -> Self {
         Self {
             values: Some(Vec::new()),
-            token: AllocationToken {
-                meter: meter.clone(),
-                bytes: 0,
-            },
+            token: AllocationToken { meter, bytes: 0 },
         }
     }
 
@@ -108,6 +104,19 @@ impl<T> TrackedVec<T> {
 
     pub(super) fn accounted_bytes(&self) -> usize {
         self.token.bytes
+    }
+
+    pub(super) fn as_mut_slice(&mut self) -> &mut [T] {
+        self.values.as_mut().unwrap().as_mut_slice()
+    }
+
+    /// Append after the caller has reserved the complete batch.
+    pub(super) fn push_reserved(&mut self, value: T) {
+        assert!(
+            self.len() < self.capacity(),
+            "tracked batch capacity exhausted"
+        );
+        self.values.as_mut().unwrap().push(value);
     }
 
     pub(super) fn pop(&mut self) -> Option<T> {
@@ -167,7 +176,7 @@ impl<T> TrackedVec<T> {
         &self,
         mut copy: impl FnMut(&T) -> Result<T, ()>,
     ) -> Result<Self, ()> {
-        let mut cloned = Self::new(&self.token.meter);
+        let mut cloned = Self::new(self.token.meter);
         cloned.try_reserve(self.len())?;
         for item in self.iter() {
             cloned.try_push(copy(item)?)?;
@@ -176,26 +185,26 @@ impl<T> TrackedVec<T> {
     }
 }
 
-impl<T> Deref for TrackedVec<T> {
+impl<T> Deref for TrackedVec<'_, T> {
     type Target = [T];
     fn deref(&self) -> &Self::Target {
         self.values.as_ref().unwrap()
     }
 }
 
-impl<T> Drop for TrackedVec<T> {
+impl<T> Drop for TrackedVec<'_, T> {
     fn drop(&mut self) {
         drop(self.values.take());
         // `token` releases capacity after the vector allocation is gone.
     }
 }
 
-pub(super) struct TrackedIntoIter<T> {
+pub(super) struct TrackedIntoIter<'meter, T> {
     iter: Option<std::vec::IntoIter<T>>,
-    token: AllocationToken,
+    token: AllocationToken<'meter>,
 }
 
-impl<T> Iterator for TrackedIntoIter<T> {
+impl<T> Iterator for TrackedIntoIter<'_, T> {
     type Item = T;
     fn next(&mut self) -> Option<T> {
         self.iter.as_mut().unwrap().next()
@@ -205,24 +214,24 @@ impl<T> Iterator for TrackedIntoIter<T> {
     }
 }
 
-impl<T> ExactSizeIterator for TrackedIntoIter<T> {}
+impl<T> ExactSizeIterator for TrackedIntoIter<'_, T> {}
 
-impl<T> DoubleEndedIterator for TrackedIntoIter<T> {
+impl<T> DoubleEndedIterator for TrackedIntoIter<'_, T> {
     fn next_back(&mut self) -> Option<T> {
         self.iter.as_mut().unwrap().next_back()
     }
 }
 
-impl<T> Drop for TrackedIntoIter<T> {
+impl<T> Drop for TrackedIntoIter<'_, T> {
     fn drop(&mut self) {
         drop(self.iter.take());
         // `token` releases capacity after the iterator's buffer is gone.
     }
 }
 
-impl<T> IntoIterator for TrackedVec<T> {
+impl<'meter, T> IntoIterator for TrackedVec<'meter, T> {
     type Item = T;
-    type IntoIter = TrackedIntoIter<T>;
+    type IntoIter = TrackedIntoIter<'meter, T>;
     fn into_iter(mut self) -> Self::IntoIter {
         let values = self.values.take().unwrap();
         let bytes = self.token.bytes;
@@ -230,7 +239,7 @@ impl<T> IntoIterator for TrackedVec<T> {
         TrackedIntoIter {
             iter: Some(values.into_iter()),
             token: AllocationToken {
-                meter: self.token.meter.clone(),
+                meter: self.token.meter,
                 bytes,
             },
         }
@@ -238,10 +247,10 @@ impl<T> IntoIterator for TrackedVec<T> {
 }
 
 /// One item with the same fallible allocation and accounting path as a vector.
-pub(super) struct TrackedOne<T>(TrackedVec<T>);
+pub(super) struct TrackedOne<'meter, T>(TrackedVec<'meter, T>);
 
-impl<T> TrackedOne<T> {
-    pub(super) fn try_new(meter: &DraftHeapMeter, value: T) -> Result<Self, ()> {
+impl<'meter, T> TrackedOne<'meter, T> {
+    pub(super) fn try_new(meter: &'meter DraftHeapMeter, value: T) -> Result<Self, ()> {
         let mut values = TrackedVec::new(meter);
         values.try_push(value)?;
         Ok(Self(values))
@@ -256,7 +265,7 @@ impl<T> TrackedOne<T> {
     }
 }
 
-impl<T> Deref for TrackedOne<T> {
+impl<T> Deref for TrackedOne<'_, T> {
     type Target = [T];
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -271,10 +280,7 @@ mod tests {
     #[test]
     fn growth_and_checked_clone() {
         let meter = DraftHeapMeter::default();
-        assert_eq!(
-            DraftHeapMeter::fixed_payload_bytes(),
-            size_of::<MeterState>()
-        );
+        assert_eq!(DraftHeapMeter::fixed_payload_bytes(), 0);
         let mut lane = TrackedVec::new(&meter);
         lane.try_push(3_u64).unwrap();
         lane.try_push(5).unwrap();
@@ -371,16 +377,16 @@ mod tests {
 
     #[test]
     fn elements_drop_before_capacity_release() {
-        struct Witness(DraftHeapMeter, Rc<Cell<bool>>);
-        impl Drop for Witness {
+        struct Witness<'a>(&'a DraftHeapMeter, std::rc::Rc<Cell<bool>>);
+        impl Drop for Witness<'_> {
             fn drop(&mut self) {
                 assert!(self.0.current_bytes().unwrap() > 0);
                 self.1.set(true);
             }
         }
         let meter = DraftHeapMeter::default();
-        let dropped = Rc::new(Cell::new(false));
-        let one = TrackedOne::try_new(&meter, Witness(meter.clone(), dropped.clone())).unwrap();
+        let dropped = std::rc::Rc::new(Cell::new(false));
+        let one = TrackedOne::try_new(&meter, Witness(&meter, dropped.clone())).unwrap();
         assert!(one.accounted_bytes() > 0);
         drop(one);
         assert!(dropped.get());

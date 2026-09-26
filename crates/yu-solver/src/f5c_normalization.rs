@@ -1927,17 +1927,44 @@ fn validate_prior_links(
 pub(super) fn normalize_component(
     drafts: &mut [GeneralizationDraft],
 ) -> Result<NormalizationStats, SolveAvailabilityError> {
+    let mut stats = NormalizationStats::default();
+    normalize_component_with_stats(drafts, &mut stats)?;
+    Ok(stats)
+}
+
+pub(super) fn normalize_component_with_stats(
+    drafts: &mut [GeneralizationDraft],
+    observed_stats: &mut NormalizationStats,
+) -> Result<(), SolveAvailabilityError> {
+    normalize_component_inner(drafts, observed_stats, false)
+}
+
+fn normalize_component_inner(
+    drafts: &mut [GeneralizationDraft],
+    observed_stats: &mut NormalizationStats,
+    fail_after_collect: bool,
+) -> Result<(), SolveAvailabilityError> {
     let mut normalizer = Normalizer::new();
-    normalizer.collect_drafts(drafts)?;
-    normalizer.rank_all()?;
-    normalizer.rebuild(drafts)?;
+    let result = normalizer
+        .collect_drafts(drafts)
+        .and_then(|()| {
+            if fail_after_collect {
+                Err(SolveAvailabilityError::IdentityExhausted)
+            } else {
+                normalizer.rank_all()
+            }
+        })
+        .and_then(|()| normalizer.rebuild(drafts));
     #[cfg(test)]
     let (physical_lane_capacities, physical_lane_slot_sizes) = normalizer.physical_lane_snapshot();
-    let mut stats = normalizer.stats.clone();
+    let mut stats = std::mem::take(&mut normalizer.stats);
     #[cfg(test)]
     {
         stats.physical_lane_capacities = physical_lane_capacities;
         stats.physical_lane_slot_sizes = physical_lane_slot_sizes;
+        for (lane, slot_size) in stats.index_lanes.iter_mut().zip(physical_lane_slot_sizes) {
+            lane.slot_size = slot_size;
+        }
     }
     stats.index_actual_capacity = 0;
     stats.index_retained_bytes = 0;
@@ -1945,7 +1972,8 @@ pub(super) fn normalize_component(
         lane.actual_capacity = 0;
         lane.retained_bytes = 0;
     }
-    Ok(stats)
+    *observed_stats = stats;
+    result
 }
 
 /// Normalize the selected root forest without creating boxed values.
@@ -3407,6 +3435,103 @@ mod tests {
             assert_eq!(lane.retained_bytes, 0);
             assert_eq!(lane.peak_capacity * lane.slot_size, lane.peak_bytes);
         }
+    }
+
+    #[test]
+    fn normalization_peak_includes_live_source_slots() {
+        let mut drafts = [draft(F5cPositive::Union(
+            (0..12).map(F5cPositive::Quantified).collect(),
+        ))];
+        let stats = normalize_component(&mut drafts).unwrap();
+        let source_meter = crate::DraftHeapMeter::default();
+        let mut source =
+            crate::f5c_draft_heap::TrackedVec::<crate::GeneralizationDraft>::new(&source_meter);
+        source.try_reserve_exact(3).unwrap();
+        let source_bytes = source.capacity() * std::mem::size_of::<crate::GeneralizationDraft>()
+            + crate::DraftHeapMeter::fixed_payload_bytes();
+        assert_eq!(
+            source_meter.current_bytes().unwrap() + crate::DraftHeapMeter::fixed_payload_bytes(),
+            source_bytes
+        );
+        let mut counters = crate::ProductionCounters::default();
+        counters.semantic_arena_retained_bytes = source_bytes;
+        counters.inference_session_retained_bytes = source_bytes;
+        record_production_counters(&stats, &mut counters).unwrap();
+        let mut independent = crate::IndependentResourceLedger::default();
+        independent.semantic_arena_retained_bytes = source_bytes;
+        independent.inference_session_retained_bytes = source_bytes;
+        independent
+            .record_closed_normalization_index(&stats)
+            .unwrap();
+        assert_eq!(
+            counters.semantic_arena_peak_bytes,
+            source_bytes + stats.index_peak_bytes
+        );
+        assert_eq!(
+            independent.semantic_arena_peak_bytes,
+            source_bytes + stats.index_peak_bytes
+        );
+        assert_eq!(
+            independent.inference_session_peak_bytes,
+            source_bytes + stats.index_peak_bytes
+        );
+    }
+
+    #[test]
+    fn failed_normalization_reports_live_source_and_scratch_peak() {
+        let meter = crate::DraftHeapMeter::default();
+        let mut source =
+            crate::f5c_draft_heap::TrackedVec::<crate::GeneralizationDraft>::new(&meter);
+        source.try_reserve_exact(1).unwrap();
+        source.push_reserved(draft(F5cPositive::Union(
+            (0..12).map(F5cPositive::Quantified).collect(),
+        )));
+        let source_bytes = source.capacity() * std::mem::size_of::<crate::GeneralizationDraft>()
+            + crate::DraftHeapMeter::fixed_payload_bytes();
+        let mut stats = NormalizationStats::default();
+        assert_eq!(
+            normalize_component_inner(source.as_mut_slice(), &mut stats, true),
+            Err(SolveAvailabilityError::IdentityExhausted)
+        );
+        assert!(stats.index_peak_bytes > 0);
+        assert_eq!(
+            meter.current_bytes().unwrap() + crate::DraftHeapMeter::fixed_payload_bytes(),
+            source_bytes
+        );
+        let physical_bytes: usize = stats
+            .physical_lane_capacities
+            .iter()
+            .zip(stats.physical_lane_slot_sizes)
+            .map(|(capacity, slot_size)| capacity * slot_size)
+            .sum();
+        assert_eq!(stats.index_peak_bytes, physical_bytes);
+        assert_eq!(stats.index_retained_bytes, 0);
+        assert!(
+            stats
+                .index_lanes
+                .iter()
+                .all(|lane| lane.retained_bytes == 0)
+        );
+        let mut counters = crate::ProductionCounters::default();
+        counters.semantic_arena_retained_bytes = source_bytes;
+        counters.inference_session_retained_bytes = source_bytes;
+        record_production_counters(&stats, &mut counters).unwrap();
+        let mut independent = crate::IndependentResourceLedger::default();
+        independent.semantic_arena_retained_bytes = source_bytes;
+        independent.inference_session_retained_bytes = source_bytes;
+        independent
+            .record_closed_normalization_index(&stats)
+            .unwrap();
+        assert_eq!(
+            counters.semantic_arena_peak_bytes,
+            source_bytes + physical_bytes
+        );
+        assert_eq!(
+            independent.semantic_arena_peak_bytes,
+            source_bytes + physical_bytes
+        );
+        drop(source);
+        assert_eq!(meter.current_bytes(), Some(0));
     }
 
     #[test]

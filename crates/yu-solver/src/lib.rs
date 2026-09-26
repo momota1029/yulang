@@ -182,6 +182,7 @@ mod f5c_binder_substitution;
 mod f5c_draft;
 #[allow(dead_code)] // The physical source-draft owners await the next migration slice.
 mod f5c_draft_heap;
+use f5c_draft_heap::{DraftHeapMeter, TrackedVec};
 mod f5c_generalization;
 #[cfg(test)]
 use f5c_generalization::{
@@ -3710,6 +3711,8 @@ enum ResourceBoundary {
     CrossKind,
     InternalRoute,
     DraftScratchClear,
+    SourceDrafts,
+    AllDrafts,
     DraftMember,
     SchemeInstall,
     IncomingRoute,
@@ -3742,6 +3745,7 @@ struct IndependentResourceLedger {
     component_expansion_memo_retained_bytes: usize,
     component_expansion_memo_peak_bytes: usize,
     component_expansion_memo_capacity_growths: usize,
+    source_draft_slots: IndependentMemoLane,
     component_expansion_memo_roots: IndependentMemoLane,
     component_expansion_memo_nodes: IndependentMemoLane,
     component_expansion_memo_children: IndependentMemoLane,
@@ -3849,6 +3853,44 @@ impl IndependentNestedCapacityLedger {
 
 #[cfg(test)]
 impl IndependentResourceLedger {
+    fn record_source_draft_slots(
+        &mut self,
+        drafts: &TrackedVec<GeneralizationDraft>,
+        requested: usize,
+        growths: usize,
+        meter: &DraftHeapMeter,
+    ) -> Result<usize, SolveAvailabilityError> {
+        let buffer_bytes = drafts
+            .capacity()
+            .checked_mul(std::mem::size_of::<GeneralizationDraft>())
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let payload_bytes = DraftHeapMeter::fixed_payload_bytes();
+        let bytes = buffer_bytes
+            .checked_add(payload_bytes)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        if meter.current_bytes() != Some(buffer_bytes) {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
+        let lane = &mut self.source_draft_slots;
+        lane.requested_slots = lane
+            .requested_slots
+            .checked_add(requested)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        lane.capacity_growths = lane
+            .capacity_growths
+            .checked_add(growths)
+            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        lane.actual_capacity = drafts.capacity();
+        lane.retained_bytes = buffer_bytes;
+        lane.peak_bytes = lane.peak_bytes.max(buffer_bytes);
+        Ok(bytes)
+    }
+
+    fn release_source_draft_slots(&mut self) {
+        self.source_draft_slots.actual_capacity = 0;
+        self.source_draft_slots.retained_bytes = 0;
+    }
+
     fn record_term_lanes(
         &mut self,
         owner: term::TermOwnerLanes,
@@ -3943,6 +3985,14 @@ impl IndependentResourceLedger {
     fn record_component_expansion_memo(
         &mut self,
         memo: &F5cComponentExpansionMemo,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.record_component_expansion_memo_with_source(memo, 0)
+    }
+
+    fn record_component_expansion_memo_with_source(
+        &mut self,
+        memo: &F5cComponentExpansionMemo,
+        _source_draft_bytes: usize,
     ) -> Result<(), SolveAvailabilityError> {
         let mut next = self.clone();
         next.record_component_expansion_memo_inner(memo)?;
@@ -4646,6 +4696,32 @@ impl IndependentResourceLedger {
         self.inference_session_peak_bytes = self.inference_session_peak_bytes.max(full_session);
         Ok(())
     }
+}
+
+#[cfg(test)]
+#[test]
+fn source_draft_slot_ledger_reconciles_failed_initial_reserve_and_release() {
+    let meter = DraftHeapMeter::default();
+    let mut drafts = TrackedVec::<GeneralizationDraft>::new(&meter);
+    let mut ledger = IndependentResourceLedger::default();
+    let failed = drafts.try_reserve_exact(usize::MAX);
+    let bytes = ledger
+        .record_source_draft_slots(
+            &drafts,
+            usize::MAX,
+            usize::from(drafts.capacity() > 0),
+            &meter,
+        )
+        .unwrap();
+    assert_eq!(failed, Err(()));
+    assert_eq!(ledger.source_draft_slots.actual_capacity, drafts.capacity());
+    assert_eq!(ledger.source_draft_slots.retained_bytes, bytes);
+    drop(drafts);
+    assert_eq!(meter.current_bytes(), Some(0));
+    ledger.release_source_draft_slots();
+    assert_eq!(ledger.source_draft_slots.actual_capacity, 0);
+    assert_eq!(ledger.source_draft_slots.retained_bytes, 0);
+    assert_eq!(ledger.source_draft_slots.peak_bytes, bytes);
 }
 
 #[cfg(test)]
@@ -7210,6 +7286,7 @@ impl InferenceSession {
             #[cfg(test)]
             self.sample_fixed_capacity_probe,
             self.current_closed_retained_bytes,
+            0,
             self.batch.counters.f2_batch_retained_bytes,
             self.batch.component_term_positions.capacity(),
             route_journal_retained_bytes,
@@ -7292,6 +7369,7 @@ impl InferenceSession {
         instantiation_scratch: &InstantiationScratch,
         #[cfg(test)] sample_fixed_capacity_probe: Option<SampleFixedCapacityProbe>,
         closed_type_retained_bytes: usize,
+        source_draft_bytes: usize,
         f2_batch_retained_bytes: usize,
         component_term_positions_capacity: usize,
         route_journal_retained_bytes: usize,
@@ -7544,6 +7622,7 @@ impl InferenceSession {
                 drafts_bytes,
                 instantiation_bytes,
                 closed_type_retained_bytes,
+                source_draft_bytes,
                 exact_bytes,
                 inference_term_bytes,
                 route_journal_retained_bytes,
@@ -7636,6 +7715,20 @@ impl InferenceSession {
                 independent_nested_capacities,
                 independent_route_journal_retained_bytes,
             )?;
+            prepared_ledger.semantic_arena_retained_bytes = prepared_ledger
+                .semantic_arena_retained_bytes
+                .checked_add(source_draft_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            prepared_ledger.inference_session_retained_bytes = prepared_ledger
+                .inference_session_retained_bytes
+                .checked_add(source_draft_bytes)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            prepared_ledger.semantic_arena_peak_bytes = prepared_ledger
+                .semantic_arena_peak_bytes
+                .max(prepared_ledger.semantic_arena_retained_bytes);
+            prepared_ledger.inference_session_peak_bytes = prepared_ledger
+                .inference_session_peak_bytes
+                .max(prepared_ledger.inference_session_retained_bytes);
             *resource_ledger = prepared_ledger;
         }
         *published_counters = prepared_counters;
@@ -9674,6 +9767,14 @@ impl InferenceSession {
         &mut self,
         memo: &F5cComponentExpansionMemo,
     ) -> Result<(), SolveAvailabilityError> {
+        self.record_component_expansion_memo_resources_with_source(memo, 0)
+    }
+
+    fn record_component_expansion_memo_resources_with_source(
+        &mut self,
+        memo: &F5cComponentExpansionMemo,
+        source_draft_bytes: usize,
+    ) -> Result<(), SolveAvailabilityError> {
         let requested_slots = memo.requested_slots()?;
         let actual_capacity = memo.actual_capacity()?;
         let retained_bytes = memo.retained_bytes()?;
@@ -9715,7 +9816,8 @@ impl InferenceSession {
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
         );
         #[cfg(test)]
-        self.resource_ledger.record_component_expansion_memo(memo)?;
+        self.resource_ledger
+            .record_component_expansion_memo_with_source(memo, source_draft_bytes)?;
         self.execution_counters
             .component_expansion_memo_requested_slots = total_requested_slots;
         self.execution_counters
@@ -9734,6 +9836,16 @@ impl InferenceSession {
     }
 
     fn execute_scc_plan(&mut self) -> Result<(), SolveAvailabilityError> {
+        let result = self.execute_scc_plan_inner();
+        #[cfg(test)]
+        if result.is_err() {
+            self.resource_ledger.release_source_draft_slots();
+        }
+        result
+    }
+
+    fn execute_scc_plan_inner(&mut self) -> Result<(), SolveAvailabilityError> {
+        let mut source_draft_bytes = 0usize;
         // The F2 plan is dependency-sink-first.  All three partition slices
         // stay borrowed for their complete phase; only durable route records
         // copy their identity after admission.
@@ -9785,6 +9897,7 @@ impl InferenceSession {
                     #[cfg(test)]
                     self.sample_fixed_capacity_probe,
                     self.current_closed_retained_bytes,
+                    source_draft_bytes,
                     self.batch.counters.f2_batch_retained_bytes,
                     self.batch.component_term_positions.capacity(),
                     self.route_journal
@@ -9855,7 +9968,28 @@ impl InferenceSession {
             // `clear` is a reuse boundary: it changes live draft ownership
             // without changing capacity, so sample it independently.
             sample_boundary!(ResourceBoundary::DraftScratchClear)?;
-            let mut generalization_drafts = Vec::with_capacity(members.len());
+            let source_meter = DraftHeapMeter::default();
+            let mut generalization_drafts = TrackedVec::new(&source_meter);
+            let initial_reserve = generalization_drafts.try_reserve_exact(members.len());
+            source_draft_bytes = source_meter
+                .current_bytes()
+                .and_then(|bytes| bytes.checked_add(DraftHeapMeter::fixed_payload_bytes()))
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            #[cfg(test)]
+            self.resource_ledger.record_source_draft_slots(
+                &generalization_drafts,
+                members.len(),
+                usize::from(generalization_drafts.capacity() > 0),
+                &source_meter,
+            )?;
+            sample_boundary!(ResourceBoundary::SourceDrafts)?;
+            if initial_reserve.is_err() {
+                drop(generalization_drafts);
+                drop(source_meter);
+                #[cfg(test)]
+                self.resource_ledger.release_source_draft_slots();
+                return Err(SolveAvailabilityError::IdentityExhausted);
+            }
             let mut component_expansion_memo = F5cComponentExpansionMemo::default();
             let frozen_bound_epoch = self.execution_counters.scc_execution_component_visits;
             for member_index in 0..members.len() {
@@ -9876,7 +10010,10 @@ impl InferenceSession {
                 let draft = match draft {
                     Ok(draft) => draft,
                     Err(error) => {
-                        self.record_component_expansion_memo_resources(&component_expansion_memo)?;
+                        self.record_component_expansion_memo_resources_with_source(
+                            &component_expansion_memo,
+                            source_draft_bytes,
+                        )?;
                         return Err(error);
                     }
                 };
@@ -9902,9 +10039,12 @@ impl InferenceSession {
                     .generalization_uncacheable_states
                     .checked_add(uncacheable)
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                generalization_drafts.push(draft);
+                generalization_drafts.push_reserved(draft);
             }
-            self.record_component_expansion_memo_resources(&component_expansion_memo)?;
+            self.record_component_expansion_memo_resources_with_source(
+                &component_expansion_memo,
+                source_draft_bytes,
+            )?;
             component_expansion_memo.clear();
             self.execution_counters
                 .component_expansion_memo_actual_capacity = 0;
@@ -9912,9 +10052,15 @@ impl InferenceSession {
                 .component_expansion_memo_retained_bytes = 0;
             #[cfg(test)]
             self.resource_ledger
-                .record_component_expansion_memo(&component_expansion_memo)?;
-            let normalization_stats =
-                f5c_normalization::normalize_component(&mut generalization_drafts)?;
+                .record_component_expansion_memo_with_source(
+                    &component_expansion_memo,
+                    source_draft_bytes,
+                )?;
+            let mut normalization_stats = f5c_normalization::NormalizationStats::default();
+            let normalization_result = f5c_normalization::normalize_component_with_stats(
+                generalization_drafts.as_mut_slice(),
+                &mut normalization_stats,
+            );
             #[cfg(test)]
             self.resource_ledger
                 .record_closed_normalization_index(&normalization_stats)?;
@@ -9922,6 +10068,13 @@ impl InferenceSession {
                 &normalization_stats,
                 &mut self.execution_counters,
             )?;
+            if let Err(error) = normalization_result {
+                drop(generalization_drafts);
+                drop(source_meter);
+                #[cfg(test)]
+                self.resource_ledger.release_source_draft_slots();
+                return Err(error);
+            }
             self.execution_counters
                 .scc_execution_drafts_visible_barriers += 1;
             #[cfg(test)]
@@ -9930,7 +10083,18 @@ impl InferenceSession {
                     ExecutionEvent::DraftsVisible(component.clone(), generalization_drafts.len())
                 });
             }
-            for plan in &generalization_drafts {
+            #[cfg(test)]
+            assert_eq!(
+                source_draft_bytes,
+                generalization_drafts
+                    .capacity()
+                    .checked_mul(std::mem::size_of::<GeneralizationDraft>())
+                    .and_then(|bytes| bytes.checked_add(DraftHeapMeter::fixed_payload_bytes()))
+                    .expect("test source draft capacity fits"),
+                "all-drafts source slot ledger reconciles with live physical capacity"
+            );
+            sample_boundary!(ResourceBoundary::AllDrafts)?;
+            for plan in generalization_drafts.iter() {
                 let old_capacity = self.drafts.capacity();
                 #[cfg(test)]
                 let inject_finalization_failure = if self.injected_finalization_failure_after
@@ -9999,6 +10163,11 @@ impl InferenceSession {
                 .execution_counters
                 .draft_scratch_max_len
                 .max(self.drafts.len());
+            drop(generalization_drafts);
+            drop(source_meter);
+            source_draft_bytes = 0;
+            #[cfg(test)]
+            self.resource_ledger.release_source_draft_slots();
             for (ordinal, member) in members.iter().enumerate() {
                 self.execution_counters.scc_execution_draft_lookups += 1;
                 self.execution_counters.scc_execution_finalized_members += 1;
@@ -13338,6 +13507,12 @@ mod tests {
         );
         assert_eq!(session.successful_finalizations, 1);
         assert_eq!(session.drafts.len(), 1);
+        assert_eq!(
+            session.resource_ledger.source_draft_slots.actual_capacity,
+            0
+        );
+        assert_eq!(session.resource_ledger.source_draft_slots.retained_bytes, 0);
+        assert!(session.resource_ledger.source_draft_slots.peak_bytes > 0);
         assert!(session.schemes.iter().all(Option::is_none));
         assert_eq!(session.execution_counters.finish_projection_visits, 0);
         assert_eq!(
@@ -18241,6 +18416,64 @@ mod tests {
                 .component_expansion_memo_peak_bytes,
             independent.component_expansion_memo_peak_bytes
         );
+
+        let meter = DraftHeapMeter::default();
+        let mut source = TrackedVec::<GeneralizationDraft>::new(&meter);
+        source.try_reserve_exact(2).unwrap();
+        let source_bytes = source
+            .accounted_bytes()
+            .checked_add(DraftHeapMeter::fixed_payload_bytes())
+            .unwrap();
+        assert_eq!(
+            source_bytes,
+            source.capacity() * std::mem::size_of::<GeneralizationDraft>()
+                + DraftHeapMeter::fixed_payload_bytes()
+        );
+        let mut with_source = IndependentResourceLedger::default();
+        with_source.semantic_arena_retained_bytes = source_bytes;
+        with_source.inference_session_retained_bytes = source_bytes;
+        with_source
+            .record_component_expansion_memo_with_source(&root_memo, source_bytes)
+            .unwrap();
+        with_source
+            .record_component_expansion_memo_with_source(&child_memo, source_bytes)
+            .unwrap();
+        assert_eq!(
+            with_source.semantic_arena_peak_bytes,
+            source_bytes + expected_peak
+        );
+        assert!(source_bytes + historical_lane_peak_sum > with_source.semantic_arena_peak_bytes);
+        let mut source_session = InferenceSession::new(collect(module(
+            "my f = 1",
+            "f5c-component-source-coexistence",
+        )));
+        let source_session_baseline = source_session
+            .execution_counters
+            .semantic_arena_retained_bytes;
+        // The SourceDrafts boundary has sampled the live source buffer before
+        // any memo peak in the real component execution order.
+        source_session
+            .execution_counters
+            .semantic_arena_retained_bytes += source_bytes;
+        source_session
+            .execution_counters
+            .inference_session_retained_bytes += source_bytes;
+        source_session.resource_ledger.semantic_arena_retained_bytes += source_bytes;
+        source_session
+            .resource_ledger
+            .inference_session_retained_bytes += source_bytes;
+        source_session
+            .record_component_expansion_memo_resources_with_source(&root_memo, source_bytes)
+            .unwrap();
+        source_session
+            .record_component_expansion_memo_resources_with_source(&child_memo, source_bytes)
+            .unwrap();
+        assert_eq!(
+            source_session.execution_counters.semantic_arena_peak_bytes,
+            source_session_baseline + source_bytes + expected_peak
+        );
+        drop(source);
+        assert_eq!(meter.current_bytes(), Some(0));
         assert_eq!(
             session.resource_ledger.component_expansion_memo_peak_bytes,
             independent.component_expansion_memo_peak_bytes

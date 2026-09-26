@@ -4,33 +4,35 @@ Updated: 2026-09-27. Branch: `yulang3`; do not modify frozen `main`.
 
 Resume handoff: [`2026-09-22 F5c scheme-closure handoff`](../notes/handoffs/2026-09-22-f5c-scheme-closure-handoff.md).
 
-### Latest continuation (2026-09-27): source-draft heap-owner foundation
+### Latest continuation (2026-09-27): outer source-draft slot ledger
 
-Added the private `f5c_draft_heap` owner primitives for the pending physical
-source-draft ledger: a shared checked capacity meter, fallible tracked vectors,
-a single-item tracked owner, and consuming iteration that retains the capacity
-charge until the iterator buffer drops. Vector element drops precede capacity
-release; reserve failures reconcile actual capacity, and aggregate overflow
-poisons future growth. Fixed meter payload remains a separately counted lane,
-and inline wrapper/control storage must be classified at integration sites.
+The per-component source-draft `Vec` now uses the private fallible tracked
+owner and reconciles its actual capacity after reserve success or failure. The
+meter is inline and borrowed, so this path allocates no tracking payload before
+the fallible reserve. `SourceDrafts` samples the slot bytes before memo work;
+memo and normalizer peaks add to that source-inclusive retained baseline once.
+Normalization exports partial scratch statistics on errors. The owner drops
+before test-ledger release on every error exit, and it drops before scheme
+installation on success.
 
-The six focused primitive tests passed with
-`RUSTC_WRAPPER= cargo test -p yu-solver --lib f5c_draft_heap --
---test-threads=1`; `cargo fmt --all -- --check` passed. Compiler-referee
-review and fresh delta review found no remaining finding in this helper slice.
-The source-draft owners are not migrated yet, so this does not close the
-all-drafts physical ledger or certify its same-time peak. No broad suite,
-resource probe, benchmark, or timing measurement ran; probe budget remains
-zero.
+M2 independent spec and performance reviews found no blocking or major issue.
+Focused checks passed: solver test-target check; six `f5c_draft_heap` tests;
+the simultaneous memo-peak, finalization-failure, failed-initial-reserve, and
+failed-normalization source-plus-scratch witnesses; `cargo fmt --check`; and
+`git diff --check`. No broad suite, probe, benchmark, or timing measurement
+ran; measurement budget remains zero.
 
-Next migrate the boxed source-draft payload owners and builders in bounded
-slices, then reconstruct their physical capacities while co-resident with
-solver and `yu-types` finalizer storage. A separate F5b authority defect remains
-open: the shipping boxed finalizer callback creates solver-owned vectors after
-entering the callback, while the F5b checkpoint observes only `yu-types`
-storage. Keep production boxed and do not claim callback accounting
-certification or cutover while resolving that scope. No numeric support
-boundary, §44 closure, F5e acceptance, or overall F5c acceptance is claimed.
+This closes only the outer source-slot owner slice. Nested predicate vectors,
+boxes, and recursive-bound vectors remain outside its charge; normalization
+can consume and rebuild those payloads, and the finalizer continues to overlap
+with source drafts. Next design and migrate a bounded nested-payload owner
+slice, then reconstruct the full same-time source, solver, and finalizer peak.
+A separate F5b authority defect remains open: the shipping boxed finalizer
+callback creates solver-owned vectors after entering the callback, while the
+F5b checkpoint observes only `yu-types` storage. Keep production boxed and do
+not claim callback accounting certification or cutover while resolving that
+scope. No numeric support boundary, §44 closure, F5e acceptance, or overall
+F5c acceptance is claimed.
 
 ### Latest continuation (2026-09-27): boxed normalizer reserve reconciliation
 
