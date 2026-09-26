@@ -1,8 +1,8 @@
 use super::F5cSummaryNodeKind;
 use super::f5c_draft::{FlatDraft, NegativeNode, NodeRef, PositiveNode};
+use super::f5c_generalization::F5cWalkerResources;
 #[cfg(test)]
 use super::f5c_generalization::{F5cBulkDrainSite, record_bulk_drain_boundary};
-use super::f5c_generalization::F5cWalkerResources;
 use super::{
     F5cComponentExpansionMemo, F5cGeneralizer, F5cNegative, F5cNegativeEffect, F5cPositive,
     F5cPositiveEffect, F5cSummaryNodeId, F5cWalkValue, F5cWalkerLaneKind, Polarity,
